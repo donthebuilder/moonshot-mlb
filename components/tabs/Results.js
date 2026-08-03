@@ -1,6 +1,7 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { gradedResultsUrl } from '../../lib/dataSource'
 import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
@@ -830,19 +831,52 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   const [subTab, setSubTab] = useState('overview')
   const [pitchPick, setPitchPick] = useState(null)
 
-  const slots = useMemo(() => {
-    if (!results) return []
-    if (Array.isArray(results.graded_slots)) return results.graded_slots
-    if (Array.isArray(results)) return results
-    if (Array.isArray(results.results)) return results.results
-    return []
-  }, [results])
+  // DAY PICKER.
+  //
+  // live_results_tracker writes graded_results_<date>.json every night and
+  // publish_data.sh keeps the last 150 on the branch — nine are there today.
+  // Nothing read them, so Results could only ever show the current day and
+  // last night's card was gone by morning.
+  //
+  // The date list comes from backtest_summary.per_day rather than by probing
+  // for files, so the picker only ever offers days that actually graded.
+  const [day, setDay] = useState('live')
+  const [dayData, setDayData] = useState(null)
+  const [dayState, setDayState] = useState('idle')
 
-  const homers = useMemo(() => Array.isArray(results?.merged_homers) ? results.merged_homers : [], [results])
-  const captureReport = results?.hr_capture_report || null
-  const uniqueReport = results?.unique_player_report || null
-  const pairPoolResults = results?.pair_pool_results || null
-  const date = String(results?.date || results?.label || 'Today')
+  const gradedDays = useMemo(() => {
+    const per = backtest?.per_day
+    const dates = Array.isArray(per) ? per.map((d) => d?.date) : Object.keys(per || {})
+    return dates.filter(Boolean).sort().reverse()
+  }, [backtest])
+
+  useEffect(() => {
+    if (day === 'live') { setDayData(null); setDayState('idle'); return }
+    let alive = true
+    setDayState('loading'); setDayData(null)
+    fetch(gradedResultsUrl(day))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) { setDayData(j); setDayState(j ? 'done' : 'missing') } })
+      .catch(() => { if (alive) setDayState('error') })
+    return () => { alive = false }
+  }, [day])
+
+  // Everything below reads `view`, so the whole tab follows the picker.
+  const view = day === 'live' ? results : dayData
+
+  const slots = useMemo(() => {
+    if (!view) return []
+    if (Array.isArray(view.graded_slots)) return view.graded_slots
+    if (Array.isArray(view)) return view
+    if (Array.isArray(view.results)) return view.results
+    return []
+  }, [view])
+
+  const homers = useMemo(() => Array.isArray(view?.merged_homers) ? view.merged_homers : [], [view])
+  const captureReport = view?.hr_capture_report || null
+  const uniqueReport = view?.unique_player_report || null
+  const pairPoolResults = view?.pair_pool_results || null
+  const date = String(view?.label || view?.date || 'Today')
 
   const topBoard = useMemo(() => slots.filter(r => r.rank != null).sort((a, b) => a.rank - b.rank), [slots])
   const hrRows = useMemo(() => slots.filter(r => r.got_hr === 1 || (r.actual_hr || 0) > 0), [slots])
@@ -855,9 +889,39 @@ export default function Results({ results, backtest, players = [], onPlayerClick
 
   const topHit = topBoard.filter(r => r.got_hr === 1 || (r.actual_hr || 0) > 0).length
 
-  if (!slots.length && !homers.length) return <Empty text="No graded results yet." />
-
   const pickRows = tab === 'board' ? topBoard : tab === 'hr' ? hrRows : allRows
+
+  const DayPicker = () => (
+    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+      <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Day</span>
+      <TabBtn active={day === 'live'} onClick={() => setDay('live')}>Live / today</TabBtn>
+      {gradedDays.map((d) => (
+        <TabBtn key={d} active={day === d} onClick={() => setDay(d)}>{d.slice(5)}</TabBtn>
+      ))}
+      {dayState === 'loading' && (
+        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>loading…</span>
+      )}
+      {day !== 'live' && (
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          graded final · picks and slate shown are that day&apos;s
+        </span>
+      )}
+    </div>
+  )
+
+  if (!slots.length && !homers.length) {
+    return (
+      <div>
+        <PanelTitle title="Results" sub="Nightly grading" />
+        <DayPicker />
+        <Empty text={
+          dayState === 'loading' ? 'Loading that day…'
+            : day !== 'live' ? `No graded file published for ${day}.`
+            : 'No graded results yet tonight — games haven’t started or nothing has been graded.'
+        } />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -871,6 +935,19 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           </div>
         }
       />
+
+      <DayPicker />
+
+      {day !== 'live' && (
+        <Card style={{ padding: '8px 13px', marginBottom: 10 }}>
+          <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55 }}>
+            Showing <b style={{ color: C.text2 }}>{date}</b>, graded and final. The Games board and
+            every other tab are still on tonight&apos;s slate — only this tab moved. Anything here
+            that needs a slate row (the Pitchers tab, HR by pitch) will match fewer players on an
+            older day, and says so where it happens.
+          </div>
+        </Card>
+      )}
 
       {/* sub-nav */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
