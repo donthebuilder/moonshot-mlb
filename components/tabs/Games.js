@@ -5,6 +5,8 @@ import { groupGames } from '../../lib/data'
 import { dateText, playerId, hrScore } from '../../lib/player'
 import { PanelTitle, Grid, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
+import SlateGlance from '../SlateGlance'
+import Heatmap from '../Heatmap'
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -108,6 +110,11 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           </div>
         }
       />
+
+      {/* Slate-level view first: which games are worth attention at a glance.
+          Ported from the Streamlit build -- the nav bar below tells you what
+          exists, this tells you which of it matters. */}
+      <SlateGlance games={games} players={players} onGameClick={scrollTo} />
 
       {/* ── Game nav bar ── */}
       <div style={{

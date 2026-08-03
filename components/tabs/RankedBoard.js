@@ -1,10 +1,11 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { playerId } from '../../lib/player'
+import { playerId, nameOf, nn, hrScore, hitScore, prodScore, tbScore, barrelRate, pitchMixScore } from '../../lib/player'
 import { scoreFor } from '../../lib/scoring'
 import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
+import Heatmap from '../Heatmap'
 
 const TITLES = {
   hr:  ['HR Board',          'Top home run picks'],
@@ -44,6 +45,34 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           {ranked.length} players
         </div>
       </div>
+
+      {/* The profile heatmap is the primary chart. A ranked column only says
+          WHO is on top; the profile says WHY -- which input is actually
+          carrying each name. The score is its first column, so the ranking
+          isn't lost. Ported from the Streamlit build. */}
+      <Heatmap
+        rows={ranked.slice(0, 15).map((p) => ({
+          label: nameOf(p),
+          values: {
+            Score: scoreFor(p, type),
+            HR: hrScore(p),
+            Hit: hitScore(p),
+            HRR: prodScore(p),
+            TB: tbScore(p),
+            HRW: nn(p?.hrw_score),
+            DC: nn(p?.damage_conversion_score),
+            PMix: pitchMixScore(p),
+            Barrel: barrelRate(p) * 100,
+            // x30 to sit on the same visual scale as the score columns;
+            // it's still scaled independently, so only the shape matters.
+            'P HR/9': nn(p?.pitcher_hr9) * 30,
+          },
+        }))}
+        columns={['Score', 'HR', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9']}
+        title={`Top 15 by ${title.replace(' Board', '')} — full profile`}
+        labelWidth={140}
+        onRowClick={onPlayerClick ? (r, i) => onPlayerClick(ranked[i]) : null}
+      />
 
       <Grid>
         {ranked.map((p) => (
