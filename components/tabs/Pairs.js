@@ -998,6 +998,7 @@ function HistorySection({ data, q, players=[] }) {
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 
 import PairBuilder from '../PairBuilder'
+import PairBoard from '../PairBoard'
 
 const VIEWS = [
   { key:'today',   label:'🧩 Today\'s Pairs' },
@@ -1047,7 +1048,14 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
         </div>
       )}
 
-      {view === 'today' && <TodayPairs players={players} pairBuilder={pairBuilder} q={q} focusPlayerId={focusPlayerId} onClearFocus={onClearFocus} />}
+      {view === 'today' && (
+        <>
+          {/* Dense first. The cards below are the same pairs read one at a
+              time; this is the board read at once. */}
+          <PairBoard pairBuilder={pairBuilder} onPlayerClick={onPlayerClick} />
+          <TodayPairs players={players} pairBuilder={pairBuilder} q={q} focusPlayerId={focusPlayerId} onClearFocus={onClearFocus} />
+        </>
+      )}
       {/* The builder lives here as well as on Pair History. The bot's
           recommended pairs are its opinion; this is where you build your own
           around a hitter you already like. */}

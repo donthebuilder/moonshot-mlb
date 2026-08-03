@@ -250,9 +250,15 @@ export default function Guide() {
 
       {/* ── 7. Hot Zones tab ── */}
       <Section title="Understanding the Hot Zones tab" emoji="🔥">
+        <Note>
+          <b>Not live yet.</b> This panel needs zone profiles from the bot&apos;s spray_cache step,
+          and those aren&apos;t in the published data at the moment — checked across all 298 detail
+          files. The tab will fill in on its own once the bot publishes them; until then it shows an
+          empty state rather than guessing.
+        </Note>
         <P>
-          Open any player's profile and tap "🔥 Hot Zones" to see exactly WHERE in the strike
-          zone this matchup favors the batter.
+          When it is running: open any player&apos;s profile and tap &quot;Hot Zones&quot; to see
+          exactly where in the strike zone this matchup favours the batter.
         </P>
         <GlossaryRow icon="🟥🟧⬜🟦" term="Zone map colors" def="Each of the 9 boxes is a location in the strike zone (imagine looking at the zone from the catcher's view). Red = the batter performs great there. Orange = decent. Gray = average. Blue = the batter struggles there." />
         <GlossaryRow icon="🔥" term="'KILL' zone badge" def="A zone marked KILL means three things line up at once: the pitcher often throws the ball there, the pitcher gets hit hard there, AND this batter is dangerous there. These are the best spots to watch for a home run." />
@@ -263,7 +269,11 @@ export default function Guide() {
 
       {/* ── 8. Other tabs ── */}
       <Section title="What's on each tab" emoji="🧭">
-        <GlossaryRow icon="🏟️" term="Games" def="Browse today's matchups game-by-game, with every batter's card grouped under their game." />
+        <GlossaryRow icon="🏟️" term="Games" def="Pick a game from the card strip, then read its full lineup as a dense table. Projected output for the whole slate sits at the bottom." />
+        <GlossaryRow icon="🚀" term="Longest" def="Who hits the farthest ball tonight — a distance board, not a probability board. It disagrees with the HR tab regularly, and that's the point." />
+        <GlossaryRow icon="💣" term="Due" def="Hitters overdue for a homer. Read the Ratio and HR/PA columns, not the drought: a long gap with no power behind it is just a hitter who doesn't homer." />
+        <GlossaryRow icon="🧬" term="Pair History" def="Which two hitters have gone deep on the same day all season, plus the Pair Builder — pick an anchor and get his partners who are playing tonight." />
+        <GlossaryRow icon="🔍" term="Player" def="The player card as a full page instead of a popup, for when you want to sit with one hitter." />
         <GlossaryRow icon="🏆" term="HR Board" def="A ranked leaderboard of every player by home run score, highest to lowest." />
         <GlossaryRow icon="💎" term="Hits & HRR" def="Focused on contact and extra-base-hit plays rather than pure home run bets." />
         <GlossaryRow icon="🔗" term="Pairs" def="Suggested 2-player combinations for parlay-style bets, picked because both players' matchups work well together." />
@@ -277,26 +287,6 @@ export default function Guide() {
       </Section>
 
       {/* ── 9. Color key ── */}
-      <Section title="Color key (used everywhere)" emoji="🎨">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[
-            { color: '#4ade80', label: 'Green', meaning: 'Favorable for the batter / good stat' },
-            { color: '#f87171', label: 'Red', meaning: 'Unfavorable for the batter, OR a home run result' },
-            { color: '#f59e0b', label: 'Orange / Amber', meaning: 'Warm / moderately favorable signal' },
-            { color: '#60a5fa', label: 'Blue', meaning: 'Cold zone / below-average area' },
-            { color: '#a1a1aa', label: 'Gray', meaning: 'Neutral, average, or no strong signal' },
-          ].map(c => (
-            <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 16, height: 16, borderRadius: 4, background: c.color, flexShrink: 0 }} />
-              <div>
-                <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{c.label}</span>
-                <span style={{ fontSize: 11.5, color: C.text2 }}> — {c.meaning}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
       {/* ── 10. Full emoji index ── */}
       <Section title="Full emoji & symbol index (A-Z reference)" emoji="🔤">
         <P>Every emoji used anywhere on the site, alphabetized by where it appears:</P>
