@@ -14,14 +14,14 @@ import { C, NUM_FONT } from '../lib/theme'
 // amber, which is the single most common way a heatmap ends up unreadable.
 
 export const ORANGE_RAMP = [
-  '#1a0f04', // near-black; most cells on a normal board land here
-  '#2b1806',
-  '#3f2207',
-  '#5c3108',
-  '#814309',
-  '#b35a0b',
-  '#e2760d',
-  '#f97316', // the accent -- reserved for the genuine top of the column
+  '#33200a', // floor: lifted off black so a low cell still reads as a colour
+  '#542f0b',
+  '#7a3f0c',
+  '#a4520d',
+  '#c9640f',
+  '#e87d16',
+  '#f9971f', // hot
+  '#fdb75a', // light gold top
 ]
 
 const INK_DARK = '#1a0d02'
@@ -35,7 +35,11 @@ export function rampColor(v, lo, hi) {
   return ORANGE_RAMP[Math.min(ORANGE_RAMP.length - 1, Math.floor(pos * ORANGE_RAMP.length))]
 }
 
-// Only the top two steps are light enough to need dark ink now.
+// The ramp moves in hue as well as lightness -- deep red-brown, through
+// orange, to light gold. Eight steps of one lightness ramp collapse into a
+// smear on a dense grid; shifting the hue keeps adjacent steps apart.
+//
+// Only the top two are light enough to need dark ink.
 export const inkFor = (bg) =>
   bg === ORANGE_RAMP[7] || bg === ORANGE_RAMP[6] ? INK_DARK : INK_LIGHT
 

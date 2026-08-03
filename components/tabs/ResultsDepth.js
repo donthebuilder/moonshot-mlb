@@ -49,14 +49,21 @@ function Tile({ label, value, sub, tone = 'flat' }) {
 
 // Horizontal bars. Same ramp as everything else, so length AND brightness both
 // carry the value -- readable even when two bars are nearly the same length.
-function Bars({ rows, unit = '', max: forcedMax }) {
+function Bars({ rows, unit = '', max: forcedMax, min: forcedMin = 0, limit }) {
   if (!rows.length) return null
-  const max = forcedMax ?? Math.max(...rows.map((r) => r.value), 1)
+  const shown = limit ? rows.slice(0, limit) : rows
+  const max = forcedMax ?? Math.max(...shown.map((r) => r.value), 1)
+  // A non-zero baseline is for measurements that never start at zero -- home
+  // run distances live in a 350-430ft window, so a zero-based axis draws
+  // fourteen near-identical full-width bars and shows nothing. Charts that
+  // count things keep min at 0, where a zero baseline is the honest one.
+  const min = forcedMin
+  const span = Math.max(1, max - min)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {rows.map((r) => {
-        const w = Math.max(2, (100 * r.value) / max)
-        const bg = rampColor(r.value, 0, max)
+      {shown.map((r) => {
+        const w = Math.max(3, (100 * (r.value - min)) / span)
+        const bg = rampColor(r.value, min, max)
         return (
           <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
@@ -246,11 +253,23 @@ export default function ResultsDepth({ results, onPlayerClick }) {
             <>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 6 }}>
                 Longest HRs tonight (ft)
+                {longest.length > 12 && (
+                  <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT }}>
+                    {' '}· top 12 of {longest.length}
+                  </span>
+                )}
               </div>
-              <Bars rows={longest} unit="" />
-              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6 }}>
-                Feeds the Longest board: compare these to who the model actually had ranked, and the
-                distance weights become testable instead of assumed.
+              <Bars
+                rows={longest}
+                limit={12}
+                min={Math.max(0, Math.min(...longest.map((x) => x.value)) - 15)}
+                max={Math.max(...longest.map((x) => x.value)) + 5}
+              />
+              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+                The axis starts near the shortest homer rather than at zero — every ball here cleared
+                a fence, so a zero-based scale would draw a dozen identical full-width bars. It makes
+                the spread readable but it also exaggerates it: the gap from first to last is about
+                60 feet, not the full width of the chart.
               </div>
             </>
           )}
