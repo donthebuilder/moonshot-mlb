@@ -20,29 +20,42 @@ const playerScore = (p) => median([
   hrScore(p), prodScore(p), nn(p?.hrw_score), nn(p?.damage_conversion_score),
 ])
 
-function Tile({ label, value, delta, deltaTone = 'flat', icon }) {
-  const tone = deltaTone === 'up' ? C.green : deltaTone === 'down' ? C.red : C.text3
+function Tile({ label, value, delta, tone: toneKey = 'flat', dot }) {
+  // Tinted to match the capture pill next door. Grey boxes read as chrome;
+  // a tinted pill with a live dot reads as an instrument, which is what these
+  // are -- they change during the night.
+  const col = toneKey === 'up' ? '#4ade80'
+    : toneKey === 'down' ? '#f87171'
+    : toneKey === 'accent' ? C.orange
+    : C.text3
+
   return (
     <div style={{
-      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
-      padding: '5px 10px 6px', minWidth: 78,
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      padding: '4px 11px', borderRadius: 8, minWidth: 0,
+      background: `${col}12`, border: `1px solid ${col}30`,
     }}>
       <div style={{
-        fontSize: 8.5, textTransform: 'uppercase', letterSpacing: '.07em',
+        fontSize: 8, textTransform: 'uppercase', letterSpacing: '.08em',
         color: C.text3, fontWeight: 700, whiteSpace: 'nowrap',
-        display: 'flex', alignItems: 'center', gap: 3,
+        display: 'flex', alignItems: 'center', gap: 4,
       }}>
-        {icon && <span style={{ fontSize: 9 }}>{icon}</span>}{label}
+        {dot && (
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: col, flexShrink: 0 }} />
+        )}
+        {label}
       </div>
       <div style={{
-        fontFamily: NUM_FONT, fontSize: 15, fontWeight: 800, color: C.text,
-        letterSpacing: '-.02em', lineHeight: 1.25, whiteSpace: 'nowrap',
-      }}>{value}</div>
-      {delta && (
-        <div style={{ fontSize: 8.5, color: tone, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>
-          {deltaTone === 'up' ? '↑' : deltaTone === 'down' ? '↓' : ''} {delta}
-        </div>
-      )}
+        display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap',
+      }}>
+        <span style={{
+          fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800,
+          color: toneKey === 'flat' ? C.text : col, letterSpacing: '-.02em',
+        }}>{value}</span>
+        {delta && (
+          <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{delta}</span>
+        )}
+      </div>
     </div>
   )
 }
@@ -89,25 +102,33 @@ export default function SlateTiles({ players = [], results, games = [] }) {
       <Tile
         label="Hitters"
         value={players.length}
-        delta={`${pct(stats.confirmed)} confirmed`}
-        deltaTone={stats.confirmed === players.length ? 'up' : 'flat'}
+        delta={pct(stats.confirmed)}
+        tone={stats.confirmed === players.length ? 'up' : 'flat'}
+        dot={stats.confirmed === players.length}
       />
       {stats.actual != null && (
         <Tile
           label="HR actual"
           value={stats.actual.toFixed(0)}
-          delta={stats.onSheet != null ? `${stats.onSheet} on the board` : null}
-          deltaTone="up"
+          delta={stats.onSheet != null ? `${stats.onSheet} on board` : null}
+          tone="up"
+          dot
         />
       )}
       {stats.best && (
-        <Tile label="Best game" value={stats.best.label} delta={`score ${stats.best.gs.toFixed(1)}`} />
+        <Tile
+          label="Best game"
+          value={stats.best.label}
+          delta={stats.best.gs.toFixed(1)}
+          tone="accent"
+          dot
+        />
       )}
-      <Tile label="Hitters 70+" value={stats.hot} delta={`${pct(stats.hot)} of slate`} />
-      <Tile label="Aligned" value={stats.aligned} icon="◆" />
-      <Tile label="Weak spots" value={stats.weak} icon="★" />
+      <Tile label="70+" value={stats.hot} delta={pct(stats.hot)} />
+      <Tile label="◆ Aligned" value={stats.aligned} />
+      <Tile label="★ Weak" value={stats.weak} tone="accent" />
       {stats.settled > 0 && (
-        <Tile label="Settled" value={stats.settled} delta="picks graded" />
+        <Tile label="Settled" value={stats.settled} delta="graded" />
       )}
     </div>
   )

@@ -997,14 +997,17 @@ function HistorySection({ data, q, players=[] }) {
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 
+import PairBuilder from '../PairBuilder'
+
 const VIEWS = [
   { key:'today',   label:'🧩 Today\'s Pairs' },
+  { key:'build',   label:'🔧 Build a Pair' },
   { key:'pools',   label:'🏊 Pools' },
   { key:'live',    label:'⚡ Live HR Pairs' },
   { key:'history', label:'📅 Season History' },
 ]
 
-export default function Pairs({ players=[], pairBuilder, pairHistorySummary, results, focusPlayerId, onClearFocus }) {
+export default function Pairs({ players=[], pairBuilder, pairHistorySummary, results, focusPlayerId, onClearFocus, onPlayerClick }) {
   const [view, setView] = useState(focusPlayerId != null ? 'today' : 'today')
   const [q, setQ] = useState('')
 
@@ -1045,6 +1048,12 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
       )}
 
       {view === 'today' && <TodayPairs players={players} pairBuilder={pairBuilder} q={q} focusPlayerId={focusPlayerId} onClearFocus={onClearFocus} />}
+      {/* The builder lives here as well as on Pair History. The bot's
+          recommended pairs are its opinion; this is where you build your own
+          around a hitter you already like. */}
+      {view === 'build' && (
+        <PairBuilder summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />
+      )}
       {view === 'pools' && <PoolsSection players={players} pairBuilder={pairBuilder} />}
       {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} />}
       {view === 'history' && <HistorySection data={pairHistorySummary} q={q} players={players} />}

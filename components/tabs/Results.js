@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
+import ResultsDepth from './ResultsDepth'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -698,6 +699,12 @@ export default function Results({ results, backtest, onPlayerClick }) {
           }
         </>
       )}
+
+      {/* Tonight, graded properly: every pick against the outcome it was
+          picked FOR, not against home runs. */}
+      <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
+        <ResultsDepth results={results} onPlayerClick={onPlayerClick} />
+      </div>
 
       {/* The archive. Everything above is one slate; this is whether any of
           it has worked over the graded days -- the only screen on the site
