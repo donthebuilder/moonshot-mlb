@@ -588,10 +588,15 @@ export default function SprayField({ player, height = 340, slateMode }) {
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
       }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 460, height, flexShrink: 0 }}>
-          {/* Foul ground, then fair ground, then this park's actual wall. */}
-          <path d={wedge(-EDGE, EDGE, R)} fill="rgba(255,255,255,0.018)" />
-          <path d={wedge(-45, 45, R)} fill="rgba(255,255,255,0.028)" />
-          <path d={wedge(-45, 45, wallAt)} fill="rgba(249,115,22,0.055)" stroke={C.border2} strokeWidth="1.2" />
+          {/* Foul ground, then fair ground, then this park's actual wall.
+              Fills were 1.8% / 2.8% / 5.5% white-on-near-black, which on most
+              screens is indistinguishable from the page background — the field
+              read as floating dots with a faint outline. Lifted so the playing
+              surface is an actual surface and the dots sit ON something. */}
+          <rect x="0" y="0" width={W} height={H} rx="8" fill="#0d0d10" />
+          <path d={wedge(-EDGE, EDGE, R)} fill="rgba(255,255,255,0.05)" />
+          <path d={wedge(-45, 45, R)} fill="rgba(255,255,255,0.085)" />
+          <path d={wedge(-45, 45, wallAt)} fill="rgba(249,115,22,0.10)" stroke={C.border2} strokeWidth="1.4" />
 
           {/* distance arcs instead of grass */}
           {[150, 250, 350, 450].map((d) => {
@@ -640,19 +645,38 @@ export default function SprayField({ player, height = 340, slateMode }) {
             const col = rampColor(h.ev, EV_LO, EV_HI) || C.text3
             const on = hover === i
             const foul = Math.abs(h.ang) > 45
+            // HOVER WAS GLITCHY BECAUSE THE HIT AREA WAS THE DOT.
+            //
+            // The mouse handler sat on the <g>, so the only thing you could
+            // hover was the shape itself — 2.5px of radius for an out, and for
+            // a hollow marker only the 1.3px stroke, since fill:none isn't
+            // hoverable. The readout flickered on and off as the cursor
+            // crossed a couple of pixels. Each ball now gets an invisible 9px
+            // hit circle, and the visible marker is pointer-events:none so it
+            // can't steal or block the event.
             return (
-              <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-                <Marker
-                  shape={shapeFor(h.pitch)}
-                  x={x} y={y}
-                  r={h.hr ? 4.6 : h.xbh ? 3.6 : h.hit ? 3.0 : 2.5}
-                  fill={h.hr ? col : h.hit ? `${col}66` : 'none'}
-                  stroke={col}
-                  sw={h.hr ? 1.2 : 1.3}
-                  opacity={on ? 1 : h.hr ? 0.95 : foul ? 0.4 : 0.68}
-                  dashed={foul}
+              <g key={i}>
+                <g style={{ pointerEvents: 'none' }}>
+                  <Marker
+                    shape={shapeFor(h.pitch)}
+                    x={x} y={y}
+                    r={h.hr ? 4.6 : h.xbh ? 3.6 : h.hit ? 3.0 : 2.5}
+                    fill={h.hr ? col : h.hit ? `${col}66` : 'none'}
+                    stroke={col}
+                    sw={h.hr ? 1.2 : 1.3}
+                    opacity={on ? 1 : h.hr ? 0.95 : foul ? 0.4 : 0.68}
+                    dashed={foul}
+                  />
+                  {h.hr && <circle cx={x} cy={y} r="8.5" fill="none" stroke={col} strokeWidth="0.6" opacity={on ? 0.9 : 0.35} />}
+                  {on && <circle cx={x} cy={y} r="11" fill="none" stroke={C.text} strokeWidth="0.9" opacity="0.8" />}
+                </g>
+                <circle
+                  cx={x} cy={y} r="9"
+                  fill="transparent"
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover((v) => (v === i ? null : v))}
+                  style={{ cursor: 'crosshair' }}
                 />
-                {h.hr && <circle cx={x} cy={y} r="8.5" fill="none" stroke={col} strokeWidth="0.6" opacity={on ? 0.9 : 0.35} />}
               </g>
             )
           })}
@@ -679,7 +703,10 @@ export default function SprayField({ player, height = 340, slateMode }) {
           ))}
         </svg>
 
-        <div style={{ flex: 1, minWidth: 160 }}>
+        {/* Fixed height so the panel doesn't jump every time the readout
+            appears and disappears — the layout shift was half of what made
+            hovering feel broken. */}
+        <div style={{ flex: 1, minWidth: 160, minHeight: 54 }}>
           {hover != null && shown[hover] ? (
             <div style={{ fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7 }}>
               <div style={{ color: C.orange, fontWeight: 800, fontSize: 11 }}>

@@ -140,43 +140,85 @@ function TrackingLegend({ slots }) {
   )
 }
 
-function ExpandedStats({ slots }) {
-  if (!slots?.length) return null
-  const seen = new Set()
-  const unique = slots.filter(r => {
-    if (seen.has(r.player_id)) return false
-    seen.add(r.player_id)
-    return true
-  })
-  const avg = (key) => {
-    const vals = unique.map(r => sf(r[key])).filter(v => v > 0)
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
-  }
-  const avgHrScore = avg('hr_score')
-  const avgHrw = avg('hrw_score')
-  const total375 = unique.reduce((sum, r) => sum + si(r.recent_375_num ?? r.dist_375_count), 0)
-  const totalBarrels = unique.reduce((sum, r) => sum + si(r.barrel_count), 0)
+// WHY "Avg HRW" AND "Total 375+" WERE ALWAYS BLANK.
+//
+// Both read fields that graded_slots does not contain. Verified against the
+// live payload: hrw_score is present on 0 of 90 graded slots, and
+// recent_375_num on 0 of 90. Both are on 143 of 143 slate rows. So `avg()`
+// filtered everything out and printed 0.0, and the 375 reducer summed nothing
+// and printed 0 — silently, because a zero looks like a real answer.
+//
+// recent_350_num IS on graded_slots (90 of 90), which is why nothing else on
+// this card ever looked broken.
+//
+// Same fix as the Pitchers tab: join to the slate by player_id. Anything that
+// doesn't match is counted and said out loud rather than quietly averaged away.
+function ExpandedStats({ slots, players = [] }) {
+  const slateById = useMemo(() => {
+    const m = new Map()
+    for (const p of players) {
+      const id = p?.player_id ?? p?.id
+      if (id != null) m.set(String(id), p)
+    }
+    return m
+  }, [players])
+
+  const stats = useMemo(() => {
+    if (!slots?.length) return null
+    const seen = new Set()
+    const unique = slots.filter(r => {
+      if (seen.has(r.player_id)) return false
+      seen.add(r.player_id)
+      return true
+    })
+    // Slot value first, slate row as the fallback for fields grading drops.
+    const merged = unique.map(r => ({ row: r, slate: slateById.get(String(r.player_id)) || null }))
+    const matched = merged.filter(m => m.slate).length
+    const pick = (m, key) => {
+      const a = sf(m.row[key])
+      if (a > 0) return a
+      return m.slate ? sf(m.slate[key]) : 0
+    }
+    const avg = (key) => {
+      const vals = merged.map(m => pick(m, key)).filter(v => v > 0)
+      return vals.length ? { v: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length } : { v: 0, n: 0 }
+    }
+    const sum = (key) => merged.reduce((s, m) => s + Math.round(pick(m, key)), 0)
+    return {
+      unique,
+      matched,
+      avgHrScore: avg('hr_score'),
+      avgHrw: avg('hrw_score'),
+      total375: sum('recent_375_num'),
+      total350: sum('recent_350_num'),
+    }
+  }, [slots, slateById])
+
+  if (!stats) return null
+  const { unique, matched, avgHrScore, avgHrw, total375, total350 } = stats
+  const Cell = ({ label, value, sub, tone }) => (
+    <div>
+      <div style={{ fontSize: 10, color: C.text3 }}>{label}</div>
+      <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15, color: tone || C.text }}>{value}</span>
+      {sub && <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}
+    </div>
+  )
 
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
       <SectionHeader title="📈 Slate Stat Summary" color={C.text3} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, padding: '10px 14px' }}>
-        <div>
-          <div style={{ fontSize: 10, color: C.text3 }}>Avg HR Score</div>
-          <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15 }}>{avgHrScore.toFixed(1)}</span>
-        </div>
-        <div>
-          <div style={{ fontSize: 10, color: C.text3 }}>Avg HRW</div>
-          <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15 }}>{avgHrw.toFixed(1)}</span>
-        </div>
-        <div>
-          <div style={{ fontSize: 10, color: C.text3 }}>Total 375+ (slate)</div>
-          <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15, color: C.orange }}>{total375}</span>
-        </div>
-        <div>
-          <div style={{ fontSize: 10, color: C.text3 }}>Unique players tracked</div>
-          <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15 }}>{unique.length}</span>
-        </div>
+        <Cell label="Avg HR Score" value={avgHrScore.v.toFixed(1)} sub={`${avgHrScore.n} players`} />
+        <Cell label="Avg HRW" value={avgHrw.n ? avgHrw.v.toFixed(1) : '—'} sub={avgHrw.n ? `${avgHrw.n} players` : 'not graded'} />
+        <Cell label="Total 350+ (slate)" value={total350} tone={C.orange} />
+        <Cell label="Total 375+ (slate)" value={total375 || '—'} tone={C.orange} />
+        <Cell label="Unique players tracked" value={unique.length} />
+      </div>
+      <div style={{ fontSize: 9, color: C.text3, padding: '0 14px 10px', lineHeight: 1.5 }}>
+        HRW and the 375+ count aren&apos;t written into the graded results, so they&apos;re read off
+        tonight&apos;s slate instead — matched {matched} of {unique.length} players by id.
+        {matched < unique.length && ' The unmatched ones are graded players who aren’t on the current slate, which happens when results are showing a different day; they’re excluded rather than counted as zero.'}
+        {' '}A dash means the field is genuinely absent, not that the value is zero.
       </div>
     </Card>
   )
@@ -844,7 +886,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <>
           <CaptureBanner report={captureReport} uniqueReport={uniqueReport} />
           <TrackingLegend slots={slots} />
-          <ExpandedStats slots={slots} />
+          <ExpandedStats slots={slots} players={players} />
           <HRHits homers={homers} />
           <MultiHitCluster slots={slots} />
           <CategoryBar slots={slots} />

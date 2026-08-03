@@ -49,6 +49,17 @@ const COLUMNS = [
   { key: 'barrel',  label: 'Brl%',    w: 44, dp: 1 },
   { key: 'bbe',     label: 'BBE',     w: 42,
     title: 'Batted balls tracked — the sample the distance numbers rest on' },
+  // Distance profile: what he actually hits far, against what this arm actually
+  // allows far. Every one of these is on the slate row, so the whole board gets
+  // them without a per-player fetch.
+  { key: 'd350',    label: '350+%',   w: 50, dp: 0,
+    title: 'Share of his tracked batted balls that went 350+ ft. Rate, so it survives a small sample better than the raw count next to it.' },
+  { key: 'd375',    label: '375+',    w: 44,
+    title: 'Count of 375+ ft batted balls in the tracked window' },
+  { key: 'p375',    label: 'P 375+',  w: 50,
+    title: 'How many 375+ ft balls this pitcher has allowed' },
+  { key: 'p400',    label: 'P 400+',  w: 50,
+    title: 'How many 400+ ft balls this pitcher has allowed — the closest thing to “he gives up real distance”' },
   { key: 'hr',      label: 'HR scr',  w: 48, dp: 1 },
   { key: 'hr9',     label: 'P HR/9',  w: 48, dp: 2 },
 ]
@@ -69,6 +80,10 @@ export default function LongestBoard({ players = [], onPlayerClick }) {
       team: teamOf(p),
       opp: oppOf(p),
       venue: clean(p?.venue_name, ''),
+      d350: (100 * n(p?.recent_350_num, 0)) / Math.max(1, n(p?.recent_350_den, 0)),
+      d375: n(p?.recent_375_num, 0),
+      p375: n(p?.pitcher_375_allowed, 0),
+      p400: n(p?.pitcher_400_allowed, 0),
       raw,
       adj: raw * k,
       parkD: n(p?.park_dist_factor, 1),

@@ -35,6 +35,15 @@ const PITCH_NAMES = {
   SV: 'Slurve', KN: 'Knuckle', EP: 'Eephus', FO: 'Forkball', CS: 'Slow curve',
 }
 
+// The bot writes some of these as 0-1 fractions and some as 0-100 percentages
+// depending on which script produced them, so normalise on the way out rather
+// than printing "0.1%" for an 11% swinging-strike rate.
+const pctOf = (v) => {
+  const x = n(v, null)
+  if (x == null) return '—'
+  return `${(x <= 1 ? x * 100 : x).toFixed(1)}%`
+}
+
 function Stat({ label, value, note, tone }) {
   return (
     <div style={{
@@ -169,10 +178,36 @@ export default function MatchupPitcher({ player, slateMode }) {
           note="his split against this side" />
         <Stat label="Meatball%" value={n(player.pitcher_meatball_pct, null) == null ? '—' : `${n(player.pitcher_meatball_pct).toFixed(1)}%`}
           note="pitches down the middle" />
-        <Stat label="SwStr%" value={n(player.pitcher_swstr_pct, null) == null ? '—' : `${n(player.pitcher_swstr_pct).toFixed(1)}%`}
-          note="high is bad for the hitter" />
-        <Stat label="Barrel% allowed" value={n(player.pitcher_barrel_allowed, null) == null ? '—' : `${(n(player.pitcher_barrel_allowed) * (n(player.pitcher_barrel_allowed) <= 1 ? 100 : 1)).toFixed(1)}%`}
+        <Stat label="SwStr%" value={pctOf(player.pitcher_swstr_pct)}
+          note="swing and miss — high is bad for the hitter" />
+        <Stat label="Whiff%" value={pctOf(player.pitcher_whiff_pct)}
+          note="misses per swing" />
+        <Stat label="K%" value={pctOf(player.pitcher_k_rate)}
+          note="how often he ends it himself" />
+        <Stat label="Barrel% allowed" value={pctOf(player.pitcher_barrel_allowed)}
           note="contact quality against" />
+        <Stat label="EV allowed" value={n(player.pitcher_ev_allowed, null) == null ? '—' : `${n(player.pitcher_ev_allowed).toFixed(1)}`}
+          note="avg exit velo he gives up" />
+        <Stat label="BABIP against" value={n(player.pitcher_babip, null) == null ? '—' : n(player.pitcher_babip).toFixed(3)}
+          tone={n(player.pitcher_babip, 0) < 0.270 ? C.orange : C.text}
+          note={n(player.pitcher_babip, 0) < 0.270 ? 'low — some of that is luck' : 'balls in play against'} />
+        <Stat label="375+ allowed" value={n(player.pitcher_375_allowed, null) == null ? '—' : String(Math.round(n(player.pitcher_375_allowed)))}
+          note="balls he's let travel" />
+        <Stat label="400+ allowed" value={n(player.pitcher_400_allowed, null) == null ? '—' : String(Math.round(n(player.pitcher_400_allowed)))}
+          tone={n(player.pitcher_400_allowed, 0) >= 5 ? C.orange : C.text}
+          note="real distance given up" />
+      </div>
+
+      <div style={{ fontSize: 9, color: C.text3, marginBottom: 12, lineHeight: 1.5 }}>
+        SwStr%, Whiff% and K% are the pitcher&apos;s strengths, so a big number there is bad news for
+        the bat — they&apos;re shown plain rather than shaded, because putting them on the
+        bright-is-good ramp would invert the meaning of every other tile in this row.
+        {n(player.pitcher_babip, 0) > 0 && n(player.pitcher_babip, 0) < 0.270 && (
+          <> His BABIP against is {n(player.pitcher_babip).toFixed(3)}, which is below the ~.290 a
+          defence-neutral pitcher usually settles at. Some of that is his contact management and
+          some is luck that hasn&apos;t corrected yet — it makes him look better than he&apos;ll
+          finish.</>
+        )}
       </div>
 
       {mySpot && (

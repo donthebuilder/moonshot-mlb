@@ -112,6 +112,28 @@ export default function HRPitchProfile({ player, slateMode }) {
   const covered = overlap.reduce((a, r) => a + r.hrs, 0)
   const maxHR = Math.max(...rows.map((r) => r.hrs), 1)
 
+  // Average HR distance, weighted by how often tonight's starter throws each
+  // pitch. This is the "avg distance vs his mix" number — not a straight
+  // average of his homers, but the one you'd expect given what he'll actually
+  // see. A hitter whose long homers all came off curveballs and who's facing a
+  // guy who throws none gets a lower number than his raw average, which is the
+  // whole point.
+  const mixWeighted = (() => {
+    const w = overlap.filter((r) => r.avgDist > 0)
+    const denom = w.reduce((a, r) => a + r.tonight, 0)
+    if (!denom) return null
+    return {
+      dist: w.reduce((a, r) => a + r.avgDist * r.tonight, 0) / denom,
+      hrs: w.reduce((a, r) => a + r.hrs, 0),
+      cover: denom,
+    }
+  })()
+  const rawAvg = (() => {
+    const d = rows.filter((r) => r.avgDist > 0)
+    const hrs = d.reduce((a, r) => a + r.hrs, 0)
+    return hrs ? d.reduce((a, r) => a + r.avgDist * r.hrs, 0) / hrs : null
+  })()
+
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>
@@ -137,6 +159,38 @@ export default function HRPitchProfile({ player, slateMode }) {
             ? overlap.map((r) => `${r.pitch} ${r.hrs}HR · ${r.tonight.toFixed(0)}% usage`).join('  ·  ')
             : 'No overlap — the pitches he goes deep on are not in this arsenal.'}
         </div>
+
+        {mixWeighted && (
+          <div style={{
+            display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'baseline',
+            marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`,
+          }}>
+            <div>
+              <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                Avg HR distance vs his mix
+              </div>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 800, color: C.orange }}>
+                {mixWeighted.dist.toFixed(0)} ft
+              </span>
+            </div>
+            {rawAvg && (
+              <div>
+                <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                  All his homers
+                </div>
+                <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 700, color: C.text2 }}>
+                  {rawAvg.toFixed(0)} ft
+                </span>
+              </div>
+            )}
+            <div style={{ fontSize: 9, color: C.text3, flex: 1, minWidth: 200, lineHeight: 1.5 }}>
+              Weighted by how often {clean(player?.pitcher_name, 'he')} throws each pitch, over the{' '}
+              {mixWeighted.hrs} homer{mixWeighted.hrs === 1 ? '' : 's'} that came off pitches in his
+              arsenal — covering {mixWeighted.cover.toFixed(0)}% of tonight&apos;s mix. If it sits below
+              his overall average, his longest balls came off pitches he won&apos;t see much of.
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
