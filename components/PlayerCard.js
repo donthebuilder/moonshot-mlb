@@ -1,0 +1,229 @@
+'use client'
+import { C, NUM_FONT } from '../lib/theme'
+import {
+  nameOf, teamOf, oppOf, n, clean, pct, sc,
+  babipVal, pitcherBabipVal,
+} from '../lib/player'
+import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
+import { Chip, Card } from './ui'
+
+// 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
+// double-booked with the old Power Watch role emoji (now 🔭).
+// volatile_hot (80+) and strong_capped (70-80) used to share 🚀, but
+// hrw_zone_score_value() in today_bot.py deliberately dampens 80+ scores
+// down to 64 ("the graded sample favored 55-70 more than extreme 80+") while
+// 70-80 only dampens to 70 -- these are different reliability tiers, not the
+// same signal, so they now get different symbols. 🌋 reads as "hot but
+// erratic" for the unreliable extreme, keeping 🚀 for the genuinely strong
+// (but not over-extreme) band.
+// Recency tiers for games_since_last_hr (0 = homered last game, 60 = no HR
+// found in the lookback window). Plain numeric/text label, no emoji.
+function lastHrRecency(p) {
+  const g = p?.games_since_last_hr
+  if (g == null) return null
+  const n = Number(g)
+  if (!Number.isFinite(n)) return null
+  if (n === 0) return { label: '0g', color: '#f87171' }
+  if (n < 60) return { label: `${n}g`, color: n <= 5 ? '#FCD34D' : '#71717a' }
+  return { label: 'No HR', color: '#52525b' }
+}
+
+const HRW_EMOJI = {
+  volatile_hot:  '🌋',
+  strong_capped: '🚀',
+  sweet_spot:    '⚡',
+  watch:         '🌤️',
+  cold:          '🧊',
+}
+
+function roleEmoji(p) {
+  const raw = (p?.final_hr_role || '').trim()
+  if (!raw) return null
+  const m = raw.match(/^([\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}])/u)
+  return m ? m[1] : null
+}
+
+const ALT_GLOW = {
+  hits:    { color: '#8B5CF6', label: 'HIT LOOK' },
+  hrr:     { color: '#10B981', label: 'HRR LOOK' },
+  contact: { color: '#3B82F6', label: 'CTG LOOK' },
+}
+
+// Matches Games.js's ROLE_CONFIG wording so the same per-game pick category
+// reads the same everywhere on the site.
+const GAME_PICK_LABELS = {
+  TOP: 'Top Pick',
+  HR: 'HR Pick',
+  HIT: 'Hit Pick',
+  HRR: 'HRR Pick',
+  CONTACT: 'Contact Pick',
+}
+
+function gamePickLabelFor(p) {
+  const primary = (p?.game_pick_role || '').split('/')[0].trim()
+  return GAME_PICK_LABELS[primary] || null
+}
+
+export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick }) {
+  const role      = compactRole(p)
+  const baseColor = roleColor(role, C)
+  const score     = scoreFor(p, type)
+  const grade     = gradeFor(p, type)
+  const risk      = riskPill(p, C, type)
+  const pills     = signalPills(p, C, type)
+  const bet       = bestBet(p, type)
+  const b         = babipVal(p)
+  const pb        = pitcherBabipVal(p)
+
+  const isHardAvoid = p?.true_avoid_hr === true
+  const isSoftCaution = !isHardAvoid && (
+    p?.best_bet_type === 'Avoid HR' || p?.best_bet_type === 'Avoid for HR'
+  )
+  const nonHrCat = p?.best_non_hr_category || 'none'
+  const altLook  = isHardAvoid && ALT_GLOW[nonHrCat] ? ALT_GLOW[nonHrCat] : null
+  // Consolidated avoid signal: ONE chip, ONE color family, regardless of
+  // how many separate fields (true_avoid_hr, best_bet_type, role text)
+  // independently flag the same underlying "don't take this for HR" verdict.
+  // Previously this could render as up to three separate chips (role chip
+  // saying "Avoid HR", bet chip saying "Avoid for HR", and a signalPills
+  // fallback also saying "Avoid HR") -- now it's exactly one, in its own
+  // muted maroon tone distinct from the bright red used for Trap elsewhere,
+  // and rendered in its own row below the main chips rather than mixed in.
+  const isAvoid = isHardAvoid || isSoftCaution || role === 'Avoid HR'
+  const avoidLabel = altLook ? altLook.label : (role === 'Avoid HR' ? 'Avoid HR' : (bet || 'Avoid HR'))
+  const AVOID_COLOR = '#9F3247'
+  const color    = altLook ? altLook.color : baseColor
+  const aligned  = (p?.top_board_tags || []).some((t) => String(t).includes('🧩'))
+  const gamePickLabel = gamePickLabelFor(p)
+  const recency = lastHrRecency(p)
+  // role/bet chips no longer render literal avoid text directly -- that's
+  // now handled entirely by the single isAvoid/avoidLabel chip below, in
+  // its own row and color, so it can't stack with the consolidated chip.
+  const showRoleChip = role !== 'Avoid HR'
+  const showBetChip = !isAvoid && bet !== role
+
+  // emoji stack — role, hrw, high confidence (weak-spot star is separate, see
+  // below, so it can carry a tooltip). True Avoid's ⛔ already comes through
+  // roleEmoji() since it's the first character of final_hr_role — pushing it
+  // again here used to double it up. The softer "Be Careful" trap case
+  // (best_bet_type === "Avoid for HR" without true_avoid_hr) is a different,
+  // less severe situation and gets its own ⚠️ instead of borrowing ⛔.
+  const emojis = []
+  const re = roleEmoji(p)
+  if (re) emojis.push(re)
+  const hrwE = HRW_EMOJI[(p?.hrw_zone || '').trim()]
+  if (hrwE) emojis.push(hrwE)
+  if (p?.high_confidence_hr_flag === true) emojis.push('🔒')
+  if (Number(p?.pitch_type_match_score || 0) > 0) emojis.push('🎯')
+  if (isSoftCaution) emojis.push('⚠️')
+  const weakSpotReason = p?.weak_spot_flag === true
+    ? (p?.weak_spot_reason || 'Weak lineup spot vs this pitcher.')
+    : null
+
+  return (
+    <Card color={color + '55'} onClick={onClick}>
+
+      {/* name + score */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+            {/* emoji stack — no labels, no border, just emojis */}
+            {emojis.length > 0 && (
+              <span style={{ fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0 }}>
+                {emojis.join('')}
+              </span>
+            )}
+            {weakSpotReason && (
+              <span
+                title={weakSpotReason}
+                style={{ fontSize: 14, lineHeight: 1, flexShrink: 0, cursor: 'help' }}
+              >
+                ⭐
+              </span>
+            )}
+            <span style={{ fontWeight: 900, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {nameOf(p)}
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+            {teamOf(p) || '—'} vs {oppOf(p) || '—'} · {clean(p?.lineup_spot, '—')}{p?.lineup_confirmed === false ? <span style={{ color: C.text3 }}> (proj.)</span> : null} · {clean(p?.handedness || p?.bats, '—')}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1, fontFamily: NUM_FONT }}>{score.toFixed(0)}</div>
+          <div style={{ fontSize: 9, color: C.text3, marginTop: 2 }}>{grade}</div>
+        </div>
+      </div>
+
+      {/* role / bet chips */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7 }}>
+        {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
+        {showRoleChip && <Chip color={color}>{role}</Chip>}
+        {showBetChip && <Chip color={C.text2}>{bet}</Chip>}
+        {risk && <Chip color={risk.color}>{risk.label}</Chip>}
+        {aligned && <Chip color={C.purple}>🧩 Aligned Signals</Chip>}
+        {gamePickLabel && <Chip color={C.yellow}>★ Bot's {gamePickLabel}</Chip>}
+        {recency && <Chip color={recency.color}>{recency.label}</Chip>}
+      </div>
+
+      {/* consolidated avoid signal — own row, own color, never stacks with role/bet */}
+      {isAvoid && !altLook && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7 }}>
+          <Chip color={AVOID_COLOR}>{avoidLabel}</Chip>
+        </div>
+      )}
+
+      {/* signal pills */}
+      {pills.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+          {pills.map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
+        </div>
+      )}
+
+      {/* stats */}
+      <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8, lineHeight: 1.5 }}>
+        BA {clean(p?.season_avg, '—')} · HR {clean(p?.season_hr, '—')} · K {pct(p?.season_k_rate)}
+        {b > 0 ? ` · BABIP ${b.toFixed(3)}` : ''}
+        {pb >= 0.33 ? ` · P-BABIP ${pb.toFixed(3)}` : ''}
+        {n(p?.pitcher_hr9) ? ` · HR/9 ${sc(p?.pitcher_hr9)}` : ''}
+      </div>
+
+      {/* buttons */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAdd?.(p, bet) }}
+          style={{
+            flex: 1,
+            background: `${color}22`,
+            border: `1px solid ${color}66`,
+            color,
+            borderRadius: 8,
+            padding: '6px 10px',
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        >
+          + Add to Slip
+        </button>
+        {onWatch && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onWatch(p) }}
+            title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+            style={{
+              background: watched ? `${C.yellow}22` : 'transparent',
+              border: `1px solid ${watched ? C.yellow + '66' : C.border2}`,
+              color: watched ? C.yellow : C.text3,
+              borderRadius: 8,
+              padding: '6px 9px',
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
+            {watched ? '★' : '☆'}
+          </button>
+        )}
+      </div>
+    </Card>
+  )
+}
