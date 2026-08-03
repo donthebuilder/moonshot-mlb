@@ -17,6 +17,47 @@ import { rampColor, inkFor } from './Heatmap'
 // So: fixed aspect, capped height, dark field, distance arcs instead of grass.
 // Points sit on the site ramp — bright means hit hard.
 
+// Real outfield dimensions, LF / LCF / CF / RCF / RF in feet. The payload gives
+// venue_name but no geometry, and a generic arc is the reason the chart didn't
+// look like anywhere -- Fenway and Coors are not the same shape, and a ball to
+// left means something different in each. Public park dimensions, matched on
+// the venue string the bot already publishes.
+const PARKS = {
+  'Fenway Park':            [310, 379, 390, 420, 302],
+  'Yankee Stadium':         [318, 399, 408, 385, 314],
+  'Coors Field':            [347, 390, 415, 375, 350],
+  'Dodger Stadium':         [330, 385, 395, 385, 330],
+  'UNIQLO Field at Dodger Stadium': [330, 385, 395, 385, 330],
+  'Oracle Park':            [339, 364, 399, 415, 309],
+  'Wrigley Field':          [355, 368, 400, 368, 353],
+  'Great American Ball Park': [328, 379, 404, 370, 325],
+  'Oriole Park at Camden Yards': [333, 364, 400, 373, 318],
+  'Truist Park':            [335, 375, 400, 375, 325],
+  'Citi Field':             [335, 358, 408, 398, 330],
+  'Petco Park':             [336, 390, 396, 391, 322],
+  'Progressive Field':      [325, 370, 405, 375, 325],
+  'Rogers Centre':          [328, 375, 400, 375, 328],
+  'Daikin Park':            [315, 362, 409, 373, 326],
+  'T-Mobile Park':          [331, 378, 401, 381, 326],
+  'Angel Stadium':          [330, 387, 396, 370, 330],
+  'Tropicana Field':        [315, 370, 404, 370, 322],
+  'Sutter Health Park':     [330, 375, 403, 375, 325],
+  'Busch Stadium':          [336, 375, 400, 375, 335],
+  'American Family Field':  [342, 370, 400, 374, 345],
+  'PNC Park':               [325, 383, 399, 375, 320],
+  'Kauffman Stadium':       [330, 387, 410, 387, 330],
+  'Target Field':           [339, 377, 404, 367, 328],
+  'Comerica Park':          [345, 370, 412, 365, 330],
+  'Guaranteed Rate Field':  [330, 377, 400, 372, 335],
+  'Rate Field':             [330, 377, 400, 372, 335],
+  'Nationals Park':         [336, 377, 402, 370, 335],
+  'Citizens Bank Park':     [329, 374, 401, 369, 330],
+  'loanDepot park':         [345, 386, 400, 387, 335],
+  'Chase Field':            [330, 374, 407, 374, 335],
+  'Globe Life Field':       [329, 372, 407, 374, 326],
+}
+const DEFAULT_PARK = [330, 375, 400, 375, 330]
+
 const LANES = [
   { key: 'LF', a0: -45, a1: -15 },
   { key: 'CF', a0: -15, a1: 15 },
@@ -130,6 +171,23 @@ export default function SprayField({ player, height = 340 }) {
   }
   const maxEV = Math.max(...hits.map((h) => h.ev), 100)
 
+  // Wall polygon from the five listed distances, interpolated across the arc.
+  const venue = clean(player?.venue_name, '')
+  const dims = PARKS[venue] || DEFAULT_PARK
+  const knownPark = !!PARKS[venue]
+  const wallAt = (ang) => {
+    // -45 (LF line) .. +45 (RF line) across five anchor points
+    const t = (ang + 45) / 90
+    const i = Math.min(3, Math.max(0, Math.floor(t * 4)))
+    const f = t * 4 - i
+    return dims[i] + (dims[i + 1] - dims[i]) * f
+  }
+  const wallPath = (() => {
+    const steps = []
+    for (let a = -45; a <= 45; a += 2.5) steps.push(pt(wallAt(a), a))
+    return `M ${cx} ${cy} L ${steps.map(([x, y]) => `${x} ${y}`).join(' L ')} Z`
+  })()
+
   const laneCounts = LANES.map((l) => ({
     ...l,
     n: hits.filter((h) => h.ang >= l.a0 && h.ang < l.a1).length,
@@ -208,6 +266,9 @@ export default function SprayField({ player, height = 340 }) {
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
       }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 340, height, flexShrink: 0 }}>
+          {/* The actual outfield wall for this park. */}
+          <path d={wallPath} fill="rgba(249,115,22,0.05)" stroke={C.border2} strokeWidth="1.2" />
+
           {/* distance arcs instead of grass */}
           {[150, 250, 350, 450].map((d) => {
             const [lx, ly] = pt(d, -45)
@@ -253,11 +314,12 @@ export default function SprayField({ player, height = 340 }) {
           })}
           {/* Park dimensions, so the arcs mean something for this venue rather
               than being abstract rings. */}
-          {[[-45, '330'], [0, '400'], [45, '330']].map(([a, d]) => {
-            const [x, y] = pt(Number(d) + 24, Number(a))
+          {/* Wall distances at the three points people actually quote. */}
+          {[[-45, dims[0]], [0, dims[2]], [45, dims[4]]].map(([a, d]) => {
+            const [x, y] = pt(d + 26, a)
             return (
               <text key={a} x={x} y={y} fill={C.text3} fontSize="7.5" fontFamily={NUM_FONT}
-                textAnchor="middle" opacity="0.7">{d}&apos;</text>
+                textAnchor="middle" opacity="0.8">{d}&apos;</text>
             )
           })}
           <circle cx={cx} cy={cy} r="2.5" fill={C.text3} />
@@ -297,9 +359,13 @@ export default function SprayField({ player, height = 340 }) {
           </div>
 
           <div style={{ fontSize: 9, color: C.text3, marginTop: 9, lineHeight: 1.55 }}>
-            Filled rings are home runs. Brightness is exit velocity, not distance — a scorched
-            line drive reads hot even when it stayed in the park. The field is fixed at 450 ft for
-            every hitter, so two players are directly comparable.
+            <b style={{ color: C.text2 }}>{knownPark ? venue : 'Generic park'}</b>
+            {knownPark
+              ? ' — the wall is this park’s real shape, so a ball to left means what it means here.'
+              : ' — no dimensions on file for this venue, so a standard outline is drawn.'}
+            {' '}Filled rings are home runs. Brightness is exit velocity, not distance — a scorched
+            line drive reads hot even when it stayed in the park. The scale is fixed at 450 ft for
+            every hitter, so two players stay directly comparable.
           </div>
         </div>
       </div>
