@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { arr, obj, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle, selectStyle, Chip } from '../ui'
+import Heatmap from '../Heatmap'
 
 // Pair History — which two hitters have gone deep on the same day, all season.
 //
@@ -100,6 +101,28 @@ export default function PairHistory({ summary, onPlayerClick }) {
           }}
         >Same game only</button>
       </div>
+
+      {/* The table below is the full list. This is the shape of the top of
+          it -- whether a pair's score comes from raw repeat count or from the
+          much rarer same-game hits, which are the only correlated ones. */}
+      <Heatmap
+        rows={rows.slice(0, 15).map((p) => ({
+          label: `${clean(p?.player_1, '')} + ${clean(p?.player_2, '')}`,
+          values: {
+            Score: n(p?.pair_score, 0),
+            Days: n(p?.repeat_count, 0),
+            'Same game': n(p?.same_game_hr_count, 0),
+            Boost: n(p?.history_boost, 0),
+            // Inverted at source: fewer days since the last hit is the live
+            // signal, so it's mapped so recent reads bright.
+            Recency: 60 - Math.min(60, n(p?.days_since_last_hit, 60)),
+          },
+        }))}
+        columns={['Score', 'Days', 'Same game', 'Boost', 'Recency']}
+        title="Top 15 pairs — where each one's score comes from"
+        labelWidth={220}
+        caption="Recency is inverted so a recent hit reads bright. A bright Days column with a dark Same game column is two independent hitters who happened to homer on the same date — coincidence, not correlation."
+      />
 
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>

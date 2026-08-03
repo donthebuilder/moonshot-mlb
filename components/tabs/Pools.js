@@ -5,6 +5,7 @@ import { playerId, recent375, launchAngle } from '../../lib/player'
 import { lanePass, LANES, scoreFor } from '../../lib/scoring'
 import { PanelTitle, Grid, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
+import HitterHeat from '../HitterHeat'
 
 // Reads the raw pull-rate field directly -- same approach as Leaders.js,
 // since lib/player doesn't export a dedicated pullRate helper.
@@ -76,6 +77,16 @@ export default function Pools({ players, onAdd, onWatch, watchIds, onPlayerClick
       {!filtered.length ? (
         <Empty text="No players match this lane right now." />
       ) : (
+        <>
+        {/* The lane already decided WHO qualifies. This says what the lane
+            actually looks like -- whether it's one shape of hitter or a
+            grab bag, which the card grid can't show. */}
+        <HitterHeat
+          players={filtered}
+          type="hr"
+          title={LANES.find((l) => l[0] === lane)?.[1] || 'Pool'}
+          onPlayerClick={onPlayerClick}
+        />
         <Grid>
           {filtered.slice(0, 60).map((p) => (
             <PlayerCard
@@ -89,6 +100,7 @@ export default function Pools({ players, onAdd, onWatch, watchIds, onPlayerClick
             />
           ))}
         </Grid>
+        </>
       )}
     </div>
   )

@@ -5,7 +5,6 @@ import { groupGames } from '../../lib/data'
 import { dateText, playerId, hrScore } from '../../lib/player'
 import { PanelTitle, Grid, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
-import SlateGlance from '../SlateGlance'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
@@ -112,11 +111,6 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           </div>
         }
       />
-
-      {/* Slate-level view first: which games are worth attention at a glance.
-          Ported from the Streamlit build -- the nav bar below tells you what
-          exists, this tells you which of it matters. */}
-      <SlateGlance games={games} onGameClick={scrollTo} />
 
       {/* Game selector. Was a sticky bar of matchup pills -- it told you a
           game existed and nothing else, so picking one meant opening several

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { groupPitchers } from '../../lib/data'
 import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
+import PitcherHeat from '../PitcherHeat'
 
 const SORTS = [
   ['weak', 'Most Weak Spots'],
@@ -146,6 +147,10 @@ export default function Pitchers({ players, onPlayerClick }) {
           </div>
         }
       />
+      {/* The card list below is one starter at a time. This is the slate:
+          which arms are actually attackable, and on which axis. */}
+      <PitcherHeat pitchers={sorted} onSelect={(e) => setOpenId(e?.pitcher_id ?? null)} />
+
       {sorted.map((pitcher) => (
         <PitcherCard
           key={pitcher.pitcher_id ?? pitcher.pitcher_name}

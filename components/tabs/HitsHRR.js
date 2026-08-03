@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { btnStyle } from '../ui'
 import RankedBoard from './RankedBoard'
 import PlayerCard from '../PlayerCard'
+import HitterHeat from '../HitterHeat'
 import { playerId } from '../../lib/player'
 
 function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
@@ -15,6 +16,15 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
 
   return (
     <div style={{ marginBottom: 18 }}>
+      {/* The cards below say who qualified. This says whether they qualified
+          for the same reason -- a category where every name is carried by one
+          column is a category worth distrusting. */}
+      <HitterHeat
+        players={ws}
+        type="hr"
+        title="Weak spot matchups"
+        onPlayerClick={onPlayerClick}
+      />
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         marginBottom: 10,
@@ -51,6 +61,15 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
 
   return (
     <div style={{ marginBottom: 18 }}>
+      {/* The cards below say who qualified. This says whether they qualified
+          for the same reason -- a category where every name is carried by one
+          column is a category worth distrusting. */}
+      <HitterHeat
+        players={aligned}
+        type="hr"
+        title="Aligned signals"
+        onPlayerClick={onPlayerClick}
+      />
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         marginBottom: 10,
@@ -91,6 +110,15 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 
   return (
     <div style={{ marginBottom: 18 }}>
+      {/* The cards below say who qualified. This says whether they qualified
+          for the same reason -- a category where every name is carried by one
+          column is a category worth distrusting. */}
+      <HitterHeat
+        players={edge}
+        type="hr"
+        title="Matchup edge"
+        onPlayerClick={onPlayerClick}
+      />
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         marginBottom: 10,
