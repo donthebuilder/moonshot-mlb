@@ -119,19 +119,37 @@ Cron in `MLB-HR-DASHBOARD-STREAMLIT/.github/workflows`, all UTC:
 | `pair-history.yml` | 07:15 | `pair_history_summary` |
 | `hr-companion.yml` | 07:45 | `hr_companion_latest` |
 | `spray-cache.yml` | 13:00 | **nothing — see below** |
-| `backtest-report.yml` | **none** | `backtest_summary` — manual only |
+| `hr-companion.yml` | 07:45 | **nothing — see below** |
+| `backtest-report.yml` | none | redundant; `results.yml` already does this |
+
+`backtest_summary.json` **is** autonomous, despite `backtest-report.yml` having
+no cron. `results.yml` runs `backtest_report.py --out-dir public/data/current`
+as one of its own steps and then publishes, ~17×/day. The standalone workflow is
+a manual re-run convenience, not the live path.
 
 `publish_data.sh` force-pushes `data` as a single orphan commit each run and
 carries forward files the current run didn't regenerate, so the branch stays
 small and no publisher clobbers another. That part is solid.
 
-### Two things that are NOT autonomous
+### Every bot has a workflow. Two of them publish nothing.
 
-**1. `backtest_summary.json` never refreshes on its own.**
-`backtest-report.yml` has `workflow_dispatch` only — no `schedule`. The Backtest
-tab, and the "34 graded days" calibration story behind `BANDS` in Pools.js and
-`CALIB` in ProjectedOutput.js, go stale until someone clicks Run workflow.
-Adding a `schedule:` block to that workflow is the whole fix.
+Script → workflow coverage is complete: `mlb_dashboard`, `make_slim` and
+`player_splits` run in both `today.yml` and `tomorrow.yml`;
+`live_results_tracker` + `backtest_report` in `results.yml`;
+`pair_history_cache` in `pair-history.yml`; `hr_companion_cache` in
+`hr-companion.yml`; `spray_cache` in `spray-cache.yml`;
+`fetch_picks_for_grading` in three of them. Only `run_pipeline.py` and
+`site_data_sync.py` are referenced by no workflow — they look like local-only
+helpers, and nothing published depends on them.
+
+Four workflows call `publish_data.sh`: today, tomorrow, results, pair-history.
+**Two don't**, so their output dies on the runner:
+
+**1. `hr-companion.yml` never publishes.** It runs `hr_companion_cache.py` and
+stops. `hr_companion_latest.json` is listed in `PUBLISH_FILES` but is not on the
+`data` branch, because nothing ever puts it there. moonshot-mlb doesn't read it,
+so nothing here is broken — but that bot is burning a run a day for nothing.
+Add a `publish_data.sh "HR companion"` step if you want it.
 
 **2. Hot Zones will never fill. It is not waiting on a bot run.**
 The old note here said "stays empty until `spray_cache.py` runs". That was
@@ -194,6 +212,20 @@ other reason, check the Actions tab for a "workflows disabled" banner first.
   Games / Batted-balls toggle. Hot Zones left honestly empty.
 - **PairBoard** — not on the list, but the live site showed the cross-lane
   scale bug plainly, so `Score` is no longer heated there.
+- **PlayerModal was passing the wrong object to two of its four tabs.** It hands
+  each tab the slate row out of `today_slim.json`. But `make_slim.py` strips the
+  heavy per-player payloads out of that file — `spray_chart`,
+  `batted_ball_log`, `contact_log`, `pitch_type_summary`,
+  `batter_pitch_type_profile` and `pitch_mix_matchup` are on **0 of 267 slate
+  rows** and live only in `current/detail/<slate>/batter_<id>.json`. SprayField,
+  HRPitchProfile and HotZoneMap each fetch that file themselves, so those tabs
+  worked. EV Log and PitchBreakdown read straight off the prop and did not: the
+  EV Log tab said "No batted ball data. Run spray_cache.py." for every hitter on
+  the slate, and the batter half of the pitch table was blank while the pitcher
+  half filled in normally — which is why it looked like missing bot data instead
+  of a wiring bug. The modal now fetches the detail file once and merges it, so
+  all four tabs see one object. Its fixed BBE range toggle is gone too; it was
+  forcing EV Log into batted-ball mode and hiding EV Log's own window control.
 
 **Not done: live verification of these changes.** The deployed site was still
 the old build when this was written, and I can't push. First job next session is

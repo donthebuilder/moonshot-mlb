@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { detailUrl } from '../lib/dataSource'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
@@ -34,25 +35,6 @@ function TabBtn({ active, onClick, children }) {
       color: active ? C.orange : C.text3,
       whiteSpace: 'nowrap',
     }}>{children}</button>
-  )
-}
-
-const BBE_RANGES = [10, 15, 25, 40, 50]
-
-function RangeToggle({ value, onChange }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>Last</span>
-      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-        {BBE_RANGES.map(n => (
-          <button key={n} onClick={() => onChange(n)} style={{
-            padding: '3px 7px', fontSize: 10, fontWeight: 600, cursor: 'pointer', border: 'none',
-            background: value === n ? C.orange : 'transparent',
-            color: value === n ? '#fff' : C.text3,
-          }}>{n}BBE</button>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -102,11 +84,43 @@ function Shell({ inline, onClose, width, children }) {
 }
 
 export default function PlayerModal({ player, onClose, inline = false }) {
-  const [tab, setTab]             = useState('overview')
-  const [bbeRange, setBbeRange] = useState(25)
+  const [tab, setTab] = useState('overview')
+  const [detail, setDetail] = useState(null)
+  const [detailState, setDetailState] = useState('idle')
+
+  // THE MODAL HAS TO FETCH THE DETAIL FILE ITSELF.
+  //
+  // `player` is a row out of today_slim.json, and make_slim.py deliberately
+  // strips the heavy per-player payloads out of that file and writes them to
+  // current/detail/<slate>/batter_<id>.json instead. Checked against the live
+  // slate: spray_chart, batted_ball_log, contact_log, pitch_type_summary,
+  // batter_pitch_type_profile and pitch_mix_matchup are present on 0 of 267
+  // slate rows. Every one of them is in the detail file.
+  //
+  // SprayField, HRPitchProfile and HotZoneMap each fetch that file for
+  // themselves, so those three tabs worked. EV Log and PitchBreakdown read
+  // straight off the prop, so they didn't: the EV Log tab showed "No batted
+  // ball data. Run spray_cache.py." for every hitter on the slate, and the
+  // batter half of the pitch table came up blank while the pitcher half — which
+  // does live on the slate row — filled in normally. That asymmetry is why it
+  // read like missing bot data rather than a wiring bug.
+  //
+  // Fetched once here and merged, so the whole modal sees one object. The
+  // detail keys win on conflict; the slate row supplies everything else.
+  const pid = player?.player_id || player?.id
+  useEffect(() => {
+    if (!pid) return
+    let alive = true
+    setDetailState('loading'); setDetail(null)
+    fetch(detailUrl(pid))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) { setDetail(j); setDetailState(j ? 'done' : 'missing') } })
+      .catch(() => { if (alive) setDetailState('error') })
+    return () => { alive = false }
+  }, [pid])
 
   if (!player) return null
-  const p = player
+  const p = detail ? { ...player, ...detail } : player
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -167,8 +181,17 @@ export default function PlayerModal({ player, onClose, inline = false }) {
                 <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
               ))}
             </div>
-            {tab !== 'overview' && (
-              <RangeToggle value={bbeRange} onChange={setBbeRange} />
+            {/* The old fixed BBE range toggle lived here and forced EV Log into
+                batted-ball mode, hiding its own Games / Batted-balls control.
+                EV Log owns its window now — one control, in the panel it
+                belongs to. */}
+            {tab !== 'overview' && detailState === 'loading' && (
+              <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>Loading detail…</span>
+            )}
+            {tab !== 'overview' && (detailState === 'missing' || detailState === 'error') && (
+              <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
+                No detail file published for this hitter
+              </span>
             )}
           </div>
 
@@ -240,8 +263,12 @@ export default function PlayerModal({ player, onClose, inline = false }) {
             </>
           )}
 
-          {/* ev log */}
-          {tab === 'ev' && <EVLog player={p} bbeRange={bbeRange} />}
+          {/* ev log — `p` is the merged slate row + detail file */}
+          {tab === 'ev' && (
+            detailState === 'loading'
+              ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
+              : <EVLog player={p} />
+          )}
 
           {/* pitch breakdown + spray chart, side by side */}
           {tab === 'pitch' && (
