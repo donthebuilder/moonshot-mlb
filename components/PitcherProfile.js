@@ -1,7 +1,9 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean } from '../lib/player'
+import { pitcherDetailUrl } from '../lib/dataSource'
+import Heatmap from './Heatmap'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 
 // Command / swing profile, platoon splits and arsenal — ported from Streamlit.
@@ -90,6 +92,62 @@ function Arsenal({ usage }) {
   )
 }
 
+// Order-zone damage: how this arm fares against the top, middle and bottom
+// thirds of a lineup. Lives in his own detail file, which nothing was fetching
+// -- 29 of the 30 starters have real plate appearances behind it.
+function OrderZones({ pitcherId }) {
+  const [zones, setZones] = useState(null)
+
+  useEffect(() => {
+    if (!pitcherId) return
+    let alive = true
+    fetch(pitcherDetailUrl(pitcherId))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) setZones(j?.pitcher_lineup_zone_damage || null) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [pitcherId])
+
+  const rows = useMemo(() => {
+    if (!zones) return []
+    return ['top', 'middle', 'bottom']
+      .map((k) => {
+        const z = zones[k]
+        if (!z || !n(z.pa, 0)) return null
+        const ab = Math.max(1, n(z.ab, 0))
+        const bbe = Math.max(1, n(z.bbe, 0))
+        return {
+          label: `${k[0].toUpperCase()}${k.slice(1)} (${(z.spots || []).join(', ')})`,
+          values: {
+            PA: n(z.pa, 0),
+            HR: n(z.hr, 0),
+            XBH: n(z.xbh, 0),
+            'SLG ag': (n(z.tb, 0) / ab) * 1000,
+            'HR/PA': (100 * n(z.hr, 0)) / Math.max(1, n(z.pa, 0)),
+            'Hard%': (100 * n(z.hard, 0)) / bbe,
+            'Barrel%': (100 * n(z.barrels, 0)) / bbe,
+          },
+        }
+      })
+      .filter(Boolean)
+  }, [zones])
+
+  if (!rows.length) return null
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <Heatmap
+        rows={rows}
+        columns={['PA', 'HR', 'XBH', 'SLG ag', 'HR/PA', 'Hard%', 'Barrel%']}
+        title="Damage by third of the order — where in the lineup he bleeds"
+        labelWidth={150}
+        fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(0) : '—')}
+        caption="Top is spots 1–3, middle 4–6, bottom 7–9. SLG against is ×1000 to share the scale. PA is shown first because a bright HR cell over 12 plate appearances is one swing."
+      />
+    </div>
+  )
+}
+
 export default function PitcherProfile({ pitcher }) {
   const src = useMemo(() => {
     const lineup = pitcher?.lineup || []
@@ -168,6 +226,8 @@ export default function PitcherProfile({ pitcher }) {
         </span>
       </div>
       <Arsenal usage={src('pitcher_pitch_usage_pct')} />
+
+      <OrderZones pitcherId={pitcher?.pitcher_id} />
     </div>
   )
 }

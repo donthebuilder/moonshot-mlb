@@ -498,6 +498,11 @@ export default function HotZoneMap({ player, onClose }) {
   useEffect(()=>{
     if (!pid) return
     setLoading(true); setError(null); setCacheData(null)
+    // NOTE: this reads zone_profile / pitcher_zone_profile, neither of which
+    // the bot currently publishes -- checked across all 298 detail files, zero
+    // have them. The fetch still runs so the panel lights up the moment they
+    // appear, but the empty state below tells the truth in the meantime rather
+    // than showing a spinner that never resolves into anything.
     fetch(detailUrl(pid))
       .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(d=>{ setCacheData(d); setLoading(false) })
