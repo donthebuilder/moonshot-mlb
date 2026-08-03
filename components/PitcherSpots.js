@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf, hrScore, hitScore, prodScore, median } from '../lib/player'
 import Heatmap from './Heatmap'
@@ -110,37 +110,95 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
     })
   }, [lineup])
 
+  const [pick, setPick] = useState(null)
+
   if (!spots.length) return null
 
   const worst = [...spots].sort((a, b) => b.damage - a.damage)[0]
+  // Default to his worst spot rather than the 1-hole: opening on #1 every time
+  // makes you click through nine radios to find the answer you came for.
+  const sel = spots.find((r) => String(r.spot) === String(pick)) || worst
   const hurtCount = spots.filter((s) => s.severity === 3).length
   const thinCount = spots.filter((s) => s.pa < 10).length
 
   return (
     <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 10, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 5 }}>
+        Does he get hurt in the …
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+        {spots.map((r) => {
+          const on = String(r.spot) === String(sel.spot)
+          return (
+            <button
+              key={r.spot ?? r.batter}
+              onClick={(e) => { e.stopPropagation(); setPick(r.spot) }}
+              title={`${r.batter} · ${r.verdict}`}
+              style={{
+                padding: '3px 10px', borderRadius: 7, cursor: 'pointer',
+                fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT,
+                border: `1px solid ${on ? C.orange : C.border}`,
+                background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                color: on ? C.orange : C.text3,
+              }}
+            >{r.spot ?? '?'}-hole{r.weak ? ' ★' : ''}</button>
+          )
+        })}
+      </div>
+
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`,
-        borderLeft: `4px solid ${worst.verdictColor}`, borderRadius: 12,
-        padding: '12px 15px', marginBottom: 12,
+        borderLeft: `4px solid ${sel.verdictColor}`, borderRadius: 12,
+        padding: '12px 15px', marginBottom: 10,
       }}>
         <div style={{ fontSize: 10, color: C.text3, letterSpacing: '.06em', textTransform: 'uppercase' }}>
-          Where {clean(pitcher?.pitcher_name, 'this starter')} gets hurt
+          Does {clean(pitcher?.pitcher_name, 'this starter')} get hurt in the {sel.spot ?? '?'}-hole?
         </div>
-        <div style={{ fontSize: 19, fontWeight: 800, color: worst.verdictColor, margin: '4px 0 3px' }}>
-          {worst.verdict === 'NOT ENOUGH DATA'
-            ? 'Not enough data anywhere in this order'
-            : `Worst spot: #${worst.spot ?? '?'} — ${worst.batter}`}
+        <div style={{ fontSize: 20, fontWeight: 800, color: sel.verdictColor, margin: '4px 0 3px' }}>
+          {sel.verdict}
         </div>
         <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT }}>
-          damage {worst.damage.toFixed(1)} · {worst.label} · {worst.pa} PA ·{' '}
-          {hurtCount} of {spots.length} spots read as live
-          {thinCount > 0 && ` · ${thinCount} on under 10 PA`}
+          damage {sel.damage.toFixed(1)} · {sel.label} · {sel.pa} PA · ranks #{
+            [...spots].sort((a, b) => b.damage - a.damage).findIndex((r) => r.spot === sel.spot) + 1
+          } of {spots.length} among his own spots
         </div>
-        {worst.weakReason && (
-          <div style={{ fontSize: 11, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
-            {worst.weakReason}
+      </div>
+
+      <div style={{
+        display: 'grid', gap: 8, marginBottom: 10,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+      }}>
+        {[
+          ['Damage in spot', sel.damage.toFixed(1), `${sel.vsOwn >= 0 ? '+' : ''}${sel.vsOwn.toFixed(1)} vs his other spots`],
+          ['SLG / ISO allowed', sel.slg.toFixed(3), `ISO ${sel.iso.toFixed(3)}`],
+          ['HR / hard-hit', `${sel.hrRate.toFixed(1)}%`, `HH ${sel.hh.toFixed(0)}%`],
+          ['Sample', `${sel.pa} PA`, sel.pa < 10 ? 'too thin to trust' : 'usable'],
+        ].map(([l, v, sub]) => (
+          <div key={l} style={{
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 11px',
+          }}>
+            <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.07em', color: C.text3, fontWeight: 700 }}>{l}</div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 800, color: C.orange }}>{v}</div>
+            <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
           </div>
-        )}
+        ))}
+      </div>
+
+      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 4, fontFamily: NUM_FONT }}>
+        {clean(sel._raw?.pitcher_spot_damage_reason, '')}
+      </div>
+      <div style={{ fontSize: 11, color: C.text2, marginBottom: 12 }}>
+        Batting {sel.spot ?? '?'} today: <b style={{ color: C.text }}>{sel.batter}</b> ({sel.bats}HB)
+        {' · '}HR {sel.hr.toFixed(0)} · HRR {sel.hrr.toFixed(0)}
+      </div>
+      {sel.weakReason && (
+        <div style={{ fontSize: 11, color: C.orange, marginBottom: 12, lineHeight: 1.5 }}>
+          ★ {sel.weakReason}
+        </div>
+      )}
+      <div style={{ fontSize: 10, color: C.text3, marginBottom: 10 }}>
+        {hurtCount} of {spots.length} spots read as live
+        {thinCount > 0 && ` · ${thinCount} on under 10 PA`}
       </div>
 
       <Heatmap
