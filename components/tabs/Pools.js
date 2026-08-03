@@ -118,6 +118,13 @@ export default function Pools({ players = [], results, onPlayerClick }) {
   const [legs, setLegs] = useState(3)
   const [spread, setSpread] = useState(true)
   const [pool, setPool] = useState([])
+  // Re-roll / swap / exclude state. None of this touches BANDS or the price
+  // maths — it only changes WHICH legs get offered. The calibration table is
+  // observed data and must stay untouched by anything the user clicks.
+  const [seed, setSeed] = useState(0)
+  const [exPlayers, setExPlayers] = useState([])
+  const [exTeams, setExTeams] = useState([])
+  const [benched, setBenched] = useState([])   // legs swapped out, kept out
 
   const m = marketOf(market)
   const keyOf = (p) => `${p?.player_id ?? nameOf(p)}-${p?.game_pk ?? ''}`
@@ -148,17 +155,34 @@ export default function Pools({ players = [], results, onPlayerClick }) {
     }
   }).sort((a, b) => b.prob - a.prob || b.score - a.score), [players, market, m])
 
+  // Anything the user has ruled out is gone from the candidate list entirely,
+  // so it can't come back through a re-roll or a swap either.
+  const eligible = useMemo(() => candidates.filter((c) => (
+    !exPlayers.includes(c._key)
+    && !exTeams.includes(c.team)
+    && !benched.includes(c._key)
+  )), [candidates, exPlayers, exTeams, benched])
+
+  // Re-roll rotates the starting point in the ranked list rather than
+  // randomising. Same rules, next slice down — so a re-roll is "show me the
+  // next-best ticket I haven't seen", not a shuffle that might hand back
+  // something worse than what it replaced for no stated reason. It wraps, so
+  // you can always get back to the top ticket by rolling through.
   const suggested = useMemo(() => {
+    if (!eligible.length) return []
+    const off = seed % eligible.length
+    const rotated = [...eligible.slice(off), ...eligible.slice(0, off)]
     const out = []
     const seen = new Set()
-    for (const c of candidates) {
+    for (const c of rotated) {
       if (out.length >= legs) break
       if (spread && c.game && seen.has(c.game)) continue
-      seen.add(c.game)
+      if (c.game) seen.add(c.game)
       out.push(c)
     }
-    return out
-  }, [candidates, legs, spread])
+    // Re-sorted so a rotated ticket still reads best-first.
+    return out.sort((a, b) => b.prob - a.prob || b.score - a.score)
+  }, [eligible, legs, spread, seed])
 
   const ticket = useMemo(() => (
     pool.length
@@ -172,6 +196,37 @@ export default function Pools({ players = [], results, onPlayerClick }) {
   const toggle = (k) => setPool((prev) => (
     prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]
   ))
+
+  // Swap one leg, leave the rest alone. The replacement is the best eligible
+  // hitter not already on the ticket, honouring the one-leg-per-game rule if
+  // it's on. The leg that came off is benched so a second swap moves forward
+  // instead of toggling between the same two names.
+  const swapLeg = (legKey) => {
+    const current = ticket.map((c) => c._key)
+    const games = new Set(ticket.filter((c) => c._key !== legKey).map((c) => c.game))
+    const next = eligible.find((c) => (
+      !current.includes(c._key) && !(spread && c.game && games.has(c.game))
+    ))
+    if (!next) return
+    setBenched((b) => [...b, legKey])
+    setPool(current.map((k) => (k === legKey ? next._key : k)))
+  }
+
+  const excludePlayer = (k) => {
+    setExPlayers((p) => (p.includes(k) ? p : [...p, k]))
+    setPool((p) => p.filter((x) => x !== k))
+  }
+  const excludeTeam = (t) => {
+    if (!t) return
+    setExTeams((p) => (p.includes(t) ? p : [...p, t]))
+    setPool((p) => p.filter((k) => candidates.find((c) => c._key === k)?.team !== t))
+  }
+  const resetBuild = () => { setPool([]); setSeed(0); setExPlayers([]); setExTeams([]); setBenched([]) }
+
+  const teams = useMemo(
+    () => [...new Set(candidates.map((c) => c.team).filter(Boolean))].sort(),
+    [candidates],
+  )
 
   if (!players.length) return <Empty text="No players on this slate yet." />
 
@@ -262,7 +317,74 @@ export default function Pools({ players = [], results, onPlayerClick }) {
             color: spread ? C.orange : C.text3,
           }}
         >One leg per game</button>
+
+        <button
+          onClick={() => { setSeed((s) => s + 1); setPool([]) }}
+          title="Same rules, next slice down the ranked list. Wraps around, so rolling through gets you back to the top ticket."
+          style={{
+            padding: '4px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+            border: `1px solid ${seed ? C.orange : C.border}`,
+            background: seed ? 'rgba(249,115,22,.12)' : 'transparent',
+            color: seed ? C.orange : C.text3, fontFamily: NUM_FONT,
+          }}
+        >🎲 Re-roll{seed ? ` ·${seed}` : ''}</button>
+
+        <select
+          value=""
+          onChange={(e) => { excludeTeam(e.target.value); e.target.value = '' }}
+          style={{
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 6,
+            padding: '4px 8px', fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT,
+            cursor: 'pointer', outline: 'none',
+          }}
+        >
+          <option value="">Exclude a team…</option>
+          {teams.filter((t) => !exTeams.includes(t)).map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        {(seed || exPlayers.length || exTeams.length || benched.length || pool.length) ? (
+          <button
+            onClick={resetBuild}
+            style={{
+              padding: '4px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+              border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, fontFamily: NUM_FONT,
+            }}
+          >Reset</button>
+        ) : null}
       </div>
+
+      {(exPlayers.length > 0 || exTeams.length > 0 || benched.length > 0) && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontSize: 9.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em' }}>Ruled out</span>
+          {exTeams.map((t) => (
+            <button key={`t${t}`} onClick={() => setExTeams((p) => p.filter((x) => x !== t))}
+              title="Click to put this team back in"
+              style={{
+                padding: '2px 8px', fontSize: 9.5, fontWeight: 700, borderRadius: 5, cursor: 'pointer',
+                border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, fontFamily: NUM_FONT,
+              }}>{t} ✕</button>
+          ))}
+          {exPlayers.map((k) => {
+            const c = candidates.find((x) => x._key === k)
+            return (
+              <button key={k} onClick={() => setExPlayers((p) => p.filter((x) => x !== k))}
+                title="Click to put this hitter back in"
+                style={{
+                  padding: '2px 8px', fontSize: 9.5, fontWeight: 700, borderRadius: 5, cursor: 'pointer',
+                  border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, fontFamily: NUM_FONT,
+                }}>{c ? c.name : k} ✕</button>
+            )
+          })}
+          {benched.length > 0 && (
+            <button onClick={() => setBenched([])}
+              title="Legs you swapped out are held back so a repeat swap moves forward. Click to make them available again."
+              style={{
+                padding: '2px 8px', fontSize: 9.5, borderRadius: 5, cursor: 'pointer',
+                border: `1px dashed ${C.border2}`, background: 'transparent', color: C.text3, fontFamily: NUM_FONT,
+              }}>{benched.length} swapped out ↺</button>
+          )}
+        </div>
+      )}
 
       <div style={{
         background: C.bg2, border: `1px solid ${C.orange}55`, borderRadius: 12,
@@ -289,10 +411,12 @@ export default function Pools({ players = [], results, onPlayerClick }) {
             return (
               <div
                 key={c._key}
-                onClick={() => onPlayerClick?.(c._raw)}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '3px 0', fontSize: 11.5 }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 11.5 }}
               >
-                <span style={{ color: C.text, fontWeight: 700, minWidth: 140 }}>{c.name}</span>
+                <span
+                  onClick={() => onPlayerClick?.(c._raw)}
+                  style={{ color: C.text, fontWeight: 700, minWidth: 140, cursor: 'pointer' }}
+                >{c.name}</span>
                 <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, minWidth: 78 }}>
                   {c.team} vs {c.opp}
                 </span>
@@ -306,6 +430,22 @@ export default function Pools({ players = [], results, onPlayerClick }) {
                 <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, minWidth: 46, textAlign: 'right' }}>
                   {fairOdds(c.prob)}
                 </span>
+                <button
+                  onClick={() => swapLeg(c._key)}
+                  title="Swap just this leg — everything else on the ticket stays"
+                  style={{
+                    padding: '1px 6px', fontSize: 10, borderRadius: 5, cursor: 'pointer',
+                    border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+                  }}
+                >⇄</button>
+                <button
+                  onClick={() => excludePlayer(c._key)}
+                  title="Rule this hitter out of every ticket until you put him back"
+                  style={{
+                    padding: '1px 6px', fontSize: 10, borderRadius: 5, cursor: 'pointer',
+                    border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+                  }}
+                >✕</button>
               </div>
             )
           })}
@@ -319,6 +459,10 @@ export default function Pools({ players = [], results, onPlayerClick }) {
           {' '}These are rates each score band actually produced over 34 graded days, not a model
           score dressed up as a percentage.
           {m.proxy && ' HRR has no calibration table of its own, so it borrows the base-hit bands — treat its price as the softest here.'}
+          {' '}Re-rolling, swapping and excluding change <i>which</i> legs are offered; they never
+          change the rate attached to a leg, because that rate is observed history rather than
+          something this page is free to tune.
+          {seed > 0 && ' You are looking at a rolled ticket, so these are not the top-ranked legs available.'}
         </div>
       </div>
 

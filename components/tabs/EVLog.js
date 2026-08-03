@@ -2,237 +2,214 @@
 import { useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { Empty } from '../ui'
+import DenseTable from '../DenseTable'
 
-const PITCH_COLORS = {
-  FF:'#f97316',SI:'#fb923c',FC:'#f59e0b',SL:'#4ade80',CU:'#22d3ee',
-  KC:'#06b6d4',CH:'#60a5fa',FS:'#818cf8',KN:'#a78bfa',ST:'#34d399',
-  SV:'#f87171',
-}
+// Exit-velocity log — every tracked batted ball, newest first.
+//
+// TWO THINGS CHANGED HERE AND BOTH ARE ABOUT HONESTY.
+//
+// 1. The window is GAMES or BATTED BALLS. It is not plate appearances.
+//    The handoff asked for a games / plate-appearances toggle. There is no
+//    plate-appearance data in this payload to build one from: the detail files
+//    carry exactly one list, `spray_chart`, and every row in it is a ball that
+//    was put in play. Walks and strikeouts are never written, so any "PA"
+//    number this page printed would be a batted-ball count wearing a different
+//    label — which is the exact bug that was fixed here once already, when the
+//    range control counted unique dates and called them PA. So the toggle is
+//    Games / Batted balls, and the missing denominator is stated on the panel.
+//    A hitter's "last 10 games" here means his batted balls from his last 10
+//    dates with a tracked ball, which is not quite the same as his last 10
+//    games either — a game where he walked three times leaves no trace.
+//
+// 2. The colour is the site ramp. This page used to run a green/red good-bad
+//    scale of its own, plus a per-pitch rainbow, in a build whose stated rule
+//    is orange only and bright-means-good-for-the-hitter. Two colour languages
+//    on one site means neither one gets learned.
+
 const PITCH_NAMES = {
-  FF:'4-Seam',SI:'Sinker',FC:'Cutter',SL:'Slider',CU:'Curveball',
-  KC:'K-Curve',CH:'Changeup',FS:'Splitter',KN:'Knuckleball',ST:'Sweeper',SV:'Slurve',
+  FF: '4-Seam', SI: 'Sinker', FC: 'Cutter', SL: 'Slider', CU: 'Curveball',
+  KC: 'K-Curve', CH: 'Changeup', FS: 'Splitter', KN: 'Knuckleball',
+  ST: 'Sweeper', SV: 'Slurve', FA: 'Fastball', EP: 'Eephus', FO: 'Forkball',
+  CS: 'Slow curve',
 }
 
-const RES_COLORS = {
-  home_run:'#f87171',triple:'#fb923c',double:'#f59e0b',single:'#4ade80',
-  field_out:'#3f3f46',grounded_into_double_play:'#71717a',force_out:'#3f3f46',
-  sac_fly:'#22d3ee',field_error:'#a78bfa',strikeout:'#52525b',
-}
+const GAME_STEPS = [5, 10, 15, 30]
+const BBE_STEPS = [10, 15, 25, 40, 50]
 
-function cell(val,low,high,goodDir='high') {
-  if (val==null) return {}
-  const isGood=goodDir==='high'?val>=high:val<=low
-  const isBad=goodDir==='high'?val<=low:val>=high
-  return {
-    background:isGood?'rgba(74,222,128,0.18)':isBad?'rgba(248,113,113,0.18)':'transparent',
-    color:isGood?'#4ade80':isBad?'#f87171':'#f4f4f5',
-    fontWeight:(isGood||isBad)?700:400,
-  }
-}
-
-const TD = ({children,style={}}) => (
-  <td style={{padding:'5px 8px',fontSize:11,fontFamily:NUM_FONT,textAlign:'right',borderBottom:'1px solid rgba(255,255,255,0.06)',...style}}>{children}</td>
-)
-
-export default function EVLog({ player, bbeRange:bbeRangeProp }) {
-  const [armFilter,   setArmFilter]   = useState('ALL')
-  const [batterHand,  setBatterHand]  = useState('ALL')
-  const [pitchFilter, setPitch]       = useState('ALL')
-  const [resFilter,   setRes]         = useState('ALL')
-  const [sortKey,     setSort]        = useState('date')
-  const [sortDir,     setSortDir]     = useState(-1)
-  const [bbeRange,    setBbeRange]    = useState(25)
+export default function EVLog({ player, bbeRange: bbeRangeProp }) {
+  const [mode, setMode] = useState('bbe')          // 'bbe' | 'games'
+  const [games, setGames] = useState(10)
+  const [bbeRange, setBbeRange] = useState(25)
+  const [armFilter, setArmFilter] = useState('ALL')
+  const [batterHand, setBatterHand] = useState('ALL')
+  const [pitchFilter, setPitch] = useState('ALL')
+  const [resFilter, setRes] = useState('ALL')
 
   const log = player?.batted_ball_log || player?.spray_chart || []
-  if (!log.length) return <Empty text="No batted ball data. Run spray_cache.py." />
 
-  const pitchTypes  = useMemo(()=>['ALL',...new Set(log.map(h=>h.pitch_type).filter(Boolean))]   ,[log])
-  const resultTypes = useMemo(()=>['ALL',...new Set(log.map(h=>h.result||h.event).filter(Boolean))],[log])
-
-  // Debug: check what stand values actually exist
-  const standVals = useMemo(()=>new Set(log.map(h=>h.stand||h.batter_stand||h.batter_hand).filter(Boolean)),[log])
-
-  // Most-recent-N-BBE window, sorted by date descending then sliced.
-  // BUGFIX: this previously bucketed by N most recent unique DATES (so a
-  // 2-HR game and a 0-for-4 game both counted as "1 PA" toward the range),
-  // labeled as "PA" even though it was really a game-count and didn't match
-  // either true plate appearances OR a real batted-ball count. True PA
-  // (with walks/Ks) isn't available in this data source at all -- only BBE
-  // rows exist -- so this now does what the label says: take the most
-  // recent N actual batted-ball events, full stop.
-  const recentBBE = useMemo(() => {
-    const range = bbeRangeProp ?? bbeRange
-    return [...log]
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-      .slice(0, range)
-  }, [log, bbeRangeProp, bbeRange])
-
-  const filtered = useMemo(()=>{
-    let rows = recentBBE.filter(h=>{
-      // pitcher arm — check multiple field names
-      if (armFilter!=='ALL') {
-        const arm = h.arm || h.pitcher_throws || h.p_throws || ''
-        if (arm && arm !== armFilter) return false
-      }
-      // batter hand — check multiple field names
-      if (batterHand!=='ALL') {
-        const stand = h.stand || h.batter_stand || h.batter_hand || ''
-        if (stand && stand !== batterHand) return false
-      }
-      if (pitchFilter!=='ALL' && h.pitch_type !== pitchFilter) return false
-      if (resFilter!=='ALL' && (h.result||h.event) !== resFilter) return false
-      return true
-    })
-    rows = [...rows].sort((a,b)=>{
-      let av=a[sortKey], bv=b[sortKey]
-      if (typeof av==='string') return sortDir*av.localeCompare(bv||'')
-      return sortDir*((av||0)-(bv||0))
-    })
-    return rows
-  },[recentBBE,armFilter,batterHand,pitchFilter,resFilter,sortKey,sortDir])
-
-  const toggleSort = key => {
-    if (sortKey===key) setSortDir(d=>-d)
-    else { setSort(key); setSortDir(-1) }
-  }
-
-  const seg = active => ({
-    padding:'3px 8px',fontSize:10,fontWeight:600,cursor:'pointer',border:'none',
-    background:active?'#f97316':'transparent',color:active?'#fff':'#a1a1aa',
-  })
-
-  const SH = ({k,children}) => (
-    <th onClick={()=>toggleSort(k)} style={{
-      padding:'5px 8px',fontSize:10,fontWeight:700,
-      color:sortKey===k?'#f97316':'#71717a',
-      textAlign:'right',borderBottom:'1px solid rgba(255,255,255,0.09)',
-      whiteSpace:'nowrap',cursor:'pointer',userSelect:'none',
-    }}>
-      {children}{sortKey===k?(sortDir===-1?' ▼':' ▲'):''}
-    </th>
+  const pitchTypes = useMemo(
+    () => ['ALL', ...new Set(log.map((h) => h.pitch_type).filter((p) => p && p !== 'nan'))],
+    [log],
+  )
+  const resultTypes = useMemo(
+    () => ['ALL', ...new Set(log.map((h) => h.result || h.event).filter(Boolean))],
+    [log],
+  )
+  const standVals = useMemo(
+    () => new Set(log.map((h) => h.stand || h.batter_stand || h.batter_hand).filter(Boolean)),
+    [log],
+  )
+  const allDates = useMemo(
+    () => [...new Set(log.map((h) => h.date).filter(Boolean))].sort().reverse(),
+    [log],
   )
 
+  // The window. When PlayerModal drives the range it stays in BBE mode, since
+  // that's the control it exposes.
+  const windowed = useMemo(() => {
+    const byDate = [...log].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+    if (bbeRangeProp != null) return byDate.slice(0, bbeRangeProp)
+    if (mode === 'games') {
+      const keep = new Set(allDates.slice(0, games))
+      return byDate.filter((h) => keep.has(h.date))
+    }
+    return byDate.slice(0, bbeRange)
+  }, [log, mode, games, bbeRange, bbeRangeProp, allDates])
+
+  const rows = useMemo(() => windowed.filter((h) => {
+    if (armFilter !== 'ALL') {
+      const arm = h.arm || h.pitcher_throws || h.p_throws || ''
+      if (arm && arm !== armFilter) return false
+    }
+    if (batterHand !== 'ALL') {
+      const stand = h.stand || h.batter_stand || h.batter_hand || ''
+      if (stand && stand !== batterHand) return false
+    }
+    if (pitchFilter !== 'ALL' && h.pitch_type !== pitchFilter) return false
+    if (resFilter !== 'ALL' && (h.result || h.event) !== resFilter) return false
+    return true
+  }).map((h, i) => ({
+    _key: `${h.date}-${i}`,
+    date: h.date || '—',
+    pitcher: h.pitcher || '—',
+    arm: h.arm || h.pitcher_throws || '—',
+    pitch: PITCH_NAMES[h.pitch_type] || h.pitch_type || '—',
+    ev: Number(h.ev) || null,
+    la: h.launch_angle ?? h.la ?? null,
+    dist: Number(h.distance) || null,
+    velo: Number(h.pitch_velocity) || null,
+    barrel: h.is_barrel ? 1 : 0,
+    hard: h.is_hard_hit ? 1 : 0,
+    hr: h.is_hr ? 1 : 0,
+    result: String(h.result || h.event || '').replace(/_/g, ' '),
+    traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' '),
+  })), [windowed, armFilter, batterHand, pitchFilter, resFilter])
+
+  if (!log.length) return <Empty text="No batted ball data. Run spray_cache.py." />
+
+  const seg = (active) => ({
+    padding: '3px 9px', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none',
+    background: active ? C.orange : 'transparent', color: active ? '#1a0d02' : C.text2,
+    fontFamily: NUM_FONT,
+  })
+  const groupBox = {
+    display: 'flex', borderRadius: 6, overflow: 'hidden', border: `1px solid ${C.border2}`,
+  }
+  const selectStyle = {
+    fontSize: 10, padding: '3px 7px', borderRadius: 6, border: `1px solid ${C.border2}`,
+    background: C.bg3, color: C.text, cursor: 'pointer', fontFamily: NUM_FONT,
+  }
+
   const batsLabel = player?.bats && player.bats !== '?' ? player.bats : null
-  const hasStandData = standVals.size > 0
+  const gamesShown = new Set(windowed.map((h) => h.date)).size
 
   return (
     <div>
-      {/* Filters */}
-      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:10,alignItems:'center'}}>
-        {/* BBE range — only shown if not controlled by parent (PlayerModal) */}
-        {bbeRangeProp==null && (
-          <div style={{display:'flex',borderRadius:6,overflow:'hidden',border:'1px solid rgba(255,255,255,0.15)'}}>
-            {[10,15,25,40,50].map(n=>(
-              <button key={n} style={seg(bbeRange===n)} onClick={()=>setBbeRange(n)}>{n}BBE</button>
-            ))}
-          </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+        {bbeRangeProp == null && (
+          <>
+            <div style={groupBox}>
+              <button style={seg(mode === 'games')} onClick={() => setMode('games')}>Games</button>
+              <button style={seg(mode === 'bbe')} onClick={() => setMode('bbe')}>Batted balls</button>
+            </div>
+            <div style={groupBox}>
+              {(mode === 'games' ? GAME_STEPS : BBE_STEPS).map((v) => (
+                <button
+                  key={v}
+                  style={seg(mode === 'games' ? games === v : bbeRange === v)}
+                  onClick={() => (mode === 'games' ? setGames(v) : setBbeRange(v))}
+                >{mode === 'games' ? `${v}G` : `${v}BBE`}</button>
+              ))}
+            </div>
+          </>
         )}
-        {/* Pitcher arm */}
-        <div style={{display:'flex',borderRadius:6,overflow:'hidden',border:'1px solid rgba(255,255,255,0.15)'}}>
-          {['ALL','R','L'].map(v=>(
-            <button key={v} style={seg(armFilter===v)} onClick={()=>setArmFilter(v)}>
-              {v==='ALL'?'All Arm':v==='R'?'RHP':'LHP'}
+
+        <div style={groupBox}>
+          {['ALL', 'R', 'L'].map((v) => (
+            <button key={v} style={seg(armFilter === v)} onClick={() => setArmFilter(v)}>
+              {v === 'ALL' ? 'All arm' : v === 'R' ? 'RHP' : 'LHP'}
             </button>
           ))}
         </div>
-        {/* Batter hand */}
-        <div style={{display:'flex',borderRadius:6,overflow:'hidden',border:'1px solid rgba(255,255,255,0.15)'}}>
-          {['ALL','R','L'].map(v=>(
-            <button key={v} style={{
-              ...seg(batterHand===v),
-              ...(batsLabel && v===batsLabel && batterHand!==v ? {borderBottom:'2px solid #f97316'} : {}),
-            }} onClick={()=>setBatterHand(v)}>
-              {v==='ALL'?'All Batter':v==='R'?'RHB':'LHB'}
-              {batsLabel && v===batsLabel ? ' ★' : ''}
+
+        <div style={groupBox}>
+          {['ALL', 'R', 'L'].map((v) => (
+            <button key={v} style={seg(batterHand === v)} onClick={() => setBatterHand(v)}>
+              {v === 'ALL' ? 'All bat' : v === 'R' ? 'RHB' : 'LHB'}{batsLabel && v === batsLabel ? ' ★' : ''}
             </button>
           ))}
         </div>
-        {/* Pitch type */}
-        <select value={pitchFilter} onChange={e=>setPitch(e.target.value)} style={{fontSize:10,padding:'3px 7px',borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',background:'#18181b',color:'#f4f4f5',cursor:'pointer'}}>
-          {pitchTypes.map(p=><option key={p} value={p}>{p==='ALL'?'All Pitches':(PITCH_NAMES[p]||p)}</option>)}
+
+        <select value={pitchFilter} onChange={(e) => setPitch(e.target.value)} style={selectStyle}>
+          {pitchTypes.map((p) => <option key={p} value={p}>{p === 'ALL' ? 'All pitches' : (PITCH_NAMES[p] || p)}</option>)}
         </select>
-        {/* Result */}
-        <select value={resFilter} onChange={e=>setRes(e.target.value)} style={{fontSize:10,padding:'3px 7px',borderRadius:6,border:'1px solid rgba(255,255,255,0.15)',background:'#18181b',color:'#f4f4f5',cursor:'pointer'}}>
-          {resultTypes.map(r=><option key={r} value={r}>{r==='ALL'?'All Results':r.replace(/_/g,' ')}</option>)}
+        <select value={resFilter} onChange={(e) => setRes(e.target.value)} style={selectStyle}>
+          {resultTypes.map((r) => <option key={r} value={r}>{r === 'ALL' ? 'All results' : r.replace(/_/g, ' ')}</option>)}
         </select>
-        <span style={{fontSize:10,color:'#71717a',marginLeft:'auto'}}>{filtered.length} / {recentBBE.length} BBE</span>
-      </div>
-      <div style={{fontSize:9,color:'#52525b',marginTop:-4,marginBottom:6,fontFamily:NUM_FONT}}>
-        Showing last {bbeRangeProp ?? bbeRange} batted-ball events ({log.length} total on file)
+
+        <span style={{ fontSize: 10, color: C.text3, marginLeft: 'auto', fontFamily: NUM_FONT }}>
+          {rows.length} of {windowed.length} shown
+        </span>
       </div>
 
-      {/* Stand data warning */}
-      {!hasStandData && batterHand !== 'ALL' && (
-        <div style={{fontSize:10,color:'#f59e0b',marginBottom:6,fontFamily:NUM_FONT}}>
-          ⚠ Batter hand (stand) field missing from BBE data — filter may not work until spray_cache.py re-runs.
+      <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
+        {windowed.length} batted balls across {gamesShown} date{gamesShown === 1 ? '' : 's'} ·{' '}
+        {log.length} tracked in total.
+        {' '}<span style={{ color: C.text2 }}>Not plate appearances.</span> This payload only records
+        balls put in play, so walks and strikeouts are invisible here and no rate on this page has a
+        true PA denominator.
+      </div>
+
+      {standVals.size === 0 && batterHand !== 'ALL' && (
+        <div style={{ fontSize: 10, color: C.orange, marginBottom: 6, fontFamily: NUM_FONT }}>
+          The batter-hand field isn&apos;t written on these rows, so this filter can&apos;t do anything
+          until spray_cache.py re-runs. Showing everything.
         </div>
       )}
 
-      {/* Table */}
-      <div style={{overflowX:'auto'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
-          <thead>
-            <tr>
-              <th style={{padding:'5px 8px',fontSize:10,fontWeight:700,color:'#71717a',textAlign:'left',borderBottom:'1px solid rgba(255,255,255,0.09)',whiteSpace:'nowrap'}}>Date</th>
-              <th style={{padding:'5px 8px',fontSize:10,fontWeight:700,color:'#71717a',textAlign:'left',borderBottom:'1px solid rgba(255,255,255,0.09)',whiteSpace:'nowrap'}}>Pitcher</th>
-              <SH k="arm">ARM</SH>
-              <SH k="pitch_type">Pitch</SH>
-              <SH k="ev">EV</SH>
-              <SH k="launch_angle">Angle</SH>
-              <SH k="distance">Dist</SH>
-              <SH k="pitch_velocity">Velo</SH>
-              <th style={{padding:'5px 8px',fontSize:10,fontWeight:700,color:'#71717a',textAlign:'left',borderBottom:'1px solid rgba(255,255,255,0.09)',whiteSpace:'nowrap'}}>Result</th>
-              <th style={{padding:'5px 8px',fontSize:10,fontWeight:700,color:'#71717a',textAlign:'left',borderBottom:'1px solid rgba(255,255,255,0.09)',whiteSpace:'nowrap'}}>Traj</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((h,i)=>{
-              const res = h.result||h.event||''
-              const resColor = RES_COLORS[res]||'#71717a'
-              const isHR = res==='home_run'
-              const ptColor = PITCH_COLORS[h.pitch_type]||'#71717a'
-              const isBarrel = !!h.is_barrel
-              const isHardHit = !!h.is_hard_hit
-              // Left-edge stripe makes barrels/hard-hits scannable down the
-              // whole row at a glance, not just a tiny dot buried in Result.
-              const stripeColor = isBarrel ? '#f97316' : isHardHit ? '#FCD34D' : 'transparent'
-              return (
-                <tr key={i} style={{
-                  background:isHR?'rgba(248,113,113,0.06)':i%2===0?'transparent':'rgba(255,255,255,0.015)',
-                  borderLeft:`3px solid ${stripeColor}`,
-                }}>
-                  <td style={{padding:'5px 8px',fontSize:11,fontFamily:NUM_FONT,color:'#a1a1aa',borderBottom:'1px solid rgba(255,255,255,0.04)',whiteSpace:'nowrap'}}>{h.date||'—'}</td>
-                  <td style={{padding:'5px 8px',fontSize:11,color:'#f4f4f5',borderBottom:'1px solid rgba(255,255,255,0.04)',whiteSpace:'nowrap',maxWidth:130,overflow:'hidden',textOverflow:'ellipsis'}}>{h.pitcher||'—'}</td>
-                  <td style={{padding:'5px 8px',fontSize:10,fontFamily:NUM_FONT,color:'#a1a1aa',borderBottom:'1px solid rgba(255,255,255,0.04)',textAlign:'right'}}>{h.arm||h.pitcher_throws||'—'}</td>
-                  <td style={{padding:'5px 8px',fontSize:10,fontFamily:NUM_FONT,borderBottom:'1px solid rgba(255,255,255,0.04)',textAlign:'right'}}>
-                    <span style={{color:ptColor,fontWeight:700}}>{PITCH_NAMES[h.pitch_type]||h.pitch_type||'—'}</span>
-                  </td>
-                  <TD style={{
-                    ...(isBarrel ? {background:'rgba(249,115,22,0.22)',color:'#fb923c',fontWeight:800} : isHardHit ? {background:'rgba(252,211,77,0.16)',color:'#FCD34D',fontWeight:700} : cell(h.ev,85,95)),
-                    whiteSpace:'nowrap',
-                  }}>{h.ev||'—'}</TD>
-                  <TD style={{whiteSpace:'nowrap'}}>{h.launch_angle!=null?`${h.launch_angle}°`:'—'}</TD>
-                  <TD style={{...cell(h.distance,300,375),whiteSpace:'nowrap'}}>{h.distance||'—'}</TD>
-                  <TD style={{color:'#a1a1aa',whiteSpace:'nowrap'}}>{h.pitch_velocity||'—'}</TD>
-                  <td style={{padding:'5px 8px',fontSize:11,borderBottom:'1px solid rgba(255,255,255,0.04)',whiteSpace:'nowrap'}}>
-                    <span style={{color:resColor,fontWeight:isHR?800:400}}>{res.replace(/_/g,' ')}</span>
-                    {isBarrel&&(
-                      <span style={{fontSize:9,marginLeft:5,padding:'1px 6px',borderRadius:4,background:'rgba(249,115,22,0.2)',color:'#fb923c',fontWeight:800,letterSpacing:'.03em'}}>BARREL</span>
-                    )}
-                    {isHardHit&&!isBarrel&&(
-                      <span style={{fontSize:9,marginLeft:5,padding:'1px 6px',borderRadius:4,background:'rgba(252,211,77,0.16)',color:'#FCD34D',fontWeight:800,letterSpacing:'.03em'}}>HARD HIT</span>
-                    )}
-                  </td>
-                  <td style={{padding:'5px 8px',fontSize:10,color:'#71717a',borderBottom:'1px solid rgba(255,255,255,0.04)',whiteSpace:'nowrap'}}>{(h.bb_type||h.trajectory||'').replace(/_/g,' ')}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div style={{fontSize:9,color:'#52525b',marginTop:6,fontFamily:NUM_FONT}}>
-        Left stripe + BARREL/HARD HIT badge mark elite contact &nbsp;· EV green ≥95, red ≤85 · Dist green ≥375, red ≤300 · ★ = batter's hand
-      </div>
+      <DenseTable
+        rows={rows}
+        columns={[
+          { key: 'date',    label: 'Date',    heat: false, w: 84, mono: true, sticky: true },
+          { key: 'pitcher', label: 'Pitcher', heat: false, w: 130 },
+          { key: 'arm',     label: 'Arm',     heat: false, w: 34, mono: true, dim: true },
+          { key: 'pitch',   label: 'Pitch',   heat: false, w: 84, dim: true },
+          { key: 'ev',      label: 'EV',      w: 48, dp: 1 },
+          { key: 'la',      label: 'Angle',   w: 48, dp: 0,
+            title: 'Launch angle. Not ramped on its own — high is not good on its own, 70° is a popup.' },
+          { key: 'dist',    label: 'Dist',    w: 48, dp: 0 },
+          { key: 'velo',    label: 'Velo',    w: 48, dp: 1, invert: true,
+            title: 'Pitch velocity. Inverted: a ball crushed off a slower pitch is the less impressive one.' },
+          { key: 'barrel',  label: 'BRL',     flag: true, mark: '●', w: 32 },
+          { key: 'hard',    label: 'HH',      flag: true, mark: '●', w: 32 },
+          { key: 'hr',      label: 'HR',      flag: true, mark: '★', w: 32 },
+          { key: 'result',  label: 'Result',  heat: false, w: 116, dim: true },
+          { key: 'traj',    label: 'Traj',    heat: false, w: 84, dim: true },
+        ]}
+        initialSort={null}
+        maxHeight={460}
+        caption="Every column is shaded against its own range within this window, so changing the window changes the shading — that's the point, it shows what's hot relative to what you asked for. Angle is shaded like any other column but read it carefully: high launch angle is a popup, not a good outcome. BRL / HH / HR are the bot's own flags."
+      />
     </div>
   )
 }

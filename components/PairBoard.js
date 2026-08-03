@@ -12,6 +12,22 @@ import DenseTable from './DenseTable'
 // built from 88 + 24 is a very different bet from 56 + 56. The Weaker column
 // exists for exactly that — it's the side that decides whether the pair
 // clears, because both have to land.
+//
+// SCORE IS NOT HEATED, ON PURPOSE. `pair_score` is not one quantity. The bot
+// writes it on two different scales depending on the lane: the TOP30 pairs come
+// back at 112 and 99, and lanes A–D come back at 11 to 16. Ramping that single
+// column meant the two TOP30 rows lit up and all eight lettered-lane pairs sat
+// in the floor colour — which reads as "these eight are bad" when what it
+// actually means is "these eight were scored by a different formula". There is
+// no shared range to normalise against, so the column is shown as a plain
+// number with its lane next to it, and the heat is carried by the columns that
+// ARE comparable across lanes: Stronger, Weaker, Balance, HRW, Longest are all
+// per-hitter scores on one scale.
+
+const LANE_SHORT = {
+  TOP30: 'TOP30', A: 'A · Core', B: 'B · Statcast', C: 'C · Flex', D: 'D · Value',
+}
+const LANE_RANK = ['TOP30', 'A', 'B', 'C', 'D']
 
 export default function PairBoard({ pairBuilder, onPlayerClick }) {
   const rows = useMemo(() => {
@@ -21,10 +37,14 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
       const b = ps[1] || {}
       const hrA = n(a.hr_score, 0)
       const hrB = n(b.hr_score, 0)
+      const lane = String(pr?.lane_key || '').toUpperCase()
       return {
         _key: clean(pr?.pair_key, String(i)),
         // Row click opens the stronger side; he's the one you'd look up first.
         _raw: hrA >= hrB ? a : b,
+        lane: LANE_SHORT[lane] || lane || '—',
+        _laneOrder: LANE_RANK.indexOf(lane) < 0 ? 99 : LANE_RANK.indexOf(lane),
+        type: clean(pr?.type, ''),
         pair: `${clean(a.name, '?')} + ${clean(b.name, '?')}`,
         teams: [clean(a.team, ''), clean(b.team, '')].filter(Boolean).join(' / '),
         sameGame: a.game_pk && a.game_pk === b.game_pk ? 1 : 0,
@@ -39,7 +59,10 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
         tags: arr(pr?.tags).join(' · '),
         reason: clean(pr?.reason, ''),
       }
-    }).sort((a, b) => b.score - a.score)
+    // Lane order first, then score inside the lane — sorting purely on score
+    // interleaves two incompatible scales and puts every TOP30 pair on top by
+    // construction rather than by merit.
+    }).sort((a, b) => (a._laneOrder - b._laneOrder) || (b.score - a.score))
   }, [pairBuilder])
 
   if (!rows.length) return null
@@ -57,10 +80,9 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
 
       <Heatmap
         rows={rows.slice(0, 15).map((r) => ({
-          label: r.pair,
+          label: `${r.pair}  ·  ${r.lane}`,
           _raw: r._raw,
           values: {
-            Score: r.score,
             Stronger: r.stronger,
             Weaker: r.weaker,
             // Inverted at source: a small gap means two real bets rather than
@@ -70,11 +92,11 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
             Longest: r.longest,
           },
         }))}
-        columns={['Score', 'Stronger', 'Weaker', 'Balance', 'HRW', 'Longest']}
-        title="Top 15 pairs — read the weaker side, it decides"
-        labelWidth={220}
+        columns={['Stronger', 'Weaker', 'Balance', 'HRW', 'Longest']}
+        title={`All ${rows.length} recommended pairs — read the weaker side, it decides`}
+        labelWidth={280}
         onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
-        caption="Both hitters have to land, so the pair is only as good as its weaker half. Balance is flipped — bright means the two sides are close, dark means one hitter is carrying a passenger."
+        caption="Both hitters have to land, so the pair is only as good as its weaker half. Balance is flipped — bright means the two sides are close, dark means one hitter is carrying a passenger. The bot's pair_score is deliberately absent from this heatmap: it's on a different scale in TOP30 than in lanes A–D, so shading it would say the lettered lanes are weak when they were simply scored by another formula. It's in the table below as a plain number, next to its lane."
       />
 
       <DenseTable
@@ -82,8 +104,12 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
         columns={[
           { key: 'pair',     label: 'Pair',     heat: false, w: 230, bold: true, sticky: true },
           { key: 'teams',    label: 'Teams',    heat: false, w: 74, mono: true, dim: true },
+          { key: 'lane',     label: 'Lane',     heat: false, w: 92, mono: true,
+            title: 'The bot’s own lane_key. Scores are only comparable inside a lane.' },
           { key: 'sameGame', label: 'Same gm',  flag: true, mark: '●', w: 46 },
-          { key: 'score',    label: 'Score',    w: 50, dp: 1 },
+          { key: 'score',    label: 'Score',    heat: false, w: 56, mono: true,
+            title: 'The bot’s pair_score. Not shaded — TOP30 scores around 100 and lanes A–D around 12, so a shared ramp would be meaningless.',
+            fmt: (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(Number(v) < 30 ? 2 : 1) : '—') },
           { key: 'stronger', label: 'Stronger', w: 56, dp: 1 },
           { key: 'weaker',   label: 'Weaker',   w: 52, dp: 1 },
           { key: 'gap',      label: 'Gap',      w: 44, dp: 1, invert: true },
@@ -94,9 +120,9 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
           { key: 'tags',     label: 'Tags',     heat: false, w: 190, dim: true },
         ]}
         onRowClick={onPlayerClick}
-        initialSort="score"
+        initialSort={null}
         maxHeight={420}
-        caption="Gap is inverted — a wide gap between the two sides is a worse pair at the same score. Click a row to open the stronger hitter."
+        caption="Sorted by lane, then by score inside the lane. Gap is inverted — a wide gap between the two sides is a worse pair at the same score. Score is shown unshaded because TOP30 and lanes A–D are scored on different scales; compare within a lane, not down the column. Click a row to open the stronger hitter."
       />
     </div>
   )

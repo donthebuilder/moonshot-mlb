@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Empty, btnStyle } from '../ui'
+import DenseTable from '../DenseTable'
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,69 @@ const PAIR_SCOPES = [
   { key:'bot',   label:'🤖 Bot Picks' },
   { key:'same',  label:'⚡ Same Game' },
 ]
+
+// ── the bot's own pair categories ─────────────────────────────────────────────
+//
+// recommended_pairs carries `lane_key` and `type` on every entry. Verified on
+// the live payload: 10 pairs, two in each of five lanes.
+//
+//   TOP30  "Top 30 Pairs"        A  "CORE HR PAIRS"     B  "STATCAST HR PAIRS"
+//   C      "FLEX HR PAIRS"       D  "VALUE POWER PAIRS"
+//
+// Two things the handoff asked for are NOT in the payload and are deliberately
+// not faked here. Searching the whole pair_builder_latest.json for "Top 15",
+// "Top 40", "Due Pair", "TOP15", "TOP40" returns zero hits — the bot doesn't
+// write those labels any more. What it does write is the `Due` string inside
+// the per-pair `tags` array (5 of 10 pairs carry it), so Due is surfaced as a
+// tag filter, which is what it actually is. Inventing a "Top 15" heading over
+// an arbitrary slice would be the same mistake as the 🧩 emoji in isAligned():
+// a label the UI asserts and the data never backs.
+//
+// The scores are NOT comparable across lanes and must never share a ramp.
+// TOP30 pairs score 112 and 99; lanes A-D score 11-16. They're different
+// quantities with the same field name, so each lane is ranked and shaded
+// against its own range, the same rule Heatmap uses per column.
+const LANE_ORDER = ['TOP30', 'A', 'B', 'C', 'D']
+const LANE_META = {
+  TOP30: { short: 'TOP 30', color: '#FB923C', blurb: 'The bot’s headline board — scored on a different scale from the lettered lanes.' },
+  A:     { short: 'LANE A', color: '#FCD34D', blurb: 'Core: the safest construction it will offer.' },
+  B:     { short: 'LANE B', color: '#22d3ee', blurb: 'Statcast: built off contact quality rather than the board.' },
+  C:     { short: 'LANE C', color: '#a78bfa', blurb: 'Flex: looser, leans on HRR and hit shape.' },
+  D:     { short: 'LANE D', color: '#4ade80', blurb: 'Value power: cheaper bats with a matchup reason.' },
+}
+const laneMeta = (k) => LANE_META[k] || { short: String(k || 'OTHER').toUpperCase(), color: C.text3, blurb: '' }
+
+// Group the bot's recommended pairs by its own lane, preserving every one.
+// The old path ran these through enforceUniquePairExposure(…, 1, 24), which
+// caps each player at one appearance — and three players (Matt Olson, Kyle
+// Manzardo, Pete Crow-Armstrong) legitimately appear in two lanes each, so
+// that quietly threw away 3 of the bot's 10 pairs on this slate. A view whose
+// whole job is "show me what the bot said" must not drop what the bot said.
+function groupBotPairs(recommended = []) {
+  const byLane = new Map()
+  for (const raw of recommended) {
+    const pair = normalizePair(raw)
+    if (!pair) continue
+    const lane = String(raw?.lane_key || '').toUpperCase() || 'OTHER'
+    if (!byLane.has(lane)) byLane.set(lane, [])
+    byLane.get(lane).push({ ...pair, lane_key: lane, risk: raw?.risk || '', tags: raw?.tags || pair.tags || [] })
+  }
+  const lanes = [...byLane.keys()].sort((a, b) => {
+    const ia = LANE_ORDER.indexOf(a), ib = LANE_ORDER.indexOf(b)
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+  })
+  return lanes.map((lane) => {
+    const rows = byLane.get(lane).sort((a, b) => num(b.pair_score) - num(a.pair_score))
+    const scores = rows.map(r => num(r.pair_score))
+    return {
+      lane,
+      type: rows[0]?.type || laneMeta(lane).short,
+      rows,
+      lo: Math.min(...scores),
+      hi: Math.max(...scores),
+    }
+  })
+}
 
 function num(value, fallback=0) {
   const n = Number(value)
@@ -389,6 +453,175 @@ function PairRow({ pair, i, dimmed=false }) {
   )
 }
 
+// One lane of the bot's recommended pairs, ranked and shaded inside its own
+// score range. Nothing here is recomputed — every number, tag and reason string
+// is what the bot published.
+function BotLane({ group, tagFilter }) {
+  const meta = laneMeta(group.lane)
+  const rows = tagFilter
+    ? group.rows.filter(r => (r.tags || []).includes(tagFilter))
+    : group.rows
+  if (!rows.length) return null
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap', marginBottom:6 }}>
+        <span style={{
+          fontSize:9, fontWeight:800, letterSpacing:'.08em', padding:'2px 7px', borderRadius:5,
+          background:`${meta.color}1e`, color:meta.color, border:`1px solid ${meta.color}44`,
+          fontFamily:NUM_FONT,
+        }}>{meta.short}</span>
+        <span style={{ fontSize:13, fontWeight:800 }}>{group.type}</span>
+        <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>
+          {rows.length}{tagFilter && rows.length !== group.rows.length ? ` of ${group.rows.length}` : ''} pair{rows.length === 1 ? '' : 's'}
+        </span>
+        {meta.blurb && <span style={{ fontSize:9.5, color:C.text3 }}>{meta.blurb}</span>}
+      </div>
+
+      <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden' }}>
+        {rows.map((pair, i) => {
+          const score = num(pair.pair_score)
+          // Shaded within this lane only — see the note on LANE_META.
+          const span = Math.max(1e-6, group.hi - group.lo)
+          const frac = group.rows.length < 2 ? 1 : Math.max(0.12, (score - group.lo) / span)
+          const due = (pair.tags || []).includes('Due')
+          return (
+            <div key={pair.pair_key || i} style={{
+              padding:'10px 14px', borderTop:i ? `1px solid ${C.border}` : 'none',
+              borderLeft:`3px solid ${meta.color}${i === 0 ? 'cc' : '44'}`,
+            }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:8, flexWrap:'wrap', alignItems:'baseline' }}>
+                <div style={{ display:'flex', alignItems:'baseline', gap:7, flexWrap:'wrap', minWidth:0 }}>
+                  <span style={{ fontFamily:NUM_FONT, fontSize:10, color:C.text3, fontWeight:800 }}>#{i + 1}</span>
+                  <span style={{ fontSize:14, fontWeight:800, wordBreak:'break-word' }}>
+                    {(pair.players || []).map(p => p.name).join('  +  ')}
+                  </span>
+                  <span style={{ fontSize:9.5, color: pair.same_game ? '#22d3ee' : '#a78bfa', fontFamily:NUM_FONT }}>
+                    {pair.same_game ? '⚡ same game' : '🔀 cross game'}
+                  </span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:7, flexShrink:0 }}>
+                  {pair.risk && (
+                    <span style={{
+                      fontSize:9, fontFamily:NUM_FONT, fontWeight:700, padding:'1px 6px', borderRadius:4,
+                      color: pair.risk === 'High' ? '#f87171' : C.text3,
+                      border:`1px solid ${pair.risk === 'High' ? '#f8717144' : C.border}`,
+                    }}>{pair.risk} risk</span>
+                  )}
+                  <span style={{ fontFamily:NUM_FONT, fontWeight:800, fontSize:15, color:meta.color }}>
+                    {score.toFixed(score < 30 ? 2 : 0)}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ height:3, background:C.bg3, borderRadius:2, margin:'5px 0 6px' }}>
+                <div style={{ width:`${frac * 100}%`, height:'100%', background:meta.color, borderRadius:2, opacity:.75 }} />
+              </div>
+
+              <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:4 }}>
+                {(pair.tags || []).map(tag => (
+                  <span key={tag} style={{
+                    fontSize:9, padding:'1px 6px', borderRadius:4, fontFamily:NUM_FONT, fontWeight:700,
+                    background: tag === 'Due' ? 'rgba(252,211,77,.14)' : `${meta.color}14`,
+                    color: tag === 'Due' ? '#FCD34D' : meta.color,
+                    border:`1px solid ${tag === 'Due' ? 'rgba(252,211,77,.3)' : `${meta.color}33`}`,
+                  }}>{tag}</span>
+                ))}
+                {due && <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>— bot flagged this one as due</span>}
+              </div>
+
+              {pair.reason && (
+                <div style={{ fontSize:10, color:C.text2, fontFamily:NUM_FONT, marginBottom:3 }}>{pair.reason}</div>
+              )}
+              {(pair.players || []).map((p, pi) => (
+                <div key={playerKey(p) || pi} style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, marginTop:1, wordBreak:'break-word' }}>
+                  <span style={{ color:C.text2, fontWeight:600 }}>{p.name}</span>
+                  {p.team ? ` · ${p.team}` : ''}{p.lineup_spot ? ` #${p.lineup_spot}` : ''}
+                  {p.pitcher_name ? ` · vs ${p.pitcher_name} (${p.pitcher_throws || '?'})` : ''}
+                  {num(p.hrw_score) > 0 ? ` · HRW ${Math.round(num(p.hrw_score))} ${hrwEmoji(p.hrw_score)}` : ''}
+                  {num(p.season_hr) > 0 ? ` · ${p.season_hr} HR in ${p.season_pa} PA` : ''}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function BotPairGroups({ pairBuilder, q = '' }) {
+  const [tagFilter, setTagFilter] = useState(null)
+
+  const groups = useMemo(() => groupBotPairs(pairBuilder?.recommended_pairs || []), [pairBuilder])
+  const allRows = useMemo(() => groups.flatMap(g => g.rows), [groups])
+
+  const tagCounts = useMemo(() => {
+    const counts = new Map()
+    allRows.forEach(r => (r.tags || []).forEach(t => counts.set(t, (counts.get(t) || 0) + 1)))
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])
+  }, [allRows])
+
+  const searched = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    if (!term) return groups
+    return groups
+      .map(g => ({ ...g, rows: g.rows.filter(p => pairNames(p).toLowerCase().includes(term)) }))
+      .filter(g => g.rows.length)
+  }, [groups, q])
+
+  if (!allRows.length) return <Empty text="The pair builder hasn't published any recommended pairs for this slate." />
+
+  return (
+    <div>
+      <div style={{
+        display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:8,
+        padding:'8px 12px', background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10,
+      }}>
+        <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, fontWeight:700 }}>
+          {allRows.length} pairs · {groups.length} lanes
+        </span>
+        {groups.map(g => {
+          const meta = laneMeta(g.lane)
+          return (
+            <span key={g.lane} style={{
+              fontSize:9, fontFamily:NUM_FONT, fontWeight:700, padding:'2px 7px', borderRadius:5,
+              background:`${meta.color}16`, color:meta.color, border:`1px solid ${meta.color}38`,
+            }}>{meta.short} {g.rows.length}</span>
+          )
+        })}
+      </div>
+
+      {tagCounts.length > 0 && (
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
+          <span style={{ fontSize:9, color:C.text3, textTransform:'uppercase', letterSpacing:'.07em' }}>Bot tags</span>
+          <button onClick={() => setTagFilter(null)} style={btnStyle(C.orange, !tagFilter)}>All</button>
+          {tagCounts.map(([tag, count]) => (
+            <button key={tag} onClick={() => setTagFilter(t => (t === tag ? null : tag))}
+              style={btnStyle(tag === 'Due' ? '#FCD34D' : C.orange, tagFilter === tag)}>
+              {tag} {count}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {searched.map(g => <BotLane key={g.lane} group={g} tagFilter={tagFilter} />)}
+
+      <div style={{ fontSize:9.5, color:C.text3, lineHeight:1.6, marginTop:4 }}>
+        Lanes, types, tags, risk and reasons are the bot&apos;s own fields — nothing on this view is
+        recomputed. Scores are <b style={{ color:C.text2 }}>not comparable between lanes</b>: TOP 30
+        runs around 100 and the lettered lanes around 12–16, so each lane is ranked and shaded
+        against its own range only.
+        {' '}A player can appear in more than one lane, and does — those repeats are kept rather than
+        deduplicated away, because the bot put them there on purpose.
+        {' '}There is no <i>Top 15</i> or <i>Top 40</i> grouping here because the builder no longer
+        publishes those labels; <b style={{ color:C.text2 }}>Due</b> is a per-pair tag, so it&apos;s
+        filterable above rather than promoted to a heading it doesn&apos;t have.
+      </div>
+    </div>
+  )
+}
+
 // ── TODAY PAIRS ───────────────────────────────────────────────────────────────
 
 function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus }) {
@@ -400,10 +633,13 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
     return dedupePlayers(fromBuilder.length ? fromBuilder : players)
   }, [players, pairBuilder])
 
-  const botPairs = useMemo(() => {
-    const exact = pairBuilder?.recommended_pairs || []
-    return enforceUniquePairExposure(exact, 1, 24)
-  }, [pairBuilder])
+  // All of them, in lane order. The focus path (arriving from a Bot Pick click)
+  // reads this too, and used to miss a player's second pair for the same
+  // exposure-capping reason described on groupBotPairs.
+  const botPairs = useMemo(
+    () => groupBotPairs(pairBuilder?.recommended_pairs || []).flatMap(g => g.rows),
+    [pairBuilder],
+  )
 
   const crossPairs = useMemo(() => buildVariantPairs(sourcePlayers, 'cross'), [sourcePlayers])
   const samePairs = useMemo(() => buildVariantPairs(sourcePlayers, 'same'), [sourcePlayers])
@@ -458,11 +694,15 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
 
       <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, marginBottom:10 }}>
         {scope === 'cross' && 'Cross-game variants are shown first. Every player appears once.'}
-        {scope === 'bot' && 'Exact pair-builder output, cleaned to one appearance per player.'}
+        {scope === 'bot' && 'Exact pair-builder output, grouped by the bot’s own lanes. Nothing dropped.'}
         {scope === 'same' && 'Same-game stack variants, cleaned to one appearance per player.'}
       </div>
 
-      {!focusKey && (
+      {/* Bot picks get the bot's own structure. The cross/same variants are
+          this site's constructions, so they keep the flat type filter. */}
+      {scope === 'bot' && !focusKey && <BotPairGroups pairBuilder={pairBuilder} q={q} />}
+
+      {scope !== 'bot' && !focusKey && (
         <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:10 }}>
           {types.map(type => (
             <button key={type} onClick={() => setActiveType(type)} style={btnStyle(type === 'All' ? C.orange : typeColor(type), effectiveType === type)}>{type}</button>
@@ -470,17 +710,24 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
         </div>
       )}
 
-      <div style={{ display:'flex', justifyContent:'space-between', paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
-        <div style={{ fontSize:15, fontWeight:800 }}>Today&apos;s Pairs</div>
-        <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>{filtered.length} pairs</div>
-      </div>
-
-      {!filtered.length
-        ? <Empty text="No pairs available for this view." />
-        : <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden', marginTop:8 }}>
-            {filtered.map((pair,i) => <PairRow key={pair.pair_key || i} pair={pair} i={i} />)}
+      {/* The flat list is the variant builders' output. Under Bot Picks the
+          grouped lanes above already are the list, so it would just be the
+          same ten pairs a second time. */}
+      {!(scope === 'bot' && !focusKey) && (
+        <>
+          <div style={{ display:'flex', justifyContent:'space-between', paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
+            <div style={{ fontSize:15, fontWeight:800 }}>Today&apos;s Pairs</div>
+            <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>{filtered.length} pairs</div>
           </div>
-      }
+
+          {!filtered.length
+            ? <Empty text="No pairs available for this view." />
+            : <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden', marginTop:8 }}>
+                {filtered.map((pair,i) => <PairRow key={pair.pair_key || i} pair={pair} i={i} />)}
+              </div>
+          }
+        </>
+      )}
     </div>
   )
 }
@@ -671,28 +918,45 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
       </div>
 
       {historyMatches.length > 0 && (
-        <div style={{ marginBottom:12 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:'#FCD34D', marginBottom:6 }}>
-            📅 Season History Match ({historyMatches.length}) <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}>— partner is on today's slate</span>
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:800, color:'#FCD34D', marginBottom:5 }}>
+            📅 Season History Match ({historyMatches.length})
+            <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}> — someone who already homered has a season partner still to bat</span>
           </div>
-          <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden' }}>
-            {historyMatches.map((m, i) => {
-              const sameDayCount = num(m.pair?.same_day_hr_count_season)
-              const lastHit = m.pair?.last_same_day_hr || '—'
-              return (
-                <div key={m.key} style={{ padding:'9px 14px', borderTop:i ? `1px solid ${C.border}` : 'none', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:13, fontWeight:700, color:C.green }}>{m.homer.name}</span>
-                  <span style={{ fontSize:12, color:C.text3 }}>just homered · paired with</span>
-                  <span style={{ fontSize:13, fontWeight:700 }}>{m.partnerName}</span>
-                  <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>{m.partner.team}</span>
-                  <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(252,211,77,0.12)', color:'#FCD34D', border:'1px solid rgba(252,211,77,0.25)', fontFamily:NUM_FONT, fontWeight:700, marginLeft:'auto' }}>
-                    {sameDayCount}× same-day this season
-                  </span>
-                  <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>last: {lastHit}</span>
-                </div>
-              )
-            })}
-          </div>
+          <DenseTable
+            rows={historyMatches.map(m => ({
+              _key: m.key,
+              _raw: m.partner,
+              homer: m.homer.name,
+              partner: m.partnerName,
+              team: m.partner.team || '',
+              opp: m.partner.opponent || m.partner.opp || '',
+              sameDay: num(m.pair?.same_day_hr_count_season),
+              sameGame: num(m.pair?.same_game_hr_count),
+              boost: num(m.pair?.history_boost),
+              since: num(m.pair?.days_since_last_hit, null),
+              last: m.pair?.last_same_day_hr || '—',
+              hrs: num(m.partner?.hr_score),
+            }))}
+            columns={[
+              { key:'homer',    label:'Already deep', heat:false, w:132, bold:true, sticky:true },
+              { key:'partner',  label:'Partner left', heat:false, w:132, bold:true },
+              { key:'team',     label:'Tm',  heat:false, w:34, mono:true, dim:true },
+              { key:'opp',      label:'Opp', heat:false, w:34, mono:true, dim:true },
+              { key:'hrs',      label:'HR score', w:56, dp:1 },
+              { key:'sameDay',  label:'Same-day', w:56,
+                title:'Times these two homered on the same date this season — different parks counts' },
+              { key:'sameGame', label:'Same-gm', w:52,
+                title:'Times they homered in the same game. The only correlated version.' },
+              { key:'boost',    label:'Boost', w:46 },
+              { key:'since',    label:'Days ago', w:52, invert:true, fmt:(v)=> v==null?'—':String(v) },
+              { key:'last',     label:'Last', heat:false, w:82, mono:true, dim:true },
+            ]}
+            onRowClick={null}
+            initialSort="sameDay"
+            maxHeight={300}
+            caption="Days ago is inverted so a recent pairing reads bright. Same-day is the loose version — two hitters going deep on the same date in different ballparks are two independent events. Same-game is the one that means anything causally, and it's much rarer."
+          />
         </div>
       )}
 
@@ -739,9 +1003,31 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
             <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}> ({shownPairs.length}) · no repeated player</span>
           </div>
           {!shownPairs.length ? <Empty text={`No ${scope === 'same' ? 'same-game' : 'cross-game'} live pair available yet.`} /> : (
-            <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden' }}>
-              {shownPairs.map((pair,i) => <PairLine key={pair.pair_key || i} pair={pair} i={i} />)}
-            </div>
+            <DenseTable
+              rows={shownPairs.map((p, i) => ({
+                _key: p.pair_key || i,
+                a: p.a?.name || '', at: p.a?.team || '',
+                b: p.b?.name || '', bt: p.b?.team || '',
+                ahr: num(p.a?.hr_score), bhr: num(p.b?.hr_score),
+                ahrw: num(p.a?.hrw_score), bhrw: num(p.b?.hrw_score),
+                score: num(p.score),
+              }))}
+              columns={[
+                { key:'a',    label:'Hitter',  heat:false, w:140, bold:true, sticky:true },
+                { key:'at',   label:'Tm',      heat:false, w:34, mono:true, dim:true },
+                { key:'ahr',  label:'HR',      w:46, dp:1 },
+                { key:'ahrw', label:'HRW',     w:46, dp:0 },
+                { key:'b',    label:'Partner', heat:false, w:140, bold:true },
+                { key:'bt',   label:'Tm',      heat:false, w:34, mono:true, dim:true },
+                { key:'bhr',  label:'HR',      w:46, dp:1 },
+                { key:'bhrw', label:'HRW',     w:46, dp:0 },
+                { key:'score', label:'Pair',   w:52, dp:0,
+                  title:'Both HR scores plus a quarter of each HRW — this site’s construction, not the bot’s' },
+              ]}
+              initialSort="score"
+              maxHeight={400}
+              caption="Both of these hitters have already homered tonight. Every player appears once — the highest-scoring pair he belongs to wins him. Pair is this page's own combination score, not a bot field."
+            />
           )}
         </div>
       )}
@@ -866,6 +1152,7 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
 
 function HistorySection({ data, q, players=[] }) {
   const [onSlateOnly, setOnSlateOnly] = useState(false)
+  const [tier, setTier] = useState('all')
   const pairs = useMemo(() => Array.isArray(data?.top_pairs) ? data.top_pairs : [], [data])
 
   const todaysById = useMemo(() => {
@@ -901,6 +1188,37 @@ function HistorySection({ data, q, players=[] }) {
     return groups
   }, [filtered])
 
+  // One flat table instead of three card stacks. The tier is a filter now, not
+  // a layout — the numbers are what separate these pairs, so they belong in
+  // sortable columns rather than in three lists you can't sort across.
+  const tableRows = useMemo(() => {
+    const source = tier === 'all' ? filtered.slice(0, 350) : tiered[tier] || []
+    return source.map((pair, i) => {
+      const ps = Array.isArray(pair?.players) ? pair.players : []
+      const onSlatePlayers = ps.map(p => ({ ref:p, today: todaysById.get(p?.player_id) })).filter(x => x.today)
+      const edge = onSlatePlayers.map(({ ref, today }) => {
+        const weak = today.weak_spot_flag === true
+        const match = Number(today.pitch_type_match_score || 0) > 0
+        if (!weak && !match) return null
+        return `${String(ref.name || '').split(' ').slice(-1)[0]} ${weak ? '★' : ''}${match ? '🎯' : ''}`
+      }).filter(Boolean).join(' ')
+      const since = Number(pair?.days_since_last_hit)
+      return {
+        _key: pair?.pair_key || i,
+        pair: pairNames(pair),
+        teams: ps.map(p => p?.team).filter(Boolean).join('/'),
+        onSlate: onSlatePlayers.length ? 1 : 0,
+        sameDay: Number(pair?.same_day_hr_count_season || 0),
+        sameGame: Number(pair?.same_game_hr_count || 0),
+        boost: Number(pair?.history_boost || 0),
+        pairScore: Number(pair?.pair_score || 0),
+        since: Number.isFinite(since) ? since : null,
+        last: String(pair?.last_same_day_hr || '—'),
+        edge: edge || '',
+      }
+    })
+  }, [filtered, tiered, tier, todaysById])
+
   if (!data) return <Empty text="Pair history not loaded. Run pair_history_cache.py." />
 
   return (
@@ -914,30 +1232,42 @@ function HistorySection({ data, q, players=[] }) {
         </button>
       </div>
 
-      {HISTORY_TIERS.map(tier => {
-        const rows = tiered[tier.key]
-        if (!rows.length) return null
-        return (
-          <div key={tier.key} style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: tier.color }}>{tier.label}</span>
-              <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} pairs</span>
-            </div>
-            <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden' }}>
-              {rows.map((pair, i) => (
-                <HistoryRow
-                  key={pair?.pair_key || i}
-                  pair={pair}
-                  rank={i + 1}
-                  isTop3={i < 3}
-                  tierColor={tier.color}
-                  todaysById={todaysById}
-                />
-              ))}
-            </div>
-          </div>
-        )
-      })}
+      <div style={{ display:'flex', gap:5, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
+        <span style={{ fontSize:9, color:C.text3, textTransform:'uppercase', letterSpacing:'.07em' }}>Tier</span>
+        <button onClick={() => setTier('all')} style={btnStyle(C.orange, tier === 'all')}>
+          All {filtered.length}
+        </button>
+        {HISTORY_TIERS.map(t => (
+          <button key={t.key} onClick={() => setTier(tier === t.key ? 'all' : t.key)} style={btnStyle(t.color, tier === t.key)}>
+            {t.label} {tiered[t.key].length}
+          </button>
+        ))}
+      </div>
+
+      {!tableRows.length ? <Empty text="No pairs match this filter." /> : (
+        <DenseTable
+          rows={tableRows}
+          columns={[
+            { key:'pair',     label:'Pair',      heat:false, w:230, bold:true, sticky:true },
+            { key:'onSlate',  label:'Today',     flag:true, mark:'●', w:34,
+              title:'At least one of the two is on tonight’s slate' },
+            { key:'teams',    label:'Tms',       heat:false, w:76, mono:true, dim:true },
+            { key:'sameDay',  label:'Same-day',  w:60,
+              title:'Days this season both homered — different ballparks included' },
+            { key:'sameGame', label:'Same-gm',   w:56,
+              title:'Days both homered in the SAME game. The only correlated version.' },
+            { key:'boost',    label:'Boost',     w:48 },
+            { key:'pairScore', label:'Pair',     w:48 },
+            { key:'since',    label:'Days ago',  w:56, invert:true, fmt:(v)=> v==null?'—':String(v) },
+            { key:'last',     label:'Last',      heat:false, w:84, mono:true, dim:true },
+            { key:'edge',     label:'Edge',      heat:false, w:120, dim:true,
+              title:'Weak spot / pitch-type match, only for the half of the pair actually playing tonight' },
+          ]}
+          initialSort="sameDay"
+          maxHeight={520}
+          caption="Capped at 200 rendered rows — this table used to lock the browser tab at 350. Days ago is inverted so a recent pairing reads bright. Same-day is the loose count: two hitters going deep on the same date in different parks are two independent events, and most of these pairs cluster at 4–9 across a whole season, which is small. Same-game is the column that actually implies correlation."
+        />
+      )}
     </div>
   )
 }
