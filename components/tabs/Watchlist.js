@@ -1,10 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { playerId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
-import { C } from '../../lib/theme'
+import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
 import HitterHeat from '../HitterHeat'
+import DenseTable from '../DenseTable'
 import PlayerCard from '../PlayerCard'
 
 const EXPORT_COLUMNS = [
@@ -89,7 +90,98 @@ async function copyTextList(items, onDone) {
   }
 }
 
-export default function Watchlist({ items, onWatch, onAdd, onPlayerClick }) {
+// Cross-reference — paste a list from anywhere and see it against the slate.
+//
+// The formats people actually paste are messy: ranking numbers, bullets, odds,
+// team codes in brackets. Stripping those is the whole feature; a box that only
+// accepts clean names is a box nobody uses twice.
+function CrossReference({ players, onPlayerClick }) {
+  const [text, setText] = useState('')
+
+  const norm = (v) => String(v || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim()
+
+  const parsed = useMemo(() => {
+    const lines = text.split(/[\n,]/).map((l) => l
+      .replace(/^\s*(?:\d+[.)]|[-*\u2022])\s*/, '')   // 1.  1)  -  *  bullets
+      .replace(/[+-]\d{3,}/g, '')                      // +410, -125
+      .replace(/\((?:[A-Z]{2,3})\)/g, '')              // (PHI)
+      .trim()).filter(Boolean)
+
+    const byName = new Map(players.map((p) => [norm(nameOf(p)), p]))
+    return lines.map((line) => {
+      const k = norm(line)
+      const hit = byName.get(k)
+        || players.find((p) => norm(nameOf(p)).includes(k) && k.length > 4)
+      return { line, hit: hit || null }
+    })
+  }, [text, players])
+
+  const found = parsed.filter((r) => r.hit)
+
+  return (
+    <details style={{
+      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+      padding: '10px 14px', marginBottom: 14,
+    }}>
+      <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.text2 }}>
+        📋 Cross-reference a list of players
+      </summary>
+      <div style={{ fontSize: 10.5, color: C.text3, margin: '8px 0 6px', lineHeight: 1.55 }}>
+        Paste names one per line or comma-separated. Ranking numbers, bullets, odds and team codes
+        are stripped automatically.
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={5}
+        placeholder={'Aaron Judge\nShohei Ohtani +410\n3. Kyle Schwarber (PHI)'}
+        style={{
+          width: '100%', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
+          padding: '8px 10px', fontSize: 12, color: C.text, fontFamily: NUM_FONT,
+          outline: 'none', resize: 'vertical',
+        }}
+      />
+      {parsed.length > 0 && (
+        <>
+          <div style={{ fontSize: 10.5, color: C.text3, margin: '8px 0 6px' }}>
+            {found.length} of {parsed.length} matched to tonight&apos;s slate
+          </div>
+          <DenseTable
+            rows={parsed.map((r, i) => ({
+              _key: `${r.line}-${i}`,
+              _raw: r.hit,
+              input: r.line,
+              name: r.hit ? nameOf(r.hit) : '— not on slate —',
+              team: r.hit ? teamOf(r.hit) : '',
+              opp: r.hit ? oppOf(r.hit) : '',
+              hr: r.hit ? hrScore(r.hit) : null,
+              hrr: r.hit ? prodScore(r.hit) : null,
+              hit: r.hit ? hitScore(r.hit) : null,
+              weak: r.hit?.weak_spot_flag ? 1 : 0,
+            }))}
+            columns={[
+              { key: 'input', label: 'Pasted', heat: false, w: 150, dim: true },
+              { key: 'name',  label: 'Matched', heat: false, w: 150, bold: true },
+              { key: 'team',  label: 'Tm',   heat: false, w: 34, mono: true, dim: true },
+              { key: 'opp',   label: 'Opp',  heat: false, w: 34, mono: true, dim: true },
+              { key: 'weak',  label: '★',    flag: true, mark: '★', w: 30 },
+              { key: 'hr',    label: 'HR',   w: 44, dp: 1 },
+              { key: 'hrr',   label: 'HRR',  w: 44, dp: 1 },
+              { key: 'hit',   label: 'Hit',  w: 44, dp: 1 },
+            ]}
+            onRowClick={(r) => r && onPlayerClick?.(r)}
+            maxHeight={300}
+            caption="Rows with no match either aren't playing tonight or came through with a spelling the slate doesn't use."
+          />
+        </>
+      )}
+    </details>
+  )
+}
+
+export default function Watchlist({ items, players = [], onWatch, onAdd, onPlayerClick }) {
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -110,6 +202,7 @@ export default function Watchlist({ items, onWatch, onAdd, onPlayerClick }) {
     return (
       <div>
         <PanelTitle title="Watchlist" sub="Tap the ☆ on any player card to save them here. Saved on this device only." />
+        <CrossReference players={players} onPlayerClick={onPlayerClick} />
         <Empty text="No saved players yet." />
       </div>
     )
@@ -177,6 +270,8 @@ export default function Watchlist({ items, onWatch, onAdd, onPlayerClick }) {
       {/* A watchlist is a set you assembled by hand, so the useful question
           isn't the ranking -- it's whether the names you saved actually have
           anything in common, or whether you've collected six different bets. */}
+      <CrossReference players={players} onPlayerClick={onPlayerClick} />
+
       <HitterHeat
         players={items}
         type="hr"

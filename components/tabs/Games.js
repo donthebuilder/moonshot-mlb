@@ -124,10 +124,6 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
         <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} />
       </div>
 
-      {/* Read after the game panel, not before: the strip is the task, this is
-          the sanity check on it. Ported from the Streamlit Games tab. */}
-      <ProjectedOutput games={games} players={players} />
-
       {/* ── Selected game ── */}
       {/* Only the selected game renders. The strip above is the selector; an
           accordion of all fifteen underneath was the same list a second time,
@@ -247,6 +243,12 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           </section>
         )
       })}
+
+      {/* Bottom of the page on purpose. The strip and the game panel are the
+          task; this is the check you read afterwards to see whether the slate
+          agreed with what you just looked at. */}
+      <ProjectedOutput games={games} players={players} />
+
     </div>
   )
 }

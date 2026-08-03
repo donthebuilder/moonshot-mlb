@@ -16,6 +16,7 @@ import Games from './tabs/Games'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
 import DueBoard from './tabs/DueBoard'
+import LongestBoard from './tabs/LongestBoard'
 import Backtest from './tabs/Backtest'
 import PlayerBoard from './tabs/PlayerBoard'
 import HitsHRR from './tabs/HitsHRR'
@@ -166,7 +167,7 @@ export default function Dashboard() {
           <>
             {tab === 'games'       && <Games players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <RankedBoard players={players} type="hr"  onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'longest'     && <RankedBoard players={players} type="longest" onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'longest'     && <LongestBoard players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'due'         && <DueBoard players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
@@ -178,7 +179,7 @@ export default function Dashboard() {
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} onPlayerClick={setModalPlayer} />}
-            {tab === 'watch'       && <Watchlist items={watch} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+            {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayChart players={allPlayers} />}
             {tab === 'guide'       && <Guide />}
           </>
