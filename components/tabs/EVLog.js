@@ -33,7 +33,7 @@ const PITCH_NAMES = {
   CS: 'Slow curve',
 }
 
-const GAME_STEPS = [5, 10, 15, 30]
+const GAME_STEPS = [5, 10, 15, 25]
 const BBE_STEPS = [10, 15, 25, 40, 50]
 
 export default function EVLog({ player, bbeRange: bbeRangeProp }) {

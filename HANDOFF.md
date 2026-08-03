@@ -102,6 +102,61 @@ Single-page app, 17 tabs, all state in `components/Dashboard.js`.
 - Verify with `npx next build` — but note a clean build proves nothing about
   rendering. Check the live site in Chrome.
 
+## How this runs unattended (checked 2026-08-03)
+
+The site is static and fetches every payload **client-side** from
+`raw.githubusercontent.com/.../data/public/data/...`. So new bot data appears on
+the live site with no redeploy. Vercel only rebuilds when code is pushed. That
+means site autonomy = bot autonomy, and the bots are in the Streamlit repo.
+
+Cron in `MLB-HR-DASHBOARD-STREAMLIT/.github/workflows`, all UTC:
+
+| Workflow | Cron | What it feeds |
+|---|---|---|
+| `today.yml` | hourly 12:00–01:00, +21:30 | `today_slim`, `pair_builder_latest`, `detail/today/` |
+| `results.yml` | ~17×/day, 16:00–10:00 | `results_live`, `graded_results_*` |
+| `tomorrow.yml` | 07:05 | `tomorrow_slim`, `detail/tomorrow/` |
+| `pair-history.yml` | 07:15 | `pair_history_summary` |
+| `hr-companion.yml` | 07:45 | `hr_companion_latest` |
+| `spray-cache.yml` | 13:00 | **nothing — see below** |
+| `backtest-report.yml` | **none** | `backtest_summary` — manual only |
+
+`publish_data.sh` force-pushes `data` as a single orphan commit each run and
+carries forward files the current run didn't regenerate, so the branch stays
+small and no publisher clobbers another. That part is solid.
+
+### Two things that are NOT autonomous
+
+**1. `backtest_summary.json` never refreshes on its own.**
+`backtest-report.yml` has `workflow_dispatch` only — no `schedule`. The Backtest
+tab, and the "34 graded days" calibration story behind `BANDS` in Pools.js and
+`CALIB` in ProjectedOutput.js, go stale until someone clicks Run workflow.
+Adding a `schedule:` block to that workflow is the whole fix.
+
+**2. Hot Zones will never fill. It is not waiting on a bot run.**
+The old note here said "stays empty until `spray_cache.py` runs". That was
+wrong — it has been running daily at 13:00 UTC. It's broken by wiring, in three
+independent places, and all three have to be fixed:
+
+- `spray-cache.yml` declares `permissions: contents: read` and has **no publish
+  step**. Its only persistence is `actions/cache`, which dies with the runner.
+  Nothing it computes ever reaches the `data` branch.
+- `spray_cache.py` writes batter files to `public/data/pitch/batter_<id>.json`.
+  The app reads `public/data/current/detail/today/batter_<id>.json`. Different
+  path — and `publish_data.sh` only copies `current/detail` and `current/splits`.
+- `make_slim.py` builds the published detail files from a four-key whitelist,
+  `BATTER_DETAIL_KEYS = [spray_chart, batter_pitch_type_profile,
+  pitch_mix_matchup, pitch_type_summary]`. `zone_profile` isn't in it, so even a
+  slate row carrying one would be dropped.
+
+So this is a Streamlit-repo job, not a moonshot-mlb one. The empty state on
+HotZoneMap.js is correct and should stay until the pipeline actually publishes.
+
+**Possible third risk, unverified:** GitHub disables scheduled workflows in a
+repo after a long stretch of no *human* activity. Bot pushes made with
+`GITHUB_TOKEN` may not reset that timer. If the bots go quiet all at once for no
+other reason, check the Actions tab for a "workflows disabled" banner first.
+
 ## I can't do these — they're yours
 
 - Push to GitHub (no credentials). I edit files in the folder; you commit/push.

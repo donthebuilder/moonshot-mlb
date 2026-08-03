@@ -188,15 +188,23 @@ function Marker({ shape, x, y, r, fill, stroke, sw, opacity, dashed }) {
   return <circle cx={x} cy={y} r={r} {...common} />
 }
 
-// Windows are measured back from the most recent tracked ball, not from the
-// wall clock. The payload can lag a day or two, and "last 5 days" counted off
-// today would quietly return fewer games than it says on days when it does.
+// Windows are counted in GAMES, not calendar days, and measured back from his
+// most recent tracked ball rather than from the wall clock. Days would be the
+// wrong unit twice over: the payload can lag, and a hitter who sat three of the
+// last five days has a "last 5 days" that means something different from
+// everyone else's. Counting his own dates keeps the window comparable between
+// hitters.
+//
+// Caveat worth knowing, and said on the panel: a "game" here is a date on which
+// he has at least one tracked batted ball. A game where he walked twice and
+// struck out leaves no row, so it isn't counted — these are his last N games
+// with contact, which run slightly further back than his last N games.
 const RANGES = [
-  { key: 'all', label: 'All', days: null },
-  { key: 'd15', label: 'L15d', days: 15 },
-  { key: 'd30', label: 'L30d', days: 30 },
-  { key: 'd60', label: 'L60d', days: 60 },
-  { key: 'd90', label: 'L90d', days: 90 },
+  { key: 'g5',  label: 'L5',  games: 5 },
+  { key: 'g10', label: 'L10', games: 10 },
+  { key: 'g15', label: 'L15', games: 15 },
+  { key: 'g25', label: 'L25', games: 25 },
+  { key: 'all', label: 'All', games: null },
 ]
 
 const BB_TYPES = [
@@ -206,7 +214,6 @@ const BB_TYPES = [
   { key: 'popup',       label: 'PU' },
 ]
 
-const dayDiff = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000)
 
 export default function SprayField({ player, height = 340, slateMode }) {
   const [data, setData] = useState(null)
@@ -265,11 +272,21 @@ export default function SprayField({ player, height = 340, slateMode }) {
     () => hits.reduce((m, h) => (h.date && h.date > m ? h.date : m), ''),
     [hits],
   )
+  // Every date he has a tracked ball on, newest first. This is the game list.
+  const gameDates = useMemo(
+    () => [...new Set(hits.map((h) => h.date).filter(Boolean))].sort().reverse(),
+    [hits],
+  )
   const inRange = useMemo(() => {
     const spec = RANGES.find((r) => r.key === range)
-    if (!spec?.days || !newest) return hits
-    return hits.filter((h) => h.date && dayDiff(h.date, newest) <= spec.days)
-  }, [hits, range, newest])
+    if (!spec?.games) return hits
+    const keep = new Set(gameDates.slice(0, spec.games))
+    return hits.filter((h) => keep.has(h.date))
+  }, [hits, range, gameDates])
+  const gamesShown = useMemo(
+    () => new Set(inRange.map((h) => h.date).filter(Boolean)).size,
+    [inRange],
+  )
 
   // Which side he stands on, taken from the batted balls themselves rather than
   // a roster field — a switch hitter's answer depends on the arm he faced, and
@@ -428,14 +445,26 @@ export default function SprayField({ player, height = 340, slateMode }) {
     <div>
       {/* Date window. Counts everywhere else on the panel follow it. */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5, alignItems: 'center' }}>
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Range</span>
-        {RANGES.map((r) => (
-          <button key={r.key} onClick={() => setRange(r.key)} style={{ ...chipBtn(range === r.key, C.orange), padding: '2px 8px', fontSize: 9.5 }}>
-            {r.label}
-          </button>
-        ))}
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Games</span>
+        {RANGES.map((r) => {
+          // A window wider than he has games in is just "All" wearing a smaller
+          // number, so it's dimmed rather than offered as a real choice.
+          const redundant = r.games != null && r.games >= gameDates.length
+          return (
+            <button
+              key={r.key}
+              onClick={() => setRange(r.key)}
+              title={r.games ? `His last ${r.games} games with a tracked batted ball` : `All ${gameDates.length} games on file`}
+              style={{
+                ...chipBtn(range === r.key, C.orange),
+                padding: '2px 8px', fontSize: 9.5,
+                opacity: redundant && range !== r.key ? 0.35 : 1,
+              }}
+            >{r.label}</button>
+          )
+        })}
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-          {inRange.length} of {hits.length} BBE
+          {gamesShown}G · {inRange.length} of {hits.length} BBE
           {newest ? ` · through ${newest}` : ''}
         </span>
         <button onClick={reset} style={{ ...chipBtn(false, C.text3), padding: '2px 8px', fontSize: 9.5, marginLeft: 'auto' }}>
@@ -446,6 +475,13 @@ export default function SprayField({ player, height = 340, slateMode }) {
       {inRange.length === 0 && (
         <div style={{ fontSize: 10.5, color: C.orange, marginBottom: 6 }}>
           No tracked batted balls in this window — his last one was {newest || 'unknown'}. Widen the range.
+        </div>
+      )}
+      {range !== 'all' && inRange.length > 0 && inRange.length < 20 && (
+        <div style={{ fontSize: 9.5, color: C.orange, marginBottom: 6, lineHeight: 1.5 }}>
+          {inRange.length} batted balls over {gamesShown} game{gamesShown === 1 ? '' : 's'} — too few
+          to read a spray tendency off. At this size one ball moves a lane share by five points, so
+          treat the shape as a look at recent contact, not a profile.
         </div>
       )}
 
