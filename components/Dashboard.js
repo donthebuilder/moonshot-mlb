@@ -186,7 +186,13 @@ export default function Dashboard() {
         )}
       </main>
       <Slip slip={slip} setSlip={setSlip} />
-      <PlayerModal player={modalPlayer} onClose={() => setModalPlayer(null)} />
+      <PlayerModal
+        player={modalPlayer}
+        onClose={() => setModalPlayer(null)}
+        onAdd={addSlip}
+        onWatch={toggleWatch}
+        watched={modalPlayer ? watchIds.has(playerId(modalPlayer)) : false}
+      />
     </>
   )
 }

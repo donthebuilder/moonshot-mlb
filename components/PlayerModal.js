@@ -93,7 +93,11 @@ function Shell({ inline, onClose, width, children }) {
   )
 }
 
-export default function PlayerModal({ player, onClose, inline = false }) {
+// BET MARKETS for the slip. Same four the boards offer, so an entry added from
+// here is indistinguishable from one added from a card.
+const BETS = ['HR', 'Hit', 'HRR', 'TB']
+
+export default function PlayerModal({ player, onClose, inline = false, onAdd, onWatch, watched = false }) {
   const [tab, setTab] = useState('overview')
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
@@ -175,6 +179,49 @@ export default function PlayerModal({ player, onClose, inline = false }) {
               <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.text3, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
             )}
           </div>
+
+          {/* Watchlist + slip. You could open a hitter from any board, decide
+              he's worth playing, and then have to close the modal and find his
+              card again to add him. Both actions live here now. */}
+          {(onAdd || onWatch) && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+              {onWatch && (
+                <button
+                  onClick={() => onWatch(p)}
+                  title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+                  style={{
+                    padding: '4px 11px', fontSize: 11, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
+                    fontFamily: NUM_FONT,
+                    border: `1px solid ${watched ? C.orange : C.border}`,
+                    background: watched ? 'rgba(249,115,22,.14)' : 'transparent',
+                    color: watched ? C.orange : C.text3,
+                  }}
+                >{watched ? '★ On watchlist' : '☆ Watch'}</button>
+              )}
+              {onAdd && (
+                <>
+                  <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', marginLeft: 4 }}>
+                    Add to slip
+                  </span>
+                  {BETS.map((b) => (
+                    <button
+                      key={b}
+                      onClick={() => onAdd(p, b)}
+                      title={`Add ${nameOf(p)} — ${b} — to the slip`}
+                      style={{
+                        padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
+                        fontFamily: NUM_FONT, border: `1px solid ${C.border}`,
+                        background: 'transparent', color: C.text2,
+                      }}
+                    >+ {b}</button>
+                  ))}
+                  <span style={{ fontSize: 9, color: C.text3 }}>
+                    bot&apos;s pick: <b style={{ color: C.text2 }}>{bestBet(p, 'hr')}</b>
+                  </span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* chips */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>

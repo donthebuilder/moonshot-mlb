@@ -79,8 +79,16 @@ export default function MatchupPitcher({ player, slateMode }) {
   // Arsenal, taken from the split that matches which side this hitter stands
   // on. The overall mix is the fallback and is labelled as such — a starter's
   // usage against lefties can look nothing like his usage overall.
+  // HAND TOGGLE. Defaults to the side this hitter actually bats from, because
+  // that's the answer to "what will HE see" — but a starter's mix and the
+  // damage he allows can look completely different to the other side, and you
+  // often want that when you're deciding which half of a lineup to attack.
+  // 'auto' follows the hitter; L/R force it; 'all' is his overall usage.
+  const [handView, setHandView] = useState('auto')
+  const effHand = handView === 'auto' ? bats : handView === 'all' ? '' : handView
+
   const { arsenal, side } = useMemo(() => {
-    const key = bats === 'L' ? 'pitcher_pitch_mix_vs_lhb' : bats === 'R' ? 'pitcher_pitch_mix_vs_rhb' : null
+    const key = effHand === 'L' ? 'pitcher_pitch_mix_vs_lhb' : effHand === 'R' ? 'pitcher_pitch_mix_vs_rhb' : null
     const split = key ? arr(obj(detail?.[key]).pitch_type_summary) : []
     const overall = arr(detail?.pitcher_pitch_arsenal_detail)
     const use = split.length ? split : overall
@@ -102,9 +110,9 @@ export default function MatchupPitcher({ player, slateMode }) {
           xwoba: a.xwoba_allowed == null ? null : n(a.xwoba_allowed, 0),
         }
       }).sort((x, y) => y.usage - x.usage),
-      side: split.length ? (bats === 'L' ? 'vs LHB' : 'vs RHB') : 'overall',
+      side: split.length ? (effHand === 'L' ? 'vs LHB' : 'vs RHB') : 'overall',
     }
-  }, [detail, bats])
+  }, [detail, effHand])
 
   const spots = useMemo(() => Object.values(obj(detail?.pitcher_lineup_spot_damage)).map((s) => ({
     _key: String(s.spot),
@@ -164,6 +172,37 @@ export default function MatchupPitcher({ player, slateMode }) {
         )}
       </div>
 
+      {/* Hand toggle — drives the stat tiles AND the arsenal below. */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Split</span>
+        {[
+          { k: 'auto', label: bats ? `vs ${bats}HB — this hitter` : 'This hitter' },
+          { k: 'L', label: 'vs LHB' },
+          { k: 'R', label: 'vs RHB' },
+          { k: 'all', label: 'Overall' },
+        ].map((o) => {
+          const on = handView === o.k
+          return (
+            <button
+              key={o.k}
+              onClick={() => setHandView(o.k)}
+              style={{
+                padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+                fontFamily: NUM_FONT,
+                border: `1px solid ${on ? C.orange : C.border}`,
+                background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                color: on ? C.orange : C.text3,
+              }}
+            >{o.label}</button>
+          )
+        })}
+        {handView !== 'auto' && handView !== 'all' && handView !== bats && (
+          <span style={{ fontSize: 9.5, color: C.orange, fontFamily: NUM_FONT }}>
+            not this hitter&apos;s side — {bats || '?'}HB
+          </span>
+        )}
+      </div>
+
       {/* The headline read. Everything here is "how good is this for the guy at
           the plate", not "how good is this pitcher". */}
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -173,9 +212,20 @@ export default function MatchupPitcher({ player, slateMode }) {
         <Stat label="Weak side" value={weakSide || '—'}
           tone={matchesWeak ? C.orange : C.text}
           note={matchesWeak ? `${bats}HB — that's this hitter` : weakSide ? 'not this hitter' : 'none published'} />
-        <Stat label={`HR/9 vs ${bats === 'L' ? 'LHB' : 'RHB'}`}
-          value={(() => { const v = n(bats === 'L' ? player.pitcher_hr9_vs_lhb : player.pitcher_hr9_vs_rhb, null); return v == null ? '—' : v.toFixed(2) })()}
-          note="his split against this side" />
+        <Stat label={effHand ? `HR/9 vs ${effHand}HB` : 'HR/9 overall'}
+          value={(() => {
+            if (!effHand) return hr9 == null ? '—' : hr9.toFixed(2)
+            const v = n(effHand === 'L' ? player.pitcher_hr9_vs_lhb : player.pitcher_hr9_vs_rhb, null)
+            return v == null ? '—' : v.toFixed(2)
+          })()}
+          note={effHand ? 'his split against this side' : 'both sides combined'} />
+        <Stat label={effHand ? `WHIP vs ${effHand}HB` : 'WHIP overall'}
+          value={(() => {
+            if (!effHand) return clean(player.pitcher_whip, '—')
+            const v = n(effHand === 'L' ? player.pitcher_whip_vs_lhb : player.pitcher_whip_vs_rhb, null)
+            return v == null ? '—' : v.toFixed(2)
+          })()}
+          note="baserunners against this side" />
         <Stat label="Meatball%" value={n(player.pitcher_meatball_pct, null) == null ? '—' : `${n(player.pitcher_meatball_pct).toFixed(1)}%`}
           note="pitches down the middle" />
         <Stat label="SwStr%" value={pctOf(player.pitcher_swstr_pct)}
