@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { C } from '../../lib/theme'
+import { C, NUM_FONT } from '../../lib/theme'
 import {
   nameOf, teamOf, oppOf, n, clean,
   recent375, ihrVal,
@@ -9,6 +9,7 @@ import {
 import { tierRole, isAligned } from '../../lib/scoring'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
+import { groupPitchers } from '../../lib/data'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
 //
@@ -62,7 +63,22 @@ const COLUMNS = [
   { key: 'hr9',     label: 'P HR/9', w: 46, dp: 2 },
 ]
 
-export default function Scoreboard({ players, onPlayerClick }) {
+// Two trackers above the grid, ported from Streamlit. Both answer questions
+// the 268-row table can't: who has ALREADY gone deep tonight, and which arms
+// have soft spots the lineup can reach. Neither is derivable by sorting.
+function Tracker({ title, count, children, note }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
+        {title} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontWeight: 600 }}>({count})</span>
+      </div>
+      {children}
+      {note && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5 }}>{note}</div>}
+    </div>
+  )
+}
+
+export default function Scoreboard({ players, results, onPlayerClick }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -99,6 +115,47 @@ export default function Scoreboard({ players, onPlayerClick }) {
     }))
   }, [players, alignedOnly])
 
+  // Who has already homered tonight, matched back to where the board had him.
+  // The board rank is the point: a scoreboard that only lists the homers tells
+  // you nothing about whether the model saw them coming.
+  const goneYard = useMemo(() => {
+    const homers = results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []
+    const byRank = [...players].sort((a, b) => hrScore(b) - hrScore(a))
+    return homers.map((h, i) => {
+      const k = String(h?.name || '').toLowerCase().replace(/[^a-z]/g, '')
+      const idx = byRank.findIndex((p) => String(nameOf(p) || '').toLowerCase().replace(/[^a-z]/g, '') === k)
+      const p = idx >= 0 ? byRank[idx] : null
+      return {
+        _key: `${h?.player_id ?? h?.name}-${i}`,
+        _raw: p,
+        rank: idx >= 0 ? idx + 1 : null,
+        name: clean(h?.name, '—'),
+        team: clean(h?.team, ''),
+        hr: n(h?.hr, 1),
+        score: p ? hrScore(p) : 0,
+        role: p ? tierRole(p) : '—',
+      }
+    })
+  }, [results, players])
+
+  // Every starter with at least one weak lineup slot the opposing order fills.
+  const weakSpots = useMemo(() => {
+    return groupPitchers(players)
+      .map((e, i) => {
+        const hit = (e.lineup || []).filter((b) => b.weak_spot_flag)
+        if (!hit.length) return null
+        return {
+          _key: e.pitcher_id ?? e.pitcher_name ?? i,
+          pitcher: clean(e.pitcher_name, 'Unknown'),
+          hr9: n(e.pitcher_hr9, 0),
+          spots: hit.map((b) => b.lineup_spot).filter((x) => x != null).join(', '),
+          hitters: hit.map((b) => b.name).join(', '),
+          damage: Math.max(...hit.map((b) => n(b.raw?.pitcher_spot_damage_score, 0)), 0),
+        }
+      })
+      .filter(Boolean)
+  }, [players])
+
   if (!players.length) return <Empty text="No players yet." />
 
   const lit = (k) => rows.filter((r) => r[k]).length
@@ -120,6 +177,58 @@ export default function Scoreboard({ players, onPlayerClick }) {
           )
         }
       />
+
+      <div style={{
+        display: 'grid', gap: 16, marginBottom: 18,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+      }}>
+        {goneYard.length > 0 && (
+          <Tracker
+            title="💥 Gone yard"
+            count={goneYard.length}
+            note={`${goneYard.filter((r) => r.rank && r.rank <= 15).length} of ${goneYard.length} came from the top 15 of the board.`}
+          >
+            <DenseTable
+              rows={goneYard}
+              columns={[
+                { key: 'rank', label: 'Board', heat: false, w: 46, mono: true, dim: true,
+                  fmt: (v) => (v == null ? '—' : `#${v}`) },
+                { key: 'name', label: 'Player', heat: false, w: 132, bold: true },
+                { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
+                { key: 'hr',   label: 'HR',     w: 34 },
+                { key: 'score', label: 'HR score', w: 54, dp: 1 },
+                { key: 'role', label: 'Role',   heat: false, w: 78, dim: true },
+              ]}
+              onRowClick={onPlayerClick}
+              initialSort="score"
+              maxHeight={260}
+              caption=""
+            />
+          </Tracker>
+        )}
+
+        {weakSpots.length > 0 && (
+          <Tracker
+            title="★ Weak spots"
+            count={weakSpots.length}
+            note="Damage is how hard that pitcher gets hit in those spots. Sorted hardest first."
+          >
+            <DenseTable
+              rows={weakSpots}
+              columns={[
+                { key: 'pitcher', label: 'Pitcher', heat: false, w: 126, bold: true },
+                { key: 'hr9',     label: 'HR/9',    w: 44, dp: 2 },
+                { key: 'spots',   label: 'Spots',   heat: false, w: 54, mono: true, dim: true },
+                { key: 'hitters', label: 'Hitters', heat: false, w: 190, dim: true },
+                { key: 'damage',  label: 'Damage',  w: 52, dp: 1 },
+              ]}
+              initialSort="damage"
+              maxHeight={260}
+              caption=""
+            />
+          </Tracker>
+        )}
+      </div>
 
       <DenseTable
         rows={rows}

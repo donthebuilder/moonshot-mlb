@@ -7,6 +7,7 @@ import { PanelTitle, Grid, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
+import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
 
 const ROLE_CONFIG = {
@@ -122,6 +123,10 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
       }}>
         <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} />
       </div>
+
+      {/* Read after the game panel, not before: the strip is the task, this is
+          the sanity check on it. Ported from the Streamlit Games tab. */}
+      <ProjectedOutput games={games} players={players} />
 
       {/* ── Selected game ── */}
       {/* Only the selected game renders. The strip above is the selector; an

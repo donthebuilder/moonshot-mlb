@@ -15,6 +15,7 @@ import Guide from './tabs/Guide'
 import Games from './tabs/Games'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
+import DueBoard from './tabs/DueBoard'
 import Backtest from './tabs/Backtest'
 import PlayerBoard from './tabs/PlayerBoard'
 import HitsHRR from './tabs/HitsHRR'
@@ -162,11 +163,11 @@ export default function Dashboard() {
             {tab === 'games'       && <Games players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <RankedBoard players={players} type="hr"  onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'longest'     && <RankedBoard players={players} type="longest" onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'due'         && <RankedBoard players={players} type="due" onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'due'         && <DueBoard players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'hitshrr'     && <HitsHRR     players={players}             onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'scoreboard'  && <Scoreboard players={players} results={results} onPlayerClick={setModalPlayer} />}
             {tab === 'pools'       && <Pools players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={results} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} />}
