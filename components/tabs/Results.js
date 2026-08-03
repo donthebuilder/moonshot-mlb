@@ -448,11 +448,43 @@ function PairsResults({ pairPoolResults }) {
               {list.map((pool, i) => {
                 const hitRatio = si(pool.hr_count) / Math.max(1, si(pool.total_count))
                 const col = hitRatio >= 1 ? C.green : hitRatio >= 0.5 ? C.yellow : C.text3
+                const letter = (pool.label || '').replace('4-MAN HR POOL ', '').replace('6-MAN HR POOL ', '')
+                const homered = new Set((pool.homer_names || []).map((x) => String(x || '').toLowerCase()))
+                const members = Array.isArray(pool.players) ? pool.players : []
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <MiniBar value={hitRatio * 100} color={col} />
-                    <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: col, minWidth: 40 }}>{si(pool.hr_count)}/{si(pool.total_count)} HR</span>
-                    <span style={{ fontSize: 10, color: C.text3 }}>{(pool.label || '').replace('4-MAN HR POOL ', '').replace('6-MAN HR POOL ', '')}</span>
+                  <div key={i} style={{
+                    padding: '6px 8px', borderRadius: 8,
+                    border: `1px solid ${col}33`,
+                    background: hitRatio > 0 ? `${col}0d` : 'transparent',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: col, minWidth: 14 }}>{letter}</span>
+                      <MiniBar value={hitRatio * 100} color={col} />
+                      <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: col, minWidth: 44 }}>
+                        {si(pool.hr_count)}/{si(pool.total_count)} HR
+                      </span>
+                    </div>
+                    {/* Who is actually in the pool. Without this a pool is just
+                        a letter and a bar, and you can't tell whether it missed
+                        because the picks were bad or because they sat. */}
+                    {members.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4, paddingLeft: 22 }}>
+                        {members.map((m, j) => {
+                          const hit = homered.has(String(m?.name || '').toLowerCase())
+                          return (
+                            <span key={j} style={{
+                              fontSize: 10.5,
+                              color: hit ? C.green : C.text2,
+                              fontWeight: hit ? 700 : 400,
+                            }}>
+                              {hit ? '💥 ' : ''}{m?.name}
+                              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}> {m?.team}</span>
+                              {j < members.length - 1 && <span style={{ color: C.text3 }}> ·</span>}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
