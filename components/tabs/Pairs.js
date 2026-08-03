@@ -487,59 +487,6 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
 
 // ── POOLS ─────────────────────────────────────────────────────────────────────
 
-function PoolsSection({ players, pairBuilder }) {
-  const [size, setSize] = useState('4')
-  const sourcePlayers = useMemo(() => {
-    const fromBuilder = Array.isArray(pairBuilder?.available_pool) ? pairBuilder.available_pool : []
-    return dedupePlayers(fromBuilder.length ? fromBuilder : players)
-  }, [players, pairBuilder])
-
-  const pools3 = useMemo(() => buildVariantPools(sourcePlayers, 3), [sourcePlayers])
-  const pools4 = useMemo(() => buildVariantPools(sourcePlayers, 4), [sourcePlayers])
-  const pools6 = useMemo(() => buildVariantPools(sourcePlayers, 6), [sourcePlayers])
-  const pools = size === '3' ? pools3 : size === '6' ? pools6 : pools4
-
-  return (
-    <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingBottom:6, borderBottom:`1px solid ${C.border}`, marginBottom:8, gap:8, flexWrap:'wrap' }}>
-        <div>
-          <div style={{ fontSize:15, fontWeight:800 }}>HR Pool Variants</div>
-          <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, marginTop:2 }}>Mirrors the TXT styles · no player repeats across pools</div>
-        </div>
-        <div style={{ display:'flex', gap:5 }}>
-          <button onClick={() => setSize('3')} style={btnStyle(C.orange, size === '3')}>3-Man</button>
-          <button onClick={() => setSize('4')} style={btnStyle(C.orange, size === '4')}>4-Man</button>
-          <button onClick={() => setSize('6')} style={btnStyle(C.orange, size === '6')}>6-Man</button>
-        </div>
-      </div>
-      {!pools.length
-        ? <Empty text="No pools available." />
-        : <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden' }}>
-            {pools.map((pool,i) => (
-              <div key={`${size}-${i}`} style={{ padding:'10px 14px', borderTop:i ? `1px solid ${C.border}` : 'none' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:3, gap:8, flexWrap:'wrap' }}>
-                  <div style={{ fontSize:13, fontWeight:800 }}>{pool.label || pool.name || `Pool ${i+1}`}</div>
-                  <span style={{ fontFamily:NUM_FONT, fontSize:11, color:C.text3 }}>score {pool.pool_score || 0}</span>
-                </div>
-                {pool.reason && <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, marginBottom:6 }}>{pool.reason}</div>}
-                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                  {(pool.players || []).map((p,pi) => (
-                    <div key={playerKey(p) || pi} style={{ padding:'4px 9px', borderRadius:7, background:'rgba(255,255,255,0.04)', border:`1px solid ${C.border}`, fontSize:12 }}>
-                      <span style={{ fontWeight:700 }}>{p.name}</span>
-                      <span style={{ fontSize:10, color:C.text3, marginLeft:5, fontFamily:NUM_FONT }}>{p.team} · HRW {Math.round(num(p.hrw_score))} {hrwEmoji(p.hrw_score)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-      }
-    </div>
-  )
-}
-
-// ── LIVE HR PAIRS ─────────────────────────────────────────────────────────────
-
 function buildLivePairs(homers, relation) {
   const candidates = []
   for (let i=0; i<homers.length; i++) {
@@ -1003,7 +950,6 @@ import PairBoard from '../PairBoard'
 const VIEWS = [
   { key:'today',   label:'🧩 Today\'s Pairs' },
   { key:'build',   label:'🔧 Build a Pair' },
-  { key:'pools',   label:'🏊 Pools' },
   { key:'live',    label:'⚡ Live HR Pairs' },
   { key:'history', label:'📅 Season History' },
 ]
@@ -1062,7 +1008,6 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
       {view === 'build' && (
         <PairBuilder summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />
       )}
-      {view === 'pools' && <PoolsSection players={players} pairBuilder={pairBuilder} />}
       {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} />}
       {view === 'history' && <HistorySection data={pairHistorySummary} q={q} players={players} />}
     </div>

@@ -56,7 +56,64 @@ function fairOdds(p) {
     : `+${Math.round((100 * (1 - p)) / p)}`
 }
 
-export default function Pools({ players = [], onPlayerClick }) {
+// Live pools — the bot's own group tickets, graded as the night runs.
+// pair_pool_results.graded_pools carries the members and homer_names, so this
+// is the same structure Results shows, surfaced where you'd actually build
+// against it.
+function LivePools({ results }) {
+  const pools = (results?.pair_pool_results?.graded_pools) || []
+  if (!pools.length) return null
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>Live pools</div>
+      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8 }}>
+        The bot&apos;s group tickets for today, graded as games finish. A pool clears only when every
+        member goes deep, so most of these end the night unfinished — that&apos;s the shape of the bet,
+        not a failure of the picks.
+      </div>
+      <div style={{
+        display: 'grid', gap: 8,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+      }}>
+        {pools.map((pl, i) => {
+          const hit = n(pl.hr_count, 0)
+          const tot = Math.max(1, n(pl.total_count, 0))
+          const done = hit >= tot
+          const col = done ? '#4ade80' : hit > 0 ? C.orange : C.border
+          const homered = new Set((pl.homer_names || []).map((x) => String(x || '').toLowerCase()))
+          return (
+            <div key={i} style={{
+              background: C.bg2, border: `1px solid ${col}55`, borderRadius: 10, padding: '9px 12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2 }}>{pl.label}</span>
+                <span style={{
+                  marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 12,
+                  fontWeight: 800, color: col === C.border ? C.text3 : col,
+                }}>{hit}/{tot} HR</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
+                {(pl.players || []).map((mb, j) => {
+                  const gone = homered.has(String(mb?.name || '').toLowerCase())
+                  return (
+                    <span key={j} style={{
+                      fontSize: 10.5,
+                      color: gone ? '#4ade80' : C.text3,
+                      fontWeight: gone ? 700 : 400,
+                    }}>{gone ? '💥 ' : ''}{mb?.name}</span>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default function Pools({ players = [], results, onPlayerClick }) {
   const [market, setMarket] = useState('hr')
   const [legs, setLegs] = useState(3)
   const [spread, setSpread] = useState(true)
@@ -134,6 +191,33 @@ export default function Pools({ players = [], onPlayerClick }) {
           >Clear my {pool.length} legs</button>
         )}
       />
+
+      {/* The page was clear to me and opaque to everyone else. Numbered steps,
+          because "click a row" buried in a caption is not an instruction. */}
+      <div style={{
+        display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center',
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
+        padding: '8px 13px', margin: '8px 0 12px', fontSize: 11, color: C.text2,
+      }}>
+        {[
+          'Pick a market',
+          'Set your leg count',
+          'Click players below to add them',
+          'Read the fair price',
+        ].map((t, i) => (
+          <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 17, height: 17, borderRadius: '50%', background: `${C.orange}22`,
+              border: `1px solid ${C.orange}66`, color: C.orange, fontSize: 9.5,
+              fontWeight: 800, fontFamily: NUM_FONT,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}>{i + 1}</span>
+            {t}
+          </span>
+        ))}
+      </div>
+
+      <LivePools results={results} />
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '8px 0 10px' }}>
         {MARKETS.map((x) => (
@@ -238,9 +322,20 @@ export default function Pools({ players = [], onPlayerClick }) {
         </div>
       </div>
 
-      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8 }}>
-        Click any row to add or remove it from your own ticket.
-        {pool.length > 0 && <b style={{ color: C.orange }}> {pool.length} locked in.</b>}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+        fontSize: 11, color: C.text2, marginBottom: 8,
+      }}>
+        <span style={{
+          background: `${C.orange}22`, border: `1px solid ${C.orange}66`, color: C.orange,
+          borderRadius: 6, padding: '2px 8px', fontWeight: 800, fontSize: 10,
+        }}>Click rows to build your ticket</span>
+        <span style={{ color: C.text3 }}>
+          Add as many as you like — click again to remove. A ✓ marks the ones you&apos;ve added.
+        </span>
+        {pool.length > 0 && (
+          <b style={{ color: C.orange, marginLeft: 'auto' }}>{pool.length} selected</b>
+        )}
       </div>
 
       <DenseTable
