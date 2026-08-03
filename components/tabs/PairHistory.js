@@ -1,9 +1,10 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { arr, obj, n, clean } from '../../lib/player'
+import { arr, obj, n, clean, nameOf } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle, selectStyle, Chip } from '../ui'
 import Heatmap from '../Heatmap'
+import PairBuilder from '../PairBuilder'
 
 // Pair History — which two hitters have gone deep on the same day, all season.
 //
@@ -37,7 +38,7 @@ function Cell({ value, lo, hi, width = 58 }) {
   )
 }
 
-export default function PairHistory({ summary, onPlayerClick }) {
+export default function PairHistory({ summary, players = [], onPlayerClick }) {
   const [query, setQuery] = useState('')
   const [bucket, setBucket] = useState('All')
   const [sameGameOnly, setSameGameOnly] = useState(false)
@@ -45,6 +46,12 @@ export default function PairHistory({ summary, onPlayerClick }) {
 
   const meta = obj(summary)
   const pairs = arr(meta.top_pairs)
+
+  // Which of these hitters are actually on tonight's slate. A pair neither of
+  // whom is playing is history trivia, not a bet.
+  const onSlate = useMemo(() => new Set(
+    players.map((p) => String(nameOf(p) || '').toLowerCase().replace(/[^a-z]/g, '')),
+  ), [players])
 
   const rows = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -157,21 +164,25 @@ export default function PairHistory({ summary, onPlayerClick }) {
           label: `${clean(p?.player_1, '')} + ${clean(p?.player_2, '')}`,
           _raw: arr(p?.players)[0] || null,
           values: {
-            Score: n(p?.pair_score, 0),
-            Days: n(p?.repeat_count, 0),
+            // Ordered strongest evidence to weakest, left to right, so a pair
+            // that's bright on the left is real and one that's bright only on
+            // the right is an artefact of two hot bats sharing a calendar.
             'Same game': n(p?.same_game_hr_count, 0),
-            Boost: n(p?.history_boost, 0),
-            // Inverted at source: fewer days since the last hit is the live
-            // signal, so it's mapped so recent reads bright.
-            Recency: 60 - Math.min(60, n(p?.days_since_last_hit, 60)),
+            'Same day': n(p?.repeat_count, 0),
+            'Last hit': 60 - Math.min(60, n(p?.days_since_last_hit, 60)),
+            'Both tonight': arr(p?.players)
+              .filter((pl) => onSlate.has(String(pl?.name || '').toLowerCase().replace(/[^a-z]/g, '')))
+              .length,
           },
         }))}
-        columns={['Score', 'Days', 'Same game', 'Boost', 'Recency']}
-        title="Top 15 pairs — where each one's score comes from"
+        columns={['Same game', 'Same day', 'Last hit', 'Both tonight']}
+        title="Top 15 pairs — how real is each one?"
         labelWidth={220}
         onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
-        caption="Recency is inverted so a recent hit reads bright. A bright Days column with a dark Same game column is two independent hitters who happened to homer on the same date — coincidence, not correlation."
+        caption="Columns run strongest evidence to weakest, left to right. Same game means one ballpark, one night — the only genuinely correlated column. Same day counts different parks too. Last hit is flipped so recent reads bright. Both tonight is 2 when the pair is actually playable today."
       />
+
+      <PairBuilder summary={summary} players={players} onPlayerClick={onPlayerClick} />
 
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
