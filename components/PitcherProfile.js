@@ -3,8 +3,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean } from '../lib/player'
 import { pitcherDetailUrl } from '../lib/dataSource'
-import Heatmap from './Heatmap'
-import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
+import Heatmap, { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 
 // Command / swing profile, platoon splits and arsenal — ported from Streamlit.
 //

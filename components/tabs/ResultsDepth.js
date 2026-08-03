@@ -2,8 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { arr, obj, n, clean } from '../../lib/player'
-import { ORANGE_RAMP, rampColor, inkFor } from '../Heatmap'
-import Heatmap from '../Heatmap'
+import Heatmap, { ORANGE_RAMP, rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
 
 // Results depth — the grading half of the Streamlit Results tab.
