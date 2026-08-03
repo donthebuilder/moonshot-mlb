@@ -5,6 +5,7 @@ import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
 import ResultsDepth from './ResultsDepth'
+import HRPitchProfile from '../HRPitchProfile'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -304,21 +305,50 @@ function CategoryBar({ slots }) {
 
 // ── Pitcher weakness digest ───────────────────────────────────────────────────
 
-function PitcherWeaknessDigest({ slots }) {
+// WHY THIS WAS ALWAYS EMPTY.
+//
+// It keyed on `r.pitcher_name`, and graded_slots does not have that field.
+// Checked against the live results payload: the string "pitcher_name" appears
+// zero times in results_live.json. What graded_slots does carry is
+// pitcher_throws, pitcher_fb_rate, pitcher_hr_allowed and pitcher_weak_side —
+// the scouting fields, but not the name, the HR/9 or the WHIP this panel wants
+// to print. So `name` was null on every row, every row was skipped, the list
+// came back empty and `if (!pitchers.length) return null` hid the whole tab.
+// Clicking ⚾ Pitchers rendered nothing at all.
+//
+// The slate rows have all of it. Every hitter in today_slim carries his
+// opposing starter stamped on him, so joining graded_slots to the slate by
+// player_id recovers the name, HR/9 and WHIP. Anything still unmatched — a
+// graded player who isn't on tonight's slate, which happens after a lineup
+// change — falls back to the fields that are on the slot, and is labelled
+// rather than dropped silently the way it was before.
+function PitcherWeaknessDigest({ slots, players = [] }) {
+  const slateById = useMemo(() => {
+    const m = new Map()
+    for (const p of players) {
+      const id = p?.player_id ?? p?.id
+      if (id != null) m.set(String(id), p)
+    }
+    return m
+  }, [players])
+
   const pitchers = useMemo(() => {
     if (!slots?.length) return []
     const map = {}
+    let unmatched = 0
     for (const r of slots) {
-      const name = r.pitcher_name || r.opposing_pitcher || null
-      if (!name) continue
+      const slate = slateById.get(String(r.player_id))
+      const name = r.pitcher_name || r.opposing_pitcher || slate?.pitcher_name || null
+      if (!name) { unmatched += 1; continue }
       if (!map[name]) {
         map[name] = {
           name,
-          throws: r.pitcher_throws || '?',
-          hr9: sf(r.pitcher_hr9 ?? r.pitcher_hr_per9 ?? r.pitcher_hr_allowed),
-          whip: sf(r.pitcher_whip),
-          fb_rate: sf(r.pitcher_fb_rate),
-          weak_side: r.pitcher_weak_side || '',
+          throws: r.pitcher_throws || slate?.pitcher_throws || '?',
+          hr9: sf(r.pitcher_hr9 ?? slate?.pitcher_hr9 ?? r.pitcher_hr_per9 ?? r.pitcher_hr_allowed),
+          whip: sf(r.pitcher_whip ?? slate?.pitcher_whip),
+          fb_rate: sf(r.pitcher_fb_rate ?? slate?.pitcher_fb_rate),
+          weak_side: r.pitcher_weak_side || slate?.pitcher_weak_side || '',
+          era: sf(slate?.pitcher_era),
           picks: [],
           hr_allowed_today: 0,
           hit_allowed_today: 0,
@@ -328,12 +358,26 @@ function PitcherWeaknessDigest({ slots }) {
       if (si(r.actual_hr) > 0) map[name].hr_allowed_today += si(r.actual_hr)
       if (si(r.actual_hits) > 0) map[name].hit_allowed_today += si(r.actual_hits)
     }
-    return Object.values(map)
+    const out = Object.values(map)
       .filter(p => p.picks.length > 0)
       .sort((a, b) => b.hr_allowed_today - a.hr_allowed_today || b.picks.length - a.picks.length)
-  }, [slots])
+    out._unmatched = unmatched
+    return out
+  }, [slots, slateById])
 
-  if (!pitchers.length) return null
+  if (!pitchers.length) {
+    return (
+      <Card style={{ padding: '12px 14px', marginBottom: 10 }}>
+        <div style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.6 }}>
+          No starter could be matched to tonight&apos;s graded picks. The results payload doesn&apos;t
+          carry pitcher names, so this panel joins each graded slot to the slate by player_id — which
+          means it needs the slate loaded. If the Games board has data and this is still empty, the
+          graded players aren&apos;t on the current slate, which happens when results are showing a
+          previous day.
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
@@ -633,9 +677,116 @@ function PickRow({ r, i, onPlayerClick }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-export default function Results({ results, backtest, onPlayerClick }) {
+// ── HR by pitch type ──────────────────────────────────────────────────────────
+//
+// A caveat that has to lead, because the obvious reading of this tab is wrong:
+// THIS IS NOT THE PITCH TONIGHT'S HOMER WAS HIT OFF. That isn't published.
+// Searching results_live.json for "pitch_type" returns zero hits — a homer
+// entry carries longest_ft, distances_ft, max_ev_mph and launch_angle, and
+// nothing about what was thrown. graded_slots has pitcher_throws and
+// pitcher_fb_rate, which are pre-game scouting fields, not the pitch.
+//
+// What this shows is each of tonight's HR hitters against his own HR-by-pitch
+// history, from the spray_chart in his detail file. That file runs a day or two
+// behind the live slate, so tonight's homer isn't in it yet either — it appears
+// retroactively once the detail files rebuild.
+//
+// It's still the right thing to look at after a slate: "he went deep tonight,
+// and he has four this season off the fastball" is the question this answers.
+// It just isn't "he hit a slider tonight", and the panel says so out loud.
+function HRByPitch({ homers = [], captureReport, players = [], pick, setPick }) {
+  const entries = useMemo(() => {
+    const list = arr(captureReport?.all_homer_entries).length
+      ? arr(captureReport.all_homer_entries)
+      : homers
+    const byId = new Map()
+    for (const p of players) {
+      const id = p?.player_id ?? p?.id
+      if (id != null) byId.set(String(id), p)
+    }
+    return list.map((h) => ({
+      id: h?.player_id ?? null,
+      name: clean(h?.name, '—'),
+      team: clean(h?.team, ''),
+      hr: si(h?.hr) || 1,
+      ft: si(h?.longest_ft),
+      ev: sf(h?.max_ev_mph),
+      la: sf(h?.launch_angle),
+      slate: h?.player_id != null ? byId.get(String(h.player_id)) : null,
+    })).sort((a, b) => b.ft - a.ft)
+  }, [homers, captureReport, players])
+
+  const selected = useMemo(
+    () => entries.find((e) => String(e.id) === String(pick)) || entries[0] || null,
+    [entries, pick],
+  )
+
+  if (!entries.length) return <Empty text="No home runs on tonight's slate yet." />
+
+  return (
+    <div>
+      <Card style={{ padding: '10px 14px', marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6 }}>
+          <b style={{ color: C.orange }}>This is not the pitch tonight&apos;s homer was hit off.</b>{' '}
+          The results feed doesn&apos;t record that — a homer entry carries distance, exit velocity and
+          launch angle, and nothing about what was thrown. What&apos;s below is each hitter&apos;s{' '}
+          <b style={{ color: C.text }}>season</b> home-run breakdown by pitch type, from his batted-ball
+          file, which runs a day or two behind. Tonight&apos;s homer will show up in it once the detail
+          files rebuild.
+        </div>
+      </Card>
+
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+        {entries.map((e) => {
+          const on = selected && String(selected.id) === String(e.id)
+          return (
+            <button
+              key={e.id ?? e.name}
+              onClick={() => setPick(e.id)}
+              title={`${e.ft} ft · ${e.ev.toFixed(1)} mph · ${e.la.toFixed(0)}°`}
+              style={{
+                padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
+                fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT,
+                border: `1px solid ${on ? C.orange : C.border}`,
+                background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                color: on ? C.orange : C.text3,
+              }}
+            >
+              {e.name.split(' ').slice(-1)[0]}
+              <span style={{ opacity: .7 }}> {e.ft}ft</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {selected && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+            <span style={{ fontSize: 15, fontWeight: 800 }}>{selected.name}</span>
+            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
+              {selected.team} · tonight: {selected.hr} HR · {selected.ft} ft ·{' '}
+              {selected.ev.toFixed(1)} mph · {selected.la.toFixed(0)}°
+            </span>
+          </div>
+          {selected.slate
+            ? <HRPitchProfile player={selected.slate} />
+            : (
+              <div style={{ fontSize: 11, color: C.text3, padding: '8px 0', lineHeight: 1.6 }}>
+                {selected.name} isn&apos;t on the currently loaded slate, so his batted-ball file
+                isn&apos;t available to break down. This happens when Results is showing a different
+                day than the Games board.
+              </div>
+            )}
+        </>
+      )}
+    </div>
+  )
+}
+
+export default function Results({ results, backtest, players = [], onPlayerClick }) {
   const [tab, setTab] = useState('hr')
   const [subTab, setSubTab] = useState('overview')
+  const [pitchPick, setPitchPick] = useState(null)
 
   const slots = useMemo(() => {
     if (!results) return []
@@ -683,6 +834,7 @@ export default function Results({ results, backtest, onPlayerClick }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         <TabBtn active={subTab === 'overview'} onClick={() => setSubTab('overview')}>📊 Overview</TabBtn>
         <TabBtn active={subTab === 'pitcher'} onClick={() => setSubTab('pitcher')}>⚾ Pitchers</TabBtn>
+        <TabBtn active={subTab === 'pitchtype'} onClick={() => setSubTab('pitchtype')}>🎯 HR by pitch</TabBtn>
         <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
         <TabBtn active={subTab === 'picks'} onClick={() => setSubTab('picks')}>📋 Picks</TabBtn>
       </div>
@@ -702,7 +854,12 @@ export default function Results({ results, backtest, onPlayerClick }) {
 
       {/* PITCHERS */}
       {subTab === 'pitcher' && (
-        <PitcherWeaknessDigest slots={slots} />
+        <PitcherWeaknessDigest slots={slots} players={players} />
+      )}
+
+      {/* HR BY PITCH TYPE */}
+      {subTab === 'pitchtype' && (
+        <HRByPitch homers={homers} captureReport={captureReport} players={players} pick={pitchPick} setPick={setPitchPick} />
       )}
 
       {/* PAIRS & POOLS */}

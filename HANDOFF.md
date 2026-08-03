@@ -170,6 +170,29 @@ independent places, and all three have to be fixed:
 So this is a Streamlit-repo job, not a moonshot-mlb one. The empty state on
 HotZoneMap.js is correct and should stay until the pipeline actually publishes.
 
+**Running the Spray Cache bot by hand will not fix it.** It already runs daily
+and succeeds; its output has nowhere to go. Three changes are needed, all in
+MLB-HR-DASHBOARD-STREAMLIT, and the first two are useless without the third:
+
+1. `bots/spray_cache.py` — `write_individual_batter_files()` writes to
+   `PITCH_DIR` (`public/data/pitch/`). Point it at
+   `public/data/current/detail/<slate>/batter_<id>.json` instead, and **merge**
+   into the existing file rather than replacing it, so it adds `zone_profile`
+   without dropping the `spray_chart` make_slim already put there.
+2. `.github/workflows/spray-cache.yml` — `permissions: contents: read` becomes
+   `write`, and add a final step:
+   `run: bash .github/scripts/publish_data.sh "Spray cache"`.
+3. `bots/make_slim.py` — **this is the one that will bite.** `write_detail_files`
+   rebuilds each detail file from `BATTER_DETAIL_KEYS`, a four-key whitelist,
+   and `today.yml` runs it hourly. Even with 1 and 2 done, the next Today run
+   overwrites the file and `zone_profile` is gone within the hour. Add
+   `zone_profile` and `pitcher_zone_profile` to that list *and* have it preserve
+   keys already on disk that this run didn't produce — the same carry-forward
+   logic `publish_data.sh` already does at the branch level.
+
+Verify with: `git clone --depth 1 --branch data …` then check
+`detail/today/batter_*.json` for a non-null `zone_profile`. Today it's 0 of 297.
+
 **Possible third risk, unverified:** GitHub disables scheduled workflows in a
 repo after a long stretch of no *human* activity. Bot pushes made with
 `GITHUB_TOKEN` may not reset that timer. If the bots go quiet all at once for no

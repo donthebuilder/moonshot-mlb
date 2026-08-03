@@ -253,23 +253,25 @@ export default function ResultsDepth({ results, onPlayerClick }) {
             <>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 6 }}>
                 Longest HRs tonight (ft)
-                {longest.length > 12 && (
+                {longest.length > 5 && (
                   <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT }}>
-                    {' '}· top 12 of {longest.length}
+                    {' '}· top 5 of {longest.length}
                   </span>
                 )}
               </div>
               <Bars
-                rows={longest}
-                limit={12}
-                min={Math.max(0, Math.min(...longest.map((x) => x.value)) - 15)}
-                max={Math.max(...longest.map((x) => x.value)) + 5}
+                rows={longest.slice(0, 5)}
+                limit={5}
+                min={Math.max(0, Math.min(...longest.slice(0, 5).map((x) => x.value)) - 15)}
+                max={Math.max(...longest.slice(0, 5).map((x) => x.value)) + 5}
               />
               <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-                The axis starts near the shortest homer rather than at zero — every ball here cleared
-                a fence, so a zero-based scale would draw a dozen identical full-width bars. It makes
-                the spread readable but it also exaggerates it: the gap from first to last is about
-                60 feet, not the full width of the chart.
+                Top 5 only — a full list of thirty homers pushed everything else on this page off
+                screen, and past the top handful the distances stop being interesting.
+                {' '}The axis starts near the shortest of the five rather than at zero: every ball
+                here cleared a fence, so a zero-based scale would draw five identical full-width
+                bars. That makes the spread readable but also exaggerates it — the gap across these
+                five is usually 30 to 60 feet, not the full width of the chart.
               </div>
             </>
           )}

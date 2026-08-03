@@ -178,7 +178,7 @@ export default function Dashboard() {
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={results} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'results'     && <Results results={results} backtest={backtest} onPlayerClick={setModalPlayer} />}
+            {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide />}

@@ -12,7 +12,7 @@
  */
 
 'use client'
-import { detailUrl } from '../lib/dataSource'
+import { detailUrl, zonesUrl } from '../lib/dataSource'
 import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 
@@ -497,16 +497,31 @@ export default function HotZoneMap({ player, onClose }) {
 
   useEffect(()=>{
     if (!pid) return
+    let alive = true
     setLoading(true); setError(null); setCacheData(null)
-    // NOTE: this reads zone_profile / pitcher_zone_profile, neither of which
-    // the bot currently publishes -- checked across all 298 detail files, zero
-    // have them. The fetch still runs so the panel lights up the moment they
-    // appear, but the empty state below tells the truth in the meantime rather
-    // than showing a spinner that never resolves into anything.
-    fetch(detailUrl(pid))
-      .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then(d=>{ setCacheData(d); setLoading(false) })
-      .catch(e=>{ setError(e.message); setLoading(false) })
+    // Two files, not one.
+    //
+    // zone_profile / pitcher_zone_profile now come from current/zones/, which
+    // spray_cache.py owns exclusively — see the note on zonesUrl in
+    // lib/dataSource.js for why they are NOT merged into the batter detail
+    // file. The detail file is still fetched because this panel also draws the
+    // per-pitch profile out of it.
+    //
+    // The zones fetch 404s until the Spray Cache workflow is changed to publish
+    // (permissions are read-only today, so it writes nothing). A 404 is not an
+    // error here — it's the expected state, and the empty state below says so
+    // rather than showing a spinner that never resolves.
+    Promise.all([
+      fetch(detailUrl(pid)).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(zonesUrl(pid)).then(r=>r.ok?r.json():null).catch(()=>null),
+    ])
+      .then(([detail, zones])=>{
+        if (!alive) return
+        if (!detail && !zones) { setError('no data published'); setLoading(false); return }
+        setCacheData({ ...(detail||{}), ...(zones||{}) })
+        setLoading(false)
+      })
+    return ()=>{ alive = false }
   },[pid])
 
   const zoneProfile    = cacheData?.zone_profile

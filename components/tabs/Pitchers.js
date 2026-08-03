@@ -6,6 +6,7 @@ import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
 import PitcherHeat from '../PitcherHeat'
 import PitcherSpots from '../PitcherSpots'
 import PitcherProfile from '../PitcherProfile'
+import PitcherModal from '../PitcherModal'
 
 const SORTS = [
   ['weak', 'Most Weak Spots'],
@@ -78,7 +79,7 @@ function LineupRow({ b, onPlayerClick }) {
   )
 }
 
-function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick }) {
+function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }) {
   const hasWeak = pitcher.weak_spot_count > 0
   return (
     <div style={{ background: C.bg2, border: `1px solid ${hasWeak ? '#f59e0b44' : C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
@@ -104,10 +105,20 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick }) {
             </div>
           </div>
         </div>
-        <div style={{ minWidth: 130, flexShrink: 0 }}>
-          <StatBar label="ERA" value={pitcher.pitcher_era} max={6} color={C.cyan} />
-          <StatBar label="HR/9" value={pitcher.pitcher_hr9} max={3} color={C.orange} />
-          <StatBar label="WHIP" value={pitcher.pitcher_whip} max={2} color={C.purple} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenPitcher?.(pitcher) }}
+            style={{
+              padding: '4px 10px', fontSize: 10.5, fontWeight: 700, borderRadius: 6,
+              cursor: 'pointer', border: `1px solid ${C.border}`,
+              background: 'transparent', color: C.text3, whiteSpace: 'nowrap',
+            }}
+          >Open card</button>
+          <div style={{ minWidth: 130 }}>
+            <StatBar label="ERA" value={pitcher.pitcher_era} max={6} color={C.cyan} />
+            <StatBar label="HR/9" value={pitcher.pitcher_hr9} max={3} color={C.orange} />
+            <StatBar label="WHIP" value={pitcher.pitcher_whip} max={2} color={C.purple} />
+          </div>
         </div>
       </div>
 
@@ -133,6 +144,7 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick }) {
 export default function Pitchers({ players, onPlayerClick }) {
   const [sortKey, setSortKey] = useState('weak')
   const [openId, setOpenId] = useState(null)
+  const [modalPitcher, setModalPitcher] = useState(null)
 
   const pitchers = useMemo(() => groupPitchers(players), [players])
   const sorted = useMemo(() => sortPitchers(pitchers, sortKey), [pitchers, sortKey])
@@ -165,8 +177,17 @@ export default function Pitchers({ players, onPlayerClick }) {
           isOpen={openId === pitcher.pitcher_id}
           onToggle={(id) => setOpenId((prev) => (prev === id ? null : id))}
           onPlayerClick={onPlayerClick}
+          onOpenPitcher={setModalPitcher}
         />
       ))}
+
+      {modalPitcher && (
+        <PitcherModal
+          pitcher={modalPitcher}
+          onClose={() => setModalPitcher(null)}
+          onPlayerClick={(p) => { setModalPitcher(null); onPlayerClick?.(p) }}
+        />
+      )}
     </div>
   )
 }
