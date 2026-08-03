@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { C, NUM_FONT, TABS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
+import SlateTiles from './SlateTiles'
 
 // ── live capture ticker ───────────────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ function DateBadge({ label }) {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-export default function Header({ tab, setTab, mode, setMode, dateLabel, results }) {
+export default function Header({ tab, setTab, mode, setMode, dateLabel, results, players = [], games = [] }) {
   return (
     <header style={{
       position:'sticky', top:0, zIndex:50,
@@ -129,9 +130,16 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results 
           </div>
         </div>
 
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, flexWrap:'wrap' }}>
+        {/* The HR tracker plus the merged slate strip. Streamlit carried these
+            tiles twice -- once at the top, once on Games -- overlapping on
+            three of them. One row in the header, visible from every tab. */}
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'center',
+          gap:6, flexWrap:'wrap', flex:'1 1 480px', minWidth:0,
+        }}>
           <ProjectedHRStat mode={mode} />
           <CaptureStat results={results} />
+          <SlateTiles players={players} results={results} games={games} />
         </div>
 
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>

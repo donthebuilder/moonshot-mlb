@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C } from '../lib/theme'
-import { fetchJSON, normalizeData } from '../lib/data'
+import { fetchJSON, normalizeData, groupGames } from '../lib/data'
 import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { Empty } from './ui'
@@ -121,6 +121,10 @@ export default function Dashboard() {
     })
   }, [allPlayers, query, team])
 
+  // Header needs the same grouping the Games tab uses, so the two can't
+  // disagree about the game count or which game is best.
+  const headerGames = useMemo(() => groupGames(allPlayers), [allPlayers])
+
   const watchIds = useMemo(() => new Set(watch.map(playerId)), [watch])
 
   const addSlip = (p, bet) => setSlip((s) => [...s, { p, bet }])
@@ -150,7 +154,7 @@ export default function Dashboard() {
   return (
     <>
       <MobileCSS />
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={results} onRefresh={handleRefresh} refreshing={refreshing} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={results} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
