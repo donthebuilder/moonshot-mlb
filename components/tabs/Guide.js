@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { ORANGE_RAMP, inkFor } from '../Heatmap'
 
 // ── Reusable bits ─────────────────────────────────────────────────────────────
 
@@ -70,6 +71,65 @@ function StatRow({ stat, def, good, bad }) {
 
 // ── Main Guide ───────────────────────────────────────────────────────────────
 
+// Colour is now doing real work on every board, and a colour scale nobody
+// explained is just decoration that looks like information. This is the one
+// place the ramp is defined in words.
+function ColorKey() {
+  const steps = ['lowest', '', '', '', '', '', '', 'highest']
+  return (
+    <div style={{
+      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+      padding: '13px 16px', marginBottom: 10,
+    }}>
+      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>🎨 Reading the colours</div>
+
+      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', marginBottom: 7 }}>
+        {ORANGE_RAMP.map((c, i) => (
+          <div key={c} style={{
+            flex: 1, background: c, color: inkFor(c), fontFamily: NUM_FONT,
+            fontSize: 8.5, fontWeight: 700, textAlign: 'center', padding: '7px 2px',
+            textTransform: 'uppercase', letterSpacing: '.04em',
+          }}>{steps[i]}</div>
+        ))}
+      </div>
+
+      <P>
+        One colour, eight steps. Brightness is the value — dark means low, bright amber means high.
+        There's no second colour for &ldquo;bad&rdquo;, because on these boards a low score isn&apos;t
+        bad, it&apos;s just low.
+      </P>
+
+      <P>
+        <b>Every column is scaled on its own.</b> This is the part worth internalising: a bright cell
+        means high <i>for today&apos;s slate, in that column</i>. It does not mean the number is big,
+        and it does not compare across columns. On a quiet slate the best hitter still lights up —
+        he&apos;s the brightest of what&apos;s available, not necessarily good.
+      </P>
+
+      <P>
+        Two columns run <b>backwards</b> on purpose, because this is a hitter&apos;s site and bright
+        always means good for the hitter: <b>K%</b> on the Scoreboard, and <b>K/9</b> and{' '}
+        <b>SwStr%</b> on Pitchers. A pitcher who misses bats is bad news for the lineup no matter how
+        the rest of his line reads, so he stays dark.
+      </P>
+
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 12 }}>
+        {[['★', 'Weak spot — this starter has already been beaten in this lineup slot'],
+          ['◆', 'Aligned — weak spot, pitch match and real recent contact all stacking'],
+          ['▲', 'Matchup edge — bats into the side of the plate this pitcher is worst against']].map(([m, t]) => (
+          <div key={m} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: C.text2 }}>
+            <span style={{
+              background: ORANGE_RAMP[5], color: '#1a0d02', fontFamily: NUM_FONT,
+              fontWeight: 800, fontSize: 11, borderRadius: 4, padding: '2px 6px',
+            }}>{m}</span>
+            <span style={{ maxWidth: 260, lineHeight: 1.45 }}>{t}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Guide() {
   return (
     <div style={{ maxWidth: 720 }}>
@@ -83,10 +143,13 @@ export default function Guide() {
           symbol, color, and number you'll see, in plain language.
         </P>
         <Note>
-          New here? Start with <b>"How to read a player card"</b> below, then check the
+          New here? Start with <b>Reading the colours</b> directly below, then{' '}
+          <b>"How to read a player card"</b>, then check the
           <b> Emoji & Symbol Key</b> any time you see something you don't recognize.
         </Note>
       </div>
+
+      <ColorKey />
 
       {/* ── 1. Absolute basics ── */}
       <Section title="Baseball basics (skip if you already know)" emoji="⚾" defaultOpen={true}>

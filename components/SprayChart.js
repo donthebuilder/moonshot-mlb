@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { NUM_FONT } from '../lib/theme'
 import { detailUrl } from '../lib/dataSource'
+import { rampColor, inkFor } from './Heatmap'
 
 // ── colors ────────────────────────────────────────────────────────────────────
 
@@ -734,13 +735,26 @@ export default function SprayChart({ players, embedded=false, bbeRange:bbeRangeP
           </div>
           {!search.trim()&&(
             <div style={{display:'flex',gap:3,flexWrap:'wrap',marginTop:5}}>
-              {sorted.slice(0,10).map((p,i)=>(
-                <button key={p?.player_id||i} onClick={()=>setSelected(p)} style={{
-                  padding:'2px 7px',borderRadius:5,cursor:'pointer',fontSize:10,fontWeight:600,color:'#f4f4f5',
-                  border:`1px solid ${selected?.player_id===p?.player_id?'#f97316':'rgba(255,255,255,0.07)'}`,
-                  background:selected?.player_id===p?.player_id?'rgba(249,115,22,0.11)':'#18181b',
-                }}>{(p?.name||'').split(' ').pop()}</button>
-              ))}
+              {(()=>{
+                const top=sorted.slice(0,10)
+                const vals=top.map(x=>Number(x?.hr_score)||0)
+                const lo=Math.min(...vals,0), hi=Math.max(...vals,1)
+                return top.map((p,i)=>{
+                  const on=selected?.player_id===p?.player_id
+                  const bg=rampColor(Number(p?.hr_score)||0,lo,hi)
+                  return (
+                    <button key={p?.player_id||i} onClick={()=>setSelected(p)}
+                      title={`HR score ${(Number(p?.hr_score)||0).toFixed(1)}`}
+                      style={{
+                        padding:'2px 7px',borderRadius:5,cursor:'pointer',fontSize:10,fontWeight:700,
+                        color:bg?inkFor(bg):'#f4f4f5',
+                        border:`1px solid ${on?'#f97316':'rgba(255,255,255,0.07)'}`,
+                        background:bg||'#18181b',
+                        boxShadow:on?'0 0 0 1px #f97316':'none',
+                      }}>{(p?.name||'').split(' ').pop()}</button>
+                  )
+                })
+              })()}
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ import { nameOf, teamOf, oppOf, playerId, clean, n } from '../../lib/player'
 import { scoreFor, gradeFor, tierRole, tierColor } from '../../lib/scoring'
 import { Empty, inputStyle, PanelTitle } from '../ui'
 import PlayerModal from '../PlayerModal'
+import { rampColor, inkFor } from '../Heatmap'
 
 // Player — the modal's contents as a real board.
 //
@@ -36,6 +37,12 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   )
 
   if (!ranked.length) return <Empty text="No players on this slate yet." />
+
+  // Ramp bounds come from what's on screen, not the whole slate -- otherwise a
+  // filtered search of nine mid hitters renders as nine identical dark chips.
+  const shownScores = matches.map((p) => scoreFor(p, 'hr'))
+  const sLo = Math.min(...shownScores, 0)
+  const sHi = Math.max(...shownScores, 1)
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 14, alignItems: 'start' }}>
@@ -75,9 +82,19 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
                     {teamOf(p)} vs {oppOf(p)} · {clean(p?.pitcher_name, 'TBD')}
                   </span>
                 </span>
-                <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: tierColor(role, C) }}>
-                  {scoreFor(p, 'hr').toFixed(0)}
-                </span>
+                {(() => {
+                  const bg = rampColor(scoreFor(p, 'hr'), sLo, sHi)
+                  return (
+                    <span
+                      title={`${role} · HR ${scoreFor(p, 'hr').toFixed(1)}`}
+                      style={{
+                        fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800,
+                        background: bg || C.bg3, color: bg ? inkFor(bg) : C.text3,
+                        padding: '2px 6px', borderRadius: 5, minWidth: 30, textAlign: 'center',
+                      }}
+                    >{scoreFor(p, 'hr').toFixed(0)}</span>
+                  )
+                })()}
               </button>
             )
           })}

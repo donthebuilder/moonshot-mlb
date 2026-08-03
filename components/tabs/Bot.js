@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import { logUrl } from '../../lib/dataSource'
+import HitterHeat from '../HitterHeat'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -216,6 +217,18 @@ function PicksTab({ players, onPlayerClick }) {
       {rows.length === 0 ? (
         <Empty text="No picks in this category." />
       ) : (
+        <>
+        {/* The rows below are the bot's stamped picks. This is what each one
+            is built on -- a pick carried by a single bright column is the
+            bot's weakest kind of call, and you can only see that here. */}
+        <HitterHeat
+          players={rows}
+          type="hr"
+          title={tab.label}
+          topN={Math.min(rows.length, 20)}
+          showTable={false}
+          onPlayerClick={onPlayerClick}
+        />
         <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
           {rows.map((p, i) => (
             <div key={p.player_id || i} style={{ borderTop: i ? `1px solid ${C.border}` : 'none' }}>
@@ -223,6 +236,7 @@ function PicksTab({ players, onPlayerClick }) {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   )
