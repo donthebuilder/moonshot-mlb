@@ -40,6 +40,7 @@ export default function SprayField({ player, height = 340 }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
   const [only, setOnly] = useState('all')
+  const [pitch, setPitch] = useState('all')
   const [hover, setHover] = useState(null)
 
   const pid = player?.player_id || player?.id
@@ -75,9 +76,39 @@ export default function SprayField({ player, height = 340 }) {
     }).filter(Boolean)
   }, [data])
 
-  const shown = useMemo(() => hits.filter((h) => (
-    only === 'all' ? true : only === 'hr' ? h.hr : only === 'xbh' ? h.xbh : h.hard
-  )), [hits, only])
+  // Result classes carry their own share, PropFinder-style.
+  const classes = useMemo(() => {
+    const t = hits.length || 1
+    const of = (f) => hits.filter(f).length
+    return [
+      { k: 'all',  label: 'All',   n: hits.length,            col: C.text2 },
+      { k: 'hr',   label: 'HR',    n: of((h) => h.hr),        col: C.orange },
+      { k: 'xbh',  label: 'XBH',   n: of((h) => h.xbh && !h.hr), col: '#fb9d3a' },
+      { k: 'hard', label: 'Hard',  n: of((h) => h.hard),      col: '#d76b0d' },
+      { k: 'out',  label: 'Out',   n: of((h) => !h.xbh && !h.hr), col: C.text3 },
+    ].map((c) => ({ ...c, pct: (100 * c.n) / t }))
+  }, [hits])
+
+  const pitches = useMemo(() => {
+    const by = new Map()
+    hits.forEach((h) => {
+      if (!h.pitch) return
+      by.set(h.pitch, (by.get(h.pitch) || 0) + 1)
+    })
+    const t = hits.length || 1
+    return [...by.entries()]
+      .map(([k, v]) => ({ k, n: v, pct: (100 * v) / t, hr: hits.filter((h) => h.pitch === k && h.hr).length }))
+      .sort((a, b) => b.n - a.n)
+  }, [hits])
+
+  const shown = useMemo(() => hits.filter((h) => {
+    const okClass = only === 'all' ? true
+      : only === 'hr' ? h.hr
+      : only === 'xbh' ? (h.xbh && !h.hr)
+      : only === 'hard' ? h.hard
+      : !h.xbh && !h.hr
+    return okClass && (pitch === 'all' || h.pitch === pitch)
+  }), [hits, only, pitch])
 
   if (!pid) return null
   if (state === 'loading') {
@@ -107,22 +138,70 @@ export default function SprayField({ player, height = 340 }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7 }}>
-        {[['all', `All ${hits.length}`], ['hr', `HR ${hits.filter((h) => h.hr).length}`],
-          ['xbh', `XBH ${hits.filter((h) => h.xbh).length}`], ['hard', `Hard ${hits.filter((h) => h.hard).length}`]].map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setOnly(k)}
-            style={{
-              padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
-              fontFamily: NUM_FONT,
-              border: `1px solid ${only === k ? C.orange : C.border}`,
-              background: only === k ? 'rgba(249,115,22,.12)' : 'transparent',
-              color: only === k ? C.orange : C.text3,
-            }}
-          >{label}</button>
-        ))}
+      {/* Result chips: label, count and share on the chip itself. Click to
+          filter. No separate legend to fall out of step with the chart. */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5 }}>
+        {classes.map((c) => {
+          const on = only === c.k
+          return (
+            <button
+              key={c.k}
+              onClick={() => setOnly(c.k)}
+              disabled={c.n === 0}
+              style={{
+                padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
+                cursor: c.n ? 'pointer' : 'default', fontFamily: NUM_FONT,
+                opacity: c.n ? 1 : 0.35,
+                border: `1px solid ${on ? c.col : C.border}`,
+                background: on ? `${c.col}22` : 'transparent',
+                color: on ? c.col : C.text3,
+              }}
+            >
+              <span style={{ color: on ? c.col : C.text2 }}>{c.label}</span>{' '}
+              {c.n}
+              <span style={{ opacity: 0.65 }}> · {c.pct.toFixed(0)}%</span>
+            </button>
+          )
+        })}
       </div>
+
+      {/* Pitch chips. This is the question the panel exists for: does he only
+          do damage against one pitch, and does tonight's arm throw it? */}
+      {pitches.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
+          <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Pitch</span>
+          <button
+            onClick={() => setPitch('all')}
+            style={{
+              padding: '2px 8px', fontSize: 9.5, fontWeight: 700, borderRadius: 5, cursor: 'pointer',
+              fontFamily: NUM_FONT,
+              border: `1px solid ${pitch === 'all' ? C.orange : C.border}`,
+              background: pitch === 'all' ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: pitch === 'all' ? C.orange : C.text3,
+            }}
+          >All</button>
+          {pitches.map((p) => {
+            const on = pitch === p.k
+            return (
+              <button
+                key={p.k}
+                onClick={() => setPitch(on ? 'all' : p.k)}
+                title={`${p.n} batted balls · ${p.hr} HR`}
+                style={{
+                  padding: '2px 8px', fontSize: 9.5, fontWeight: 700, borderRadius: 5,
+                  cursor: 'pointer', fontFamily: NUM_FONT,
+                  border: `1px solid ${on ? C.orange : C.border}`,
+                  background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                  color: on ? C.orange : C.text3,
+                }}
+              >
+                {p.k} <span style={{ opacity: 0.65 }}>{p.pct.toFixed(0)}%</span>
+                {p.hr > 0 && <span style={{ color: C.orange }}> {p.hr}HR</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div style={{
         display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
@@ -170,6 +249,15 @@ export default function SprayField({ player, height = 340 }) {
                 />
                 {h.hr && <circle cx={x} cy={y} r="8" fill="none" stroke={col} strokeWidth="0.6" opacity={on ? 0.9 : 0.35} />}
               </g>
+            )
+          })}
+          {/* Park dimensions, so the arcs mean something for this venue rather
+              than being abstract rings. */}
+          {[[-45, '330'], [0, '400'], [45, '330']].map(([a, d]) => {
+            const [x, y] = pt(Number(d) + 24, Number(a))
+            return (
+              <text key={a} x={x} y={y} fill={C.text3} fontSize="7.5" fontFamily={NUM_FONT}
+                textAnchor="middle" opacity="0.7">{d}&apos;</text>
             )
           })}
           <circle cx={cx} cy={cy} r="2.5" fill={C.text3} />

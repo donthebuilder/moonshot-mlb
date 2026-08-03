@@ -12,9 +12,9 @@ import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/s
 import { Chip } from './ui'
 import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
-import SprayChart from './SprayChart'
 import HotZoneMap from './HotZoneMap'
 import HRPitchProfile from './HRPitchProfile'
+import SprayField from './SprayField'
 
 function Row({ label, value, mono = true }) {
   return (
@@ -257,7 +257,7 @@ export default function PlayerModal({ player, onClose, inline = false }) {
                 <PitchBreakdown player={p} />
               </div>
               <div style={{ minWidth: 0 }}>
-                <SprayChart players={[p]} embedded={true} bbeRange={bbeRange} />
+                <SprayField player={p} height={300} />
               </div>
               {/* Which pitches he actually homers off, against tonight's mix.
                   Full width under both panels -- it's the one thing here that

@@ -112,21 +112,30 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0 12px' }}>
         <input
-          style={{ ...inputStyle(), flex: '1 1 220px' }}
+          style={{ ...inputStyle(), width: 'auto', flex: '1 1 200px', minWidth: 160 }}
           placeholder="Search either hitter…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select style={selectStyle()} value={bucket} onChange={(e) => setBucket(e.target.value)}>
+        <select
+          style={{ ...selectStyle(), width: 'auto', flex: '0 0 auto' }}
+          value={bucket}
+          onChange={(e) => setBucket(e.target.value)}
+        >
           {BUCKETS.map((b) => <option key={b} value={b}>{b === 'All' ? 'Any recency' : b}</option>)}
         </select>
-        <select style={selectStyle()} value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+        <select
+          style={{ ...selectStyle(), width: 'auto', flex: '0 0 auto' }}
+          value={limit}
+          onChange={(e) => setLimit(Number(e.target.value))}
+        >
           {[25, 50, 100, 350].map((v) => <option key={v} value={v}>Top {v}</option>)}
         </select>
         <button
           onClick={() => setSameGameOnly((v) => !v)}
           style={{
             ...selectStyle(),
+            width: 'auto', flex: '0 0 auto',
             cursor: 'pointer',
             color: sameGameOnly ? '#06281a' : C.text2,
             background: sameGameOnly ? C.green : C.bg2,
