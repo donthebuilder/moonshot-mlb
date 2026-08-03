@@ -26,7 +26,18 @@ export default function DenseTable({
   caption = '',
   maxRows = 200,
 }) {
-  const [sort, setSort] = useState(initialSort ? { key: initialSort, dir: 'desc' } : null)
+  // MULTI-SORT. `sort` is an ordered list of keys, not one key.
+  //
+  // Plain click  -> make this the only sort key, descending.
+  // Click again  -> flip that key's direction.
+  // Shift-click  -> add this key BELOW the existing ones as a tiebreaker,
+  //                 or flip it if it's already in the stack.
+  // Shift-click a key that's already last -> cycles desc, asc, removed.
+  //
+  // The ordinal is drawn in the header so the precedence is visible; a stack
+  // you can't see is worse than no stack at all, because you can't tell why
+  // the rows moved.
+  const [sort, setSort] = useState(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])
 
   const heatCols = useMemo(() => columns.filter((c) => c.heat !== false && !c.flag), [columns])
 
@@ -40,14 +51,28 @@ export default function DenseTable({
   }, [rows, heatCols])
 
   const sorted = useMemo(() => {
-    if (!sort) return rows
-    const { key, dir } = sort
-    const mul = dir === 'desc' ? -1 : 1
-    return [...rows].sort((a, b) => {
+    if (!sort.length) return rows
+    // Missing values sink to the bottom whichever way the column is pointing.
+    // Flipping to ascending on a column full of dashes used to fill the top of
+    // the table with blanks, which is never what you wanted from the click.
+    const blank = (v) => v === null || v === undefined || v === '' || v === '—'
+    const cmpOne = (a, b, { key, dir }) => {
       const av = a[key], bv = b[key]
+      const ab = blank(av), bb = blank(bv)
+      if (ab && bb) return 0
+      if (ab) return 1
+      if (bb) return -1
+      const mul = dir === 'desc' ? -1 : 1
       const an = Number(av), bn = Number(bv)
       if (Number.isFinite(an) && Number.isFinite(bn)) return (an - bn) * mul
-      return String(av ?? '').localeCompare(String(bv ?? '')) * mul
+      return String(av).localeCompare(String(bv)) * mul
+    }
+    return [...rows].sort((a, b) => {
+      for (const s of sort) {
+        const r = cmpOne(a, b, s)
+        if (r !== 0) return r
+      }
+      return 0
     })
   }, [rows, sort])
 
@@ -57,8 +82,20 @@ export default function DenseTable({
   if (!rows.length || !columns.length) return null
 
   const pad = dense ? '5px 6px' : '8px 9px'
-  const toggle = (key) => setSort((s) =>
-    s && s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' })
+
+  const toggle = (key, additive) => setSort((s) => {
+    const i = s.findIndex((x) => x.key === key)
+    if (!additive) {
+      // Plain click: this key alone. Flip if it was already the only key.
+      if (i === 0 && s.length === 1) return [{ key, dir: s[0].dir === 'desc' ? 'asc' : 'desc' }]
+      return [{ key, dir: 'desc' }]
+    }
+    if (i < 0) return [...s, { key, dir: 'desc' }]
+    const next = [...s]
+    if (next[i].dir === 'desc') { next[i] = { key, dir: 'asc' }; return next }
+    next.splice(i, 1)                       // third shift-click removes it
+    return next
+  })
 
   return (
     <div>
@@ -70,12 +107,14 @@ export default function DenseTable({
           <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
             <tr>
               {columns.map((c) => {
-                const on = sort?.key === c.key
+                const si = sort.findIndex((x) => x.key === c.key)
+                const on = si >= 0
+                const dir = on ? sort[si].dir : null
                 return (
                   <th
                     key={c.key}
-                    onClick={() => toggle(c.key)}
-                    title={c.title || c.label}
+                    onClick={(e) => toggle(c.key, e.shiftKey)}
+                    title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
                     style={{
                       position: c.sticky ? 'sticky' : undefined,
                       left: c.sticky ? 0 : undefined,
@@ -89,7 +128,15 @@ export default function DenseTable({
                       width: c.w, minWidth: c.w,
                     }}
                   >
-                    {c.label}{on ? (sort.dir === 'desc' ? ' ▾' : ' ▴') : ''}
+                    {c.label}
+                    {on && (
+                      <>
+                        {dir === 'desc' ? ' ▾' : ' ▴'}
+                        {sort.length > 1 && (
+                          <sup style={{ fontSize: 7.5, marginLeft: 1, opacity: 0.85 }}>{si + 1}</sup>
+                        )}
+                      </>
+                    )}
                   </th>
                 )
               })}
@@ -163,6 +210,24 @@ export default function DenseTable({
           </span>
         )}
         {caption || 'Every column is colored against its own range. Click a header to sort, a row to open the hitter.'}
+        {' '}<b style={{ color: C.text2 }}>Shift-click a header</b> to add it as a tiebreaker under the
+        current sort — shift-click again to flip it, a third time to drop it.
+        {sort.length > 1 && (
+          <>
+            {' '}Sorting by{' '}
+            <b style={{ color: C.orange }}>
+              {sort.map((s, i) => {
+                const col = columns.find((c) => c.key === s.key)
+                return `${i ? ' then ' : ''}${col?.label || s.key} ${s.dir === 'desc' ? '↓' : '↑'}`
+              }).join('')}
+            </b>.
+            {' '}<span
+              onClick={() => setSort(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])}
+              style={{ cursor: 'pointer', textDecoration: 'underline' }}
+            >Reset</span>
+          </>
+        )}
+        {' '}Blanks always sort to the bottom, whichever way a column points.
       </div>
       <style jsx>{`
         .dense-row:hover td { filter: brightness(1.22); }
