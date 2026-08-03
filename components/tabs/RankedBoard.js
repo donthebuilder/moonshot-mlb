@@ -53,6 +53,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       <Heatmap
         rows={ranked.slice(0, 15).map((p) => ({
           label: nameOf(p),
+          _raw: p,
           values: {
             Score: scoreFor(p, type),
             HR: hrScore(p),
@@ -71,7 +72,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
         columns={['Score', 'HR', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9']}
         title={`Top 15 by ${title.replace(' Board', '')} — full profile`}
         labelWidth={140}
-        onRowClick={onPlayerClick ? (r, i) => onPlayerClick(ranked[i]) : null}
+        onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
       />
 
       <Grid>

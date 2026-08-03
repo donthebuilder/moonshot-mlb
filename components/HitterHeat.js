@@ -97,6 +97,7 @@ export default function HitterHeat({
         <Heatmap
           rows={ranked.slice(0, topN).map((p) => ({
             label: nameOf(p),
+            _raw: p,
             values: {
               Score: scoreFor(p, type),
               HR: hrScore(p), Hit: hitScore(p), HRR: prodScore(p), TB: tbScore(p),
@@ -109,7 +110,7 @@ export default function HitterHeat({
           columns={['Score', 'HR', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'Due', 'PMix', 'Barrel', 'P HR/9']}
           title={`${title} — top ${Math.min(topN, ranked.length)} profile`}
           labelWidth={140}
-          onRowClick={onPlayerClick ? (r, i) => onPlayerClick(ranked[i]) : null}
+          onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
         />
       )}
 

@@ -58,6 +58,9 @@ export default function Heatmap({
   maxHeight = null,
 }) {
   const [hover, setHover] = useState(null)
+  // Sorting. A heatmap you can't re-sort only answers the question its default
+  // order was built to answer; click a column and it answers that column's.
+  const [sort, setSort] = useState(null)
 
   const ranges = useMemo(() => {
     const out = {}
@@ -67,6 +70,24 @@ export default function Heatmap({
     })
     return out
   }, [rows, columns])
+
+  const view = sort
+    ? [...rows].sort((a, b) => {
+        const av = Number(a.values?.[sort.key])
+        const bv = Number(b.values?.[sort.key])
+        const mul = sort.dir === 'desc' ? -1 : 1
+        if (!Number.isFinite(av) && !Number.isFinite(bv)) return 0
+        if (!Number.isFinite(av)) return 1
+        if (!Number.isFinite(bv)) return -1
+        return (av - bv) * mul
+      })
+    : rows
+
+  const toggle = (key) => setSort((s) => (
+    s && s.key === key
+      ? (s.dir === 'desc' ? { key, dir: 'asc' } : null)  // third click clears
+      : { key, dir: 'desc' }
+  ))
 
   if (!rows.length || !columns.length) return null
 
@@ -91,22 +112,32 @@ export default function Heatmap({
                 width: labelWidth, minWidth: labelWidth,
                 borderBottom: `1px solid ${C.border}`,
               }} />
-              {columns.map((c) => (
-                <th key={c} style={{
-                  fontSize: 9, letterSpacing: '.07em', textTransform: 'uppercase',
-                  color: hover?.col === c ? C.orange : C.text3,
-                  fontWeight: 700, padding: '7px 5px', whiteSpace: 'nowrap',
-                  borderBottom: `1px solid ${C.border}`, background: C.bg2,
-                  transition: 'color .1s',
-                }}>{c}</th>
-              ))}
+              {columns.map((c) => {
+                const on = sort?.key === c
+                return (
+                  <th
+                    key={c}
+                    onClick={() => toggle(c)}
+                    title={`Sort by ${c}`}
+                    style={{
+                      fontSize: 9, letterSpacing: '.07em', textTransform: 'uppercase',
+                      color: on || hover?.col === c ? C.orange : C.text3,
+                      fontWeight: 700, padding: '7px 5px', whiteSpace: 'nowrap',
+                      borderBottom: `1px solid ${on ? C.orange : C.border}`,
+                      background: C.bg2, cursor: 'pointer', userSelect: 'none',
+                      transition: 'color .1s',
+                    }}
+                  >{c}{on ? (sort.dir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, ri) => (
+            {view.map((r, ri) => (
               <tr
                 key={r.label ?? ri}
                 onClick={onRowClick ? () => onRowClick(r, ri) : undefined}
+                title={onRowClick ? `Open ${r.label}` : undefined}
                 style={{ cursor: onRowClick ? 'pointer' : 'default' }}
               >
                 <td style={{
@@ -165,6 +196,7 @@ export default function Heatmap({
         <span>high</span>
         <span style={{ marginLeft: 4, flex: 1 }}>
           {caption || 'Each column is scaled on its own, so a bright cell means high for this slate on that input — not comparable across columns.'}
+          {' '}Click a column to sort; click it twice more to clear.
         </span>
       </div>
     </div>

@@ -104,6 +104,7 @@ export default function PitcherHeat({ pitchers = [], onSelect }) {
       <Heatmap
         rows={top.map((r) => ({
           label: r.name,
+          _raw: r._raw,
           values: {
             'HR/9': r.hr9, 'L3 HR/9': r.l3hr9, ERA: r.era, WHIP: r.whip,
             'OPS ag': r.ops * 100, 'ISO ag': r.iso * 100,
@@ -116,7 +117,7 @@ export default function PitcherHeat({ pitchers = [], onSelect }) {
         title="Most attackable starters — bright means good for the hitter"
         labelWidth={150}
         fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-        onRowClick={onSelect ? (r, i) => onSelect(top[i]._raw) : null}
+        onRowClick={onSelect ? (r) => onSelect(r._raw) : null}
         caption="Ranked by HR/9. Bright = good for hitters throughout, so a high ERA or a fat meatball rate lights up. OPS and ISO against are ×100 to share the scale."
       />
 

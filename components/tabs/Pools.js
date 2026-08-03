@@ -85,6 +85,7 @@ export default function Pools({ players, onAdd, onWatch, watchIds, onPlayerClick
           players={filtered}
           type="hr"
           title={LANES.find((l) => l[0] === lane)?.[1] || 'Pool'}
+          showTable={false}
           onPlayerClick={onPlayerClick}
         />
         <Grid>

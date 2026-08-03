@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { C } from '../../lib/theme'
 import {
   nameOf, teamOf, oppOf, n, clean,
-  recent375, recent400, ihrVal,
+  recent375, ihrVal,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
@@ -51,7 +51,10 @@ const COLUMNS = [
   { key: 'longest', label: 'Long',   w: 44, dp: 1 },
   { key: 'pmix',    label: 'PMix',   w: 44, dp: 1 },
   { key: 'd375',    label: '375+',   w: 42 },
-  { key: 'd400',    label: '400+',   w: 42 },
+  { key: 'p375',    label: 'P375 ag', w: 50,
+    title: 'Balls of 375ft+ this pitcher has allowed' },
+  { key: 'p400',    label: 'P400 ag', w: 50,
+    title: 'Balls of 400ft+ this pitcher has allowed' },
   { key: 'ihr',     label: 'IHR',    w: 46, dp: 3 },
   // A high strikeout rate is bad for the hitter, so this column runs the other
   // way. Left alone, the most strikeout-prone bats on the slate glow brightest.
@@ -88,7 +91,8 @@ export default function Scoreboard({ players, onPlayerClick }) {
       longest: n(p?.longest_hr_score, 0),
       pmix: pitchMixScore(p),
       d375: recent375(p),
-      d400: recent400(p),
+      p375: n(p?.pitcher_375_allowed, 0),
+      p400: n(p?.pitcher_400_allowed, 0),
       ihr: ihrVal(p),
       k: n(p?.season_k_rate, 0) * 100,
       hr9: n(p?.pitcher_hr9, 0),

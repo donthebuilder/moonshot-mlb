@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import {
   nameOf, teamOf, oppOf, n, pct,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
-  recent375, recent400, ihrVal, avgEV, hardHitRate, barrelRate, maxEV, playerId, launchAngle,
+  recent375, ihrVal, avgEV, hardHitRate, barrelRate, maxEV, playerId, launchAngle,
 } from '../../lib/player'
 import { tierRole, tierColor, isAligned } from '../../lib/scoring'
 import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
@@ -25,7 +25,12 @@ const STATS = [
   { key: 'tb',     label: 'TB Score',     fmt: (v) => v.toFixed(1) },
   { key: 'pmix',   label: 'Pitch Mix',    fmt: (v) => v.toFixed(1) },
   { key: '375',    label: '375+ count',   fmt: (v) => String(v) },
-  { key: '400',    label: '400+ count',   fmt: (v) => String(v) },
+  { key: 'hrw',    label: 'HR Window',    fmt: (v) => v.toFixed(1) },
+  { key: 'dc',     label: 'Damage Conv',  fmt: (v) => v.toFixed(1) },
+  { key: 'due',    label: 'Due Score',    fmt: (v) => v.toFixed(1) },
+  { key: 'longest', label: 'Longest HR',  fmt: (v) => v.toFixed(1) },
+  { key: 'phr9',   label: 'Opp HR/9',     fmt: (v) => v.toFixed(2) },
+  { key: 'pmeat',  label: 'Opp Meatball%', fmt: (v) => (v * 100).toFixed(1) + '%' },
   { key: 'ihr',    label: 'Ideal HR%',    fmt: (v) => (v * 100).toFixed(1) + '%' },
   { key: 'ev',     label: 'Avg Exit Velo',fmt: (v) => v.toFixed(1) + ' mph' },
   { key: 'maxev',  label: 'Max EV',       fmt: (v) => v.toFixed(1) + ' mph' },
@@ -39,7 +44,13 @@ const STATS = [
 
 const getter = {
   hr: hrScore, hrr: prodScore, hit: hitScore, tb: tbScore, pmix: pitchMixScore,
-  '375': recent375, '400': recent400, ihr: ihrVal,
+  '375': recent375, ihr: ihrVal,
+  hrw: (p) => n(p?.hrw_score, 0),
+  dc: (p) => n(p?.damage_conversion_score, 0),
+  due: (p) => n(p?.hr_due_score, 0),
+  longest: (p) => n(p?.longest_hr_score, 0),
+  phr9: (p) => n(p?.pitcher_hr9, 0),
+  pmeat: (p) => n(p?.pitcher_meatball_pct, 0),
   ev: avgEV, maxev: maxEV, barrel: barrelRate, hard: hardHitRate,
   pull: pullRate, la: launchAngle,
   season_hr: (p) => n(p?.season_hr, 0), season_avg: (p) => n(p?.season_avg, 0),
@@ -140,6 +151,7 @@ export default function Leaders({ players, onPlayerClick }) {
         <Heatmap
           rows={ranked.map(({ p }) => ({
             label: nameOf(p),
+            _raw: p,
             values: {
               HR: hrScore(p), HRR: prodScore(p), Hit: hitScore(p), TB: tbScore(p),
               PMix: pitchMixScore(p),
@@ -157,7 +169,7 @@ export default function Leaders({ players, onPlayerClick }) {
           title={`Top 25 by ${meta.label} — across every other leaderboard`}
           labelWidth={150}
           fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-          onRowClick={onPlayerClick ? (r, i) => onPlayerClick(ranked[i].p) : null}
+          onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
         />
         <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
           {ranked.map(({ p, v }, i) => {

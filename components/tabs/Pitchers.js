@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { groupPitchers } from '../../lib/data'
 import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
 import PitcherHeat from '../PitcherHeat'
+import PitcherSpots from '../PitcherSpots'
 
 const SORTS = [
   ['weak', 'Most Weak Spots'],
@@ -111,7 +112,11 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick }) {
 
       {isOpen && (
         <div style={{ padding: '0 14px 12px', borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 9, color: C.text3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '10px 0 4px' }}>
+          {/* Spot-by-spot first. The plain row list underneath is the roster;
+              this is the question you actually opened the card to answer. */}
+          <PitcherSpots pitcher={pitcher} onPlayerClick={onPlayerClick} />
+
+          <div style={{ fontSize: 9, color: C.text3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 4px' }}>
             Opposing Lineup ({pitcher.lineup.length})
           </div>
           {pitcher.lineup.map((b) => (

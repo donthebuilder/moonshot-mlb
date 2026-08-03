@@ -159,35 +159,6 @@ function Board({ players, onPlayerClick }) {
 // above already shows full detail inline for people who want it; this is the
 // lightweight alternative for just scanning who the bot picked.
 
-function PickRow({ p, onPlayerClick }) {
-  const role = p.final_hr_role || ''
-  const col = roleColor(role)
-  return (
-    <div
-      onClick={() => onPlayerClick && onPlayerClick(p)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        padding: '11px 14px',
-        cursor: onPlayerClick ? 'pointer' : 'default',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <span style={{ fontSize: 14 }}>{role.split(' ')[0] || '•'}</span>
-        <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {p.name}
-        </span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.team}</span>
-      </div>
-      <span style={{ fontSize: 10, color: col, fontFamily: NUM_FONT, flexShrink: 0, whiteSpace: 'nowrap' }}>
-        {role.replace(/^\S+\s*/, '') || '—'}
-      </span>
-    </div>
-  )
-}
-
 function PicksTab({ players, onPlayerClick }) {
   const [pickTab, setPickTab] = useState('top')
 
@@ -217,26 +188,14 @@ function PicksTab({ players, onPlayerClick }) {
       {rows.length === 0 ? (
         <Empty text="No picks in this category." />
       ) : (
-        <>
-        {/* The rows below are the bot's stamped picks. This is what each one
-            is built on -- a pick carried by a single bright column is the
-            bot's weakest kind of call, and you can only see that here. */}
         <HitterHeat
           players={rows}
           type="hr"
           title={tab.label}
-          topN={Math.min(rows.length, 20)}
+          topN={rows.length}
           showTable={false}
           onPlayerClick={onPlayerClick}
         />
-        <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
-          {rows.map((p, i) => (
-            <div key={p.player_id || i} style={{ borderTop: i ? `1px solid ${C.border}` : 'none' }}>
-              <PickRow p={p} onPlayerClick={onPlayerClick} />
-            </div>
-          ))}
-        </div>
-        </>
       )}
     </div>
   )

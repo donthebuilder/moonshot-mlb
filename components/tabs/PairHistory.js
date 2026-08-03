@@ -76,6 +76,53 @@ export default function PairHistory({ summary, onPlayerClick }) {
         right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
       />
 
+      {(() => {
+        const sg = pairs.filter((p) => p?.same_game_flag).length
+        const recent = pairs.filter((p) => p?.recent_pair_hit).length
+        const repeats = pairs.map((p) => n(p?.repeat_count, 0))
+        const maxRep = Math.max(...repeats, 0)
+        const sgTotal = pairs.reduce((a, p) => a + n(p?.same_game_hr_count, 0), 0)
+        const dayTotal = pairs.reduce((a, p) => a + n(p?.repeat_count, 0), 0)
+        const sgShare = dayTotal ? (100 * sgTotal) / dayTotal : 0
+        const cells = [
+          ['Pairs tracked', pairs.length, `${meta.days_checked ?? '—'} days checked`],
+          ['Same-game pairs', sg, `${(100 * sg / Math.max(1, pairs.length)).toFixed(0)}% of board`],
+          ['Hit in last 7', recent, 'recent_pair_hit'],
+          ['Most repeats', maxRep, 'by one pair'],
+          ['Same-game share', `${sgShare.toFixed(1)}%`, `${sgTotal} of ${dayTotal} co-HR days`],
+        ]
+        return (
+          <div style={{
+            display: 'grid', gap: 8, margin: '10px 0 12px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          }}>
+            {cells.map(([l, v, sub]) => (
+              <div key={l} style={{
+                background: C.bg2, border: `1px solid ${C.border}`,
+                borderRadius: 10, padding: '8px 11px',
+              }}>
+                <div style={{
+                  fontSize: 9, textTransform: 'uppercase', letterSpacing: '.07em',
+                  color: C.text3, fontWeight: 700, whiteSpace: 'nowrap',
+                }}>{l}</div>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 18, fontWeight: 800, color: C.orange }}>{v}</div>
+                <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      <div style={{
+        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '0 0 12px',
+        borderLeft: `2px solid ${C.orange}`, paddingLeft: 10,
+      }}>
+        Same-game share is the number that matters. Two hitters homering on the same
+        <i>date</i> in different ballparks is two independent events; the board counts it anyway
+        because that&apos;s how the pair score is built. Only the same-game subset is correlated,
+        and it is a small fraction of the total.
+      </div>
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0 12px' }}>
         <input
           style={{ ...inputStyle(), flex: '1 1 220px' }}
@@ -108,6 +155,7 @@ export default function PairHistory({ summary, onPlayerClick }) {
       <Heatmap
         rows={rows.slice(0, 15).map((p) => ({
           label: `${clean(p?.player_1, '')} + ${clean(p?.player_2, '')}`,
+          _raw: arr(p?.players)[0] || null,
           values: {
             Score: n(p?.pair_score, 0),
             Days: n(p?.repeat_count, 0),
@@ -121,6 +169,7 @@ export default function PairHistory({ summary, onPlayerClick }) {
         columns={['Score', 'Days', 'Same game', 'Boost', 'Recency']}
         title="Top 15 pairs — where each one's score comes from"
         labelWidth={220}
+        onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
         caption="Recency is inverted so a recent hit reads bright. A bright Days column with a dark Same game column is two independent hitters who happened to homer on the same date — coincidence, not correlation."
       />
 
