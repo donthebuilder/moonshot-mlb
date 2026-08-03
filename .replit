@@ -1,14 +1,26 @@
-run = "streamlit run streamlit_app.py --server.port 8080 --server.address 0.0.0.0 --server.headless true"
-language = "python3"
-modules = ["python-3.11"]
+# Replit config for moonshot-mlb (Next.js 14)
+# Production server, not `next dev` — dev mode recompiles on every request and
+# is noticeably slower behind Replit's proxy.
+run = "npm run replit"
+entrypoint = "app/page.js"
+modules = ["nodejs-20"]
+
+hidden = [".next", "node_modules"]
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "streamlit run streamlit_app.py --server.port 8080 --server.address 0.0.0.0 --server.headless true"]
-deploymentTarget = "cloudrun"
+run = ["sh", "-c", "npm run replit"]
+build = ["sh", "-c", "npm ci --omit=dev || npm install"]
+deploymentTarget = "autoscale"
 
+# Replit maps the app's port to :80 on the public URL.
 [[ports]]
 localPort = 8080
 externalPort = 80
+
+[env]
+NEXT_TELEMETRY_DISABLED = "1"
+HOST = "0.0.0.0"
+PORT = "8080"
