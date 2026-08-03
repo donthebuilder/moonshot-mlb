@@ -14,14 +14,14 @@ import { C, NUM_FONT } from '../lib/theme'
 // amber, which is the single most common way a heatmap ends up unreadable.
 
 export const ORANGE_RAMP = [
-  '#241203', // ember, barely lit
-  '#4a2205',
-  '#7c3a06',
-  '#b35309',
+  '#1a0f04', // near-black; most cells on a normal board land here
+  '#2b1806',
+  '#3f2207',
+  '#5c3108',
+  '#814309',
+  '#b35a0b',
   '#e2760d',
-  '#f97316', // the site accent
-  '#fbbf24',
-  '#fde68a', // bright amber, top of the scale
+  '#f97316', // the accent -- reserved for the genuine top of the column
 ]
 
 const INK_DARK = '#1a0d02'
@@ -35,6 +35,7 @@ export function rampColor(v, lo, hi) {
   return ORANGE_RAMP[Math.min(ORANGE_RAMP.length - 1, Math.floor(pos * ORANGE_RAMP.length))]
 }
 
+// Only the top two steps are light enough to need dark ink now.
 export const inkFor = (bg) =>
   bg === ORANGE_RAMP[7] || bg === ORANGE_RAMP[6] ? INK_DARK : INK_LIGHT
 

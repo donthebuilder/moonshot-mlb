@@ -6,7 +6,7 @@ import {
   recent375, ihrVal,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
 } from '../../lib/player'
-import { tierRole, isAligned } from '../../lib/scoring'
+import { tierRole, shortRole, isAligned } from '../../lib/scoring'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import { groupPitchers } from '../../lib/data'
@@ -35,7 +35,7 @@ const COLUMNS = [
   { key: 'name',    label: 'Player', heat: false, w: 168, bold: true, sticky: true },
   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true },
-  { key: 'role',    label: 'Role',   heat: false, w: 96, dim: true },
+  { key: 'role',    label: 'Role',   heat: false, w: 76, dim: true },
   { key: 'spot',    label: 'Spot',   heat: false, w: 40, mono: true, dim: true,
     fmt: (v) => (v == null ? '—' : String(v)) },
   { key: 'weak',    label: '★',      flag: true, mark: '★', w: 32 },
@@ -91,7 +91,7 @@ export default function Scoreboard({ players, results, onPlayerClick }) {
       name: nameOf(p),
       team: teamOf(p),
       opp: oppOf(p),
-      role: tierRole(p),
+      role: shortRole(p),
       spot: p?.lineup_spot == null || p?.lineup_spot === '' ? null : n(p.lineup_spot, null),
       weak: p?.weak_spot_flag ? 1 : 0,
       aligned: isAligned(p) ? 1 : 0,

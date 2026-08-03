@@ -5,7 +5,7 @@ import {
   nameOf, teamOf, oppOf, nn, clean, hrScore, hitScore, prodScore, tbScore,
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
-import { tierRole, scoreFor, isAligned } from '../lib/scoring'
+import { tierRole, shortRole, scoreFor, isAligned } from '../lib/scoring'
 import Heatmap from './Heatmap'
 import DenseTable from './DenseTable'
 
@@ -28,7 +28,7 @@ const COLUMNS = [
   { key: 'team',    label: 'Tm',      heat: false, w: 34, mono: true, dim: true },
   { key: 'opp',     label: 'Opp',     heat: false, w: 34, mono: true, dim: true },
   { key: 'spot',    label: '#',       heat: false, w: 24, mono: true, dim: true },
-  { key: 'role',    label: 'Role',    heat: false, w: 72, dim: true },
+  { key: 'role',    label: 'Role',    heat: false, w: 76, dim: true },
   { key: 'weak',    label: '★ Spot',  flag: true, mark: '★', w: 44 },
   { key: 'aligned', label: 'Align',   flag: true, mark: '◆', w: 40 },
   { key: 'edge',    label: 'Edge',    flag: true, mark: '▲', w: 40 },
@@ -68,7 +68,7 @@ export default function HitterHeat({
     team: teamOf(p),
     opp: oppOf(p),
     spot: p?.lineup_spot ?? '—',
-    role: tierRole(p),
+    role: shortRole(p),
     weak: p?.weak_spot_flag ? 1 : 0,
     aligned: isAligned(p) ? 1 : 0,
     edge: matchupEdge(p),

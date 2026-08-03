@@ -5,7 +5,7 @@ import {
   nameOf, teamOf, nn, clean, hrScore, hitScore, prodScore, tbScore,
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
-import { tierRole, isAligned } from '../lib/scoring'
+import { tierRole, shortRole, isAligned } from '../lib/scoring'
 import DenseTable from './DenseTable'
 
 // The full lineup, dense and colored — not the top-8 card grid.
@@ -28,7 +28,7 @@ const COLUMNS = [
   { key: 'name',   label: 'Batter', heat: false, w: 148, bold: true, sticky: true },
   { key: 'team',   label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   { key: 'b',      label: 'B',      heat: false, w: 22, mono: true, dim: true },
-  { key: 'role',   label: 'Role',   heat: false, w: 74, dim: true },
+  { key: 'role',   label: 'Role',   heat: false, w: 76, dim: true },
   { key: 'weak',   label: '★ Spot', flag: true, mark: '★', w: 44,
     title: 'Weak lineup spot — this starter has been beaten in this spot' },
   { key: 'aligned', label: 'Align', flag: true, mark: '◆', w: 40,
@@ -69,7 +69,7 @@ export default function GameLineup({ players, onPlayerClick }) {
         name: nameOf(p),
         team: teamOf(p),
         b: clean(p?.bats || p?.handedness, '?'),
-        role: tierRole(p),
+        role: shortRole(p),
         weak: p?.weak_spot_flag ? 1 : 0,
         aligned: isAligned(p) ? 1 : 0,
         edge: matchupEdge(p),

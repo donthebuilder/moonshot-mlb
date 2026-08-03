@@ -24,6 +24,7 @@ export default function DenseTable({
   initialSort = null,
   dense = true,
   caption = '',
+  maxRows = 200,
 }) {
   const [sort, setSort] = useState(initialSort ? { key: initialSort, dir: 'desc' } : null)
 
@@ -49,6 +50,9 @@ export default function DenseTable({
       return String(av ?? '').localeCompare(String(bv ?? '')) * mul
     })
   }, [rows, sort])
+
+  const view = sorted.length > maxRows ? sorted.slice(0, maxRows) : sorted
+  const truncated = sorted.length - view.length
 
   if (!rows.length || !columns.length) return null
 
@@ -92,7 +96,7 @@ export default function DenseTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map((r, ri) => (
+            {view.map((r, ri) => (
               <tr
                 key={r._key ?? ri}
                 onClick={onRowClick ? () => onRowClick(r._raw ?? r) : undefined}
@@ -153,6 +157,11 @@ export default function DenseTable({
         </table>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+        {truncated > 0 && (
+          <span style={{ color: C.orange }}>
+            Showing the top {view.length} of {sorted.length} — sort a column to bring others up.{' '}
+          </span>
+        )}
         {caption || 'Every column is colored against its own range. Click a header to sort, a row to open the hitter.'}
       </div>
       <style jsx>{`
