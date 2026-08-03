@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C } from '../lib/theme'
 import { fetchJSON, normalizeData } from '../lib/data'
-import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, setSlateMode } from '../lib/dataSource'
+import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { Empty } from './ui'
 import Header from './Header'
@@ -15,6 +15,7 @@ import Guide from './tabs/Guide'
 import Games from './tabs/Games'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
+import Backtest from './tabs/Backtest'
 import PlayerBoard from './tabs/PlayerBoard'
 import HitsHRR from './tabs/HitsHRR'
 import SprayChart from './SprayChart'
@@ -56,6 +57,7 @@ export default function Dashboard() {
 
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
+  const [backtest, setBacktest] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -77,6 +79,7 @@ export default function Dashboard() {
       fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
       fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
       fetchJSON(pairSummaryPaths()).then((j) => { if (alive) setPairSummary(j) }),
+      fetchJSON(backtestPaths()).then((j) => { if (alive) setBacktest(j) }),
     ]).then(() => {
       if (alive) { setLoading(false); setRefreshing(false) }
     })
@@ -169,7 +172,7 @@ export default function Dashboard() {
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={results} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} />}
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'results'     && <Results results={results} />}
+            {tab === 'results'     && <Results results={results} backtest={backtest} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watch} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayChart players={allPlayers} />}
             {tab === 'guide'       && <Guide />}

@@ -6,6 +6,7 @@ import { dateText, playerId, hrScore } from '../../lib/player'
 import { PanelTitle, Grid, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import SlateGlance from '../SlateGlance'
+import GameStrip from '../GameStrip'
 import Heatmap from '../Heatmap'
 
 const ROLE_CONFIG = {
@@ -116,53 +117,15 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           exists, this tells you which of it matters. */}
       <SlateGlance games={games} players={players} onGameClick={scrollTo} />
 
-      {/* ── Game nav bar ── */}
+      {/* Game selector. Was a sticky bar of matchup pills -- it told you a
+          game existed and nothing else, so picking one meant opening several
+          to find the live one. The cards carry the deciding numbers. */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 20,
-        background: '#09090b',
+        position: 'sticky', top: 0, zIndex: 20, background: '#09090b',
+        paddingTop: 4, paddingBottom: 8, marginBottom: 14,
         borderBottom: `1px solid ${C.border}`,
-        marginBottom: 18, paddingBottom: 8,
-        paddingTop: 4,
       }}>
-        {slots.map(([slot, slotGames]) => {
-          const allPast = slotGames.every(g => isPast(g.game_time))
-          return (
-            <div key={slot} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-              {/* time slot label — inline with its pills, not stacked above, so a single-game slot doesn't cost a full extra row */}
-              <span style={{
-                fontSize: 9, fontWeight: 700, color: allPast ? C.border : C.text3,
-                textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: NUM_FONT,
-                flexShrink: 0, minWidth: 58,
-              }}>
-                {localTime(slotGames[0].game_time)}
-              </span>
-              {/* game pills for this slot */}
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {slotGames.map(g => {
-                  const past = isPast(g.game_time)
-                  const active = activeGame === g.game_pk
-                  return (
-                    <button
-                      key={g.game_pk}
-                      onClick={() => scrollTo(g.game_pk)}
-                      style={{
-                        padding: '4px 8px', fontSize: 10.5, fontWeight: 700, borderRadius: 6,
-                        cursor: 'pointer', whiteSpace: 'nowrap',
-                        border: `1px solid ${active ? C.orange : past ? C.border : 'rgba(255,255,255,0.15)'}`,
-                        background: active ? `${C.orange}22` : past ? 'transparent' : 'rgba(255,255,255,0.04)',
-                        color: active ? C.orange : past ? C.border : C.text2,
-                        opacity: past ? 0.5 : 1,
-                        textDecoration: past ? 'line-through' : 'none',
-                      }}
-                    >
-                      {g.away} @ {g.home}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
+        <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} />
       </div>
 
       {/* ── Game sections ── */}

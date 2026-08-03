@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card } from '../ui'
+import Backtest from './Backtest'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -599,7 +600,7 @@ function PickRow({ r, i, onPlayerClick }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-export default function Results({ results, onPlayerClick }) {
+export default function Results({ results, backtest, onPlayerClick }) {
   const [tab, setTab] = useState('hr')
   const [subTab, setSubTab] = useState('overview')
 
@@ -696,6 +697,15 @@ export default function Results({ results, onPlayerClick }) {
             )
           }
         </>
+      )}
+
+      {/* The archive. Everything above is one slate; this is whether any of
+          it has worked over the graded days -- the only screen on the site
+          that scores the model instead of the players. */}
+      {backtest && (
+        <div style={{ marginTop: 26, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
+          <Backtest backtest={backtest} />
+        </div>
       )}
     </div>
   )
