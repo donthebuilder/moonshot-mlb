@@ -16,6 +16,8 @@ import PitchBreakdown from './tabs/PitchBreakdown'
 import HotZoneMap from './HotZoneMap'
 import HRPitchProfile from './HRPitchProfile'
 import SprayField from './SprayField'
+import MatchupPitcher from './MatchupPitcher'
+import PlayerSplits from './PlayerSplits'
 
 function Row({ label, value, mono = true }) {
   return (
@@ -38,10 +40,18 @@ function TabBtn({ active, onClick, children }) {
   )
 }
 
+// Seven tabs, one question each. The old four crammed the batter's pitch table
+// and his spray chart into a single 1180px tab, which meant neither got read —
+// and put the opposing starter nowhere at all, despite the whole slate being
+// built around him. Pitch and Spray are separate now, and the arm he's facing
+// has his own tab.
 const TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'pitcher',  label: '🥎 Pitcher' },
+  { key: 'pitch',    label: '🎯 Pitch' },
+  { key: 'spray',    label: '🗺 Spray' },
   { key: 'ev',       label: '⚡ EV Log' },
-  { key: 'pitch',    label: '🎯 Pitch + 🗺 Spray' },
+  { key: 'splits',   label: '📅 Splits' },
   { key: 'zones',    label: '🔥 Hot Zones' },
 ]
 
@@ -141,8 +151,13 @@ export default function PlayerModal({ player, onClose, inline = false }) {
   // across 22 days / 241 picks -- the single largest gap found in that analysis.
   const hasMatchupEdge = n(p?.pitch_type_match_score, 0) > 0
 
-  const wideTab = tab !== 'overview'
-  const modalWidth = tab === 'pitch' ? 1180 : wideTab ? 900 : 480
+  // Width follows the widest table on the tab. Pitch and Pitcher carry ten-plus
+  // stat columns; Spray is a fixed-size chart and gets cramped, not helped, by
+  // extra width.
+  const modalWidth = tab === 'overview' ? 480
+    : tab === 'spray' ? 780
+    : tab === 'pitcher' || tab === 'pitch' || tab === 'splits' || tab === 'ev' ? 1100
+    : 900
 
   return (
     <Shell inline={inline} onClose={onClose} width={modalWidth}>
@@ -270,30 +285,30 @@ export default function PlayerModal({ player, onClose, inline = false }) {
               : <EVLog player={p} />
           )}
 
-          {/* pitch breakdown + spray chart, side by side */}
+          {/* the arm he's facing */}
+          {tab === 'pitcher' && <MatchupPitcher player={p} />}
+
+          {/* what this batter does to each pitch type */}
           {tab === 'pitch' && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 20,
-              alignItems: 'start',
-            }}
-              className="pitch-spray-grid"
-            >
-              <div style={{ minWidth: 0 }}>
-                <PitchBreakdown player={p} />
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <SprayField player={p} height={300} />
-              </div>
-              {/* Which pitches he actually homers off, against tonight's mix.
-                  Full width under both panels -- it's the one thing here that
-                  crosses the batter and the pitcher. */}
-              <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
-                <HRPitchProfile player={p} />
-              </div>
-            </div>
+            detailState === 'loading'
+              ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading pitch profile…</div>
+              : (
+                <>
+                  <PitchBreakdown player={p} />
+                  {/* Which pitches he actually homers off, against tonight's
+                      mix. The one panel that crosses batter and pitcher, so it
+                      belongs under the batter's pitch table rather than in a
+                      third place. */}
+                  <HRPitchProfile player={p} />
+                </>
+              )
           )}
+
+          {/* where he puts the ball */}
+          {tab === 'spray' && <SprayField player={p} height={340} />}
+
+          {/* day/night, home/away, day of week, win/loss */}
+          {tab === 'splits' && <PlayerSplits player={p} />}
 
           {/* hot zone map */}
           {tab === 'zones' && (

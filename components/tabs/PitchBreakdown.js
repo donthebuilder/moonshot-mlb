@@ -2,30 +2,37 @@
 import { useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { Empty } from '../ui'
+import { ORANGE_RAMP, rampColor, inkFor } from '../Heatmap'
 
-const PITCH_COLORS = {
-  FF:'#f97316',SI:'#fb923c',FC:'#f59e0b',SL:'#4ade80',CU:'#22d3ee',
-  KC:'#06b6d4',CH:'#60a5fa',FS:'#818cf8',KN:'#a78bfa',ST:'#34d399',
-  SV:'#f87171',
-}
+// COLOUR NOTE. This page ran a green/red good-bad scale and a per-pitch rainbow
+// until now — its own footer read "Green = favorable for batter, Red =
+// unfavorable". Every other board here is the orange ramp, where brightness is
+// magnitude and bright always means good for the hitter. Two colour languages
+// on one site means neither gets learned, and a green cell here meant the
+// opposite of a green cell nowhere else, because nowhere else has one.
+//
+// So: one ramp, and direction is carried by `goodDir` flipping the value before
+// it's shaded rather than by switching hue. Pitch identity is a dim text label
+// now instead of a colour, since colour is spoken for by magnitude.
+
 const PITCH_NAMES = {
   FF:'4-Seam',SI:'Sinker',FC:'Cutter',SL:'Slider',CU:'Curveball',
-  KC:'K-Curve',CH:'Changeup',FS:'Splitter',KN:'Knuckleball',ST:'Sweeper',SV:'Slurve',
+  KC:'K-Curve',CH:'Changeup',FS:'Splitter',KN:'Knuckleball',ST:'Sweeper',
+  SV:'Slurve',FA:'Fastball',EP:'Eephus',FO:'Forkball',CS:'Slow curve',
 }
 
 const pct1 = v => v != null ? `${(v*100).toFixed(1)}%` : '—'
 const dec3 = v => v != null ? Number(v).toFixed(3).replace('0.', '.') : '—'
 const num1 = v => v != null ? Number(v).toFixed(1) : '—'
 
+// Shade against the [low, high] band this column cares about, flipping when a
+// low number is the good one. Values outside the band clamp to the ends.
 function cell(val, low, high, goodDir='high') {
-  if (val == null) return {}
-  const isGood = goodDir==='high' ? val>=high : val<=low
-  const isBad  = goodDir==='high' ? val<=low  : val>=high
-  return {
-    background: isGood?'rgba(74,222,128,0.18)':isBad?'rgba(248,113,113,0.18)':'transparent',
-    color: isGood?'#4ade80':isBad?'#f87171':'#f4f4f5',
-    fontWeight: (isGood||isBad)?700:400,
-  }
+  if (val == null || !Number.isFinite(Number(val))) return {}
+  const v = Number(val)
+  const shaded = goodDir === 'high' ? v : (high - (v - low))
+  const bg = rampColor(shaded, low, high) || ORANGE_RAMP[0]
+  return { background: bg, color: inkFor(bg), fontWeight: 700 }
 }
 
 const TH = ({children,style={}}) => (
@@ -165,7 +172,7 @@ export default function PitchBreakdown({ player }) {
                   const isToday = todayPitches.includes(pt)
                   const pRow = pitcherMap[pt]
                   const usage = pRow?.usage_pct ?? (player?.pitcher_arsenal||{})[pt]
-                  const dotColor = PITCH_COLORS[pt]||'#71717a'
+                  const dotColor = C.text3
                   return (
                     <tr key={pt} style={{borderLeft:isToday?`3px solid ${dotColor}`:'3px solid transparent'}}>
                       <td style={{padding:'5px 8px',borderBottom:'1px solid rgba(255,255,255,0.06)',whiteSpace:'nowrap'}}>
@@ -222,7 +229,7 @@ export default function PitchBreakdown({ player }) {
               <tbody>
                 {pitcherSummary.map((r,i) => {
                   const pt = r.pitch_type||r.pitch_code||''
-                  const dotColor = PITCH_COLORS[pt]||'#71717a'
+                  const dotColor = C.text3
                   const hrPBBE = r.hr_per_bbe||(r.hr_allowed&&r.bbe_allowed?r.hr_allowed/r.bbe_allowed:null)
                   return (
                     <tr key={i}>
@@ -247,7 +254,7 @@ export default function PitchBreakdown({ player }) {
       )}
 
       <div style={{fontSize:9,color:'#52525b',marginTop:8,fontFamily:NUM_FONT}}>
-        Green = favorable for batter · Red = unfavorable · ★ = today's pitcher throws this · Toggle LHB/RHB to see pitcher splits vs hand
+        Brightness is magnitude and bright is always good for the hitter — same ramp as every other board, so a dark cell is a low number, not a warning. ★ = today's pitcher throws this · Toggle LHB/RHB to see pitcher splits vs hand
       </div>
     </div>
   )

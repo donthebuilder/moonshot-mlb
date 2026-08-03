@@ -227,6 +227,24 @@ other reason, check the Actions tab for a "workflows disabled" banner first.
   all four tabs see one object. Its fixed BBE range toggle is gone too; it was
   forcing EV Log into batted-ball mode and hiding EV Log's own window control.
 
+- **Player modal restructured to seven tabs.** Pitch and Spray were sharing one
+  1180px tab, so neither got read, and the opposing starter — the thing the
+  whole slate is built around — had no home at all. Now:
+  Overview · **Pitcher** · Pitch · **Spray** · EV Log · **Splits** · Hot Zones.
+  - **Pitcher** (new, `MatchupPitcher.js`): arsenal matched to the hitter's
+    platoon side, damage by order third, damage by lineup spot with his own spot
+    called out, plus the season/command numbers off the slate row. Reads
+    `detail/<slate>/pitcher_<id>.json`, which only PitcherProfile touched before.
+  - **Splits** (new, `PlayerSplits.js`): day/night, home/away, day-of-week,
+    win/loss. `player_splits.py` has been publishing `current/splits/` — 297
+    files a slate — since the migration and **nothing on this site read a single
+    one of them.** Day-of-week is ~60 PA a row, so the captions say plainly that
+    it shouldn't move a decision.
+- **PitchBreakdown is on the orange ramp.** It was the last green/red page; its
+  own footer said "Green = favorable for batter". Direction now comes from
+  flipping the value before shading, not from switching hue, and pitch identity
+  is a text label rather than a rainbow dot.
+
 **Not done: live verification of these changes.** The deployed site was still
 the old build when this was written, and I can't push. First job next session is
 task 7 below against the new deploy.
