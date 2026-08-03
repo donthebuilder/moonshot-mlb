@@ -312,6 +312,95 @@ export default function ResultsDepth({ results, onPlayerClick }) {
         </Section>
       )}
 
+      {/* The question the whole site exists to answer: when someone went deep,
+          did we have him, and where did we have him ranked? A capture rate
+          alone can be flattered by a wide board -- rank is what makes it real. */}
+      <Section
+        title="Home runs vs the model"
+        sub="Every homer tonight, matched to whether it was one of our picks and where the board had it ranked."
+      >
+        {(() => {
+          const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z]/g, '')
+          const pickBy = new Map()
+          slots.forEach((sl) => {
+            const k = norm(sl?.name)
+            if (!k) return
+            // Keep the best-ranked entry when a name is picked in several tiers.
+            const prev = pickBy.get(k)
+            const rank = n(sl?.rank, 9999)
+            if (!prev || rank < n(prev?.rank, 9999)) pickBy.set(k, sl)
+          })
+
+          const rows = homers.map((h, i) => {
+            const sl = pickBy.get(norm(h?.name))
+            const [icon, label] = sl ? meta(sl.pick_type) : ['', '']
+            return {
+              _key: `${h?.player_id ?? h?.name}-${i}`,
+              _raw: sl || null,
+              name: clean(h?.name, '—'),
+              team: clean(h?.team, ''),
+              onSheet: sl ? 1 : 0,
+              pick: sl ? `${icon} ${label}` : 'not picked',
+              rank: sl ? n(sl.rank, null) : null,
+              score: sl ? n(sl.hr_score, 0) : 0,
+              ft: n(h?.longest_ft, 0),
+              ev: n(h?.max_ev_mph, 0),
+              la: n(h?.launch_angle, 0),
+            }
+          }).sort((a, b) => b.onSheet - a.onSheet || (a.rank ?? 9999) - (b.rank ?? 9999))
+
+          const onSheet = rows.filter((r) => r.onSheet)
+          const ranked = onSheet.filter((r) => r.rank != null)
+          const top15 = ranked.filter((r) => r.rank <= 15).length
+          const medRank = ranked.length
+            ? [...ranked].sort((a, b) => a.rank - b.rank)[Math.floor(ranked.length / 2)].rank
+            : null
+
+          return (
+            <>
+              <div style={{
+                display: 'grid', gap: 8, marginBottom: 12,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              }}>
+                <Tile label="Homers tonight" value={rows.length} />
+                <Tile
+                  label="Were our picks"
+                  value={`${onSheet.length}/${rows.length}`}
+                  sub={rows.length ? `${((100 * onSheet.length) / rows.length).toFixed(0)}%` : null}
+                  tone="up"
+                />
+                <Tile label="Inside our top 15" value={top15} tone="accent" />
+                <Tile
+                  label="Median rank of hits"
+                  value={medRank == null ? '—' : `#${medRank}`}
+                  sub="lower is the model being right"
+                />
+              </div>
+
+              <DenseTable
+                rows={rows}
+                columns={[
+                  { key: 'name',    label: 'Player', heat: false, w: 150, bold: true, sticky: true },
+                  { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
+                  { key: 'onSheet', label: 'Ours',   flag: true, mark: '✓', w: 36 },
+                  { key: 'pick',    label: 'Pick type', heat: false, w: 124, dim: true },
+                  { key: 'rank',    label: 'Board rank', heat: false, w: 62, mono: true, dim: true,
+                    fmt: (v) => (v == null ? '—' : `#${v}`) },
+                  { key: 'score',   label: 'HR score', w: 56, dp: 1 },
+                  { key: 'ft',      label: 'Distance', w: 56, dp: 0 },
+                  { key: 'ev',      label: 'EV',     w: 48, dp: 1 },
+                  { key: 'la',      label: 'LA',     w: 42, dp: 1 },
+                ]}
+                onRowClick={onPlayerClick}
+                initialSort="ft"
+                maxHeight={360}
+                caption="Sorted with our picks first, then by board rank. A homer with no rank was on the sheet in some tier but outside the ranked board; 'not picked' means we missed him entirely."
+              />
+            </>
+          )
+        })()}
+      </Section>
+
       <Section title="HRs by pick type">
         <Bars
           rows={tiers.filter((t) => t.hr > 0).map((t) => ({
