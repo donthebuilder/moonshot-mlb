@@ -26,31 +26,7 @@ const playerScore = (p) => med([
   hrScore(p), prodScore(p), nn(p?.hrw_score), nn(p?.damage_conversion_score),
 ])
 
-function Tile({ label, value, sub, accent = false }) {
-  return (
-    <div style={{
-      background: C.bg2, border: `1px solid ${accent ? C.orange : C.border}`,
-      borderRadius: 12, padding: '9px 12px', minWidth: 0,
-      boxShadow: accent ? `0 0 22px -10px ${C.orange}` : 'none',
-    }}>
-      <div style={{
-        fontSize: 9, textTransform: 'uppercase', letterSpacing: '.07em',
-        color: C.text3, fontWeight: 700, whiteSpace: 'nowrap',
-        overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>{label}</div>
-      <div style={{
-        fontFamily: NUM_FONT, fontSize: 20, fontWeight: 800, marginTop: 2,
-        color: accent ? C.orange : C.text, letterSpacing: '-.02em',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>{value}</div>
-      {sub && (
-        <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>{sub}</div>
-      )}
-    </div>
-  )
-}
-
-export default function SlateGlance({ games, players, onGameClick }) {
+export default function SlateGlance({ games, onGameClick }) {
   const rows = useMemo(() => games.map((g) => {
     const gp = g.players || []
     const head = gp.reduce((a, b) => (hrScore(b) > hrScore(a) ? b : a), gp[0] || {})
@@ -73,26 +49,9 @@ export default function SlateGlance({ games, players, onGameClick }) {
 
   if (!rows.length) return null
 
-  const best = rows[0]
-  const confirmed = players.filter((p) => p?.lineup_confirmed).length
-  const hot = players.filter((p) => hrScore(p) >= 70).length
-  const weak = players.filter((p) => p?.weak_spot_flag).length
-  const pct = (x) => `${Math.round((100 * x) / Math.max(1, players.length))}%`
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{
-        display: 'grid', gap: 8, marginBottom: 14,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
-      }}>
-        <Tile label="Games" value={games.length} />
-        <Tile label="Hitters" value={players.length} sub={`${confirmed} confirmed`} />
-        <Tile label="Best game" value={best.label} sub={`score ${best.values['Game Score'].toFixed(1)}`} accent />
-        <Tile label="Hitters 70+" value={hot} sub={`${pct(hot)} of slate`} />
-        <Tile label="Lineups confirmed" value={pct(confirmed)} sub={`${confirmed} of ${players.length}`} />
-        <Tile label="Weak spots" value={weak} />
-      </div>
-
       <Heatmap
         rows={rows}
         columns={['Game Score', 'Med HR', 'Med HRR', 'Med HRW', 'Med DC', 'Med Hit', 'Med TB', 'Top HR', 'Top HRR']}

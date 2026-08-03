@@ -7,6 +7,7 @@ import { PanelTitle, Grid, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import SlateGlance from '../SlateGlance'
 import GameStrip from '../GameStrip'
+import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
 
 const ROLE_CONFIG = {
@@ -115,7 +116,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
       {/* Slate-level view first: which games are worth attention at a glance.
           Ported from the Streamlit build -- the nav bar below tells you what
           exists, this tells you which of it matters. */}
-      <SlateGlance games={games} players={players} onGameClick={scrollTo} />
+      <SlateGlance games={games} onGameClick={scrollTo} />
 
       {/* Game selector. Was a sticky bar of matchup pills -- it told you a
           game existed and nothing else, so picking one meant opening several
@@ -128,11 +129,15 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
         <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} />
       </div>
 
-      {/* ── Game sections ── */}
-      {games.map((g) => {
+      {/* ── Selected game ── */}
+      {/* Only the selected game renders. The strip above is the selector; an
+          accordion of all fifteen underneath was the same list a second time,
+          and because every row started collapsed the lineup table was never
+          on screen. */}
+      {games.filter((g) => g.game_pk === activeGame).map((g) => {
         const sorted = [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 8)
         const past = isPast(g.game_time)
-        const isActive = activeGame === g.game_pk
+        const isActive = true
 
         return (
           <section
@@ -142,7 +147,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           >
             {/* game header — click toggles which game is expanded */}
             <div
-              onClick={() => setActive(isActive ? null : g.game_pk)}
+              onClick={() => {}}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 marginBottom: isActive ? 10 : 0, padding: isActive ? '0 0 8px' : '8px 4px',
@@ -153,10 +158,6 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  fontSize: 10, color: C.text3, transform: isActive ? 'rotate(90deg)' : 'none',
-                  transition: 'transform .15s', display: 'inline-block', width: 10,
-                }}>▸</span>
                 <div>
                   <div style={{ fontSize: isActive ? 15 : 13, fontWeight: 800, color: past ? C.text3 : C.text }}>
                     {past ? '✓ ' : ''}{g.away || '—'} @ {g.home || '—'}
@@ -173,6 +174,10 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                 {!isActive && `${localTime(g.game_time)} · `}{g.players.length} batters
               </div>
             </div>
+
+            {isActive && (
+              <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
+            )}
 
             {isActive && (
             <Grid>
