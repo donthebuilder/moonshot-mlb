@@ -1,8 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nn, hrScore, prodScore } from '../lib/player'
-import { med } from './SlateGlance'
+import { nn, hrScore, prodScore, median as med } from '../lib/player'
 
 // Game selector strip — the PropFinder pattern.
 //

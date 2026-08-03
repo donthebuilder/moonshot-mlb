@@ -4,6 +4,7 @@ import { playerId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore 
 import { tierRole, isAligned } from '../../lib/scoring'
 import { C } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
+import HitterHeat from '../HitterHeat'
 import PlayerCard from '../PlayerCard'
 
 const EXPORT_COLUMNS = [
@@ -173,6 +174,18 @@ export default function Watchlist({ items, onWatch, onAdd, onPlayerClick }) {
           </div>
         }
       />
+      {/* A watchlist is a set you assembled by hand, so the useful question
+          isn't the ranking -- it's whether the names you saved actually have
+          anything in common, or whether you've collected six different bets. */}
+      <HitterHeat
+        players={items}
+        type="hr"
+        title="Your watchlist"
+        topN={items.length}
+        showTable={false}
+        onPlayerClick={onPlayerClick}
+      />
+
       <Grid>
         {items.map((p) => (
           <PlayerCard

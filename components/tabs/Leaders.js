@@ -8,6 +8,7 @@ import {
 } from '../../lib/player'
 import { tierRole, tierColor, isAligned } from '../../lib/scoring'
 import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
+import Heatmap from '../Heatmap'
 
 // Reads the raw pull-rate field directly rather than assuming an unverified
 // helper export exists in lib/player -- the bot stores this as a 0-1 decimal
@@ -131,6 +132,33 @@ export default function Leaders({ players, onPlayerClick }) {
       {!ranked.length ? (
         <Empty text="Not enough data for this leaderboard yet." />
       ) : (
+        <>
+        {/* A leaderboard on one stat only tells you the order on that stat.
+            The interesting question is whether the leader on THIS board is
+            anywhere on the others -- a name bright in one column and dark
+            across the rest is a specialist, not a play. */}
+        <Heatmap
+          rows={ranked.map(({ p }) => ({
+            label: nameOf(p),
+            values: {
+              HR: hrScore(p), HRR: prodScore(p), Hit: hitScore(p), TB: tbScore(p),
+              PMix: pitchMixScore(p),
+              'IHR%': ihrVal(p) * 100,
+              'Brl%': barrelRate(p) * 100,
+              'HH%': hardHitRate(p) * 100,
+              'Avg EV': avgEV(p),
+              'Max EV': maxEV(p),
+              LA: launchAngle(p),
+              '375+': recent375(p),
+              'Szn HR': n(p?.season_hr, 0),
+            },
+          }))}
+          columns={['HR', 'HRR', 'Hit', 'TB', 'PMix', 'IHR%', 'Brl%', 'HH%', 'Avg EV', 'Max EV', 'LA', '375+', 'Szn HR']}
+          title={`Top 25 by ${meta.label} — across every other leaderboard`}
+          labelWidth={150}
+          fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
+          onRowClick={onPlayerClick ? (r, i) => onPlayerClick(ranked[i].p) : null}
+        />
         <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
           {ranked.map(({ p, v }, i) => {
             const role = tierRole(p)
@@ -163,6 +191,7 @@ export default function Leaders({ players, onPlayerClick }) {
             )
           })}
         </div>
+        </>
       )}
     </div>
   )
