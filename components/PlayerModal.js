@@ -14,6 +14,7 @@ import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
 import SprayChart from './SprayChart'
 import HotZoneMap from './HotZoneMap'
+import HRPitchProfile from './HRPitchProfile'
 
 function Row({ label, value, mono = true }) {
   return (
@@ -257,6 +258,12 @@ export default function PlayerModal({ player, onClose, inline = false }) {
               </div>
               <div style={{ minWidth: 0 }}>
                 <SprayChart players={[p]} embedded={true} bbeRange={bbeRange} />
+              </div>
+              {/* Which pitches he actually homers off, against tonight's mix.
+                  Full width under both panels -- it's the one thing here that
+                  crosses the batter and the pitcher. */}
+              <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+                <HRPitchProfile player={p} />
               </div>
             </div>
           )}
