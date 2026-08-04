@@ -246,6 +246,15 @@ export default function MatchupPitcher({ player, slateMode }) {
         <Stat label="400+ allowed" value={n(player.pitcher_400_allowed, null) == null ? '—' : String(Math.round(n(player.pitcher_400_allowed)))}
           tone={n(player.pitcher_400_allowed, 0) >= 5 ? C.orange : C.text}
           note="real distance given up" />
+        {/* Moved here from the Hot Zones "Signals" sub-tab, which was a second
+            copy of this row one click away inside a different tab. */}
+        <Stat label="Putaway%" value={pctOf(player.pitcher_putaway_pct)}
+          note="2-strike counts he finishes" />
+        <Stat label="1st-pitch K%" value={pctOf(player.pitcher_first_pitch_strike_pct)}
+          note="how often he gets ahead" />
+        <Stat label="Pitch-mix score" value={n(player.pitch_mix_score, null) == null ? '—' : n(player.pitch_mix_score).toFixed(0)}
+          tone={n(player.pitch_mix_score, 0) >= 70 ? C.orange : C.text}
+          note={clean(player.pitch_mix_note, 'batter vs this arsenal')} />
       </div>
 
       <div style={{ fontSize: 9, color: C.text3, marginBottom: 12, lineHeight: 1.5 }}>

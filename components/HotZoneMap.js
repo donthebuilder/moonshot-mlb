@@ -15,6 +15,7 @@
 import { detailUrl, zonesUrl } from '../lib/dataSource'
 import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 
 // ── Pitch colors + names ──────────────────────────────────────────────────────
 const PITCH_COLORS = {
@@ -79,13 +80,15 @@ function SegGroup({ children }) {
 }
 
 // ── Heat color ────────────────────────────────────────────────────────────────
+// Orange ramp, like every other heat surface on the site. This ran its own
+// red/amber/blue scale, which meant a "hot" zone here was red while a hot cell
+// on every other board was bright orange — two colour languages for the same
+// idea. Bright is good for the hitter, as everywhere else.
 function heatColor(ratio, lowSample) {
   if (lowSample) return { bg:'rgba(255,255,255,0.04)', text:C.text3, border:C.border }
   if (ratio == null) return { bg:'transparent', text:C.text3, border:C.border }
-  if (ratio >= 0.75) return { bg:'rgba(248,113,113,0.18)', text:'#f87171', border:'rgba(248,113,113,0.55)' }
-  if (ratio >= 0.50) return { bg:'rgba(245,158,11,0.18)', text:'#f59e0b', border:'rgba(245,158,11,0.55)' }
-  if (ratio >= 0.25) return { bg:'rgba(255,255,255,0.06)', text:C.text2,  border:C.border }
-  return               { bg:'rgba(96,165,250,0.12)', text:'#60a5fa', border:'rgba(96,165,250,0.35)' }
+  const bg = rampColor(ratio, 0, 1) || ORANGE_RAMP[0]
+  return { bg, text: inkFor(bg), border: ratio >= 0.75 ? C.orange : C.border }
 }
 
 function normRatios(zones, key) {
@@ -105,7 +108,7 @@ function ZoneCell({ z, ratio, isKill, val, size=64 }) {
       title={z ? `Zone ${z.zone} — ${ZONE_LABELS[z.zone]}` : ''}
       style={{
         width:size, height:size, background:c.bg,
-        border: isKill ? `2px solid #f87171` : `1px solid ${c.border}`,
+        border: isKill ? `2px solid ${C.orange}` : `1px solid ${c.border}`,
         borderRadius:4, display:'flex', flexDirection:'column',
         alignItems:'center', justifyContent:'center', cursor:'default',
         transition:'transform .1s',
@@ -119,7 +122,7 @@ function ZoneCell({ z, ratio, isKill, val, size=64 }) {
           .{String(Math.round(z.ba*1000)).padStart(3,'0')}
         </span>
       )}
-      {isKill && <span style={{fontSize:8, color:'#f87171', fontWeight:800, marginTop:1}}>KILL</span>}
+      {isKill && <span style={{fontSize:8, color:C.orange, fontWeight:800, marginTop:1}}>KILL</span>}
     </div>
   )
 }
@@ -141,7 +144,7 @@ function Grid9({ zones, metricKey, metricFmt, killZones=[] }) {
 function Legend() {
   return (
     <div style={{display:'flex', gap:10, flexWrap:'wrap', marginTop:8}}>
-      {[['#f87171','Hot'],['#f59e0b','Warm'],[C.text3,'Neutral'],['#60a5fa','Cold']].map(([c,l])=>(
+      {[[ORANGE_RAMP[7],'Hot'],[ORANGE_RAMP[5],'Warm'],[ORANGE_RAMP[2],'Neutral'],[ORANGE_RAMP[0],'Cold']].map(([c,l])=>(
         <span key={l} style={{display:'flex',alignItems:'center',gap:3,fontSize:10,color:C.text3}}>
           <span style={{width:8,height:8,borderRadius:2,background:c}}/>
           {l}
@@ -477,12 +480,21 @@ function KillZoneTab({ p, zoneProfile, pitcherProfile }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+// TWO SUB-TABS, NOT FIVE.
+//
+// The '🎯 Pitch' sub-tab was the batter's pitch-type table — the same table the
+// modal's own Pitch tab shows, one click away. '📡 Signals' was meatball rate,
+// SwStr%, whiff%, putaway, first-pitch K% and the hand splits, all of which now
+// live on the Pitcher tab where the rest of the opposing starter is. Two copies
+// of a panel is worse than one: they drift, and you never know which you're
+// looking at. Both removed; the unique numbers moved to Pitcher.
+//
+// What's left is the thing only this tab does — the strike-zone grid, and the
+// edge read built on top of it.
 const TABS = [
   { key:'batter',  label:'Batter zones' },
   { key:'pitcher', label:'Pitcher zones' },
-  { key:'pitch',   label:'🎯 Pitch' },
-  { key:'signals', label:'📡 Signals' },
-  { key:'kill',    label:'🔥 Kill zone' },
+  { key:'kill',    label:'🔥 Edge read' },
 ]
 
 export default function HotZoneMap({ player, slateMode, onClose }) {
@@ -607,6 +619,27 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
         {onClose&&<button onClick={onClose} style={{background:'transparent',border:'none',color:C.text3,fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>}
       </div>
 
+      {/* ONE honest explanation, at the top, instead of a different stub
+          sentence buried in each sub-tab. Previously you clicked three tabs and
+          got three different half-sentences about spray_cache.py, which made it
+          look like three separate problems rather than one unpublished file. */}
+      {!zoneProfile && !pitcherProfile && !loading && (
+        <div style={{
+          background:C.bg2, border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.orange}`,
+          borderRadius:10, padding:'10px 13px', marginBottom:12, fontSize:11,
+          color:C.text2, lineHeight:1.6,
+        }}>
+          <b style={{color:C.orange}}>No zone data has ever been published.</b> This isn&apos;t a
+          load failure and re-running the bot won&apos;t change it. <code>spray_cache.py</code> does
+          compute these profiles, every day, successfully — but its workflow runs read-only with no
+          publish step, so the output dies with the runner and never reaches the site.
+          {' '}Three changes in the bot repo fix it; they&apos;re written up in{' '}
+          <code>ZONES-FIX.md</code>. Until then this tab shows the grid it will fill rather than
+          inventing numbers. <b style={{color:C.text2}}>Edge read</b> works now — it&apos;s built on
+          the pitch-level fields, which are published.
+        </div>
+      )}
+
       {/* Tab bar */}
       <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:12,borderBottom:`1px solid ${C.border}`,paddingBottom:8}}>
         {TABS.map(t=><TabBtn key={t.key} active={tab===t.key} onClick={()=>setTab(t.key)}>{t.label}</TabBtn>)}
@@ -690,7 +723,7 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
       )}
 
       {/* ── PITCH MATRIX ── */}
-      {tab==='pitch'&&(
+      {false&&tab==='pitch'&&(
         <div>
           <PitchToggles pitches={pitches} active={activePitches} onToggle={togglePitch} onClear={()=>setActivePitches(new Set())}/>
           <PitchMatrix
@@ -701,7 +734,7 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
       )}
 
       {/* ── SIGNALS ── */}
-      {tab==='signals'&&<DangerSignals p={player}/>}
+
 
       {/* ── KILL ZONE ── */}
       {tab==='kill'&&<KillZoneTab p={player} zoneProfile={zoneProfile} pitcherProfile={pitcherProfile}/>}
