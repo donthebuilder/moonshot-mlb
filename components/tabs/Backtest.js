@@ -26,7 +26,16 @@ const TIER_LABEL = {
 }
 const label = (k) => TIER_LABEL[k] || k.replace(/_/g, ' ').toLowerCase()
 
-const METRICS = ['HR', '1+ Hit', 'XBH', '2+ TB', '1+ HRR', '2+ HRR', '3+ HRR', 'Did its job']
+// COLUMNS ARE DERIVED FROM THE DATA, NOT HARDCODED.
+//
+// The old list was ['HR','1+ Hit','XBH','2+ TB','1+ HRR','2+ HRR','3+ HRR',
+// 'Did its job']. Two of those keys are written by nothing: across all six
+// tiers and all nine graded days, the metric keys that actually exist are
+// HR, 1+ Hit, XBH, 2+ TB, 2+ HRR and 3+ HRR. "1+ HRR" and "Did its job" were
+// never in the payload, so both columns rendered 0% for every tier forever —
+// which reads as "this tier never did its job", the exact opposite of "we
+// don't measure that".
+const METRIC_ORDER = ['HR', '1+ Hit', 'XBH', '2+ TB', '2+ HRR', '3+ HRR']
 
 function Toggle({ options, value, onChange }) {
   return (
@@ -75,24 +84,59 @@ function Sparkline({ points, height = 44 }) {
 }
 
 export default function Backtest({ backtest }) {
-  const [basis, setBasis] = useState('pooled_metrics')
+  const [basis, setBasis] = useState('avg_metrics')
   const bt = obj(backtest)
   const summary = obj(bt.summary)
   const perDay = obj(bt.per_day)
   const tiers = Object.keys(summary)
 
+  // Which metric keys the payload actually carries, in a stable order.
+  const metrics = useMemo(() => {
+    const seen = new Set()
+    tiers.forEach((t) => Object.keys(obj(obj(summary[t]).avg_metrics)).forEach((k) => seen.add(k)))
+    const known = METRIC_ORDER.filter((k) => seen.has(k))
+    const extra = [...seen].filter((k) => !METRIC_ORDER.includes(k)).sort()
+    return [...known, ...extra]
+  }, [tiers, summary])
+
+  // POOLED IS MOSTLY UNAVAILABLE, AND THAT IS A BOT GAP.
+  //
+  // summary[tier].pooled_metrics is {} for all six tiers — backtest_report.py
+  // creates the key and never fills it, so the Pooled toggle showed a wall of
+  // 0% and looked like every tier had failed everything.
+  //
+  // One pooled number IS recoverable and it's the important one: hr_rate_pct
+  // is total_hr_count / total_pool_size, which is a true pooled HR rate
+  // (Top 15 board: 36 of 116 = 31.0%). So Pooled shows a real HR column and
+  // leaves the rest blank rather than zero — blank means unmeasured, zero
+  // means measured-and-failed, and the difference matters here more than
+  // anywhere else on the site.
+  const pooledAvailable = useMemo(
+    () => tiers.some((t) => Object.keys(obj(obj(summary[t]).pooled_metrics)).length > 0),
+    [tiers, summary],
+  )
+
   const rows = useMemo(() => tiers.map((t) => {
     const s = obj(summary[t])
     const m = obj(s[basis])
+    const isPooled = basis === 'pooled_metrics'
+    const values = Object.fromEntries(metrics.map((k) => {
+      if (k in m) return [k, n(m[k], null)]
+      // Derived pooled HR rate — the only pooled figure the payload supports.
+      if (isPooled && k === 'HR' && n(s.total_pool_size, 0) > 0) {
+        return [k, (100 * n(s.total_hr_count, 0)) / n(s.total_pool_size, 1)]
+      }
+      return [k, null]
+    }))
     return {
       label: label(t),
       key: t,
-      values: Object.fromEntries(METRICS.map((k) => [k, n(m[k], null)])),
+      values,
       days: n(s.days_seen, 0),
       pool: n(s.total_pool_size, 0),
       hrRate: n(s.hr_rate_pct, 0),
     }
-  }), [tiers, summary, basis])
+  }), [tiers, summary, basis, metrics])
 
   const dayKeys = useMemo(() => Object.keys(perDay).sort(), [perDay])
 
@@ -133,11 +177,20 @@ export default function Backtest({ backtest }) {
         sample. <strong style={{ color: C.text2 }}>Day average</strong> scores each day separately, then
         averages the days — which lets a single hot day on a tiny pool pull the whole number up. When
         the two disagree badly, trust pooled and treat the tier as unproven.
+        {basis === 'pooled_metrics' && !pooledAvailable && (
+          <div style={{ marginTop: 6, color: C.orange }}>
+            Only the <b>HR</b> column is available pooled. <code>backtest_report.py</code> writes
+            <code> pooled_metrics</code> as an empty object for every tier, so the other columns
+            can&apos;t be pooled from this payload — HR is recomputed here from the
+            total HR count over the total pool size, which is a genuine pooled rate. The blanks are
+            unmeasured, not zero. Day average has all six.
+          </div>
+        )}
       </div>
 
       <Heatmap
         rows={rows}
-        columns={METRICS}
+        columns={metrics}
         title={`Hit rate by tier — ${basis === 'pooled_metrics' ? 'pooled across all days' : 'averaged per day'}`}
         labelWidth={130}
         fmt={(v) => (Number.isFinite(Number(v)) ? `${Number(v).toFixed(0)}%` : '—')}

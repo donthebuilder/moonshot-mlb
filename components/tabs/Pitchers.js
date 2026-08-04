@@ -2,8 +2,9 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { groupPitchers } from '../../lib/data'
+import { n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
-import PitcherHeat from '../PitcherHeat'
+import DenseTable from '../DenseTable'
 import PitcherSpots from '../PitcherSpots'
 import PitcherProfile from '../PitcherProfile'
 import PitcherModal from '../PitcherModal'
@@ -168,7 +169,74 @@ export default function Pitchers({ players, onPlayerClick }) {
       />
       {/* The card list below is one starter at a time. This is the slate:
           which arms are actually attackable, and on which axis. */}
-      <PitcherHeat pitchers={sorted} onSelect={(e) => setOpenId(e?.pitcher_id ?? null)} />
+      {/* One sortable table of EVERY starter, replacing the old "most
+          attackable" heatmap. That heatmap showed the top 15 and the card list
+          below it showed all 28 — the same starters twice, with the top of one
+          list also being the top of the other. This does the heatmap's job
+          (scan the slate, sort on whatever you care about) without being a
+          second copy of the thing underneath it.
+
+          L3 columns are the addition: pitcher_l3_era, _l3_whip, _l3_hr9 and
+          _l3_starts_found are on 143 of 143 slate rows. Season K/9 is here too
+          — there is no L3 K/9 published, so it isn't invented. */}
+      <DenseTable
+        rows={sorted.map((p) => {
+          const src = (k) => {
+            for (const b of p.lineup || []) {
+              const v = b?.raw?.[k]
+              if (v !== null && v !== undefined && v !== '') return v
+            }
+            return null
+          }
+          return {
+            _key: p.pitcher_id ?? p.pitcher_name,
+            _raw: p,
+            name: p.pitcher_name,
+            t: p.pitcher_throws,
+            tm: p.team,
+            vs: p.opponent_team,
+            era: n(p.pitcher_era, null),
+            whip: n(p.pitcher_whip, null),
+            hr9: n(p.pitcher_hr9, null),
+            k9: n(src('pitcher_k9'), null),
+            l3era: n(src('pitcher_l3_era'), null),
+            l3whip: n(src('pitcher_l3_whip'), null),
+            l3hr9: n(src('pitcher_l3_hr9'), null),
+            l3n: n(src('pitcher_l3_starts_found'), 0),
+            trend: clean(src('pitcher_trend_direction'), ''),
+            weakSide: clean(p.pitcher_weak_side, ''),
+            spots: p.weak_spot_count,
+            conf: p.lineup_confirmed ? 1 : 0,
+          }
+        })}
+        columns={[
+          { key: 'name',   label: 'Starter', heat: false, w: 148, bold: true, sticky: true },
+          { key: 't',      label: 'T',   heat: false, w: 26, mono: true, dim: true },
+          { key: 'tm',     label: 'Tm',  heat: false, w: 34, mono: true, dim: true },
+          { key: 'vs',     label: 'vs',  heat: false, w: 34, mono: true, dim: true },
+          { key: 'hr9',    label: 'HR/9', w: 46, dp: 2 },
+          { key: 'era',    label: 'ERA', w: 44, dp: 2 },
+          { key: 'whip',   label: 'WHIP', w: 46, dp: 2 },
+          { key: 'k9',     label: 'K/9', w: 44, dp: 1, invert: true,
+            title: 'Season strikeouts per nine. Inverted — a high K/9 is bad for the hitter.' },
+          { key: 'l3hr9',  label: 'L3 HR/9', w: 54, dp: 2,
+            title: 'Last three starts. Small by construction — check the L3 GS column.' },
+          { key: 'l3era',  label: 'L3 ERA', w: 50, dp: 2 },
+          { key: 'l3whip', label: 'L3 WHIP', w: 54, dp: 2 },
+          { key: 'l3n',    label: 'L3 GS', w: 44,
+            title: 'How many recent starts the L3 numbers actually found. Under 3 and they are thinner than they look.' },
+          { key: 'trend',  label: 'Trend', heat: false, w: 62, dim: true },
+          { key: 'weakSide', label: 'Weak', heat: false, w: 48, dim: true },
+          { key: 'spots',  label: '★ Spots', w: 52,
+            title: 'Weak lineup spots he faces tonight' },
+          { key: 'conf',   label: 'LU', flag: true, mark: '●', w: 30,
+            title: 'Lineup confirmed' },
+        ]}
+        onRowClick={(p) => setModalPitcher(p)}
+        initialSort="hr9"
+        maxHeight={420}
+        caption="Every starter on the slate. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter."
+      />
 
       {sorted.map((pitcher) => (
         <PitcherCard
