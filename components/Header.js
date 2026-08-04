@@ -91,11 +91,18 @@ function ProjectedHRStat({ mode }) {
           fontSize:8.5, color:C.text3, textTransform:'uppercase',
           letterSpacing:'.09em', fontWeight:800,
         }}>Slate projected</span>
+        {/* Headline is the midpoint to one decimal, so it lines up with the
+            capture pill next door and reads as a single figure at a glance.
+            The range stays underneath because the bot published a range, not a
+            point estimate — printing 40.5 alone would imply a precision the
+            projection doesn't have. */}
         <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
           <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:col }}>
-            {projection.low}–{projection.high}
+            {((projection.low + projection.high) / 2).toFixed(1)}
           </span>
-          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>HR</span>
+          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>
+            HR · {projection.low}–{projection.high}
+          </span>
           {projection.grade && (
             <span style={{ fontSize:9, color:col, fontWeight:800, letterSpacing:'.02em' }}>
               {projection.grade}

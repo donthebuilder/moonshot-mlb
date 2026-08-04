@@ -107,14 +107,14 @@ export default function SlateTiles({ players = [], results, games = [] }) {
     <div style={{
       display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center',
     }}>
+      {/* ORDER: slate size, then the live pair, then the two edge counts.
+          Games sets the scale, HR actual and Best game are the two that move
+          during the night and belong next to each other, Weak and Settled
+          close it out. Hitters, 70+ and Aligned were dropped — Hitters is a
+          number you never act on, and 70+ / Aligned are both "how many hitters
+          clear a threshold", which the boards answer better and with the
+          threshold visible. */}
       <Tile label="Games" value={stats.gameCount} />
-      <Tile
-        label="Hitters"
-        value={players.length}
-        delta={pct(stats.confirmed)}
-        tone={stats.confirmed === players.length ? 'up' : 'flat'}
-        dot={stats.confirmed === players.length}
-      />
       {stats.actual != null && (
         <Tile
           label="HR actual"
@@ -133,8 +133,6 @@ export default function SlateTiles({ players = [], results, games = [] }) {
           dot
         />
       )}
-      <Tile label="70+" value={stats.hot} delta={pct(stats.hot)} />
-      <Tile label="◆ Aligned" value={stats.aligned} />
       <Tile label="★ Weak" value={stats.weak} tone="accent" />
       {stats.settled > 0 && (
         <Tile label="Settled" value={stats.settled} delta="graded" />
