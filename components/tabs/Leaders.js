@@ -1,209 +1,230 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import {
-  nameOf, teamOf, oppOf, n, pct,
-  hrScore, hitScore, prodScore, tbScore, pitchMixScore,
-  recent375, ihrVal, avgEV, hardHitRate, barrelRate, maxEV, playerId, launchAngle,
-} from '../../lib/player'
-import { tierRole, tierColor, isAligned } from '../../lib/scoring'
-import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
-import Heatmap from '../Heatmap'
+import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
+import { PanelTitle, Empty } from '../ui'
+import DenseTable from '../DenseTable'
 
-// Reads the raw pull-rate field directly rather than assuming an unverified
-// helper export exists in lib/player -- the bot stores this as a 0-1 decimal
-// under a couple of possible field names depending on which pass wrote it.
-function pullRate(p) {
-  const v = p?.recent_pull_rate ?? p?.pull_rate ?? null
-  return v == null ? 0 : Number(v)
+// League Leaders — SEASON STATS ONLY.
+//
+// This page used to rank hitters by the bot's model scores: HR score, HRR
+// score, hit score, pitch-mix, damage conversion, IHR, barrel rate. Those all
+// belong to the model, and every other board on this site already shows them —
+// which made Leaders a fifth copy of the same ranking rather than a page of its
+// own.
+//
+// It's a batter summary now: the actual season line. Average, on-base,
+// slugging, OPS, ISO, home runs, RBI, runs, strikeout and walk rates, BABIP and
+// the platoon splits. Nothing here is modelled, weighted, projected or scored.
+// If a number on this page disagrees with a baseball card, the payload is
+// wrong — there's no interpretation layer left to blame.
+//
+// TOTAL BASES IS THE ONE DERIVED COLUMN AND IT SAYS SO.
+// The slate carries no season hits, at-bats, doubles or triples — only last
+// 5/7/10 windows — so TB can't be read off the payload. It's computed as:
+//
+//     AB ≈ PA × (1 − BB%)        TB = SLG × AB
+//
+// which ignores hit-by-pitch and sacrifices and therefore runs a few bases
+// light. Good enough to rank by, wrong enough that the column is labelled
+// "TB est" and the caption explains it rather than letting it pass as a
+// counting stat.
+
+const MIN_PA_STEPS = [0, 50, 100, 200, 300]
+
+// AB estimate, kept in its own function so the assumption lives in one place.
+const estAB = (p) => {
+  const pa = n(p?.season_pa, 0)
+  const bb = n(p?.season_bb_rate, 0)
+  if (pa <= 0) return 0
+  return pa * (1 - Math.min(0.35, Math.max(0, bb)))
 }
 
-const STATS = [
-  { key: 'hr',     label: 'HR Score',     fmt: (v) => v.toFixed(1) },
-  { key: 'hrr',    label: 'HRR Score',    fmt: (v) => v.toFixed(1) },
-  { key: 'hit',    label: 'Hit Score',    fmt: (v) => v.toFixed(1) },
-  { key: 'tb',     label: 'TB Score',     fmt: (v) => v.toFixed(1) },
-  { key: 'pmix',   label: 'Pitch Mix',    fmt: (v) => v.toFixed(1) },
-  { key: '375',    label: '375+ count',   fmt: (v) => String(v) },
-  { key: 'hrw',    label: 'HR Window',    fmt: (v) => v.toFixed(1) },
-  { key: 'dc',     label: 'Damage Conv',  fmt: (v) => v.toFixed(1) },
-  { key: 'due',    label: 'Due Score',    fmt: (v) => v.toFixed(1) },
-  { key: 'longest', label: 'Longest HR',  fmt: (v) => v.toFixed(1) },
-  { key: 'phr9',   label: 'Opp HR/9',     fmt: (v) => v.toFixed(2) },
-  { key: 'pmeat',  label: 'Opp Meatball%', fmt: (v) => (v * 100).toFixed(1) + '%' },
-  { key: 'ihr',    label: 'Ideal HR%',    fmt: (v) => (v * 100).toFixed(1) + '%' },
-  { key: 'ev',     label: 'Avg Exit Velo',fmt: (v) => v.toFixed(1) + ' mph' },
-  { key: 'maxev',  label: 'Max EV',       fmt: (v) => v.toFixed(1) + ' mph' },
-  { key: 'barrel', label: 'Barrel %',     fmt: (v) => pct(v) },
-  { key: 'hard',   label: 'Hard Hit %',   fmt: (v) => pct(v) },
-  { key: 'pull',   label: 'Pull %',       fmt: (v) => pct(v) },
-  { key: 'la',     label: 'Launch Angle', fmt: (v) => v.toFixed(1) + '°' },
-  { key: 'season_hr',  label: 'Season HR',    fmt: (v) => String(v) },
-  { key: 'season_avg', label: 'Season AVG',   fmt: (v) => v.toFixed(3) },
+const COLUMNS = [
+  { key: 'name', label: 'Batter', heat: false, w: 150, bold: true, sticky: true },
+  { key: 'team', label: 'Tm',  heat: false, w: 34, mono: true, dim: true },
+  { key: 'opp',  label: 'Opp', heat: false, w: 34, mono: true, dim: true },
+  { key: 'bats', label: 'B',   heat: false, w: 26, mono: true, dim: true },
+  { key: 'pa',   label: 'PA',  w: 46,
+    title: 'Season plate appearances — read this before any rate on the row' },
+  { key: 'avg',  label: 'AVG', w: 52, dp: 3 },
+  { key: 'obp',  label: 'OBP', w: 52, dp: 3 },
+  { key: 'slg',  label: 'SLG', w: 52, dp: 3 },
+  { key: 'ops',  label: 'OPS', w: 54, dp: 3 },
+  { key: 'iso',  label: 'ISO', w: 52, dp: 3,
+    title: 'Slugging minus average — raw power with the singles stripped out' },
+  { key: 'hr',   label: 'HR',  w: 42 },
+  { key: 'rbi',  label: 'RBI', w: 44 },
+  { key: 'runs', label: 'R',   w: 42 },
+  { key: 'tb',   label: 'TB est', w: 56, dp: 0,
+    title: 'DERIVED, not published: SLG × (PA × (1 − BB%)). Ignores HBP and sacrifices.' },
+  { key: 'hrPA', label: 'HR/PA', w: 56, dp: 3 },
+  { key: 'paHR', label: 'PA/HR', w: 54, dp: 1, invert: true,
+    title: 'Plate appearances per home run. Inverted — fewer is better.' },
+  { key: 'kPct', label: 'K%',  w: 46, dp: 1, invert: true,
+    title: 'Inverted — a low strikeout rate is the good outcome for the hitter' },
+  { key: 'bbPct', label: 'BB%', w: 46, dp: 1 },
+  { key: 'babip', label: 'BABIP', w: 54, dp: 3,
+    title: 'Average on balls in play. Well above .320 tends to come back down.' },
+  { key: 'avgL', label: 'AVG vs L', w: 60, dp: 3 },
+  { key: 'avgR', label: 'AVG vs R', w: 60, dp: 3 },
+  { key: 'isoL', label: 'ISO vs L', w: 58, dp: 3 },
+  { key: 'isoR', label: 'ISO vs R', w: 58, dp: 3 },
 ]
 
-const getter = {
-  hr: hrScore, hrr: prodScore, hit: hitScore, tb: tbScore, pmix: pitchMixScore,
-  '375': recent375, ihr: ihrVal,
-  hrw: (p) => n(p?.hrw_score, 0),
-  dc: (p) => n(p?.damage_conversion_score, 0),
-  due: (p) => n(p?.hr_due_score, 0),
-  longest: (p) => n(p?.longest_hr_score, 0),
-  phr9: (p) => n(p?.pitcher_hr9, 0),
-  pmeat: (p) => n(p?.pitcher_meatball_pct, 0),
-  ev: avgEV, maxev: maxEV, barrel: barrelRate, hard: hardHitRate,
-  pull: pullRate, la: launchAngle,
-  season_hr: (p) => n(p?.season_hr, 0), season_avg: (p) => n(p?.season_avg, 0),
+function LeaderTile({ label, row, value, color }) {
+  if (!row) return null
+  return (
+    <div style={{
+      background: `linear-gradient(155deg, ${color}1e, ${color}06)`,
+      border: `1px solid ${color}44`, borderRadius: 11, padding: '8px 12px', minWidth: 0,
+    }}>
+      <div style={{
+        fontSize: 8.5, color: C.text3, textTransform: 'uppercase',
+        letterSpacing: '.09em', fontWeight: 800,
+      }}>{label}</div>
+      <div style={{
+        fontSize: 13, fontWeight: 800, marginTop: 1,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>{row.name}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, color }}>{value}</span>
+        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+          {row.team} · {row.pa} PA
+        </span>
+      </div>
+    </div>
+  )
 }
 
-// Simple min-value quick filters -- a few "unique" stats per the request,
-// not a full filter builder. Each filter is just "show players at or above
-// this value." Threshold defaults are 0 (off) until the person sets one.
-const QUICK_FILTERS = [
-  { key: 'pull',  label: 'Min Pull%',     get: pullRate,    step: 5,    isPct: true },
-  { key: 'la',    label: 'Min Launch°',   get: launchAngle, step: 1,    isPct: false },
-  { key: '375',   label: 'Min 375+',      get: recent375,   step: 1,    isPct: false },
-]
+export default function Leaders({ players = [], onPlayerClick }) {
+  const [minPA, setMinPA] = useState(100)
+  const [hand, setHand] = useState('all')
+  const [query, setQuery] = useState('')
 
-export default function Leaders({ players, onPlayerClick }) {
-  const [stat, setStat] = useState('hr')
-  const [alignedOnly, setAlignedOnly] = useState(false)
-  const [quickFilters, setQuickFilters] = useState({}) // { pull: 0.4, la: 15, '375': 1 }
-  const meta = STATS.find((s) => s.key === stat) || STATS[0]
-
-  const ranked = useMemo(() => {
-    const f = getter[stat]
-    let pool = alignedOnly ? players.filter(isAligned) : players
-    for (const qf of QUICK_FILTERS) {
-      const rawMin = quickFilters[qf.key]
-      if (rawMin != null && rawMin > 0) {
-        const min = qf.isPct ? rawMin / 100 : rawMin
-        pool = pool.filter((p) => qf.get(p) >= min)
-      }
+  const all = useMemo(() => players.map((p, i) => {
+    const slg = n(p?.season_slg, 0)
+    return {
+      _key: `${p?.player_id ?? nameOf(p)}-${i}`,
+      _raw: p,
+      name: nameOf(p),
+      team: teamOf(p),
+      opp: oppOf(p),
+      bats: clean(p?.bats, ''),
+      pa: n(p?.season_pa, 0),
+      avg: n(p?.season_avg, 0),
+      obp: n(p?.season_obp, 0),
+      slg,
+      ops: n(p?.season_ops, 0),
+      iso: n(p?.season_iso, 0),
+      hr: n(p?.season_hr, 0),
+      rbi: n(p?.season_rbi, 0),
+      runs: n(p?.season_runs, 0),
+      tb: Math.round(slg * estAB(p)),
+      hrPA: n(p?.hr_per_pa, 0),
+      paHR: n(p?.pa_per_hr, 0) || null,
+      kPct: n(p?.season_k_rate, 0) * 100,
+      bbPct: n(p?.season_bb_rate, 0) * 100,
+      babip: n(p?.babip, 0),
+      avgL: n(p?.avg_vs_lhp, 0) || null,
+      avgR: n(p?.avg_vs_rhp, 0) || null,
+      isoL: n(p?.iso_vs_lhp, 0) || null,
+      isoR: n(p?.iso_vs_rhp, 0) || null,
     }
-    return [...pool]
-      .map((p) => ({ p, v: f(p) }))
-      .filter((x) => Number.isFinite(x.v) && x.v > 0)
-      .sort((a, b) => b.v - a.v)
-      .slice(0, 25)
-  }, [players, stat, alignedOnly, quickFilters])
+  }), [players])
 
-  const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
+  const rows = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    return all
+      .filter((r) => r.pa >= minPA)
+      .filter((r) => hand === 'all' || r.bats.toUpperCase().startsWith(hand))
+      .filter((r) => !q || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(q))
+  }, [all, minPA, hand, query])
 
-  const setFilter = (key, rawValue) => {
-    const value = rawValue === '' ? null : Number(rawValue)
-    setQuickFilters((prev) => ({ ...prev, [key]: value }))
+  if (!players.length) return <Empty text="No players on this slate yet." />
+
+  const top = (key) => [...rows].sort((a, b) => n(b[key], 0) - n(a[key], 0))[0] || null
+  const bAvg = top('avg'), bOps = top('ops'), bHr = top('hr'), bRbi = top('rbi'), bIso = top('iso')
+
+  const chip = (on) => ({
+    padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+    fontFamily: NUM_FONT,
+    border: `1px solid ${on ? C.orange : C.border}`,
+    background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+    color: on ? C.orange : C.text3,
+  })
+  const lbl = {
+    fontSize: 8, color: C.text3, textTransform: 'uppercase',
+    letterSpacing: '.09em', fontWeight: 800,
   }
 
   return (
     <div>
       <PanelTitle
         title="League Leaders"
-        sub={`Top 25 by ${meta.label} on this slate`}
-        right={
-          alignedCount > 0 && (
-            <button
-              onClick={() => setAlignedOnly((v) => !v)}
-              title="Weak-spot + pitch-match + real recent contact quality all stacking together"
-              style={btnStyle(C.purple, alignedOnly)}
-            >
-              🧩 Aligned only ({alignedCount})
-            </button>
-          )
-        }
+        sub="Season stats for tonight's hitters — no model scores on this page"
+        right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} of {all.length}</span>}
       />
-      <div className="leaders-controls" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {STATS.map((s) => (
-          <button key={s.key} onClick={() => setStat(s.key)} style={btnStyle(C.cyan, stat === s.key)}>
-            {s.label}
-          </button>
-        ))}
+
+      <div style={{
+        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
+        borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 700,
+      }}>
+        Straight season numbers — the batting line, nothing weighted or projected. Every other board
+        here ranks by the model; this one doesn&apos;t. It&apos;s the page for what a hitter has actually
+        done, rather than what the bot thinks of him tonight.
       </div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '.05em' }}>Quick filters</span>
-        {QUICK_FILTERS.map((qf) => (
-          <label key={qf.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.text2 }}>
-            {qf.label}
-            <input
-              type="number"
-              step={qf.step}
-              min={0}
-              placeholder="—"
-              value={quickFilters[qf.key] ?? ''}
-              onChange={(e) => setFilter(qf.key, e.target.value)}
-              style={{
-                width: 56, background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 6,
-                padding: '3px 6px', fontSize: 11, color: C.text, fontFamily: NUM_FONT, outline: 'none',
-              }}
-            />
-            {qf.isPct ? '%' : ''}
-          </label>
-        ))}
+
+      <div className="bot-picks-grid" style={{
+        display: 'grid', gap: 8, marginBottom: 12,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+      }}>
+        <LeaderTile label="AVG" row={bAvg} value={bAvg ? bAvg.avg.toFixed(3) : '—'} color="#a78bfa" />
+        <LeaderTile label="OPS" row={bOps} value={bOps ? bOps.ops.toFixed(3) : '—'} color="#f97316" />
+        <LeaderTile label="Home runs" row={bHr} value={bHr ? bHr.hr : '—'} color="#f87171" />
+        <LeaderTile label="RBI" row={bRbi} value={bRbi ? bRbi.rbi : '—'} color="#22d3ee" />
+        <LeaderTile label="ISO" row={bIso} value={bIso ? bIso.iso.toFixed(3) : '—'} color="#4ade80" />
       </div>
-      {!ranked.length ? (
-        <Empty text="Not enough data for this leaderboard yet." />
-      ) : (
-        <>
-        {/* A leaderboard on one stat only tells you the order on that stat.
-            The interesting question is whether the leader on THIS board is
-            anywhere on the others -- a name bright in one column and dark
-            across the rest is a specialist, not a play. */}
-        <Heatmap
-          rows={ranked.map(({ p }) => ({
-            label: nameOf(p),
-            _raw: p,
-            values: {
-              HR: hrScore(p), HRR: prodScore(p), Hit: hitScore(p), TB: tbScore(p),
-              PMix: pitchMixScore(p),
-              'IHR%': ihrVal(p) * 100,
-              'Brl%': barrelRate(p) * 100,
-              'HH%': hardHitRate(p) * 100,
-              'Avg EV': avgEV(p),
-              'Max EV': maxEV(p),
-              LA: launchAngle(p),
-              '375+': recent375(p),
-              'Szn HR': n(p?.season_hr, 0),
-            },
-          }))}
-          columns={['HR', 'HRR', 'Hit', 'TB', 'PMix', 'IHR%', 'Brl%', 'HH%', 'Avg EV', 'Max EV', 'LA', '375+', 'Szn HR']}
-          title={`Top 25 by ${meta.label} — across every other leaderboard`}
-          labelWidth={150}
-          fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-          onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
-        />
-        <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
-          {ranked.map(({ p, v }, i) => {
-            const role = tierRole(p)
-            const rc = tierColor(role, C)
-            return (
-              <div
-                key={playerId(p) + i}
-                onClick={() => onPlayerClick?.(p)}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '40px 1fr 110px 80px',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 14px',
-                  borderTop: i ? `1px solid ${C.border}` : 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontFamily: NUM_FONT, color: i < 3 ? C.yellow : C.text3, fontWeight: 800, fontSize: 13 }}>{i + 1}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {nameOf(p)}
-                    {isAligned(p) && <span title="Aligned Signals" style={{ fontSize: 11 }}>🧩</span>}
-                  </div>
-                  <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(p)} vs {oppOf(p)}</div>
-                </div>
-                <div><Chip color={rc}>{role}</Chip></div>
-                <div style={{ textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 800, fontSize: 14 }}>{meta.fmt(v)}</div>
-              </div>
-            )
-          })}
+
+      <div style={{
+        display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12,
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={lbl}>Min PA</span>
+          {MIN_PA_STEPS.map((v) => (
+            <button key={v} onClick={() => setMinPA(v)} style={chip(minPA === v)}>{v || 'Any'}</button>
+          ))}
         </div>
-        </>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={lbl}>Bats</span>
+          {[['all', 'All'], ['L', 'LHB'], ['R', 'RHB']].map(([k, l]) => (
+            <button key={k} onClick={() => setHand(k)} style={chip(hand === k)}>{l}</button>
+          ))}
+        </div>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search a hitter…"
+          style={{
+            flex: 1, minWidth: 150, background: C.bg3, border: `1px solid ${C.border}`,
+            borderRadius: 7, padding: '5px 10px', fontSize: 11, color: C.text,
+            outline: 'none', fontFamily: NUM_FONT,
+          }}
+        />
+      </div>
+
+      {!rows.length ? (
+        <Empty text={`Nobody clears ${minPA} plate appearances with this filter.`} />
+      ) : (
+        <DenseTable
+          rows={rows}
+          columns={COLUMNS}
+          onRowClick={onPlayerClick}
+          initialSort="ops"
+          maxHeight={620}
+          caption={`Season stats, unmodelled. Minimum PA is set to ${minPA} because rate stats on a small sample are noise — a .400 average on 30 plate appearances belongs to nobody. K% and PA/HR are inverted so bright still means good for the hitter; every other column reads high-is-good. TB is the one derived number: the payload has no season hits or at-bats, so it's SLG × (PA × (1 − BB%)), which ignores hit-by-pitch and sacrifices and runs slightly light. Rank by it, don't quote it.`}
+        />
       )}
     </div>
   )

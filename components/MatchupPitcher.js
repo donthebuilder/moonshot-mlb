@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { n, clean, obj, arr } from '../lib/player'
+import { n, clean, obj, arr, nameOf } from '../lib/player'
 import { pitcherDetailUrl } from '../lib/dataSource'
 import DenseTable from './DenseTable'
 import { rampColor, inkFor } from './Heatmap'
@@ -85,6 +85,11 @@ export default function MatchupPitcher({ player, slateMode }) {
   // often want that when you're deciding which half of a lineup to attack.
   // 'auto' follows the hitter; L/R force it; 'all' is his overall usage.
   const [handView, setHandView] = useState('auto')
+  // Detail is collapsed by default. The tab was ~14 stat tiles and three tables
+  // open at once, which is everything the bot knows and no indication of what
+  // to do with it. The verdict answers the question; the rest is there when you
+  // want to check its working.
+  const [showDetail, setShowDetail] = useState(false)
   const effHand = handView === 'auto' ? bats : handView === 'all' ? '' : handView
 
   const { arsenal, side } = useMemo(() => {
@@ -159,6 +164,44 @@ export default function MatchupPitcher({ player, slateMode }) {
   const hr9 = n(player?.pitcher_hr9, null)
   const mySpot = spots.find((s) => s.mine)
 
+  // ── THE VERDICT ───────────────────────────────────────────────────────────
+  //
+  // Four reasons, each either on or off, each one sentence. This is the whole
+  // point of the tab: "is this a good arm to attack, and why". Everything below
+  // is the evidence, and it stays folded away until asked for.
+  //
+  // Scale notes, checked against the live slate so the wording matches reality:
+  //   pitcher_attack_score   0–53.9, median 19.5  → 30+ is genuinely high
+  //   pitch_mix_score        15–95,  median 71.5  → 80+ is a real edge
+  //   weak_pitcher_flag      true on 187 of 268 — 70% of the slate, so it is
+  //                          NOT used as a reason here. A flag that fires on
+  //                          seven hitters in ten carries no information, and
+  //                          putting it in a verdict would make every arm look
+  //                          attackable.
+  const attack = n(player?.pitcher_attack_score, 0)
+  const pmix = n(player?.pitch_mix_score, 0)
+  const reasons = [
+    { on: hr9 != null && hr9 >= 1.3, good: true,
+      text: `Gives up ${hr9?.toFixed(2)} HR per nine — above league, and the single most direct signal here.` },
+    { on: matchesWeak, good: true,
+      text: `His weak side is ${weakSide}, and this hitter bats ${bats}HB.` },
+    { on: pmix >= 80, good: true,
+      text: `Pitch-mix fit ${pmix.toFixed(0)} of 95 — this batter handles what this arm throws.` },
+    { on: attack >= 30, good: true,
+      text: `Attack score ${attack.toFixed(0)} — top of tonight's range, which tops out near 54 rather than 100.` },
+    { on: hr9 != null && hr9 <= 0.9, good: false,
+      text: `Only ${hr9?.toFixed(2)} HR per nine — he suppresses the long ball.` },
+    { on: n(player?.pitcher_swstr_pct, 0) >= 0.13 || n(player?.pitcher_swstr_pct, 0) >= 13, good: false,
+      text: 'High swinging-strike rate — he misses bats, which is his edge and not yours.' },
+    { on: weakSide && bats && !matchesWeak, good: false,
+      text: `His weak side is ${weakSide}; this hitter bats the other way.` },
+  ].filter((r) => r.on)
+  const forCount = reasons.filter((r) => r.good).length
+  const againstCount = reasons.length - forCount
+  const verdict = forCount >= 2 && forCount > againstCount ? { label: 'Attackable', col: C.orange }
+    : againstCount >= 2 && againstCount > forCount ? { label: 'Tough arm', col: C.text2 }
+    : { label: 'Mixed', col: '#FCD34D' }
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -171,6 +214,49 @@ export default function MatchupPitcher({ player, slateMode }) {
           <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>{clean(player.pitcher_attack_tag)}</span>
         )}
       </div>
+
+      {/* Verdict first. One line, then the reasons, then everything else on
+          request. */}
+      <div style={{
+        background: C.bg2, border: `1px solid ${verdict.col}55`,
+        borderLeft: `4px solid ${verdict.col}`,
+        borderRadius: 12, padding: '11px 14px', marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 17, fontWeight: 900, color: verdict.col }}>{verdict.label}</span>
+          <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
+            for {nameOf(player)} · {bats || '?'}HB vs {clean(player.pitcher_throws, '?')}HP
+          </span>
+        </div>
+
+        {reasons.length === 0 ? (
+          <div style={{ fontSize: 11, color: C.text3, marginTop: 5 }}>
+            Nothing stands out either way — a league-average matchup on every input this site checks.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+            {reasons.map((r, i) => (
+              <div key={i} style={{ fontSize: 11, color: C.text2, display: 'flex', gap: 7 }}>
+                <span style={{ color: r.good ? C.orange : C.text3, fontWeight: 800, flexShrink: 0 }}>
+                  {r.good ? '+' : '−'}
+                </span>
+                <span>{r.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={() => setShowDetail((v) => !v)}
+          style={{
+            marginTop: 9, padding: '4px 11px', fontSize: 10.5, fontWeight: 700,
+            borderRadius: 7, cursor: 'pointer', fontFamily: NUM_FONT,
+            border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+          }}
+        >{showDetail ? 'Hide the numbers' : 'Show the numbers'}</button>
+      </div>
+
+      {showDetail && (<>
 
       {/* Hand toggle — drives the stat tiles AND the arsenal below. */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
@@ -359,7 +445,9 @@ export default function MatchupPitcher({ player, slateMode }) {
         </>
       )}
 
-      {spots.length > 0 && (
+      </>)}
+
+      {showDetail && spots.length > 0 && (
         <>
           <div style={{ fontSize: 12, fontWeight: 800, margin: '14px 0 4px' }}>
             Damage by lineup spot
