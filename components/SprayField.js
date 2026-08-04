@@ -487,10 +487,32 @@ export default function SprayField({ player, height = 340, slateMode }) {
   }))
 
   const foulCount = inRange.filter((h) => Math.abs(h.ang) > 45).length
+  // WIND IS DRIVEN BY THE LABEL, NOT THE DEGREES.
+  //
+  // weather_wind_deg is a COMPASS bearing. Every ballpark faces a different way
+  // and that orientation isn't published anywhere in this payload, so there is
+  // no way to turn 113° into "toward right field" for a given park. Drawing the
+  // streaks off the degrees would have pointed them in a direction unrelated to
+  // the field underneath them — confidently wrong, which is worse than absent.
+  //
+  // weather_wind_direction_label IS park-relative. Six values across the slate:
+  //   out to CF (53) · out to CF/corner (36) · in from CF (36)
+  //   in from CF/corner (54) · crosswind (out) (18) · crosswind (in) (18)
+  //
+  // So the arrow shows the component that actually matters for carry — out,
+  // in, or across — and does not pretend to a precise bearing. Left-to-right
+  // vs right-to-left on a crosswind isn't in the data either, so a crosswind is
+  // drawn on the axis without claiming a side.
   const windMph = n(player?.wind_mph ?? player?.weather_wind_mph, 0)
-  const windFrom = n(player?.wind_deg ?? player?.weather_wind_deg, null)
-  const windTo = windFrom == null ? 0 : (windFrom + 180) % 360
   const windLabel = clean(player?.wind_direction_label ?? player?.weather_wind_direction_label, '')
+  const windOut = /out/i.test(windLabel)
+  const windIn = /^in\b|in from/i.test(windLabel)
+  const windCross = /cross/i.test(windLabel)
+  // Field-relative bearing: 0 = straight out to centre, 180 = straight in.
+  const windTo = windCross ? 90 : windOut ? (/corner/i.test(windLabel) ? 28 : 0)
+    : windIn ? (/corner/i.test(windLabel) ? 152 : 180) : 0
+  const windCol = windOut ? C.orange : windIn ? '#60a5fa' : C.text2
+  const hasWind = windMph > 0 && !!windLabel
   const chipBtn = (on, col) => ({
     padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
     cursor: 'pointer', fontFamily: NUM_FONT,
@@ -660,25 +682,44 @@ export default function SprayField({ player, height = 340, slateMode }) {
               change that makes the plot legible. */}
           <rect x="0" y="0" width={W} height={H} rx="10" fill="#0a0806" />
 
-          {/* Wind, as background streaks plus a labelled arrow. weather_wind_deg
-              is the direction the wind comes FROM, so the streaks and the arrow
-              are drawn pointing the opposite way — where the ball gets pushed. */}
-          {windMph > 0 && (
-            <g opacity="0.5">
-              {Array.from({ length: 16 }).map((_, i) => {
-                const gx = (i % 4) * (W / 4) + 18
-                const gy = Math.floor(i / 4) * (H / 4) + 14
-                const rad = ((windTo + 90) * Math.PI) / 180
-                const len = 16 + windMph * 1.1
-                return (
-                  <line key={i}
-                    x1={gx} y1={gy}
-                    x2={gx + Math.cos(rad) * len} y2={gy + Math.sin(rad) * len}
-                    stroke="#6b4a22" strokeWidth="1.1" strokeLinecap="round" />
-                )
-              })}
-            </g>
-          )}
+          {/* Wind, drifting. The streaks move along the park-relative bearing
+              so the direction is legible at a glance without reading the label,
+              and the speed scales with mph — a 1 mph breeze barely creeps, a
+              6 mph wind visibly runs. */}
+          {hasWind && (() => {
+            // Screen vector for the field bearing: 0° = out to centre = up.
+            const rad = (windTo * Math.PI) / 180
+            const vx = Math.sin(rad)
+            const vy = -Math.cos(rad)
+            const len = 14 + windMph * 2.2
+            const dur = Math.max(2.4, 9 - windMph)
+            return (
+              <g className="wind-streaks" opacity="0.45">
+                <style>{`
+                  @keyframes windDrift {
+                    from { transform: translate(0px, 0px); }
+                    to   { transform: translate(${(vx * 46).toFixed(1)}px, ${(vy * 46).toFixed(1)}px); }
+                  }
+                  .wind-streaks g { animation: windDrift ${dur.toFixed(1)}s linear infinite; }
+                  @media (prefers-reduced-motion: reduce) {
+                    .wind-streaks g { animation: none; }
+                  }
+                `}</style>
+                <g>
+                  {Array.from({ length: 30 }).map((_, i) => {
+                    const gx = ((i * 67) % (W + 60)) - 30
+                    const gy = ((i * 113) % (H + 60)) - 30
+                    return (
+                      <line key={i}
+                        x1={gx} y1={gy}
+                        x2={gx + vx * len} y2={gy + vy * len}
+                        stroke={windCol} strokeWidth="1.2" strokeLinecap="round" opacity="0.55" />
+                    )
+                  })}
+                </g>
+              </g>
+            )
+          })()}
 
           {/* Foul ground stays dark; fair territory is the solid surface. */}
           <path d={wedge(-EDGE, EDGE, R)} fill="#1a1109" />
@@ -816,6 +857,35 @@ export default function SprayField({ player, height = 340, slateMode }) {
           })}
           <circle cx={cx} cy={cy} r="3.2" fill="none" stroke="#fdb75a" strokeWidth="1.2" />
 
+          {/* Wind arrow, bottom-left, pointing the way the ball gets carried.
+              Motion alone is easy to miss on a still screenshot, so the arrow
+              and the mph are drawn too. */}
+          {hasWind && (() => {
+            const ax = 34, ay = H - 30
+            const rad = (windTo * Math.PI) / 180
+            const vx = Math.sin(rad), vy = -Math.cos(rad)
+            const L = 17
+            const hx = ax + vx * L, hy = ay + vy * L
+            const back = (deg) => {
+              const r2 = rad + (deg * Math.PI) / 180
+              return [hx - Math.sin(r2) * 6, hy + Math.cos(r2) * 6]
+            }
+            const [b1x, b1y] = back(28)
+            const [b2x, b2y] = back(-28)
+            return (
+              <g>
+                <line x1={ax - vx * L} y1={ay - vy * L} x2={hx} y2={hy}
+                  stroke={windCol} strokeWidth="2" strokeLinecap="round" />
+                <polygon points={`${hx},${hy} ${b1x},${b1y} ${b2x},${b2y}`} fill={windCol} />
+                <text x={ax - 20} y={ay + 26} fill={windCol} fontSize="8.5"
+                  fontFamily={NUM_FONT} fontWeight="800">{windMph.toFixed(1)} MPH</text>
+                <text x={ax - 20} y={ay + 36} fill={C.text3} fontSize="7.5" fontFamily={NUM_FONT}>
+                  {windLabel}
+                </text>
+              </g>
+            )
+          })()}
+
           {/* Shape key, on the chart rather than beside it so it can't drift
               out of step with what's actually plotted. */}
           {[...new Set(shown.map((h) => shapeFor(h.pitch)))].slice(0, 6).map((sh, i) => (
@@ -881,11 +951,16 @@ export default function SprayField({ player, height = 340, slateMode }) {
           </div>
 
           <div style={{ fontSize: 9, color: C.text3, marginTop: 9, lineHeight: 1.55 }}>
-            {windMph > 0 && (
+            {hasWind && (
               <div style={{ marginBottom: 4 }}>
-                <b style={{ color: C.text2 }}>Wind {windMph.toFixed(1)} mph</b>
-                {windLabel ? ` ${windLabel}` : ''} — the streaks behind the field point the way the
-                ball gets pushed, not the way the wind comes from.
+                <b style={{ color: windCol }}>Wind {windMph.toFixed(1)} mph {windLabel}</b> — the
+                drifting streaks and the arrow both point the way the ball gets carried.
+                {windOut ? ' Blowing out, so carry is helped.' : windIn ? ' Blowing in, so carry is hurt.' : ' Across the field, so it mostly moves balls sideways rather than helping or killing carry.'}
+                {' '}Direction here is <b style={{ color: C.text2 }}>park-relative, not a compass bearing</b>:
+                the feed gives a compass degree, but each park faces a different way and that
+                orientation isn&apos;t published, so the arrow shows out / in / across from the bot&apos;s
+                own label rather than inventing a heading. A crosswind isn&apos;t told left or right
+                either, so it&apos;s drawn on the axis without picking a side.
               </div>
             )}
             <b style={{ color: C.text2 }}>{knownPark ? venue : 'Generic park'}</b>

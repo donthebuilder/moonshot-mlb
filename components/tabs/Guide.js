@@ -132,7 +132,10 @@ function ColorKey() {
 
 export default function Guide() {
   return (
-    <div style={{ maxWidth: 720 }}>
+    {/* Centred. A 720px column pinned to the left of a 1300px page
+        left half the screen empty and made the text look like it had
+        fallen over. Reading width stays capped; the column doesn't. */}
+    <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
       {/* Intro */}
       <div style={{ marginBottom: 18 }}>

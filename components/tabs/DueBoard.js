@@ -207,13 +207,6 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
             style={{ ...inputStyle(), width: '100%' }} />
         </label>
         <label style={{ fontSize: 10, color: C.text3 }}>
-          Due tag
-          <select value={tag} onChange={(e) => setTag(e.target.value)}
-            style={{ ...inputStyle(), width: '100%' }}>
-            {tags.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
-        <label style={{ fontSize: 10, color: C.text3 }}>
           Show
           <input type="number" min={5} step={5} value={limit}
             onChange={(e) => setLimit(Number(e.target.value) || 30)}

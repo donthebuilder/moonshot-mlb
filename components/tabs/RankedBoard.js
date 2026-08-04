@@ -60,7 +60,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           label: nameOf(p),
           _raw: p,
           values: {
-            Score: scoreFor(p, type),
+            // NO "Score" COLUMN. scoreFor(p, type) IS the column named after
+            // the type — on the HR board, Score and HR were the same number
+            // printed twice (87/87, 76/76, 75/75 straight down the board),
+            // which reads as a coincidence rather than a duplicate and quietly
+            // costs a column of width. The four category columns already carry
+            // it; the board is sorted by the relevant one.
             HR: hrScore(p),
             Hit: hitScore(p),
             HRR: prodScore(p),
@@ -74,7 +79,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             'P HR/9': nn(p?.pitcher_hr9) * 30,
           },
         }))}
-        columns={['Score', 'HR', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9']}
+        columns={['HR', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9']}
         title={`Top 15 by ${title.replace(' Board', '')} — full profile`}
         labelWidth={140}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}

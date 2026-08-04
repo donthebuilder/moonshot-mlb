@@ -159,11 +159,12 @@ export default function Pitchers({ players, onPlayerClick }) {
         sub={`${pitchers.length} starters today · click to see opposing lineup`}
         right={
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {SORTS.map(([key, label]) => (
-              <button key={key} onClick={() => setSortKey(key)} style={btnStyle(C.orange, sortKey === key)}>
-                {label}
-              </button>
-            ))}
+            {/* The four sort buttons that were here are gone. The table below
+                sorts on any of its 16 columns and shows which one is active;
+                these duplicated four of them, didn't reflect the table's state,
+                and only reordered the card list — so clicking "Highest HR/9"
+                appeared to do nothing while the table stayed where it was.
+                The cards now follow the same default the table opens on. */}
           </div>
         }
       />

@@ -77,6 +77,20 @@ const buildColumns = (onWatch) => [
     title: 'Ideal HR contact rate — the launch/EV window that produces homers' },
   { key: 'pull',    label: 'PullAir%', w: 54, dp: 0,
     title: 'How often he pulls the ball in the air — the shortest route over a fence' },
+  // Conditions. Distance is the one board where air and park do real work, so
+  // the game environment belongs on the row rather than a tooltip away.
+  { key: 'hrEff',   label: 'Wx HR%',  w: 52, dp: 0,
+    title: 'The bot’s own estimate of how much tonight’s weather moves home runs at this park' },
+  { key: 'humid',   label: 'Humid%',  w: 50, dp: 0,
+    title: 'Humid air is less dense, so the ball carries slightly further — the opposite of what most people assume' },
+  { key: 'feels',   label: 'Feels',   w: 46, dp: 0,
+    title: 'Feels-like temperature' },
+  { key: 'rain',    label: 'Rain%',   w: 46, dp: 0, invert: true,
+    title: 'Precipitation chance. Inverted — rain is a delay risk, not a hitting edge.' },
+  { key: 'parkAll', label: 'Park F',  w: 48, dp: 0,
+    title: 'Overall park factor, 100 = neutral' },
+  { key: 'parkBrl', label: 'Park Brl×', w: 58, dp: 2,
+    title: 'Park barrel factor — above 1.00 helps hard contact' },
 ]
 
 export default function LongestBoard({ players = [], onWatch, watchIds, onPlayerClick }) {
@@ -117,6 +131,12 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
       pBrl: n(p?.pitcher_barrel_allowed, 0) * (n(p?.pitcher_barrel_allowed, 0) <= 1 ? 100 : 1),
       ihr: n(p?.recent_ideal_hr_contact, 0) * 100,
       pull: n(p?.pitcher_pullair_allowed_pct, 0) * (n(p?.pitcher_pullair_allowed_pct, 0) <= 1 ? 100 : 1),
+      hrEff: n(p?.weather_hr_effect_pct, null),
+      humid: n(p?.weather_humidity, null),
+      feels: n(p?.weather_feels_like_f, null),
+      rain: n(p?.weather_precip_chance, 0) * 100,
+      parkAll: n(p?.park_factor, null),
+      parkBrl: n(p?.park_barrel_factor, null),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }
   }), [players, watchIds])
