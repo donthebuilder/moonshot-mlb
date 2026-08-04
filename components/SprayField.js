@@ -229,20 +229,33 @@ const BB_TYPES = [
 // So: colour = result, shape = pitch type, size = how far it went. Three
 // independent channels, all readable at once. Exit velocity moved to the hover
 // and the EV Log, where it can be a number instead of a shade.
-// The palette is the site's own, not a borrowed one. Home runs take C.orange —
-// it's the signature colour and it's the event this whole site exists for, so
-// the thing you care about is the thing that glows. Extra, Double and Single
-// step down through the existing accents. Outs are deliberately DESATURATED and
-// dim: they're 62% of every hitter's batted balls, and painting the majority
-// case in a loud colour is how a chart turns to noise. PropFinder makes outs
-// red; on a 60%-out chart that's the loudest thing on screen and it shouldn't
-// be. Dim outs, bright orange homers — the eye lands where it should.
+// ORANGE IS THE FIELD, NOT THE DOTS.
+//
+// This is the inversion that makes the chart feel like part of this site rather
+// than a borrowed one. Orange is the brand colour, so it becomes the SURFACE —
+// the playing field is warm brown-orange with a bright orange rim, which is
+// instantly recognisable as ours. The markers then take the rest of the palette
+// in lib/theme.js, every one of which is already used elsewhere here:
+//
+//   red    home run   the event the whole site is for
+//   purple triple
+//   green  double
+//   blue   single
+//   grey   out        62% of contact, kept nearly silent
+//
+// Outs staying near-black is the load-bearing choice. They're the majority of
+// every hitter's batted balls, and a chart that paints the common case loudly
+// is a chart you can't read — the eye should land on the red and it does.
+//
+// Barrels get a ring. `is_barrel` is on every tracked ball, and a barrel is the
+// launch-angle/EV combination that actually produces damage, so ringing them
+// surfaces "he squared these up" independently of whether they fell in.
 const RESULT_COLORS = {
-  home_run: '#f97316',   // C.orange — the headline event
-  triple:   '#FCD34D',   // gold
-  double:   '#22d3ee',   // C.cyan
-  single:   '#a78bfa',   // C.purple
-  out:      '#5f6b85',   // muted slate — the majority case, kept quiet
+  home_run: '#f87171',   // C.red    — the headline event
+  triple:   '#a78bfa',   // C.purple
+  double:   '#4ade80',   // C.green
+  single:   '#60a5fa',   // C.blue
+  out:      '#3f3f46',   // near-black grey — the majority case, kept silent
 }
 const resultColor = (h) => h.hr ? RESULT_COLORS.home_run
   : h.event === 'triple' ? RESULT_COLORS.triple
@@ -645,7 +658,7 @@ export default function SprayField({ player, height = 340, slateMode }) {
               floating on the page rather than sitting on a field. It's now a
               solid slate-navy polygon with a light rim, which is the single
               change that makes the plot legible. */}
-          <rect x="0" y="0" width={W} height={H} rx="10" fill="#0b0d14" />
+          <rect x="0" y="0" width={W} height={H} rx="10" fill="#0a0806" />
 
           {/* Wind, as background streaks plus a labelled arrow. weather_wind_deg
               is the direction the wind comes FROM, so the streaks and the arrow
@@ -661,18 +674,18 @@ export default function SprayField({ player, height = 340, slateMode }) {
                   <line key={i}
                     x1={gx} y1={gy}
                     x2={gx + Math.cos(rad) * len} y2={gy + Math.sin(rad) * len}
-                    stroke="#5b6480" strokeWidth="1.1" strokeLinecap="round" />
+                    stroke="#6b4a22" strokeWidth="1.1" strokeLinecap="round" />
                 )
               })}
             </g>
           )}
 
           {/* Foul ground stays dark; fair territory is the solid surface. */}
-          <path d={wedge(-EDGE, EDGE, R)} fill="#11141d" />
+          <path d={wedge(-EDGE, EDGE, R)} fill="#1a1109" />
           <path
             d={wedge(-45, 45, wallAt)}
-            fill="#1e2740"
-            stroke="#8b93c9"
+            fill="#3d2612"
+            stroke="#f97316"
             strokeWidth="1.6"
             strokeLinejoin="round"
           />
@@ -681,9 +694,9 @@ export default function SprayField({ player, height = 340, slateMode }) {
               no reference for how far in "shallow" actually is. */}
           <path
             d={`M ${pt(0, 0)[0]} ${pt(0, 0)[1]} L ${pt(127, -45)[0]} ${pt(127, -45)[1]} L ${pt(180, 0)[0]} ${pt(180, 0)[1]} L ${pt(127, 45)[0]} ${pt(127, 45)[1]} Z`}
-            fill="rgba(255,255,255,0.045)" stroke="#6c7699" strokeWidth="0.9"
+            fill="rgba(249,115,22,0.10)" stroke="#a4520d" strokeWidth="0.9"
           />
-          <circle cx={pt(60.5, 0)[0]} cy={pt(60.5, 0)[1]} r="4" fill="none" stroke="#6c7699" strokeWidth="0.9" />
+          <circle cx={pt(60.5, 0)[0]} cy={pt(60.5, 0)[1]} r="4" fill="none" stroke="#a4520d" strokeWidth="0.9" />
 
           {/* distance arcs instead of grass */}
           {[150, 250, 350, 450].map((d) => {
@@ -693,9 +706,9 @@ export default function SprayField({ player, height = 340, slateMode }) {
               <g key={d}>
                 <path
                   d={`M ${lx} ${ly} A ${d * scale} ${d * scale} 0 0 1 ${rx} ${ry}`}
-                  fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="1"
+                  fill="none" stroke="rgba(249,115,22,0.22)" strokeWidth="1"
                 />
-                <text x={cx} y={pt(d, 0)[1] + 9} fill="#7f88ad" fontSize="7.5"
+                <text x={cx} y={pt(d, 0)[1] + 9} fill="#b0793c" fontSize="7.5"
                   fontFamily={NUM_FONT} textAnchor="middle">{d}</text>
               </g>
             )
@@ -703,7 +716,7 @@ export default function SprayField({ player, height = 340, slateMode }) {
           {/* foul lines */}
           {[-45, 45].map((a) => {
             const [x, y] = pt(R, a)
-            return <line key={a} x1={cx} y1={cy} x2={x} y2={y} stroke="#8b93c9" strokeWidth="1.2" opacity="0.8" />
+            return <line key={a} x1={cx} y1={cy} x2={x} y2={y} stroke="#f97316" strokeWidth="1.2" opacity="0.65" />
           })}
           {/* Lane dividers, drawn where the bot's cuts actually fall: vertical
               bands in hc_x, clipped to the field. Radial spokes would be a lie
@@ -751,12 +764,13 @@ export default function SprayField({ player, height = 340, slateMode }) {
                     x={x} y={y}
                     r={rr}
                     fill={col}
-                    stroke={foul ? col : '#0b0d14'}
+                    stroke={foul ? col : '#0a0806'}
                     sw={0.9}
                     opacity={on ? 1 : foul ? 0.45 : 0.95}
                     dashed={false}
                   />
-                  {h.hr && <circle cx={x} cy={y} r="9" fill="none" stroke={col} strokeWidth="1" opacity={on ? 0.95 : 0.5} />}
+                  {/* Ring = barrel. Squared up, whatever the outcome was. */}
+                  {h.barrel && <circle cx={x} cy={y} r={rr + 3.6} fill="none" stroke={col} strokeWidth="1.1" opacity={on ? 1 : 0.75} />}
                   {on && <circle cx={x} cy={y} r="12" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.9" />}
                 </g>
                 <circle
@@ -774,11 +788,11 @@ export default function SprayField({ player, height = 340, slateMode }) {
           {[[-45, dims[0]], [0, dims[2]], [45, dims[4]]].map(([a, d]) => {
             const [x, y] = pt(d + 26, a)
             return (
-              <text key={a} x={x} y={y} fill="#b9bfe0" fontSize="8" fontFamily={NUM_FONT}
+              <text key={a} x={x} y={y} fill="#fdb75a" fontSize="8" fontFamily={NUM_FONT}
                 fontWeight="700" textAnchor="middle">{Math.round(d)}</text>
             )
           })}
-          <circle cx={cx} cy={cy} r="3.2" fill="none" stroke="#b9bfe0" strokeWidth="1.2" />
+          <circle cx={cx} cy={cy} r="3.2" fill="none" stroke="#fdb75a" strokeWidth="1.2" />
 
           {/* Shape key, on the chart rather than beside it so it can't drift
               out of step with what's actually plotted. */}
@@ -858,11 +872,13 @@ export default function SprayField({ player, height = 340, slateMode }) {
               : ' — no dimensions on file for this venue, so a standard outline is drawn.'}
             {' '}Position is where the ball was fielded, not how far it carried — a 30 ft
             chopper that a shortstop takes at 130 ft belongs at 130 ft. Carry is in the hover.
-            <b style={{ color: RESULT_COLORS.home_run }}>Orange</b> is a home run,{' '}
-            <b style={{ color: RESULT_COLORS.triple }}>gold</b> a triple,{' '}
-            <b style={{ color: RESULT_COLORS.double }}>cyan</b> a double,{' '}
-            <b style={{ color: RESULT_COLORS.single }}>purple</b> a single, and outs are the muted
-            slate ones — they're 62% of every hitter's contact, so they're kept quiet on purpose. Marker shape is the pitch type and
+            <b style={{ color: RESULT_COLORS.home_run }}>Red</b> is a home run,{' '}
+            <b style={{ color: RESULT_COLORS.triple }}>purple</b> a triple,{' '}
+            <b style={{ color: RESULT_COLORS.double }}>green</b> a double,{' '}
+            <b style={{ color: RESULT_COLORS.single }}>blue</b> a single. Outs are near-black on
+            purpose — they're 62% of every hitter's contact, and a chart that shouts the common case
+            is a chart you can't read. <b style={{ color: C.text2 }}>A ring means barrel</b>: squared
+            up on launch angle and exit velocity, whether or not it fell in. Marker shape is the pitch type and
             size is how far it went. Exit velocity is in the hover rather than the colour — shading
             these by EV is what made every dot the same orange and the chart unreadable. The field is
             a fixed 450 ft for every hitter, so two players stay directly comparable.
