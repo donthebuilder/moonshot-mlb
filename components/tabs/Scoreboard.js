@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import {
   nameOf, teamOf, oppOf, n, clean,
   recent375, ihrVal,
-  hrScore, hitScore, prodScore, tbScore, pitchMixScore,
+  hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId,
 } from '../../lib/player'
 import { tierRole, shortRole, isAligned } from '../../lib/scoring'
 import { PanelTitle, Empty, btnStyle } from '../ui'
@@ -31,7 +31,9 @@ const matchupEdge = (p) => {
   return (weak === 'LHB' && bats === 'L') || (weak === 'RHB' && bats === 'R') ? 1 : 0
 }
 
-const COLUMNS = [
+const buildColumns = (onWatch) => [
+  { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
+    titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
   { key: 'name',    label: 'Player', heat: false, w: 168, bold: true, sticky: true },
   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true },
@@ -78,7 +80,7 @@ function Tracker({ title, count, children, note }) {
   )
 }
 
-export default function Scoreboard({ players, results, onPlayerClick }) {
+export default function Scoreboard({ players, results, onWatch, watchIds, onPlayerClick }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -112,8 +114,9 @@ export default function Scoreboard({ players, results, onPlayerClick }) {
       ihr: ihrVal(p),
       k: n(p?.season_k_rate, 0) * 100,
       hr9: n(p?.pitcher_hr9, 0),
+      watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }))
-  }, [players, alignedOnly])
+  }, [players, alignedOnly, watchIds])
 
   // Who has already homered tonight, matched back to where the board had him.
   // The board rank is the point: a scoreboard that only lists the homers tells
@@ -232,7 +235,7 @@ export default function Scoreboard({ players, results, onPlayerClick }) {
 
       <DenseTable
         rows={rows}
-        columns={COLUMNS}
+        columns={buildColumns(onWatch)}
         onRowClick={onPlayerClick}
         initialSort="hr"
         maxHeight={640}

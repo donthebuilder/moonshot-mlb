@@ -41,7 +41,7 @@ const TABS = [
   { key: 'profile', label: '📊 Command + splits' },
 ]
 
-export default function PitcherModal({ pitcher, onClose, onPlayerClick }) {
+export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClick }) {
   const [tab, setTab] = useState('matchup')
 
   const lineup = useMemo(() => (pitcher?.lineup || []).filter(Boolean), [pitcher])
@@ -146,7 +146,7 @@ export default function PitcherModal({ pitcher, onClose, onPlayerClick }) {
                     {clean(anchor.name, 'the top bat')} — the highest-HR-score hitter in this lineup. Open an individual
                     hitter to see the split for the side <i>he</i> stands on.
                   </div>
-                  <MatchupPitcher player={anchor} />
+                  <MatchupPitcher player={anchor} slateMode={slateMode} />
                 </>
               )
               : <div style={{ fontSize: 11.5, color: C.text3 }}>No opposing lineup published yet, so there&apos;s nothing to build his profile from.</div>

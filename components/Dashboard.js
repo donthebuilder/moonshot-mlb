@@ -34,7 +34,7 @@ const WATCH_KEY = 'mlb_watchlist_v1'
 
 export default function Dashboard() {
   const [mode, setMode] = useState('today')
-  const [tab, setTabRaw] = useState('games')
+  const [tab, setTabRaw] = useState('scoreboard')
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
     setTabRaw(next)
@@ -167,12 +167,12 @@ export default function Dashboard() {
           <>
             {tab === 'games'       && <Games players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <RankedBoard players={players} type="hr"  onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'longest'     && <LongestBoard players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'due'         && <DueBoard players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'longest'     && <LongestBoard players={players} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'due'         && <DueBoard players={players} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'hitshrr'     && <HitsHRR     players={players}             onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} results={results} onPlayerClick={setModalPlayer} />}
+            {tab === 'scoreboard'  && <Scoreboard players={players} results={results} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'pools'       && <Pools players={players} results={results} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={results} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
@@ -180,14 +180,21 @@ export default function Dashboard() {
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
-            {tab === 'spray'       && <SprayBoard players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide />}
           </>
         )}
       </main>
       <Slip slip={slip} setSlip={setSlip} />
+      {/* slateMode is passed EXPLICITLY, not left to the module-level default
+          in dataSource.js. That default is set by an effect, so flipping
+          Today↔Tomorrow with a card open changed the global without changing
+          any component's effect deps — the detail fetches never re-ran and you
+          kept looking at the other slate's spray chart, splits and arsenal.
+          Threaded as a prop it's in the deps array, so a mode flip refetches. */}
       <PlayerModal
         player={modalPlayer}
+        slateMode={mode}
         onClose={() => setModalPlayer(null)}
         onAdd={addSlip}
         onWatch={toggleWatch}

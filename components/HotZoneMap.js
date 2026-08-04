@@ -485,7 +485,7 @@ const TABS = [
   { key:'kill',    label:'🔥 Kill zone' },
 ]
 
-export default function HotZoneMap({ player, onClose }) {
+export default function HotZoneMap({ player, slateMode, onClose }) {
   const [cacheData, setCacheData] = useState(null)
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState(null)
@@ -512,8 +512,8 @@ export default function HotZoneMap({ player, onClose }) {
     // error here — it's the expected state, and the empty state below says so
     // rather than showing a spinner that never resolves.
     Promise.all([
-      fetch(detailUrl(pid)).then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch(zonesUrl(pid)).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(detailUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch(zonesUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
     ])
       .then(([detail, zones])=>{
         if (!alive) return
@@ -522,7 +522,7 @@ export default function HotZoneMap({ player, onClose }) {
         setLoading(false)
       })
     return ()=>{ alive = false }
-  },[pid])
+  },[pid, slateMode])
 
   const zoneProfile    = cacheData?.zone_profile
   const pitcherProfile = cacheData?.pitcher_zone_profile

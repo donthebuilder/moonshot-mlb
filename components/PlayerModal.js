@@ -97,7 +97,7 @@ function Shell({ inline, onClose, width, children }) {
 // here is indistinguishable from one added from a card.
 const BETS = ['HR', 'Hit', 'HRR', 'TB']
 
-export default function PlayerModal({ player, onClose, inline = false, onAdd, onWatch, watched = false }) {
+export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false }) {
   const [tab, setTab] = useState('overview')
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
@@ -126,12 +126,12 @@ export default function PlayerModal({ player, onClose, inline = false, onAdd, on
     if (!pid) return
     let alive = true
     setDetailState('loading'); setDetail(null)
-    fetch(detailUrl(pid))
+    fetch(detailUrl(pid, slateMode))
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) { setDetail(j); setDetailState(j ? 'done' : 'missing') } })
       .catch(() => { if (alive) setDetailState('error') })
     return () => { alive = false }
-  }, [pid])
+  }, [pid, slateMode])
 
   if (!player) return null
   const p = detail ? { ...player, ...detail } : player
@@ -333,7 +333,7 @@ export default function PlayerModal({ player, onClose, inline = false, onAdd, on
           )}
 
           {/* the arm he's facing */}
-          {tab === 'pitcher' && <MatchupPitcher player={p} />}
+          {tab === 'pitcher' && <MatchupPitcher player={p} slateMode={slateMode} />}
 
           {/* what this batter does to each pitch type */}
           {tab === 'pitch' && (
@@ -346,21 +346,22 @@ export default function PlayerModal({ player, onClose, inline = false, onAdd, on
                       mix. The one panel that crosses batter and pitcher, so it
                       belongs under the batter's pitch table rather than in a
                       third place. */}
-                  <HRPitchProfile player={p} />
+                  <HRPitchProfile player={p} slateMode={slateMode} />
                 </>
               )
           )}
 
           {/* where he puts the ball */}
-          {tab === 'spray' && <SprayField player={p} height={340} />}
+          {tab === 'spray' && <SprayField player={p} height={340} slateMode={slateMode} />}
 
           {/* day/night, home/away, day of week, win/loss */}
-          {tab === 'splits' && <PlayerSplits player={p} />}
+          {tab === 'splits' && <PlayerSplits player={p} slateMode={slateMode} />}
 
           {/* hot zone map */}
           {tab === 'zones' && (
             <HotZoneMap
               player={p}
+              slateMode={slateMode}
               onClose={null}
             />
           )}

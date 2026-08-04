@@ -14,7 +14,7 @@ import { rampColor, inkFor } from '../Heatmap'
 // two seconds and then you want the numbers next to it. So the field is capped,
 // and the pitch profile sits underneath rather than off screen.
 
-export default function SprayBoard({ players = [], onPlayerClick }) {
+export default function SprayBoard({ players = [], slateMode, onPlayerClick }) {
   const [query, setQuery] = useState('')
   const [pick, setPick] = useState(null)
 
@@ -96,8 +96,8 @@ export default function SprayBoard({ players = [], onPlayerClick }) {
             >Open full card</button>
           </div>
 
-          <SprayField player={selected} height={320} />
-          <HRPitchProfile player={selected} />
+          <SprayField player={selected} height={320} slateMode={slateMode} />
+          <HRPitchProfile player={selected} slateMode={slateMode} />
         </>
       )}
     </div>

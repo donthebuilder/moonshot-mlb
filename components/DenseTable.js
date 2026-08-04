@@ -39,7 +39,7 @@ export default function DenseTable({
   // the rows moved.
   const [sort, setSort] = useState(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])
 
-  const heatCols = useMemo(() => columns.filter((c) => c.heat !== false && !c.flag), [columns])
+  const heatCols = useMemo(() => columns.filter((c) => c.heat !== false && !c.flag && !c.action), [columns])
 
   const ranges = useMemo(() => {
     const out = {}
@@ -152,6 +152,33 @@ export default function DenseTable({
               >
                 {columns.map((c) => {
                   const v = r[c.key]
+
+                  // ACTION CELL — a button inside the table, not a stat.
+                  // { key, action:true, onAction:(row)=>…, mark:'★' }
+                  // Lit from the row's own truthy value, and it stops the click
+                  // from bubbling into onRowClick so starring a hitter doesn't
+                  // also open his card.
+                  if (c.action) {
+                    const lit = !!v && v !== 0
+                    return (
+                      <td key={c.key} style={{
+                        textAlign: 'center', padding: 0,
+                        borderRight: `1px solid ${C.bg}`, borderBottom: `1px solid ${C.bg}`,
+                        background: C.bg2,
+                      }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); c.onAction?.(r._raw ?? r) }}
+                          title={lit ? (c.titleOn || 'Remove') : (c.titleOff || 'Add')}
+                          style={{
+                            width: '100%', padding: pad, border: 'none', cursor: 'pointer',
+                            background: lit ? ORANGE_RAMP[5] : 'transparent',
+                            color: lit ? '#1a0d02' : C.text3,
+                            fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, lineHeight: 1,
+                          }}
+                        >{lit ? (c.mark || '★') : (c.markOff || '☆')}</button>
+                      </td>
+                    )
+                  }
 
                   if (c.flag) {
                     const lit = !!v && v !== 0 && v !== '—'

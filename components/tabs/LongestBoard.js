@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import {
   nameOf, teamOf, oppOf, n, clean, obj,
-  hrScore, barrelRate, maxEV, avgEV, launchAngle,
+  hrScore, barrelRate, maxEV, avgEV, launchAngle, playerId,
 } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import Heatmap from '../Heatmap'
@@ -33,7 +33,9 @@ const carry = (p) => {
 
 const bbeCount = (p) => n(obj(p?.bbe_profile).sample_bbe, n(p?.recent_distance_tracked, 0))
 
-const COLUMNS = [
+const buildColumns = (onWatch) => [
+  { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
+    titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
   { key: 'name',    label: 'Batter',  heat: false, w: 148, bold: true, sticky: true },
   { key: 'team',    label: 'Tm',      heat: false, w: 34, mono: true, dim: true },
   { key: 'opp',     label: 'Opp',     heat: false, w: 34, mono: true, dim: true },
@@ -64,7 +66,7 @@ const COLUMNS = [
   { key: 'hr9',     label: 'P HR/9',  w: 48, dp: 2 },
 ]
 
-export default function LongestBoard({ players = [], onPlayerClick }) {
+export default function LongestBoard({ players = [], onWatch, watchIds, onPlayerClick }) {
   const [rankBy, setRankBy] = useState('adj')
   const [top, setTop] = useState(25)
   const [minBBE, setMinBBE] = useState(0)
@@ -96,8 +98,9 @@ export default function LongestBoard({ players = [], onPlayerClick }) {
       bbe: bbeCount(p),
       hr: hrScore(p),
       hr9: n(p?.pitcher_hr9, 0),
+      watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }
-  }), [players])
+  }), [players, watchIds])
 
   const rows = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -201,7 +204,7 @@ export default function LongestBoard({ players = [], onPlayerClick }) {
 
           <DenseTable
             rows={rows}
-            columns={COLUMNS}
+            columns={buildColumns(onWatch)}
             onRowClick={onPlayerClick}
             initialSort={rankBy}
             maxHeight={480}
