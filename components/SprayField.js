@@ -263,15 +263,30 @@ const resultColor = (h) => h.hr ? RESULT_COLORS.home_run
   : h.event === 'single' ? RESULT_COLORS.single
   : RESULT_COLORS.out
 
-// Real outfield distances, straight off the slate row. park_fit.dimensions
-// carries lf / lcf / cf / rcf / rf on 268 of 268 hitters, so the hardcoded
-// PARKS table above is only a fallback for a venue the bot hasn't measured.
+// Real outfield distances. PRECEDENCE FLIPPED 2026-08-04: the curated PARKS
+// table now wins over the bot's park_fit.dimensions, because the published
+// dims were checked against the live payload and they're wrong where it
+// matters most — the corners and the quirks. Verified that day:
+//
+//   Camden Yards   bot lf=384 · the actual left-field LINE is 333 (the deep
+//                  left-center number is sitting in the LF slot)
+//   Daikin Park    bot 330/375/400/375/330 · the generic default, missing
+//                  the 315 Crawford Boxes that define the park
+//   Fenway         bot rcf=380 · no 420 triangle
+//
+// A spray chart drawn on those walls showed corners 50 ft from where they
+// are, which is exactly what it exists to get right. The bot's dims remain
+// the fallback for any venue the table doesn't list, and the footer says
+// which source drew the wall. park_fit's short_side / hr_friendly_side reads
+// are unaffected — those are relative judgements, not geometry.
+//
 function dimsFor(player) {
+  const venue = clean(player?.venue_name, '')
+  if (PARKS[venue]) return { dims: PARKS[venue], source: 'table' }
   const d = obj(obj(player?.park_fit).dimensions)
   const vals = [d.lf, d.lcf, d.cf, d.rcf, d.rf].map((v) => n(v, 0))
   if (vals.every((v) => v > 200)) return { dims: vals, source: 'bot' }
-  const venue = clean(player?.venue_name, '')
-  return { dims: PARKS[venue] || DEFAULT_PARK, source: PARKS[venue] ? 'table' : 'default' }
+  return { dims: DEFAULT_PARK, source: 'default' }
 }
 
 export default function SprayField({ player, height = 340, slateMode }) {
@@ -965,7 +980,9 @@ export default function SprayField({ player, height = 340, slateMode }) {
             )}
             <b style={{ color: C.text2 }}>{knownPark ? venue : 'Generic park'}</b>
             {knownPark
-              ? `${dimSource === 'bot' ? ' — wall distances published by the bot for this venue' : ' — wall from the built-in table for this venue'}, so a ball to left means what it means here.`
+              ? `${dimSource === 'table'
+                  ? ' — wall drawn from the curated dimensions table (the bot publishes dims too, but they were verified wrong at the corners — Camden 384 where the line is 333, Daikin missing the Crawford Boxes — so the table wins)'
+                  : ' — wall from the bot’s published dims; this venue isn’t in the curated table, so treat the corners as approximate'}, and a ball to left means what it means here.`
               : ' — no dimensions on file for this venue, so a standard outline is drawn.'}
             {' '}Position is where the ball was fielded, not how far it carried — a 30 ft
             chopper that a shortstop takes at 130 ft belongs at 130 ft. Carry is in the hover.

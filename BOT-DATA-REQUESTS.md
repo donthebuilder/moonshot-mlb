@@ -29,6 +29,7 @@ from.
 | 13 | `pitcher_l5_*` block (era/hr9/whip) | mlb_dashboard.py | same place `pitcher_l3_*` is built | same query, n=5 |
 | 14 | ISO into `hr_score` itself | mlb_dashboard.py | wherever hr_score is blended — see the calibration section below | `season_iso`, already on the record |
 | 15 | Pair history per market: `same_day_hit_count`, `same_game_hit_count`, `same_day_hrr_count` alongside the existing co-HR counts | the pair-history builder that writes `pair_history_summary` (top_pairs) | same aggregation, run over `actual_hits`/HRR outcomes instead of only `actual_hr` | graded slots already carry the outcomes |
+| 16 | **Fix `park_fit.dimensions` — verified wrong 2026-08-04.** Camden published `lf: 384` (the LINE is 333 — deep left-center is in the LF slot), Daikin got the generic 330/375/400/375/330 default (missing the 315 Crawford Boxes), Fenway lacks the 420 triangle. The site now ignores these in favor of a curated table; fixing the source lets every consumer trust them again. Note: `short_side`/`hr_friendly_side` may be computed FROM these bad dims — audit those too. | mlb_dashboard.py | wherever the park dimension lookup table lives | static data, one-time correction |
 
 What each unlocks, in one line: #1–3 make K Risk auditable and stop CONTACT
 picks being graded a failure for walking. #4–7 make League Leaders exact
