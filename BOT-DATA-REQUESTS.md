@@ -51,6 +51,57 @@ it happens.
 **Reminder: do not edit `~/MLB-HR-DASHBOARD`** — it's pre-migration. Clone
 fresh from the online repo, make these changes there.
 
+---
+
+## Situational splits — verified sitCodes and where they go in scoring
+
+All codes verified against `GET /api/v1/situationCodes` and a live 2026
+response (Wheeler, pitching, `h,a`) on 2026-08-04. One call per player:
+
+```
+GET statsapi.mlb.com/api/v1/people/{pid}/stats
+    ?stats=statSplits&group={pitching|hitting}&season={yr}&sitCodes={codes}
+→ stats[0].splits[], each with split.code and a full stat dict
+  (homeRunsPer9, slg, ops, avg, atBats, homeRuns, rbi, battersFaced …)
+```
+
+The site now pulls these live, per player, when a modal opens (context only,
+`lib/situational.js`). To make them SCORE, the bot pulls them at slate build in
+`player_splits.py` / `mlb_dashboard.py` and publishes them, because only
+bot-published fields reach the graded archive and can be validated.
+
+### Pitcher — codes and scoring placement
+
+| sitCodes | What | Publish as | Where it scores |
+|---|---|---|---|
+| `pi000,pi760` | first 75 pitches vs 76+ (TTO proxy — no direct TTO code exists) | `pitcher_fatigue_hr9_delta` = hr9(76+) − hr9(≤75) | New term in `pitcherOverall` / attack: `+0.10 × norm(delta, 0, 1.5)`, weighted by how deep he typically goes (`pitchesPerInning × innings`) |
+| `h,a` | home/away | `pitcher_hr9_tonight_venue` (pick the side for tonight's park) | REPLACE plain `pitcher_hr9` in `matchup_score`'s `0.20` term — same weight, venue-correct number |
+| `dr4,dr5` | 4 vs 5+ days rest | `pitcher_short_rest_flag` | Small penalty/bonus in attack tag, ±2 points, flag not blend |
+
+### Batter — codes and scoring placement
+
+| sitCodes | What | Publish as | Where it scores |
+|---|---|---|---|
+| `h,a` | home/away ISO | `batter_iso_tonight_venue` | Feed the ISO multiplier with the venue-correct ISO instead of season ISO — same calibration table, better input |
+| `risp` | scoring position | `batter_risp_ops` | HRR and CONTACT scores only: `+0.10 × norm(risp_ops, .550, .950)`. Those jobs are cashing traffic; season lines don't measure that |
+| `ac` | ahead in count | `batter_ahead_slg` | HR score: `+0.08 × norm(ahead_slg, .400, .900)` — most HR damage happens ahead; pairs with pitcher first-pitch-strike% for a count-leverage read |
+| `2s` | two strikes | `batter_two_strike_ops` | K-risk score: replace the `season_k_rate` 0.40 term with `0.25 k_rate + 0.15 (1 − norm(two_strike_ops, .350, .700))` — his own two-strike survival, not just how often he gets there |
+
+### Rules for all of the above
+
+Same discipline as ISO: publish first, calibrate against graded outcomes
+before weighting anything permanently. The weights above are starting points
+sized to the archive's effect sizes, not conclusions. Each new field should
+run through the same quartile test that exposed hr_score — if it doesn't
+separate, it comes back out. Minimum-sample guards: skip any split under
+~40 batters faced (pitcher) / ~30 AB (batter) and fall back to the season
+number rather than a noisy split.
+
+**Deliberately not pulled:** BvP (batter vs this pitcher) — 5–20 PA samples,
+mostly noise, would need heavy shrinkage to be honest and adds little over
+split-by-hand + arsenal matching, which the bot already has. Monthly splits,
+day-of-week, post-win/loss — astrology with box scores.
+
 This repo is read-only and has no bot. All changes below belong in
 `donthebuilder/MLB-HR-DASHBOARD-STREAMLIT`. **Do not push them from
 `~/MLB-HR-DASHBOARD`** — that local clone is pre-migration (it still has

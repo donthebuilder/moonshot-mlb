@@ -18,6 +18,7 @@ import HRPitchProfile from './HRPitchProfile'
 import SprayField from './SprayField'
 import MatchupPitcher from './MatchupPitcher'
 import PlayerSplits from './PlayerSplits'
+import SituationalSplits from './SituationalSplits'
 
 function Row({ label, value, mono = true }) {
   return (
@@ -354,8 +355,17 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
           {/* where he puts the ball */}
           {tab === 'spray' && <SprayField player={p} height={340} slateMode={slateMode} />}
 
-          {/* day/night, home/away, day of week, win/loss */}
-          {tab === 'splits' && <PlayerSplits player={p} slateMode={slateMode} />}
+          {/* day/night, home/away, day of week, win/loss — bot-published, plus
+              the situational block pulled live from the MLB StatsAPI: RISP,
+              ahead-in-count, two-strike, home/away ISO. Those four aren't in
+              any bot file, which is why this is the one place the site goes to
+              an outside source. Context only — none of it moves a score. */}
+          {tab === 'splits' && (
+            <>
+              <PlayerSplits player={p} slateMode={slateMode} />
+              <SituationalSplits playerId={pid} kind="batter" />
+            </>
+          )}
 
           {/* hot zone map */}
           {tab === 'zones' && (

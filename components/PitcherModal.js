@@ -7,6 +7,7 @@ import DenseTable from './DenseTable'
 import MatchupPitcher from './MatchupPitcher'
 import PitcherSpots from './PitcherSpots'
 import PitcherProfile from './PitcherProfile'
+import SituationalSplits from './SituationalSplits'
 
 // The pitcher's own modal.
 //
@@ -186,7 +187,16 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
               : <div style={{ fontSize: 11.5, color: C.text3 }}>No lineup published for this game yet.</div>
           )}
 
-          {tab === 'profile' && <PitcherProfile pitcher={pitcher} />}
+          {tab === 'profile' && (
+            <>
+              <PitcherProfile pitcher={pitcher} />
+              {/* Live from MLB StatsAPI: home/away HR9, the pitches-1–75 vs
+                  76+ fatigue split (the API's stand-in for times through the
+                  order), and rest-day ERA. Not bot data, not in any score —
+                  the block says so on its face. */}
+              <SituationalSplits playerId={pitcher?.pitcher_id} kind="pitcher" />
+            </>
+          )}
         </div>
       </div>
     </div>
