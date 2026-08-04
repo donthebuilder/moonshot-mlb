@@ -87,6 +87,94 @@ function Tile({ label, value, sub }) {
   )
 }
 
+// Who homered inside the last N games, N scalable 1–5. Sorted most-recent
+// first, then by homers in the window, so "went last night" leads.
+function RecentBombers({ all = [], onPlayerClick }) {
+  const [win, setWin] = useState(5)
+  const [open, setOpen] = useState(true)
+
+  const rows = useMemo(() => (
+    all
+      // drought counts games SINCE the homer, so 0 = last game. A hitter
+      // qualifies for a 3-game window when drought <= 2. Guard on l7hr/l5
+      // power so a stale drought=0 from a data hiccup can't sneak in.
+      .filter((r) => r.drought <= win - 1 && (n(r._raw?.last5_hr, 0) > 0 || n(r._raw?.last7_hr, 0) > 0 || r.drought === 0))
+      .sort((a, b) => (a.drought - b.drought)
+        || (n(b._raw?.last5_hr, 0) - n(a._raw?.last5_hr, 0))
+        || (b.hr - a.hr))
+  ), [all, win])
+
+  return (
+    <div style={{ margin: '10px 0 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
+        <span
+          onClick={() => setOpen((v) => !v)}
+          style={{ fontSize: 12, fontWeight: 800, cursor: 'pointer', color: C.text }}
+        >💥 Went deep recently {open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 4 }}>
+          within last
+        </span>
+        {[1, 2, 3, 4, 5].map((w) => (
+          <button
+            key={w}
+            onClick={() => { setWin(w); setOpen(true) }}
+            style={{
+              padding: '3px 10px', borderRadius: 7, cursor: 'pointer',
+              fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT,
+              border: `1px solid ${win === w ? C.orange : C.border}`,
+              background: win === w ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: win === w ? C.orange : C.text3,
+            }}
+          >{w}g</button>
+        ))}
+        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+          {rows.length} hitters
+        </span>
+      </div>
+
+      {open && (rows.length === 0 ? (
+        <div style={{ fontSize: 10.5, color: C.text3, padding: '4px 0 2px' }}>
+          Nobody on tonight&apos;s slate homered within the last {win} game{win > 1 ? 's' : ''}.
+        </div>
+      ) : (
+        <DenseTable
+          rows={rows.map((r) => ({
+            ...r,
+            l5hr: n(r._raw?.last5_hr, 0),
+            l5x: n(r._raw?.last5_xbh, 0),
+            iso: n(r._raw?.season_iso, 0) * 100,
+            hrw: n(r._raw?.hrw_score, 0),
+          }))}
+          columns={[
+            { key: 'name',    label: 'Batter', heat: false, w: 148, bold: true, sticky: true },
+            { key: 'team',    label: 'Tm',  heat: false, w: 34, mono: true, dim: true },
+            { key: 'opp',     label: 'Opp', heat: false, w: 34, mono: true, dim: true },
+            { key: 'matchup', label: 'Facing', heat: false, w: 120, dim: true },
+            { key: 'drought', label: 'Last HR', heat: false, w: 58, mono: true,
+              fmt: (v) => (Number(v) === 0 ? 'last gm' : `${v}g ago`),
+              title: 'How many games since the homer — 0 means his most recent game' },
+            { key: 'l5hr',    label: 'HR L5', w: 46,
+              title: 'Homers in his last five games' },
+            { key: 'l5h',     label: 'H L5', w: 44 },
+            { key: 'l5x',     label: 'XBH L5', w: 52 },
+            { key: 'hr',      label: 'HR scr', w: 48, dp: 1 },
+            { key: 'hrw',     label: 'HRW', w: 46, dp: 0 },
+            { key: 'iso',     label: 'ISO', w: 44, dp: 0,
+              title: 'Season ISO ×100 — the archive’s strongest HR predictor' },
+            { key: 'ev',      label: 'EV', w: 46, dp: 1 },
+            { key: 'hr9',     label: 'P HR/9', w: 50, dp: 2,
+              title: 'Tonight’s starter — homers allowed per nine' },
+          ]}
+          onRowClick={onPlayerClick}
+          initialSort={null}
+          maxHeight={330}
+          caption={`Everyone on tonight's slate who homered within the last ${win} game${win > 1 ? 's' : ''}, most recent first. Heat-check chasers read this top-down; regression readers read it as a fade list — the table doesn't pick a side. One honest note: back-to-back games isn't a published stat, so "last gm" is the tightest window the data supports.`}
+        />
+      ))}
+    </div>
+  )
+}
+
 export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClick }) {
   const [minDue, setMinDue] = useState(0)
   const [minDrought, setMinDrought] = useState(0)
@@ -172,6 +260,13 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
         sub="Overdue for a homer — a ratio board, not a drought board"
         right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
       />
+
+      {/* WHO WENT DEEP RECENTLY — the flip side of this tab, on the same
+          field. games_since_last_hr is on 268/268: 0 = homered his last game,
+          so a window of N games is drought <= N-1. Scales 1..5 with the
+          buttons. Lives here because heat and drought are two ends of one
+          axis, and you check them in the same breath. */}
+      <RecentBombers all={all} onPlayerClick={onPlayerClick} />
 
       <div style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
