@@ -13,15 +13,27 @@ import { C, NUM_FONT } from '../lib/theme'
 // Labels are near-black on the top two shades. Off-white vanishes on bright
 // amber, which is the single most common way a heatmap ends up unreadable.
 
+// Ramp v5 — the bottom third was unreadable.
+//
+// v4's floor was #33200a on a #09090b page: about 1.4:1 against the background,
+// and off-white text on it came out at roughly 3:1. On a dense board that meant
+// the bottom third of every column was a dark smear where you could see there
+// was a number but not read it without leaning in. The Due board showed it
+// worst — half those cells are low by construction, so half the table was mud.
+//
+// The floor is lifted and the low steps warmed so each one separates from both
+// the page and its neighbour. The hue shift is unchanged: dark red-brown
+// through orange to light gold, because eight steps of one hue collapse into a
+// smear on a dense grid no matter how bright they are.
 export const ORANGE_RAMP = [
-  '#33200a', // floor: lifted off black so a low cell still reads as a colour
-  '#542f0b',
-  '#7a3f0c',
-  '#a4520d',
-  '#c9640f',
-  '#e87d16',
-  '#f9971f', // hot
-  '#fdb75a', // light gold top
+  '#4a2f10', // floor: readable against #09090b, still clearly "low"
+  '#6b3d10',
+  '#8d4d11',
+  '#b05d11',
+  '#d17214',
+  '#ea8a1b',
+  '#faa326', // hot
+  '#fec168', // light gold top
 ]
 
 const INK_DARK = '#1a0d02'
@@ -39,9 +51,25 @@ export function rampColor(v, lo, hi) {
 // orange, to light gold. Eight steps of one lightness ramp collapse into a
 // smear on a dense grid; shifting the hue keeps adjacent steps apart.
 //
-// Only the top two are light enough to need dark ink.
-export const inkFor = (bg) =>
-  bg === ORANGE_RAMP[7] || bg === ORANGE_RAMP[6] ? INK_DARK : INK_LIGHT
+// INK SWITCHES AT STEP 4, NOT STEP 6.
+//
+// Measured, not guessed. With the v5 ramp, off-white text sits at 2.34:1 on
+// step 5 and 3.12:1 on step 4 — both below readable. Dark ink on those same
+// two is 7.39:1 and 5.56:1. Moving the switch down two steps takes the
+// worst-case text contrast anywhere on the ramp from 2.34 to 4.32, and every
+// other step improves or holds:
+//
+//   step   0     1     2     3     4     5     6     7
+//   ratio  11.2  8.3   6.0   4.3   5.6   7.4   9.4   11.8
+//
+// The old threshold was inherited from the darker v4 ramp, where steps 4 and 5
+// really were dim enough for light text. Lifting the ramp broke that
+// assumption without anything failing loudly — the cells just got harder to
+// read as they got brighter.
+export const inkFor = (bg) => {
+  const i = ORANGE_RAMP.indexOf(bg)
+  return i >= 4 ? INK_DARK : INK_LIGHT
+}
 
 /**
  * rows:    [{ label: 'BOS vs LAD', values: { 'Game Score': 61.2, ... } }]

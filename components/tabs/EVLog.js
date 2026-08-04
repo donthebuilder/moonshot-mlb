@@ -1,7 +1,8 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { Empty } from '../ui'
+import { clean } from '../../lib/player'
 import DenseTable from '../DenseTable'
 
 // Exit-velocity log — every tracked batted ball, newest first.
@@ -42,7 +43,11 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   const [bbeRange, setBbeRange] = useState(25)
   const [armFilter, setArmFilter] = useState('ALL')
   const [batterHand, setBatterHand] = useState('ALL')
-  const [pitchFilter, setPitch] = useState('ALL')
+  // Pitch selection defaults to tonight's starter's arsenal, matched to the
+  // side this hitter bats from — the same behaviour the Spray tab has. The
+  // question you open this log with is "how has he handled what he'll see
+  // tonight", and a flat ALL buries that under every pitch he's faced all year.
+  const [pitchSel, setPitchSel] = useState(null)   // null = all
   const [resFilter, setRes] = useState('ALL')
 
   const log = player?.batted_ball_log || player?.spray_chart || []
@@ -59,6 +64,27 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     () => new Set(log.map((h) => h.stand || h.batter_stand || h.batter_hand).filter(Boolean)),
     [log],
   )
+
+  // Tonight's mix, from the side-split string the bot publishes on every slate
+  // row (pitcher_primary_mix_vs_lhb / _vs_rhb, 267/267). Intersected with the
+  // pitches he actually has batted balls against, so selecting the mix can
+  // never filter the table to nothing.
+  const tonightMix = useMemo(() => {
+    const side = String(player?.bats || '').toUpperCase().slice(0, 1) === 'L' ? 'lhb' : 'rhb'
+    const raw = player?.[`pitcher_primary_mix_vs_${side}`] || player?.pitcher_primary_mix || ''
+    const codes = new Set()
+    String(raw).split('|').forEach((part) => {
+      const m = part.trim().match(/^([A-Z]{2,3})\s+[\d.]+\s*%?$/)
+      if (m) codes.add(m[1])
+    })
+    Object.keys(player?.pitcher_pitch_usage_pct || {}).forEach((k) => codes.add(k))
+    const seen = new Set(log.map((h) => h.pitch_type).filter(Boolean))
+    return [...codes].filter((c) => seen.has(c))
+  }, [player, log])
+
+  useEffect(() => {
+    if (pitchSel === null && tonightMix.length) setPitchSel(new Set(tonightMix))
+  }, [tonightMix, pitchSel])
   const allDates = useMemo(
     () => [...new Set(log.map((h) => h.date).filter(Boolean))].sort().reverse(),
     [log],
@@ -85,7 +111,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
       const stand = h.stand || h.batter_stand || h.batter_hand || ''
       if (stand && stand !== batterHand) return false
     }
-    if (pitchFilter !== 'ALL' && h.pitch_type !== pitchFilter) return false
+    if (pitchSel && pitchSel.size && !pitchSel.has(h.pitch_type)) return false
     if (resFilter !== 'ALL' && (h.result || h.event) !== resFilter) return false
     return true
   }).map((h, i) => ({
@@ -103,7 +129,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     hr: h.is_hr ? 1 : 0,
     result: String(h.result || h.event || '').replace(/_/g, ' '),
     traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' '),
-  })), [windowed, armFilter, batterHand, pitchFilter, resFilter])
+  })), [windowed, armFilter, batterHand, pitchSel, resFilter])
 
   if (!log.length) return <Empty text="No batted ball data. Run spray_cache.py." />
 
@@ -160,9 +186,40 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           ))}
         </div>
 
-        <select value={pitchFilter} onChange={(e) => setPitch(e.target.value)} style={selectStyle}>
-          {pitchTypes.map((p) => <option key={p} value={p}>{p === 'ALL' ? 'All pitches' : (PITCH_NAMES[p] || p)}</option>)}
-        </select>
+        <div style={groupBox}>
+          <button style={seg(!pitchSel)} onClick={() => setPitchSel(null)}>All pitches</button>
+          {tonightMix.length > 0 && (
+            <button
+              style={seg(!!pitchSel && pitchSel.size === tonightMix.length && tonightMix.every((c) => pitchSel.has(c)))}
+              onClick={() => setPitchSel(new Set(tonightMix))}
+              title={`${clean(player?.pitcher_name, "Tonight's starter")}'s mix vs ${String(player?.bats || '?').toUpperCase()}HB`}
+            >⌖ Tonight&apos;s mix</button>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+          {pitchTypes.filter((p) => p !== 'ALL').map((p) => {
+            const on = !!pitchSel && pitchSel.has(p)
+            const inMix = tonightMix.includes(p)
+            return (
+              <button key={p}
+                onClick={() => setPitchSel((s) => {
+                  const next = new Set(s || pitchTypes.filter((x) => x !== 'ALL'))
+                  if (next.has(p)) next.delete(p); else next.add(p)
+                  return next.size ? next : null
+                })}
+                title={`${PITCH_NAMES[p] || p}${inMix ? " — in tonight's mix" : " — not in tonight's mix"}`}
+                style={{
+                  padding: '3px 7px', fontSize: 9.5, fontWeight: 700, borderRadius: 5, cursor: 'pointer',
+                  fontFamily: NUM_FONT,
+                  border: `1px solid ${on ? C.orange : C.border}`,
+                  background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                  color: on ? C.orange : C.text3,
+                }}>
+                {inMix && <span style={{ color: C.orange, marginRight: 2 }}>•</span>}{p}
+              </button>
+            )
+          })}
+        </div>
         <select value={resFilter} onChange={(e) => setRes(e.target.value)} style={selectStyle}>
           {resultTypes.map((r) => <option key={r} value={r}>{r === 'ALL' ? 'All results' : r.replace(/_/g, ' ')}</option>)}
         </select>

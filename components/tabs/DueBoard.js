@@ -6,7 +6,6 @@ import {
   hrScore, barrelRate, playerId,
 } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle } from '../ui'
-import Heatmap from '../Heatmap'
 import DenseTable from '../DenseTable'
 
 // Due — hitters overdue for a homer.
@@ -215,26 +214,6 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
         <Empty text="Nobody matches these filters." />
       ) : (
         <>
-          <Heatmap
-            rows={rows.slice(0, 15).map((r) => ({
-              label: r.name,
-              _raw: r._raw,
-              values: {
-                Due: r.due,
-                Drought: r.drought,
-                'HR gap': r.gap * 10,
-                'HR/PA': r.hrPA * 1000,
-                Barrel: r.barrel,
-                DC: r.dc,
-                'P HR/9': r.hr9 * 30,
-              },
-            }))}
-            columns={['Due', 'Drought', 'HR gap', 'HR/PA', 'Barrel', 'DC', 'P HR/9']}
-            title="Due profile — is the drought backed by power?"
-            labelWidth={140}
-            onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
-            caption="A bright Drought cell next to a dark HR/PA cell is the trap this board exists to expose. HR gap ×10, HR/PA ×1000 and P HR/9 ×30 to share the scale."
-          />
 
           <DenseTable
             rows={rows}

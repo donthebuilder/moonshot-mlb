@@ -29,19 +29,28 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot }) {
     : toneKey === 'accent' ? C.orange
     : C.text3
 
+  // Screenshot polish: a soft diagonal tint and a faint outer glow instead of a
+  // flat fill. Same information, but the strip photographs as an instrument
+  // panel rather than a row of grey boxes — this is the part of the page that
+  // ends up in every clip, so it's worth the extra few bytes of CSS.
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', justifyContent: 'center',
-      padding: '4px 11px', borderRadius: 8, minWidth: 0,
-      background: `${col}12`, border: `1px solid ${col}30`,
+      padding: '5px 12px', borderRadius: 9, minWidth: 0,
+      background: `linear-gradient(135deg, ${col}22, ${col}08)`,
+      border: `1px solid ${col}45`,
+      boxShadow: toneKey === 'flat' ? 'none' : `0 0 16px ${col}12`,
     }}>
       <div style={{
-        fontSize: 8, textTransform: 'uppercase', letterSpacing: '.08em',
-        color: C.text3, fontWeight: 700, whiteSpace: 'nowrap',
+        fontSize: 8, textTransform: 'uppercase', letterSpacing: '.09em',
+        color: C.text3, fontWeight: 800, whiteSpace: 'nowrap',
         display: 'flex', alignItems: 'center', gap: 4,
       }}>
         {dot && (
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: col, flexShrink: 0 }} />
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%', background: col, flexShrink: 0,
+            boxShadow: `0 0 6px ${col}`,
+          }} />
         )}
         {label}
       </div>
@@ -49,7 +58,7 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot }) {
         display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap',
       }}>
         <span style={{
-          fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800,
+          fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900,
           color: toneKey === 'flat' ? C.text : col, letterSpacing: '-.02em',
         }}>{value}</span>
         {delta && (

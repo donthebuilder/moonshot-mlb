@@ -64,21 +64,44 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
 
   const lookupToday = (ref) => slate.get(refKey(ref)) || slate.get(`nm:${nameKey(ref?.name || ref?.player_name)}`)
 
-  // Everyone who appears in the history AND is playing tonight. A partner who
-  // isn't on today's slate can't be bet, so he isn't offered.
+  // EVERY hitter on tonight's slate is selectable — not just the ones with
+  // pair history.
+  //
+  // This list used to be built by walking top_pairs and keeping whoever was
+  // also on the slate. On tonight's slate that's 55 of 143 hitters: the history
+  // file holds 350 pairs covering 118 distinct players, and 88 of tonight's
+  // bats appear in none of them. Those 88 had no chip at all, so there was no
+  // way to click them — which reads as the page being broken rather than as
+  // "this hitter has no co-HR history", and those are very different things.
+  //
+  // A hitter with no history is still a legitimate anchor: you may want his
+  // partners ranked on tonight's form alone, and in a multi-select he simply
+  // contributes nothing. So everyone is offered, and the ones with history are
+  // marked rather than being the only ones that exist.
+  const historyKeys = useMemo(() => {
+    const s = new Set()
+    pairs.forEach((pr) => arr(pr?.players).forEach((pl) => {
+      const today = lookupToday(pl)
+      if (today) s.add(refKey(today))
+    }))
+    return s
+  }, [pairs, slate])
+
   const anchors = useMemo(() => {
     const seen = new Map()
-    pairs.forEach((pr) => {
-      arr(pr?.players).forEach((pl) => {
-        const today = lookupToday(pl)
-        if (!today) return
-        const k = refKey(today)
-        if (!k || seen.has(k)) return
-        seen.set(k, { key: k, name: clean(pl?.name || pl?.player_name, ''), team: clean(pl?.team, ''), today })
+    players.forEach((p) => {
+      const k = refKey(p)
+      if (!k || seen.has(k)) return
+      seen.set(k, {
+        key: k,
+        name: nameOf(p),
+        team: teamOf(p),
+        today: p,
+        hasHistory: historyKeys.has(k),
       })
     })
     return [...seen.values()].sort((a, b) => hrScore(b.today) - hrScore(a.today))
-  }, [pairs, slate])
+  }, [players, historyKeys])
 
   const selected = useMemo(
     () => anchorKeys.map((k) => anchors.find((a) => a.key === k)).filter(Boolean),
@@ -207,7 +230,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Find hitters to anchor on…"
+        placeholder="Find any hitter on tonight's slate…"
         style={{
           width: '100%', maxWidth: 300, background: C.bg2, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: '6px 11px', fontSize: 12, color: C.text,
@@ -216,7 +239,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
       />
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
-        {shown.slice(0, 30).map((a) => {
+        {shown.slice(0, 60).map((a) => {
           const on = activeKeys.has(a.key)
           const implicit = on && !anchorKeys.length
           return (
@@ -237,9 +260,20 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
               <span style={{ color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, fontSize: 10 }}>
                 {hrScore(a.today).toFixed(0)}
               </span>
+              {!a.hasHistory && (
+                <span title="No co-HR history on file — selectable, but he contributes no partners"
+                  style={{ color: C.text3, marginLeft: 4, fontSize: 9 }}>·</span>
+              )}
             </button>
           )
         })}
+      </div>
+
+      <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
+        Every hitter on tonight&apos;s slate is selectable. A small <b style={{ color: C.text2 }}>·</b> after
+        the score means he has no co-HR history on file — {anchors.filter((a) => !a.hasHistory).length} of{' '}
+        {anchors.length} tonight. He can still be an anchor; he just brings no partners of his own,
+        so in a multi-select he narrows nothing. Use the search to reach anyone not shown.
       </div>
 
       {anchorKeys.length > 0 && (

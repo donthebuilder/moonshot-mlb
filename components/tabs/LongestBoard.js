@@ -6,7 +6,6 @@ import {
   hrScore, barrelRate, maxEV, avgEV, launchAngle, playerId,
 } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle } from '../ui'
-import Heatmap from '../Heatmap'
 import DenseTable from '../DenseTable'
 
 // Longest — who hits the FARTHEST ball tonight.
@@ -64,6 +63,20 @@ const buildColumns = (onWatch) => [
     title: 'How many 400+ ft balls this pitcher has allowed — the closest thing to “he gives up real distance”' },
   { key: 'hr',      label: 'HR scr',  w: 48, dp: 1 },
   { key: 'hr9',     label: 'P HR/9',  w: 48, dp: 2 },
+  // Room freed up by dropping the top-15 heatmap, which showed a subset of
+  // these same columns for a subset of these same hitters.
+  { key: 'parkHR',  label: 'Park HR×', w: 56, dp: 2,
+    title: 'Park home-run factor. Above 1.00 helps the hitter.' },
+  { key: 'pFB',     label: 'P FB%',   w: 48, dp: 0,
+    title: 'Fly balls this pitcher allows — distance needs air under it' },
+  { key: 'pEV',     label: 'P EV ag', w: 52, dp: 1,
+    title: 'Average exit velocity he gives up' },
+  { key: 'pBrl',    label: 'P Brl%',  w: 50, dp: 1,
+    title: 'Barrel rate allowed — the contact that actually travels' },
+  { key: 'ihr',     label: 'IHR%',    w: 46, dp: 1,
+    title: 'Ideal HR contact rate — the launch/EV window that produces homers' },
+  { key: 'pull',    label: 'PullAir%', w: 54, dp: 0,
+    title: 'How often he pulls the ball in the air — the shortest route over a fence' },
 ]
 
 export default function LongestBoard({ players = [], onWatch, watchIds, onPlayerClick }) {
@@ -98,6 +111,12 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
       bbe: bbeCount(p),
       hr: hrScore(p),
       hr9: n(p?.pitcher_hr9, 0),
+      parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 1)),
+      pFB: n(p?.pitcher_fb_rate, 0) * (n(p?.pitcher_fb_rate, 0) <= 1 ? 100 : 1),
+      pEV: n(p?.pitcher_ev_allowed, 0),
+      pBrl: n(p?.pitcher_barrel_allowed, 0) * (n(p?.pitcher_barrel_allowed, 0) <= 1 ? 100 : 1),
+      ihr: n(p?.recent_ideal_hr_contact, 0) * 100,
+      pull: n(p?.pitcher_pullair_allowed_pct, 0) * (n(p?.pitcher_pullair_allowed_pct, 0) <= 1 ? 100 : 1),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }
   }), [players, watchIds])
@@ -179,28 +198,6 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
         <Empty text="Nobody matches these filters." />
       ) : (
         <>
-          <Heatmap
-            rows={rows.slice(0, 15).map((r) => ({
-              label: r.name,
-              _raw: r._raw,
-              values: {
-                Adjusted: r.adj,
-                Raw: r.raw,
-                'Park×': r.parkD * 100,
-                'Max EV': r.maxEV,
-                'Avg EV': r.avgEV,
-                LA: r.la,
-                Barrel: r.barrel,
-                BBE: r.bbe,
-              },
-            }))}
-            columns={['Adjusted', 'Raw', 'Park×', 'Max EV', 'Avg EV', 'LA', 'Barrel', 'BBE']}
-            title="Distance profile — what's carrying each name"
-            labelWidth={140}
-            fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-            onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
-            caption="Park× is ×100 to share the scale. BBE is in the chart on purpose — a bright Max EV cell on eight tracked balls is one swing, not a profile."
-          />
 
           <DenseTable
             rows={rows}

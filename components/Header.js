@@ -39,10 +39,28 @@ function ProjectedHRStat({ mode }) {
         const response = await fetch(`${logUrl(mode)}?ts=${Date.now()}`, { cache:'no-store' })
         if (!response.ok) return
         const text = await response.text()
-        const range = text.match(/Model Projected HRs:\s*(\d+)\s*[–—-]\s*(\d+)/i)
-        const grade = text.match(/Slate Power Grade:\s*([^|\n]+)/i)
+        // THE OLD PATTERNS NEVER MATCHED, so this pill has never once rendered.
+        // They looked for "Model Projected HRs: 36-45" and "Slate Power Grade:
+        // Strong" — colons, capitals, the word "Model". What the bot actually
+        // writes in today.txt is:
+        //
+        //     projected HRs 36–45 · power grade Strong
+        //     top HR profiles 117 · weak pitcher spots 14
+        //
+        // No colons, lower case, en-dash. Matched loosely now, with the old
+        // wording kept as an alternative in case the bot's format moves back.
+        const range = text.match(/projected\s+HRs?\s*[:\s]\s*(\d+)\s*[–—-]\s*(\d+)/i)
+        const grade = text.match(/power\s+grade\s*[:\s]\s*([A-Za-z ]+)/i)
+        const profiles = text.match(/top\s+HR\s+profiles\s*[:\s]\s*(\d+)/i)
+        const weakSpots = text.match(/weak\s+pitcher\s+spots\s*[:\s]\s*(\d+)/i)
         if (!cancelled && range) {
-          setProjection({ low:Number(range[1]), high:Number(range[2]), grade:(grade?.[1] || '').trim() })
+          setProjection({
+            low: Number(range[1]),
+            high: Number(range[2]),
+            grade: (grade?.[1] || '').trim(),
+            profiles: profiles ? Number(profiles[1]) : null,
+            weakSpots: weakSpots ? Number(weakSpots[1]) : null,
+          })
         }
       } catch {
         if (!cancelled) setProjection(null)
@@ -53,19 +71,38 @@ function ProjectedHRStat({ mode }) {
   }, [mode])
 
   if (!projection) return null
-  const col = projection.grade.toLowerCase().includes('strong') ? '#f97316'
-    : projection.grade.toLowerCase().includes('medium') ? '#FCD34D'
-    : '#a78bfa'
+  const g = projection.grade.toLowerCase()
+  const col = g.includes('strong') ? '#f97316' : g.includes('medium') ? '#FCD34D' : '#a78bfa'
 
   return (
-    <div style={{
-      display:'flex', alignItems:'center', gap:7,
-      padding:'4px 12px', borderRadius:8,
-      background:`${col}10`, border:`1px solid ${col}30`,
-    }} title={`${projection.grade || 'Model'} slate projection`}>
-      <span style={{ fontSize:11 }}>💣</span>
-      <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:800, color:col }}>{projection.low}–{projection.high}</span>
-      <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>projected HR</span>
+    <div
+      title={`Bot's projection for this slate: ${projection.low}–${projection.high} home runs, power grade ${projection.grade || 'n/a'}${projection.profiles != null ? `. ${projection.profiles} hitters clear its top-HR profile` : ''}${projection.weakSpots != null ? `, ${projection.weakSpots} weak pitcher spots` : ''}.`}
+      style={{
+        display:'flex', alignItems:'center', gap:8,
+        padding:'5px 13px', borderRadius:9,
+        background:`linear-gradient(135deg, ${col}22, ${col}0a)`,
+        border:`1px solid ${col}55`,
+        boxShadow:`0 0 18px ${col}14`,
+      }}
+    >
+      <span style={{ fontSize:12 }}>💣</span>
+      <div style={{ display:'flex', flexDirection:'column', lineHeight:1.15 }}>
+        <span style={{
+          fontSize:8.5, color:C.text3, textTransform:'uppercase',
+          letterSpacing:'.09em', fontWeight:800,
+        }}>Slate projected</span>
+        <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
+          <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:col }}>
+            {projection.low}–{projection.high}
+          </span>
+          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>HR</span>
+          {projection.grade && (
+            <span style={{ fontSize:9, color:col, fontWeight:800, letterSpacing:'.02em' }}>
+              {projection.grade}
+            </span>
+          )}
+        </span>
+      </div>
     </div>
   )
 }
