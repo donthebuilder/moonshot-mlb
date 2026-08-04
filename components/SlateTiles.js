@@ -72,7 +72,7 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color }) {
   )
 }
 
-export default function SlateTiles({ players = [], results, games = [] }) {
+export default function SlateTiles({ players = [], results, games = [], projected = null, capture = null }) {
   const stats = useMemo(() => {
     if (!players.length) return null
 
@@ -110,25 +110,20 @@ export default function SlateTiles({ players = [], results, games = [] }) {
     <div style={{
       display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center',
     }}>
-      {/* ORDER: scale first, then certainty, then edge, then progress —
-          Games · Lineups · Best game · Weak · Settled. Each tile owns a hue
-          so the strip reads left-to-right as five distinct instruments:
-          blue scale, purple certainty, orange edge, gold edge, green done.
+      {/* FIXED ORDER AND HUES, alternating cool/warm so no two neighbours
+          share a colour:
+            Games BLUE · Projected ORANGE · HR tracking BLUE ·
+            Best game ORANGE · Weak GOLD · Lineups GREEN · (Settled green)
+          The projected and capture pills are built in Header.js and threaded
+          in as elements so the whole strip is one row with one wrap order.
 
           LINEUPS was computed here from day one and never rendered. It's the
           certainty number for the whole slate — every score on the site is
           softer for a hitter who might not start, so how much of the board is
-          locked belongs in the header. Purple fill under ~half confirmed,
-          green once confirmation is mostly in, so a glance says "early" or
-          "locked" without reading the fraction. */}
+          locked belongs in the header. */}
       <Tile label="Games" value={stats.gameCount} color="#38bdf8" />
-      <Tile
-        label="Lineups ✓"
-        value={`${stats.confirmed}`}
-        delta={`of ${players.length} · ${pct(stats.confirmed)}`}
-        color={stats.confirmed / Math.max(1, players.length) >= 0.5 ? '#4ade80' : '#a78bfa'}
-        dot
-      />
+      {projected}
+      {capture}
       {stats.best && (
         <Tile
           label="Best game"
@@ -139,6 +134,13 @@ export default function SlateTiles({ players = [], results, games = [] }) {
         />
       )}
       <Tile label="★ Weak" value={stats.weak} color="#FCD34D" dot />
+      <Tile
+        label="Lineups ✓"
+        value={`${stats.confirmed}`}
+        delta={`of ${players.length} · ${pct(stats.confirmed)}`}
+        color="#4ade80"
+        dot
+      />
       {stats.settled > 0 && (
         <Tile label="Settled" value={stats.settled} delta="graded" color="#4ade80" />
       )}

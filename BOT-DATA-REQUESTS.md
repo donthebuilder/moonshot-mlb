@@ -152,6 +152,70 @@ baseline while TOP nearly doubled it — that came from a nine-day slice of the
 published branch and did not survive the full archive. Recorded here so the
 mistake isn't repeated.
 
+### Audit: unused signal in the archive (2026-08-04)
+
+Every published field bucketed against actual HR outcome, 3,973 graded slots.
+The finding that dwarfs everything else:
+
+**Season ISO is a stronger HR predictor than any score the bot computes.**
+
+| season_iso | HR rate | n |
+|---|---:|---:|
+| < .13 | 8.2% | 610 |
+| .13–.18 | 11.0% | 1032 |
+| .18–.23 | 15.7% | 877 |
+| ≥ .23 | **22.2%** | 1082 |
+
+Spread +14.0 — monotone, nearly 3×, bigger than hrr_score (+13.3) and triple
+hr_score (+4.7). Worse: **ISO's signal is almost entirely OUTSIDE hr_score.**
+Within every hr_score quartile, ISO≥.20 hitters homer at ~20–21% and ISO<.20
+hitters at ~10–13%. A bottom-quartile-score high-ISO hitter (16.3%) out-homers
+a top-quartile-score low-ISO hitter (13.4%). The score is nearly irrelevant
+once you know ISO — it's chasing recency and matchup while underweighting the
+one stable trait that decides who homers.
+
+The cheap rule this implies: **22% of HR-type picks (305/1377) had ISO<.18 and
+homered 11.5%. HR-type picks with ISO≥.23 homered 21.4%.** A hard ISO floor on
+the HR/TOP buckets is the single highest-yield change available, and it costs
+one line.
+
+Stacking published flags (all verified on graded slots):
+
+| Rule | HR rate | n |
+|---|---:|---:|
+| ISO≥.23 | 22.2% | 1082 |
+| + lineup spot ≤ 4 | 23.3% | 885 |
+| + weak_spot_flag | **26.3%** | 194 |
+| slate baseline | 14.6% | 3973 |
+
+Other bucketed fields, briefly: weak_spot_flag ON 18.0% vs OFF 13.9% (real,
+keep it). lineup_confirmed ON 15.2% vs OFF 10.2% (unconfirmed hitters drag —
+argues for down-weighting unconfirmed rows at pick time). Lineup spots 1–4 beat
+5–9 (16.5% vs 11.7%). recent_375_num 0 vs 1+ is 11.7% vs 15.7% (modest, already
+partly in the scores). pitcher_hr9 is NON-monotone (16.0% / 11.6% / 17.6% /
+16.8%) — as a standalone filter it's noise, consistent with pitcherOverall
+needing more than HR/9. recent_fb_rate and recent_barrel_rate: non-monotone,
+weak on their own.
+
+**Weather and park are unverifiable** — `weather_temp_f`, `weather_wind_mph`,
+`park_factor` were carried on April graded files and then dropped from the
+schema. Temperature is a known physical HR factor; right now there is no way
+to check what it's worth on this slate pool. Add them back to graded slots
+(they're already computed at slate time).
+
+### Is ALT LOOKS worth tracking?
+
+Unknown, and currently untrackable — that's the answer. Nothing in any graded
+file records who was an ALT look (`game_pick_role` covers only the five main
+categories), and only one breakdown sheet exists locally, so there is no way to
+grade the section retroactively. The section's design (small-sample and
+variance names, explicitly "not primary plays") makes it exactly the kind of
+claim that should be checked before anyone trusts it. One bot line fixes it:
+stamp `alt_look_tag` ("HOT/DUE" / "MATCHUP" / "VARIANCE" / "ALT") onto the slate
+row when the section is built, and carry it into graded output like
+`game_pick_role`. The site's Track record machinery will pick it up as a
+seventh category with zero site changes.
+
 ### Score calibration — measured on the same 3,973 slots
 
 Every graded slot carries the bot's own scores, so unlike the site composites

@@ -16,20 +16,18 @@ import {
 //   🏁 HRR      Jeremy Peña (HOU)          83.8   L5 12H/4HR/4XBH · vs Walbert Ureña
 //   ⚾ CONTACT  James Wood (WSH) ⭐         76.9   L5 6H/2HR/4XBH · vs Max Scherzer
 //
-// THREE per category, ranked. This section started as a strict one-per-bucket
-// mirror of the bot's text output; it's now the top three, with #1 featured
-// and #2/#3 as compact rows under it. Two reasons. First, the 39-day archive
-// shows the #1 pick in a category is not reliably better than #2 — the scores
-// separate quartiles, not neighbours, so presenting one name as THE answer
-// implied a precision the data doesn't support. Second, one name per category
-// is useless the moment that hitter is scratched. Three is still a decision,
-// not a list.
+// THREE per category: #1 featured with full detail, #2 and #3 as compact rows
+// under a divider. Two reasons this beats one-per-bucket. The 39-day archive
+// shows the scores separate quartiles, not neighbours — #1 vs #2 is close to
+// a coin flip, so one name implied precision the data doesn't support. And a
+// single name per bucket dies the moment that hitter is scratched. Three is
+// still a decision, not a list.
 //
 // The category is `game_pick_role`, which tags 105 of 268 hitters: TOP 15,
 // HR 15, HRR 30, HIT 30, CONTACT 15. Inside each, ranking is by the highest
 // score ON THAT CATEGORY'S OWN SCALE — HR score for the HR picks, hit score
-// for the hit picks, and so on. Ranking all of them by HR score would just
-// hand you the biggest power bats and defeat the split.
+// for the hit picks, and so on. Ranking them all by HR score would just hand
+// you the biggest power bats and defeat the split.
 //
 // WHERE IT LIVES. Top of Scoreboard, the landing tab — not the sticky header.
 // The header already carries the projection, the live tracker and three tiles;
@@ -130,9 +128,8 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
                     </div>
                   </div>
 
-                  {/* #2 and #3 — one compact row each, divided from the lead.
-                      Same click-through, smaller type, score still on that
-                      category's own scale so the three are comparable. */}
+                  {/* #2 and #3 — compact rows, same click-through, scores on
+                      the same category scale so the three are comparable. */}
                   {rest.length > 0 && (
                     <div style={{
                       marginTop: 7, paddingTop: 6,
@@ -178,8 +175,8 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
       <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         The category is the bot&apos;s own <code>game_pick_role</code>; ranking inside it is by the top
         score <b style={{ color: C.text2 }}>on that category&apos;s scale</b> — HR score for HR, hit
-        score for HIT, and so on. Three deep because the archive says #1 vs #2 is a coin flip: the
-        scores separate quartiles, not neighbours, and one name per bucket dies with a scratch.
+        score for HIT, and so on. Three deep because the archive says #1 vs #2 is close to a coin
+        flip, and one name per bucket dies with a scratch.
         {' '}⭐ marks a weak lineup spot against tonight&apos;s starter. Click any name to open the hitter.
       </div>
     </div>

@@ -7,6 +7,7 @@ import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
 import Heatmap from '../Heatmap'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
+import AltLooks from '../AltLooks'
 
 const TITLES = {
   hr:  ['HR Board',          'Top home run picks'],
@@ -98,6 +99,19 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           />
         ))}
       </Grid>
+
+      {/* ALT LOOKS — HR board only, mirroring where the bot prints it (under
+          the Top 30 on the breakdown sheet). Excludes everyone ranked above
+          so the section is genuinely "not already on the board". Uses the
+          full unfiltered slate on purpose: the board filter narrows the board,
+          but an alt look is by definition outside what you were looking at. */}
+      {type === 'hr' && (
+        <AltLooks
+          players={players}
+          boardIds={new Set(ranked.map(playerId))}
+          onPlayerClick={onPlayerClick}
+        />
+      )}
     </div>
   )
 }

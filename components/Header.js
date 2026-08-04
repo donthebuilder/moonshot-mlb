@@ -39,7 +39,12 @@ function CaptureStat({ results }) {
     )
   }
 
-  const col = pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
+  // The PILL is blue — its slot in the strip's fixed colour order — while the
+  // percentage inside keeps its performance colour, so "how are we doing" is
+  // still answered by the number without the whole strip changing shape by
+  // score.
+  const col = '#38bdf8'
+  const scoreCol = pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
   return (
     <div
       title={`${caught} of the slate's ${total} home runs were on the sheet tonight.`}
@@ -55,7 +60,7 @@ function CaptureStat({ results }) {
       <div style={{ display:'flex', flexDirection:'column', lineHeight:1.15 }}>
         <span style={{ fontSize:8.5, color:C.text3, textTransform:'uppercase', letterSpacing:'.09em', fontWeight:800 }}>HR capture</span>
         <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
-          <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:col }}>{pct.toFixed(0)}%</span>
+          <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:scoreCol }}>{pct.toFixed(0)}%</span>
           <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>{caught}/{total}</span>
         </span>
       </div>
@@ -108,10 +113,11 @@ function ProjectedHRStat({ mode }) {
   }, [mode])
 
   if (!projection) return null
-  const g = projection.grade.toLowerCase()
-  // Grade sets the colour and nothing else — the word itself was noise in a
-  // strip this dense, and it's still in the tooltip.
-  const col = g.includes('strong') ? '#f97316' : g.includes('medium') ? '#FCD34D' : '#38bdf8'
+  // ORANGE, always. The pill used to shift hue with the power grade, but the
+  // strip now has a fixed colour order (blue-orange-blue-orange-gold-green)
+  // and a grade-coloured pill broke it on medium/weak slates. The grade is
+  // still in the tooltip.
+  const col = '#f97316'
 
   return (
     <div
@@ -207,14 +213,24 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
 
         {/* The HR tracker plus the merged slate strip. Streamlit carried these
             tiles twice -- once at the top, once on Games -- overlapping on
-            three of them. One row in the header, visible from every tab. */}
+            three of them. One row in the header, visible from every tab.
+            ORDER AND HUES ARE FIXED, left to right:
+              Games blue · Projected orange · HR tracking blue ·
+              Best game orange · Weak gold · Lineups green
+            The two pills that live in this file are threaded into SlateTiles
+            as elements so the whole strip renders as one ordered row instead
+            of two groups that wrap independently on narrow screens. */}
         <div style={{
           display:'flex', alignItems:'center', justifyContent:'center',
           gap:6, flexWrap:'wrap', flex:'1 1 480px', minWidth:0,
         }}>
-          <ProjectedHRStat mode={mode} />
-          <CaptureStat results={results} />
-          <SlateTiles players={players} results={results} games={games} />
+          <SlateTiles
+            players={players}
+            results={results}
+            games={games}
+            projected={<ProjectedHRStat mode={mode} />}
+            capture={<CaptureStat results={results} />}
+          />
         </div>
 
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
