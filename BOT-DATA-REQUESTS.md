@@ -28,6 +28,7 @@ from.
 | 12 | `alt_look_tag` | mlb_dashboard.py | ALT LOOKS build ~line 8026 — stamp the tag on the record when `alt_rows` is assembled | already computed |
 | 13 | `pitcher_l5_*` block (era/hr9/whip) | mlb_dashboard.py | same place `pitcher_l3_*` is built | same query, n=5 |
 | 14 | ISO into `hr_score` itself | mlb_dashboard.py | wherever hr_score is blended — see the calibration section below | `season_iso`, already on the record |
+| 15 | Pair history per market: `same_day_hit_count`, `same_game_hit_count`, `same_day_hrr_count` alongside the existing co-HR counts | the pair-history builder that writes `pair_history_summary` (top_pairs) | same aggregation, run over `actual_hits`/HRR outcomes instead of only `actual_hr` | graded slots already carry the outcomes |
 
 What each unlocks, in one line: #1–3 make K Risk auditable and stop CONTACT
 picks being graded a failure for walking. #4–7 make League Leaders exact
@@ -38,7 +39,11 @@ slate. #11 completes the pitcher batted-ball profile the site now shows.
 #12 makes ALT LOOKS gradeable — the site's Track record picks it up as a
 seventh category with zero changes. #14 is the scoring fix the whole audit
 points at; the site's ×ISO multiplier is a stopgap that becomes a no-op the
-day it lands.
+day it lands. #15 completes the Pair Builder's market toggle: today the
+builder ranks tonight's half on your chosen market (HR / hit / HRR / TB) but
+the history half is co-HR days in every market, because that's the only pair
+history published. The site probes for the new field names and will use them
+automatically when they appear.
 
 Site-side status, for completeness: everything published IS being pulled.
 `today_slim` (all 268-row fields incl. the new pitcher batted-ball columns),

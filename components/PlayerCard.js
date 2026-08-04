@@ -89,8 +89,10 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // fallback also saying "Avoid HR") -- now it's exactly one, in its own
   // muted maroon tone distinct from the bright red used for Trap elsewhere,
   // and rendered in its own row below the main chips rather than mixed in.
-  const isAvoid = isHardAvoid || isSoftCaution || role === 'Avoid HR'
-  const avoidLabel = altLook ? altLook.label : (role === 'Avoid HR' ? 'Avoid HR' : (bet || 'Avoid HR'))
+  // "Skip for HR" instead of "Avoid HR" — the old wording read as a verdict
+  // on the player when it was only ever a verdict on this market for tonight.
+  const isAvoid = isHardAvoid || isSoftCaution || role === 'Skip HR'
+  const avoidLabel = altLook ? altLook.label : (role === 'Skip HR' ? 'Skip for HR' : (bet || 'Skip for HR'))
   const AVOID_COLOR = '#9F3247'
   const color    = altLook ? altLook.color : baseColor
   const aligned  = (p?.top_board_tags || []).some((t) => String(t).includes('🧩'))
@@ -99,7 +101,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // role/bet chips no longer render literal avoid text directly -- that's
   // now handled entirely by the single isAvoid/avoidLabel chip below, in
   // its own row and color, so it can't stack with the consolidated chip.
-  const showRoleChip = role !== 'Avoid HR'
+  const showRoleChip = role !== 'Skip HR'
   const showBetChip = !isAvoid && bet !== role
 
   // emoji stack — role, hrw, high confidence (weak-spot star is separate, see

@@ -155,8 +155,21 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
         const k = refKey(today)
         if (!k || activeKeys.has(k)) return      // don't offer an anchor as its own partner
 
-        const days = n(pr?.repeat_count, 0)
-        const sameGame = n(pr?.same_game_hr_count, 0)
+        // Per-market history, if the bot ever publishes it (checklist #15 in
+        // BOT-DATA-REQUESTS.md): on the hit market prefer same_game_hit_count,
+        // on HRR prefer same_day_hrr_count, and so on. Until those fields
+        // exist this falls back to the co-HR counts, which the caption
+        // discloses. The moment the bot writes them, the builder uses them
+        // with no site change.
+        const mkHist = (base) => {
+          const alt = marketKey === 'hit' ? pr?.[`${base}_hit_count`]
+            : marketKey === 'hrr' ? pr?.[`${base}_hrr_count`]
+            : marketKey === 'tb' ? pr?.[`${base}_tb_count`]
+            : null
+          return alt != null && Number(alt) > 0 ? n(alt, 0) : null
+        }
+        const days = mkHist('same_day') ?? n(pr?.repeat_count, 0)
+        const sameGame = mkHist('same_game') ?? n(pr?.same_game_hr_count, 0)
         const since = n(pr?.days_since_last_hit, 99)
         // The market picks which score "tonight" means — HR score on the HR
         // market, hit score on 1+ hit, and so on.
@@ -215,7 +228,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
 
     const filtered = requireAll && total > 1 ? rows.filter((r) => r.all) : rows
     return filtered.sort((a, b) => (b.matched - a.matched) || (b.fit - a.fit))
-  }, [active, activeKeys, pairs, slate, requireAll, mScore])
+  }, [active, activeKeys, pairs, slate, requireAll, mScore, marketKey])
 
   const shown = useMemo(() => {
     const q = query.toLowerCase().trim()

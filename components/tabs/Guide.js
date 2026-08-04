@@ -210,6 +210,7 @@ export default function Guide() {
         <GlossaryRow icon="🔭" term="Power Watch" def="Has real raw power but more uncertainty in the matchup. Worth monitoring, lower-confidence HR shot. (Changed from 👀 — that icon was being used for two unrelated things at once; see the HRW timing section below.)" />
         <GlossaryRow icon="💠" term="Contact / Monitor" def="The model isn't projecting a home run here. May still be a fine pick for hits/contact bets, just not power." />
         <GlossaryRow icon="⛔" term="True Avoid HR" def="The model actively expects this player to NOT homer today and has capped their score accordingly — usually a tough pitcher matchup or cold recent power. Steer clear for HR bets. (The ⛔ marks an actual score cap, not just a caution — see ⚠️ below for the softer version.)" />
+        <GlossaryRow icon="↪️" term="Skip HR / redirect tags" def="A verdict on the MARKET, never on the player. When a hitter's case is clearly stronger on another outcome, his tag now says what he is — Hit, HRR or TB — instead of warning you off. 'Skip for HR' appears only when he has no strong case on any market tonight. This replaced the old 'Avoid HR' wording, which read like the site hated a player who was merely mis-marketed." />
         <GlossaryRow icon="🏆" term="Top" def="The single best play on the entire slate across all categories — the model's #1 most confident pick of the day." />
       </Section>
 

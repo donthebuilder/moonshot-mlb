@@ -61,19 +61,18 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           label: nameOf(p),
           _raw: p,
           values: {
-            // NO "Score" COLUMN. scoreFor(p, type) IS the column named after
-            // the type — on the HR board, Score and HR were the same number
-            // printed twice (87/87, 76/76, 75/75 straight down the board),
-            // which reads as a coincidence rather than a duplicate and quietly
-            // costs a column of width. The four category columns already carry
-            // it; the board is sorted by the relevant one.
-            HR: hrScore(p),
-            // ISO ×100 so .231 reads as 23. This column is WHY the HR board's
-            // order no longer matches raw HR score: ranking is ISO-adjusted
-            // (see lib/scoring.js) because the archive showed ISO bands
-            // running 8.2%→22.2% actual HR rate while score quartiles managed
-            // +4.7 points. The two columns side by side let you see which
-            // names the adjustment moved.
+            // THE RANKING NUMBER LEADS ON THE HR BOARD. The board sorts by
+            // the ISO-ADJUSTED score, and the first pass of this chart led
+            // with the RAW bot score instead — so a raw-99 bat whose thin ISO
+            // knocked him down sat below a raw-75 bat with a big ISO, and the
+            // chart looked out of order (it was; the sort key just wasn't a
+            // column). Adj is the exact number the sort uses; Raw and ISO
+            // beside it are its two inputs, so each row reads as WHY he's
+            // ranked there: Adj = Raw × his ISO band's measured HR rate.
+            ...(type === 'hr'
+              ? { Adj: scoreFor(p, 'hr'), Raw: hrScore(p) }
+              : { HR: hrScore(p) }),
+            // ISO ×100 so .231 reads as 23.
             ISO: nn(p?.season_iso) * 100,
             Hit: hitScore(p),
             HRR: prodScore(p),
@@ -87,10 +86,18 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             'P HR/9': nn(p?.pitcher_hr9) * 30,
           },
         }))}
-        columns={['HR', 'ISO', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9']}
-        title={`Top 15 by ${title.replace(' Board', '')} — full profile`}
+        columns={[
+          ...(type === 'hr' ? ['Adj', 'Raw'] : ['HR']),
+          'ISO', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9',
+        ]}
+        title={type === 'hr'
+          ? 'Top 15 — ranked by Adj (raw score × measured ISO-band HR rate)'
+          : `Top 15 by ${title.replace(' Board', '')} — full profile`}
         labelWidth={140}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
+        caption={type === 'hr'
+          ? 'Sorted by Adj, the first column — not by Raw. A raw 99 with a thin ISO can rank below a raw 75 with a big one, because across 3,973 graded picks the low-ISO band homered 8.2% and the high band 22.2% while the raw score barely separated. Raw and ISO are shown precisely so you can see what moved each name.'
+          : undefined}
       />
 
       <Grid>
