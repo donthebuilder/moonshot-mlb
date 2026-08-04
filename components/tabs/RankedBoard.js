@@ -10,7 +10,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import AltLooks from '../AltLooks'
 
 const TITLES = {
-  hr:  ['HR Board',          'Top home run picks'],
+  hr:  ['HR Board',          'Top home run picks — ranked ISO-adjusted: raw score × measured HR rate of the hitter’s ISO band (8.2% low to 22.2% high, from 3,973 graded picks)'],
   hrr: ['HRR Board',         'Top runs + RBI picks'],
   hit: ['Hits Board',        'Top base-hit picks'],
   tb:  ['Total Bases Board', 'Top contact / total-base picks'],
@@ -68,6 +68,13 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // costs a column of width. The four category columns already carry
             // it; the board is sorted by the relevant one.
             HR: hrScore(p),
+            // ISO ×100 so .231 reads as 23. This column is WHY the HR board's
+            // order no longer matches raw HR score: ranking is ISO-adjusted
+            // (see lib/scoring.js) because the archive showed ISO bands
+            // running 8.2%→22.2% actual HR rate while score quartiles managed
+            // +4.7 points. The two columns side by side let you see which
+            // names the adjustment moved.
+            ISO: nn(p?.season_iso) * 100,
             Hit: hitScore(p),
             HRR: prodScore(p),
             TB: tbScore(p),
@@ -80,7 +87,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             'P HR/9': nn(p?.pitcher_hr9) * 30,
           },
         }))}
-        columns={['HR', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9']}
+        columns={['HR', 'ISO', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9']}
         title={`Top 15 by ${title.replace(' Board', '')} — full profile`}
         labelWidth={140}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}

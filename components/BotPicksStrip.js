@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import {
   n, clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
 } from '../lib/player'
+import { isoAdjustedHr } from '../lib/scoring_additions'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
 //
@@ -37,8 +38,10 @@ import {
 // has no reason to follow you down the page.
 
 const CATEGORIES = [
+  // HR ranks ISO-adjusted, same as the HR board — otherwise the strip's #1
+  // and the board's #1 could disagree about the same category.
   { role: 'HR',      label: 'HR',      icon: '🧨', color: '#f97316',
-    blurb: 'Going deep',     score: hrScore },
+    blurb: 'Going deep',     score: (p) => isoAdjustedHr(p, hrScore(p)) },
   { role: 'HIT',     label: 'HIT',     icon: '💠', color: '#a78bfa',
     blurb: 'Base-hit floor', score: hitScore },
   { role: 'HRR',     label: 'HRR',     icon: '🏁', color: '#22d3ee',
