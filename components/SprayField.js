@@ -215,6 +215,52 @@ const BB_TYPES = [
 ]
 
 
+
+// ── COLOUR ON THIS CHART IS CATEGORICAL, NOT MAGNITUDE ───────────────────────
+//
+// Everywhere else on this site colour means "how much" and the orange ramp is
+// the right tool. A spray chart is the exception: the question is "what
+// happened", which is a category, and eight shades of one hue cannot answer it.
+// The old version shaded every dot by exit velocity, so a field of orange dots
+// sat on an orange-tinted wedge and nothing could be picked out — that is the
+// "hard to read" problem, and no amount of contrast tuning fixes it while the
+// only channel in use is brightness.
+//
+// So: colour = result, shape = pitch type, size = how far it went. Three
+// independent channels, all readable at once. Exit velocity moved to the hover
+// and the EV Log, where it can be a number instead of a shade.
+// The palette is the site's own, not a borrowed one. Home runs take C.orange —
+// it's the signature colour and it's the event this whole site exists for, so
+// the thing you care about is the thing that glows. Extra, Double and Single
+// step down through the existing accents. Outs are deliberately DESATURATED and
+// dim: they're 62% of every hitter's batted balls, and painting the majority
+// case in a loud colour is how a chart turns to noise. PropFinder makes outs
+// red; on a 60%-out chart that's the loudest thing on screen and it shouldn't
+// be. Dim outs, bright orange homers — the eye lands where it should.
+const RESULT_COLORS = {
+  home_run: '#f97316',   // C.orange — the headline event
+  triple:   '#FCD34D',   // gold
+  double:   '#22d3ee',   // C.cyan
+  single:   '#a78bfa',   // C.purple
+  out:      '#5f6b85',   // muted slate — the majority case, kept quiet
+}
+const resultColor = (h) => h.hr ? RESULT_COLORS.home_run
+  : h.event === 'triple' ? RESULT_COLORS.triple
+  : h.event === 'double' ? RESULT_COLORS.double
+  : h.event === 'single' ? RESULT_COLORS.single
+  : RESULT_COLORS.out
+
+// Real outfield distances, straight off the slate row. park_fit.dimensions
+// carries lf / lcf / cf / rcf / rf on 268 of 268 hitters, so the hardcoded
+// PARKS table above is only a fallback for a venue the bot hasn't measured.
+function dimsFor(player) {
+  const d = obj(obj(player?.park_fit).dimensions)
+  const vals = [d.lf, d.lcf, d.cf, d.rcf, d.rf].map((v) => n(v, 0))
+  if (vals.every((v) => v > 200)) return { dims: vals, source: 'bot' }
+  const venue = clean(player?.venue_name, '')
+  return { dims: PARKS[venue] || DEFAULT_PARK, source: PARKS[venue] ? 'table' : 'default' }
+}
+
 export default function SprayField({ player, height = 340, slateMode }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
@@ -412,8 +458,8 @@ export default function SprayField({ player, height = 340, slateMode }) {
 
   // Wall polygon from the five listed distances, interpolated across the arc.
   const venue = clean(player?.venue_name, '')
-  const dims = PARKS[venue] || DEFAULT_PARK
-  const knownPark = !!PARKS[venue]
+  const { dims, source: dimSource } = dimsFor(player)
+  const knownPark = dimSource !== 'default'
   const wallAt = (ang) => {
     const t = (Math.max(-45, Math.min(45, ang)) + 45) / 90
     const i = Math.min(3, Math.max(0, Math.floor(t * 4)))
@@ -428,6 +474,10 @@ export default function SprayField({ player, height = 340, slateMode }) {
   }))
 
   const foulCount = inRange.filter((h) => Math.abs(h.ang) > 45).length
+  const windMph = n(player?.wind_mph ?? player?.weather_wind_mph, 0)
+  const windFrom = n(player?.wind_deg ?? player?.weather_wind_deg, null)
+  const windTo = windFrom == null ? 0 : (windFrom + 180) % 360
+  const windLabel = clean(player?.wind_direction_label ?? player?.weather_wind_direction_label, '')
   const chipBtn = (on, col) => ({
     padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
     cursor: 'pointer', fontFamily: NUM_FONT,
@@ -588,15 +638,52 @@ export default function SprayField({ player, height = 340, slateMode }) {
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
       }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 460, height, flexShrink: 0 }}>
-          {/* Foul ground, then fair ground, then this park's actual wall.
-              Fills were 1.8% / 2.8% / 5.5% white-on-near-black, which on most
-              screens is indistinguishable from the page background — the field
-              read as floating dots with a faint outline. Lifted so the playing
-              surface is an actual surface and the dots sit ON something. */}
-          <rect x="0" y="0" width={W} height={H} rx="8" fill="#0d0d10" />
-          <path d={wedge(-EDGE, EDGE, R)} fill="rgba(255,255,255,0.05)" />
-          <path d={wedge(-45, 45, R)} fill="rgba(255,255,255,0.085)" />
-          <path d={wedge(-45, 45, wallAt)} fill="rgba(249,115,22,0.10)" stroke={C.border2} strokeWidth="1.4" />
+          {/* THE FIELD IS A SOLID SURFACE.
+              Every previous version drew it as white at 2-8% opacity on a
+              near-black page, which is a difference of about 1.3:1 — the eye
+              reads that as "nothing there", so the dots looked like they were
+              floating on the page rather than sitting on a field. It's now a
+              solid slate-navy polygon with a light rim, which is the single
+              change that makes the plot legible. */}
+          <rect x="0" y="0" width={W} height={H} rx="10" fill="#0b0d14" />
+
+          {/* Wind, as background streaks plus a labelled arrow. weather_wind_deg
+              is the direction the wind comes FROM, so the streaks and the arrow
+              are drawn pointing the opposite way — where the ball gets pushed. */}
+          {windMph > 0 && (
+            <g opacity="0.5">
+              {Array.from({ length: 16 }).map((_, i) => {
+                const gx = (i % 4) * (W / 4) + 18
+                const gy = Math.floor(i / 4) * (H / 4) + 14
+                const rad = ((windTo + 90) * Math.PI) / 180
+                const len = 16 + windMph * 1.1
+                return (
+                  <line key={i}
+                    x1={gx} y1={gy}
+                    x2={gx + Math.cos(rad) * len} y2={gy + Math.sin(rad) * len}
+                    stroke="#5b6480" strokeWidth="1.1" strokeLinecap="round" />
+                )
+              })}
+            </g>
+          )}
+
+          {/* Foul ground stays dark; fair territory is the solid surface. */}
+          <path d={wedge(-EDGE, EDGE, R)} fill="#11141d" />
+          <path
+            d={wedge(-45, 45, wallAt)}
+            fill="#1e2740"
+            stroke="#8b93c9"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+
+          {/* Infield: bases and the mound, for scale. Without them the plot has
+              no reference for how far in "shallow" actually is. */}
+          <path
+            d={`M ${pt(0, 0)[0]} ${pt(0, 0)[1]} L ${pt(127, -45)[0]} ${pt(127, -45)[1]} L ${pt(180, 0)[0]} ${pt(180, 0)[1]} L ${pt(127, 45)[0]} ${pt(127, 45)[1]} Z`}
+            fill="rgba(255,255,255,0.045)" stroke="#6c7699" strokeWidth="0.9"
+          />
+          <circle cx={pt(60.5, 0)[0]} cy={pt(60.5, 0)[1]} r="4" fill="none" stroke="#6c7699" strokeWidth="0.9" />
 
           {/* distance arcs instead of grass */}
           {[150, 250, 350, 450].map((d) => {
@@ -606,9 +693,9 @@ export default function SprayField({ player, height = 340, slateMode }) {
               <g key={d}>
                 <path
                   d={`M ${lx} ${ly} A ${d * scale} ${d * scale} 0 0 1 ${rx} ${ry}`}
-                  fill="none" stroke={C.border} strokeWidth="1"
+                  fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="1"
                 />
-                <text x={cx} y={pt(d, 0)[1] + 9} fill={C.text3} fontSize="7.5"
+                <text x={cx} y={pt(d, 0)[1] + 9} fill="#7f88ad" fontSize="7.5"
                   fontFamily={NUM_FONT} textAnchor="middle">{d}</text>
               </g>
             )
@@ -616,7 +703,7 @@ export default function SprayField({ player, height = 340, slateMode }) {
           {/* foul lines */}
           {[-45, 45].map((a) => {
             const [x, y] = pt(R, a)
-            return <line key={a} x1={cx} y1={cy} x2={x} y2={y} stroke={C.border2} strokeWidth="1" />
+            return <line key={a} x1={cx} y1={cy} x2={x} y2={y} stroke="#8b93c9" strokeWidth="1.2" opacity="0.8" />
           })}
           {/* Lane dividers, drawn where the bot's cuts actually fall: vertical
               bands in hc_x, clipped to the field. Radial spokes would be a lie
@@ -642,9 +729,11 @@ export default function SprayField({ player, height = 340, slateMode }) {
           {shown.map((h, i) => {
             const ang = Math.max(-EDGE, Math.min(EDGE, h.ang))
             const [x, y] = pt(Math.min(h.r, R), ang)
-            const col = rampColor(h.ev, EV_LO, EV_HI) || C.text3
+            // Colour = what happened. Size = how far. Shape = which pitch.
+            const col = resultColor(h)
             const on = hover === i
             const foul = Math.abs(h.ang) > 45
+            const rr = h.hr ? 5.2 : h.xbh ? 4.4 : h.hit ? 3.8 : 3.2
             // HOVER WAS GLITCHY BECAUSE THE HIT AREA WAS THE DOT.
             //
             // The mouse handler sat on the <g>, so the only thing you could
@@ -660,15 +749,15 @@ export default function SprayField({ player, height = 340, slateMode }) {
                   <Marker
                     shape={shapeFor(h.pitch)}
                     x={x} y={y}
-                    r={h.hr ? 4.6 : h.xbh ? 3.6 : h.hit ? 3.0 : 2.5}
-                    fill={h.hr ? col : h.hit ? `${col}66` : 'none'}
-                    stroke={col}
-                    sw={h.hr ? 1.2 : 1.3}
-                    opacity={on ? 1 : h.hr ? 0.95 : foul ? 0.4 : 0.68}
-                    dashed={foul}
+                    r={rr}
+                    fill={col}
+                    stroke={foul ? col : '#0b0d14'}
+                    sw={0.9}
+                    opacity={on ? 1 : foul ? 0.45 : 0.95}
+                    dashed={false}
                   />
-                  {h.hr && <circle cx={x} cy={y} r="8.5" fill="none" stroke={col} strokeWidth="0.6" opacity={on ? 0.9 : 0.35} />}
-                  {on && <circle cx={x} cy={y} r="11" fill="none" stroke={C.text} strokeWidth="0.9" opacity="0.8" />}
+                  {h.hr && <circle cx={x} cy={y} r="9" fill="none" stroke={col} strokeWidth="1" opacity={on ? 0.95 : 0.5} />}
+                  {on && <circle cx={x} cy={y} r="12" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.9" />}
                 </g>
                 <circle
                   cx={x} cy={y} r="9"
@@ -685,11 +774,11 @@ export default function SprayField({ player, height = 340, slateMode }) {
           {[[-45, dims[0]], [0, dims[2]], [45, dims[4]]].map(([a, d]) => {
             const [x, y] = pt(d + 26, a)
             return (
-              <text key={a} x={x} y={y} fill={C.text3} fontSize="7.5" fontFamily={NUM_FONT}
-                textAnchor="middle" opacity="0.8">{d}&apos;</text>
+              <text key={a} x={x} y={y} fill="#b9bfe0" fontSize="8" fontFamily={NUM_FONT}
+                fontWeight="700" textAnchor="middle">{Math.round(d)}</text>
             )
           })}
-          <circle cx={cx} cy={cy} r="2.5" fill={C.text3} />
+          <circle cx={cx} cy={cy} r="3.2" fill="none" stroke="#b9bfe0" strokeWidth="1.2" />
 
           {/* Shape key, on the chart rather than beside it so it can't drift
               out of step with what's actually plotted. */}
@@ -756,15 +845,27 @@ export default function SprayField({ player, height = 340, slateMode }) {
           </div>
 
           <div style={{ fontSize: 9, color: C.text3, marginTop: 9, lineHeight: 1.55 }}>
+            {windMph > 0 && (
+              <div style={{ marginBottom: 4 }}>
+                <b style={{ color: C.text2 }}>Wind {windMph.toFixed(1)} mph</b>
+                {windLabel ? ` ${windLabel}` : ''} — the streaks behind the field point the way the
+                ball gets pushed, not the way the wind comes from.
+              </div>
+            )}
             <b style={{ color: C.text2 }}>{knownPark ? venue : 'Generic park'}</b>
             {knownPark
-              ? ' — the wall is this park’s real shape, so a ball to left means what it means here.'
+              ? `${dimSource === 'bot' ? ' — wall distances published by the bot for this venue' : ' — wall from the built-in table for this venue'}, so a ball to left means what it means here.`
               : ' — no dimensions on file for this venue, so a standard outline is drawn.'}
             {' '}Position is where the ball was fielded, not how far it carried — a 30 ft
             chopper that a shortstop takes at 130 ft belongs at 130 ft. Carry is in the hover.
-            Filled rings are home runs, half-filled are hits, hollow are outs. Brightness is
-            exit velocity on a fixed 65–110 scale, and the field is a fixed 450 ft for every
-            hitter, so two players stay directly comparable.
+            <b style={{ color: RESULT_COLORS.home_run }}>Orange</b> is a home run,{' '}
+            <b style={{ color: RESULT_COLORS.triple }}>gold</b> a triple,{' '}
+            <b style={{ color: RESULT_COLORS.double }}>cyan</b> a double,{' '}
+            <b style={{ color: RESULT_COLORS.single }}>purple</b> a single, and outs are the muted
+            slate ones — they're 62% of every hitter's contact, so they're kept quiet on purpose. Marker shape is the pitch type and
+            size is how far it went. Exit velocity is in the hover rather than the colour — shading
+            these by EV is what made every dot the same orange and the chart unreadable. The field is
+            a fixed 450 ft for every hitter, so two players stay directly comparable.
             {foulCount > 0 && (
               <> {foulCount} of these {hits.length} landed in foul ground; they&apos;re drawn
               dashed, outside the lines, rather than hidden.</>
