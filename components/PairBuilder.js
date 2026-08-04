@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { arr, obj, n, clean, nameOf, teamOf, oppOf, hrScore } from '../lib/player'
+import { arr, obj, n, clean, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
 import Heatmap from './Heatmap'
 import DenseTable from './DenseTable'
 
@@ -32,6 +32,19 @@ import DenseTable from './DenseTable'
 // entry (350 of 350 pairs), and joining on a normalised name string is how you
 // end up with two Will Smiths and a missing Peña.
 
+// MARKETS — carried over from the retired ticket builder, because it was the
+// one part of that page worth keeping: build a pair for the outcome you're
+// actually betting, not always home runs. The market changes the TONIGHT half
+// of the fit (which score ranks anchors and partners); the HISTORY half is
+// co-HR days in every market, because that's the only pair history the bot
+// publishes. The caption says so when it matters.
+const MARKETS = [
+  { key: 'hr',  label: 'Home run', short: 'HR',  score: hrScore,   needs: '1+ HR' },
+  { key: 'hit', label: '1+ hit',   short: 'Hit', score: hitScore,  needs: '1+ hit' },
+  { key: 'hrr', label: 'HRR',      short: 'HRR', score: prodScore, needs: '2+ H+R+RBI' },
+  { key: 'tb',  label: '2+ bases', short: 'TB',  score: tbScore,   needs: '2+ TB' },
+]
+
 const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '')
 
 // id when we have one, normalised name only as a fallback.
@@ -46,6 +59,9 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
   const [anchorKeys, setAnchorKeys] = useState([])
   const [query, setQuery] = useState('')
   const [requireAll, setRequireAll] = useState(false)
+  const [marketKey, setMarketKey] = useState('hr')
+  const mkt = MARKETS.find((x) => x.key === marketKey) || MARKETS[0]
+  const mScore = mkt.score
 
   const pairs = arr(obj(summary).top_pairs)
 
@@ -100,8 +116,8 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
         hasHistory: historyKeys.has(k),
       })
     })
-    return [...seen.values()].sort((a, b) => hrScore(b.today) - hrScore(a.today))
-  }, [players, historyKeys])
+    return [...seen.values()].sort((a, b) => mScore(b.today) - mScore(a.today))
+  }, [players, historyKeys, mScore])
 
   const selected = useMemo(
     () => anchorKeys.map((k) => anchors.find((a) => a.key === k)).filter(Boolean),
@@ -142,7 +158,9 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
         const days = n(pr?.repeat_count, 0)
         const sameGame = n(pr?.same_game_hr_count, 0)
         const since = n(pr?.days_since_last_hit, 99)
-        const hr = hrScore(today)
+        // The market picks which score "tonight" means — HR score on the HR
+        // market, hit score on 1+ hit, and so on.
+        const hr = mScore(today)
 
         // Weighted toward tonight on purpose. Same-game history counts for five
         // times a shared date, because only the same-game version is correlated.
@@ -197,7 +215,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
 
     const filtered = requireAll && total > 1 ? rows.filter((r) => r.all) : rows
     return filtered.sort((a, b) => (b.matched - a.matched) || (b.fit - a.fit))
-  }, [active, activeKeys, pairs, slate, requireAll])
+  }, [active, activeKeys, pairs, slate, requireAll, mScore])
 
   const shown = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -225,6 +243,28 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
         that is <b style={{ color: C.text2 }}>weighted toward tonight</b> — history per pair is a
         handful of days across a whole season, which is not enough to lead with. Click a selected
         hitter again to drop him.
+      </div>
+
+      {/* The market — which outcome this pair is FOR. Changes the score that
+          ranks everything; each leg needs {mkt.needs}. */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9, alignItems: 'center' }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Market</span>
+        {MARKETS.map((x) => (
+          <button
+            key={x.key}
+            onClick={() => setMarketKey(x.key)}
+            style={{
+              padding: '4px 11px', borderRadius: 7, cursor: 'pointer',
+              fontSize: 10.5, fontWeight: 700,
+              border: `1px solid ${marketKey === x.key ? C.orange : C.border}`,
+              background: marketKey === x.key ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: marketKey === x.key ? C.orange : C.text3,
+            }}
+          >{x.label}</button>
+        ))}
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          each leg needs {mkt.needs}
+        </span>
       </div>
 
       <input
@@ -258,7 +298,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
             >
               {on && !implicit ? '✓ ' : ''}{a.name}
               <span style={{ color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, fontSize: 10 }}>
-                {hrScore(a.today).toFixed(0)}
+                {mScore(a.today).toFixed(0)}
               </span>
               {!a.hasHistory && (
                 <span title="No co-HR history on file — selectable, but he contributes no partners"
@@ -313,7 +353,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
         <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
           {active.map((a) => (
             <div key={a.key}>
-              {a.name} — {teamOf(a.today)} vs {oppOf(a.today)} · {clean(a.today?.pitcher_name, 'TBD')} · HR {hrScore(a.today).toFixed(1)}
+              {a.name} — {teamOf(a.today)} vs {oppOf(a.today)} · {clean(a.today?.pitcher_name, 'TBD')} · {mkt.short} {mScore(a.today).toFixed(1)}
             </div>
           ))}
         </div>
@@ -339,14 +379,14 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
               values: {
                 Fit: p.fit,
                 ...(multi ? { Anchors: p.matched } : {}),
-                'HR tonight': p.hr,
+                [`${mkt.short} tonight`]: p.hr,
                 'Same game': p.sameGame,
                 'Shared days': p.days,
                 'Days since': p.since == null ? null : Math.max(0, 30 - Math.min(30, p.since)),
                 'Opp HR/9': p.hr9 * 30,
               },
             }))}
-            columns={['Fit', ...(multi ? ['Anchors'] : []), 'HR tonight', 'Same game', 'Shared days', 'Days since', 'Opp HR/9']}
+            columns={['Fit', ...(multi ? ['Anchors'] : []), `${mkt.short} tonight`, 'Same game', 'Shared days', 'Days since', 'Opp HR/9']}
             title={`Best partners for ${active.map((a) => a.name).join(' + ')} tonight`}
             labelWidth={multi ? 178 : 150}
             onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
@@ -367,7 +407,8 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
               { key: 'pitcher',  label: 'Facing',  heat: false, w: 132, dim: true },
               { key: 'weak',     label: '★',       flag: true, mark: '★', w: 30 },
               { key: 'fit',      label: 'Fit',     w: 46, dp: 1 },
-              { key: 'hr',       label: 'HR',      w: 44, dp: 1 },
+              { key: 'hr',       label: mkt.short, w: 44, dp: 1,
+                title: `Tonight's ${mkt.label} score — the market you picked above` },
               { key: 'sameGame', label: 'Same gm', w: 50 },
               { key: 'days',     label: 'Shared',  w: 46 },
               { key: 'since',    label: 'Days ago', w: 50,
@@ -379,7 +420,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
             onRowClick={onPlayerClick}
             initialSort={multi ? 'matched' : 'fit'}
             maxHeight={400}
-            caption={`Days ago is inverted — a pairing that hit last week is live, one from March is noise. Fit is 55% tonight's HR score, 25% same-game history, 10% shared days, 10% recency.${multi ? ' With multiple anchors, Same gm / Shared / Boost are summed across the anchors this partner matched, and Days ago is the most recent of them.' : ''}`}
+            caption={`Days ago is inverted — a pairing that hit last week is live, one from March is noise. Fit is 55% tonight's ${mkt.label} score, 25% same-game history, 10% shared days, 10% recency.${mkt.key !== 'hr' ? ` One honest note on the ${mkt.label} market: the history columns still count days these two HOMERED together, because co-HR days are the only pair history the bot publishes — tonight's score is on your market, the history is not.` : ''}${multi ? ' With multiple anchors, Same gm / Shared / Boost are summed across the anchors this partner matched, and Days ago is the most recent of them.' : ''}`}
           />
         </>
       )}
