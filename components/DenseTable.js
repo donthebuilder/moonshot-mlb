@@ -99,7 +99,7 @@ export default function DenseTable({
 
   return (
     <div>
-      <div style={{
+      <div className="dense-scroll" style={{
         border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'auto',
         maxHeight, background: C.bg2,
       }}>

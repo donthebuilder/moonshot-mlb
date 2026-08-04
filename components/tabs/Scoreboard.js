@@ -9,6 +9,7 @@ import {
 import { tierRole, shortRole, isAligned } from '../../lib/scoring'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
+import BotPicksStrip from '../BotPicksStrip'
 import { groupPitchers } from '../../lib/data'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
@@ -180,6 +181,8 @@ export default function Scoreboard({ players, results, onWatch, watchIds, onPlay
           )
         }
       />
+
+      <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
 
       <div style={{
         display: 'grid', gap: 16, marginBottom: 18,

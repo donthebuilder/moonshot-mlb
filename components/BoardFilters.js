@@ -94,7 +94,7 @@ export default function BoardFilters({ state, total, shown }) {
   const toggleCat = (k) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))
 
   return (
-    <div style={{
+    <div className="board-filters" style={{
       background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
       padding: '10px 13px', marginBottom: 12,
     }}>

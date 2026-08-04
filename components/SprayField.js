@@ -646,7 +646,7 @@ export default function SprayField({ player, height = 340, slateMode }) {
         </div>
       )}
 
-      <div style={{
+      <div className="spray-wrap" style={{
         display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
       }}>
@@ -689,6 +689,28 @@ export default function SprayField({ player, height = 340, slateMode }) {
             strokeWidth="1.6"
             strokeLinejoin="round"
           />
+
+          {/* Warning track — the band of dirt inside the wall. Drawn as the ring
+              between the wall and 18 ft short of it, which is roughly regulation.
+              It's the detail that makes this read as a ballpark rather than a
+              scatter plot, and it also gives a free visual answer to "how close
+              was that to going out". */}
+          <path
+            d={`${wedge(-45, 45, wallAt)} ${wedge(-45, 45, (a) => wallAt(a) - 18)}`}
+            fillRule="evenodd"
+            fill="rgba(253,183,90,0.13)"
+          />
+
+          {/* Foul poles. Two short bright uprights where the lines meet the
+              wall — small, but it's the thing that makes the corners read as
+              corners. */}
+          {[-45, 45].map((a) => {
+            const [px, py] = pt(wallAt(a), a)
+            return (
+              <line key={`fp${a}`} x1={px} y1={py} x2={px} y2={py - 11}
+                stroke="#fdb75a" strokeWidth="2" strokeLinecap="round" opacity="0.9" />
+            )
+          })}
 
           {/* Infield: bases and the mound, for scale. Without them the plot has
               no reference for how far in "shallow" actually is. */}

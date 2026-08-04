@@ -93,18 +93,15 @@ function ProjectedHRStat({ mode }) {
           fontSize:8.5, color:C.text3, textTransform:'uppercase',
           letterSpacing:'.09em', fontWeight:800,
         }}>Slate projected</span>
-        {/* Headline is the midpoint to one decimal, so it lines up with the
-            capture pill next door and reads as a single figure at a glance.
-            The range stays underneath because the bot published a range, not a
-            point estimate — printing 40.5 alone would imply a precision the
-            projection doesn't have. */}
+        {/* One figure, the midpoint to a decimal. The bot publishes a range and
+            that range is still in the tooltip — it's off the face because a
+            strip this dense reads better with one number per pill, and the
+            interval is a detail you want on demand rather than always. */}
         <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
           <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:col }}>
             {((projection.low + projection.high) / 2).toFixed(1)}
           </span>
-          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>
-            HR · {projection.low}–{projection.high}
-          </span>
+          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>HR</span>
         </span>
       </div>
     </div>

@@ -52,6 +52,59 @@ export default function MobileCSS() {
         .dash-subtitle { display: none !important; }
         .dashboard-main { padding-left: 8px !important; padding-right: 8px !important; }
       }
+
+      /* ── Phone pass for everything added since the original mobile rules ──
+         Desktop is the primary surface, but the site gets checked on a phone
+         during games, so the rule is: nothing overflows, nothing is unreadable,
+         and the dense tables stay usable by scrolling sideways with the batter
+         name pinned. No card-view rewrite — a stat table read as cards loses
+         the comparison that makes it a table. */
+      @media (max-width: 860px) {
+        /* Header slate strip: let it wrap instead of squeezing, and shrink the
+           pills so two fit per row rather than one and a half. */
+        .dash-header-inner > div { min-width: 0 !important; }
+
+        /* Every DenseTable scrolls sideways with momentum, and the sticky
+           first column keeps the name visible while you do. */
+        .dense-scroll {
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .dense-scroll::-webkit-scrollbar { display: none; }
+        .dense-scroll table { font-size: 10px !important; }
+        .dense-scroll th, .dense-scroll td { padding: 5px 5px !important; }
+
+        /* Modals go effectively full-screen. A centred card with margins wastes
+           a third of a phone screen on backdrop. */
+        .modal-backdrop { padding: 0 !important; align-items: flex-start !important; }
+        .modal-box {
+          width: 100vw !important; max-width: 100vw !important;
+          max-height: 100vh !important; border-radius: 0 !important;
+          border-left: none !important; border-right: none !important;
+        }
+        .modal-content { padding: 14px 12px 24px !important; }
+
+        /* Player-card tab row scrolls rather than wrapping to three lines. */
+        .modal-content > div[style*="flex-wrap"] { }
+
+        /* Spray chart takes the full width and drops its side panel below. */
+        .spray-wrap { flex-direction: column !important; }
+        .spray-wrap svg { max-width: 100% !important; height: auto !important; }
+
+        /* Bot picks: one card per row, which is the readable form on a phone. */
+        .bot-picks-grid { grid-template-columns: 1fr !important; }
+
+        /* Filter bars stack instead of cramming five controls onto one line. */
+        .board-filters > div:first-child { flex-direction: column !important; align-items: stretch !important; gap: 9px !important; }
+      }
+
+      /* Coarse pointers get bigger hit targets regardless of width — the
+         watchlist stars and swap buttons are 30px cells on desktop, which is
+         under the 44px a thumb needs. */
+      @media (pointer: coarse) {
+        .dense-scroll td button { min-height: 34px !important; }
+        button { touch-action: manipulation; }
+      }
     `}</style>
   )
 }
