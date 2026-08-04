@@ -120,6 +120,71 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
       })()}
 
 
+      {/* TONIGHT'S HISTORY PARTNERS — the part of the old on-page builder
+          people actually used: which proven pairings are live right now.
+          Both hitters on tonight's slate, ranked with same-game history
+          first because that's the only causally-correlated version. The full
+          anchor-by-anchor builder lives on Pools; this is the read-only
+          answer to "does history give me anything tonight". */}
+      {(() => {
+        const live = pairs
+          .map((pr) => {
+            const ps = arr(pr?.players)
+            const both = ps.length >= 2 && ps.every((pl) => onSlate.has(
+              String(pl?.player_id ?? '').trim() || String(pl?.name ?? '').toLowerCase().trim(),
+            ))
+            if (!both) return null
+            return {
+              key: clean(pr?.pair_key, `${ps[0]?.name}-${ps[1]?.name}`),
+              names: `${clean(ps[0]?.name, '?')} + ${clean(ps[1]?.name, '?')}`,
+              teams: [clean(ps[0]?.team, ''), clean(ps[1]?.team, '')].filter(Boolean).join(' / '),
+              sameGame: n(pr?.same_game_hr_count, 0),
+              sameDay: n(pr?.same_day_hr_count_season, 0),
+              since: n(pr?.days_since_last_hit, null),
+              _raw: ps[0],
+            }
+          })
+          .filter(Boolean)
+          .sort((a, b) => (b.sameGame - a.sameGame) || (b.sameDay - a.sameDay))
+          .slice(0, 8)
+        if (!live.length) return null
+        return (
+          <div style={{ margin: '2px 0 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: '#FCD34D' }}>⚡ Both playable tonight</span>
+              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+                proven pairings with both halves on the slate — same-game history first
+              </span>
+            </div>
+            <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(235px, 1fr))' }}>
+              {live.map((r) => (
+                <div
+                  key={r.key}
+                  onClick={() => onPlayerClick?.(r._raw)}
+                  style={{
+                    background: r.sameGame > 0
+                      ? 'linear-gradient(155deg, rgba(252,211,77,.13), rgba(252,211,77,.04))'
+                      : C.bg2,
+                    border: `1px solid ${r.sameGame > 0 ? 'rgba(252,211,77,.4)' : C.border}`,
+                    borderRadius: 10, padding: '7px 11px', cursor: onPlayerClick ? 'pointer' : 'default',
+                  }}
+                >
+                  <div style={{ fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {r.names}
+                  </div>
+                  <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
+                    {r.teams}
+                    {r.sameGame > 0 && <b style={{ color: '#FCD34D' }}> · {r.sameGame}× same game</b>}
+                    {' '}· {r.sameDay}× same day
+                    {r.since != null && ` · last ${r.since}d ago`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0 12px' }}>
         <input
           style={{ ...inputStyle(), width: 'auto', flex: '1 1 200px', minWidth: 160 }}
