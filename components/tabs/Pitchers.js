@@ -10,6 +10,13 @@ import PitcherSpots from '../PitcherSpots'
 import PitcherProfile from '../PitcherProfile'
 import PitcherModal from '../PitcherModal'
 
+// Rates arrive as 0–1 fractions; show them as percentages so a 0.38 fly-ball
+// rate reads as 38.0 next to the ERA and WHIP columns instead of as 0.
+const PCT = (v) => {
+  const x = Number(v)
+  return Number.isFinite(x) ? (x * 100).toFixed(1) : '—'
+}
+
 const SORTS = [
   ['weak', 'Most Weak Spots'],
   ['hr9', 'Highest HR/9'],
@@ -222,6 +229,34 @@ export default function Pitchers({ players, onPlayerClick }) {
             weakSide: clean(p.pitcher_weak_side, ''),
             spots: p.weak_spot_count,
             conf: p.lineup_confirmed ? 1 : 0,
+
+            // BATTED BALL ALLOWED. All four verified on 268 of 268 slate rows
+            // and none of them were on this board before. For a home-run site
+            // these are closer to the point than ERA is: fly balls are the only
+            // batted ball that leaves the yard, and hard-hit and barrel rate are
+            // what separates a fly ball from a can of corn.
+            //
+            // WHAT IS MISSING, and it matters: pitcher_gb_rate, pitcher_ld_rate
+            // and pitcher_popup_rate are published as 0 on all 268 rows. The
+            // only GB/LD/popup fields with real values in the payload are
+            // l25pa_gb_rate and friends, which are the HITTER's last-25-PA
+            // rates, not the pitcher's. Using those here would be silently
+            // wrong, so the ground-ball and line-drive columns are simply not
+            // built. See BOT-DATA-REQUESTS.md — this is a bot-side fix.
+            fb: n(src('pitcher_fb_rate'), null),
+            fbSc: n(src('pitcher_statcast_fb_rate'), null),
+            hh: n(src('pitcher_hardhit_allowed'), null),
+            brl: n(src('pitcher_barrel_allowed'), null),
+            hrfb: n(src('pitcher_hr_fb_pct'), null),
+            pullAir: n(src('pitcher_pullair_allowed_pct'), null),
+            // XBH allowed comes split by batter hand; the total is what the
+            // column shows, and the two sides stay available in the modal.
+            xbh: (() => {
+              const l = n(src('pitcher_xbh_vs_lhb'), null)
+              const r = n(src('pitcher_xbh_vs_rhb'), null)
+              if (l == null && r == null) return null
+              return (l || 0) + (r || 0)
+            })(),
           }
         })}
         columns={[
@@ -272,11 +307,28 @@ export default function Pitchers({ players, onPlayerClick }) {
             title: 'Damage by individual lineup spot. Thin by construction.' },
           { key: 'spots',  label: '★ Spots', w: 52,
             title: 'Weak lineup spots he faces tonight' },
+
+          // Batted ball allowed. Grouped at the end so the bot-score block
+          // above stays one uninterrupted run of numbers.
+          { key: 'fb',     label: 'FB%', w: 46, fmt: PCT,
+            title: 'Fly-ball rate allowed, season. The only batted ball that can leave the yard — slate mean is 38%.' },
+          { key: 'fbSc',   label: 'FB% sc', w: 54, fmt: PCT,
+            title: 'Statcast fly-ball rate allowed. Classified from launch angle rather than scorer judgement, so it reads a few points lower than FB% — slate mean 34%.' },
+          { key: 'hh',     label: 'HH%', w: 46, fmt: PCT,
+            title: 'Hard-hit rate allowed — share of batted balls at 95+ mph. Slate mean 38%.' },
+          { key: 'brl',    label: 'Brl%', w: 48, fmt: PCT,
+            title: 'Barrel rate allowed. The single best contact-quality signal for home runs. Slate mean 7%.' },
+          { key: 'hrfb',   label: 'HR/FB', w: 52, fmt: PCT,
+            title: 'Share of his fly balls that left the yard. Slate mean 10%. Noisy year to year — a high number is as often park and luck as it is the arm.' },
+          { key: 'pullAir', label: 'Pull air', w: 54, fmt: PCT,
+            title: 'Pulled air contact allowed. Pulled fly balls are where the short porch lives.' },
+          { key: 'xbh',    label: 'XBH', w: 44, dp: 0,
+            title: 'Extra-base hits allowed this season, both batter sides combined. A count, not a rate — it scales with innings pitched, so read it next to ERA rather than alone.' },
         ]}
         onRowClick={(p) => setModalPitcher(p)}
         initialSort="hr9"
         maxHeight={420}
-        caption="Every starter on the slate, now including the bot's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter."
+        caption="Every starter on the slate, now including the bot's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter. The batted-ball block at the right is what he actually gives up: fly balls, hard contact, barrels, pulled air and extra-base hits. Ground-ball and line-drive rates are deliberately absent — the bot publishes pitcher_gb_rate and pitcher_ld_rate as zero on all 268 rows, and the only real GB/LD numbers in the payload belong to the hitter, not the arm. Overall now blends 70% season with 30% last-three-starts wherever L3 HR/9 exists, so a starter who has been getting hit lately no longer reads like his April self."
       />
 
       {sorted.map((pitcher) => (

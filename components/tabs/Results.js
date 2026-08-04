@@ -7,6 +7,9 @@ import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
 import ResultsDepth from './ResultsDepth'
 import HRPitchProfile from '../HRPitchProfile'
+import PickScorecard, { pickJob } from '../PickScorecard'
+import ScoreAudit from '../ScoreAudit'
+import PlayerPickRecord from '../PlayerPickRecord'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -635,6 +638,7 @@ function PickRow({ r, i, onPlayerClick }) {
   const role = r.final_hr_role || ''
   const col = roleColor(role)
   const pick = r.game_pick_role || r.pick_type || ''
+  const job = pickJob(r)
   const spot = r.weak_spot_flag
   const aligned = (r.top_board_tags || []).some(t => String(t).includes('🧩'))
   const pills = (Array.isArray(r.signal_pills) ? r.signal_pills : []).slice(0, 2)
@@ -688,13 +692,27 @@ function PickRow({ r, i, onPlayerClick }) {
         </div>
       </div>
 
-      <div>
+      {/* The pick chip, and next to it whether he did THAT pick's job — not
+          whether he homered. A HIT pick that singled gets a ✓ here even though
+          the row has no green HR highlight, which is the whole point. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span style={{
           fontSize: 9, padding: '2px 6px', borderRadius: 5,
           background: `${col}22`, color: col,
           fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
           fontFamily: NUM_FONT, whiteSpace: 'nowrap',
         }}>{pickLabel(pick)}</span>
+        {job && isFinal && (
+          <span
+            title={job.did
+              ? `Did its job — a ${job.label} pick needed ${job.job}, and he got it.`
+              : `Missed — a ${job.label} pick needed ${job.job}.`}
+            style={{
+              fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT,
+              color: job.did ? job.color : C.border,
+            }}
+          >{job.did ? '✓' : '·'}</span>
+        )}
       </div>
 
       <div style={{ textAlign: 'right', minWidth: 56 }}>
@@ -956,6 +974,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <TabBtn active={subTab === 'pitchtype'} onClick={() => setSubTab('pitchtype')}>🎯 HR by pitch</TabBtn>
         <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
         <TabBtn active={subTab === 'picks'} onClick={() => setSubTab('picks')}>📋 Picks</TabBtn>
+        <TabBtn active={subTab === 'record'} onClick={() => setSubTab('record')}>👤 Track record</TabBtn>
       </div>
 
       {/* OVERVIEW */}
@@ -967,6 +986,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           <HRHits homers={homers} />
           <MultiHitCluster slots={slots} />
           <CategoryBar slots={slots} />
+          <ScoreAudit slots={slots} players={players} />
           <MissedHRs report={captureReport} />
         </>
       )}
@@ -986,6 +1006,12 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <PairsResults pairPoolResults={pairPoolResults} />
       )}
 
+      {/* PER-PLAYER TRACK RECORD — spans every graded day, so it ignores the
+          day picker above on purpose. */}
+      {subTab === 'record' && (
+        <PlayerPickRecord backtest={backtest} onPlayerClick={onPlayerClick} />
+      )}
+
       {/* PICKS */}
       {subTab === 'picks' && (
         <>
@@ -993,9 +1019,14 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             <TabBtn active={tab === 'hr'} onClick={() => setTab('hr')}>✅ HR Scorers ({hrRows.length})</TabBtn>
             <TabBtn active={tab === 'board'} onClick={() => setTab('board')}>🏆 Top Board ({topBoard.length})</TabBtn>
             <TabBtn active={tab === 'all'} onClick={() => setTab('all')}>📋 All ({allRows.length})</TabBtn>
+            <TabBtn active={tab === 'job'} onClick={() => setTab('job')}>🎯 Did its job</TabBtn>
           </div>
 
-          {pickRows.length === 0
+          {tab === 'job' && (
+            <PickScorecard slots={slots} backtest={backtest} onPlayerClick={onPlayerClick} />
+          )}
+
+          {tab !== 'job' && (pickRows.length === 0
             ? <Empty text={tab === 'hr' ? 'No HR scorers in this pick set.' : 'No picks in this view.'} />
             : (
               <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -1004,7 +1035,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
                 ))}
               </div>
             )
-          }
+          )}
         </>
       )}
 
