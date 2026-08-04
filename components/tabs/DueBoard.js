@@ -25,12 +25,6 @@ const buildColumns = (onWatch) => [
   { key: 'watched', label: '☆',       action: true, w: 30, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
   { key: 'name',    label: 'Batter',  heat: false, w: 148, bold: true, sticky: true },
-  { key: 'team',    label: 'Tm',      heat: false, w: 34, mono: true, dim: true },
-  { key: 'opp',     label: 'Opp',     heat: false, w: 34, mono: true, dim: true },
-  { key: 'tag',     label: 'Tag',     heat: false, w: 92, dim: true },
-  { key: 'spot',    label: '#',       heat: false, w: 28, mono: true, dim: true,
-    title: 'Lineup spot — a label, not a score' },
-  { key: 'bats',    label: 'B',       heat: false, w: 26, mono: true, dim: true },
   { key: 'weak',    label: '★',       flag: true, mark: '★', w: 30 },
   { key: 'due',     label: 'Due',     w: 44, dp: 1 },
   { key: 'ratio',   label: 'Ratio',   w: 46, dp: 2,
@@ -57,6 +51,22 @@ const buildColumns = (onWatch) => [
     title: 'Share of tracked balls travelling 350+ ft — distance he still has' },
   { key: 'pa',      label: 'PA',      w: 42,
     title: 'Season plate appearances — the denominator under HR/PA' },
+  // The matchup half. A drought is only interesting against an arm that gives
+  // homers up — "due" plus a pitcher who suppresses them is not a bet.
+  { key: 'matchup', label: 'vs',      heat: false, w: 120, dim: true,
+    title: 'Tonight’s starter' },
+  { key: 'pFB',     label: 'P FB%',   w: 48, dp: 0,
+    title: 'Fly balls he allows — a drought breaks in the air' },
+  { key: 'pBrl',    label: 'P Brl%',  w: 50, dp: 1,
+    title: 'Barrel rate allowed' },
+  { key: 'pEV',     label: 'P EV',    w: 46, dp: 1,
+    title: 'Average exit velocity allowed' },
+  { key: 'p375',    label: 'P 375+',  w: 50,
+    title: 'Balls he has let travel 375+ ft' },
+  { key: 'parkHR',  label: 'Park×',   w: 46, dp: 2,
+    title: 'Park home-run factor — above 1.00 helps' },
+  { key: 'weakSide', label: 'Weak side', heat: false, w: 62, dim: true,
+    title: 'The side this pitcher struggles against' },
 ]
 
 function Tile({ label, value, sub }) {
@@ -117,6 +127,13 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
       ihr: n(p?.recent_ideal_hr_contact, 0) * 100,
       d350: (100 * n(p?.recent_350_num, 0)) / den350,
       pa: n(p?.season_pa, 0),
+      matchup: clean(p?.pitcher_name, 'TBD'),
+      pFB: n(p?.pitcher_fb_rate, 0) * (n(p?.pitcher_fb_rate, 0) <= 1 ? 100 : 1),
+      pBrl: n(p?.pitcher_barrel_allowed, 0) * (n(p?.pitcher_barrel_allowed, 0) <= 1 ? 100 : 1),
+      pEV: n(p?.pitcher_ev_allowed, 0),
+      p375: n(p?.pitcher_375_allowed, 0),
+      parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 1)),
+      weakSide: clean(p?.pitcher_weak_side, ''),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }
   }), [players, watchIds])

@@ -72,7 +72,9 @@ function ProjectedHRStat({ mode }) {
 
   if (!projection) return null
   const g = projection.grade.toLowerCase()
-  const col = g.includes('strong') ? '#f97316' : g.includes('medium') ? '#FCD34D' : '#a78bfa'
+  // Grade sets the colour and nothing else — the word itself was noise in a
+  // strip this dense, and it's still in the tooltip.
+  const col = g.includes('strong') ? '#f97316' : g.includes('medium') ? '#FCD34D' : '#38bdf8'
 
   return (
     <div
@@ -103,11 +105,6 @@ function ProjectedHRStat({ mode }) {
           <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>
             HR · {projection.low}–{projection.high}
           </span>
-          {projection.grade && (
-            <span style={{ fontSize:9, color:col, fontWeight:800, letterSpacing:'.02em' }}>
-              {projection.grade}
-            </span>
-          )}
         </span>
       </div>
     </div>

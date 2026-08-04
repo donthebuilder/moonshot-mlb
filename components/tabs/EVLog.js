@@ -141,6 +141,14 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   const groupBox = {
     display: 'flex', borderRadius: 6, overflow: 'hidden', border: `1px solid ${C.border2}`,
   }
+  // Controls grouped and labelled. The row was eleven undifferentiated buttons
+  // and two selects with no indication which belonged together — you had to
+  // click one to find out what it did.
+  const cluster = { display: 'flex', alignItems: 'center', gap: 5 }
+  const clusterLbl = {
+    fontSize: 8, color: C.text3, textTransform: 'uppercase',
+    letterSpacing: '.09em', fontWeight: 800, whiteSpace: 'nowrap',
+  }
   const selectStyle = {
     fontSize: 10, padding: '3px 7px', borderRadius: 6, border: `1px solid ${C.border2}`,
     background: C.bg3, color: C.text, cursor: 'pointer', fontFamily: NUM_FONT,
@@ -151,9 +159,13 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+      <div style={{
+        display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center',
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
+      }}>
         {bbeRangeProp == null && (
-          <>
+          <div style={cluster}>
+            <span style={clusterLbl}>Window</span>
             <div style={groupBox}>
               <button style={seg(mode === 'games')} onClick={() => setMode('games')}>Games</button>
               <button style={seg(mode === 'bbe')} onClick={() => setMode('bbe')}>Batted balls</button>
@@ -167,23 +179,29 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
                 >{mode === 'games' ? `${v}G` : `${v}BBE`}</button>
               ))}
             </div>
-          </>
+          </div>
         )}
 
-        <div style={groupBox}>
-          {['ALL', 'R', 'L'].map((v) => (
-            <button key={v} style={seg(armFilter === v)} onClick={() => setArmFilter(v)}>
-              {v === 'ALL' ? 'All arm' : v === 'R' ? 'RHP' : 'LHP'}
-            </button>
-          ))}
+        <div style={cluster}>
+          <span style={clusterLbl}>Arm</span>
+          <div style={groupBox}>
+            {['ALL', 'R', 'L'].map((v) => (
+              <button key={v} style={seg(armFilter === v)} onClick={() => setArmFilter(v)}>
+                {v === 'ALL' ? 'All' : v === 'R' ? 'RHP' : 'LHP'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div style={groupBox}>
-          {['ALL', 'R', 'L'].map((v) => (
-            <button key={v} style={seg(batterHand === v)} onClick={() => setBatterHand(v)}>
-              {v === 'ALL' ? 'All bat' : v === 'R' ? 'RHB' : 'LHB'}{batsLabel && v === batsLabel ? ' ★' : ''}
-            </button>
-          ))}
+        <div style={cluster}>
+          <span style={clusterLbl}>Bats</span>
+          <div style={groupBox}>
+            {['ALL', 'R', 'L'].map((v) => (
+              <button key={v} style={seg(batterHand === v)} onClick={() => setBatterHand(v)}>
+                {v === 'ALL' ? 'All' : v === 'R' ? 'RHB' : 'LHB'}{batsLabel && v === batsLabel ? ' ★' : ''}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div style={groupBox}>

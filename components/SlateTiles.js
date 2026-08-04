@@ -20,14 +20,17 @@ const playerScore = (p) => median([
   hrScore(p), prodScore(p), nn(p?.hrw_score), nn(p?.damage_conversion_score),
 ])
 
-function Tile({ label, value, delta, tone: toneKey = 'flat', dot }) {
+function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color }) {
   // Tinted to match the capture pill next door. Grey boxes read as chrome;
   // a tinted pill with a live dot reads as an instrument, which is what these
   // are -- they change during the night.
-  const col = toneKey === 'up' ? '#4ade80'
+  // Explicit colour wins. Each tile owning a hue makes the strip readable at a
+  // glance and photographs better than one orange row — Games blue, Weak gold,
+  // Settled green, Best game orange.
+  const col = color || (toneKey === 'up' ? '#4ade80'
     : toneKey === 'down' ? '#f87171'
     : toneKey === 'accent' ? C.orange
-    : C.text3
+    : C.text3)
 
   // Screenshot polish: a soft diagonal tint and a faint outer glow instead of a
   // flat fill. Same information, but the strip photographs as an instrument
@@ -39,7 +42,7 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot }) {
       padding: '5px 12px', borderRadius: 9, minWidth: 0,
       background: `linear-gradient(135deg, ${col}22, ${col}08)`,
       border: `1px solid ${col}45`,
-      boxShadow: toneKey === 'flat' ? 'none' : `0 0 16px ${col}12`,
+      boxShadow: (toneKey === 'flat' && !color) ? 'none' : `0 0 16px ${col}14`,
     }}>
       <div style={{
         fontSize: 8, textTransform: 'uppercase', letterSpacing: '.09em',
@@ -59,7 +62,7 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot }) {
       }}>
         <span style={{
           fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900,
-          color: toneKey === 'flat' ? C.text : col, letterSpacing: '-.02em',
+          color: (toneKey === 'flat' && !color) ? C.text : col, letterSpacing: '-.02em',
         }}>{value}</span>
         {delta && (
           <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{delta}</span>
@@ -114,16 +117,7 @@ export default function SlateTiles({ players = [], results, games = [] }) {
           number you never act on, and 70+ / Aligned are both "how many hitters
           clear a threshold", which the boards answer better and with the
           threshold visible. */}
-      <Tile label="Games" value={stats.gameCount} />
-      {stats.actual != null && (
-        <Tile
-          label="HR actual"
-          value={stats.actual.toFixed(0)}
-          delta={stats.onSheet != null ? `${stats.onSheet} on board` : null}
-          tone="up"
-          dot
-        />
-      )}
+      <Tile label="Games" value={stats.gameCount} color="#38bdf8" />
       {stats.best && (
         <Tile
           label="Best game"
@@ -133,9 +127,9 @@ export default function SlateTiles({ players = [], results, games = [] }) {
           dot
         />
       )}
-      <Tile label="★ Weak" value={stats.weak} tone="accent" />
+      <Tile label="★ Weak" value={stats.weak} color="#FCD34D" dot />
       {stats.settled > 0 && (
-        <Tile label="Settled" value={stats.settled} delta="graded" />
+        <Tile label="Settled" value={stats.settled} delta="graded" color="#4ade80" />
       )}
     </div>
   )
