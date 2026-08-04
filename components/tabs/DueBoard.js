@@ -93,12 +93,22 @@ function RecentBombers({ all = [], onPlayerClick }) {
   const [win, setWin] = useState(5)
   const [open, setOpen] = useState(true)
 
+  // THE ONE PARAMETER: games_since_last_hr, on 267/267 slate rows.
+  // 0 = homered in his most recent game, so "within the last N games" is
+  // drought <= N−1. Nothing else filters — an earlier version also required
+  // last5_hr > 0 as a sanity guard, which was exactly the kind of quiet
+  // second condition that drops legitimate names when the L5 fields lag the
+  // drought counter. Verified against the live payload (2026-08-04): the
+  // drought filter alone catches every hitter the L5 fields know about, so
+  // the guard bought nothing and could only ever cost.
+  //
+  // WHO STILL CAN'T APPEAR, by construction: anyone not on TONIGHT'S slate.
+  // A hitter who bombed last night but isn't in tonight's player pool has no
+  // slate row to read. That's a data boundary, not a filter — the caption
+  // says so.
   const rows = useMemo(() => (
     all
-      // drought counts games SINCE the homer, so 0 = last game. A hitter
-      // qualifies for a 3-game window when drought <= 2. Guard on l7hr/l5
-      // power so a stale drought=0 from a data hiccup can't sneak in.
-      .filter((r) => r.drought <= win - 1 && (n(r._raw?.last5_hr, 0) > 0 || n(r._raw?.last7_hr, 0) > 0 || r.drought === 0))
+      .filter((r) => r.drought <= win - 1)
       .sort((a, b) => (a.drought - b.drought)
         || (n(b._raw?.last5_hr, 0) - n(a._raw?.last5_hr, 0))
         || (b.hr - a.hr))
@@ -141,34 +151,60 @@ function RecentBombers({ all = [], onPlayerClick }) {
           rows={rows.map((r) => ({
             ...r,
             l5hr: n(r._raw?.last5_hr, 0),
+            l10hr: n(r._raw?.last10_hr, 0),
             l5x: n(r._raw?.last5_xbh, 0),
             iso: n(r._raw?.season_iso, 0) * 100,
             hrw: n(r._raw?.hrw_score, 0),
+            sHR: n(r._raw?.season_hr, 0),
+            hrPA100: n(r._raw?.hr_per_pa, 0) * 100,
+            pick: clean(r._raw?.game_pick_role, ''),
+            isPick: String(r._raw?.game_pick_role || '').trim() ? 1 : 0,
           }))}
           columns={[
             { key: 'name',    label: 'Batter', heat: false, w: 148, bold: true, sticky: true },
             { key: 'team',    label: 'Tm',  heat: false, w: 34, mono: true, dim: true },
             { key: 'opp',     label: 'Opp', heat: false, w: 34, mono: true, dim: true },
-            { key: 'matchup', label: 'Facing', heat: false, w: 120, dim: true },
+            { key: 'spot',    label: '#', heat: false, w: 28, mono: true, dim: true,
+              title: 'Lineup spot tonight' },
+            { key: 'bats',    label: 'B', heat: false, w: 26, mono: true, dim: true },
+            { key: 'matchup', label: 'Facing', heat: false, w: 118, dim: true },
+            { key: 'isPick',  label: '🤖', flag: true, mark: '●', w: 32,
+              title: 'One of the bot’s designated picks tonight' },
+            { key: 'weak',    label: '★', flag: true, mark: '★', w: 30,
+              title: 'Weak lineup spot against tonight’s starter' },
             { key: 'drought', label: 'Last HR', heat: false, w: 58, mono: true,
               fmt: (v) => (Number(v) === 0 ? 'last gm' : `${v}g ago`),
-              title: 'How many games since the homer — 0 means his most recent game' },
+              title: 'How many games since the homer — 0 means his most recent game. This is the ONLY filter: window of N games = this number ≤ N−1.' },
             { key: 'l5hr',    label: 'HR L5', w: 46,
-              title: 'Homers in his last five games' },
+              title: 'Homers in his last five games — 2+ is a genuine heater' },
+            { key: 'l10hr',   label: 'HR L10', w: 50,
+              title: 'Homers in his last ten — separates a hot week from one swing' },
             { key: 'l5h',     label: 'H L5', w: 44 },
             { key: 'l5x',     label: 'XBH L5', w: 52 },
+            { key: 'sHR',     label: 'Szn HR', w: 50,
+              title: 'Season home runs — is the recent one part of a pattern or a surprise' },
+            { key: 'hrPA100', label: 'HR/PA', w: 48, dp: 1,
+              title: 'Season HR per 100 PA. 4+ is a true power bat; a recent bomb from a 1.5 is much more likely a one-off.' },
             { key: 'hr',      label: 'HR scr', w: 48, dp: 1 },
             { key: 'hrw',     label: 'HRW', w: 46, dp: 0 },
             { key: 'iso',     label: 'ISO', w: 44, dp: 0,
-              title: 'Season ISO ×100 — the archive’s strongest HR predictor' },
+              title: 'Season ISO ×100 — the archive’s strongest HR predictor: sub-13 homered 8.2%, 23+ homered 22.2%' },
+            { key: 'barrel',  label: 'Brl%', w: 46, dp: 1,
+              title: 'Recent barrel rate — is the contact quality still there' },
             { key: 'ev',      label: 'EV', w: 46, dp: 1 },
+            { key: 'ihr',     label: 'IHR%', w: 46, dp: 1,
+              title: 'Ideal HR contact rate — the EV/launch window that produces homers' },
             { key: 'hr9',     label: 'P HR/9', w: 50, dp: 2,
               title: 'Tonight’s starter — homers allowed per nine' },
+            { key: 'pBrl',    label: 'P Brl%', w: 50, dp: 1,
+              title: 'Barrel rate tonight’s starter allows' },
+            { key: 'parkHR',  label: 'Park×', w: 48, dp: 2,
+              title: 'Park HR factor tonight — above 1.00 helps' },
           ]}
           onRowClick={onPlayerClick}
           initialSort={null}
-          maxHeight={330}
-          caption={`Everyone on tonight's slate who homered within the last ${win} game${win > 1 ? 's' : ''}, most recent first. Heat-check chasers read this top-down; regression readers read it as a fade list — the table doesn't pick a side. One honest note: back-to-back games isn't a published stat, so "last gm" is the tightest window the data supports.`}
+          maxHeight={360}
+          caption={`Everyone on tonight's slate whose last homer came within his last ${win} game${win > 1 ? 's' : ''} — the only parameter is games_since_last_hr ≤ ${win - 1}, nothing else filters. Two boundaries to know: a hitter whose team isn't on tonight's slate can't appear (no slate row to read), and the window counts HIS games, not calendar days. Most recent first, then homers in the window. Read Szn HR and HR/PA before chasing: a bomb from a 4+ HR/PA bat is a pattern, the same bomb from a 1.5 is usually a one-off. Heat-chasers read top-down, regression players read it as a fade list — the table doesn't pick a side.`}
         />
       ))}
     </div>
