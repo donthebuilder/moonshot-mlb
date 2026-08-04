@@ -205,18 +205,22 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
       />
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
-        Over the nine graded days, <b style={{ color: C.text2 }}>TOP picks homered 32.9%</b> of the
-        time and <b style={{ color: C.text2 }}>HR picks homered 14.9%</b>. The bucket named for home
-        runs produces them at less than half the rate of the bucket that isn&apos;t. HIT got a hit
-        77.7% and HRR cleared its bar 52.8%, so those two are doing their jobs.
+        The cards above are this day only. Measured across the full local archive —
+        <b style={{ color: C.text2 }}> 3,973 picks over 39 graded days</b>, roughly six times what
+        the published branch carries — the categories land at: HIT 64.5%, HRR 48.0%, CONTACT 38.2%,
+        TOP 19.2%, HR 15.4%.
         <br /><br />
-        The {baseHr.toFixed(1)}% figure above each HR card is the rate across all graded slots, and it
-        is <i>not</i> a control group — it&apos;s the average of these same buckets, and TOP is what
-        pulls it up. So read HR against TOP directly rather than against that number. Two caveats
-        that cut the other way: 134 picks is a small sample, and it&apos;s unconfirmed whether TOP
-        overlaps the other categories rather than sitting beside them. If TOP is a
-        best-of-the-board flag layered on top, it isn&apos;t a clean rival to HR — it&apos;s a
-        different kind of thing, and the comparison is softer than it looks.
+        On home runs specifically, <b style={{ color: C.text2 }}>TOP 19.2% and HR 15.4%</b>, against
+        14.6% across every pick in the archive. That gap is <b style={{ color: C.text2 }}>not
+        statistically significant</b> — TOP vs HR is p=0.084, and HR against every other pick is
+        p=0.556, which is no difference at all. The 95% intervals overlap heavily: TOP [16.2, 22.6],
+        HR [12.7, 18.6].
+        <br /><br />
+        So the honest read is narrow and worth stating exactly: <b style={{ color: C.text2 }}>the HR
+        bucket does not distinguish itself from any other pick on home runs.</b> It is not
+        established that it&apos;s worse, and it is not established that TOP is better. An earlier
+        version of this note claimed HR picks homered below baseline while TOP nearly doubled it;
+        that came from a nine-day slice and did not survive the full archive.
       </div>
     </div>
   )

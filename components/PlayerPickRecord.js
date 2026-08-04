@@ -6,49 +6,52 @@ import { clean } from '../lib/player'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
 
-// PER-PLAYER PICK TRACK RECORD.
+// PER-PLAYER PICK TRACK RECORD, BY CATEGORY.
 //
-// The category scorecard answers "does the HR bucket work". This answers the
-// question you actually ask when you're building a card: has THIS GUY, when the
-// bot has picked him, done the thing he was picked for.
+// The question this answers: when the bot picks THIS guy for THIS kind of bet,
+// does he deliver. Not "is he good" — good at what.
 //
-// Nothing on the site did this before. Results only ever loaded one graded day,
-// so a player's history existed in the archive but was never assembled — you
-// could see that Judge homered last Tuesday, not that he's been picked six
-// times and delivered twice.
+// WHY THIS READS A STATIC FILE INSTEAD OF THE DATA BRANCH.
+// The published `data` branch keeps the last stretch of graded days — nine at
+// the time of writing. The local results archive has 39 days and 3,973 picks,
+// six times as much, and the extra data changes the answers materially (the
+// nine-day slice had TOP homering at 32.9%; across 39 days it's 19.2%). Nine
+// days is not enough to say anything about an individual player, so this ships
+// the full archive as a snapshot at public/pick_matrix.json rather than
+// recomputing from whatever the branch happens to be holding.
 //
-// This fetches every graded day the backtest knows about (nine today) and rolls
-// them up by player_id. Each appearance is graded against its own category's
-// job, same rules as the scorecard:
+// It is a SNAPSHOT and the header says so with its date range. Regenerating it
+// is a bot-side job; see BOT-DATA-REQUESTS.md. Nothing here silently ages —
+// if the file is stale, the range in the header is the tell.
 //
-//   HR / TOP   homered
-//   HIT        got a base hit
-//   CONTACT    2+ total bases
-//   HRR        2+ combined hits, runs and RBI
+// THE THRESHOLD RULE, which is the whole reason this table is trustworthy.
+// A rate is shown only at 3+ picks IN THAT CATEGORY. Below that the cell shows
+// the raw fraction and nothing else, because "1/1" is not 100% and sorting a
+// column that treats it as 100% would put every one-appearance fluke on top —
+// which is precisely the failure mode a table like this invites. 531 of the
+// player-category cells clear 3; the rest stay fractions.
 //
-// THE SAMPLE IS SMALL AND THE TABLE SAYS SO. Nine days means most players have
-// been picked once or twice. A 1-for-1 player is not a 100% player, so the
-// default sort is by number of picks rather than by hit rate, the rate column
-// is blank under three appearances, and there's a minimum-picks filter that
-// starts at 3. Sorting a nine-day archive by percentage would put every
-// one-appearance fluke on top, which is exactly the wrong thing for this to do.
+// Each category is graded on its own outcome:
+//   HR / TOP / TOP15   homered
+//   HIT                got a base hit
+//   CONTACT            2+ total bases
+//   HRR                2+ combined hits, runs and RBI
 
 const JOBS = {
   HR:      { label: 'HR',      job: '1+ HR',          test: (r) => r.hr > 0 },
   TOP:     { label: 'Top',     job: '1+ HR',          test: (r) => r.hr > 0 },
+  TOP15:   { label: 'Top15',   job: '1+ HR',          test: (r) => r.hr > 0 },
   HIT:     { label: 'Hit',     job: '1+ hit',         test: (r) => r.hits > 0 },
   CONTACT: { label: 'Contact', job: '2+ total bases', test: (r) => r.tb >= 2 },
   HRR:     { label: 'HRR',     job: '2+ H+R+RBI',     test: (r) => r.hits + r.runs + r.rbi >= 2 },
 }
-const CATS = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+const CAT_ORDER = ['HIT', 'HRR', 'CONTACT', 'TOP', 'TOP15', 'HR']
+const MIN_RATE = 3
 const i = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 
-// Shared loader. The track-record tab uses it to build its table; the pick
-// scorecard uses it to stamp a prior record onto tonight's picks. Same fetch,
-// same rules, so the two views can't disagree.
-//
-// Nine small JSON files, fetched in parallel and only when a view that needs
-// them mounts.
+// ── live-archive hook, still used by the pick scorecard ──────────────────────
+// Reads the published branch. Kept separate from the snapshot on purpose: the
+// scorecard needs whatever is current, this table needs whatever is biggest.
 export function usePickRecords(backtest) {
   const [days, setDays] = useState([])
   const [state, setState] = useState('loading')
@@ -71,13 +74,11 @@ export function usePickRecords(backtest) {
     )).then((all) => {
       if (!alive) return
       const ok = all.filter((x) => x.json)
-      setDays(ok)
-      setState(ok.length ? 'done' : 'error')
+      setDays(ok); setState(ok.length ? 'done' : 'error')
     })
     return () => { alive = false }
   }, [dates])
 
-  // player_id -> { picks, did, byCat: { HR: {n, ok}, ... } }
   const byPlayer = useMemo(() => {
     const map = new Map()
     days.forEach(({ json }) => {
@@ -85,7 +86,7 @@ export function usePickRecords(backtest) {
         : Array.isArray(json?.results) ? json.results
         : Array.isArray(json) ? json : []
       slots.forEach((s) => {
-        const role = clean(s?.game_pick_role, '').split('/')[0].trim().toUpperCase()
+        const role = clean(s?.game_pick_role || s?.pick_type, '').split('/')[0].trim().toUpperCase()
         const j = JOBS[role]
         if (!j) return
         const id = String(s?.player_id ?? '')
@@ -94,14 +95,12 @@ export function usePickRecords(backtest) {
           hr: i(s.actual_hr), hits: i(s.actual_hits),
           runs: i(s.actual_runs), rbi: i(s.actual_rbi), tb: i(s.actual_tb),
         }
-        const did = j.test(app)
+        const ok = j.test(app)
         let p = map.get(id)
         if (!p) { p = { picks: 0, did: 0, byCat: {} }; map.set(id, p) }
-        p.picks++
-        if (did) p.did++
+        p.picks++; if (ok) p.did++
         p.byCat[role] = p.byCat[role] || { n: 0, ok: 0 }
-        p.byCat[role].n++
-        if (did) p.byCat[role].ok++
+        p.byCat[role].n++; if (ok) p.byCat[role].ok++
       })
     })
     return map
@@ -110,133 +109,117 @@ export function usePickRecords(backtest) {
   return { days, dates, state, byPlayer }
 }
 
-export default function PlayerPickRecord({ backtest, onPlayerClick }) {
-  const { days, dates, state } = usePickRecords(backtest)
-  const [minPicks, setMinPicks] = useState(3)
-  const [cat, setCat] = useState('ALL')
+// ── the matrix ───────────────────────────────────────────────────────────────
 
-  // One row per player, with every appearance folded in.
-  const players = useMemo(() => {
-    const map = new Map()
-    days.forEach(({ date, json }) => {
-      const slots = Array.isArray(json?.graded_slots) ? json.graded_slots
-        : Array.isArray(json?.results) ? json.results
-        : Array.isArray(json) ? json : []
-      slots.forEach((s) => {
-        const role = clean(s?.game_pick_role, '').split('/')[0].trim().toUpperCase()
-        const j = JOBS[role]
-        if (!j) return
-        const id = String(s?.player_id ?? s?.name ?? '')
-        if (!id) return
-        const app = {
-          date, role,
-          hr: i(s.actual_hr), hits: i(s.actual_hits),
-          runs: i(s.actual_runs), rbi: i(s.actual_rbi), tb: i(s.actual_tb),
+export default function PlayerPickRecord({ onPlayerClick }) {
+  const [data, setData] = useState(null)
+  const [state, setState] = useState('loading')
+  const [minPicks, setMinPicks] = useState(5)
+  const [only, setOnly] = useState('ALL')
+
+  useEffect(() => {
+    let alive = true
+    fetch('/pick_matrix.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) { setData(j); setState(j ? 'done' : 'error') } })
+      .catch(() => { if (alive) setState('error') })
+    return () => { alive = false }
+  }, [])
+
+  const rows = useMemo(() => {
+    if (!data) return []
+    return data.players
+      .filter((p) => p.p >= minPicks)
+      .filter((p) => only === 'ALL' || (p.c?.[only]?.[1] || 0) >= MIN_RATE)
+      .map((p) => {
+        const r = {
+          _key: p.n, _raw: { name: p.n, team: p.t },
+          name: p.n, team: p.t, picks: p.p, did: p.d,
+          rate: p.p >= MIN_RATE ? (100 * p.d) / p.p : null,
+          hr: p.hr, h: p.h, tb: p.tb,
+          avg: p.ab >= 20 ? p.h / p.ab : null,
+          last: String(p.last || '').slice(5),
         }
-        app.did = j.test(app)
-        let p = map.get(id)
-        if (!p) {
-          p = {
-            _key: id, id,
-            name: clean(s?.name, '—'), team: clean(s?.team, ''),
-            apps: [], byCat: {},
-          }
-          map.set(id, p)
-        }
-        p.apps.push(app)
-        p.byCat[role] = p.byCat[role] || { n: 0, ok: 0 }
-        p.byCat[role].n++
-        if (app.did) p.byCat[role].ok++
+        // One column per category. Rate above the threshold, raw fraction
+        // below it — never a percentage computed off one or two picks.
+        CAT_ORDER.forEach((c) => {
+          const cell = p.c?.[c]
+          if (!cell) { r[c] = null; r[`${c}_t`] = '—'; return }
+          const [ok, n] = cell
+          r[c] = n >= MIN_RATE ? (100 * ok) / n : null
+          r[`${c}_t`] = n >= MIN_RATE ? `${(100 * ok / n).toFixed(0)}% (${ok}/${n})` : `${ok}/${n}`
+        })
+        return r
       })
-    })
+  }, [data, minPicks, only])
 
-    return [...map.values()].map((p) => {
-      const use = cat === 'ALL' ? p.apps : p.apps.filter((a) => a.role === cat)
-      const n = use.length
-      const ok = use.filter((a) => a.did).length
-      const hr = use.reduce((s, a) => s + a.hr, 0)
-      const hits = use.reduce((s, a) => s + a.hits, 0)
-      const tb = use.reduce((s, a) => s + a.tb, 0)
-      // The category mix, most-picked first — this is the "which pick was it"
-      // part, kept as a compact string so it fits one column.
-      const mix = CATS.filter((c) => p.byCat[c])
-        .sort((a, b) => p.byCat[b].n - p.byCat[a].n)
-        .map((c) => `${JOBS[c].label} ${p.byCat[c].ok}/${p.byCat[c].n}`)
-        .join(' · ')
-      const last = [...use].sort((a, b) => (a.date < b.date ? 1 : -1))[0]
-      return {
-        _key: p._key, _raw: { player_id: p.id, name: p.name, team: p.team },
-        name: p.name, team: p.team,
-        picks: n, did: ok,
-        // Blank under 3 picks — a 1-for-1 is not a rate.
-        rate: n >= 3 ? (100 * ok) / n : null,
-        hr, hits, tb,
-        mix, last: last ? last.date.slice(5) : '',
-        streak: (() => {
-          // Consecutive most-recent appearances that delivered. A small,
-          // readable "is he on one right now" signal.
-          const seq = [...use].sort((a, b) => (a.date < b.date ? 1 : -1))
-          let k = 0
-          for (const a of seq) { if (a.did) k++; else break }
-          return k
-        })(),
-      }
-    }).filter((p) => p.picks >= minPicks)
-      .sort((a, b) => b.picks - a.picks || (b.rate ?? -1) - (a.rate ?? -1))
-  }, [days, minPicks, cat])
+  if (state === 'loading') return <Empty text="Loading the pick archive…" />
+  if (state === 'error') return <Empty text="pick_matrix.json could not be loaded." />
 
-  if (state === 'loading') return <Empty text={`Loading ${dates.length} graded days…`} />
-  if (state === 'none') return <Empty text="No graded days in the backtest summary yet." />
-  if (state === 'error') return <Empty text="None of the graded files could be loaded." />
-
-  const totalApps = players.reduce((s, p) => s + p.picks, 0)
-  const totalOk = players.reduce((s, p) => s + p.did, 0)
+  const m = data.meta
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Pick</span>
-        {['ALL', ...CATS].map((c) => (
-          <Btn key={c} active={cat === c} onClick={() => setCat(c)}>
-            {c === 'ALL' ? 'All' : JOBS[c].label}
-          </Btn>
-        ))}
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 8 }}>Min picks</span>
-        {[1, 2, 3, 5].map((m) => (
-          <Btn key={m} active={minPicks === m} onClick={() => setMinPicks(m)}>{m}+</Btn>
-        ))}
+      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>
+        Player pick record, by category
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, marginBottom: 9, lineHeight: 1.6 }}>
+        <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.picks.toLocaleString()} picks</b> ·{' '}
+        <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.players} players</b> ·{' '}
+        <span style={{ fontFamily: NUM_FONT }}>{m.days} graded days, {m.from} to {m.to}</span>.
+        A snapshot of the full local archive, six times what the live branch carries — nine days
+        isn&apos;t enough to say anything about one player.
       </div>
 
-      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, fontFamily: NUM_FONT }}>
-        {players.length} players · {totalApps} appearances · {totalOk} delivered · {days.length} graded days
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Has a record in</span>
+        <Btn active={only === 'ALL'} onClick={() => setOnly('ALL')}>Any</Btn>
+        {CAT_ORDER.map((c) => (
+          <Btn key={c} active={only === c} onClick={() => setOnly(c)}>{JOBS[c].label}</Btn>
+        ))}
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 10 }}>Total picks</span>
+        {[3, 5, 10, 20].map((v) => (
+          <Btn key={v} active={minPicks === v} onClick={() => setMinPicks(v)}>{v}+</Btn>
+        ))}
+        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginLeft: 6 }}>
+          {rows.length} shown
+        </span>
       </div>
 
       <DenseTable
-        rows={players}
+        rows={rows}
         columns={[
-          { key: 'name',   label: 'Player', heat: false, w: 152, bold: true, sticky: true },
-          { key: 'team',   label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
-          { key: 'mix',    label: 'Picked as', heat: false, w: 210, dim: true, mono: true,
-            title: 'Every category he has been picked in, with how often he did that category’s job. Most-picked first.' },
-          { key: 'last',   label: 'Last',   heat: false, w: 44, mono: true, dim: true,
-            title: 'Most recent day he was a pick' },
-          { key: 'picks',  label: 'Picks',  w: 46,
-            title: 'How many times the bot has picked him across the graded archive' },
-          { key: 'did',    label: 'Did job', w: 56,
-            title: 'How many of those appearances delivered on that pick’s own outcome' },
-          { key: 'rate',   label: 'Rate %', w: 54, dp: 0,
+          { key: 'name', label: 'Player', heat: false, w: 152, bold: true, sticky: true },
+          { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
+          { key: 'last', label: 'Last', heat: false, w: 44, mono: true, dim: true,
+            title: 'Most recent day he was picked' },
+          { key: 'picks', label: 'Picks', w: 46,
+            title: 'Total picks across every category' },
+          { key: 'rate', label: 'All %', w: 48, dp: 0,
             fmt: (v) => (v == null ? '—' : Number(v).toFixed(0)),
-            title: 'Blank under three picks on purpose — a 1-for-1 player is not a 100% player, and nine days is not enough to make him one.' },
-          { key: 'streak', label: 'Run',    w: 40,
-            title: 'Consecutive most-recent appearances that delivered' },
-          { key: 'hr',     label: 'HR',     w: 38 },
-          { key: 'hits',   label: 'H',      w: 38 },
-          { key: 'tb',     label: 'TB',     w: 40 },
+            title: 'Did-its-job rate across every category combined. Read the category columns first — a player strong in one and dead in another averages into a middle that describes nobody.' },
+
+          // One column per category, each sortable on its own.
+          ...CAT_ORDER.map((c) => ({
+            key: c, label: JOBS[c].label, w: 74,
+            fmt: (v, row) => row[`${c}_t`],
+            title: `${JOBS[c].label} picks — needed ${JOBS[c].job}. Percent shown at ${MIN_RATE}+ picks in this category; below that it stays a raw fraction, because 1/1 is not 100%. Sorting this column ranks only the players who cleared the threshold.`,
+          })),
+
+          { key: 'hr', label: 'HR', w: 38 },
+          { key: 'h', label: 'H', w: 38 },
+          { key: 'tb', label: 'TB', w: 40 },
+          { key: 'avg', label: 'AVG', w: 48, dp: 3,
+            fmt: (v) => (v == null ? '—' : Number(v).toFixed(3)),
+            title: 'Batting average in games where he was a pick. Blank under 20 AB.' },
         ]}
         onRowClick={onPlayerClick}
         initialSort="picks"
-        maxHeight={520}
-        caption={`Every hitter the bot has picked across ${days.length} graded days, and whether he did the job of the pick he was on — a HIT pick that singled counts, a HR pick that singled does not. "Picked as" is the answer to which pick it was: it lists each category he has appeared in with his record inside it, so a player who is money as a HIT pick and dead as a HR pick reads that way instead of averaging into nothing. Sorted by number of picks rather than by rate, and Rate is blank under three appearances — with nine days in the archive most of these players have been picked once or twice, and ranking by percentage would just float the flukes to the top. Raise Min picks to 5 to see only the names with something close to a record. Click a row to open the hitter.`}
+        maxHeight={560}
+        // 341 players, and the default 200 cap would silently drop a third of
+        // them off the bottom of a table whose whole job is completeness.
+        maxRows={400}
+        caption={`Each category column is his record when picked FOR that category, graded on that category's own outcome — a HIT pick that singled counts, a HR pick that singled does not. A percentage appears only at ${MIN_RATE}+ picks in that column; anything thinner stays a raw fraction so it can't be mistaken for a rate or floated to the top by a sort. The point of the layout is the spread across a row: players are routinely excellent at one job and useless at another, and the All % column averages that into something that describes neither. Default sort is by total picks rather than by rate, for the same reason. Click any category header to rank within it.`}
       />
     </div>
   )

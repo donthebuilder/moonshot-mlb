@@ -125,36 +125,42 @@ automatically if they ever appear, no site change needed.
 Worth stating plainly because it changes how the picks should be read, and it
 came out of data that's already published.
 
-Grading every pick category against its own outcome rather than against home
-runs, over 9 graded days:
+Measured on the **local `results/` folder — 3,973 picks across 39 graded days,
+2026-04-16 to 2026-06-22.** That is roughly six times what the published `data`
+branch carries, and the extra data changed the answer.
 
-| Pick | n | Job | Did it |
-|---|---:|---|---:|
-| TOP | 167 | 1+ HR | **32.9%** |
-| HIT | 157 | 1+ hit | 77.7% |
-| HRR | 108 | 2+ H+R+RBI | 52.8% |
-| CONTACT | 75 | 2+ TB | 28.0% |
-| HR | 134 | 1+ HR | **14.9%** |
+| Pick | n | Job | Did it | HR% |
+|---|---:|---|---:|---:|
+| HIT | 1035 | 1+ hit | 64.5% | 11.2% |
+| HRR | 1040 | 2+ H+R+RBI | 48.0% | 15.1% |
+| CONTACT | 521 | 2+ TB | 38.2% | 12.5% |
+| TOP | 582 | 1+ HR | 19.2% | 19.2% |
+| TOP15 | 217 | 1+ HR | 18.9% | 18.9% |
+| HR | 578 | 1+ HR | 15.4% | 15.4% |
+| **ALL** | **3973** | — | **40.5%** | **14.6%** |
 
-**The bucket named for home runs produces them at less than half the rate of the
-bucket that isn't.** HR 14.9%, TOP 32.9%.
+**The defensible claim is narrow: the HR bucket does not distinguish itself from
+any other pick on home runs.**
 
-Rate across all 648 graded slots is 18.4%, but **that is not a control group** —
-it's the average of these same buckets, and TOP is what pulls it up. TOP's 55
-homers are roughly half of the ~119 total in the archive. So the honest
-comparison is HR against TOP head to head, not either against 18.4%.
+- TOP 19.2% vs HR 15.4% — z=1.73, **p=0.084**. Suggestive, not significant.
+- HR 15.4% vs every other pick 14.5% — z=0.59, **p=0.556**. No difference.
+- 95% intervals overlap heavily: TOP [16.2, 22.6], HR [12.7, 18.6].
 
-Two caveats in the other direction:
+It is **not** established that the HR bucket is worse, and **not** established
+that TOP is better. An earlier draft of this file claimed HR picks homered below
+baseline while TOP nearly doubled it — that came from a nine-day slice of the
+published branch and did not survive the full archive. Recorded here so the
+mistake isn't repeated.
 
-- 134 HR picks is a small sample. The interval around 14.9% is wide.
-- **It is unconfirmed whether TOP overlaps the other four categories.** If TOP
-  is a best-of-the-board flag layered on top of a pick that also has a category,
-  it isn't a rival to HR at all — it's a different kind of label, and the
-  comparison is much softer than it looks. `game_pick_role` splits on `/`, which
-  suggests compound roles exist. Worth resolving before acting on this.
+Two structural notes that matter for reading any of this:
 
-Either way, the HR bucket at 14.9% against its own stated job is the weakest
-category in the archive by a distance, and that part doesn't depend on the
-comparison.
+- A player can be picked in several categories on the same date, so category
+  counts are picks, not distinct players. `pick_type=TOP15` maps onto several
+  different `game_pick_role` values, so TOP15 is a board flag, not a sixth
+  independent category.
+- **No strikeout or walk outcome exists in any graded file**, so a CONTACT pick
+  who walked twice is scored a failure. CONTACT's 38.2% is therefore a floor,
+  not an estimate. This is the same gap as §1 and it distorts a real category
+  today, not just a hypothetical audit.
 
 This is now on the site under Results → Picks → *Did its job*, not buried here.
