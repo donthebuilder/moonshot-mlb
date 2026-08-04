@@ -92,7 +92,7 @@ function ProjectedHRStat({ mode }) {
         <span style={{
           fontSize:8.5, color:C.text3, textTransform:'uppercase',
           letterSpacing:'.09em', fontWeight:800,
-        }}>Slate projected</span>
+        }}>Projected</span>
         {/* One figure, the midpoint to a decimal. The bot publishes a range and
             that range is still in the tooltip — it's off the face because a
             strip this dense reads better with one number per pill, and the
