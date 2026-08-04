@@ -131,10 +131,11 @@ function ColorKey() {
 }
 
 export default function Guide() {
+  // Centred. A 720px column pinned to the left of a 1300px page left half the
+  // screen empty and made the text look like it had fallen over. The reading
+  // width stays capped — long lines are harder to read, not easier — but the
+  // column now sits in the middle of the page like every other tab's content.
   return (
-    {/* Centred. A 720px column pinned to the left of a 1300px page
-        left half the screen empty and made the text look like it had
-        fallen over. Reading width stays capped; the column doesn't. */}
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
       {/* Intro */}

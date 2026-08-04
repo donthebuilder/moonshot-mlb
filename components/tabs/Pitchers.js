@@ -205,6 +205,14 @@ export default function Pitchers({ players, onPlayerClick }) {
             l3hr9: n(src('pitcher_l3_hr9'), null),
             l3n: n(src('pitcher_l3_starts_found'), 0),
             trend: clean(src('pitcher_trend_direction'), ''),
+            // The bot's own pitcher scoring. All five are on 268/268 slate rows
+            // and none of them were shown anywhere on this board.
+            attack: n(src('pitcher_attack_score'), null),
+            attackTag: clean(src('pitcher_attack_tag'), ''),
+            wsScore: n(src('pitcher_weak_side_score'), null),
+            spotDmg: n(src('pitcher_spot_damage_score'), null),
+            zoneDmg: n(src('pitcher_zone_damage_score'), null),
+            lowK: src('pitcher_low_k_flag') === true ? 1 : 0,
             weakSide: clean(p.pitcher_weak_side, ''),
             spots: p.weak_spot_count,
             conf: p.lineup_confirmed ? 1 : 0,
@@ -226,6 +234,18 @@ export default function Pitchers({ players, onPlayerClick }) {
           { key: 'l3whip', label: 'L3 WHIP', w: 54, dp: 2 },
           { key: 'l3n',    label: 'L3 GS', w: 44,
             title: 'How many recent starts the L3 numbers actually found. Under 3 and they are thinner than they look.' },
+          { key: 'attack', label: 'Attack', w: 52, dp: 0,
+            title: 'The bot’s attack score. Range on tonight’s slate is 0–54, median 19 — so 30+ is genuinely high, not middling.' },
+          { key: 'attackTag', label: 'Read', heat: false, w: 104, dim: true,
+            title: 'The bot’s own tag for this arm' },
+          { key: 'wsScore', label: 'Weak side', w: 58, dp: 0,
+            title: 'How exploitable his platoon split is. 0–90 on tonight’s slate.' },
+          { key: 'zoneDmg', label: 'Zone dmg', w: 58, dp: 0,
+            title: 'Damage he allows by order third — pooled, so sturdier than the per-spot number' },
+          { key: 'spotDmg', label: 'Spot dmg', w: 56, dp: 0,
+            title: 'Damage by individual lineup spot. Thin by construction.' },
+          { key: 'lowK',   label: 'Low K', flag: true, mark: '●', w: 40,
+            title: 'Bot’s low-strikeout flag — fires on 98 of 268, so it’s common' },
           { key: 'trend',  label: 'Trend', heat: false, w: 62, dim: true },
           { key: 'weakSide', label: 'Weak', heat: false, w: 48, dim: true },
           { key: 'spots',  label: '★ Spots', w: 52,
@@ -236,7 +256,7 @@ export default function Pitchers({ players, onPlayerClick }) {
         onRowClick={(p) => setModalPitcher(p)}
         initialSort="hr9"
         maxHeight={420}
-        caption="Every starter on the slate. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter."
+        caption="Every starter on the slate, now including the bot's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter."
       />
 
       {sorted.map((pitcher) => (

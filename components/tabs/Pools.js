@@ -125,6 +125,11 @@ export default function Pools({ players = [], results, onPlayerClick }) {
   const [exPlayers, setExPlayers] = useState([])
   const [exTeams, setExTeams] = useState([])
   const [benched, setBenched] = useState([])   // legs swapped out, kept out
+  // The candidate list is 268 rows and the only way to reach a specific hitter
+  // was to scroll. Search and a team filter narrow the pool you pick FROM
+  // without touching the suggestion, the price or the exclusions.
+  const [poolQuery, setPoolQuery] = useState('')
+  const [poolTeam, setPoolTeam] = useState('')
 
   const m = marketOf(market)
   const keyOf = (p) => `${p?.player_id ?? nameOf(p)}-${p?.game_pk ?? ''}`
@@ -499,8 +504,55 @@ export default function Pools({ players = [], results, onPlayerClick }) {
         )}
       </div>
 
+      {/* Narrow the list you're choosing from. Deliberately separate from the
+          exclusion chips above: this hides rows from view, exclusions remove
+          hitters from the re-roll and swap pool entirely. */}
+      <div style={{
+        display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8,
+      }}>
+        <input
+          value={poolQuery}
+          onChange={(e) => setPoolQuery(e.target.value)}
+          placeholder="Search this list — name, team or pitcher…"
+          style={{
+            flex: 1, minWidth: 180, background: C.bg3, border: `1px solid ${C.border}`,
+            borderRadius: 7, padding: '6px 11px', fontSize: 11.5, color: C.text,
+            outline: 'none', fontFamily: NUM_FONT,
+          }}
+        />
+        <select
+          value={poolTeam}
+          onChange={(e) => setPoolTeam(e.target.value)}
+          style={{
+            background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 7,
+            padding: '6px 9px', fontSize: 11, color: C.text2, cursor: 'pointer',
+            outline: 'none', fontFamily: NUM_FONT,
+          }}
+        >
+          <option value="">All teams</option>
+          {teams.map((t2) => <option key={t2} value={t2}>{t2}</option>)}
+        </select>
+        {(poolQuery || poolTeam) && (
+          <button
+            onClick={() => { setPoolQuery(''); setPoolTeam('') }}
+            style={{
+              padding: '5px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 7,
+              cursor: 'pointer', border: `1px solid ${C.border}`,
+              background: 'transparent', color: C.text3, fontFamily: NUM_FONT,
+            }}
+          >Clear</button>
+        )}
+      </div>
+
       <DenseTable
-        rows={candidates.map((c) => ({ ...c, picked: pool.includes(c._key) ? 1 : 0 }))}
+        rows={candidates
+          .filter((c) => !poolTeam || c.team === poolTeam)
+          .filter((c) => {
+            const q = poolQuery.toLowerCase().trim()
+            if (!q) return true
+            return `${c.name} ${c.team} ${c.opp}`.toLowerCase().includes(q)
+          })
+          .map((c) => ({ ...c, picked: pool.includes(c._key) ? 1 : 0 }))}
         columns={[
           { key: 'picked', label: '✓',        flag: true, mark: '✓', w: 30 },
           { key: 'name',   label: 'Batter',   heat: false, w: 148, bold: true, sticky: true },
