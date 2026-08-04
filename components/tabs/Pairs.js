@@ -872,7 +872,55 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
   ), [variantPairs, homerKeys])
   const combinedBotHits = useMemo(() => enforceUniquePairExposure([...botHits, ...variantHits], 1, 30), [botHits, variantHits])
 
-  if (!homers.length) return <Empty text="No HRs yet today. Live pairs will appear as players go deep." />
+  if (!homers.length) {
+    return (
+      <div>
+        <div style={{
+          background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+          padding: '18px 16px', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 22, marginBottom: 6 }}>⚡</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 3 }}>No home runs yet tonight</div>
+          <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, maxWidth: 440, margin: '0 auto' }}>
+            The moment two hitters have gone deep, this view starts building live pairs from them,
+            checks them against the bot&apos;s recommended pairs and pools, and flags any season-history
+            partner still waiting to bat. It updates as the bot&apos;s results file refreshes — no
+            reload needed beyond switching tabs.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Status strip — the one-glance answer to "where are we at tonight":
+  // homers so far, pairs formed, whether any bot pair has fully landed, and
+  // whether history has a live setup working.
+  const StatusStrip = () => {
+    const tiles = [
+      { label: 'HR tonight', v: homers.length, color: '#4ade80' },
+      { label: 'Cross pairs', v: crossPairs.length, color: '#a78bfa' },
+      { label: 'Same-game', v: samePairs.length, color: '#22d3ee' },
+      { label: 'Bot pairs hit', v: combinedBotHits.length, color: combinedBotHits.length ? C.orange : C.text3,
+        note: combinedBotHits.length ? 'a recommended pair fully landed' : 'none complete yet' },
+      { label: 'History setups', v: historyMatches.length, color: historyMatches.length ? '#FCD34D' : C.text3,
+        note: historyMatches.length ? 'partner still to bat' : '' },
+    ]
+    return (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        {tiles.map((t) => (
+          <div key={t.label} title={t.note || ''} style={{
+            background: `linear-gradient(135deg, ${t.color}18, ${t.color}06)`,
+            border: `1px solid ${t.color}3d`, borderRadius: 9, padding: '5px 12px',
+          }}>
+            <div style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '.08em', color: C.text3, fontWeight: 800 }}>
+              {t.label}
+            </div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, color: t.color }}>{t.v}</div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   const HomerBubble = ({h}) => {
     const tags = Array.isArray(h.tags) ? h.tags : []
@@ -910,6 +958,8 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
 
   return (
     <div>
+      <StatusStrip />
+
       <div style={{ marginBottom:12 }}>
         <div style={{ fontSize:11, fontWeight:700, color:C.green, marginBottom:6 }}>✅ Unique HR Scorers ({homers.length})</div>
         <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
@@ -1274,72 +1324,51 @@ function HistorySection({ data, q, players=[] }) {
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 
-import PairBuilder from '../PairBuilder'
 import PairBoard from '../PairBoard'
 
+// SLIMMED TO TWO VIEWS (2026-08-04). Build a Pair moved to the Pools tab —
+// the two builders were on different tabs doing sibling jobs, and one home
+// for "construct your own ticket" beats two. Season History went with it:
+// the Pair History tab already owns that data, and a second copy here was a
+// tab pretending to be a feature.
 const VIEWS = [
   { key:'today',   label:'🧩 Today\'s Pairs' },
-  { key:'build',   label:'🔧 Build a Pair' },
   { key:'live',    label:'⚡ Live HR Pairs' },
-  { key:'history', label:'📅 Season History' },
 ]
 
 export default function Pairs({ players=[], pairBuilder, pairHistorySummary, results, focusPlayerId, onClearFocus, onPlayerClick }) {
-  const [view, setView] = useState(focusPlayerId != null ? 'today' : 'today')
-  const [q, setQ] = useState('')
+  const [view, setView] = useState('today')
 
   const homers = useMemo(() => {
     const raw = results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []
     return dedupePlayers(raw)
   }, [results])
-  const histCount = Array.isArray(pairHistorySummary?.top_pairs) ? pairHistorySummary.top_pairs.length : 0
 
   return (
     <div>
       <PanelTitle
         title="Pairs"
-        sub="Cross-game first · bot pairs · same-game · live results"
+        sub="The bot's pairs tonight, and which of them are landing live"
         right={
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
             {VIEWS.map(item => (
               <button key={item.key} onClick={() => { setView(item.key); if (item.key !== 'today') onClearFocus?.() }} style={btnStyle(item.key === 'live' ? '#22d3ee' : C.orange, view === item.key)}>
                 {item.label}
                 {item.key === 'live' && homers.length > 0 ? ` (${homers.length} HR)` : ''}
-                {item.key === 'history' && histCount > 0 ? ` (${histCount})` : ''}
               </button>
             ))}
           </div>
         }
       />
 
-      {(view === 'today' || view === 'history') && (
-        <div style={{ marginBottom:14 }}>
-          <input
-            type="search"
-            placeholder="Search by player name…"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            style={{ width:'100%', maxWidth:320, background:C.bg2, border:`1px solid ${C.border}`, borderRadius:8, padding:'7px 12px', fontSize:12, color:C.text, outline:'none', fontFamily:NUM_FONT }}
-          />
-        </div>
-      )}
-
+      {/* Today = the bot's table plus its reasoning in prose. The old top
+          heatmap repeated the table's columns in chart form, and the card
+          grid below repeated the same pairs one at a time — three renderings
+          of ten pairs. One table + the writeup is the version that survives. */}
       {view === 'today' && (
-        <>
-          {/* Dense first. The cards below are the same pairs read one at a
-              time; this is the board read at once. */}
-          <PairBoard pairBuilder={pairBuilder} onPlayerClick={onPlayerClick} />
-          <TodayPairs players={players} pairBuilder={pairBuilder} q={q} focusPlayerId={focusPlayerId} onClearFocus={onClearFocus} />
-        </>
-      )}
-      {/* The builder lives here as well as on Pair History. The bot's
-          recommended pairs are its opinion; this is where you build your own
-          around a hitter you already like. */}
-      {view === 'build' && (
-        <PairBuilder summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />
+        <PairBoard pairBuilder={pairBuilder} onPlayerClick={onPlayerClick} />
       )}
       {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} />}
-      {view === 'history' && <HistorySection data={pairHistorySummary} q={q} players={players} />}
     </div>
   )
 }

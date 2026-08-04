@@ -8,6 +8,7 @@ import {
 import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
 import { rampColor, inkFor } from '../Heatmap'
+import PairBuilder from '../PairBuilder'
 
 // Pools — the parlay bench.
 //
@@ -113,7 +114,7 @@ function LivePools({ results }) {
   )
 }
 
-export default function Pools({ players = [], results, onPlayerClick }) {
+export default function Pools({ players = [], results, pairHistorySummary, onPlayerClick }) {
   const [market, setMarket] = useState('hr')
   const [legs, setLegs] = useState(3)
   const [spread, setSpread] = useState(true)
@@ -571,6 +572,16 @@ export default function Pools({ players = [], results, onPlayerClick }) {
         maxHeight={440}
         caption="Hit rate moves in steps rather than smoothly — that's the calibration being honest about its resolution. Every hitter inside one score band gets that band's observed rate."
       />
+
+      {/* PAIR BUILDER — moved here from the Pairs tab (2026-08-04). Pools and
+          the pair builder are sibling tools: both construct a multi-leg play
+          around hitters you choose. Two builders on two tabs meant neither
+          was the obvious place to build anything; now tickets and pairs are
+          built in one place, pools first, pairs under them. The Pairs tab is
+          the bot's opinion; this tab is yours. */}
+      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+        <PairBuilder summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />
+      </div>
     </div>
   )
 }

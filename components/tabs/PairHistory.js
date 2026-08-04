@@ -4,7 +4,6 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { arr, obj, n, clean, nameOf } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle, selectStyle } from '../ui'
 import DenseTable from '../DenseTable'
-import PairBuilder from '../PairBuilder'
 
 // Pair History — which two hitters have gone deep on the same day, all season.
 //
@@ -210,9 +209,8 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         caption="Sorted by same-game hits, not by pair score — score mixes in a boost you can't see. Days ago is inverted so a recent pairing reads bright. Tonight is 2 when both hitters are actually playable today."
       />
 
-      <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-        <PairBuilder summary={summary} players={players} onPlayerClick={onPlayerClick} />
-      </div>
+      {/* PairBuilder used to render here too — removed 2026-08-04, it lives
+          on the Pools tab now. One builder, one home. */}
 
       <div style={{ fontSize: 10.5, color: C.text3, marginTop: 10, lineHeight: 1.6 }}>
         <strong style={{ color: C.text2 }}>Same day</strong> is how many separate dates both hitters homered.{' '}

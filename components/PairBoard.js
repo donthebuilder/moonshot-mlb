@@ -2,7 +2,6 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { arr, obj, n, clean, median } from '../lib/player'
-import Heatmap from './Heatmap'
 import DenseTable from './DenseTable'
 
 // The bot's recommended pairs, dense.
@@ -78,27 +77,10 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
         </span>
       </div>
 
-      <Heatmap
-        rows={rows.slice(0, 15).map((r) => ({
-          label: `${r.pair}  ·  ${r.lane}`,
-          _raw: r._raw,
-          values: {
-            Stronger: r.stronger,
-            Weaker: r.weaker,
-            // Inverted at source: a small gap means two real bets rather than
-            // one good hitter carrying a passenger, so small reads bright.
-            Balance: Math.max(0, 60 - Math.min(60, r.gap)),
-            HRW: r.hrw,
-            Longest: r.longest,
-          },
-        }))}
-        columns={['Stronger', 'Weaker', 'Balance', 'HRW', 'Longest']}
-        title={`All ${rows.length} recommended pairs — read the weaker side, it decides`}
-        labelWidth={280}
-        onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
-        caption="Both hitters have to land, so the pair is only as good as its weaker half. Balance is flipped — bright means the two sides are close, dark means one hitter is carrying a passenger. The bot's pair_score is deliberately absent from this heatmap: it's on a different scale in TOP30 than in lanes A–D, so shading it would say the lettered lanes are weak when they were simply scored by another formula. It's in the table below as a plain number, next to its lane."
-      />
-
+      {/* The heatmap that used to sit here showed the same five columns the
+          table below already heats — two renderings of the same ten rows.
+          Removed 2026-08-04; the table is the board, the writeup under it is
+          the reasoning. */}
       <DenseTable
         rows={rows}
         columns={[
@@ -124,6 +106,56 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
         maxHeight={420}
         caption="Sorted by lane, then by score inside the lane. Gap is inverted — a wide gap between the two sides is a worse pair at the same score. Score is shown unshaded because TOP30 and lanes A–D are scored on different scales; compare within a lane, not down the column. Click a row to open the stronger hitter."
       />
+
+      {/* THE BOT'S REASONING, in prose. The reason/tags/risk fields were
+          squeezed into truncated table cells nobody read. Each pair gets its
+          line: why the bot put these two together, and the number that
+          decides it (the weaker side). */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 11.5, fontWeight: 800, marginBottom: 6 }}>Why these pairs</div>
+        <div style={{
+          background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
+          padding: '4px 0',
+        }}>
+          {rows.map((r, i) => (
+            <div key={r._key} style={{
+              padding: '8px 13px',
+              borderTop: i ? `1px solid ${C.border}` : 'none',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
+                <span
+                  onClick={() => onPlayerClick?.(r._raw)}
+                  style={{ fontSize: 12, fontWeight: 800, cursor: onPlayerClick ? 'pointer' : 'default' }}
+                >{r.pair}</span>
+                <span style={{
+                  fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, padding: '1px 6px',
+                  borderRadius: 4, background: `${C.orange}1c`, color: C.orange,
+                }}>{r.lane}</span>
+                {r.type && <span style={{ fontSize: 9, color: C.text3 }}>{r.type}</span>}
+                {r.sameGame === 1 && (
+                  <span style={{ fontSize: 8.5, fontWeight: 800, color: '#22d3ee', fontFamily: NUM_FONT }}>SAME GAME</span>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}>
+                  weaker side <b style={{ color: r.weaker >= 60 ? C.orange : C.text2 }}>{r.weaker.toFixed(0)}</b>
+                  {' '}· gap {r.gap.toFixed(0)}
+                  {r.risk && r.risk !== '—' ? ` · ${r.risk} risk` : ''}
+                </span>
+              </div>
+              <div style={{ fontSize: 10.5, color: C.text2, marginTop: 3, lineHeight: 1.55 }}>
+                {r.reason || 'No stated reason on this pair — the lane and tags are the whole case.'}
+                {r.tags && (
+                  <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}> — {r.tags}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+          Every line is the bot&apos;s own <code>reason</code>, <code>tags</code> and <code>risk</code> for
+          that pair, printed instead of truncated. The number to check before anything else is the
+          weaker side — both hitters have to land, so the pair is never better than its worse half.
+        </div>
+      </div>
     </div>
   )
 }
