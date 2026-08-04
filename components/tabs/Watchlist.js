@@ -8,11 +8,18 @@ import HitterHeat from '../HitterHeat'
 import DenseTable from '../DenseTable'
 import PlayerCard from '../PlayerCard'
 
+// The bot's designated category for tonight, straight off the slate row —
+// "HR", "HIT", "TOP/HR", or '' when he isn't one of the ~105 designated
+// hitters. Shown wherever a watchlist name meets the slate, because "is my
+// guy also the bot's guy" is the first cross-reference question there is.
+const botPickOf = (p) => String(p?.game_pick_role || '').trim().toUpperCase()
+
 const EXPORT_COLUMNS = [
   { key: 'name',     label: 'Player',          get: (p) => nameOf(p) },
   { key: 'team',     label: 'Team',            get: (p) => teamOf(p) },
   { key: 'opp',      label: 'Opponent',        get: (p) => oppOf(p) },
   { key: 'role',     label: 'Role',            get: (p) => tierRole(p) },
+  { key: 'botpick',  label: 'Bot Pick',        get: (p) => botPickOf(p) || 'No' },
   { key: 'hr',       label: 'HR Score',        get: (p) => hrScore(p).toFixed(1) },
   { key: 'hrr',      label: 'HRR Score',       get: (p) => prodScore(p).toFixed(1) },
   { key: 'hit',      label: 'Hit Score',       get: (p) => hitScore(p).toFixed(1) },
@@ -60,7 +67,8 @@ function buildTextList(items) {
     const role = tierRole(p)
     const score = Math.round(hrScore(p))
     const align = isAligned(p) ? ' 🧩' : ''
-    return `${role}  ${nameOf(p)} (${teamOf(p)} vs ${oppOf(p)})  HR ${score}${align}`
+    const bp = botPickOf(p)
+    return `${role}  ${nameOf(p)} (${teamOf(p)} vs ${oppOf(p)})  HR ${score}${align}${bp ? `  [bot: ${bp}]` : ''}`
   })
   const stamp = new Date().toLocaleDateString()
   return [`Watchlist — ${stamp} — ${items.length} players`, '', ...lines].join('\n')
@@ -147,6 +155,9 @@ function CrossReference({ players, onPlayerClick }) {
         <>
           <div style={{ fontSize: 10.5, color: C.text3, margin: '8px 0 6px' }}>
             {found.length} of {parsed.length} matched to tonight&apos;s slate
+            {found.length > 0 && (
+              <> · <b style={{ color: C.orange }}>{found.filter((r) => botPickOf(r.hit)).length}</b> also a bot pick</>
+            )}
           </div>
           <DenseTable
             rows={parsed.map((r, i) => ({
@@ -160,12 +171,18 @@ function CrossReference({ players, onPlayerClick }) {
               hrr: r.hit ? prodScore(r.hit) : null,
               hit: r.hit ? hitScore(r.hit) : null,
               weak: r.hit?.weak_spot_flag ? 1 : 0,
+              botpick: r.hit ? (botPickOf(r.hit) || '—') : '',
+              isPick: r.hit && botPickOf(r.hit) ? 1 : 0,
             }))}
             columns={[
               { key: 'input', label: 'Pasted', heat: false, w: 150, dim: true },
               { key: 'name',  label: 'Matched', heat: false, w: 150, bold: true },
               { key: 'team',  label: 'Tm',   heat: false, w: 34, mono: true, dim: true },
               { key: 'opp',   label: 'Opp',  heat: false, w: 34, mono: true, dim: true },
+              { key: 'isPick', label: '🤖',  flag: true, mark: '●', w: 32,
+                title: 'The bot designated this hitter as one of tonight’s picks' },
+              { key: 'botpick', label: 'Bot pick', heat: false, w: 70, mono: true,
+                title: 'Which category the bot picked him for tonight — HR, TOP, HIT, HRR or CONTACT. A dash means he’s on the slate but not a designated pick.' },
               { key: 'weak',  label: '★',    flag: true, mark: '★', w: 30 },
               { key: 'hr',    label: 'HR',   w: 44, dp: 1 },
               { key: 'hrr',   label: 'HRR',  w: 44, dp: 1 },
@@ -173,7 +190,7 @@ function CrossReference({ players, onPlayerClick }) {
             ]}
             onRowClick={(r) => r && onPlayerClick?.(r)}
             maxHeight={300}
-            caption="Rows with no match either aren't playing tonight or came through with a spelling the slate doesn't use."
+            caption="🤖 lights when your pasted name is also one of the bot's designated picks tonight, and Bot pick says which category. A dash means he plays but the bot didn't tag him. Rows with no match either aren't playing tonight or came through with a spelling the slate doesn't use."
           />
         </>
       )}
@@ -271,6 +288,41 @@ export default function Watchlist({ items, players = [], onWatch, onAdd, onPlaye
           isn't the ranking -- it's whether the names you saved actually have
           anything in common, or whether you've collected six different bets. */}
       <CrossReference players={players} onPlayerClick={onPlayerClick} />
+
+      {/* BOT AGREEMENT. The first question about a hand-built list: which of
+          my saves does the bot also like tonight, and for what. One chip per
+          watched player who carries a game_pick_role. */}
+      {(() => {
+        const agreed = items.filter((p) => botPickOf(p))
+        if (!agreed.length) return null
+        return (
+          <div style={{ margin: '2px 0 12px' }}>
+            <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6 }}>
+              <b style={{ color: C.orange }}>{agreed.length}</b> of your {items.length} saved are
+              also bot picks tonight:
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {agreed.map((p) => (
+                <button
+                  key={playerId(p)}
+                  onClick={() => onPlayerClick?.(p)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                    background: 'rgba(249,115,22,.10)', border: `1px solid ${C.orange}55`,
+                    borderRadius: 8, padding: '4px 10px',
+                  }}
+                >
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>{nameOf(p)}</span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT,
+                    color: C.orange, letterSpacing: '.05em',
+                  }}>🤖 {botPickOf(p)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       <HitterHeat
         players={items}
