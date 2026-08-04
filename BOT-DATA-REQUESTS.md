@@ -4,6 +4,53 @@ Everything the site currently fakes, derives, or can't validate — and the exac
 bot-side change that would fix it. Nothing here is a site bug. These are all
 fields the dashboard wants and the published payload doesn't carry.
 
+## THE CHECKLIST — every missing field, with its exact file point
+
+Verified against the copies of `grade_results_tracker.py` and
+`mlb_dashboard.py` in the results folder. The first two groups are trivial:
+in both cases the API response dict being read ALREADY CONTAINS the missing
+fields — they're sitting unread in the same object the existing lines pull
+from.
+
+| # | Field | File | Function / anchor | Source key (already in the dict) |
+|---|---|---|---|---|
+| 1 | `actual_k` | grade_results_tracker.py | `get_player_batting_line()` ~line 344, then `grade_slot()` ~line 885 | `batting["strikeOuts"]` |
+| 2 | `actual_bb` | grade_results_tracker.py | same two functions | `batting["baseOnBalls"]` |
+| 3 | `actual_doubles` / `actual_triples` | grade_results_tracker.py | same two functions | `batting["doubles"]`, `batting["triples"]` |
+| 4 | `season_tb` | mlb_dashboard.py | `flatten_season_hitting()` ~line 1786 | `stat["totalBases"]` |
+| 5 | `season_ab` | mlb_dashboard.py | `flatten_season_hitting()` | `stat["atBats"]` |
+| 6 | `season_doubles` / `season_triples` | mlb_dashboard.py | `flatten_season_hitting()` | `stat["doubles"]`, `stat["triples"]` |
+| 7 | `season_babip` | mlb_dashboard.py | `flatten_season_hitting()` | `stat["babip"]` |
+| 8 | `hrw_score`, `pitch_mix_score`, `top_board_score_v2`, `recent_375_num` onto graded slots | grade_results_tracker.py | `grade_slot()` — copy from the slate row at grade time | slate row |
+| 9 | `pitcher_name`, `pitcher_id`, `pitcher_throws` onto graded slots | grade_results_tracker.py | `grade_slot()` | slate row |
+| 10 | `weather_temp_f`, `weather_wind_mph`, `park_factor` back onto graded slots | grade_results_tracker.py | `grade_slot()` — they were there in April, dropped since | slate row |
+| 11 | `pitcher_gb_rate`, `pitcher_ld_rate`, `pitcher_popup_rate` (publish 0 on all 268) | mlb_dashboard.py | the pitcher batted-ball aggregation — check `bb_type` is read before the groupby | Statcast pull |
+| 12 | `alt_look_tag` | mlb_dashboard.py | ALT LOOKS build ~line 8026 — stamp the tag on the record when `alt_rows` is assembled | already computed |
+| 13 | `pitcher_l5_*` block (era/hr9/whip) | mlb_dashboard.py | same place `pitcher_l3_*` is built | same query, n=5 |
+| 14 | ISO into `hr_score` itself | mlb_dashboard.py | wherever hr_score is blended — see the calibration section below | `season_iso`, already on the record |
+
+What each unlocks, in one line: #1–3 make K Risk auditable and stop CONTACT
+picks being graded a failure for walking. #4–7 make League Leaders exact
+instead of estimated (TB is currently `SLG × (PA × (1−BB%))` on the client —
+close enough to rank by, wrong as a season total). #8–10 let every score be
+backtested against the day it was generated instead of joined to tonight's
+slate. #11 completes the pitcher batted-ball profile the site now shows.
+#12 makes ALT LOOKS gradeable — the site's Track record picks it up as a
+seventh category with zero changes. #14 is the scoring fix the whole audit
+points at; the site's ×ISO multiplier is a stopgap that becomes a no-op the
+day it lands.
+
+Site-side status, for completeness: everything published IS being pulled.
+`today_slim` (all 268-row fields incl. the new pitcher batted-ball columns),
+detail/splits/zones per player, graded days + backtest, results_live, the
+breakdown txt for the header projection, and the 39-day pick matrix shipped as
+a snapshot at `public/pick_matrix.json`. The only data the site fakes is what
+this table says the bot doesn't publish — each spot says so on the page where
+it happens.
+
+**Reminder: do not edit `~/MLB-HR-DASHBOARD`** — it's pre-migration. Clone
+fresh from the online repo, make these changes there.
+
 This repo is read-only and has no bot. All changes below belong in
 `donthebuilder/MLB-HR-DASHBOARD-STREAMLIT`. **Do not push them from
 `~/MLB-HR-DASHBOARD`** — that local clone is pre-migration (it still has
