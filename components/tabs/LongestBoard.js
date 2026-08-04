@@ -21,9 +21,18 @@ import DenseTable from '../DenseTable'
 // bot already folds park into the raw score and double-counting it would just
 // rank Coors first every night.
 
+// FIELD-NAME FIX (2026-08-04): this board read `temp_f` and `wind_mph`, but
+// the bot publishes `weather_temp_f` and `weather_wind_mph` (confirmed in the
+// graded archive schema, where those are the only spellings that carry
+// values). Every weather cell rendered 0 and the park+air adjustment was
+// silently inert — "Adjusted" and "Raw" were the same ranking with different
+// labels. Each read now falls back across the published spellings.
+const wTemp = (p) => n(p?.weather_temp_f, n(p?.temp_f, 0))
+const wWind = (p) => n(p?.weather_wind_mph, n(p?.wind_mph, 0))
+
 const carry = (p) => {
-  const park = n(p?.park_dist_factor, 1) || 1
-  const temp = n(p?.temp_f, 70)
+  const park = n(p?.park_dist_factor, n(p?.park_hr_factor, 1)) || 1
+  const temp = wTemp(p) || 70
   // ~1% per 10°F off a 70°F baseline, capped either way so a 100°F day can't
   // outweigh the hitter himself.
   const air = Math.max(0.94, Math.min(1.06, 1 + (temp - 70) / 1000))
@@ -93,6 +102,91 @@ const buildColumns = (onWatch) => [
     title: 'Park barrel factor — above 1.00 helps hard contact' },
 ]
 
+function GameConditions({ players = [] }) {
+  const games = useMemo(() => {
+    const map = new Map()
+    players.forEach((p) => {
+      const pk = p?.game_pk
+      if (pk == null || map.has(pk)) {
+        // first player per game wins — conditions are game-level fields
+        // stamped identically on every hitter in it
+        if (pk == null) return
+        return
+      }
+      map.set(pk, {
+        pk,
+        venue: clean(p?.venue_name, ''),
+        temp: wTemp(p),
+        wind: wWind(p),
+        windLabel: clean(p?.wind_direction_label, ''),
+        parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 0)),
+        roof: clean(p?.roof, ''),
+        matchup: `${teamOf(p) || '?'}${oppOf(p) ? ` vs ${oppOf(p)}` : ''}`,
+      })
+    })
+    const out = [...map.values()].filter((g) => g.venue || g.temp)
+    // Crude carry index just for ordering the strip: warm air + friendly park
+    // + wind blowing out. Display-only — it ranks cards, it scores nothing.
+    const windOut = (g) => /out/i.test(g.windLabel) ? g.wind : /in\b/i.test(g.windLabel) ? -g.wind : 0
+    out.sort((a, b) =>
+      ((b.temp - 70) + 40 * (b.parkHR - 1) + windOut(b)) -
+      ((a.temp - 70) + 40 * (a.parkHR - 1) + windOut(a)))
+    return out
+  }, [players])
+
+  if (!games.length) return null
+
+  return (
+    <div style={{
+      display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 8,
+      WebkitOverflowScrolling: 'touch',
+    }}>
+      {games.map((g) => {
+        const warm = g.temp >= 82 ? '#f97316' : g.temp >= 70 ? '#FCD34D' : '#38bdf8'
+        const out = /out/i.test(g.windLabel)
+        const wIn = /in\b/i.test(g.windLabel)
+        return (
+          <div key={g.pk} style={{
+            flexShrink: 0, minWidth: 148,
+            background: `linear-gradient(155deg, ${warm}14, ${warm}05)`,
+            border: `1px solid ${warm}35`, borderRadius: 10, padding: '7px 11px',
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170,
+            }}>{g.venue || g.matchup}</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginTop: 2, fontFamily: NUM_FONT }}>
+              {g.temp > 0 && (
+                <span style={{ fontSize: 13, fontWeight: 900, color: warm }}>{Math.round(g.temp)}°</span>
+              )}
+              {g.wind > 0 && (
+                <span style={{ fontSize: 10, color: out ? C.orange : wIn ? '#38bdf8' : C.text2 }}>
+                  {out ? '↗' : wIn ? '↙' : '→'} {Math.round(g.wind)} mph
+                </span>
+              )}
+              {g.parkHR > 0 && (
+                <span
+                  title="Park home-run factor — above 1.00 helps the hitter"
+                  style={{
+                    fontSize: 10, fontWeight: 800,
+                    color: g.parkHR >= 1.03 ? C.orange : g.parkHR <= 0.97 ? '#38bdf8' : C.text3,
+                  }}
+                >×{g.parkHR.toFixed(2)}</span>
+              )}
+            </div>
+            <div style={{
+              fontSize: 8.5, color: C.text3, marginTop: 1, whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170, fontFamily: NUM_FONT,
+            }}>
+              {g.windLabel || (g.roof ? `roof ${g.roof}` : g.matchup)}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function LongestBoard({ players = [], onWatch, watchIds, onPlayerClick }) {
   const [rankBy, setRankBy] = useState('adj')
   const [top, setTop] = useState(25)
@@ -116,8 +210,8 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
       raw,
       adj: raw * k,
       parkD: n(p?.park_dist_factor, 1),
-      temp: n(p?.temp_f, 0),
-      wind: n(p?.wind_mph, 0),
+      temp: wTemp(p),
+      wind: wWind(p),
       maxEV: maxEV(p),
       avgEV: avgEV(p),
       la: launchAngle(p),
@@ -131,10 +225,10 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
       pBrl: n(p?.pitcher_barrel_allowed, 0) * (n(p?.pitcher_barrel_allowed, 0) <= 1 ? 100 : 1),
       ihr: n(p?.recent_ideal_hr_contact, 0) * 100,
       pull: n(p?.pitcher_pullair_allowed_pct, 0) * (n(p?.pitcher_pullair_allowed_pct, 0) <= 1 ? 100 : 1),
-      hrEff: n(p?.weather_hr_effect_pct, null),
-      humid: n(p?.weather_humidity, null),
-      feels: n(p?.weather_feels_like_f, null),
-      rain: n(p?.weather_precip_chance, 0) * 100,
+      hrEff: n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null)),
+      humid: n(p?.weather_humidity, n(p?.humidity_pct, null)),
+      feels: n(p?.weather_feels_like_f, n(p?.feels_like_f, null)),
+      rain: n(p?.weather_precip_chance, n(p?.precip_chance, 0)) * 100,
       parkAll: n(p?.park_factor, null),
       parkBrl: n(p?.park_barrel_factor, null),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
@@ -172,6 +266,14 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
         opinion. It&apos;s kept gentle on purpose: the bot already folds park into the raw score, and
         double-counting it would just rank Coors first every night.
       </div>
+
+      {/* TONIGHT'S AIR, PER PARK. Distance is the one board where conditions
+          do real physical work, so the game environments get their own strip
+          instead of living only as columns 20-something of the table. One
+          card per game: temp, wind speed + park-relative direction, park HR
+          factor. Ordered hot-to-cold by a crude carry index (temp + park +
+          wind-out bonus) so the best air reads first. */}
+      <GameConditions players={players} />
 
       <div style={{
         display: 'grid', gap: 10, marginBottom: 12, alignItems: 'end',
