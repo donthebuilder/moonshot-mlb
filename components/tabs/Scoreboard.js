@@ -9,6 +9,7 @@ import {
 import { tierRole, shortRole, isAligned } from '../../lib/scoring'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
+import { kRiskScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
 import { groupPitchers } from '../../lib/data'
 
@@ -63,6 +64,8 @@ const buildColumns = (onWatch) => [
   // A high strikeout rate is bad for the hitter, so this column runs the other
   // way. Left alone, the most strikeout-prone bats on the slate glow brightest.
   { key: 'k',       label: 'K%',     w: 42, dp: 1, invert: true },
+  { key: 'kRisk',  label: 'K risk', w: 50, dp: 0, invert: true,
+    title: 'Strikeout risk: hitter K% 40%, pitcher K% 25%, SwStr 20%, putaway 15%. Inverted — low is good for the bat. Composite, not a bot field, and not calibrated: the graded archive has no strikeout outcome to check it against.' },
   { key: 'hr9',     label: 'P HR/9', w: 46, dp: 2 },
 ]
 
@@ -115,6 +118,7 @@ export default function Scoreboard({ players, results, onWatch, watchIds, onPlay
       ihr: ihrVal(p),
       k: n(p?.season_k_rate, 0) * 100,
       hr9: n(p?.pitcher_hr9, 0),
+      kRisk: kRiskScore(p),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }))
   }, [players, alignedOnly, watchIds])

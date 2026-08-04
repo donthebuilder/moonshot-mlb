@@ -7,6 +7,7 @@ import {
 } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import DenseTable from '../DenseTable'
+import { kRiskScore } from '../../lib/scoring_additions'
 
 // Due — hitters overdue for a homer.
 //
@@ -49,6 +50,8 @@ const buildColumns = (onWatch) => [
     title: 'Ideal HR contact rate — the launch/EV combination that produces homers' },
   { key: 'd350',    label: '350+%',   w: 50, dp: 0,
     title: 'Share of tracked balls travelling 350+ ft — distance he still has' },
+  { key: 'kRisk',   label: 'K risk',  w: 50, dp: 0, invert: true,
+    title: 'Strikeout risk. Inverted — low is good. A drought plus a high K risk is the worst combination on this board.' },
   { key: 'pa',      label: 'PA',      w: 42,
     title: 'Season plate appearances — the denominator under HR/PA' },
   // The matchup half. A drought is only interesting against an arm that gives
@@ -134,6 +137,7 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
       p375: n(p?.pitcher_375_allowed, 0),
       parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 1)),
       weakSide: clean(p?.pitcher_weak_side, ''),
+      kRisk: kRiskScore(p),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }
   }), [players, watchIds])

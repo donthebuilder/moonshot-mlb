@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { groupPitchers } from '../../lib/data'
 import { n, clean } from '../../lib/player'
+import { pitcherOverall } from '../../lib/scoring_additions'
 import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import PitcherSpots from '../PitcherSpots'
@@ -213,16 +214,43 @@ export default function Pitchers({ players, onPlayerClick }) {
             spotDmg: n(src('pitcher_spot_damage_score'), null),
             zoneDmg: n(src('pitcher_zone_damage_score'), null),
             lowK: src('pitcher_low_k_flag') === true ? 1 : 0,
+            overall: pitcherOverall(p.lineup?.[0]?.raw || {}),
+            // The attack tag as three flags instead of a sentence — see the
+            // column block below for why.
+            gbTrap: /GB\/TRAP/i.test(clean(src('pitcher_attack_tag'), '')) ? 1 : 0,
+            hardCon: /HARD CONTACT/i.test(clean(src('pitcher_attack_tag'), '')) ? 1 : 0,
             weakSide: clean(p.pitcher_weak_side, ''),
             spots: p.weak_spot_count,
             conf: p.lineup_confirmed ? 1 : 0,
           }
         })}
         columns={[
+          // LAYOUT RULE: every text column first, every number after, nothing
+          // interleaved. The table had Trend and Weak side sitting between
+          // numeric columns, which breaks the eye's run down a block of digits
+          // and makes the whole row harder to scan than it needs to be.
           { key: 'name',   label: 'Starter', heat: false, w: 148, bold: true, sticky: true },
-          { key: 't',      label: 'T',   heat: false, w: 26, mono: true, dim: true },
-          { key: 'tm',     label: 'Tm',  heat: false, w: 34, mono: true, dim: true },
-          { key: 'vs',     label: 'vs',  heat: false, w: 34, mono: true, dim: true },
+          { key: 't',      label: 'T',   heat: false, w: 24, mono: true, dim: true },
+          { key: 'tm',     label: 'Tm',  heat: false, w: 32, mono: true, dim: true },
+          { key: 'vs',     label: 'vs',  heat: false, w: 32, mono: true, dim: true },
+          { key: 'weakSide', label: 'Weak', heat: false, w: 44, mono: true, dim: true,
+            title: 'The side this pitcher struggles against' },
+          { key: 'trend',  label: 'Trend', heat: false, w: 58, dim: true },
+          // Flags, as dots. The attack tag used to print "🧊 GB/TRAP" and
+          // "⚠️ HARD CONTACT" as words in a 104px column — three values wearing
+          // a lot of width, and the emoji made every row look busy. As dots
+          // they scan instantly and sort like the booleans they are.
+          { key: 'gbTrap', label: 'GB',  flag: true, mark: '●', w: 30,
+            title: 'Bot tag: ground-ball / trap profile' },
+          { key: 'hardCon', label: 'HRD', flag: true, mark: '●', w: 32,
+            title: 'Bot tag: gives up hard contact' },
+          { key: 'lowK',   label: 'LoK', flag: true, mark: '●', w: 32,
+            title: 'Bot’s low-strikeout flag — fires on 98 of 268, so it’s common' },
+          { key: 'conf',   label: 'LU',  flag: true, mark: '●', w: 28,
+            title: 'Lineup confirmed' },
+          // ── numbers from here down, uninterrupted ──
+          { key: 'overall', label: 'Overall', w: 58, dp: 0,
+            title: 'Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%. Unvalidated — none of these inputs reach the graded archive.' },
           { key: 'hr9',    label: 'HR/9', w: 46, dp: 2 },
           { key: 'era',    label: 'ERA', w: 44, dp: 2 },
           { key: 'whip',   label: 'WHIP', w: 46, dp: 2 },
@@ -236,22 +264,14 @@ export default function Pitchers({ players, onPlayerClick }) {
             title: 'How many recent starts the L3 numbers actually found. Under 3 and they are thinner than they look.' },
           { key: 'attack', label: 'Attack', w: 52, dp: 0,
             title: 'The bot’s attack score. Range on tonight’s slate is 0–54, median 19 — so 30+ is genuinely high, not middling.' },
-          { key: 'attackTag', label: 'Read', heat: false, w: 104, dim: true,
-            title: 'The bot’s own tag for this arm' },
           { key: 'wsScore', label: 'Weak side', w: 58, dp: 0,
             title: 'How exploitable his platoon split is. 0–90 on tonight’s slate.' },
           { key: 'zoneDmg', label: 'Zone dmg', w: 58, dp: 0,
             title: 'Damage he allows by order third — pooled, so sturdier than the per-spot number' },
           { key: 'spotDmg', label: 'Spot dmg', w: 56, dp: 0,
             title: 'Damage by individual lineup spot. Thin by construction.' },
-          { key: 'lowK',   label: 'Low K', flag: true, mark: '●', w: 40,
-            title: 'Bot’s low-strikeout flag — fires on 98 of 268, so it’s common' },
-          { key: 'trend',  label: 'Trend', heat: false, w: 62, dim: true },
-          { key: 'weakSide', label: 'Weak', heat: false, w: 48, dim: true },
           { key: 'spots',  label: '★ Spots', w: 52,
             title: 'Weak lineup spots he faces tonight' },
-          { key: 'conf',   label: 'LU', flag: true, mark: '●', w: 30,
-            title: 'Lineup confirmed' },
         ]}
         onRowClick={(p) => setModalPitcher(p)}
         initialSort="hr9"
