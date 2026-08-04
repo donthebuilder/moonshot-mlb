@@ -1,6 +1,9 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { playerId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
+import {
+  playerId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
+  nn, n, clean, barrelRate, avgEV, pitchMixScore,
+} from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
@@ -103,7 +106,7 @@ async function copyTextList(items, onDone) {
 // The formats people actually paste are messy: ranking numbers, bullets, odds,
 // team codes in brackets. Stripping those is the whole feature; a box that only
 // accepts clean names is a box nobody uses twice.
-function CrossReference({ players, onPlayerClick }) {
+function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
   const [text, setText] = useState('')
 
   const norm = (v) => String(v || '').toLowerCase()
@@ -160,37 +163,76 @@ function CrossReference({ players, onPlayerClick }) {
             )}
           </div>
           <DenseTable
-            rows={parsed.map((r, i) => ({
-              _key: `${r.line}-${i}`,
-              _raw: r.hit,
-              input: r.line,
-              name: r.hit ? nameOf(r.hit) : '— not on slate —',
-              team: r.hit ? teamOf(r.hit) : '',
-              opp: r.hit ? oppOf(r.hit) : '',
-              hr: r.hit ? hrScore(r.hit) : null,
-              hrr: r.hit ? prodScore(r.hit) : null,
-              hit: r.hit ? hitScore(r.hit) : null,
-              weak: r.hit?.weak_spot_flag ? 1 : 0,
-              botpick: r.hit ? (botPickOf(r.hit) || '—') : '',
-              isPick: r.hit && botPickOf(r.hit) ? 1 : 0,
-            }))}
+            rows={parsed.map((r, i) => {
+              const p = r.hit
+              return {
+                _key: `${r.line}-${i}`,
+                _raw: p,
+                watched: p && watchedIds?.has(playerId(p)) ? 1 : 0,
+                input: r.line,
+                name: p ? nameOf(p) : '— not on slate —',
+                team: p ? teamOf(p) : '',
+                opp: p ? oppOf(p) : '',
+                facing: p ? clean(p?.pitcher_name, 'TBD') : '',
+                botpick: p ? (botPickOf(p) || '—') : '',
+                isPick: p && botPickOf(p) ? 1 : 0,
+                weak: p?.weak_spot_flag ? 1 : 0,
+                l5: p ? `${n(p?.last5_hits, 0)}H/${n(p?.last5_hr, 0)}HR/${n(p?.last5_xbh, 0)}X` : '',
+                hr: p ? hrScore(p) : null,
+                hrw: p ? nn(p?.hrw_score) : null,
+                dc: p ? nn(p?.damage_conversion_score) : null,
+                iso: p ? nn(p?.season_iso) * 100 : null,
+                brl: p ? barrelRate(p) * 100 : null,
+                ev: p ? avgEV(p) : null,
+                pmix: p ? pitchMixScore(p) : null,
+                hrr: p ? prodScore(p) : null,
+                hitS: p ? hitScore(p) : null,
+                hr9: p ? n(p?.pitcher_hr9, null) : null,
+              }
+            })}
             columns={[
-              { key: 'input', label: 'Pasted', heat: false, w: 150, dim: true },
-              { key: 'name',  label: 'Matched', heat: false, w: 150, bold: true },
+              // Star first: paste a list, star the keepers, done — the whole
+              // reason this box lives on the Watchlist tab.
+              ...(onWatch ? [{
+                key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
+                titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
+                onAction: (row) => row?._raw && onWatch(row._raw, !watchedIds?.has(playerId(row._raw))),
+              }] : []),
+              { key: 'input', label: 'Pasted', heat: false, w: 118, dim: true },
+              { key: 'name',  label: 'Matched', heat: false, w: 148, bold: true, sticky: true },
               { key: 'team',  label: 'Tm',   heat: false, w: 34, mono: true, dim: true },
               { key: 'opp',   label: 'Opp',  heat: false, w: 34, mono: true, dim: true },
+              { key: 'facing', label: 'Facing', heat: false, w: 118, dim: true },
               { key: 'isPick', label: '🤖',  flag: true, mark: '●', w: 32,
                 title: 'The bot designated this hitter as one of tonight’s picks' },
-              { key: 'botpick', label: 'Bot pick', heat: false, w: 70, mono: true,
-                title: 'Which category the bot picked him for tonight — HR, TOP, HIT, HRR or CONTACT. A dash means he’s on the slate but not a designated pick.' },
-              { key: 'weak',  label: '★',    flag: true, mark: '★', w: 30 },
-              { key: 'hr',    label: 'HR',   w: 44, dp: 1 },
+              { key: 'botpick', label: 'Pick', heat: false, w: 58, mono: true,
+                title: 'Which category the bot picked him for — HR, TOP, HIT, HRR, CONTACT. Dash = on the slate but not designated.' },
+              { key: 'weak',  label: '★',    flag: true, mark: '★', w: 30,
+                title: 'Weak lineup spot against tonight’s starter' },
+              { key: 'l5',    label: 'L5',   heat: false, w: 76, mono: true, dim: true,
+                title: 'Last five games — hits / homers / extra-base hits' },
+              { key: 'hr',    label: 'HR',   w: 44, dp: 1,
+                title: 'HR score' },
+              { key: 'hrw',   label: 'HRW',  w: 46, dp: 0,
+                title: 'HR Watch — the bot’s heat/recency read, 0–100' },
+              { key: 'dc',    label: 'DC',   w: 42, dp: 0,
+                title: 'Damage conversion — how often his hard contact becomes damage' },
+              { key: 'iso',   label: 'ISO',  w: 44, dp: 0,
+                title: 'Season ISO ×100. The strongest HR predictor in the graded archive: sub-13 homered 8.2%, 23+ homered 22.2%.' },
+              { key: 'brl',   label: 'Brl%', w: 46, dp: 1,
+                title: 'Recent barrel rate' },
+              { key: 'ev',    label: 'EV',   w: 46, dp: 1,
+                title: 'Average exit velocity' },
+              { key: 'pmix',  label: 'PMix', w: 46, dp: 0,
+                title: 'Pitch-mix fit vs tonight’s starter' },
               { key: 'hrr',   label: 'HRR',  w: 44, dp: 1 },
-              { key: 'hit',   label: 'Hit',  w: 44, dp: 1 },
+              { key: 'hitS',  label: 'Hit',  w: 44, dp: 1 },
+              { key: 'hr9',   label: 'P HR/9', w: 50, dp: 2,
+                title: 'The starter he faces — homers allowed per nine' },
             ]}
             onRowClick={(r) => r && onPlayerClick?.(r)}
-            maxHeight={300}
-            caption="🤖 lights when your pasted name is also one of the bot's designated picks tonight, and Bot pick says which category. A dash means he plays but the bot didn't tag him. Rows with no match either aren't playing tonight or came through with a spelling the slate doesn't use."
+            maxHeight={340}
+            caption="Star a row to save him to the watchlist without leaving the box. 🤖 + Pick = the bot designated him tonight and for what. Every numeric column heats against this pasted list only, so bright means best of YOUR names, not best of the slate. Rows with no match either aren't playing tonight or came through with a spelling the slate doesn't use."
           />
         </>
       )}
@@ -219,7 +261,7 @@ export default function Watchlist({ items, players = [], onWatch, onAdd, onPlaye
     return (
       <div>
         <PanelTitle title="Watchlist" sub="Tap the ☆ on any player card to save them here. Saved on this device only." />
-        <CrossReference players={players} onPlayerClick={onPlayerClick} />
+        <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
         <Empty text="No saved players yet." />
       </div>
     )
@@ -287,7 +329,7 @@ export default function Watchlist({ items, players = [], onWatch, onAdd, onPlaye
       {/* A watchlist is a set you assembled by hand, so the useful question
           isn't the ranking -- it's whether the names you saved actually have
           anything in common, or whether you've collected six different bets. */}
-      <CrossReference players={players} onPlayerClick={onPlayerClick} />
+      <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
 
       {/* BOT AGREEMENT. The first question about a hand-built list: which of
           my saves does the bot also like tonight, and for what. One chip per
