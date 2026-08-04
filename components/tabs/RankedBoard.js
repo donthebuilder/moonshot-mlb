@@ -6,6 +6,7 @@ import { scoreFor } from '../../lib/scoring'
 import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
 import Heatmap from '../Heatmap'
+import BoardFilters, { useBoardFilter } from '../BoardFilters'
 
 const TITLES = {
   hr:  ['HR Board',          'Top home run picks'],
@@ -18,16 +19,20 @@ const TITLES = {
 
 export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60 }) {
   const [title, sub] = TITLES[type] || TITLES.hr
+  const { filtered, state } = useBoardFilter(players)
 
+  // Filter first, THEN rank and cut to the limit. Ranking first and filtering
+  // after would only ever hide rows out of the same top 60 — the point of the
+  // filter is to pull hitters up from below it.
   const ranked = useMemo(
-    () => [...players].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, limit),
-    [players, type, limit],
+    () => [...filtered].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, limit),
+    [filtered, type, limit],
   )
-
-  if (!ranked.length) return <Empty text={`No ${type.toUpperCase()} picks yet.`} />
 
   return (
     <div>
+      <BoardFilters state={state} total={players.length} shown={filtered.length} />
+      {!ranked.length && <Empty text={state.active ? 'No hitters clear this filter.' : `No ${type.toUpperCase()} picks yet.`} />}
       {/* Section header — matches Games.js game header style */}
       <div style={{
         display: 'flex',

@@ -144,10 +144,30 @@ export default function Guide() {
         </P>
         <Note>
           New here? Start with <b>Reading the colours</b> directly below, then{' '}
-          <b>"How to read a player card"</b>, then check the
-          <b> Emoji & Symbol Key</b> any time you see something you don't recognize.
+          <b>&quot;How to read a player card&quot;</b>, then check the
+          <b> Emoji &amp; Symbol Key</b> any time you see something you don&apos;t recognize.
         </Note>
       </div>
+
+      {/* ── What changed ── kept at the top because the rest of this page was
+          written against an older build and a reader who's used the site will
+          notice the gaps before they reach the glossary. */}
+      <Section title="What's new — read this first" emoji="🆕" defaultOpen={true}>
+        <P>
+          The site has changed a lot recently. If you used it before, these are the differences that
+          matter, and a few honest notes about what still isn&apos;t working.
+        </P>
+        <GlossaryRow icon="📋" term="Scoreboard is the first tab" def="Every hitter, every column, sortable. Start wide and narrow down. Games moved further along — it's a per-game read, which is where you go once you already know who you're interested in." />
+        <GlossaryRow icon="↕️" term="Shift-click to multi-sort" def="Click a header to sort. SHIFT-click another to add it as a tiebreaker under the first — the small number in the header shows the order. Third shift-click drops it. Works on every table on the site." />
+        <GlossaryRow icon="⭐" term="Watchlist from the boards" def="The ☆ column on Scoreboard, Due and Longest adds a hitter to your watchlist without opening him. The player card has it too, plus buttons to add him straight to the slip." />
+        <GlossaryRow icon="🥎" term="Player card now has seven tabs" def="Overview, Pitcher, Pitch, Spray, EV Log, Splits, Hot Zones. Pitch and Spray used to share one cramped tab, and the opposing starter had no home at all — now he has his own, with his arsenal matched to the side you bat from." />
+        <GlossaryRow icon="🗺" term="Spray charts were plotting the wrong number" def="They used the ball's projected carry, which for a ground ball is about 30 feet — so roughly 43% of every hitter's chart was piled on top of home plate. They now plot where the ball was actually fielded. If you looked at this before and it seemed broken, that's why." />
+        <GlossaryRow icon="🎯" term="Pitch chips pre-select tonight's arsenal" def="On the Spray tab the pitch filters come up already set to what tonight's starter throws, matched to your platoon side. So the first thing you see is only the balls he put in play against pitches he'll actually see." />
+        <GlossaryRow icon="🧩" term="Pairs are grouped by the bot's own lanes" def="TOP 30, Core, Statcast, Flex, Value Power. Scores are NOT comparable between lanes — TOP 30 runs around 100 and the lettered lanes around 12–16, different formulas — so each lane is ranked against itself only." />
+        <GlossaryRow icon="📅" term="Results has a day picker" def="Nine graded days are kept, so last night's card doesn't vanish in the morning. Only the Results tab moves when you switch days; everything else stays on tonight's slate." />
+        <GlossaryRow icon="🔥" term="Hot Zones is empty, and it's not your fault" def="The zone data has never been published. The bot that computes it runs daily and succeeds, but its output is thrown away before it reaches the site. Until that's fixed the tab stays honestly empty rather than showing invented numbers." />
+        <GlossaryRow icon="📉" term="Backtest 'Pooled' only has an HR column" def="The bot writes pooled_metrics as an empty object, so the other columns can't be pooled from what's published. HR is recomputed from total home runs over total pool size, which is a real pooled rate. Blank cells mean unmeasured — NOT zero. Day average has all six columns." />
+      </Section>
 
       <ColorKey />
 

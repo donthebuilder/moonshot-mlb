@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { btnStyle } from '../ui'
 import RankedBoard from './RankedBoard'
 import PlayerCard from '../PlayerCard'
@@ -152,6 +153,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 
 export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
   const [view, setView] = useState('hrr')
+  const { filtered, state } = useBoardFilter(players)
 
   return (
     <div>
@@ -183,12 +185,19 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
         </div>
       </div>
 
+      {/* The three signal sections get the filter bar here. The hrr/hit/contact
+          views delegate to RankedBoard, which carries its own — showing two
+          filter bars stacked would be worse than either. */}
+      {['weakspot', 'aligned', 'matchupedge'].includes(view) && (
+        <BoardFilters state={state} total={players.length} shown={filtered.length} />
+      )}
+
       {view === 'weakspot'
-        ? <WeakSpotSection players={players} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+        ? <WeakSpotSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
         : view === 'aligned'
-        ? <AlignedSignalsSection players={players} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+        ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
         : view === 'matchupedge'
-        ? <MatchupEdgeSection players={players} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+        ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
         : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
       }
     </div>

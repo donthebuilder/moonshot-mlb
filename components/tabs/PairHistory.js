@@ -22,6 +22,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
   const [query, setQuery] = useState('')
   const [bucket, setBucket] = useState('All')
   const [sameGameOnly, setSameGameOnly] = useState(false)
+  const [playableOnly, setPlayableOnly] = useState(false)
   const [limit, setLimit] = useState(50)
 
   const meta = obj(summary)
@@ -41,11 +42,18 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         if (q && !names.includes(q)) return false
         if (bucket !== 'All' && clean(p?.last_hit_bucket, '') !== bucket) return false
         if (sameGameOnly && !p?.same_game_flag) return false
+        // Playable tonight: BOTH halves have to be on the slate. One-of-two is
+        // not a pair you can actually place — the partner isn't playing.
+        if (playableOnly) {
+          const on = arr(p?.players).filter((pl) =>
+            onSlate.has(String(pl?.name || '').toLowerCase().replace(/[^a-z]/g, ''))).length
+          if (on < 2) return false
+        }
         return true
       })
       .sort((a, b) => n(b?.pair_score, 0) - n(a?.pair_score, 0))
       .slice(0, limit)
-  }, [pairs, query, bucket, sameGameOnly, limit])
+  }, [pairs, query, bucket, sameGameOnly, playableOnly, onSlate, limit])
 
   if (!pairs.length) {
     return <Empty text="No pair history published yet — pair_history_summary.json hasn't been written." />
@@ -143,6 +151,19 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
             fontWeight: 700,
           }}
         >Same game only</button>
+        <button
+          onClick={() => setPlayableOnly((v) => !v)}
+          title="Both hitters are on tonight's slate. One-of-two isn't a pair you can place."
+          style={{
+            ...selectStyle(),
+            width: 'auto', flex: '0 0 auto',
+            cursor: 'pointer',
+            color: playableOnly ? '#1a0d02' : C.text2,
+            background: playableOnly ? C.orange : C.bg2,
+            borderColor: playableOnly ? C.orange : C.border,
+            fontWeight: 700,
+          }}
+        >Playable tonight</button>
       </div>
 
       {/* The table below is the full list. This is the shape of the top of

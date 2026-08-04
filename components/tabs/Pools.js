@@ -247,30 +247,47 @@ export default function Pools({ players = [], results, onPlayerClick }) {
         )}
       />
 
-      {/* The page was clear to me and opaque to everyone else. Numbered steps,
-          because "click a row" buried in a caption is not an instruction. */}
-      <div style={{
-        display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center',
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
-        padding: '8px 13px', margin: '8px 0 12px', fontSize: 11, color: C.text2,
-      }}>
-        {[
-          'Pick a market',
-          'Set your leg count',
-          'Click players below to add them',
-          'Read the fair price',
-        ].map((t, i) => (
-          <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              width: 17, height: 17, borderRadius: '50%', background: `${C.orange}22`,
-              border: `1px solid ${C.orange}66`, color: C.orange, fontSize: 9.5,
-              fontWeight: 800, fontFamily: NUM_FONT,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            }}>{i + 1}</span>
-            {t}
-          </span>
-        ))}
-      </div>
+      {/* Steps that know where you are. The old version was four static labels
+          that looked identical whether you'd done nothing or built a full
+          ticket — so it read as decoration and people ignored it. Each step
+          now lights up once it's actually satisfied, and the current one is
+          called out, which turns it from a legend into a progress bar. */}
+      {(() => {
+        const steps = [
+          { t: 'Pick a market', done: true, hint: m.label },
+          { t: 'Set your leg count', done: true, hint: `${legs} legs` },
+          { t: 'Click rows to pick your own', done: pool.length > 0, hint: pool.length ? `${pool.length} chosen` : 'or use the suggestion' },
+          { t: 'Read the fair price', done: ticket.length > 0, hint: ticket.length ? fairOdds(combined) : '—' },
+        ]
+        const current = steps.findIndex((s) => !s.done)
+        return (
+          <div style={{
+            display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
+            padding: '8px 13px', margin: '8px 0 12px', fontSize: 11, color: C.text2,
+          }}>
+            {steps.map((s, i) => {
+              const isNow = i === current
+              const col = s.done ? C.orange : isNow ? C.text : C.text3
+              return (
+                <span key={s.t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    width: 17, height: 17, borderRadius: '50%',
+                    background: s.done ? C.orange : 'transparent',
+                    border: `1px solid ${s.done ? C.orange : isNow ? C.text2 : C.border}`,
+                    color: s.done ? '#1a0d02' : col, fontSize: 9.5,
+                    fontWeight: 800, fontFamily: NUM_FONT,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{s.done ? '✓' : i + 1}</span>
+                  <span style={{ color: col, fontWeight: isNow ? 700 : 400 }}>{s.t}</span>
+                  <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{s.hint}</span>
+                  {i < steps.length - 1 && <span style={{ color: C.border, marginLeft: 4 }}>›</span>}
+                </span>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       <LivePools results={results} />
 
