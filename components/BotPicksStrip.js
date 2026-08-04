@@ -16,16 +16,20 @@ import {
 //   🏁 HRR      Jeremy Peña (HOU)          83.8   L5 12H/4HR/4XBH · vs Walbert Ureña
 //   ⚾ CONTACT  James Wood (WSH) ⭐         76.9   L5 6H/2HR/4XBH · vs Max Scherzer
 //
-// ONE per category is the whole point — it's the bot's single best answer to
-// "if I take one bat for this outcome tonight, who". Showing four per bucket
-// (which this component did in its first pass) turns a decision into a list and
-// loses what makes the section useful.
+// THREE per category, ranked. This section started as a strict one-per-bucket
+// mirror of the bot's text output; it's now the top three, with #1 featured
+// and #2/#3 as compact rows under it. Two reasons. First, the 39-day archive
+// shows the #1 pick in a category is not reliably better than #2 — the scores
+// separate quartiles, not neighbours, so presenting one name as THE answer
+// implied a precision the data doesn't support. Second, one name per category
+// is useless the moment that hitter is scratched. Three is still a decision,
+// not a list.
 //
 // The category is `game_pick_role`, which tags 105 of 268 hitters: TOP 15,
-// HR 15, HRR 30, HIT 30, CONTACT 15. Inside each, the pick is the highest score
-// ON THAT CATEGORY'S OWN SCALE — HR score for the HR pick, hit score for the
-// hit pick, and so on. Ranking all four by HR score would just hand you the
-// four biggest power bats and defeat the split.
+// HR 15, HRR 30, HIT 30, CONTACT 15. Inside each, ranking is by the highest
+// score ON THAT CATEGORY'S OWN SCALE — HR score for the HR picks, hit score
+// for the hit picks, and so on. Ranking all of them by HR score would just
+// hand you the biggest power bats and defeat the split.
 //
 // WHERE IT LIVES. Top of Scoreboard, the landing tab — not the sticky header.
 // The header already carries the projection, the live tracker and three tiles;
@@ -50,18 +54,18 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
     const pool = players.filter(
       (p) => String(p?.game_pick_role || '').split('/')[0].trim() === cat.role,
     )
-    const pick = [...pool].sort((a, b) => cat.score(b) - cat.score(a))[0] || null
-    return { ...cat, pick, poolSize: pool.length }
+    const picks = [...pool].sort((a, b) => cat.score(b) - cat.score(a)).slice(0, 3)
+    return { ...cat, picks, poolSize: pool.length }
   }), [players])
 
-  if (!four.some((f) => f.pick)) return null
+  if (!four.some((f) => f.picks.length)) return null
 
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
         <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-.01em' }}>🎯 The Four</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-          one bat per category — the bot&apos;s headline picks
+          four categories, three deep — the bot&apos;s headline picks
         </span>
       </div>
 
@@ -70,21 +74,17 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
         gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
       }}>
         {four.map((f) => {
-          const p = f.pick
-          const l5h = n(p?.last5_hits, 0)
-          const l5hr = n(p?.last5_hr, 0)
-          const l5x = n(p?.last5_xbh, 0)
-          const weak = p?.weak_spot_flag === true
+          const lead = f.picks[0]
+          const rest = f.picks.slice(1)
           return (
             <div
               key={f.role}
-              onClick={() => p && onPlayerClick?.(p)}
               style={{
                 background: `linear-gradient(155deg, ${f.color}1f, ${f.color}07)`,
                 border: `1px solid ${f.color}4d`,
                 boxShadow: `0 0 18px ${f.color}12`,
                 borderRadius: 12, padding: '10px 13px', minWidth: 0,
-                cursor: p && onPlayerClick ? 'pointer' : 'default',
+                display: 'flex', flexDirection: 'column',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -96,32 +96,78 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
                 <span style={{ fontSize: 9, color: C.text3 }}>{f.blurb}</span>
               </div>
 
-              {!p ? (
+              {!lead ? (
                 <div style={{ fontSize: 10.5, color: C.text3 }}>None designated tonight.</div>
               ) : (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{
-                      fontSize: 14.5, fontWeight: 800, minWidth: 0,
+                  {/* #1 — featured, full detail. */}
+                  <div
+                    onClick={() => onPlayerClick?.(lead)}
+                    style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span style={{
+                        fontSize: 14.5, fontWeight: 800, minWidth: 0,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>{nameOf(lead)}</span>
+                      {lead?.weak_spot_flag === true && (
+                        <span title="Weak lineup spot for this pitcher" style={{ fontSize: 11 }}>⭐</span>
+                      )}
+                      <span style={{
+                        marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 16,
+                        fontWeight: 900, color: f.color,
+                      }}>{f.score(lead).toFixed(1)}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT, marginTop: 2 }}>
+                      L5 {n(lead?.last5_hits, 0)}H/{n(lead?.last5_hr, 0)}HR/{n(lead?.last5_xbh, 0)}XBH
+                    </div>
+                    <div style={{
+                      fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>{nameOf(p)}</span>
-                    {weak && <span title="Weak lineup spot for this pitcher" style={{ fontSize: 11 }}>⭐</span>}
-                    <span style={{
-                      marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 16,
-                      fontWeight: 900, color: f.color,
-                    }}>{f.score(p).toFixed(1)}</span>
+                    }}>
+                      {teamOf(lead)} · vs {clean(lead?.pitcher_name, 'TBD')}
+                      {lead?.pitcher_throws ? ` (${lead.pitcher_throws}HP)` : ''}
+                    </div>
                   </div>
 
-                  <div style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT, marginTop: 2 }}>
-                    L5 {l5h}H/{l5hr}HR/{l5x}XBH
-                  </div>
-                  <div style={{
-                    fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {teamOf(p)} · vs {clean(p?.pitcher_name, 'TBD')}
-                    {p?.pitcher_throws ? ` (${p.pitcher_throws}HP)` : ''}
-                  </div>
+                  {/* #2 and #3 — one compact row each, divided from the lead.
+                      Same click-through, smaller type, score still on that
+                      category's own scale so the three are comparable. */}
+                  {rest.length > 0 && (
+                    <div style={{
+                      marginTop: 7, paddingTop: 6,
+                      borderTop: `1px solid ${f.color}26`,
+                      display: 'flex', flexDirection: 'column', gap: 3,
+                    }}>
+                      {rest.map((p, idx) => (
+                        <div
+                          key={p?.player_id ?? idx}
+                          onClick={() => onPlayerClick?.(p)}
+                          style={{
+                            display: 'flex', alignItems: 'baseline', gap: 6,
+                            cursor: onPlayerClick ? 'pointer' : 'default', minWidth: 0,
+                          }}
+                        >
+                          <span style={{
+                            fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
+                            color: `${f.color}99`, flexShrink: 0,
+                          }}>{idx + 2}</span>
+                          <span style={{
+                            fontSize: 11, fontWeight: 700, color: C.text2, minWidth: 0,
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}>{nameOf(p)}</span>
+                          {p?.weak_spot_flag === true && <span style={{ fontSize: 9 }}>⭐</span>}
+                          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                            {teamOf(p)}
+                          </span>
+                          <span style={{
+                            marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11,
+                            fontWeight: 800, color: f.color, flexShrink: 0,
+                          }}>{f.score(p).toFixed(1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -130,11 +176,11 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
       </div>
 
       <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        The category is the bot&apos;s own <code>game_pick_role</code>; the pick inside it is the top
+        The category is the bot&apos;s own <code>game_pick_role</code>; ranking inside it is by the top
         score <b style={{ color: C.text2 }}>on that category&apos;s scale</b> — HR score for HR, hit
-        score for HIT, and so on. Ranking all four on HR score would just return the four biggest
-        power bats and defeat the point of splitting them.
-        {' '}⭐ marks a weak lineup spot against tonight&apos;s starter. Click a card to open the hitter.
+        score for HIT, and so on. Three deep because the archive says #1 vs #2 is a coin flip: the
+        scores separate quartiles, not neighbours, and one name per bucket dies with a scratch.
+        {' '}⭐ marks a weak lineup spot against tonight&apos;s starter. Click any name to open the hitter.
       </div>
     </div>
   )

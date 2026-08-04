@@ -110,14 +110,25 @@ export default function SlateTiles({ players = [], results, games = [] }) {
     <div style={{
       display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center',
     }}>
-      {/* ORDER: slate size, then the live pair, then the two edge counts.
-          Games sets the scale, HR actual and Best game are the two that move
-          during the night and belong next to each other, Weak and Settled
-          close it out. Hitters, 70+ and Aligned were dropped — Hitters is a
-          number you never act on, and 70+ / Aligned are both "how many hitters
-          clear a threshold", which the boards answer better and with the
-          threshold visible. */}
+      {/* ORDER: scale first, then certainty, then edge, then progress —
+          Games · Lineups · Best game · Weak · Settled. Each tile owns a hue
+          so the strip reads left-to-right as five distinct instruments:
+          blue scale, purple certainty, orange edge, gold edge, green done.
+
+          LINEUPS was computed here from day one and never rendered. It's the
+          certainty number for the whole slate — every score on the site is
+          softer for a hitter who might not start, so how much of the board is
+          locked belongs in the header. Purple fill under ~half confirmed,
+          green once confirmation is mostly in, so a glance says "early" or
+          "locked" without reading the fraction. */}
       <Tile label="Games" value={stats.gameCount} color="#38bdf8" />
+      <Tile
+        label="Lineups ✓"
+        value={`${stats.confirmed}`}
+        delta={`of ${players.length} · ${pct(stats.confirmed)}`}
+        color={stats.confirmed / Math.max(1, players.length) >= 0.5 ? '#4ade80' : '#a78bfa'}
+        dot
+      />
       {stats.best && (
         <Tile
           label="Best game"

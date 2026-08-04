@@ -12,16 +12,53 @@ function CaptureStat({ results }) {
   const pct = Number(report.hr_capture_pct || 0)
   const caught = Number(report.caught_hrs_on_sheet || 0)
   const total = Number(report.total_hrs_on_slate || 0)
+
+  // PREGAME: before the first homer lands anywhere, this pill used to read
+  // "0.0%" in red with "0/0 HR" beside it — a failing grade for a test that
+  // hasn't started. 0-for-0 is not a rate. Until there's a homer to capture,
+  // show a calm neutral "tracking" state instead of a score, and style it to
+  // match the tile family (gradient + border) rather than the old flat chip.
+  if (total === 0) {
+    const col = '#38bdf8'
+    return (
+      <div
+        title="Live HR capture — how many of tonight's home runs were on the sheet. Starts scoring when the first homer lands."
+        style={{
+          display:'flex', alignItems:'center', gap:8,
+          padding:'5px 13px', borderRadius:9,
+          background:`linear-gradient(135deg, ${col}18, ${col}06)`,
+          border:`1px solid ${col}40`,
+        }}
+      >
+        <div style={{ width:6, height:6, borderRadius:'50%', background:col, animation:'pulse 2s infinite' }} />
+        <div style={{ display:'flex', flexDirection:'column', lineHeight:1.15 }}>
+          <span style={{ fontSize:8.5, color:C.text3, textTransform:'uppercase', letterSpacing:'.09em', fontWeight:800 }}>HR capture</span>
+          <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:800, color:col }}>tracking…</span>
+        </div>
+      </div>
+    )
+  }
+
   const col = pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
   return (
-    <div style={{
-      display:'flex', alignItems:'center', gap:8,
-      padding:'4px 12px', borderRadius:8,
-      background:`${col}12`, border:`1px solid ${col}30`,
-    }}>
+    <div
+      title={`${caught} of the slate's ${total} home runs were on the sheet tonight.`}
+      style={{
+        display:'flex', alignItems:'center', gap:8,
+        padding:'5px 13px', borderRadius:9,
+        background:`linear-gradient(135deg, ${col}1e, ${col}08)`,
+        border:`1px solid ${col}4d`,
+        boxShadow:`0 0 16px ${col}14`,
+      }}
+    >
       <div style={{ width:6, height:6, borderRadius:'50%', background:col, animation:'pulse 2s infinite' }} />
-      <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:800, color:col }}>{pct.toFixed(1)}%</span>
-      <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>{caught}/{total} HR</span>
+      <div style={{ display:'flex', flexDirection:'column', lineHeight:1.15 }}>
+        <span style={{ fontSize:8.5, color:C.text3, textTransform:'uppercase', letterSpacing:'.09em', fontWeight:800 }}>HR capture</span>
+        <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
+          <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:col }}>{pct.toFixed(0)}%</span>
+          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>{caught}/{total}</span>
+        </span>
+      </div>
     </div>
   )
 }

@@ -152,6 +152,45 @@ baseline while TOP nearly doubled it — that came from a nine-day slice of the
 published branch and did not survive the full archive. Recorded here so the
 mistake isn't repeated.
 
+### Score calibration — measured on the same 3,973 slots
+
+Every graded slot carries the bot's own scores, so unlike the site composites
+these CAN be validated. Quartiles of each score vs its own outcome:
+
+| Score → outcome | Q1 | Q2 | Q3 | Q4 | top−bottom |
+|---|---:|---:|---:|---:|---:|
+| hrr_score → 2+ H+R+RBI | 41.2 | 49.2 | 51.6 | 54.5 | **+13.3** |
+| hit_score → 1+ hit | 58.3 | 59.3 | 64.4 | 67.0 | **+8.7** |
+| overall_score → HR | 11.2 | 13.8 | 14.9 | 18.5 | **+7.3** |
+| hr_score → HR | 12.5 | 14.3 | 14.3 | 17.2 | +4.7 |
+| contact_score → 2+ TB | 36.9 | 37.1 | 38.4 | 40.3 | +3.5 |
+| overall_score → 1+ hit | 59.8 | 62.9 | 63.3 | 62.9 | +3.1 |
+
+The one that should change the bot: **overall_score predicts home runs better
+than hr_score does** (+7.3 vs +4.7). The score built specifically for HR is the
+second-worst predictor of HR in the system. And hr_score's middle two quartiles
+are identical (14.3/14.3) — it only distinguishes its extremes.
+
+contact_score at +3.5 is close to flat, though the missing walk data (below)
+means its outcome is mismeasured, so rework the outcome before reworking the
+score.
+
+Concrete bot changes, in order of expected payoff:
+
+1. **HR picks: rank by overall_score, not hr_score** — or rebuild hr_score,
+   using overall_score's inputs as the starting point. Zero new data needed.
+2. **Slot players by their best category, not independently per category.**
+   Players are consistently good at one job and bad at another (Bellinger 7/8
+   HRR but 0/7 HR; Kurtz 7/9 HRR but 0/9 TOP; Jung 14/19 HIT but 0/6 TOP).
+   At pick time: if a player's shrunken record in the target category is below
+   its mean AND his record in another category is above its mean, swap slots.
+3. **Add a small player-history term** — the empirical-Bayes rate
+   `(did + 8·category_mean) / (picks + 8)` as a ±10% multiplier, capped.
+   Small and capped because 39 days of history will partly be luck, and an
+   uncapped term would just memorize April.
+4. **Do not hard-exclude the fade list** — shrink toward the mean instead.
+   Cowser 0/13 deserves a penalty; a 2/10 doesn't deserve zero.
+
 Two structural notes that matter for reading any of this:
 
 - A player can be picked in several categories on the same date, so category
