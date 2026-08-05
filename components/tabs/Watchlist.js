@@ -157,11 +157,39 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
       />
       {parsed.length > 0 && (
         <>
-          <div style={{ fontSize: 10.5, color: C.text3, margin: '8px 0 6px' }}>
-            {found.length} of {parsed.length} matched to tonight&apos;s slate
-            {found.length > 0 && (
-              <> · <b style={{ color: C.orange }}>{found.filter((r) => botPickOf(r.hit)).length}</b> also a bot pick</>
-            )}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            margin: '8px 0 6px',
+          }}>
+            <span style={{ fontSize: 10.5, color: C.text3 }}>
+              {found.length} of {parsed.length} matched to tonight&apos;s slate
+              {found.length > 0 && (
+                <> · <b style={{ color: C.orange }}>{found.filter((r) => botPickOf(r.hit)).length}</b> also a bot pick</>
+              )}
+            </span>
+            {/* THE BULK SAVE. Pasting a list and having the site do nothing
+                with it felt like the box swallowed your work — the matches
+                existed on screen but never became yours. One click stars
+                every matched hitter, exactly as if you'd found each on a
+                board and starred him: same watchlist, same pair-builder
+                anchors, same everything downstream. */}
+            {onWatch && found.length > 0 && (() => {
+              const unsaved = found.filter((r) => !watchedIds?.has(playerId(r.hit)))
+              return unsaved.length > 0 ? (
+                <button
+                  onClick={() => unsaved.forEach((r) => onWatch(r.hit, true))}
+                  style={{
+                    fontSize: 10.5, fontWeight: 800, padding: '4px 12px', borderRadius: 7,
+                    border: `1px solid ${C.orange}`, background: 'rgba(249,115,22,.12)',
+                    color: C.orange, cursor: 'pointer', fontFamily: NUM_FONT,
+                  }}
+                >★ Save all {unsaved.length} to watchlist</button>
+              ) : (
+                <span style={{ fontSize: 10, color: C.green, fontFamily: NUM_FONT }}>
+                  ✓ all matched are on your watchlist
+                </span>
+              )
+            })()}
           </div>
           <DenseTable
             rows={parsed.map((r, i) => {
