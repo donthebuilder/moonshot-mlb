@@ -10,6 +10,7 @@ import { PanelTitle, Grid, Empty } from '../ui'
 import HitterHeat from '../HitterHeat'
 import DenseTable from '../DenseTable'
 import PlayerCard from '../PlayerCard'
+import PairBuilder from '../PairBuilder'
 
 // The bot's designated category for tonight, straight off the slate row —
 // "HR", "HIT", "TOP/HR", or '' when he isn't one of the ~105 designated
@@ -240,7 +241,7 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
   )
 }
 
-export default function Watchlist({ items, players = [], onWatch, onAdd, onPlayerClick }) {
+export default function Watchlist({ items, players = [], pairSummary, onWatch, onAdd, onPlayerClick }) {
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -388,6 +389,26 @@ export default function Watchlist({ items, players = [], onWatch, onAdd, onPlaye
           />
         ))}
       </Grid>
+
+      {/* BUILD PAIRS FROM THESE NAMES. The full pair builder, pre-anchored to
+          every saved hitter — partners are ranked by who fits with the whole
+          watchlist at once, and "Shared by all" narrows to partners who go
+          with everyone. Star a new name above and it joins the anchors
+          automatically. The Pools tab has the same builder unanchored. */}
+      {pairSummary && (
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
+            Pre-loaded with your {items.length} saved hitter{items.length === 1 ? '' : 's'} as anchors —
+            partners below are ranked by fit with your list. Click chips to adjust.
+          </div>
+          <PairBuilder
+            summary={pairSummary}
+            players={players}
+            initialAnchors={items}
+            onPlayerClick={onPlayerClick}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { arr, obj, n, clean, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
 import DenseTable from './DenseTable'
@@ -54,12 +54,26 @@ function refKey(o) {
   return k ? `nm:${k}` : ''
 }
 
-export default function PairBuilder({ summary, players = [], onPlayerClick }) {
+// `initialAnchors` seeds the selection — the Watchlist passes its saved
+// hitters here so "build pairs from the names I already like" is one click of
+// zero clicks. Seeding re-runs when the watchlist itself changes (star a new
+// name, it joins the anchors), but manual edits inside the builder win until
+// the list changes again — reasserting the seed on every render would fight
+// the user's own clicks.
+export default function PairBuilder({ summary, players = [], onPlayerClick, initialAnchors = [] }) {
   const [anchorKeys, setAnchorKeys] = useState([])
   const [query, setQuery] = useState('')
   const [requireAll, setRequireAll] = useState(false)
   const [marketKey, setMarketKey] = useState('hr')
   const [showAllChips, setShowAllChips] = useState(false)
+
+  // Seed the anchors from initialAnchors (see prop note above). Keyed on the
+  // ids so it re-seeds only when the LIST changes, not on every render.
+  const seedKey = initialAnchors.map((p) => refKey(p)).filter(Boolean).sort().join('|')
+  useEffect(() => {
+    if (!seedKey) return
+    setAnchorKeys(seedKey.split('|'))
+  }, [seedKey])
   const mkt = MARKETS.find((x) => x.key === marketKey) || MARKETS[0]
   const mScore = mkt.score
 
