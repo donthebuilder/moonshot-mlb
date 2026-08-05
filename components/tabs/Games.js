@@ -226,20 +226,37 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
               {sorted.map((p) => {
                 const roleInfo = isDesignated ? getRoleDisplay(p) : null
+                // CONNECTED, not stacked. The first pass put a banner strip
+                // ON TOP of each card — but the card keeps its own border and
+                // corners, so banner and card read as two disconnected boxes.
+                // Now the category is a ring drawn around the card itself
+                // (boxShadow hugs whatever radius the card has) with the
+                // label as a tag punched through the top edge — one object,
+                // clearly labelled, instead of a hat on a box.
                 const wrap = (inner) => (
                   <div key={playerId(p)} style={{
-                    flex: '1 1 225px', minWidth: 0, display: 'flex', flexDirection: 'column',
+                    flex: '1 1 225px', minWidth: 0, position: 'relative',
+                    display: 'flex', flexDirection: 'column',
+                    marginTop: roleInfo ? 9 : 0,
                   }}>
                     {roleInfo && (
-                      <div style={{
-                        background: `linear-gradient(90deg, ${roleInfo.color}30, ${roleInfo.color}10)`,
-                        border: `1px solid ${roleInfo.color}55`, borderBottom: 'none',
-                        borderRadius: '10px 10px 0 0', padding: '4px 12px',
-                        fontSize: 9.5, fontWeight: 900, color: roleInfo.color,
-                        letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT,
-                      }}>{roleInfo.label}</div>
+                      <span style={{
+                        position: 'absolute', top: -8, left: 13, zIndex: 2,
+                        background: '#09090b',
+                        border: `1px solid ${roleInfo.color}99`,
+                        color: roleInfo.color, borderRadius: 6, padding: '1px 9px',
+                        fontSize: 9, fontWeight: 900, letterSpacing: '.08em',
+                        textTransform: 'uppercase', fontFamily: NUM_FONT,
+                        boxShadow: `0 0 10px ${roleInfo.color}33`,
+                      }}>{roleInfo.label}</span>
                     )}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{inner}</div>
+                    <div style={{
+                      flex: 1, display: 'flex', flexDirection: 'column',
+                      borderRadius: 14,
+                      boxShadow: roleInfo
+                        ? `0 0 0 1px ${roleInfo.color}66, 0 0 16px ${roleInfo.color}1c`
+                        : 'none',
+                    }}>{inner}</div>
                   </div>
                 )
                 if (mode === 'botview') {
@@ -257,7 +274,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                       onClick={() => onPlayerClick?.(p)}
                       style={{
                         background: C.bg2, border: `1px solid ${C.border}`,
-                        borderRadius: roleInfo ? '0 0 10px 10px' : 10,
+                        borderRadius: 10,
                         padding: '11px 14px', cursor: 'pointer', flex: 1,
                       }}
                     >

@@ -1039,10 +1039,13 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         </>
       )}
 
-      {/* Tonight, graded properly: every pick against the outcome it was
-          picked FOR, not against home runs. */}
+      {/* Every pick against the outcome it was picked FOR, not against home
+          runs. Reads `view`, NOT `results` — it was hardwired to tonight's
+          file, so the day picker up top changed every section except this
+          one, which kept showing live zeros under an archived day's header.
+          The whole tab follows the picker now, this block included. */}
       <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
-        <ResultsDepth results={results} onPlayerClick={onPlayerClick} />
+        <ResultsDepth results={view} onPlayerClick={onPlayerClick} />
       </div>
 
       {/* The archive. Everything above is one slate; this is whether any of
