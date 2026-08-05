@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { obj, n } from '../../lib/player'
 import { Empty, PanelTitle } from '../ui'
 import Heatmap from '../Heatmap'
+import RollingForm from '../RollingForm'
 
 // Backtest — the graded archive, which the Next.js build never showed at all.
 //
@@ -85,6 +86,8 @@ function Sparkline({ points, height = 44 }) {
 
 export default function Backtest({ backtest }) {
   const [basis, setBasis] = useState('avg_metrics')
+  // Rolling form renders above the tier table: lifetime numbers say whether
+  // the model works, the rolling window says whether it's working NOW.
   const bt = obj(backtest)
   const summary = obj(bt.summary)
   const perDay = obj(bt.per_day)
@@ -168,6 +171,8 @@ export default function Backtest({ backtest }) {
           />
         }
       />
+
+      <RollingForm />
 
       <div style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '8px 0 14px',

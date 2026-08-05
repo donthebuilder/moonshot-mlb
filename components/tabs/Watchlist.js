@@ -10,6 +10,7 @@ import { PanelTitle, Grid, Empty } from '../ui'
 import HitterHeat from '../HitterHeat'
 import DenseTable from '../DenseTable'
 import PlayerCard from '../PlayerCard'
+import { downloadShareCard } from '../shareCard'
 
 // The bot's designated category for tonight, straight off the slate row —
 // "HR", "HIT", "TOP/HR", or '' when he isn't one of the ~105 designated
@@ -330,6 +331,19 @@ export default function Watchlist({ items, players = [], pairSummary, onWatch, o
               }}
             >
               {copied === 'ok' ? '✓ Copied' : copied === 'fail' ? 'Copy failed' : '📋 Copy List'}
+            </button>
+            <button
+              onClick={() => downloadShareCard(items)}
+              title="Render the list as a PNG image for posting — top 12 by HR score, with bot-pick tags"
+              style={{
+                fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+                border: `1px solid ${C.border2}`,
+                background: 'rgba(249,115,22,.10)',
+                color: C.orange,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              📸 Share Card
             </button>
             <button
               onClick={() => downloadTxt(items)}

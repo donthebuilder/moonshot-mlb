@@ -12,6 +12,7 @@ import DenseTable from '../DenseTable'
 import { kRiskScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
 import StartHere from '../StartHere'
+import SlatePulse from '../SlatePulse'
 import { groupPitchers } from '../../lib/data'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
@@ -85,7 +86,7 @@ function Tracker({ title, count, children, note }) {
   )
 }
 
-export default function Scoreboard({ players, results, onWatch, watchIds, onPlayerClick, onNavigate }) {
+export default function Scoreboard({ players, results, backtest, onWatch, watchIds, onPlayerClick, onNavigate }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -191,6 +192,9 @@ export default function Scoreboard({ players, results, onWatch, watchIds, onPlay
           glossary text. Dismisses per device; a small "?" chip brings it
           back. The Guide tab keeps the depth. */}
       <StartHere onNavigate={onNavigate} />
+
+      {/* Unconfirmed-pick countdowns + what changed since yesterday. */}
+      <SlatePulse players={players} backtest={backtest} onPlayerClick={onPlayerClick} />
 
       <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
 

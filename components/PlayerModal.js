@@ -19,6 +19,7 @@ import SprayField from './SprayField'
 import MatchupPitcher from './MatchupPitcher'
 import PlayerSplits from './PlayerSplits'
 import SituationalSplits from './SituationalSplits'
+import PlayerNotes from './PlayerNotes'
 
 function Row({ label, value, mono = true }) {
   return (
@@ -323,6 +324,9 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   {clean(p?.note || p?.summary)}
                 </div>
               )}
+              {/* Your own words, this device only — the read you had on him
+                  three days ago that no stat column remembers. */}
+              <PlayerNotes playerId={pid} />
             </>
           )}
 

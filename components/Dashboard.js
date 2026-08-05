@@ -29,6 +29,7 @@ import Watchlist from './tabs/Watchlist'
 import Pairs from './tabs/Pairs'
 import Bot from './tabs/Bot'
 import Pitchers from './tabs/Pitchers'
+import QuickSearch from './QuickSearch'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
 
@@ -172,7 +173,7 @@ export default function Dashboard() {
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'hitshrr'     && <HitsHRR     players={players}             onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} results={results} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
+            {tab === 'scoreboard'  && <Scoreboard players={players} results={results} backtest={backtest} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'pools'       && <Pools players={players} results={results} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={results} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
@@ -185,6 +186,8 @@ export default function Dashboard() {
           </>
         )}
       </main>
+      {/* ⌘K / "/" from anywhere → jump to any player's modal. */}
+      <QuickSearch players={allPlayers} onPick={setModalPlayer} />
       <Slip slip={slip} setSlip={setSlip} />
       {/* slateMode is passed EXPLICITLY, not left to the module-level default
           in dataSource.js. That default is set by an effect, so flipping
