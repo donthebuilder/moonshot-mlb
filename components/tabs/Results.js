@@ -94,10 +94,19 @@ function MiniBar({ value, max = 100, color }) {
   )
 }
 
-function SectionHeader({ title, color = C.text3 }) {
+function SectionHeader({ title, color = C.text3, right }) {
   return (
-    <div style={{ fontSize: 10, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.07em', padding: '10px 14px 6px', background: C.bg3, borderBottom: `1px solid ${C.border}` }}>
-      {title}
+    <div style={{
+      display: 'flex', alignItems: 'baseline', gap: 8,
+      fontSize: 10, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.07em',
+      padding: '10px 14px 6px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
+    }}>
+      <span>{title}</span>
+      {right && (
+        <span style={{ marginLeft: 'auto', color: C.orange, fontFamily: NUM_FONT, textTransform: 'none', letterSpacing: 0 }}>
+          {right}
+        </span>
+      )}
     </div>
   )
 }
@@ -604,22 +613,47 @@ function MultiHitCluster({ slots }) {
 
   if (!multis.length) return null
 
+  // Every one of these rows IS a graded slot, so game_pick_role is right on
+  // it — the question "was the multi-hit guy one of ours" was answerable the
+  // whole time and just wasn't shown.
+  const pickOf = (r) => String(r?.game_pick_role || r?.pick_type || '').split('/')[0].trim().toUpperCase()
+  const botCount = multis.filter((r) => pickOf(r)).length
+
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
-      <SectionHeader title={`⭐ Multi-Hit / Multi-HR Day (${multis.length})`} color={C.yellow} />
+      <SectionHeader
+        title={`⭐ Multi-Hit / Multi-HR Day (${multis.length})`}
+        color={C.yellow}
+        right={botCount > 0 ? `🤖 ${botCount} of ${multis.length} were bot picks` : undefined}
+      />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px' }}>
         {multis.map((r, i) => {
           const col = si(r.actual_hr) >= 2 ? C.yellow : C.green
+          const pick = pickOf(r)
           return (
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px',
-              borderRadius: 8, background: `${col}18`, border: `1px solid ${col}44`,
+              borderRadius: 8, background: `${col}18`,
+              // A bot pick that went multi gets the orange ring — the site
+              // co-signing its own call — plus the category so you know WHICH
+              // pick cashed. Non-picks stay in their result colour.
+              border: `1px solid ${pick ? C.orange : `${col}44`}`,
+              boxShadow: pick ? `0 0 8px ${C.orange}22` : 'none',
             }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{r.name}</span>
               <span style={{ fontSize: 10, color: C.text3 }}>{r.team}</span>
               <span style={{ fontSize: 10, fontWeight: 800, color: col, fontFamily: NUM_FONT }}>
                 {si(r.actual_hits)}H{si(r.actual_hr) > 0 ? ` · ${si(r.actual_hr)}HR` : ''}{si(r.actual_tb) > 0 ? ` · ${si(r.actual_tb)}TB` : ''}
               </span>
+              {pick && (
+                <span
+                  title={`The bot designated him as its ${pick} pick for this game`}
+                  style={{
+                    fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT,
+                    color: C.orange, letterSpacing: '.05em',
+                  }}
+                >🤖 {pick}</span>
+              )}
             </div>
           )
         })}
