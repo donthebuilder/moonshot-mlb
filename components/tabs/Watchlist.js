@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import {
   playerId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
-  nn, n, clean, barrelRate, avgEV, pitchMixScore,
+  nn, n, clean, arr, obj, barrelRate, avgEV, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
 import { C, NUM_FONT } from '../../lib/theme'
@@ -10,7 +10,6 @@ import { PanelTitle, Grid, Empty } from '../ui'
 import HitterHeat from '../HitterHeat'
 import DenseTable from '../DenseTable'
 import PlayerCard from '../PlayerCard'
-import PairBuilder from '../PairBuilder'
 
 // The bot's designated category for tonight, straight off the slate row —
 // "HR", "HIT", "TOP/HR", or '' when he isn't one of the ~105 designated
@@ -435,25 +434,108 @@ export default function Watchlist({ items, players = [], pairSummary, onWatch, o
         ))}
       </Grid>
 
-      {/* BUILD PAIRS FROM THESE NAMES. The full pair builder, pre-anchored to
-          every saved hitter — partners are ranked by who fits with the whole
-          watchlist at once, and "Shared by all" narrows to partners who go
-          with everyone. Star a new name above and it joins the anchors
-          automatically. The Pools tab has the same builder unanchored. */}
-      {pairSummary && (
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
-            Pre-loaded with your {items.length} saved hitter{items.length === 1 ? '' : 's'} as anchors —
-            partners below are ranked by fit with your list. Click chips to adjust.
-          </div>
-          <PairBuilder
-            summary={pairSummary}
-            players={players}
-            initialAnchors={items}
-            onPlayerClick={onPlayerClick}
-          />
-        </div>
+      {/* PAIRS WITHIN THE LIST. The first version here pre-anchored the full
+          pair builder to the watchlist — which, by the builder's own rules,
+          could NEVER pair two watched players together: anchors are excluded
+          from being partners, so a list full of anchors produced pairs of
+          list-vs-slate, not list-vs-list. Exactly backwards for a watchlist.
+          This is the right shape: every two-man combination FROM the saved
+          names, scored on tonight plus whatever co-HR history the pair has.
+          For a hitter's partners beyond the list, the full builder lives on
+          Pools. */}
+      {items.length >= 2 && (
+        <WatchlistPairs items={items} pairSummary={pairSummary} onPlayerClick={onPlayerClick} />
       )}
+    </div>
+  )
+}
+
+// Every 2-combination of the saved hitters, ranked. History lookup goes
+// through pair_history_summary by player_id pair, so a combo with real
+// same-game history rises even if tonight's scores are middling.
+function WatchlistPairs({ items, pairSummary, onPlayerClick }) {
+  const rows = useMemo(() => {
+    // History index: "idA|idB" (sorted) -> pair record.
+    const hist = new Map()
+    arr(obj(pairSummary).top_pairs).forEach((pr) => {
+      const ids = arr(pr?.players).map((p) => String(p?.player_id ?? '')).filter(Boolean).sort()
+      if (ids.length === 2) hist.set(ids.join('|'), pr)
+    })
+
+    const out = []
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const a = items[i], b = items[j]
+        const key = [String(a?.player_id ?? ''), String(b?.player_id ?? '')].sort().join('|')
+        const h = hist.get(key)
+        const hrA = hrScore(a), hrB = hrScore(b)
+        const sameGame = a?.game_pk && a.game_pk === b.game_pk
+        const sg = h ? Number(h.same_game_hr_count) || 0 : 0
+        const sd = h ? Number(h.same_day_hr_count_season ?? h.repeat_count) || 0 : 0
+        const since = h && h.days_since_last_hit != null ? Number(h.days_since_last_hit) : null
+        out.push({
+          _key: key || `${i}-${j}`,
+          _raw: hrA >= hrB ? a : b,
+          pair: `${nameOf(a)} + ${nameOf(b)}`,
+          teams: `${teamOf(a)} / ${teamOf(b)}`,
+          sameGm: sameGame ? 1 : 0,
+          stronger: Math.max(hrA, hrB),
+          weaker: Math.min(hrA, hrB),
+          histSg: sg,
+          histSd: sd,
+          since,
+          hasHist: h ? 1 : 0,
+          // Rank: the weaker side leads (both must land), same-game history
+          // is worth real points, same-day less, recency a nudge.
+          fit: Math.min(hrA, hrB)
+            + Math.min(30, sg * 12)
+            + Math.min(12, sd * 2)
+            + (since != null ? Math.max(0, 10 - Math.min(10, since / 3)) : 0),
+        })
+      }
+    }
+    return out.sort((a, b) => b.fit - a.fit)
+  }, [items, pairSummary])
+
+  const withHist = rows.filter((r) => r.hasHist).length
+
+  return (
+    <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 800 }}>🔗 Pairs within your list</span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          {rows.length} combos from {items.length} saved · {withHist} with co-HR history
+        </span>
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
+        Every two-man combination of your saved hitters, best first. For one hitter&apos;s partners
+        beyond this list, use the builder on Pools.
+      </div>
+      <DenseTable
+        rows={rows}
+        columns={[
+          { key: 'pair',    label: 'Pair', heat: false, w: 230, bold: true, sticky: true },
+          { key: 'teams',   label: 'Teams', heat: false, w: 76, mono: true, dim: true },
+          { key: 'sameGm',  label: 'Same gm', flag: true, mark: '⚡', w: 52,
+            title: 'Both hitters are in the SAME GAME tonight — correlated, higher variance' },
+          { key: 'fit',     label: 'Fit', w: 46, dp: 0,
+            title: 'Weaker side + same-game history (12/ea, cap 30) + same-day (2/ea, cap 12) + recency nudge' },
+          { key: 'weaker',  label: 'Weaker', w: 52, dp: 1,
+            title: 'The lower HR score of the two — both have to land, so this side decides' },
+          { key: 'stronger', label: 'Stronger', w: 56, dp: 1 },
+          { key: 'histSg',  label: 'Hist same-gm', w: 66,
+            title: 'Times these two homered in the same game this season' },
+          { key: 'histSd',  label: 'Hist same-day', w: 68,
+            title: 'Times they homered on the same date — different parks count' },
+          { key: 'since',   label: 'Last together', w: 72, invert: true,
+            fmt: (v) => (v == null ? 'never' : v === 0 ? 'today' : `${v}d ago`),
+            title: 'Days since they last homered on the same day. Inverted — recent reads bright.' },
+        ]}
+        onRowClick={onPlayerClick}
+        initialSort={null}
+        maxHeight={400}
+        caption="Ranked by Fit, which leads with the WEAKER side — a pair is never better than its worse half — then adds history. 'never' in Last together isn't a strike against a pair: most good pairs have no history yet, it just means the history columns contribute nothing. ⚡ marks both hitters in one game tonight: they rise and fall together."
+      />
     </div>
   )
 }
