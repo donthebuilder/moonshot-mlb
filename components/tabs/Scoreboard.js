@@ -11,6 +11,7 @@ import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
+import StartHere from '../StartHere'
 import { groupPitchers } from '../../lib/data'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
@@ -84,7 +85,7 @@ function Tracker({ title, count, children, note }) {
   )
 }
 
-export default function Scoreboard({ players, results, onWatch, watchIds, onPlayerClick }) {
+export default function Scoreboard({ players, results, onWatch, watchIds, onPlayerClick, onNavigate }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -185,6 +186,11 @@ export default function Scoreboard({ players, results, onWatch, watchIds, onPlay
           )
         }
       />
+
+      {/* First thing a new visitor sees: the workflow, drawn, not a wall of
+          glossary text. Dismisses per device; a small "?" chip brings it
+          back. The Guide tab keeps the depth. */}
+      <StartHere onNavigate={onNavigate} />
 
       <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
 

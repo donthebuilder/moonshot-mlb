@@ -172,7 +172,7 @@ export default function Dashboard() {
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'hitshrr'     && <HitsHRR     players={players}             onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} results={results} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'scoreboard'  && <Scoreboard players={players} results={results} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'pools'       && <Pools players={players} results={results} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={results} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
