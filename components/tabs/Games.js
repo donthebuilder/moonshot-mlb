@@ -3,7 +3,7 @@ import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, hrScore } from '../../lib/player'
-import { PanelTitle, Grid, Empty, btnStyle } from '../ui'
+import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
@@ -215,11 +215,35 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
               </div>
             )}
 
+            {/* FLEX, NOT GRID, on purpose. Five cards in an auto-fit grid
+                leave an orphan on any width that fits four columns — one card
+                alone with three empty cells, which is the "rows aren't full"
+                problem. Flex with grow lets the last row stretch to fill, so
+                the five picks always occupy the complete width, and each card
+                wears its category as a colored banner so the row reads as the
+                five slots rather than five loose players. */}
             {isActive && (
-            <Grid>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
               {sorted.map((p) => {
+                const roleInfo = isDesignated ? getRoleDisplay(p) : null
+                const wrap = (inner) => (
+                  <div key={playerId(p)} style={{
+                    flex: '1 1 225px', minWidth: 0, display: 'flex', flexDirection: 'column',
+                  }}>
+                    {roleInfo && (
+                      <div style={{
+                        background: `linear-gradient(90deg, ${roleInfo.color}30, ${roleInfo.color}10)`,
+                        border: `1px solid ${roleInfo.color}55`, borderBottom: 'none',
+                        borderRadius: '10px 10px 0 0', padding: '4px 12px',
+                        fontSize: 9.5, fontWeight: 900, color: roleInfo.color,
+                        letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT,
+                      }}>{roleInfo.label}</div>
+                    )}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{inner}</div>
+                  </div>
+                )
                 if (mode === 'botview') {
-                  const { label, color: lcolor } = getRoleDisplay(p)
+                  const { color: lcolor } = getRoleDisplay(p)
                   const pills = Array.isArray(p?.signal_pills) ? p.signal_pills : []
                   const scores = [
                     { k: 'hr_score',      l: 'HR'  },
@@ -228,15 +252,17 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                     { k: 'contact_score', l: 'CTG' },
                     { k: 'overall_score', l: 'OVR' },
                   ]
-                  return (
+                  return wrap(
                     <div
-                      key={playerId(p)}
                       onClick={() => onPlayerClick?.(p)}
-                      style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '11px 14px', cursor: 'pointer' }}
+                      style={{
+                        background: C.bg2, border: `1px solid ${C.border}`,
+                        borderRadius: roleInfo ? '0 0 10px 10px' : 10,
+                        padding: '11px 14px', cursor: 'pointer', flex: 1,
+                      }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
                         <span style={{ fontSize: 14, fontWeight: 600 }}>{p?.name || '—'}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: lcolor, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</span>
                       </div>
                       <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>
                         {p?.team} #{p?.lineup_spot ?? '?'} · vs {p?.pitcher_name || '?'} ({p?.pitcher_throws || '?'})
@@ -269,9 +295,8 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                     </div>
                   )
                 }
-                return (
+                return wrap(
                   <PlayerCard
-                    key={playerId(p)}
                     p={p} type="hr"
                     onAdd={onAdd} onWatch={onWatch}
                     watched={watchIds.has(playerId(p))}
@@ -279,7 +304,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                   />
                 )
               })}
-            </Grid>
+            </div>
             )}
           </section>
         )
