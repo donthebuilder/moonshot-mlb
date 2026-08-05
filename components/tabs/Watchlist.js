@@ -116,16 +116,33 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
 
   const parsed = useMemo(() => {
     const lines = text.split(/[\n,]/).map((l) => l
+      .replace(/\[[^\]]*\]/g, '')                      // [bot: TOP] \u2014 our own export!
+      .replace(/\([^)]*\)/g, '')                       // (PHI), (BAL vs LAA)
       .replace(/^\s*(?:\d+[.)]|[-*\u2022])\s*/, '')   // 1.  1)  -  *  bullets
       .replace(/[+-]\d{3,}/g, '')                      // +410, -125
-      .replace(/\((?:[A-Z]{2,3})\)/g, '')              // (PHI)
       .trim()).filter(Boolean)
 
     const byName = new Map(players.map((p) => [norm(nameOf(p)), p]))
+    // Pre-normalised names, longest first, so "Will Smith" can't steal a line
+    // that actually contains a longer name around it.
+    const nameIndex = players
+      .map((p) => ({ p, nk: norm(nameOf(p)) }))
+      .filter((x) => x.nk.length > 4)
+      .sort((a, b) => b.nk.length - a.nk.length)
+
     return lines.map((line) => {
       const k = norm(line)
+      // Three passes, strict to loose:
+      //   1. the line IS a name ("Pete Alonso")
+      //   2. the line CONTAINS a name \u2014 this is the one that makes the
+      //      site's own .txt export round-trip ("Power Watch Pete Alonso
+      //      BAL vs LAA HR 58 bot TOP" after stripping still carries junk,
+      //      but the name is in there) and survives any other format that
+      //      wraps a name in labels
+      //   3. the line is PART of a name (someone typed "alonso")
       const hit = byName.get(k)
-        || players.find((p) => norm(nameOf(p)).includes(k) && k.length > 4)
+        || nameIndex.find((x) => k.includes(x.nk))?.p
+        || nameIndex.find((x) => x.nk.includes(k))?.p
       return { line, hit: hit || null }
     })
   }, [text, players])
