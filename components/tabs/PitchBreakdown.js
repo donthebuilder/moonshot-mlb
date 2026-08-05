@@ -135,6 +135,91 @@ export default function PitchBreakdown({ player }) {
         </div>
       </div>
 
+      {/* ── MATCHUP DNA ────────────────────────────────────────────────────
+          One bar that merges the two tables below: the pitcher's arsenal as
+          segments (width = how often he throws it) with each segment shaded
+          by THIS batter's damage on that pitch (xwOBA against it, brighter =
+          he crushes it). The tables tell you "he throws 40% four-seam" and
+          "the batter is .420 xwOBA on four-seam" three scrolls apart; this
+          is those two facts multiplied, in one glance. Segments with no
+          batter sample (< 5 BBE) render grey — unknown is not average. */}
+      {pitcherSummary.length > 0 && Object.keys(byPitch).length > 0 && (() => {
+        const segs = pitcherSummary
+          .map((r) => {
+            const pt = r.pitch_type || r.pitch_code || ''
+            const use = Number(r.usage_pct) || 0
+            const d = byPitch[pt] || {}
+            const bbe = Number(d.bbe) || 0
+            const xw = Number(d.xwoba) || 0
+            return { pt, use, xw, bbe, hr: Number(d.hr) || 0 }
+          })
+          .filter((s) => s.use >= 3)
+          .sort((a, b) => b.use - a.use)
+        if (!segs.length) return null
+        const totalUse = segs.reduce((s, x) => s + x.use, 0)
+        // Damage shading: xwOBA .250 → floor, .450 → ceiling.
+        const heat = (xw) => Math.max(0, Math.min(1, (xw - 0.250) / 0.200))
+        // Weighted DNA score: what share of tonight's pitches land on
+        // something this batter damages (xwOBA-weighted, known pitches only).
+        const known = segs.filter((s) => s.bbe >= 5)
+        const knownUse = known.reduce((s, x) => s + x.use, 0)
+        const dna = knownUse > 0
+          ? known.reduce((s, x) => s + x.use * heat(x.xw), 0) / knownUse
+          : null
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
+              <span style={{ fontSize: 12, fontWeight: 800 }}>🧬 Matchup DNA</span>
+              <span style={{ fontSize: 9.5, color: '#71717a', fontFamily: NUM_FONT }}>
+                what he&apos;ll see × what he does to it
+              </span>
+              {dna != null && (
+                <span style={{
+                  marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900,
+                  color: dna >= 0.55 ? '#f97316' : dna >= 0.35 ? '#FCD34D' : '#60a5fa',
+                }} title={`Usage-weighted damage on the ${knownUse.toFixed(0)}% of the arsenal where he has 5+ batted balls of history`}>
+                  {(100 * dna).toFixed(0)}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', height: 34, borderRadius: 9, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.09)' }}>
+              {segs.map((s) => {
+                const has = s.bbe >= 5
+                const h = heat(s.xw)
+                const bg = has
+                  ? `rgba(249, ${Math.round(163 - 60 * h)}, ${Math.round(90 - 68 * h)}, ${0.25 + 0.65 * h})`
+                  : 'rgba(255,255,255,0.05)'
+                return (
+                  <div
+                    key={s.pt}
+                    title={has
+                      ? `${PITCH_NAMES[s.pt] || s.pt}: he throws it ${s.use.toFixed(0)}% — batter ${s.xw.toFixed(3)} xwOBA, ${s.hr} HR on ${s.bbe} batted balls`
+                      : `${PITCH_NAMES[s.pt] || s.pt}: he throws it ${s.use.toFixed(0)}% — batter has under 5 batted balls against it, no read`}
+                    style={{
+                      width: `${(100 * s.use) / totalUse}%`, background: bg,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRight: '1px solid rgba(0,0,0,0.35)', minWidth: 0,
+                    }}
+                  >
+                    <span style={{
+                      fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT,
+                      color: has && h > 0.5 ? '#1a0d02' : '#a1a1aa',
+                      overflow: 'hidden', whiteSpace: 'nowrap',
+                    }}>{s.pt}{s.use >= 12 ? ` ${s.use.toFixed(0)}%` : ''}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 9, color: '#71717a', marginTop: 4, lineHeight: 1.5 }}>
+              Width = how often {player.pitcher_name} throws it{hand !== 'ALL' ? ` vs ${hand}HB` : ''} ·
+              color = this batter&apos;s xwOBA on that pitch, brighter orange = more damage · grey = fewer
+              than 5 batted balls of history, which is unknown, not average. The number is
+              usage-weighted damage over the part of the arsenal he&apos;s actually seen.
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Section 1: Batter vs pitch type, now toggleable by pitcher hand ── */}
       {Object.keys(byPitch).length > 0 ? (
         <div style={{marginBottom:16}}>

@@ -10,6 +10,7 @@ import HRPitchProfile from '../HRPitchProfile'
 import PickScorecard, { pickJob } from '../PickScorecard'
 import ScoreAudit from '../ScoreAudit'
 import PlayerPickRecord from '../PlayerPickRecord'
+import PLSimulator from '../PLSimulator'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -1009,6 +1010,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
         <TabBtn active={subTab === 'picks'} onClick={() => setSubTab('picks')}>📋 Picks</TabBtn>
         <TabBtn active={subTab === 'record'} onClick={() => setSubTab('record')}>👤 Track record</TabBtn>
+        <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>💰 P/L</TabBtn>
       </div>
 
       {/* OVERVIEW */}
@@ -1045,6 +1047,10 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       {subTab === 'record' && (
         <PlayerPickRecord players={players} onPlayerClick={onPlayerClick} />
       )}
+
+      {/* P/L — the archive at your odds. Spans all graded days, ignores the
+          day picker like Track record does. */}
+      {subTab === 'pl' && <PLSimulator />}
 
       {/* PICKS */}
       {subTab === 'picks' && (
