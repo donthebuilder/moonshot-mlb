@@ -130,7 +130,35 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           and because every row started collapsed the lineup table was never
           on screen. */}
       {games.filter((g) => g.game_pk === activeGame).map((g) => {
-        const sorted = [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 8)
+        // THE GAME'S DESIGNATED PICKS, one per category — the same five slots
+        // the results tracker grades. This grid used to show the top 8 by HR
+        // score, which overlapped the picks but wasn't them: a game could
+        // show eight power bats while its actual HIT and CONTACT picks sat
+        // below the cut, so what you saw here never matched what Results
+        // graded. Now it's exactly the bot's slots, in category order. If a
+        // game somehow carries two hitters with the same primary role, the
+        // higher score on that category's own scale wins — same rule as The
+        // Four — so there is always exactly one per category.
+        const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+        const CAT_SCORE = {
+          TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? p?.hr_score ?? 0,
+          HR: (p) => p?.hr_score ?? 0,
+          HIT: (p) => p?.hit_score ?? 0,
+          HRR: (p) => p?.hrr_score ?? 0,
+          CONTACT: (p) => p?.contact_score ?? 0,
+        }
+        const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+        const picks = CAT_ORDER
+          .map((cat) => [...g.players]
+            .filter((p) => primaryRole(p) === cat)
+            .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0])
+          .filter(Boolean)
+        // Fallback for a game with no designated picks published yet (early
+        // slate build): top four by HR score, labelled as such below.
+        const sorted = picks.length
+          ? picks
+          : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4)
+        const isDesignated = picks.length > 0
         const past = isPast(g.game_time)
         const isActive = true
 
@@ -172,6 +200,19 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
 
             {isActive && (
               <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
+            )}
+
+            {isActive && (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 800 }}>
+                  {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
+                </span>
+                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                  {isDesignated
+                    ? 'one per category, the same five slots Results grades'
+                    : 'no designated picks published for this game yet'}
+                </span>
+              </div>
             )}
 
             {isActive && (

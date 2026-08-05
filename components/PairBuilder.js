@@ -2,7 +2,6 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { arr, obj, n, clean, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
-import Heatmap from './Heatmap'
 import DenseTable from './DenseTable'
 
 // Pair Builder — pick one or more hitters, get the partners they share tonight.
@@ -60,6 +59,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
   const [query, setQuery] = useState('')
   const [requireAll, setRequireAll] = useState(false)
   const [marketKey, setMarketKey] = useState('hr')
+  const [showAllChips, setShowAllChips] = useState(false)
   const mkt = MARKETS.find((x) => x.key === marketKey) || MARKETS[0]
   const mScore = mkt.score
 
@@ -292,7 +292,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
       />
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
-        {shown.slice(0, 60).map((a) => {
+        {shown.slice(0, showAllChips ? 200 : 24).map((a) => {
           const on = activeKeys.has(a.key)
           const implicit = on && !anchorKeys.length
           return (
@@ -322,11 +322,21 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
         })}
       </div>
 
-      <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
-        Every hitter on tonight&apos;s slate is selectable. A small <b style={{ color: C.text2 }}>·</b> after
-        the score means he has no co-HR history on file — {anchors.filter((a) => !a.hasHistory).length} of{' '}
-        {anchors.length} tonight. He can still be an anchor; he just brings no partners of his own,
-        so in a multi-select he narrows nothing. Use the search to reach anyone not shown.
+      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 8 }}>
+        {shown.length > 24 && (
+          <button
+            onClick={() => setShowAllChips((v) => !v)}
+            style={{
+              padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 10,
+              fontWeight: 700, fontFamily: NUM_FONT,
+              border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
+            }}
+          >{showAllChips ? 'Show fewer' : `Show all ${shown.length} hitters`}</button>
+        )}
+        <span style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>
+          Sorted by tonight&apos;s {mkt.label} score. A <b style={{ color: C.text2 }}>·</b> means no
+          co-HR history on file — still selectable, he just brings no partners of his own.
+        </span>
       </div>
 
       {anchorKeys.length > 0 && (
@@ -385,29 +395,48 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
         </div>
       ) : (
         <>
-          <Heatmap
-            rows={partners.slice(0, 15).map((p) => ({
-              label: multi ? `${p.name} (${p.matched}/${active.length})` : p.name,
-              _raw: p._raw,
-              values: {
-                Fit: p.fit,
-                ...(multi ? { Anchors: p.matched } : {}),
-                [`${mkt.short} tonight`]: p.hr,
-                'Same game': p.sameGame,
-                'Shared days': p.days,
-                'Days since': p.since == null ? null : Math.max(0, 30 - Math.min(30, p.since)),
-                'Opp HR/9': p.hr9 * 30,
-              },
-            }))}
-            columns={['Fit', ...(multi ? ['Anchors'] : []), `${mkt.short} tonight`, 'Same game', 'Shared days', 'Days since', 'Opp HR/9']}
-            title={`Best partners for ${active.map((a) => a.name).join(' + ')} tonight`}
-            labelWidth={multi ? 178 : 150}
-            onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
-            caption={`Days since is flipped so a recent pairing reads bright. Opp HR/9 is ×30 to share the scale. Same game is the only column that means the two were actually in the same ballpark.${multi ? ' Anchors is how many of your selected hitters this partner has history with — Fit is the mean across those, so it is not inflated by matching more of them.' : ''}`}
-          />
+          {/* BEST RIGHT NOW — the top of the table, said in a sentence, so
+              the page answers its own question before you read a single
+              column. The heatmap that used to sit here repeated the table's
+              columns in chart form; the callout + table is the cleaner pair. */}
+          {(() => {
+            const top = partners[0]
+            const anchorName = active.length === 1 ? active[0].name : `${active.length} anchors`
+            return (
+              <div style={{
+                background: 'linear-gradient(155deg, rgba(249,115,22,.12), rgba(249,115,22,.04))',
+                border: `1px solid ${C.orange}55`, borderRadius: 11,
+                padding: '9px 13px', marginBottom: 10,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>
+                    Best right now
+                  </span>
+                  <span
+                    onClick={() => onPlayerClick?.(top._raw)}
+                    style={{ fontSize: 13, fontWeight: 800, cursor: onPlayerClick ? 'pointer' : 'default' }}
+                  >{anchorName} + {top.name}</span>
+                  <span style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT }}>
+                    fit {top.fit.toFixed(0)}
+                    {top.sameGame > 0 && <b style={{ color: '#FCD34D' }}> · {top.sameGame}× same game</b>}
+                    {' '}· {top.days}× same day
+                    {top.since != null && ` · last together ${top.since}d ago`}
+                    {' '}· vs {top.pitcher}
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
 
           <DenseTable
-            rows={partners}
+            rows={partners.map((p) => ({
+              ...p,
+              iso: n(p._raw?.season_iso, 0) * 100,
+              hrw: n(p._raw?.hrw_score, 0),
+              l5: `${n(p._raw?.last5_hits, 0)}H/${n(p._raw?.last5_hr, 0)}HR`,
+              spot: clean(p._raw?.lineup_spot, ''),
+              isPick: String(p._raw?.game_pick_role || '').trim() ? 1 : 0,
+            }))}
             columns={[
               { key: 'name',     label: 'Partner', heat: false, w: 148, bold: true, sticky: true },
               ...(multi ? [
@@ -417,23 +446,36 @@ export default function PairBuilder({ summary, players = [], onPlayerClick }) {
               ] : []),
               { key: 'team',     label: 'Tm',      heat: false, w: 34, mono: true, dim: true },
               { key: 'opp',      label: 'Opp',     heat: false, w: 34, mono: true, dim: true },
-              { key: 'pitcher',  label: 'Facing',  heat: false, w: 132, dim: true },
-              { key: 'weak',     label: '★',       flag: true, mark: '★', w: 30 },
-              { key: 'fit',      label: 'Fit',     w: 46, dp: 1 },
+              { key: 'spot',     label: '#',       heat: false, w: 28, mono: true, dim: true,
+                title: 'Lineup spot tonight' },
+              { key: 'pitcher',  label: 'Facing',  heat: false, w: 124, dim: true },
+              { key: 'isPick',   label: '🤖',      flag: true, mark: '●', w: 32,
+                title: 'One of the bot’s designated picks tonight' },
+              { key: 'weak',     label: '★',       flag: true, mark: '★', w: 30,
+                title: 'Weak lineup spot against tonight’s starter' },
+              { key: 'fit',      label: 'Fit',     w: 46, dp: 1,
+                title: `55% tonight's ${mkt.label} score · 25% same-game history · 10% shared days · 10% recency` },
               { key: 'hr',       label: mkt.short, w: 44, dp: 1,
                 title: `Tonight's ${mkt.label} score — the market you picked above` },
-              { key: 'sameGame', label: 'Same gm', w: 50 },
-              { key: 'days',     label: 'Shared',  w: 46 },
-              { key: 'since',    label: 'Days ago', w: 50,
-                invert: true, fmt: (v) => (v == null ? '—' : String(v)) },
-              { key: 'boost',    label: 'Boost',   w: 46 },
-              { key: 'pairScore', label: 'Pair',   w: 46 },
-              { key: 'hr9',      label: 'Opp HR/9', w: 50, dp: 2 },
+              { key: 'l5',       label: 'L5',      heat: false, w: 58, mono: true, dim: true,
+                title: 'Last five games — hits / homers' },
+              { key: 'iso',      label: 'ISO',     w: 44, dp: 0,
+                title: 'Season ISO ×100 — the archive’s strongest HR predictor' },
+              { key: 'hrw',      label: 'HRW',     w: 46, dp: 0 },
+              { key: 'sameGame', label: 'Same gm', w: 50,
+                title: 'Times he and your anchor homered in the SAME GAME this season — the only correlated version of pair history' },
+              { key: 'days',     label: 'Same day', w: 54,
+                title: 'Times they homered on the same DATE — includes different ballparks, so it’s coincidence-friendly. Read Same gm first.' },
+              { key: 'since',    label: 'Last together', w: 72,
+                invert: true, fmt: (v) => (v == null ? 'never' : v === 0 ? 'today' : `${v}d ago`),
+                title: 'How long since the two of them last homered on the same day. "12d ago" = still warm; months = a stat, not a streak. Inverted so recent reads bright.' },
+              { key: 'hr9',      label: 'Opp HR/9', w: 50, dp: 2,
+                title: 'The starter this partner faces tonight' },
             ]}
             onRowClick={onPlayerClick}
             initialSort={multi ? 'matched' : 'fit'}
             maxHeight={400}
-            caption={`Days ago is inverted — a pairing that hit last week is live, one from March is noise. Fit is 55% tonight's ${mkt.label} score, 25% same-game history, 10% shared days, 10% recency.${mkt.key !== 'hr' ? ` One honest note on the ${mkt.label} market: the history columns still count days these two HOMERED together, because co-HR days are the only pair history the bot publishes — tonight's score is on your market, the history is not.` : ''}${multi ? ' With multiple anchors, Same gm / Shared / Boost are summed across the anchors this partner matched, and Days ago is the most recent of them.' : ''}`}
+            caption={`"Last together" is how long since these two last homered on the same day — "12d ago" is a live pairing, "60d ago" is a memory; it's inverted so recent reads bright. Same gm beats Same day: only the same-game version means they were actually in one ballpark. Boost and the bot's raw pair score came off the board — both were inputs to Fit wearing their own columns.${mkt.key !== 'hr' ? ` On the ${mkt.label} market, tonight's score is on your market but the history columns still count co-HOMER days — that's the only pair history the bot publishes.` : ''}${multi ? ' With multiple anchors, Same gm / Same day sum across matched anchors and Last together is the most recent.' : ''}`}
           />
         </>
       )}
