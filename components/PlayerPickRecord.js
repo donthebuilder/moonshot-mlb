@@ -111,11 +111,27 @@ export function usePickRecords(backtest) {
 
 // ── the matrix ───────────────────────────────────────────────────────────────
 
-export default function PlayerPickRecord({ onPlayerClick }) {
+export default function PlayerPickRecord({ players = [], onPlayerClick }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
   const [minPicks, setMinPicks] = useState(5)
   const [only, setOnly] = useState('ALL')
+  const [todayOnly, setTodayOnly] = useState(false)
+
+  // TONIGHT'S PICKS, joined by name — the snapshot is keyed by name, and so
+  // is this. The point: the archive tells you who delivers when picked, and
+  // the one moment that matters is when he's picked AGAIN — tonight. A 🤖
+  // column plus a filter makes the table answer "of tonight's picks, who has
+  // actually earned the designation".
+  const todayPicks = useMemo(() => {
+    const m = new Map()
+    players.forEach((p) => {
+      const role = String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+      const nm = String(p?.name || '').toLowerCase().trim()
+      if (role && nm) m.set(nm, role)
+    })
+    return m
+  }, [players])
 
   useEffect(() => {
     let alive = true
@@ -131,8 +147,12 @@ export default function PlayerPickRecord({ onPlayerClick }) {
     return data.players
       .filter((p) => p.p >= minPicks)
       .filter((p) => only === 'ALL' || (p.c?.[only]?.[1] || 0) >= MIN_RATE)
+      .filter((p) => !todayOnly || todayPicks.has(String(p.n || '').toLowerCase().trim()))
       .map((p) => {
+        const todayRole = todayPicks.get(String(p.n || '').toLowerCase().trim()) || ''
         const r = {
+          today: todayRole,
+          isToday: todayRole ? 1 : 0,
           _key: p.n, _raw: { name: p.n, team: p.t },
           name: p.n, team: p.t, picks: p.p, did: p.d,
           rate: p.p >= MIN_RATE ? (100 * p.d) / p.p : null,
@@ -151,7 +171,7 @@ export default function PlayerPickRecord({ onPlayerClick }) {
         })
         return r
       })
-  }, [data, minPicks, only])
+  }, [data, minPicks, only, todayOnly, todayPicks])
 
   if (state === 'loading') return <Empty text="Loading the pick archive…" />
   if (state === 'error') return <Empty text="pick_matrix.json could not be loaded." />
@@ -181,6 +201,11 @@ export default function PlayerPickRecord({ onPlayerClick }) {
         {[3, 5, 10, 20].map((v) => (
           <Btn key={v} active={minPicks === v} onClick={() => setMinPicks(v)}>{v}+</Btn>
         ))}
+        {todayPicks.size > 0 && (
+          <Btn active={todayOnly} onClick={() => setTodayOnly((v) => !v)}>
+            🤖 Picked today ({[...todayPicks.keys()].length})
+          </Btn>
+        )}
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginLeft: 6 }}>
           {rows.length} shown
         </span>
@@ -190,6 +215,9 @@ export default function PlayerPickRecord({ onPlayerClick }) {
         rows={rows}
         columns={[
           { key: 'name', label: 'Player', heat: false, w: 152, bold: true, sticky: true },
+          { key: 'today', label: '🤖 Today', heat: false, w: 62, mono: true,
+            fmt: (v) => (v ? v : '·'),
+            title: 'He is one of tonight’s designated picks, in this category. The whole point of the archive: check his record in THAT column before trusting tonight’s designation.' },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
           { key: 'last', label: 'Last', heat: false, w: 44, mono: true, dim: true,
             title: 'Most recent day he was picked' },
