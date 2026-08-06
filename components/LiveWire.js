@@ -174,8 +174,8 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
                   borderRadius: 7, padding: '3px 9px',
                 }}>
                   <span style={{ fontSize: 11 }}>💥</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>
-                    {h.p ? nameOf(h.p) : `#${h.id}`}{h.l.hr > 1 ? ` ×${h.l.hr}` : ''}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: h.p ? C.text : C.text3 }}>
+                    {h.p ? nameOf(h.p) : (h.l.name || `#${h.id}`)}{h.l.hr > 1 ? ` ×${h.l.hr}` : ''}
                   </span>
                   {h.role && <span style={{ fontSize: 8.5, fontWeight: 900, color: ROLE_COLOR[h.role] || C.orange, fontFamily: NUM_FONT }}>🤖 {h.role}</span>}
                   {h.watched && <span style={{ fontSize: 9 }}>★</span>}
@@ -198,8 +198,9 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
                     padding: '2px 6px', borderRadius: 6,
                     background: cleared === true ? 'rgba(74,222,128,.06)' : 'transparent',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 900, color: sCol, width: 12 }}>{status}</span>
-                    <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, width: 30 }}>{role}</span>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: sCol, width: 12, flexShrink: 0 }}>{status}</span>
+                    {/* CONTACT is 7 chars — 30px jammed it into the name */}
+                    <span style={{ fontSize: 8, fontWeight: 900, color: col, fontFamily: NUM_FONT, width: 44, flexShrink: 0, letterSpacing: 0 }}>{role}</span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                       {nameOf(p)}
                     </span>
