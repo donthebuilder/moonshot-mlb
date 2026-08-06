@@ -4,41 +4,44 @@ import { C, NUM_FONT } from '../lib/theme'
 import { hotColdZones } from '../lib/situational'
 import { zonesUrl } from '../lib/dataSource'
 
-// STRIKE-ZONE MAP — two data lanes, one grid.
+// STRIKE-ZONE MAP v3 — one map for both players.
 //
-// API lane (always available): StatsAPI hotColdZones — per-zone exit velo,
-// SLG, OPS, AVG with MLB's own hot/cold grading. Season, batter only.
+// v2 split the matchup across three separate views (match / HR-v-use / weak)
+// and made the reader do the aligning in their head. Consolidated: MATCHUP is
+// now a single default view where every cell answers "do these two players
+// collide here, and who wins the collision" —
+//   orange, ⚡  his damage meets the starter's pitch traffic (edge: hitter)
+//   red,    ⚠  his hole meets the starter's pitch traffic  (edge: pitcher)
+//   dim         no traffic or no signal — nothing to bet on in that cell
+// The verdict line above the grid names the single best edge and the single
+// biggest danger in plain words, so the map confirms rather than explains.
 //
-// BOT lane (when current/zones/ has this hitter): the spray-cache zone
-// profiles — batter per-zone HR rate / xSLG / xwOBA over the last ~120 days,
-// PLUS tonight's starter per-zone usage and his kill zones. That second half
-// is what turns a heat map into a matchup: three views —
-//   Zone match  — where his damage meets the starter's actual pitch traffic
-//   HR% v use   — where his homers live, weighted by how often this arm goes there
-//   Weak zones  — the holes tonight's attack plan will hunt (red, inverted)
-// Verified live 2026-08-06 (Kwan, zones/today/batter_680757.json).
-//
-// Colour rule holds: orange = good for the hitter. The weak view is the one
-// deliberate exception — red, because it maps what's bad for him.
+// Batter side: bot zone cache (~120d xSLG/xwOBA/HR per zone). Pitcher side:
+// same cache — his per-zone usage AND per-zone damage allowed, kill zones.
+// The four API stat views (EV/SLG/OPS/AVG, season, MLB-graded) stay as the
+// batter-only fallback and are all the map shows when no zones file exists.
 
 const TEMP_ALPHA = { hot: 0.8, warm: 0.5, lukewarm: 0.26, cool: 0.12, cold: 0.05 }
 
 const API_STATS = [
-  { key: 'ev', label: 'Exit velo', hint: 'Average EV on balls hit from this zone — season, live API' },
-  { key: 'slg', label: 'SLG', hint: 'Slugging on pitches in this zone — season, live API' },
-  { key: 'ops', label: 'OPS', hint: 'OPS on pitches in this zone — season, live API' },
-  { key: 'avg', label: 'AVG', hint: 'Average on pitches in this zone — season, live API' },
+  { key: 'ev', label: 'Exit velo', hint: 'His average EV on balls from this zone — season, live API' },
+  { key: 'slg', label: 'SLG', hint: 'His slugging on pitches in this zone — season, live API' },
+  { key: 'ops', label: 'OPS', hint: 'His OPS on pitches in this zone — season, live API' },
+  { key: 'avg', label: 'AVG', hint: 'His average on pitches in this zone — season, live API' },
 ]
-const BOT_STATS = [
-  { key: 'match', label: '⚔ Zone match', hint: 'His xSLG per zone × how often tonight’s starter throws there — bright cells are where damage meets traffic' },
-  { key: 'hrvuse', label: 'HR% v use', hint: 'His HR rate per zone, weighted by the starter’s usage — where his homers live on pitches he’ll actually see' },
-  { key: 'weak', label: '⚠ Weak zones', hint: 'Inverted and red: where he’s weakest AND the starter goes often — the holes tonight’s attack plan hunts' },
-]
+
+const ZONE_NAME = {
+  1: 'up-and-left', 2: 'up-and-middle', 3: 'up-and-right',
+  4: 'middle-left', 5: 'dead middle', 6: 'middle-right',
+  7: 'down-and-left', 8: 'down-and-middle', 9: 'down-and-right',
+  11: 'high-left, off the zone', 12: 'high-right, off the zone',
+  13: 'low-left, off the zone', 14: 'low-right, off the zone',
+}
 
 const fmt3 = (v) => (v == null ? '—' : v.toFixed(3).replace(/^0\./, '.'))
 const fmtPct = (v) => (v == null ? '—' : `${(100 * v).toFixed(v >= 0.1 ? 0 : 1)}%`)
 
-function Cell({ main, sub, alpha, red, glow, big, align, title, dim }) {
+function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim }) {
   const [v, h] = align || ['center', 'center']
   const base = red ? '248,113,113' : '249,115,22'
   return (
@@ -56,7 +59,7 @@ function Cell({ main, sub, alpha, red, glow, big, align, title, dim }) {
       <span style={{
         fontFamily: NUM_FONT, fontSize: big ? 11 : 9, lineHeight: 1.25,
         fontWeight: glow ? 900 : 600, color: glow ? '#fff' : C.text2,
-      }}>{main}</span>
+      }}>{mark ? `${mark} ` : ''}{main}</span>
       {sub != null && (
         <span style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3 }}>{sub}</span>
       )}
@@ -65,20 +68,23 @@ function Cell({ main, sub, alpha, red, glow, big, align, title, dim }) {
 }
 
 export default function ZoneMap({ playerId, bats }) {
-  const [api, setApi] = useState(undefined)   // hotColdZones; undefined = loading
-  const [bot, setBot] = useState(null)        // current/zones file, or null
+  const [api, setApi] = useState(undefined)
+  const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
 
   useEffect(() => {
     let alive = true
-    setApi(undefined); setBot(null)
-    // A bot view can't survive a player switch until the new zones file lands.
-    setStat((s) => (BOT_STATS.some((b) => b.key === s) ? 'ev' : s))
+    setApi(undefined); setBot(null); setStat('ev')
     hotColdZones(playerId).then((d) => { if (alive) setApi(d) })
     if (playerId) {
       fetch(zonesUrl(playerId))
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (alive) setBot(d) })
+        .then((d) => {
+          if (!alive) return
+          setBot(d)
+          // Matchup is the map's whole point — make it the door, not a room.
+          if (d?.zone_profile) setStat((s) => (s === 'ev' ? 'matchup' : s))
+        })
         .catch(() => {})
     }
     return () => { alive = false }
@@ -87,65 +93,90 @@ export default function ZoneMap({ playerId, bats }) {
   const zp = bot?.zone_profile
   const pzp = bot?.pitcher_zone_profile
   const hasBot = !!(zp && (zp.zones_13 || zp.zones_9))
-  const hasUse = !!(pzp && pzp.tendency)
-  const isBotView = BOT_STATS.some((s) => s.key === stat)
+  const isMatch = stat === 'matchup' && hasBot
 
   if (api === undefined && !hasBot) {
     return <div style={{ fontSize: 10, color: C.text3, padding: '6px 0', fontFamily: NUM_FONT }}>Loading zone map…</div>
   }
   if (!api && !hasBot) return null
 
-  // ── build the 13 cells for whatever view is active ─────────────────────────
   const ZONES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '11', '12', '13', '14']
   let cells = {}
+  let verdict = null
 
-  if (!isBotView || !hasBot) {
-    const zs = api?.[stat] || {}
+  if (!isMatch) {
+    const zs = api?.[stat === 'matchup' ? 'ev' : stat] || {}
     ZONES.forEach((k) => {
       const z = zs[k] || zs[String(Number(k))]
       cells[k] = z
-        ? { main: z.value, alpha: TEMP_ALPHA[z.temp] ?? 0.15, glow: z.temp === 'hot', title: `${z.temp}` }
+        ? { main: z.value, alpha: TEMP_ALPHA[z.temp] ?? 0.15, glow: z.temp === 'hot', title: `${ZONE_NAME[Number(k)]} · ${z.temp}` }
         : { main: '—', alpha: 0 }
     })
   } else {
-    const bz = {}
-    ;(zp.zones_13 || zp.zones_9 || []).forEach((z) => { bz[z.zone] = z })
-    const use = {}
-    ;(pzp?.tendency || []).forEach((t) => { use[t.zone] = t.pct })
+    const bz = {}; (zp.zones_13 || zp.zones_9 || []).forEach((z) => { bz[z.zone] = z })
+    const use = {}; (pzp?.tendency || []).forEach((t) => { use[t.zone] = t.pct })
+    const pd = {}; (pzp?.damage || []).forEach((d) => { pd[d.zone] = d })
     const kill = new Set(pzp?.kill_zones || [])
+    const hasP = !!pzp
 
-    // score per zone, then normalize so the brightest cell is the story
-    const raw = {}
+    // Two edge scores per zone, each normalized to its own max so the
+    // brightest cell of each colour is always the story of the night.
+    //   hitter: his xSLG there × starter traffic there × (starter also bleeds there)
+    //   pitcher: his weakness there (low xwOBA) × starter traffic there
+    const hE = {}, pE = {}
     ZONES.forEach((k) => {
-      const zn = Number(k)
-      const b = bz[zn]
-      const u = use[zn] ?? null
-      if (!b) { raw[k] = null; return }
-      if (stat === 'match') raw[k] = (b.xslg ?? 0) * (hasUse ? (u ?? 0) : 1)
-      else if (stat === 'hrvuse') raw[k] = (b.hr_rate ?? 0) * (hasUse ? (u ?? 0) : 1)
-      else raw[k] = Math.max(0, 0.4 - (b.xwoba ?? 0.4)) * (hasUse ? (u ?? 0) : 1) // weak: low xwOBA × traffic
+      const zn = Number(k); const b = bz[zn]
+      const u = hasP ? (use[zn] ?? 0) : 1
+      if (!b) { hE[k] = 0; pE[k] = 0; return }
+      const pBleed = hasP && pd[zn]?.xslg != null ? 0.5 + 0.5 * Math.min(1, pd[zn].xslg / 0.6) : 1
+      hE[k] = (b.xslg ?? 0) * u * pBleed
+      pE[k] = Math.max(0, 0.4 - (b.xwoba ?? 0.4)) * u
     })
-    const max = Math.max(...Object.values(raw).filter((v) => v != null), 0.000001)
+    const hMax = Math.max(...Object.values(hE), 1e-9)
+    const pMax = Math.max(...Object.values(pE), 1e-9)
+
     ZONES.forEach((k) => {
-      const zn = Number(k)
-      const b = bz[zn]
-      const u = use[zn]
+      const zn = Number(k); const b = bz[zn]
       if (!b) { cells[k] = { main: '—', alpha: 0 }; return }
-      const score = raw[k] == null ? 0 : raw[k] / max
+      const h = hE[k] / hMax, p = pE[k] / pMax
+      const hitterWins = h >= p
+      const strength = hitterWins ? h : p
       const isKill = kill.has(zn)
       cells[k] = {
-        main: stat === 'match' ? fmt3(b.xslg) : stat === 'hrvuse' ? fmtPct(b.hr_rate) : fmt3(b.xwoba),
-        sub: hasUse && u != null ? `${isKill ? '⚠' : ''}${fmtPct(u)}` : null,
-        alpha: 0.04 + score * 0.72,
-        glow: score >= 0.72,
-        red: stat === 'weak',
+        main: fmt3(b.xslg),
+        sub: hasP && use[zn] != null ? fmtPct(use[zn]) : null,
+        mark: hitterWins ? (h >= 0.7 ? '⚡' : '') : (p >= 0.7 ? '⚠' : ''),
+        alpha: 0.04 + strength * 0.68,
+        red: !hitterWins,
+        glow: strength >= 0.7,
         dim: b.low_sample,
-        title: `zone ${zn} · ${b.pa} PA · ${b.hr} HR · BA ${fmt3(b.ba)} · xwOBA ${fmt3(b.xwoba)} · xSLG ${fmt3(b.xslg)}${u != null ? ` · starter throws here ${fmtPct(u)}` : ''}${isKill ? ' · STARTER KILL ZONE' : ''}`,
+        title: `${ZONE_NAME[zn]} — him: ${b.hr} HR · ${fmt3(b.ba)} BA · xSLG ${fmt3(b.xslg)} in ${b.pa} PA`
+          + (hasP ? ` — starter: throws here ${fmtPct(use[zn])}, allows xSLG ${fmt3(pd[zn]?.xslg)}${isKill ? ' · KILL ZONE' : ''}` : ''),
       }
     })
+
+    // The verdict: name the one best edge and the one worst hole, in words.
+    const bestH = ZONES.reduce((a, k) => (hE[k] > hE[a] ? k : a), ZONES[0])
+    const bestP = ZONES.reduce((a, k) => (pE[k] > pE[a] ? k : a), ZONES[0])
+    const bh = bz[Number(bestH)], bp = bz[Number(bestP)]
+    verdict = (
+      <div style={{ fontSize: 10.5, lineHeight: 1.55, marginBottom: 9, color: C.text2 }}>
+        {bh && hE[bestH] > 0 && <>
+          <b style={{ color: C.orange }}>⚡ Best edge:</b> {ZONE_NAME[Number(bestH)]} — he slugs{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{fmt3(bh.xslg)}</b> there
+          {pzp && use[Number(bestH)] != null && <> and the starter goes there <b style={{ fontFamily: NUM_FONT }}>{fmtPct(use[Number(bestH)])}</b> of the time</>}.
+        </>}
+        {bp && pE[bestP] > 0 && <>
+          {' '}<b style={{ color: '#f87171' }}>⚠ Danger:</b> {ZONE_NAME[Number(bestP)]} —{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{fmt3(bp.xwoba)}</b> xwOBA
+          {pzp && use[Number(bestP)] != null && <> on <b style={{ fontFamily: NUM_FONT }}>{fmtPct(use[Number(bestP)])}</b> of the starter&apos;s pitches</>}.
+        </>}
+      </div>
+    )
   }
 
-  const active = [...API_STATS, ...BOT_STATS].find((s) => s.key === stat)
+  const pills = [...(hasBot ? [{ key: 'matchup', label: '⚔ Matchup', hint: 'Both players on one map — where his zones and the starter’s pitches collide, and who wins each collision' }] : []), ...API_STATS]
+  const active = pills.find((s) => s.key === stat) || pills[0]
 
   return (
     <div style={{
@@ -155,7 +186,7 @@ export default function ZoneMap({ playerId, bats }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>⌖ Strike-zone map</span>
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-          {API_STATS.map((s) => (
+          {pills.map((s) => (
             <button key={s.key} onClick={() => setStat(s.key)} title={s.hint} style={{
               padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
               fontWeight: 700, fontFamily: NUM_FONT,
@@ -164,23 +195,14 @@ export default function ZoneMap({ playerId, bats }) {
               color: stat === s.key ? C.orange : C.text3,
             }}>{s.label}</button>
           ))}
-          {hasBot && BOT_STATS.map((s) => (
-            <button key={s.key} onClick={() => setStat(s.key)} title={s.hint} style={{
-              padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
-              fontWeight: 700, fontFamily: NUM_FONT,
-              border: `1px solid ${stat === s.key ? (s.key === 'weak' ? '#f87171' : C.orange) : C.border2}`,
-              background: stat === s.key ? (s.key === 'weak' ? 'rgba(248,113,113,.12)' : 'rgba(249,115,22,.14)') : 'rgba(255,255,255,.02)',
-              color: stat === s.key ? (s.key === 'weak' ? '#f87171' : C.orange) : C.text2,
-            }}>{s.label}</button>
-          ))}
         </div>
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
-          {isBotView ? `bot zone cache · ~${zp?.lookback || 120}d${hasUse ? ' · vs tonight’s starter' : ''}` : 'live API · season · MLB’s own grading'}
+          {isMatch ? `bot zone cache · ~${zp?.lookback || 120}d · him + tonight's starter` : 'live API · season · MLB grading'}
         </span>
       </div>
 
-      {/* Fixed-height frame — v1 collapsed (abs-positioned child) and spilled
-          over the controls. Corner values pinned into visible corners. */}
+      {verdict}
+
       <div style={{ maxWidth: 250, margin: '0 auto' }}>
         <div style={{
           position: 'relative', height: 290,
@@ -204,11 +226,14 @@ export default function ZoneMap({ playerId, bats }) {
       </div>
 
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        {stat === 'match' && <>His xSLG in each cell, tonight&apos;s starter&apos;s usage share under it — <span style={{ color: C.orange }}>bright = his damage meets the pitch traffic</span>. ⚠ marks the starter&apos;s kill zones (high damage allowed AND high usage — live dangerously there).</>}
-        {stat === 'hrvuse' && <>His per-zone HR rate over the starter&apos;s usage — <span style={{ color: C.orange }}>bright = homers live where this arm actually throws</span>. A hot cell the starter avoids is trivia; a hot cell he pounds is a bet.</>}
-        {stat === 'weak' && <><span style={{ color: '#f87171' }}>Red = the holes</span>: lowest xwOBA weighted by how often the starter comes there — the cells tonight&apos;s attack plan will hunt. ⚠ = also a starter kill zone; that combination is the strikeout script.</>}
-        {!isBotView && <>{active?.label} by pitch location, graded hot/cold by MLB against league norms — brighter orange is hotter for the hitter.</>}
-        {' '}Catcher&apos;s view{bats === 'L' ? ' — for a lefty, inside is the right column' : bats === 'R' ? ' — for a righty, inside is the left column' : ''}. Corner panels are out-of-zone. Faded cells are small samples. Hover any cell for the full line.
+        {isMatch
+          ? <>One map, both players. The number is HIS xSLG in that zone; the small number is how often
+            tonight&apos;s starter throws there. <span style={{ color: C.orange }}>Orange = his damage meets
+            their traffic</span> (⚡ strongest edge) · <span style={{ color: '#f87171' }}>red = his hole meets
+            their traffic</span> (⚠ biggest danger) · dim = nothing collides there. Hover any cell for both
+            sides of it.</>
+          : <>{active?.label} by pitch location, MLB-graded hot/cold — brighter orange is hotter for the hitter.</>}
+        {' '}Catcher&apos;s view{bats === 'L' ? ' — for this lefty, inside is the right column' : bats === 'R' ? ' — for this righty, inside is the left column' : ''}. Corners are out-of-zone. Faded = small sample.
       </div>
     </div>
   )
