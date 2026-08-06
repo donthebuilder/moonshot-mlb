@@ -26,12 +26,36 @@ const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().
 export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerClick }) {
   const [snap, setSnap] = useState(null)
   const [toasts, setToasts] = useState([])
+  // Browser notifications (2026-08-06): opt-in via the bell. When the tab is
+  // hidden and permission is granted, toasts also fire as real OS
+  // notifications — the Notification API is pure client-side, no server.
+  const [notif, setNotif] = useState(() => {
+    try {
+      return typeof Notification !== 'undefined' && Notification.permission === 'granted'
+        && localStorage.getItem('wire_notif') === 'on' ? 'on' : 'off'
+    } catch { return 'off' }
+  })
+  const notifRef = useRef(notif)
+  useEffect(() => { notifRef.current = notif }, [notif])
+  const toggleNotif = async () => {
+    if (notif === 'on') { setNotif('off'); try { localStorage.setItem('wire_notif', 'off') } catch {} ; return }
+    if (typeof Notification === 'undefined') return
+    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+    if (perm === 'granted') { setNotif('on'); try { localStorage.setItem('wire_notif', 'on') } catch {} }
+  }
   const prevRef = useRef(null)     // previous lines, for the diff
   const firedRef = useRef(new Set()) // dedupe keys across refreshes
 
   const addToasts = (items) => {
     if (!items.length) return
     setToasts((cur) => [...items, ...cur].slice(0, 4))
+    // Hidden tab + bell on → the same events reach the OS.
+    if (notifRef.current === 'on' && typeof document !== 'undefined' && document.hidden
+      && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      items.slice(0, 3).forEach((t) => {
+        try { new Notification(`${t.icon} Moonshot`, { body: t.text, tag: t.key, silent: t.pri > 0 }) } catch {}
+      })
+    }
     items.forEach((t) => setTimeout(() => {
       setToasts((cur) => cur.filter((x) => x.key !== t.key))
     }, 9000))
@@ -70,6 +94,24 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
           }
           if (role && now.k >= 2 && was.k < 2 && now.h === 0) {
             fire('k', '⚠️', `${nameOf(p)} (${role} pick) is 0-${now.ab} with ${now.k} K — the strikeout script`, 2)
+          }
+        })
+        // ── DUE-UP: your pick is at the plate / on deck, right now ──
+        const gameOf = {}
+        s.games.forEach((g) => { gameOf[g.pk] = g })
+        relevant.forEach((p) => {
+          const id = Number(p?.player_id ?? p?.id)
+          const g = gameOf[Number(p?.game_pk)]
+          if (!g || g.state !== 'Live') return
+          const role = primaryRole(p)
+          const who = role ? `${role} pick` : 'watchlist'
+          const slot = `${g.inning}${g.half}`
+          if (g.upBatter === id) {
+            const key = `${id}:up:${slot}`
+            if (!firedRef.current.has(key)) { firedRef.current.add(key); out.push({ key, icon: '🎤', text: `UP NOW — ${nameOf(p)} (${who}) at the plate`, p, pri: 0.5 }) }
+          } else if (g.onDeck === id) {
+            const key = `${id}:od:${slot}`
+            if (!firedRef.current.has(key)) { firedRef.current.add(key); out.push({ key, icon: '⏳', text: `${nameOf(p)} (${who}) is on deck`, p, pri: 1.5 }) }
           }
         })
         out.sort((a, b) => a.pri - b.pri)
@@ -138,7 +180,14 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
             {picks.length > 0 && <> · picks <b style={{ color: cleared ? '#4ade80' : C.text2 }}>{cleared}/{picks.length}</b> cleared</>}
             {hr > 0 && <> · <b style={{ color: C.orange }}>{hr} HR</b></>}
           </span>
-          <span style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>open wire →</span>
+          <span
+            onClick={(e) => { e.stopPropagation(); toggleNotif() }}
+            title={notif === 'on'
+              ? 'Browser notifications ON — homers, due-ups and K-alerts reach you even with this tab in the background. Click to mute.'
+              : 'Click to get browser notifications when this tab is in the background — homers, your pick due up, K-alerts. Opt-in, nothing leaves your device.'}
+            style={{ marginLeft: 'auto', fontSize: 12, cursor: 'pointer', opacity: notif === 'on' ? 1 : 0.55 }}
+          >{notif === 'on' ? '🔔' : '🔕'}</span>
+          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>open wire →</span>
         </button>
       )}
     </>

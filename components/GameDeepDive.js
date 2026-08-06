@@ -1,6 +1,7 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, nn, clean, nameOf, hrScore } from '../lib/player'
+import GameCockpit from './GameCockpit'
 
 // GAME DEEP DIVE — what clicking a game actually earns you (2026-08-06).
 //
@@ -125,6 +126,9 @@ export default function GameDeepDive({ game, onPlayerClick }) {
 
   return (
     <div style={{ marginBottom: 12 }}>
+      {/* live cockpit — renders only while this game is actually in progress */}
+      <GameCockpit game={game} onPlayerClick={onPlayerClick} />
+
       {/* conditions ribbon */}
       <div style={{
         display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'baseline',
