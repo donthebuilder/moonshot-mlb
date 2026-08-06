@@ -52,10 +52,28 @@ export default function ThresholdGrid({ playerId }) {
   }
   const filteredLog = pool.slice(0, 20)
 
+  // Per-market "big game" thresholds for the tall bright bars.
+  const EXTRA = { hit: 2, tb2: 4, hr: 2, run: 2, rbi: 2, hrr: 3 }
+  const valFor = (g) => m.key === 'hit' ? g.h : m.key === 'tb2' ? g.tb : m.key === 'hr' ? g.hr
+    : m.key === 'run' ? g.r : m.key === 'hrr' ? g.h + g.r + g.rbi : g.rbi
+
+  // THE READ — one plain sentence so the panel answers its own question
+  // before anyone has to decode tiles. Recent (L10) against his own season
+  // baseline; ±12 points is the line between noise and a real move.
+  const p10 = r.L10.n ? (100 * r.L10.ok) / r.L10.n : null
+  const pSzn = r.Szn.n ? (100 * r.Szn.ok) / r.Szn.n : null
+  const pLs = ls?.[m.key]?.n ? (100 * ls[m.key].ok) / ls[m.key].n : null
+  const trend = p10 == null || pSzn == null ? null
+    : p10 - pSzn >= 12 ? 'hot' : pSzn - p10 >= 12 ? 'cold' : 'steady'
+  const trendCol = trend === 'hot' ? '#4ade80' : trend === 'cold' ? '#f87171' : C.text2
+  const trendWord = trend === 'hot' ? 'running well above his own baseline'
+    : trend === 'cold' ? 'below his baseline — cold stretch' : 'right at his norm'
+
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>🎯 Props</span>
+        <span style={{ fontSize: 9, color: C.text3 }}>how often he actually cashes each bet</span>
         {MARKETS.map((x) => {
           const rr = data.markets[x.key]
           const p10 = rr?.L10?.n ? (100 * rr.L10.ok) / rr.L10.n : null
@@ -78,6 +96,16 @@ export default function ThresholdGrid({ playerId }) {
         background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.03))`,
         border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px',
       }}>
+        {/* THE READ — the whole panel in one sentence, first. */}
+        {p10 != null && (
+          <div style={{ fontSize: 11, lineHeight: 1.5, marginBottom: 9, color: C.text2 }}>
+            Cleared <b style={{ color: C.text }}>{m.label}</b> in{' '}
+            <b style={{ fontFamily: NUM_FONT, color: rateCol(p10) }}>{r.L10.ok} of his last {r.L10.n}</b>
+            {pSzn != null && <> — vs <span style={{ fontFamily: NUM_FONT }}>{pSzn.toFixed(0)}%</span> this season</>}
+            {pLs != null && <>, <span style={{ fontFamily: NUM_FONT }}>{pLs.toFixed(0)}%</span> last year</>}.{' '}
+            <b style={{ color: trendCol }}>{trendWord.charAt(0).toUpperCase() + trendWord.slice(1)}.</b>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
           {[['all', 'All'], ['home', 'Home'], ['away', 'Away']].map(([k, label]) => (
             <button key={k} onClick={() => setVenue(k)} style={{
@@ -146,9 +174,9 @@ export default function ThresholdGrid({ playerId }) {
         {filteredLog.length > 0 && (
           <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end' }}>
             {[...filteredLog].reverse().map((g, gi) => {
-              const val = m.key === 'hit' ? g.h : m.key === 'tb2' ? g.tb : m.key === 'hr' ? g.hr : m.key === 'run' ? g.r : g.rbi
+              const val = valFor(g)
               const ok = m.test(g)
-              const extra = m.key === 'tb2' ? val >= 4 : val >= 2
+              const extra = val >= (EXTRA[m.key] || 2)
               const q = staff?.[g.oppId]
               const ab = abbrs?.[g.oppId] || g.opp
               const oppCol = q ? `rgba(249,115,22,${(0.18 + q.soft * 0.72).toFixed(2)})` : 'rgba(255,255,255,.08)'
@@ -173,8 +201,8 @@ export default function ThresholdGrid({ playerId }) {
           </div>
         )}
         <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-          Last {Math.min(20, filteredLog.length)} games, newest right. Tall bright green = multi
-          ({m.key === 'tb2' ? '4+ TB' : '2+'}, its number on top){staff && <>; the strip under each bar is the
+          Last {Math.min(20, filteredLog.length)} games, newest right. Tall bright green = big game
+          ({m.key === 'tb2' ? '4+ TB' : m.key === 'hrr' ? '3+ combined' : '2+'}, its number on top){staff && <>; the strip under each bar is the
           opposing staff — <span style={{ color: C.orange }}>brighter orange = softer arms</span>, so greens
           over dark strips came against real pitching</>}. Hover any bar for the game.
         </div>
