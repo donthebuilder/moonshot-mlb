@@ -13,6 +13,7 @@ import { kRiskScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
+import LiveWire from '../LiveWire'
 import { groupPitchers } from '../../lib/data'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
@@ -194,6 +195,8 @@ export default function Scoreboard({ players, results, backtest, onWatch, watchI
       <StartHere onNavigate={onNavigate} />
 
       {/* Unconfirmed-pick countdowns + what changed since yesterday. */}
+      {/* The live feed — appears once first pitch lands, waits quietly before. */}
+      <LiveWire players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
       <SlatePulse players={players} backtest={backtest} onPlayerClick={onPlayerClick} />
 
       <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
