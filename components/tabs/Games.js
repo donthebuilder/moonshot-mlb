@@ -262,12 +262,18 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                 if (mode === 'botview') {
                   const { color: lcolor } = getRoleDisplay(p)
                   const pills = Array.isArray(p?.signal_pills) ? p.signal_pills : []
+                  // Each bar in its category's site-wide colour, and the bar
+                  // for the category HE'S PICKED FOR renders at full weight
+                  // while the rest sit dimmed — so the card answers "how
+                  // strong is he at the thing he's here for" at a glance
+                  // instead of five identical orange bars.
+                  const pickedCat = String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
                   const scores = [
-                    { k: 'hr_score',      l: 'HR'  },
-                    { k: 'hrr_score',     l: 'HRR' },
-                    { k: 'hit_score',     l: 'HIT' },
-                    { k: 'contact_score', l: 'CTG' },
-                    { k: 'overall_score', l: 'OVR' },
+                    { k: 'hr_score',      l: 'HR',  c: '#FB923C', cat: 'HR' },
+                    { k: 'hrr_score',     l: 'HRR', c: '#22d3ee', cat: 'HRR' },
+                    { k: 'hit_score',     l: 'HIT', c: '#60A5FA', cat: 'HIT' },
+                    { k: 'contact_score', l: 'CTG', c: '#A78BFA', cat: 'CONTACT' },
+                    { k: 'overall_score', l: 'OVR', c: '#FCD34D', cat: 'TOP' },
                   ]
                   return wrap(
                     <div
@@ -284,15 +290,16 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                       <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>
                         {p?.team} #{p?.lineup_spot ?? '?'} · vs {p?.pitcher_name || '?'} ({p?.pitcher_throws || '?'})
                       </div>
-                      {scores.map(({ k, l }) => {
+                      {scores.map(({ k, l, c, cat }) => {
                         const val = Math.min(100, Math.max(0, p?.[k] || 0))
+                        const isHis = cat === pickedCat
                         return (
-                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                            <span style={{ width: 26, fontSize: 9, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{l}</span>
-                            <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 2 }}>
-                              <div style={{ width: `${val}%`, height: '100%', background: C.orange, borderRadius: 2 }} />
+                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: isHis || !pickedCat ? 1 : 0.5 }}>
+                            <span style={{ width: 26, fontSize: 9, color: isHis ? c : C.text3, fontWeight: isHis ? 800 : 400, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{l}</span>
+                            <div style={{ flex: 1, height: isHis ? 6 : 4, background: 'rgba(255,255,255,0.07)', borderRadius: 3 }}>
+                              <div style={{ width: `${val}%`, height: '100%', background: c, borderRadius: 3, boxShadow: isHis ? `0 0 8px ${c}66` : 'none' }} />
                             </div>
-                            <span style={{ width: 24, fontSize: 10, color: 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{val.toFixed(0)}</span>
+                            <span style={{ width: 24, fontSize: 10, fontWeight: isHis ? 800 : 400, color: isHis ? c : 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{val.toFixed(0)}</span>
                           </div>
                         )
                       })}

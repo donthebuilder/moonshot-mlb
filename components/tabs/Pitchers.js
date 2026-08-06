@@ -154,28 +154,70 @@ export default function Pitchers({ players, onPlayerClick }) {
   const [sortKey, setSortKey] = useState('weak')
   const [openId, setOpenId] = useState(null)
   const [modalPitcher, setModalPitcher] = useState(null)
+  const [colGroup, setColGroup] = useState('core')
 
   const pitchers = useMemo(() => groupPitchers(players), [players])
   const sorted = useMemo(() => sortPitchers(pitchers, sortKey), [pitchers, sortKey])
 
   if (!pitchers.length) return <Empty text="No pitcher data found yet." />
 
+  // TONIGHT'S VERDICT, before any table: the three most attackable arms and
+  // the three to stay away from, by the overall score. The usability
+  // complaint about this page was fair — it opened with a 30-column table
+  // and made you derive the conclusion yourself. Now the conclusion leads
+  // and the table is the receipts.
+  const byOverall = [...pitchers]
+    .map((p) => ({ p, ov: pitcherOverall(p.lineup?.[0]?.raw || {}) }))
+    .filter((x) => x.ov > 0)
+    .sort((a, b) => b.ov - a.ov)
+  const targets = byOverall.slice(0, 3)
+  const avoids = byOverall.slice(-3).reverse()
+
   return (
     <div>
       <PanelTitle
         title="Pitchers"
         sub={`${pitchers.length} starters today · click to see opposing lineup`}
-        right={
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {/* The four sort buttons that were here are gone. The table below
-                sorts on any of its 16 columns and shows which one is active;
-                these duplicated four of them, didn't reflect the table's state,
-                and only reordered the card list — so clicking "Highest HR/9"
-                appeared to do nothing while the table stayed where it was.
-                The cards now follow the same default the table opens on. */}
-          </div>
-        }
       />
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        {[['🎯 Attack tonight', targets, C.orange], ['🧊 Stay away', avoids, '#60a5fa']].map(([label, list, col]) => (
+          <div key={label} style={{
+            flex: '1 1 300px', minWidth: 0,
+            background: `linear-gradient(155deg, ${col}10, ${col}04)`,
+            border: `1px solid ${col}35`, borderRadius: 11, padding: '8px 12px',
+          }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: col, marginBottom: 5 }}>{label}</div>
+            {list.map(({ p, ov }) => (
+              <div
+                key={p.pitcher_id ?? p.pitcher_name}
+                onClick={() => setModalPitcher(p)}
+                style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '2px 0', cursor: 'pointer' }}
+              >
+                <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, color: col, width: 26 }}>{ov.toFixed(0)}</span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{p.pitcher_name}</span>
+                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                  {p.team} vs {p.opponent_team} · HR/9 {n(p.pitcher_hr9, 0).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Column groups — the other half of the usability fix. Thirty columns
+          at once was a wall; each group is one question. */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Columns</span>
+        {[['core', 'Core'], ['recent', 'Recent form'], ['bot', 'Bot scores'], ['bb', 'Batted ball'], ['all', 'Everything']].map(([k, label]) => (
+          <button key={k} onClick={() => setColGroup(k)} style={{
+            padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+            border: `1px solid ${colGroup === k ? C.orange : C.border}`,
+            background: colGroup === k ? 'rgba(249,115,22,.12)' : 'transparent',
+            color: colGroup === k ? C.orange : C.text3,
+          }}>{label}</button>
+        ))}
+      </div>
       {/* The card list below is one starter at a time. This is the slate:
           which arms are actually attackable, and on which axis. */}
       {/* One sortable table of EVERY starter, replacing the old "most
@@ -259,7 +301,15 @@ export default function Pitchers({ players, onPlayerClick }) {
             })(),
           }
         })}
-        columns={[
+        columns={(() => {
+          // Column groups. 'core' answers tonight; the rest are drill-ins.
+          const GROUPS = {
+            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9','era','whip','spots'],
+            recent: ['name','tm','vs','overall','l3hr9','l3era','l3whip','l3n','trend'],
+            bot:    ['name','tm','vs','overall','attack','wsScore','zoneDmg','spotDmg','spots','gbTrap','hardCon','lowK'],
+            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9'],
+          }
+          const all = [
           // LAYOUT RULE: every text column first, every number after, nothing
           // interleaved. The table had Trend and Weak side sitting between
           // numeric columns, which breaks the eye's run down a block of digits
@@ -324,7 +374,11 @@ export default function Pitchers({ players, onPlayerClick }) {
             title: 'Pulled air contact allowed. Pulled fly balls are where the short porch lives.' },
           { key: 'xbh',    label: 'XBH', w: 44, dp: 0,
             title: 'Extra-base hits allowed this season, both batter sides combined. A count, not a rate — it scales with innings pitched, so read it next to ERA rather than alone.' },
-        ]}
+        ]
+          if (colGroup === 'all') return all
+          const keep = new Set(GROUPS[colGroup] || GROUPS.core)
+          return all.filter((c) => keep.has(c.key))
+        })()}
         onRowClick={(p) => setModalPitcher(p)}
         initialSort="hr9"
         maxHeight={420}
