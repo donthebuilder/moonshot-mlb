@@ -181,7 +181,7 @@ export default function Dashboard() {
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} pairSummary={pairSummary} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+            {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} pairSummary={pairSummary} results={results} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide />}
           </>

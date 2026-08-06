@@ -1366,7 +1366,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
           grid below repeated the same pairs one at a time — three renderings
           of ten pairs. One table + the writeup is the version that survives. */}
       {view === 'today' && (
-        <PairBoard pairBuilder={pairBuilder} onPlayerClick={onPlayerClick} />
+        <PairBoard pairBuilder={pairBuilder} results={results} onPlayerClick={onPlayerClick} />
       )}
       {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} />}
     </div>

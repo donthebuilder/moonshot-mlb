@@ -286,7 +286,18 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
   )
 }
 
-export default function Watchlist({ items, players = [], pairSummary, onWatch, onAdd, onPlayerClick }) {
+export default function Watchlist({ items, players = [], pairSummary, results, onWatch, onAdd, onPlayerClick }) {
+  // ACCURACY CHECK — did the list deliver tonight? Graded slots joined by
+  // player_id give each saved hitter his live line; saved names outside the
+  // graded pool stay unknown rather than counting as misses.
+  const nightOf = useMemo(() => {
+    const slots = results?.graded_slots || results?.results || []
+    const m = new Map()
+    slots.forEach((s2) => {
+      if (s2?.player_id != null) m.set(String(s2.player_id), s2)
+    })
+    return m
+  }, [results])
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -405,6 +416,16 @@ export default function Watchlist({ items, players = [], pairSummary, onWatch, o
             ['Avg HR score', avgHr.toFixed(1), '#f97316', ''],
             ['Weak spots', weak, '#FCD34D', ''],
             ['Confirmed', `${conf}/${items.length}`, conf === items.length ? '#4ade80' : '#a78bfa', 'lineups locked'],
+            ...(() => {
+              const graded = items.map((p) => nightOf.get(String(playerId(p)))).filter(Boolean)
+              if (!graded.length) return []
+              const hrs = graded.filter((g) => Number(g.actual_hr) > 0).length
+              const hits = graded.filter((g) => Number(g.actual_hits) > 0).length
+              return [
+                ['💥 Went deep', `${hrs}/${graded.length}`, hrs ? '#4ade80' : C.text3, 'saved hitters who homered tonight'],
+                ['Got a hit', `${hits}/${graded.length}`, hits > graded.length / 2 ? '#4ade80' : '#a78bfa', 'tonight, of those graded so far'],
+              ]
+            })(),
           ].map(([l, v, c2, note]) => (
             <div key={l} title={note} style={{
               background: `linear-gradient(135deg, ${c2}14, ${c2}05)`,
@@ -416,6 +437,33 @@ export default function Watchlist({ items, players = [], pairSummary, onWatch, o
           ))
         })()}
       </div>
+
+      {/* TONIGHT — each saved hitter's live line, worn as a chip. Green =
+          homered, purple = hit(s), dim = nothing yet / not graded. */}
+      {(() => {
+        const chips = items.map((p) => ({ p, g: nightOf.get(String(playerId(p))) })).filter((x) => x.g)
+        if (!chips.length) return null
+        return (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {chips.map(({ p, g }) => {
+              const hr = Number(g.actual_hr) > 0
+              const hits = Number(g.actual_hits) || 0
+              const col = hr ? '#4ade80' : hits > 0 ? '#a78bfa' : C.text3
+              return (
+                <span key={playerId(p)} onClick={() => onPlayerClick?.(p)} style={{
+                  fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+                  padding: '3px 9px', borderRadius: 7,
+                  border: `1px solid ${col}55`, color: col,
+                  background: hr ? 'rgba(74,222,128,.10)' : 'transparent',
+                  fontFamily: NUM_FONT,
+                }}>
+                  {hr ? '💥 ' : ''}{nameOf(p)} {hits}H{Number(g.actual_hr) > 0 ? `/${g.actual_hr}HR` : ''}
+                </span>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* BOT AGREEMENT. The first question about a hand-built list: which of
           my saves does the bot also like tonight, and for what. One chip per

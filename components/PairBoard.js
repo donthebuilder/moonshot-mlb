@@ -28,7 +28,14 @@ const LANE_SHORT = {
 }
 const LANE_RANK = ['TOP30', 'A', 'B', 'C', 'D']
 
-export default function PairBoard({ pairBuilder, onPlayerClick }) {
+export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
+  // Live leg-tracking: which halves of each recommended pair have homered
+  // tonight. A pair's progress is discrete — 0, 1 or 2 legs — so it renders
+  // as two segments, not a smooth bar pretending to continuity.
+  const homered = useMemo(() => {
+    const raw = results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []
+    return new Set(raw.map((h) => String(h?.name || '').toLowerCase().trim()).filter(Boolean))
+  }, [results])
   const rows = useMemo(() => {
     return arr(obj(pairBuilder).recommended_pairs).map((pr, i) => {
       const ps = arr(pr?.players)
@@ -56,6 +63,9 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
         longest: median([n(a.longest_hr_score, 0), n(b.longest_hr_score, 0)]),
         overall: median([n(a.overall_score, 0), n(b.overall_score, 0)]),
         tags: arr(pr?.tags).join(' · '),
+        aHit: homered.has(String(a.name || '').toLowerCase().trim()) ? 1 : 0,
+        bHit: homered.has(String(b.name || '').toLowerCase().trim()) ? 1 : 0,
+        aName: clean(a.name, '?'), bName: clean(b.name, '?'),
         l5: `${a.name ? String(a.name).split(' ').slice(-1)[0] : '?'} ${n(a.last5_hits,0)}H/${n(a.last5_hr,0)}HR · ${b.name ? String(b.name).split(' ').slice(-1)[0] : '?'} ${n(b.last5_hits,0)}H/${n(b.last5_hr,0)}HR`,
         reason: clean(pr?.reason, ''),
       }
@@ -63,7 +73,7 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
     // interleaves two incompatible scales and puts every TOP30 pair on top by
     // construction rather than by merit.
     }).sort((a, b) => (a._laneOrder - b._laneOrder) || (b.score - a.score))
-  }, [pairBuilder])
+  }, [pairBuilder, homered])
 
   if (!rows.length) return null
 
@@ -136,6 +146,20 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
                 {r.sameGame === 1 && (
                   <span style={{ fontSize: 8.5, fontWeight: 800, color: '#22d3ee', fontFamily: NUM_FONT }}>SAME GAME</span>
                 )}
+                {/* two-segment leg tracker: lit = that half homered tonight */}
+                <span title={`${r.aName}${r.aHit ? ' 💥' : ' —'} · ${r.bName}${r.bHit ? ' 💥' : ' —'}`}
+                  style={{ display: 'inline-flex', gap: 2, alignItems: 'center' }}>
+                  {[r.aHit, r.bHit].map((hit2, k) => (
+                    <span key={k} style={{
+                      width: 14, height: 5, borderRadius: 3,
+                      background: hit2 ? '#4ade80' : 'rgba(255,255,255,0.10)',
+                      boxShadow: hit2 ? '0 0 6px #4ade80' : 'none',
+                    }} />
+                  ))}
+                  {(r.aHit || r.bHit) === 1 && r.aHit + r.bHit === 2 && (
+                    <span style={{ fontSize: 8.5, fontWeight: 900, color: '#4ade80', fontFamily: NUM_FONT }}>PAIR ✓</span>
+                  )}
+                </span>
                 <span style={{ marginLeft: 'auto', fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}>
                   weaker side <b style={{ color: r.weaker >= 60 ? C.orange : C.text2 }}>{r.weaker.toFixed(0)}</b>
                   {' '}· gap {r.gap.toFixed(0)}

@@ -166,6 +166,11 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                           <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
                           <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, flexShrink: 0 }}>{p?.bats}</span>
                           {String(p?.game_pick_role || '').trim() && <span style={{ fontSize: 8, color: C.orange, flexShrink: 0 }}>🤖</span>}
+                          {p?.weak_spot_flag && <span title="Weak spot vs tonight's arm" style={{ fontSize: 8, flexShrink: 0 }}>⭐</span>}
+                          {hrScore(p) >= 60 && <span title={`HR score ${hrScore(p).toFixed(0)}`} style={{ fontSize: 8, flexShrink: 0 }}>🔥</span>}
+                          {Number(p?.last5_hits) >= 6 && <span title={`${p.last5_hits} hits in his last 5`} style={{ fontSize: 8, flexShrink: 0 }}>🧨</span>}
+                          <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 9, fontWeight: 700, flexShrink: 0,
+                            color: hrScore(p) >= 60 ? C.orange : hrScore(p) >= 45 ? '#FCD34D' : C.text3 }}>{hrScore(p).toFixed(0)}</span>
                         </div>
                       ))}
                     </div>
