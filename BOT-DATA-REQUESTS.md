@@ -343,6 +343,37 @@ contact_score at +3.5 is close to flat, though the missing walk data (below)
 means its outcome is mismeasured, so rework the outcome before reworking the
 score.
 
+### Getting the HR pick to actually hit — measured on 1,377 HR-type picks
+
+The direct question, tested against every HR/TOP designated pick in the
+archive. What separates the ones that homered:
+
+| Filter on HR-type picks | With | Without |
+|---|---:|---:|
+| ISO ≥ .23 | **21.4%** | — |
+| ISO ≥ .18 | 19.5% | **11.5%** below |
+| High K rate (≥29%) | **24.8%** | 17.2% |
+| Stronger on another market | 20.2% | 16.7% |
+
+Three conclusions, two of them counterintuitive:
+
+1. **ISO floor is the fix.** Requiring ISO ≥ .18 on the HR/TOP buckets removes
+   a 305-pick cohort that hit 11.5% and costs nothing — those slots go to
+   .23+ hitters who hit 21.4%. This is the single change most likely to make
+   the HR pick "actually hit."
+2. **Do NOT penalize strikeouts in HR pick selection.** High-K designated
+   picks homered MORE (24.8%) — three-true-outcome profiles are what home-run
+   hitters look like. If hr_score or the pick logic docks K rate, it's
+   removing its best picks.
+3. **A big hit/HRR score is not evidence against the HR pick** (20.2% vs
+   16.7%). Good hitters are good at several things; "he's better as a hit
+   pick" doesn't subtract power.
+
+Site-side, the same finding resolved a real credibility bug: hitters could be
+the game's HR PICK while wearing the site's "Skip HR" tag. The skip heuristics
+are now suppressed on designated HR/TOP picks (they were measurably backwards
+there); only low ISO — the one validated warning — still shows, as its pill.
+
 Concrete bot changes, in order of expected payoff:
 
 1. **HR picks: rank by overall_score, not hr_score** — or rebuild hr_score,
