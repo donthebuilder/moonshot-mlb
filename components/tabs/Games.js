@@ -239,6 +239,48 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                   ))}
                 </div>
 
+                {/* The game's designated picks ride under every lineup card
+                    (2026-08-06, on request) — one chip per category, the same
+                    five slots Results grades. */}
+                {(() => {
+                  const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+                  const CAT_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
+                  const CAT_SC = {
+                    TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? 0,
+                    HR: (p) => p?.hr_score ?? 0, HIT: (p) => p?.hit_score ?? 0,
+                    HRR: (p) => p?.hrr_score ?? 0, CONTACT: (p) => p?.contact_score ?? 0,
+                  }
+                  const prim = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+                  const picks = CAT_ORDER
+                    .map((cat) => (g.players || []).filter((p) => prim(p) === cat)
+                      .sort((a, b) => (CAT_SC[cat](b) || 0) - (CAT_SC[cat](a) || 0))[0])
+                    .filter(Boolean)
+                  if (!picks.length) return null
+                  return (
+                    <div style={{
+                      display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
+                      padding: '7px 12px', borderTop: `1px solid ${C.border}`, background: 'rgba(255,255,255,.015)',
+                    }}>
+                      <span style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>🤖 picks</span>
+                      {picks.map((p) => {
+                        const cat = prim(p)
+                        const col = CAT_COLOR[cat] || C.text3
+                        return (
+                          <button key={playerId(p)} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
+                            display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer',
+                            border: `1px solid ${col}55`, background: `${col}10`,
+                            borderRadius: 7, padding: '2px 8px',
+                          }}>
+                            <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em' }}>{cat}</span>
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
+                            <span style={{ fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+
                 {/* Clicking a game bubble earns the DEPTH read (2026-08-06):
                     slot-by-slot — what this arm allows to each batting-order
                     spot (live API, b1–b9) braided with what the batter in
