@@ -21,6 +21,7 @@ import PlayerSplits from './PlayerSplits'
 import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
 import ThresholdGrid from './ThresholdGrid'
+import BvP from './BvP'
 
 function Row({ label, value, mono = true }) {
   return (
@@ -370,6 +371,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               an outside source. Context only — none of it moves a score. */}
           {tab === 'splits' && (
             <>
+              {/* The head-to-head leads the tab — it's the split everyone
+                  asks for first, so it goes first, wearing its sample-size
+                  caveat instead of hiding. */}
+              <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
               <PlayerSplits player={p} slateMode={slateMode} />
               <SituationalSplits playerId={pid} kind="batter" />
             </>
