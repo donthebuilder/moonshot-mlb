@@ -11,6 +11,7 @@ import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import OffBot from '../OffBot'
+import GameDeepDive from '../GameDeepDive'
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -292,6 +293,13 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                 {!isActive && `${localTime(g.game_time)} · `}{g.players.length} batters
               </div>
             </div>
+
+            {/* The clicked game earns depth (2026-08-06): conditions ribbon +
+                both full pitching matchups + each lineup's threat profile.
+                Only the SELECTED game gets it — the rest stay scannable. */}
+            {isActive && activeGame === g.game_pk && (
+              <GameDeepDive game={g} onPlayerClick={onPlayerClick} />
+            )}
 
             {isActive && (
               <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
