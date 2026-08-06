@@ -65,14 +65,13 @@ export default function GameStrip({ games, activeGame, onSelect }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      {/* Compact (2026-08-05): the cards ate a third of the viewport. Tighter
-          min-width and padding, and each card now EARNS its pixels — the
-          pitching matchup and the top bat ride along instead of a venue name
-          you already know. */}
-      <div style={{
-        display: 'grid', gap: 6,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))',
-      }}>
+      {/* EVEN ROWS (2026-08-06): auto-fill grid stranded orphans — 12 games
+          on a 10-wide row left two cards floating in six empty cells. Flex
+          with grow means every row stretches edge to edge no matter the
+          count, and the leftover width isn't distributed evenly: each card's
+          flex-grow AND flex-basis scale with its Game Score, so the hottest
+          games are physically bigger. The size IS the heat, twice over. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {cards.map((c) => {
           const on = activeGame === c.pk
           return (
@@ -82,6 +81,7 @@ export default function GameStrip({ games, activeGame, onSelect }) {
               style={{
                 textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
                 borderRadius: 10, minWidth: 0,
+                flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(118 + c.heat * 46)}px`,
                 border: `1px solid ${on ? C.orange : `rgba(249,115,22,${(0.12 + c.heat * 0.5).toFixed(2)})`}`,
                 background: on
                   ? 'rgba(249,115,22,0.09)'
@@ -131,7 +131,8 @@ export default function GameStrip({ games, activeGame, onSelect }) {
       </div>
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 7 }}>
-        First-pitch order, heat-tinted — the warmer a card glows, the higher its{' '}
+        First-pitch order, heat-tinted and heat-SIZED — the warmer a card glows and the wider it
+        stretches, the higher its{' '}
         <strong style={{ color: C.text2 }}>GS</strong> (Game Score: the median of every hitter&apos;s
         four board scores, then the median across the lineup — &ldquo;is this whole lineup
         dangerous&rdquo;, not &ldquo;is there one guy&rdquo;). ▲/▽ = above/below tonight&apos;s median.

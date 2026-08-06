@@ -33,9 +33,31 @@ const HAND = [
   { key: 'R',   label: 'RHB' },
 ]
 
+// The band slider used to be welded to HRW. Now the same two thumbs work any
+// stat we track — pick the lens, keep the motion. Every field verified in the
+// live _slim payload 2026-08-05 (recent_* rates and season_iso, full coverage).
+// Rates are ×100 so the slider reads as a percentage; ISO is ×1000 (a .180
+// hitter sits at 180) because a 0–0.4 slider with step 1 can't move.
+export const BAND_STATS = [
+  { key: 'hrw',   label: 'HRW',    min: 0, max: 100, get: (p) => n(p?.hrw_score, 0) },
+  { key: 'pull',  label: 'Pull%',  min: 0, max: 100, get: (p) => n(p?.recent_pull_rate, 0) * 100 },
+  { key: 'hh',    label: 'HH%',    min: 0, max: 100, get: (p) => n(p?.recent_hard_hit_rate, 0) * 100 },
+  { key: 'fb',    label: 'FB%',    min: 0, max: 100, get: (p) => n(p?.recent_fb_rate, 0) * 100 },
+  { key: 'brl',   label: 'Brl%',   min: 0, max: 40,  get: (p) => n(p?.recent_barrel_rate, 0) * 100 },
+  { key: 'sweet', label: 'Sweet%', min: 0, max: 100, get: (p) => n(p?.recent_sweet_spot_rate, 0) * 100 },
+  { key: 'iso',   label: 'ISO',    min: 0, max: 400, get: (p) => n(p?.season_iso, 0) * 1000, fmt: (v) => `.${String(v).padStart(3, '0')}` },
+]
+
 export function useBoardFilter(players) {
+  const [bandStat, setBandStatRaw] = useState('hrw')
   const [hrwMin, setHrwMin] = useState(0)
   const [hrwMax, setHrwMax] = useState(100)
+  // Switching the lens resets the thumbs to that stat's full range — a 60–100
+  // HRW band means nothing in Brl% units.
+  const setBandStat = (k) => {
+    const s = BAND_STATS.find((x) => x.key === k) || BAND_STATS[0]
+    setBandStatRaw(s.key); setHrwMin(s.min); setHrwMax(s.max)
+  }
   const [cats, setCats] = useState([])
   const [catMode, setCatMode] = useState('any')   // any | all
   const [hand, setHand] = useState('all')
@@ -45,9 +67,10 @@ export function useBoardFilter(players) {
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
+    const stat = BAND_STATS.find((x) => x.key === bandStat) || BAND_STATS[0]
     return players.filter((p) => {
-      const hrw = n(p?.hrw_score, 0)
-      if (hrw < hrwMin || hrw > hrwMax) return false
+      const v = stat.get(p)
+      if (v < hrwMin || v > hrwMax) return false
       if (hand !== 'all' && clean(p?.bats, '').toUpperCase().slice(0, 1) !== hand) return false
       if (minEV > 0 && n(p?.recent_ev, 0) < minEV) return false
       if (minPA > 0 && n(p?.season_pa, 0) < minPA) return false
@@ -61,16 +84,18 @@ export function useBoardFilter(players) {
       if (q && !`${nameOf(p)} ${teamOf(p)} ${oppOf(p)} ${clean(p?.pitcher_name, '')}`.toLowerCase().includes(q)) return false
       return true
     })
-  }, [players, hrwMin, hrwMax, cats, catMode, hand, minEV, minPA, query])
+  }, [players, bandStat, hrwMin, hrwMax, cats, catMode, hand, minEV, minPA, query])
 
-  const active = hrwMin > 0 || hrwMax < 100 || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || query
+  const statDef = BAND_STATS.find((x) => x.key === bandStat) || BAND_STATS[0]
+  const active = bandStat !== 'hrw' || hrwMin > statDef.min || hrwMax < statDef.max
+    || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || query
   const reset = () => {
-    setHrwMin(0); setHrwMax(100); setCats([]); setCatMode('any')
+    setBandStatRaw('hrw'); setHrwMin(0); setHrwMax(100); setCats([]); setCatMode('any')
     setHand('all'); setMinEV(0); setMinPA(0); setQuery('')
   }
 
   const state = {
-    hrwMin, setHrwMin, hrwMax, setHrwMax, cats, setCats, catMode, setCatMode,
+    bandStat, setBandStat, hrwMin, setHrwMin, hrwMax, setHrwMax, cats, setCats, catMode, setCatMode,
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
   }
   return { filtered, state }
@@ -87,9 +112,11 @@ const chip = (on, col = C.orange) => ({
 
 export default function BoardFilters({ state, total, shown }) {
   const {
-    hrwMin, setHrwMin, hrwMax, setHrwMax, cats, setCats, catMode, setCatMode,
+    bandStat, setBandStat, hrwMin, setHrwMin, hrwMax, setHrwMax, cats, setCats, catMode, setCatMode,
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
   } = state
+  const stat = BAND_STATS.find((x) => x.key === bandStat) || BAND_STATS[0]
+  const showV = (v) => (stat.fmt ? stat.fmt(v) : v)
 
   const toggleCat = (k) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))
 
@@ -99,13 +126,25 @@ export default function BoardFilters({ state, total, shown }) {
       padding: '10px 13px', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ minWidth: 190 }}>
-          <div style={lbl}>HRW band {hrwMin}–{hrwMax}</div>
+        <div style={{ minWidth: 230 }}>
+          {/* One band, many lenses — pick the stat, the same two thumbs
+              filter on it. Switching stats resets the thumbs to full range. */}
+          <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={lbl}>Band</span>
+            {BAND_STATS.map((s) => (
+              <button key={s.key} onClick={() => setBandStat(s.key)}
+                style={{ ...chip(bandStat === s.key), padding: '2px 6px', fontSize: 9 }}>{s.label}</button>
+            ))}
+          </div>
+          <div style={{ ...lbl, marginTop: 3 }}>
+            {stat.label} {showV(hrwMin)}–{showV(hrwMax)}
+            {bandStat !== 'hrw' && <span style={{ textTransform: 'none', letterSpacing: 0 }}> · {bandStat === 'iso' ? 'season' : 'recent window'}</span>}
+          </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
-            <input type="range" min={0} max={100} step={1} value={hrwMin}
+            <input type="range" min={stat.min} max={stat.max} step={1} value={hrwMin}
               onChange={(e) => setHrwMin(Math.min(Number(e.target.value), hrwMax))}
               style={{ flex: 1, accentColor: C.orange }} />
-            <input type="range" min={0} max={100} step={1} value={hrwMax}
+            <input type="range" min={stat.min} max={stat.max} step={1} value={hrwMax}
               onChange={(e) => setHrwMax(Math.max(Number(e.target.value), hrwMin))}
               style={{ flex: 1, accentColor: C.orange }} />
           </div>
