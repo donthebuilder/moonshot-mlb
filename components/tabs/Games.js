@@ -9,6 +9,7 @@ import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
 import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
+import { pillMeta, pillStyle } from '../../lib/pills'
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -396,7 +397,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                       {pills.length > 0 && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
                           {pills.map((pill, i) => (
-                            <span key={i} style={{ fontSize: 10, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 5, padding: '2px 7px', fontFamily: NUM_FONT }}>{pill}</span>
+                            <span key={i} title={pillMeta(pill).title} style={pillStyle(pill, NUM_FONT)}>{pill}</span>
                           ))}
                         </div>
                       )}

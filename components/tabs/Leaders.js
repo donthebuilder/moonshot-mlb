@@ -72,13 +72,17 @@ const COLUMNS = [
   { key: 'isoR', label: 'ISO vs R', w: 58, dp: 3 },
 ]
 
-function LeaderTile({ label, row, value, color }) {
+function LeaderTile({ label, row, value, color, onClick }) {
   if (!row) return null
   return (
-    <div style={{
-      background: `linear-gradient(155deg, ${color}1e, ${color}06)`,
-      border: `1px solid ${color}44`, borderRadius: 11, padding: '8px 12px', minWidth: 0,
-    }}>
+    <div
+      onClick={onClick}
+      title={onClick ? `Open ${row.name}` : undefined}
+      style={{
+        background: `linear-gradient(155deg, ${color}1e, ${color}06)`,
+        border: `1px solid ${color}44`, borderRadius: 11, padding: '8px 12px', minWidth: 0,
+        cursor: onClick ? 'pointer' : 'default',
+      }}>
       <div style={{
         fontSize: 8.5, color: C.text3, textTransform: 'uppercase',
         letterSpacing: '.09em', fontWeight: 800,
@@ -145,6 +149,9 @@ export default function Leaders({ players = [], onPlayerClick }) {
 
   const top = (key) => [...rows].sort((a, b) => n(b[key], 0) - n(a[key], 0))[0] || null
   const bAvg = top('avg'), bOps = top('ops'), bHr = top('hr'), bRbi = top('rbi'), bIso = top('iso')
+  // Power efficiency — FEWEST plate appearances per homer, and only with a few
+  // HR banked so one lucky swing can't own the tile.
+  const bEff = rows.filter((r) => r.paHR != null && r.hr >= 5).sort((a, b) => a.paHR - b.paHR)[0] || null
 
   const chip = (on) => ({
     padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
@@ -179,11 +186,12 @@ export default function Leaders({ players = [], onPlayerClick }) {
         display: 'grid', gap: 8, marginBottom: 12,
         gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
       }}>
-        <LeaderTile label="AVG" row={bAvg} value={bAvg ? bAvg.avg.toFixed(3) : '—'} color="#a78bfa" />
-        <LeaderTile label="OPS" row={bOps} value={bOps ? bOps.ops.toFixed(3) : '—'} color="#f97316" />
-        <LeaderTile label="Home runs" row={bHr} value={bHr ? bHr.hr : '—'} color="#f87171" />
-        <LeaderTile label="RBI" row={bRbi} value={bRbi ? bRbi.rbi : '—'} color="#22d3ee" />
-        <LeaderTile label="ISO" row={bIso} value={bIso ? bIso.iso.toFixed(3) : '—'} color="#4ade80" />
+        <LeaderTile label="AVG" row={bAvg} value={bAvg ? bAvg.avg.toFixed(3) : '—'} color="#a78bfa" onClick={bAvg && onPlayerClick ? () => onPlayerClick(bAvg._raw) : undefined} />
+        <LeaderTile label="OPS" row={bOps} value={bOps ? bOps.ops.toFixed(3) : '—'} color="#f97316" onClick={bOps && onPlayerClick ? () => onPlayerClick(bOps._raw) : undefined} />
+        <LeaderTile label="Home runs" row={bHr} value={bHr ? bHr.hr : '—'} color="#f87171" onClick={bHr && onPlayerClick ? () => onPlayerClick(bHr._raw) : undefined} />
+        <LeaderTile label="RBI" row={bRbi} value={bRbi ? bRbi.rbi : '—'} color="#22d3ee" onClick={bRbi && onPlayerClick ? () => onPlayerClick(bRbi._raw) : undefined} />
+        <LeaderTile label="ISO" row={bIso} value={bIso ? bIso.iso.toFixed(3) : '—'} color="#4ade80" onClick={bIso && onPlayerClick ? () => onPlayerClick(bIso._raw) : undefined} />
+        <LeaderTile label="PA per HR · min 5 HR" row={bEff} value={bEff ? bEff.paHR.toFixed(1) : '—'} color="#FCD34D" onClick={bEff && onPlayerClick ? () => onPlayerClick(bEff._raw) : undefined} />
       </div>
 
       <div style={{

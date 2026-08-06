@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import { logUrl } from '../../lib/dataSource'
+import { pillMeta } from '../../lib/pills'
 
 // THE BOT TAB, rebuilt (2026-08-04).
 //
@@ -108,7 +109,9 @@ function BoardRow({ p, i, onPlayerClick }) {
         </div>
         <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ color: col }}>{role}</span>
-          {pills.map((pl, pi) => <span key={pi}>{pl}</span>)}
+          {/* Family-tinted, chrome-free — the sheet skin keeps its terminal
+              feel, but the pills stop being undifferentiated grey. */}
+          {pills.map((pl, pi) => <span key={pi} title={pillMeta(pl).title} style={{ color: pillMeta(pl).color }}>{pl}</span>)}
         </div>
         <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
           vs {p.pitcher_name} ({p.pitcher_throws}) · #{p.lineup_spot} · {p.opponent}

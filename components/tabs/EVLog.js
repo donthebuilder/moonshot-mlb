@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { Empty } from '../ui'
 import { clean } from '../../lib/player'
 import DenseTable from '../DenseTable'
+import ZoneMap from '../ZoneMap'
 
 // Exit-velocity log — every tracked batted ball, newest first.
 //
@@ -131,7 +132,18 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' '),
   })), [windowed, armFilter, batterHand, pitchSel, resFilter])
 
-  if (!log.length) return <Empty text="No batted ball data. Run spray_cache.py." />
+  const pid = player?.player_id || player?.id
+
+  // The zone map is live API, so it renders even when the spray payload is
+  // empty — the log needs the bot, the plate map doesn't.
+  if (!log.length) {
+    return (
+      <div>
+        <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} />
+        <Empty text="No batted ball data. Run spray_cache.py." />
+      </div>
+    )
+  }
 
   // Restyled 2026-08-05 — the old flat grey squares read as leftover
   // Streamlit chrome next to the rest of the site. Same behaviour, the
@@ -166,6 +178,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
 
   return (
     <div>
+      <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} />
       <div style={{
         display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center',
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',

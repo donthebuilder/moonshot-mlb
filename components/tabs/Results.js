@@ -8,6 +8,7 @@ import Backtest from './Backtest'
 import ResultsDepth from './ResultsDepth'
 import HRPitchProfile from '../HRPitchProfile'
 import PickScorecard, { pickJob } from '../PickScorecard'
+import { pillMeta } from '../../lib/pills'
 import ScoreAudit from '../ScoreAudit'
 import PlayerPickRecord from '../PlayerPickRecord'
 import PLSimulator from '../PLSimulator'
@@ -713,7 +714,7 @@ function PickRow({ r, i, onPlayerClick }) {
         </div>
         <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ color: col }}>{roleEmoji(role)} {role.replace(/^\S+\s*/, '')}</span>
-          {pills.map((p, pi) => <span key={pi}>{p}</span>)}
+          {pills.map((p, pi) => <span key={pi} title={pillMeta(p).title} style={{ color: pillMeta(p).color }}>{p}</span>)}
           {gotHR && (r.actual_hr || 0) > 0 && (
             <span style={{ color: C.green, fontWeight: 700 }}>
               {r.actual_hr > 1 ? `${r.actual_hr} HR` : 'HR ✓'}

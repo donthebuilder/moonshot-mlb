@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { thresholdRates, lastSeasonRates, MARKETS } from '../lib/gamelogs'
+import { thresholdRates, lastSeasonRates, staffQuality, MARKETS } from '../lib/gamelogs'
 
 // PROP GRID v2 — the table version read like a spreadsheet bolted onto a
 // card UI. Now it's the site's own language: market pills on top, one hero
@@ -14,6 +14,7 @@ const rateCol = (pct) => pct >= 60 ? '#4ade80' : pct >= 40 ? '#FCD34D' : pct >= 
 export default function ThresholdGrid({ playerId }) {
   const [data, setData] = useState(null)
   const [ls, setLs] = useState(null)
+  const [staff, setStaff] = useState(null)
   const [mkt, setMkt] = useState('hr')
   // PF's filter row, the part worth taking: slice every window by venue and
   // watch the tiles recompute. 'all' | 'home' | 'away'.
@@ -24,6 +25,7 @@ export default function ThresholdGrid({ playerId }) {
     setData(null)
     thresholdRates(playerId).then((d) => { if (alive) setData(d) })
     lastSeasonRates(playerId).then((d) => { if (alive) setLs(d) })
+    staffQuality().then((d) => { if (alive) setStaff(d) })
     return () => { alive = false }
   }, [playerId])
 
@@ -133,15 +135,26 @@ export default function ThresholdGrid({ playerId }) {
               const val = m.key === 'hit' ? g.h : m.key === 'tb2' ? g.tb : m.key === 'hr' ? g.hr : m.key === 'run' ? g.r : g.rbi
               const ok = m.test(g)
               const extra = m.key === 'tb2' ? val >= 4 : val >= 2
+              // Opponent-quality tint: the opp label under each bar glows
+              // orange in proportion to how GENEROUS that staff is league-wide
+              // (OPS-against percentile). A green bar over a dim label — he
+              // did it against a real staff — is worth more than the same bar
+              // over a bright one.
+              const q = staff?.[g.oppId]
+              const oppCol = q ? `rgba(249,115,22,${(0.3 + q.soft * 0.7).toFixed(2)})` : C.text3
+              const oppNote = q ? ` · staff OPS-against ${q.ops.toFixed(3)} (#${q.rank}/30 toughest)` : ''
               return (
-                <div key={gi} title={`${g.date} ${g.home ? 'vs' : '@'} ${g.opp} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)`}
+                <div key={gi} title={`${g.date} ${g.home ? 'vs' : '@'} ${g.opp} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`}
                   style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
                   <div style={{
                     height: ok ? (extra ? 30 : 20) : 8, borderRadius: 3,
                     background: ok ? (extra ? '#4ade80' : 'rgba(74,222,128,.55)') : 'rgba(248,113,113,.3)',
                     boxShadow: extra ? '0 0 8px rgba(74,222,128,.5)' : 'none',
                   }} />
-                  <div style={{ fontSize: 6.5, color: C.text3, marginTop: 2, overflow: 'hidden', whiteSpace: 'nowrap' }}>{g.opp}</div>
+                  <div style={{
+                    fontSize: 6.5, color: oppCol, marginTop: 2, overflow: 'hidden',
+                    whiteSpace: 'nowrap', fontWeight: q && q.soft >= 0.7 ? 700 : 400,
+                  }}>{g.opp}</div>
                 </div>
               )
             })}
@@ -149,7 +162,9 @@ export default function ThresholdGrid({ playerId }) {
         )}
         <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
           Last {Math.min(20, data.games)} games, newest right — tall bright green is a multi ({m.key === 'tb2' ? '4+ TB' : '2+'}).
-          Raw outcomes, no opponent context; pair with the Pitch tab before trusting a hot week.
+          {staff
+            ? ' The opponent label under each bar carries the context: the brighter orange it glows, the softer that pitching staff is league-wide (OPS-against) — so green bars over dim labels are the ones earned against real arms. Hover any bar for the staff rank.'
+            : ' Raw outcomes, no opponent context; pair with the Pitch tab before trusting a hot week.'}
         </div>
       </div>
     </div>
