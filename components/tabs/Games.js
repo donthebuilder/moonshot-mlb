@@ -10,6 +10,7 @@ import GameLineup from '../GameLineup'
 import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
+import OffBot from '../OffBot'
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -125,6 +126,10 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
       }}>
         <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} />
       </div>
+
+      {/* The slate's blind spot: hitters batting tonight the bot never
+          scored. Collapsed by default, fetches only on expand. */}
+      <OffBot players={players} onPlayerClick={onPlayerClick} />
 
       {/* LINEUPS — every game's confirmed batting orders at once, 1 through
           9, both teams side by side. The site had lineup data on every row
