@@ -190,26 +190,69 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
               counts, ten rows each, expanders for the rest — the eye can
               actually walk a list. */}
           {showDiff && (() => {
-            // ✓/✗ = did last night's pick clear its own bar. Light on purpose:
-            // a mark, not a column of stats.
+            // SMARTER (2026-08-06): the columns now THINK instead of listing.
+            //  - DROPPED splits schedule from judgment: a name still on
+            //    tonight's slate but stripped of its pick is a DEMOTION (the
+            //    news: red, clickable, sorted first); a name not playing is
+            //    just the calendar (dimmed, last).
+            //  - Every column sorts by meaning: cleared first in HELD, post-
+            //    miss moves first in MOVED, confirmed lineups first in NEW.
+            //  - Each column carries a one-line read, and the panel opens
+            //    with the headline the numbers add up to.
             const mark = (c) => (c == null ? '' : c ? '✓ ' : '✗ ')
+            const byName = new Map(players.map((p) => [String(nameOf(p)).toLowerCase().trim(), p]))
+            const sortOk = (a, b) => (b.ok === true) - (a.ok === true) || (a.ok === false) - (b.ok === false)
+            const held = (diff.held || []).map((h) => ({ key: h.nm, label: nameOf(h.p), tag: `${mark(h.cleared)}${h.role}`, ok: h.cleared, p: h.p })).sort(sortOk)
+            const added = diff.added.map(([nm, v]) => ({ key: nm, label: nameOf(v.p), tag: `${v.p?.lineup_confirmed === true ? '✓ ' : ''}${v.role}`, p: v.p, conf: v.p?.lineup_confirmed === true }))
+              .sort((a, b) => (b.conf === true) - (a.conf === true))
+            const moved = diff.changed.map((c) => ({ key: c.nm, label: nameOf(c.p), tag: `${mark(c.cleared)}${c.from}→${c.to}`, ok: c.cleared, p: c.p }))
+              .sort((a, b) => (b.ok === false) - (a.ok === false))
+            const droppedAll = diff.dropped.map(([nm, role, cleared]) => {
+              const p = byName.get(nm) || null
+              return { key: nm, label: p ? nameOf(p) : nm.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                tag: `${mark(cleared)}${role}`, ok: cleared, p, demoted: !!p }
+            }).sort((a, b) => (b.demoted === true) - (a.demoted === true))
+            const heldOk = held.filter((x) => x.ok === true).length
+            const heldBad = held.filter((x) => x.ok === false).length
+            const movedAfterMiss = moved.filter((x) => x.ok === false).length
+            const demotions = droppedAll.filter((x) => x.demoted).length
+            const offSlate = droppedAll.length - demotions
+            const META = {
+              held: `✓${heldOk} · ✗${heldBad} · —${held.length - heldOk - heldBad}`,
+              new: `${added.filter((x) => x.conf).length} in confirmed lineups`,
+              moved: movedAfterMiss ? `${movedAfterMiss} of ${moved.length} after a miss` : 'no post-miss moves',
+              dropped: `${demotions} demoted · ${offSlate} off slate`,
+            }
+            const headline = [
+              droppedAll.length ? (demotions
+                ? `${demotions} real demotion${demotions > 1 ? 's' : ''} — the other ${offSlate} drops are just today's schedule`
+                : `all ${offSlate} drops are schedule, not judgment`) : null,
+              movedAfterMiss ? `${movedAfterMiss} move${movedAfterMiss > 1 ? 's' : ''} came right after a miss` : null,
+            ].filter(Boolean).join(' · ')
             const COLS = [
-              ['held', 'HELD', '#22d3ee', (diff.held || []).map((h) => ({ key: h.nm, label: nameOf(h.p), tag: `${mark(h.cleared)}${h.role}`, ok: h.cleared, p: h.p }))],
-              ['new', 'NEW', '#4ade80', diff.added.map(([nm, v]) => ({ key: nm, label: nameOf(v.p), tag: v.role, p: v.p }))],
-              ['moved', 'MOVED', '#FCD34D', diff.changed.map((c) => ({ key: c.nm, label: nameOf(c.p), tag: `${mark(c.cleared)}${c.from}→${c.to}`, ok: c.cleared, p: c.p }))],
-              ['dropped', 'DROPPED', '#f87171', diff.dropped.map(([nm, role, cleared]) => ({ key: nm, label: nm.replace(/\b\w/g, (ch) => ch.toUpperCase()), tag: `${mark(cleared)}${role}`, ok: cleared, p: null }))],
+              ['held', 'HELD', '#22d3ee', held],
+              ['new', 'NEW', '#4ade80', added],
+              ['moved', 'MOVED', '#FCD34D', moved],
+              ['dropped', 'DROPPED', '#f87171', droppedAll],
             ].filter(([, , , list]) => list.length)
             return (
               <div style={{ marginTop: 8 }}>
+                {headline && (
+                  <div style={{
+                    fontSize: 10.5, color: C.text2, lineHeight: 1.5, marginBottom: 8,
+                    borderLeft: `2px solid ${C.orange}`, paddingLeft: 9,
+                  }}>{headline}</div>
+                )}
                 <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
                   {COLS.map(([k, label, color, list]) => {
                     const open = !!colOpen[k]
                     const shown = open ? list : list.slice(0, 10)
                     return (
                       <div key={k} style={{ minWidth: 0, background: 'rgba(255,255,255,.02)', border: `1px solid ${C.border}`, borderRadius: 9, padding: '7px 10px' }}>
-                        <div style={{ fontSize: 9.5, fontWeight: 900, color, letterSpacing: '.08em', fontFamily: NUM_FONT, marginBottom: 5 }}>
+                        <div style={{ fontSize: 9.5, fontWeight: 900, color, letterSpacing: '.08em', fontFamily: NUM_FONT }}>
                           {label} <span style={{ color: C.text3, fontWeight: 400 }}>{list.length}</span>
                         </div>
+                        <div style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, marginBottom: 5 }}>{META[k]}</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                           {shown.map((it) => (
                             <div key={it.key}
@@ -219,9 +262,12 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
                                 cursor: it.p ? 'pointer' : 'default',
                               }}>
                               <span style={{
-                                fontSize: 10.5, fontWeight: 600, color: k === 'dropped' ? C.text3 : C.text2,
+                                fontSize: 10.5, fontWeight: it.demoted ? 700 : 600,
+                                color: k === 'dropped' ? (it.demoted ? '#f87171' : C.text3) : C.text2,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                              }}>{it.label}</span>
+                              }} title={it.demoted ? 'On tonight’s slate but stripped of the pick — a real demotion' : undefined}>
+                                {it.label}{it.demoted ? ' ▾' : ''}
+                              </span>
                               <span style={{
                                 marginLeft: 'auto', fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0,
                                 color: it.ok === true ? '#4ade80' : it.ok === false ? 'rgba(248,113,113,.75)'
@@ -242,9 +288,10 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
                 </div>
                 <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
                   ✓/✗ = whether last night&apos;s pick cleared its own bar (HR homered, HIT got a hit,
-                  HRR 2+ H+R+RBI, CONTACT 2+ TB); no mark = the slot never finalized. Yesterday&apos;s
-                  picks come from the graded archive; dropped names may simply not be playing today
-                  rather than demoted. The bot changing its mind is information either way.
+                  HRR 2+ H+R+RBI, CONTACT 2+ TB); no mark = the slot never finalized.
+                  <b style={{ color: '#f87171' }}> Red names ▾ in DROPPED are real demotions</b> — on
+                  tonight&apos;s slate but stripped of the pick, and clickable; dim names just aren&apos;t
+                  playing today. The bot changing its mind is information either way.
                 </div>
               </div>
             )
