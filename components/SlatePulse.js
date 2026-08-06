@@ -47,7 +47,13 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
   const ydayDate = useMemo(() => {
     const per = backtest?.per_day
     const dates = (Array.isArray(per) ? per.map((d) => d?.date) : Object.keys(per || {})).filter(Boolean).sort()
-    return dates[dates.length - 1] || null
+    // STRICTLY BEFORE TODAY. Grading now catches up same-day, so the latest
+    // graded file can be TODAY's — and diffing today's slate against today's
+    // own in-progress grading declared every pick "new" ("Since 08-05 · 85
+    // new picks" on 08-05). Yesterday means yesterday.
+    const today = new Date().toISOString().slice(0, 10)
+    const prior = dates.filter((d) => d < today)
+    return prior[prior.length - 1] || null
   }, [backtest])
 
   useEffect(() => {
