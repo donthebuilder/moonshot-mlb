@@ -133,9 +133,10 @@ export default function Heatmap({
         }}>{title}</div>
       )}
 
-      <div style={{
+      <div className="dense-scroll" style={{
         border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'auto',
         maxHeight: maxHeight || undefined, background: C.bg2,
+        WebkitOverflowScrolling: 'touch',
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>

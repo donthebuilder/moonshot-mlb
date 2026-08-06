@@ -98,6 +98,35 @@ export default function MobileCSS() {
         .board-filters > div:first-child { flex-direction: column !important; align-items: stretch !important; gap: 9px !important; }
       }
 
+      /* ── 2026-08-05 pass: everything added since the last mobile sweep.
+         The viewport export in app/layout.js is the real fix (the queries
+         below never fired without it); these rules cover the new surfaces. */
+      @media (max-width: 860px) {
+        /* SVG charts (P/L curve, rolling form, spray, pitcher field) never
+           exceed the screen. */
+        svg { max-width: 100%; height: auto; }
+        /* Start Here: step cards stack full-width, legend wraps freely. */
+        .dash-grid, .bot-picks-grid { grid-template-columns: 1fr !important; }
+        /* Game selector cards: two per row is the readable phone density. */
+        .dashboard-main div[style*="minmax(132px"] {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+        /* Toolbar chip rows (Boards categories, sheet section nav, market
+           buttons) scroll sideways instead of wrapping to four lines. */
+        .chip-row {
+          flex-wrap: nowrap !important; overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .chip-row::-webkit-scrollbar { display: none; }
+      }
+
+      @media (max-width: 520px) {
+        /* Vitals/verdict tiles: two per row keeps the numbers legible. */
+        .dashboard-main div[style*="flex-wrap"] > div[style*="linear-gradient(135deg"] {
+          flex: 1 1 42% !important; min-width: 42% !important;
+        }
+      }
+
       /* Coarse pointers get bigger hit targets regardless of width — the
          watchlist stars and swap buttons are 30px cells on desktop, which is
          under the 44px a thumb needs. */
