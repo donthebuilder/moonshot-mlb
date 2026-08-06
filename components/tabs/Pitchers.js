@@ -385,16 +385,16 @@ export default function Pitchers({ players, onPlayerClick }) {
         caption="Every starter on the slate, now including the bot's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter. The batted-ball block at the right is what he actually gives up: fly balls, hard contact, barrels, pulled air and extra-base hits. Ground-ball and line-drive rates are deliberately absent — the bot publishes pitcher_gb_rate and pitcher_ld_rate as zero on all 268 rows, and the only real GB/LD numbers in the payload belong to the hitter, not the arm. Overall now blends 70% season with 30% last-three-starts wherever L3 HR/9 exists, so a starter who has been getting hit lately no longer reads like his April self."
       />
 
-      {sorted.map((pitcher) => (
-        <PitcherCard
-          key={pitcher.pitcher_id ?? pitcher.pitcher_name}
-          pitcher={pitcher}
-          isOpen={openId === pitcher.pitcher_id}
-          onToggle={(id) => setOpenId((prev) => (prev === id ? null : id))}
-          onPlayerClick={onPlayerClick}
-          onOpenPitcher={setModalPitcher}
-        />
-      ))}
+      {/* The per-pitcher accordion card list that lived here is GONE
+          (2026-08-05, on feedback: "I wanna use it but it doesn't seem like
+          much"). It was a third rendering of the same starters — everything
+          it held (weak spots, order-zone damage, arsenal, the vs-side and
+          zone reads) lives in the modal a row-click opens, where it's
+          organized instead of stacked. One table, one click, one deep view. */}
+      <div style={{ fontSize: 10, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
+        Click any starter above for the full breakdown — order-zone damage, arsenal, weak spots,
+        situational splits and the damage field all live in his card.
+      </div>
 
       {modalPitcher && (
         <PitcherModal

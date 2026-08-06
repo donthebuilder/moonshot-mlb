@@ -109,6 +109,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
             <button onClick={() => setMode('botview')} style={btnStyle(C.cyan,   mode === 'botview')}>Bot Output</button>
+            <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
           </div>
         }
       />
@@ -124,12 +125,61 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
         <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} />
       </div>
 
+      {/* LINEUPS — every game's confirmed batting orders at once, 1 through
+          9, both teams side by side. The site had lineup data on every row
+          and nowhere to just READ the lineups. ✓ green = confirmed, hollow =
+          projected. Click a name for his modal. */}
+      {mode === 'lineups' && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+          {games.map((g) => {
+            const byTeam = {}
+            ;(g.players || []).forEach((p) => {
+              const t = p?.team || '?'
+              ;(byTeam[t] = byTeam[t] || []).push(p)
+            })
+            Object.values(byTeam).forEach((l) => l.sort((a, b) => (Number(a?.lineup_spot) || 99) - (Number(b?.lineup_spot) || 99)))
+            return (
+              <div key={g.game_pk} style={{
+                flex: '1 1 320px', minWidth: 0, background: C.bg2,
+                border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
+                  <span style={{ fontSize: 9, color: g.lineup_confirmed ? '#4ade80' : C.text3, fontFamily: NUM_FONT }}>
+                    {g.lineup_confirmed ? '✓ confirmed' : '◻ projected'} · {localTime(g.game_time)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {Object.entries(byTeam).map(([t, lineup]) => (
+                    <div key={t} style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: C.text3, marginBottom: 3, fontFamily: NUM_FONT }}>{t}</div>
+                      {lineup.slice(0, 9).map((p) => (
+                        <div
+                          key={playerId(p)}
+                          onClick={() => onPlayerClick?.(p)}
+                          style={{ display: 'flex', gap: 5, alignItems: 'baseline', fontSize: 10.5, padding: '1px 0', cursor: 'pointer', minWidth: 0 }}
+                        >
+                          <span style={{ fontFamily: NUM_FONT, color: C.text3, width: 10, flexShrink: 0 }}>{p?.lineup_spot ?? '·'}</span>
+                          <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
+                          <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, flexShrink: 0 }}>{p?.bats}</span>
+                          {String(p?.game_pick_role || '').trim() && <span style={{ fontSize: 8, color: C.orange, flexShrink: 0 }}>🤖</span>}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* ── Selected game ── */}
       {/* Only the selected game renders. The strip above is the selector; an
           accordion of all fifteen underneath was the same list a second time,
           and because every row started collapsed the lineup table was never
           on screen. */}
-      {games.filter((g) => g.game_pk === activeGame).map((g) => {
+      {mode !== 'lineups' && games.filter((g) => g.game_pk === activeGame).map((g) => {
         // THE GAME'S DESIGNATED PICKS, one per category — the same five slots
         // the results tracker grades. This grid used to show the top 8 by HR
         // score, which overlapped the picks but wasn't them: a game could

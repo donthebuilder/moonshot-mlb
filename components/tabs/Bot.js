@@ -67,18 +67,33 @@ function BoardRow({ p, i, onPlayerClick }) {
   const pickCol = pickColors[pick] || C.text3
   const isTrap = p.trap_flag && !p.got_hr
 
+  // HIDDEN GEM STYLING: this is the bot's own sheet as a board, so it wears
+  // the sheet's skin — a score-length ember bar burning under each row (width
+  // = hr_score), oversized mono rank, terminal warmth. Nothing else on the
+  // site looks like this on purpose.
+  const barW = Math.min(100, Math.max(0, Number(p.hr_score) || 0))
   return (
     <div
       style={{
-        display: 'grid', gridTemplateColumns: '28px 1fr auto',
+        position: 'relative',
+        display: 'grid', gridTemplateColumns: '40px 1fr auto',
         gap: 8, alignItems: 'center', padding: '9px 14px',
         borderTop: i ? `1px solid ${C.border}` : 'none',
-        background: isTrap ? 'rgba(248,113,113,0.04)' : 'transparent',
+        background: isTrap ? 'rgba(248,113,113,0.05)' : 'transparent',
         cursor: onPlayerClick ? 'pointer' : 'default',
+        overflow: 'hidden',
       }}
       onClick={() => onPlayerClick && onPlayerClick(p)}
     >
-      <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, textAlign: 'center' }}>#{i + 1}</div>
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: `${barW}%`,
+        background: 'linear-gradient(90deg, rgba(249,115,22,0.10), rgba(249,115,22,0.02))',
+        borderRight: '1px solid rgba(249,115,22,0.25)', pointerEvents: 'none',
+      }} />
+      <div style={{
+        fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, textAlign: 'center',
+        color: i < 3 ? C.orange : C.text3, position: 'relative',
+      }}>{String(i + 1).padStart(2, '0')}</div>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</span>

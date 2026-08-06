@@ -31,7 +31,12 @@ export default function GameStrip({ games, activeGame, onSelect }) {
     const built = games.map((g) => {
       const gp = g.players || []
       const head = gp.reduce((a, b) => (hrScore(b) > hrScore(a) ? b : a), gp[0] || {})
+      // The pitching matchup — the single most informative line a game card
+      // can carry, and it was missing. Both starters live on the hitter rows.
+      const arms = [...new Set(gp.map((x) => x?.pitcher_name).filter(Boolean))].slice(0, 2)
       return {
+        arms: arms.map((a) => String(a).split(' ').slice(-1)[0]).join(' v '),
+        topBat: head?.name ? `${String(head.name).split(' ').slice(-1)[0]} ${hrScore(head).toFixed(0)}` : '',
         pk: g.game_pk,
         matchup: `${g.away || '—'} @ ${g.home || '—'}`,
         time: timeText(g.game_time),
@@ -52,9 +57,13 @@ export default function GameStrip({ games, activeGame, onSelect }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
+      {/* Compact (2026-08-05): the cards ate a third of the viewport. Tighter
+          min-width and padding, and each card now EARNS its pixels — the
+          pitching matchup and the top bat ride along instead of a venue name
+          you already know. */}
       <div style={{
-        display: 'grid', gap: 8,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(158px, 1fr))',
+        display: 'grid', gap: 6,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))',
       }}>
         {cards.map((c) => {
           const on = activeGame === c.pk
@@ -63,8 +72,8 @@ export default function GameStrip({ games, activeGame, onSelect }) {
               key={c.pk}
               onClick={() => onSelect(c.pk)}
               style={{
-                textAlign: 'left', cursor: 'pointer', padding: '8px 10px 7px',
-                borderRadius: 12, minWidth: 0,
+                textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
+                borderRadius: 10, minWidth: 0,
                 border: `1px solid ${on ? C.orange : C.border}`,
                 background: on ? 'rgba(249,115,22,0.09)' : C.bg2,
                 boxShadow: on ? `0 0 22px -9px ${C.orange}` : 'none',
@@ -83,24 +92,29 @@ export default function GameStrip({ games, activeGame, onSelect }) {
               </div>
 
               <div style={{
-                fontFamily: NUM_FONT, fontSize: 14, fontWeight: 800, marginTop: 3,
+                fontFamily: NUM_FONT, fontSize: 12.5, fontWeight: 800, marginTop: 2,
                 letterSpacing: '-.02em', color: on ? C.text : C.text2,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 textDecoration: c.past ? 'line-through' : 'none',
-              }}>{c.matchup}</div>
-
-              <div style={{
-                fontFamily: NUM_FONT, fontSize: 10, color: C.text2, marginTop: 3,
               }}>
-                GS {c.gs.toFixed(1)}{' '}
-                <span style={{ color: c.edge === '▲' ? C.orange : C.text3 }}>{c.edge}</span>
-                {'  ·  '}HRW {c.hrw.toFixed(0)}
+                {c.matchup}
+                <span style={{ fontSize: 9, fontWeight: 600, color: C.text3, marginLeft: 5 }}>
+                  GS {c.gs.toFixed(0)}<span style={{ color: c.edge === '▲' ? C.orange : C.text3 }}>{c.edge}</span>
+                </span>
               </div>
 
-              <div style={{
-                fontSize: 9, color: C.text3, marginTop: 2,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>{c.venue || `${c.batters} hitters`}</div>
+              {c.arms && (
+                <div style={{
+                  fontSize: 9, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>⚾ {c.arms}</div>
+              )}
+              {c.topBat && (
+                <div style={{
+                  fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>🔝 {c.topBat}</div>
+              )}
             </button>
           )
         })}
