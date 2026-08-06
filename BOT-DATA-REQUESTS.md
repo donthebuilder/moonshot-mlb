@@ -106,6 +106,11 @@ number rather than a noisy split.
 
 ## #19 — Publish max/avg tracked distance per hitter (Longest board gap)
 
+**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit 4465106, awaiting push):
+all four fields below plus a cache-key bump (v5→v6) so cached statcast
+profiles recompute instead of serving zeros. Site columns light up on the
+first slate published after the push.
+
 Requested 2026-08-06. The Longest HR board ranks WHO hits the farthest ball
 tonight, but the slate rows never carry how far anyone has actually hit one —
 only bucketed counts (`recent_350_num/den`, `recent_375_num`,
