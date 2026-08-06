@@ -4,6 +4,7 @@ import { C } from '../../lib/theme'
 import { btnStyle } from '../ui'
 import LongestBoard from './LongestBoard'
 import DueBoard from './DueBoard'
+import LuckReport from '../LuckReport'
 
 // 🚀 POWER — Longest + Due, merged (2026-08-04).
 //
@@ -29,6 +30,10 @@ export default function PowerTab({ players, onWatch, watchIds, onPlayerClick, in
       {view === 'longest'
         ? <LongestBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
         : <DueBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />}
+
+      {/* Luck lives with power on purpose: Due is distance-based regression,
+          this is contact-quality regression — two lenses on the same idea. */}
+      <LuckReport players={players} onPlayerClick={onPlayerClick} />
     </div>
   )
 }

@@ -231,7 +231,8 @@ export default function Pitchers({ players, onPlayerClick }) {
           _l3_starts_found are on 143 of 143 slate rows. Season K/9 is here too
           — there is no L3 K/9 published, so it isn't invented. */}
       <DenseTable
-        rows={sorted.map((p) => {
+        rows={(() => {
+        const built = sorted.map((p) => {
           const src = (k) => {
             for (const b of p.lineup || []) {
               const v = b?.raw?.[k]
@@ -300,14 +301,44 @@ export default function Pitchers({ players, onPlayerClick }) {
               return (l || 0) + (r || 0)
             })(),
           }
-        })}
+        })
+        // HR LUCK (2026-08-06, from the expected-vs-actual teardown): rank
+        // every starter on the slate by the LOUDNESS of contact he allows
+        // (barrel + hard-hit + pull-air + fly-ball, equal parts of what's
+        // present) and by his actual HR/9, both as slate percentiles. The gap
+        // is the luck read: allowed loud contact but few homers so far =
+        // "lucky", the regression bet says TARGET him; homers without loud
+        // contact = "unlucky", his HR/9 overstates him. Published fields
+        // only, no expected-HR model — a pointer, not a projection.
+        const pct = (arr, v) => {
+          const xs = arr.filter((x) => x != null).sort((a, b) => a - b)
+          if (v == null || !xs.length) return null
+          let i = 0; while (i < xs.length && xs[i] <= v) i++
+          return i / xs.length
+        }
+        const damage = (r) => {
+          const parts = [
+            pct(built.map((x) => x.brl), r.brl),
+            pct(built.map((x) => x.hh), r.hh),
+            pct(built.map((x) => x.pullAir), r.pullAir),
+            pct(built.map((x) => x.fb), r.fb),
+          ].filter((x) => x != null)
+          return parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null
+        }
+        built.forEach((r) => {
+          const d = damage(r)
+          const h = pct(built.map((x) => x.hr9), r.hr9)
+          r.luck = d != null && h != null ? Math.round((d - h) * 100) : null
+        })
+        return built
+        })()}
         columns={(() => {
           // Column groups. 'core' answers tonight; the rest are drill-ins.
           const GROUPS = {
-            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9','era','whip','spots'],
+            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9','luck','era','whip','spots'],
             recent: ['name','tm','vs','overall','l3hr9','l3era','l3whip','l3n','trend'],
             bot:    ['name','tm','vs','overall','attack','wsScore','zoneDmg','spotDmg','spots','gbTrap','hardCon','lowK'],
-            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9'],
+            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9','luck'],
           }
           const all = [
           // LAYOUT RULE: every text column first, every number after, nothing
@@ -337,6 +368,8 @@ export default function Pitchers({ players, onPlayerClick }) {
           { key: 'overall', label: 'Overall', w: 58, dp: 0,
             title: 'Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%. Unvalidated — none of these inputs reach the graded archive.' },
           { key: 'hr9',    label: 'HR/9', w: 46, dp: 2 },
+          { key: 'luck',   label: 'HR luck', w: 54, dp: 0,
+            title: 'Loudness of contact allowed (barrel/HH/pull-air/FB percentiles) minus HR/9 percentile, both within tonight\'s slate. POSITIVE = loud contact but few homers paid so far — the "lucky" arm, and the regression bet says target him. Negative = his HR/9 overstates the damage he actually allows. A pointer, not a projection.' },
           { key: 'era',    label: 'ERA', w: 44, dp: 2 },
           { key: 'whip',   label: 'WHIP', w: 46, dp: 2 },
           { key: 'k9',     label: 'K/9', w: 44, dp: 1, invert: true,

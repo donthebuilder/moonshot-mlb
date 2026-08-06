@@ -104,6 +104,40 @@ separate, it comes back out. Minimum-sample guards: skip any split under
 ~40 batters faced (pitcher) / ~30 AB (batter) and fall back to the season
 number rather than a noisy split.
 
+## #20 — Expected home runs from contact (the "luck" layer)
+
+Requested 2026-08-06, from the xHR-graphics teardown (Luckiest/Unluckiest
+Pitchers, Park Impact Tracker, Expected HR leaders — all one machine wearing
+four shirts). Everything needed already sits in the bot's statcast pulls.
+
+**The machine:** bucket every league batted ball by (EV, LA) — 2 mph × 3°
+cells are plenty — and store league HR rate per bucket, refreshed weekly from
+the bot's own cached statcast data. Then every tracked ball has an xHR
+probability that depends ONLY on how it left the bat (no park, no weather —
+that's the point).
+
+**Fields to publish once it exists:**
+
+    Batter (slate row):   season_xhr, season_hr_luck (= actual − xHR),
+                          l10_xhr — the "Expected HR leaders" table
+    Pitcher (slate row):  pitcher_xhr_allowed, pitcher_hr_luck — the
+                          Luckiest/Unluckiest Pitchers lists, exactly
+    Park file (new):      per-park actual HR vs xHR-from-contact — the Park
+                          Impact Tracker; also a cleaner park factor than
+                          dimensional guesses
+    Per-HR (spray rows):  hr_class ∈ {no_doubter, likely, maybe} from xHR
+                          prob thresholds (>.97 / .60–.96 / .10–.59)
+
+**Site is already halfway there:** the Pitchers tab ships an "HR luck" column
+and the Power tab a Luck Report, both built from percentile gaps in published
+fields (barrel/HH/pull-air vs HR/9; xwOBA10 vs L10 results). Those are honest
+pointers but not calibrated probabilities — when these fields land, the site
+swaps gap-reads for true actual-vs-expected numbers and adds the park table.
+
+**Guards:** minimum ~50 BBE before printing a batter's luck number; buckets
+with <100 league balls borrow from neighbors; distances/EV only from rows
+where statcast tracked them (same trap as docket #19).
+
 ## #19 — Publish max/avg tracked distance per hitter (Longest board gap)
 
 **IMPLEMENTED bot-side 2026-08-06** (bot-ship commit 4465106, awaiting push):
