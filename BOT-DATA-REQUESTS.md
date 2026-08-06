@@ -104,6 +104,29 @@ separate, it comes back out. Minimum-sample guards: skip any split under
 ~40 batters faced (pitcher) / ~30 AB (batter) and fall back to the season
 number rather than a noisy split.
 
+## #19 — Publish max/avg tracked distance per hitter (Longest board gap)
+
+Requested 2026-08-06. The Longest HR board ranks WHO hits the farthest ball
+tonight, but the slate rows never carry how far anyone has actually hit one —
+only bucketed counts (`recent_350_num/den`, `recent_375_num`,
+`l20pa_350_num/den`). The per-ball distances exist in the spray cache
+(`spray_chart[].distance`, the same rows spray_cache.py already writes), so
+this is an aggregation at publish time, not a new data pull.
+
+Fields to add to every slate row, from the same recent tracked window the
+350/375 counts use:
+
+    recent_max_distance      — longest tracked batted ball, ft
+    recent_avg_hr_distance   — mean distance over is_hr rows only (null if 0 HR)
+    recent_400_num           — count of 400+ ft balls (the 375 column's big brother)
+    season_max_distance      — longest tracked ball this season
+
+Site is pre-wired to read these the moment they appear: LongestBoard will grow
+a "Longest recent" column and rank-by option, with the usual fallback of not
+rendering until the fields carry values. Guard: distances only from rows where
+`distance` is present and > 0 — untracked balls write 0/None in the cache and
+a max() over them is how a 0-ft "longest ball" ships.
+
 ## #18 — Bullpen module (full spec)
 
 Homers don't stop when the starter leaves — pens cover ~38% of innings and

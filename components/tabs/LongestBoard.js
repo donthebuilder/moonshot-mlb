@@ -41,6 +41,18 @@ const carry = (p) => {
 
 const bbeCount = (p) => n(obj(p?.bbe_profile).sample_bbe, n(p?.recent_distance_tracked, 0))
 
+// Docket #19 pre-wiring: the moment the bot publishes true distance fields
+// (recent_max_distance / recent_avg_hr_distance / recent_400_num), these
+// columns appear on their own — until then they're absent, not zero-filled.
+const DIST_COLUMNS = [
+  { key: 'maxDist', label: 'Longest', w: 54, dp: 0,
+    title: 'His longest tracked batted ball in the recent window, in feet — the direct answer to the question this board asks' },
+  { key: 'avgHrDist', label: 'HR dist', w: 54, dp: 0,
+    title: 'Average distance of his recent home runs' },
+  { key: 'd400', label: '400+', w: 44,
+    title: 'Count of 400+ ft batted balls in the tracked window' },
+]
+
 const buildColumns = (onWatch) => [
   { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
@@ -222,6 +234,9 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
       bPull: n(p?.recent_pull_rate, 0) * 100,
       bFB: n(p?.recent_fb_rate, 0) * 100,
       bSweet: n(p?.recent_sweet_spot_rate, 0) * 100,
+      maxDist: n(p?.recent_max_distance, 0) || null,
+      avgHrDist: n(p?.recent_avg_hr_distance, 0) || null,
+      d400: n(p?.recent_400_num, 0),
       p375: n(p?.pitcher_375_allowed, 0),
       p400: n(p?.pitcher_400_allowed, 0),
       raw,
@@ -264,6 +279,11 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
   if (!players.length) return <Empty text="No players on this slate yet." />
 
   const maxBBE = Math.max(...all.map((r) => r.bbe), 0)
+  // Docket #19: columns light up only when the bot starts publishing distances.
+  const hasDist = all.some((r) => r.maxDist > 0)
+  const columns = hasDist
+    ? (() => { const base = buildColumns(onWatch); base.splice(6, 0, ...DIST_COLUMNS); return base })()
+    : buildColumns(onWatch)
 
   return (
     <div>
@@ -340,7 +360,7 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
 
           <DenseTable
             rows={rows}
-            columns={buildColumns(onWatch)}
+            columns={columns}
             onRowClick={onPlayerClick}
             initialSort={rankBy}
             maxHeight={480}
