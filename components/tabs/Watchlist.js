@@ -390,6 +390,33 @@ export default function Watchlist({ items, players = [], pairSummary, onWatch, o
           anything in common, or whether you've collected six different bets. */}
       <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
 
+      {/* VITALS STRIP — the list as one glance: size, bot overlap, power,
+          matchup edges. Each tile is the answer to a question you'd otherwise
+          scan twelve cards for. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        {(() => {
+          const bots = items.filter((p) => botPickOf(p)).length
+          const avgHr = items.reduce((s2, p) => s2 + hrScore(p), 0) / Math.max(1, items.length)
+          const weak = items.filter((p) => p?.weak_spot_flag).length
+          const conf = items.filter((p) => p?.lineup_confirmed).length
+          return [
+            ['Saved', items.length, C.orange, ''],
+            ['Bot picks', bots, '#FCD34D', bots ? 'the bot agrees on these' : ''],
+            ['Avg HR score', avgHr.toFixed(1), '#f97316', ''],
+            ['Weak spots', weak, '#FCD34D', ''],
+            ['Confirmed', `${conf}/${items.length}`, conf === items.length ? '#4ade80' : '#a78bfa', 'lineups locked'],
+          ].map(([l, v, c2, note]) => (
+            <div key={l} title={note} style={{
+              background: `linear-gradient(135deg, ${c2}14, ${c2}05)`,
+              border: `1px solid ${c2}3d`, borderRadius: 10, padding: '7px 13px',
+            }}>
+              <div style={{ fontSize: 8.5, textTransform: 'uppercase', letterSpacing: '.07em', color: C.text3, fontWeight: 800 }}>{l}</div>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: c2 }}>{v}</div>
+            </div>
+          ))
+        })()}
+      </div>
+
       {/* BOT AGREEMENT. The first question about a hand-built list: which of
           my saves does the bot also like tonight, and for what. One chip per
           watched player who carries a game_pick_role. */}

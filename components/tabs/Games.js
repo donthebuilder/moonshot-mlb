@@ -152,7 +152,10 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                 <div style={{ display: 'flex', gap: 10 }}>
                   {Object.entries(byTeam).map(([t, lineup]) => (
                     <div key={t} style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: C.text3, marginBottom: 3, fontFamily: NUM_FONT }}>{t}</div>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: C.text3, marginBottom: 3, fontFamily: NUM_FONT }}>
+                        {t}
+                        <span style={{ fontWeight: 400, marginLeft: 5 }}>vs {String(lineup[0]?.pitcher_name || 'TBD').split(' ').slice(-1)[0]}</span>
+                      </div>
                       {lineup.slice(0, 9).map((p) => (
                         <div
                           key={playerId(p)}

@@ -56,6 +56,7 @@ export default function PairBoard({ pairBuilder, onPlayerClick }) {
         longest: median([n(a.longest_hr_score, 0), n(b.longest_hr_score, 0)]),
         overall: median([n(a.overall_score, 0), n(b.overall_score, 0)]),
         tags: arr(pr?.tags).join(' · '),
+        l5: `${a.name ? String(a.name).split(' ').slice(-1)[0] : '?'} ${n(a.last5_hits,0)}H/${n(a.last5_hr,0)}HR · ${b.name ? String(b.name).split(' ').slice(-1)[0] : '?'} ${n(b.last5_hits,0)}H/${n(b.last5_hr,0)}HR`,
         reason: clean(pr?.reason, ''),
       }
     // Lane order first, then score inside the lane — sorting purely on score

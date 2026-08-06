@@ -44,8 +44,19 @@ function LivePools({ results }) {
           const homered = new Set((pl.homer_names || []).map((x) => String(x || '').toLowerCase()))
           return (
             <div key={i} style={{
-              background: C.bg2, border: `1px solid ${col}55`, borderRadius: 10, padding: '9px 12px',
+              background: hit > 0
+                ? `linear-gradient(155deg, ${col}14, ${col}04)`
+                : C.bg2,
+              border: `1px solid ${col}55`, borderRadius: 10, padding: '9px 12px',
+              boxShadow: hit > 0 ? `0 0 16px ${col}22` : 'none',
+              position: 'relative', overflow: 'hidden',
             }}>
+              {/* progress bar along the bottom edge — the pool's pulse */}
+              <div style={{
+                position: 'absolute', left: 0, bottom: 0, height: 3,
+                width: `${(100 * hit) / tot}%`, background: col,
+                boxShadow: `0 0 8px ${col}`, transition: 'width .3s',
+              }} />
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2 }}>{pl.label}</span>
                 <span style={{
