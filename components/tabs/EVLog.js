@@ -35,14 +35,26 @@ const PITCH_NAMES = {
   CS: 'Slow curve',
 }
 
-const GAME_STEPS = [5, 10, 15, 25]
-const BBE_STEPS = [10, 15, 25, 40, 50]
+// Widened 2026-08-06 ("pull as much as we can"): both window ladders now run
+// to everything the bot published — the log's ceiling is the spray cache's
+// lookback, so the All stop shows every tracked ball we actually have.
+const GAME_STEPS = [5, 10, 15, 25, 40]
+const BBE_STEPS = [15, 25, 50, 100, 9999]
+const bbeLabel = (v) => (v >= 9999 ? 'All' : `${v}BBE`)
 
 export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   const [mode, setMode] = useState('bbe')          // 'bbe' | 'games'
   const [games, setGames] = useState(10)
   const [bbeRange, setBbeRange] = useState(25)
-  const [armFilter, setArmFilter] = useState('ALL')
+  // The arm filter opens on TONIGHT'S arm, not ALL — same logic as the pitch
+  // mix auto-select: the question this log opens with is "how has he handled
+  // what he'll see tonight". One click back to All widens it.
+  const tonightArm = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
+  const [armFilter, setArmFilter] = useState(tonightArm === 'L' || tonightArm === 'R' ? tonightArm : 'ALL')
+  useEffect(() => {
+    const a = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
+    setArmFilter(a === 'L' || a === 'R' ? a : 'ALL')
+  }, [player])
   const [batterHand, setBatterHand] = useState('ALL')
   // Pitch selection defaults to tonight's starter's arsenal, matched to the
   // side this hitter bats from — the same behaviour the Spray tab has. The
@@ -196,7 +208,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
                   key={v}
                   style={seg(mode === 'games' ? games === v : bbeRange === v)}
                   onClick={() => (mode === 'games' ? setGames(v) : setBbeRange(v))}
-                >{mode === 'games' ? `${v}G` : `${v}BBE`}</button>
+                >{mode === 'games' ? `${v}G` : bbeLabel(v)}</button>
               ))}
             </div>
           </div>
@@ -206,8 +218,9 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           <span style={clusterLbl}>Arm</span>
           <div style={groupBox}>
             {['ALL', 'R', 'L'].map((v) => (
-              <button key={v} style={seg(armFilter === v)} onClick={() => setArmFilter(v)}>
-                {v === 'ALL' ? 'All' : v === 'R' ? 'RHP' : 'LHP'}
+              <button key={v} style={seg(armFilter === v)} onClick={() => setArmFilter(v)}
+                title={v === tonightArm ? "Tonight's starter throws from this side — the log opens here" : undefined}>
+                {v === 'ALL' ? 'All' : v === 'R' ? 'RHP' : 'LHP'}{v === tonightArm ? ' ⌖' : ''}
               </button>
             ))}
           </div>
