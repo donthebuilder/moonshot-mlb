@@ -1,8 +1,9 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { C } from '../lib/theme'
-import { teamOf, oppOf, hrScore, hitScore, n } from '../lib/player'
+import { teamOf, oppOf, hrScore, hitScore, n, clean } from '../lib/player'
 import Heatmap from './Heatmap'
+import { penStatsFor } from '../lib/bullpen'
 
 // Projected output by game — expected COUNT, not a score.
 //
@@ -39,6 +40,18 @@ function bandRate(score, bands) {
 export default function ProjectedOutput({ games = [], players = [] }) {
   const [by, setBy] = useState('game')
 
+  // Opposing-pen stats, live from the MLB StatsAPI team `rp` split. Loaded
+  // once per slate's teams; null until it arrives (the Adj column shows
+  // when it does).
+  const [pens, setPens] = useState(null)
+  useEffect(() => {
+    const teams = players.map((p) => oppOf(p)).filter(Boolean)
+    if (!teams.length) return
+    let alive = true
+    penStatsFor(teams).then((m) => { if (alive) setPens(m) })
+    return () => { alive = false }
+  }, [players])
+
   const rows = useMemo(() => {
     const groups = new Map()
 
@@ -63,9 +76,37 @@ export default function ProjectedOutput({ games = [], players = [] }) {
         const [kind, bands] = CALIB[col]
         values[col] = pool.reduce((sum, p) => sum + bandRate(scoreOf(p, kind), bands), 0)
       })
+
+      // ADJ HR — the calibrated projection with the environment and the pen
+      // layered on, per team. Each hitter's band rate is multiplied by:
+      //
+      //   park    park_hr_factor, as published
+      //   air     ~1% per 10°F off 70, capped ±6% (physics, kept gentle)
+      //   wind    ±5% when the park-relative label says out/in
+      //   pen     the OPPOSING pen's HR/9 vs a 1.05 league norm, weighted at
+      //           38% — the share of innings pens actually cover. This is the
+      //           late-game term: a Coors pen at 1.4 HR/9 raises the whole
+      //           lineup's number because the 7th-9th exist, which the
+      //           starter-only scores never priced (the Márquez/McCann/
+      //           Arenado kind of night).
+      //
+      // The base Proj HR column stays untouched — it's calibrated, this is
+      // calibrated × modeled, and the caption keeps them distinct.
+      values['Adj HR'] = pool.reduce((sum, p) => {
+        const base = bandRate(scoreOf(p, 'hr'), CALIB['Proj HR'][1])
+        const park = n(p?.park_hr_factor, n(p?.park_dist_factor, 1)) || 1
+        const temp = n(p?.weather_temp_f, n(p?.temp_f, 70)) || 70
+        const air = Math.max(0.94, Math.min(1.06, 1 + (temp - 70) / 1000))
+        const wl = clean(p?.wind_direction_label ?? p?.weather_wind_direction_label, '')
+        const wind = /out/i.test(wl) ? 1.05 : /^in\b|in from/i.test(wl) ? 0.95 : 1
+        const pen = pens?.get(String(oppOf(p) || '').toUpperCase())
+        const penMult = pen?.hr9 ? (0.62 + 0.38 * (pen.hr9 / 1.05)) : 1
+        return sum + base * park * air * wind * penMult
+      }, 0)
+
       return { label, values, _count: pool.length }
     }).sort((a, b) => b.values['Proj HR'] - a.values['Proj HR'])
-  }, [games, players, by])
+  }, [games, players, by, pens])
 
   if (!rows.length) return null
 
@@ -93,11 +134,11 @@ export default function ProjectedOutput({ games = [], players = [] }) {
 
       <Heatmap
         rows={rows}
-        columns={COLUMNS}
+        columns={[...COLUMNS, ...(pens ? ['Adj HR'] : [])]}
         title="Projected output — expected count, not a score"
         labelWidth={150}
         fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-        caption="Each hitter's board score is converted to the rate that band actually produced over 34 graded days, then summed across the lineup. Proj HR and Proj hits rest on bands that climb cleanly with score; XBH and bases do not — their 70-band scored below their 55-band in the archive, so treat those two as rough."
+        caption="Each hitter's board score is converted to the rate that band actually produced over 34 graded days, then summed across the lineup. Adj HR layers the environment and the OPPOSING BULLPEN onto that base: park factor, air temperature, park-relative wind, and the pen's live HR/9 (from the MLB StatsAPI, weighted at the ~38% of innings pens cover) — because homers don't stop when the starter leaves, and the base projection never priced the 7th–9th. Proj HR is calibrated; Adj HR is calibrated × modeled — when they disagree, the gap is the environment and the pen. XBH and bases bands are non-monotone in the archive; treat those two as rough."
       />
     </div>
   )

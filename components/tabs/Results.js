@@ -1013,6 +1013,22 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>💰 P/L</TabBtn>
       </div>
 
+      {/* ONE LINE OF ORIENTATION under the sub-nav — this tab grew seven
+          views and "great but confusing" was fair. Each view's one-line job,
+          keyed to whatever is selected, so you always know what you're
+          looking at and what the picker above does or doesn't affect. */}
+      <div style={{ fontSize: 10, color: C.text3, margin: '-2px 0 10px', lineHeight: 1.5, fontFamily: NUM_FONT }}>
+        {{
+          overview: '📊 Tonight graded as it happens: capture rate, multi-hit days, score audit. Follows the day picker.',
+          pitcher: '⚾ Which arms gave it up tonight, joined to the slate. Follows the day picker.',
+          pitchtype: '🎯 Each HR hitter against his own HR-by-pitch history — NOT the pitch it was hit off (unpublished). Follows the day picker.',
+          pairs: '🔗 How the bot’s pairs and pools graded tonight. Follows the day picker.',
+          picks: '📋 Every pick with its result — and “Did its job” grades each against its own category. Follows the day picker.',
+          record: '👤 Every player the bot has ever picked, per category, across all 39 archived days. IGNORES the day picker — it spans everything.',
+          pl: '💰 The whole archive replayed at your odds, flat stakes. IGNORES the day picker — it spans everything.',
+        }[subTab]}
+      </div>
+
       {/* OVERVIEW */}
       {subTab === 'overview' && (
         <>

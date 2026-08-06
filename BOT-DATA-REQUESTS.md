@@ -104,6 +104,42 @@ separate, it comes back out. Minimum-sample guards: skip any split under
 ~40 batters faced (pitcher) / ~30 AB (batter) and fall back to the season
 number rather than a noisy split.
 
+## #18 — Bullpen module (full spec)
+
+Homers don't stop when the starter leaves — pens cover ~38% of innings and
+late-game shots off relievers (the Márquez / McCann / Arenado kind of night)
+are invisible to every starter-centric score in the system. Answers to the
+four open questions, then the pieces:
+
+1. **What exists:** the scoring lives in `mlb_dashboard.py` (hr_score and
+   friends); the projection lives on the site (ProjectedOutput, band-
+   calibrated). The site ALREADY ships the first slice: team-level pen HR/9 /
+   ERA / SLG pulled live from the MLB StatsAPI `rp` split (verified working)
+   and folded into a new **Adj HR** projection column at a 38% innings
+   weight. The bot module should supersede that with the per-reliever pieces
+   below.
+2. **Data source:** MLB StatsAPI throughout. Team `rp` split for aggregates
+   (already proven). Per-reliever: roster + `/people/{id}/stats` with
+   `group=pitching` for HR/9 and handedness; freshness needs each reliever's
+   game log (`stats=gameLog`) — pitches thrown over the trailing 2–3 days.
+   Batter-vs-relief: batter `statSplits` vs `rp`. No scraping needed.
+3. **Output format:** bot-side Python in `mlb_dashboard.py`, published as
+   fields on the slate row (`opp_pen_hr9`, `opp_pen_fresh_hr9`,
+   `opp_pen_lhp_share`, `batter_vs_relief_ops`), so it lands in graded files
+   and can be CALIBRATED like everything else. Not a spreadsheet — spreadsheet
+   weights can't be backtested against the archive.
+4. **Weighting:** a **multiplier on the pitching term, not a separate point
+   pool** — `pen_mult = 1 + 0.38 × (pen_hr9/league − 1)`, where 0.38 is the
+   innings share pens actually cover. Additive pools drift; a multiplier
+   anchored to innings share has a physical meaning and one tunable number.
+   Start with the aggregate, add freshness (drop unavailable arms, reweight)
+   and handedness (± by batter side vs pen mix) only after the aggregate
+   version grades out.
+
+Priority order within the module: pen HR/9 aggregate (done site-side, port
+it) → freshness-adjusted HR/9 → handedness mix → batter-vs-relief splits
+(thinnest samples, last).
+
 **Deliberately not pulled:** BvP (batter vs this pitcher) — 5–20 PA samples,
 mostly noise, would need heavy shrinkage to be honest and adds little over
 split-by-hand + arsenal matching, which the bot already has. Monthly splits,

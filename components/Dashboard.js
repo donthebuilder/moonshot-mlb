@@ -15,9 +15,8 @@ import Guide from './tabs/Guide'
 import Games from './tabs/Games'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
-import DueBoard from './tabs/DueBoard'
 import SprayBoard from './tabs/SprayBoard'
-import LongestBoard from './tabs/LongestBoard'
+import PowerTab from './tabs/Power'
 import Backtest from './tabs/Backtest'
 import PlayerBoard from './tabs/PlayerBoard'
 import HitsHRR from './tabs/HitsHRR'
@@ -168,8 +167,9 @@ export default function Dashboard() {
           <>
             {tab === 'games'       && <Games players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'longest'     && <LongestBoard players={players} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'due'         && <DueBoard players={players} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {/* Power = Longest + Due merged; 'due' kept as alias route. */}
+            {tab === 'longest'     && <PowerTab players={players} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'due'         && <PowerTab players={players} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
             {/* 'hitshrr' merged into 'board' — route kept as alias for old links */}
