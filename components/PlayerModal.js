@@ -178,7 +178,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   // Width follows the widest table on the tab. Pitch and Pitcher carry ten-plus
   // stat columns; Spray is a fixed-size chart and gets cramped, not helped, by
   // extra width.
-  const modalWidth = tab === 'overview' ? 480
+  // Overview widened 480 → 580 (2026-08-06): the props hero earns the room —
+  // six window tiles, a value chart and three filter rows were living in a
+  // phone-width column on a desktop screen.
+  const modalWidth = tab === 'overview' ? 580
     : tab === 'spray' ? 780
     : tab === 'pitcher' || tab === 'pitch' || tab === 'splits' || tab === 'ev' ? 1100
     : 900

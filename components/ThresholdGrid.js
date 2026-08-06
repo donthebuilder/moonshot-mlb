@@ -108,7 +108,7 @@ export default function ThresholdGrid({ playerId }) {
 
   // Value-bar scaling: one unit per run of the biggest thing in view.
   const maxVal = Math.max(thr + 1, ...filteredLog.map(valFor), 1)
-  const unit = 28 / maxVal
+  const unit = 42 / maxVal
   const showNums = filteredLog.length <= 28
 
   const chip = (on, danger) => ({
@@ -129,8 +129,8 @@ export default function ThresholdGrid({ playerId }) {
           const pb = rr?.L10?.n ? (100 * rr.L10.ok) / rr.L10.n : null
           return (
             <button key={x.key} onClick={() => { setMkt(x.key); setLine((LINES[x.key] || [1])[0]); setSelGame(null) }} style={{
-              padding: '4px 11px', borderRadius: 999, cursor: 'pointer',
-              fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT,
+              padding: '5px 13px', borderRadius: 999, cursor: 'pointer',
+              fontSize: 11.5, fontWeight: 700, fontFamily: NUM_FONT,
               border: `1px solid ${mkt === x.key ? C.orange : C.border}`,
               background: mkt === x.key ? 'rgba(249,115,22,.14)' : 'transparent',
               color: mkt === x.key ? C.orange : C.text2,
@@ -144,11 +144,11 @@ export default function ThresholdGrid({ playerId }) {
 
       <div style={{
         background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.03))`,
-        border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px',
+        border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px',
       }}>
         {/* THE READ */}
         {p10 != null && (
-          <div style={{ fontSize: 11, lineHeight: 1.5, marginBottom: 9, color: C.text2 }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, marginBottom: 11, color: C.text2 }}>
             Cleared <b style={{ color: C.text }}>{dynLabel}</b> in{' '}
             <b style={{ fontFamily: NUM_FONT, color: rateCol(p10) }}>{r.L10.ok} of his last {r.L10.n}</b>
             {pSzn != null && <> — vs <span style={{ fontFamily: NUM_FONT }}>{pSzn.toFixed(0)}%</span> this season</>}
@@ -194,7 +194,7 @@ export default function ThresholdGrid({ playerId }) {
         {/* window tiles — clickable, they drive the timeline */}
         <div style={{
           display: 'grid', gap: 6, marginBottom: 12,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(62px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(76px, 1fr))',
         }}>
           {[['L5', 'Last 5'], ['L10', 'Last 10'], ['L20', 'Last 20'], ['Szn', 'Season']].map(([w, label]) => {
             const { ok, n } = r[w]
@@ -210,7 +210,7 @@ export default function ThresholdGrid({ playerId }) {
                   boxShadow: on ? '0 0 10px rgba(249,115,22,.18)' : 'none',
                 }}>
                 <div style={{ fontSize: 8, color: on ? C.orange : C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
-                <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: pct != null ? rateCol(pct) : C.text3 }}>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 21, fontWeight: 900, lineHeight: 1.25, color: pct != null ? rateCol(pct) : C.text3 }}>
                   {pct != null ? `${pct.toFixed(0)}%` : '—'}
                 </div>
                 <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{n ? `${ok}/${n}` : ' '}</div>
@@ -221,7 +221,7 @@ export default function ThresholdGrid({ playerId }) {
             <div style={{ textAlign: 'center', background: 'rgba(255,255,255,.02)', border: `1px dashed ${C.border2}`, borderRadius: 9, padding: '7px 4px 6px' }}
               title={`Last season, full year, same ${dynLabel} line — the long-memory anchor the recent windows swing around`}>
               <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{new Date().getFullYear() - 1}</div>
-              <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: rateCol((100 * lsOk) / lsN) }}>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 21, fontWeight: 900, lineHeight: 1.25, color: rateCol((100 * lsOk) / lsN) }}>
                 {((100 * lsOk) / lsN).toFixed(0)}%
               </div>
               <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{lsOk}/{lsN}</div>
@@ -233,7 +233,7 @@ export default function ThresholdGrid({ playerId }) {
             border: `1px solid ${stk > 0 ? '#4ade8055' : stk < 0 ? '#f8717144' : C.border}`,
           }}>
             <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>Streak</div>
-            <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: stk > 0 ? '#4ade80' : stk < 0 ? '#f87171' : C.text3 }}>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 21, fontWeight: 900, lineHeight: 1.25, color: stk > 0 ? '#4ade80' : stk < 0 ? '#f87171' : C.text3 }}>
               {stk > 0 ? `W${stk}` : stk < 0 ? `L${-stk}` : '—'}
             </div>
             <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{dynLabel}</div>
@@ -249,18 +249,18 @@ export default function ThresholdGrid({ playerId }) {
             {/* the line */}
             <div style={{
               position: 'absolute', left: 0, right: 0,
-              bottom: 9 + Math.min(32, (thr - 0.5) * unit), height: 1,
+              bottom: 10 + Math.min(46, (thr - 0.5) * unit), height: 1,
               background: 'rgba(255,255,255,.35)', pointerEvents: 'none', zIndex: 2,
             }} title={`the ${thr - 0.5} line`} />
             {/* his average */}
             {avgVal != null && (
               <div style={{
                 position: 'absolute', left: 0, right: 0,
-                bottom: 9 + Math.min(32, avgVal * unit), height: 0,
+                bottom: 10 + Math.min(46, avgVal * unit), height: 0,
                 borderTop: `1px dashed rgba(249,115,22,.6)`, pointerEvents: 'none', zIndex: 2,
               }} title={`his average: ${avgVal.toFixed(1)} per game in view`} />
             )}
-            <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
               {[...filteredLog].reverse().map((g, gi) => {
                 const val = valFor(g)
                 const ok = val >= thr
@@ -269,13 +269,13 @@ export default function ThresholdGrid({ playerId }) {
                 const oppCol = q ? `rgba(249,115,22,${(0.18 + q.soft * 0.72).toFixed(2)})` : 'rgba(255,255,255,.08)'
                 const oppNote = q ? ` · ${ab} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''
                 const isSel = selGame === `${g.date}${gi}`
-                const hgt = Math.max(4, Math.min(34, 4 + val * unit))
+                const hgt = Math.max(5, Math.min(48, 5 + val * unit))
                 return (
                   <div key={gi} title={`${g.date} ${g.home ? 'vs' : '@'} ${ab} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`}
                     onClick={() => setSelGame(isSel ? null : `${g.date}${gi}`)}
                     style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', cursor: 'pointer' }}>
                     {showNums && val > 0 && (
-                      <div style={{ fontFamily: NUM_FONT, fontSize: 7.5, fontWeight: 800, color: ok ? '#4ade80' : 'rgba(248,113,113,.8)', textAlign: 'center', marginBottom: 1 }}>{val}</div>
+                      <div style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, color: ok ? '#4ade80' : 'rgba(248,113,113,.8)', textAlign: 'center', marginBottom: 1 }}>{val}</div>
                     )}
                     <div style={{
                       height: hgt, borderRadius: '3px 3px 1px 1px',
@@ -284,7 +284,7 @@ export default function ThresholdGrid({ playerId }) {
                         : val > 0 ? 'linear-gradient(180deg, rgba(248,113,113,.6), rgba(248,113,113,.35))' : 'rgba(248,113,113,.22)',
                       boxShadow: isSel ? '0 0 0 1.5px #fff' : ok && val >= thr + 1 ? '0 0 9px rgba(74,222,128,.45)' : 'none',
                     }} />
-                    <div style={{ height: 3, borderRadius: 2, marginTop: 2, background: isSel ? '#fff' : oppCol }} />
+                    <div style={{ height: 4, borderRadius: 2, marginTop: 3, background: isSel ? '#fff' : oppCol }} />
                   </div>
                 )
               })}
@@ -318,7 +318,7 @@ export default function ThresholdGrid({ playerId }) {
           )
         })()}
 
-        <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
           {filteredLog.length} games, newest right — bar height is the actual {SHORT[m.key]} count,{' '}
           <span style={{ color: '#4ade80' }}>green clears the {thr - 0.5} line</span> (white rule), red doesn&apos;t;
           the dashed orange rule is his average{staff && <>; the strip under each bar is the opposing staff —{' '}
