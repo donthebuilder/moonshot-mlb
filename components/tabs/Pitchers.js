@@ -286,6 +286,10 @@ export default function Pitchers({ players, onPlayerClick }) {
             // rates, not the pitcher's. Using those here would be silently
             // wrong, so the ground-ball and line-drive columns are simply not
             // built. See BOT-DATA-REQUESTS.md — this is a bot-side fix.
+            // Docket #20 calibrated fields — null until the bot's xHR machine
+            // publishes; the columns only appear once they carry values.
+            xallowed: n(src('pitcher_xhr_allowed'), null) || null,
+            xluck: (() => { const v = n(src('pitcher_hr_luck'), null); return v === 0 ? null : v })(),
             fb: n(src('pitcher_fb_rate'), null),
             fbSc: n(src('pitcher_statcast_fb_rate'), null),
             hh: n(src('pitcher_hardhit_allowed'), null),
@@ -333,12 +337,15 @@ export default function Pitchers({ players, onPlayerClick }) {
         return built
         })()}
         columns={(() => {
+          // Calibrated xHR columns appear on their own once the bot publishes
+          // (docket #20) — until then they'd be a blank stripe, so they don't.
+          const hasX = sorted.some((p) => (p.lineup || []).some((b) => Number(b?.raw?.pitcher_xhr_bbe) >= 50))
           // Column groups. 'core' answers tonight; the rest are drill-ins.
           const GROUPS = {
-            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9','luck','era','whip','spots'],
+            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9',...(hasX ? ['xallowed','xluck'] : ['luck']),'era','whip','spots'],
             recent: ['name','tm','vs','overall','l3hr9','l3era','l3whip','l3n','trend'],
             bot:    ['name','tm','vs','overall','attack','wsScore','zoneDmg','spotDmg','spots','gbTrap','hardCon','lowK'],
-            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9','luck'],
+            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9',...(hasX ? ['xallowed','xluck'] : ['luck'])],
           }
           const all = [
           // LAYOUT RULE: every text column first, every number after, nothing
@@ -368,6 +375,10 @@ export default function Pitchers({ players, onPlayerClick }) {
           { key: 'overall', label: 'Overall', w: 58, dp: 0,
             title: 'Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%. Unvalidated — none of these inputs reach the graded archive.' },
           { key: 'hr9',    label: 'HR/9', w: 46, dp: 2 },
+          { key: 'xallowed', label: 'xHR', w: 48, dp: 1,
+            title: 'Expected homers allowed from the contact he\'s actually given up — the bot\'s league (EV, LA) table, no park or weather. Compare with his real HR total.' },
+          { key: 'xluck', label: 'HR luck', w: 54, dp: 1, invert: true,
+            title: 'Actual HRs allowed minus expected-from-contact. NEGATIVE = fewer homers than his contact deserved — the "lucky" arm, and the regression bet says target him. Positive = he\'s paid more than the contact warranted. Calibrated (docket #20), replaces the old percentile pointer.' },
           { key: 'luck',   label: 'HR luck', w: 54, dp: 0,
             title: 'Loudness of contact allowed (barrel/HH/pull-air/FB percentiles) minus HR/9 percentile, both within tonight\'s slate. POSITIVE = loud contact but few homers paid so far — the "lucky" arm, and the regression bet says target him. Negative = his HR/9 overstates the damage he actually allows. A pointer, not a projection.' },
           { key: 'era',    label: 'ERA', w: 44, dp: 2 },

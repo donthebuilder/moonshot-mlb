@@ -106,6 +106,19 @@ number rather than a noisy split.
 
 ## #20 — Expected home runs from contact (the "luck" layer)
 
+**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit a946f22, awaiting push):
+league (EV, LA) bucket table accumulated from the per-batter season pulls
+(batter side only — no double counting), persisted per run so spray-chart
+`hr_class` uses the prior run's table. Ships season_xhr / season_hr_luck /
+recent_xhr / xhr_bbe per hitter and pitcher_xhr_allowed / pitcher_hr_luck /
+pitcher_xhr_bbe per starter; cache keys bumped (batter v7, pitcher v6). NOT
+yet built: the per-park actual-vs-expected table (needs per-ball venue
+retention — next pass). Site is pre-wired: Luck Report and the Pitchers tab
+switch from percentile pointers to the calibrated numbers automatically when
+the fields carry values. Note: fields stay 0 on the FIRST run after this
+lands (the league table needs one full pass to build), and hr_class starts
+stamping on the second run.
+
 Requested 2026-08-06, from the xHR-graphics teardown (Luckiest/Unluckiest
 Pitchers, Park Impact Tracker, Expected HR leaders — all one machine wearing
 four shirts). Everything needed already sits in the bot's statcast pulls.

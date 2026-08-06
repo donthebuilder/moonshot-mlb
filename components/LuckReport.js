@@ -27,9 +27,24 @@ const pctOf = (xs, v) => {
 }
 
 export default function LuckReport({ players = [], onPlayerClick }) {
-  const { unlucky, lucky } = useMemo(() => {
+  const { unlucky, lucky, calibrated } = useMemo(() => {
     const pool = players.filter((p) => n(p?.season_pa, 0) >= 100 && n(p?.recent_350_den, 0) >= 10)
-    if (pool.length < 12) return { unlucky: [], lucky: [] }
+    if (pool.length < 12) return { unlucky: [], lucky: [], calibrated: false }
+
+    // CALIBRATED MODE (docket #20 shipped): when the bot publishes true
+    // expected-HRs, the percentile pointer retires and this becomes the real
+    // thing — actual homers minus xHR from contact, the ±numbers themselves.
+    const xPool = pool.filter((p) => n(p?.xhr_bbe, 0) >= 50 && n(p?.season_xhr, 0) > 0)
+    if (xPool.length >= 12) {
+      const scored = xPool.map((p) => ({ p, luck: n(p?.season_hr_luck, 0), xhr: n(p?.season_xhr, 0) }))
+      return {
+        calibrated: true,
+        unlucky: [...scored].sort((a, b) => a.luck - b.luck).filter((x) => x.luck <= -1.5).slice(0, 8)
+          .map((x) => ({ ...x, gap: -x.luck / 10 })),
+        lucky: [...scored].sort((a, b) => b.luck - a.luck).filter((x) => x.luck >= 1.5).slice(0, 8)
+          .map((x) => ({ ...x, gap: -x.luck / 10 })),
+      }
+    }
     const sortedVals = (get) => pool.map(get).filter((v) => v != null).sort((a, b) => a - b)
     const xw = sortedVals((p) => n(p?.l10_xwoba, null))
     const brl = sortedVals((p) => n(p?.recent_barrel_rate, null))
@@ -54,6 +69,7 @@ export default function LuckReport({ players = [], onPlayerClick }) {
     }).filter(Boolean)
 
     return {
+      calibrated: false,
       unlucky: [...scored].sort((a, b) => b.gap - a.gap).filter((x) => x.gap >= 0.2).slice(0, 8),
       lucky: [...scored].sort((a, b) => a.gap - b.gap).filter((x) => x.gap <= -0.2).slice(0, 8),
     }
@@ -72,12 +88,14 @@ export default function LuckReport({ players = [], onPlayerClick }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nameOf(x.p)}</span>
         <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, color }}>
-          {x.gap > 0 ? '+' : ''}{Math.round(x.gap * 100)}
+          {x.luck != null ? `${x.luck > 0 ? '+' : ''}${x.luck.toFixed(2)}` : `${x.gap > 0 ? '+' : ''}${Math.round(x.gap * 100)}`}
         </span>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {teamOf(x.p)} · xwOBA10 {n(x.p?.l10_xwoba, 0).toFixed(3).replace(/^0/, '')} · L10 AVG {n(x.p?.last10_avg, 0).toFixed(3).replace(/^0/, '')}
-        {' '}· contact {Math.round(x.process * 100)}% vs results {Math.round(x.results * 100)}%
+        {x.luck != null
+          ? <>{teamOf(x.p)} · {n(x.p?.season_hr, 0)} HR vs {x.xhr.toFixed(1)} expected · {n(x.p?.xhr_bbe, 0)} tracked balls</>
+          : <>{teamOf(x.p)} · xwOBA10 {n(x.p?.l10_xwoba, 0).toFixed(3).replace(/^0/, '')} · L10 AVG {n(x.p?.last10_avg, 0).toFixed(3).replace(/^0/, '')}
+            {' '}· contact {Math.round(x.process * 100)}% vs results {Math.round(x.results * 100)}%</>}
       </div>
     </div>
   )
@@ -87,13 +105,15 @@ export default function LuckReport({ players = [], onPlayerClick }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>⚖ Luck report</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-          how the ball leaves the bat vs what the box score paid — slate percentiles, L10 window
+          {calibrated
+            ? 'actual homers vs expected-from-contact (bot xHR machine, season)'
+            : 'how the ball leaves the bat vs what the box score paid — slate percentiles, L10 window'}
         </span>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
-        Not a projection — a regression pointer built only from published fields. Gates: 100+ season PA,
-        10+ tracked batted balls, and a 20-point gap before anyone makes a list. When a hitter shows on
-        neither list, his results match his contact — which is most hitters, most of the time.
+        {calibrated
+          ? 'Calibrated: the number on each card is HRs above or below what his contact quality should have produced, from the league (EV, LA) table the bot builds off its own statcast data. Minimum 50 tracked balls and a ±1.5 HR gap to make a list.'
+          : 'Not a projection — a regression pointer built only from published fields. Gates: 100+ season PA, 10+ tracked batted balls, and a 20-point gap before anyone makes a list. When a hitter shows on neither list, his results match his contact — which is most hitters, most of the time.'}
       </div>
 
       {unlucky.length > 0 && (
