@@ -72,11 +72,24 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
     if (!yday) return null
     const slots = Array.isArray(yday?.graded_slots) ? yday.graded_slots
       : Array.isArray(yday?.results) ? yday.results : []
+    // Did last night's pick CLEAR? Per-category bars, same rules the archive
+    // grades on: HR/TOP = homered, HIT = got a hit, HRR = 2+ H+R+RBI,
+    // CONTACT = 2+ TB. Null (no mark) when the slot never finalized.
+    const clearedOf = (s, role) => {
+      if (!s || Number(s.is_final) !== 1) return null
+      const h = n(s.actual_hits, 0), hr = n(s.actual_hr, 0)
+      const combo = h + n(s.actual_runs, 0) + n(s.actual_rbi, 0)
+      if (role === 'HR' || role === 'TOP') return hr >= 1
+      if (role === 'HIT') return h >= 1
+      if (role === 'HRR') return combo >= 2
+      if (role === 'CONTACT' || role === 'TB') return n(s.actual_tb, 0) >= 2
+      return null
+    }
     const was = new Map()
     slots.forEach((s) => {
       const role = String(s?.game_pick_role || s?.pick_type || '').split('/')[0].trim().toUpperCase()
       const nm = String(s?.name || '').toLowerCase().trim()
-      if (role && nm) was.set(nm, role)
+      if (role && nm) was.set(nm, { role, cleared: clearedOf(s, role) })
     })
     if (!was.size) return null
     const now = new Map()
@@ -86,10 +99,16 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
     })
     const added = [...now.entries()].filter(([nm]) => !was.has(nm))
     const dropped = [...was.entries()].filter(([nm]) => !now.has(nm))
+      .map(([nm, w]) => [nm, w.role, w.cleared])
     const changed = [...now.entries()]
-      .filter(([nm, v]) => was.has(nm) && was.get(nm) !== v.role)
-      .map(([nm, v]) => ({ nm, from: was.get(nm), to: v.role, p: v.p }))
-    return { added, dropped, changed, date: ydayDate }
+      .filter(([nm, v]) => was.has(nm) && was.get(nm).role !== v.role)
+      .map(([nm, v]) => ({ nm, from: was.get(nm).role, to: v.role, p: v.p, cleared: was.get(nm).cleared }))
+    // HELD — picked yesterday, picked today, same category. The tracker the
+    // diff was missing: continuity plus whether he actually delivered.
+    const held = [...now.entries()]
+      .filter(([nm, v]) => was.has(nm) && was.get(nm).role === v.role)
+      .map(([nm, v]) => ({ nm, role: v.role, p: v.p, cleared: was.get(nm).cleared }))
+    return { added, dropped, changed, held, date: ydayDate }
   }, [yday, players, ydayDate])
 
   if (!unconfirmed.length && !diff) return null
@@ -157,7 +176,13 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
           >
             <span style={{ fontSize: 11, fontWeight: 800 }}>🔁 Since {diff.date.slice(5)} {showDiff ? '▾' : '▸'}</span>
             <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              {diff.added.length} new picks · {diff.dropped.length} dropped · {diff.changed.length} changed category
+              {diff.added.length} new · {diff.held?.length || 0} held
+              {(() => {
+                const marked = (diff.held || []).filter((h) => h.cleared != null)
+                const ok = marked.filter((h) => h.cleared).length
+                return marked.length ? ` (${ok}/${marked.length} cleared last night)` : ''
+              })()}
+              {' '}· {diff.changed.length} moved · {diff.dropped.length} dropped
             </span>
           </div>
           {/* COLUMNS, NOT RIVERS (2026-08-06). Thirty-six names run together
@@ -165,10 +190,14 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
               counts, ten rows each, expanders for the rest — the eye can
               actually walk a list. */}
           {showDiff && (() => {
+            // ✓/✗ = did last night's pick clear its own bar. Light on purpose:
+            // a mark, not a column of stats.
+            const mark = (c) => (c == null ? '' : c ? '✓ ' : '✗ ')
             const COLS = [
+              ['held', 'HELD', '#22d3ee', (diff.held || []).map((h) => ({ key: h.nm, label: nameOf(h.p), tag: `${mark(h.cleared)}${h.role}`, ok: h.cleared, p: h.p }))],
               ['new', 'NEW', '#4ade80', diff.added.map(([nm, v]) => ({ key: nm, label: nameOf(v.p), tag: v.role, p: v.p }))],
-              ['moved', 'MOVED', '#FCD34D', diff.changed.map((c) => ({ key: c.nm, label: nameOf(c.p), tag: `${c.from}→${c.to}`, p: c.p }))],
-              ['dropped', 'DROPPED', '#f87171', diff.dropped.map(([nm, role]) => ({ key: nm, label: nm.replace(/\b\w/g, (ch) => ch.toUpperCase()), tag: role, p: null }))],
+              ['moved', 'MOVED', '#FCD34D', diff.changed.map((c) => ({ key: c.nm, label: nameOf(c.p), tag: `${mark(c.cleared)}${c.from}→${c.to}`, ok: c.cleared, p: c.p }))],
+              ['dropped', 'DROPPED', '#f87171', diff.dropped.map(([nm, role, cleared]) => ({ key: nm, label: nm.replace(/\b\w/g, (ch) => ch.toUpperCase()), tag: `${mark(cleared)}${role}`, ok: cleared, p: null }))],
             ].filter(([, , , list]) => list.length)
             return (
               <div style={{ marginTop: 8 }}>
@@ -193,7 +222,11 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
                                 fontSize: 10.5, fontWeight: 600, color: k === 'dropped' ? C.text3 : C.text2,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                               }}>{it.label}</span>
-                              <span style={{ marginLeft: 'auto', fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800, color: k === 'moved' ? color : k === 'dropped' ? C.text3 : C.orange, flexShrink: 0 }}>{it.tag}</span>
+                              <span style={{
+                                marginLeft: 'auto', fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0,
+                                color: it.ok === true ? '#4ade80' : it.ok === false ? 'rgba(248,113,113,.75)'
+                                  : k === 'moved' ? color : k === 'dropped' ? C.text3 : C.orange,
+                              }}>{it.tag}</span>
                             </div>
                           ))}
                         </div>
@@ -208,8 +241,10 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
                   })}
                 </div>
                 <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
-                  Yesterday&apos;s picks come from the graded archive; dropped names may simply not be
-                  playing today rather than demoted. The bot changing its mind is information either way.
+                  ✓/✗ = whether last night&apos;s pick cleared its own bar (HR homered, HIT got a hit,
+                  HRR 2+ H+R+RBI, CONTACT 2+ TB); no mark = the slot never finalized. Yesterday&apos;s
+                  picks come from the graded archive; dropped names may simply not be playing today
+                  rather than demoted. The bot changing its mind is information either way.
                 </div>
               </div>
             )
