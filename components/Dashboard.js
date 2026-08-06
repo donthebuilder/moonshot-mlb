@@ -160,7 +160,7 @@ export default function Dashboard() {
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
-        <MiniWire players={players} tab={tab} onGo={() => setTab('scoreboard')} />
+        <MiniWire players={players} watchIds={watchIds} tab={tab} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
         {loading ? (
