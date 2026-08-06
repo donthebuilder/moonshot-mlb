@@ -133,13 +133,20 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
 
   if (!log.length) return <Empty text="No batted ball data. Run spray_cache.py." />
 
+  // Restyled 2026-08-05 — the old flat grey squares read as leftover
+  // Streamlit chrome next to the rest of the site. Same behaviour, the
+  // site's pill language: rounded, tinted active with a soft glow.
   const seg = (active) => ({
-    padding: '3px 9px', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none',
-    background: active ? C.orange : 'transparent', color: active ? '#1a0d02' : C.text2,
-    fontFamily: NUM_FONT,
+    padding: '4px 11px', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: 'none',
+    background: active ? 'linear-gradient(135deg, #f97316, #ea6a0a)' : 'transparent',
+    color: active ? '#1a0d02' : C.text2,
+    fontFamily: NUM_FONT, borderRadius: 999,
+    boxShadow: active ? '0 0 10px rgba(249,115,22,.35)' : 'none',
+    transition: 'background .12s',
   })
   const groupBox = {
-    display: 'flex', borderRadius: 6, overflow: 'hidden', border: `1px solid ${C.border2}`,
+    display: 'flex', gap: 2, borderRadius: 999, padding: 2,
+    border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.025)',
   }
   // Controls grouped and labelled. The row was eleven undifferentiated buttons
   // and two selects with no indication which belonged together — you had to
