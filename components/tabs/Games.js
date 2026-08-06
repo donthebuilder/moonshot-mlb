@@ -129,8 +129,13 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           9, both teams side by side. The site had lineup data on every row
           and nowhere to just READ the lineups. ✓ green = confirmed, hollow =
           projected. Click a name for his modal. */}
+      {/* LINEUPS 2.0 — the matchup card, PF-inspired and then some. Each
+          game is one card: weather + park header (their idea), the two
+          orders facing each other around a center spine, each hitter a
+          full-size row with an HR-score bar, badges, and his line vs the
+          arm he faces. Chips grew — a lineup you squint at isn't a tool. */}
       {mode === 'lineups' && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           {games.map((g) => {
             const byTeam = {}
             ;(g.players || []).forEach((p) => {
@@ -138,41 +143,67 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
               ;(byTeam[t] = byTeam[t] || []).push(p)
             })
             Object.values(byTeam).forEach((l) => l.sort((a, b) => (Number(a?.lineup_spot) || 99) - (Number(b?.lineup_spot) || 99)))
+            const any = (g.players || [])[0] || {}
+            const temp = Number(any.weather_temp_f) || 0
+            const wind = Number(any.weather_wind_mph) || 0
+            const wLbl = String(any.wind_direction_label || '')
+            const parkF = Number(any.park_hr_factor) || Number(any.park_dist_factor) || 0
             return (
               <div key={g.game_pk} style={{
-                flex: '1 1 320px', minWidth: 0, background: C.bg2,
-                border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px',
+                flex: '1 1 460px', minWidth: 0, background: C.bg2,
+                border: `1px solid ${C.border}`, borderRadius: 13, overflow: 'hidden',
               }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
-                  <span style={{ fontSize: 9, color: g.lineup_confirmed ? '#4ade80' : C.text3, fontFamily: NUM_FONT }}>
-                    {g.lineup_confirmed ? '✓ confirmed' : '◻ projected'} · {localTime(g.game_time)}
+                {/* header: matchup + conditions, PF-style but ours */}
+                <div style={{
+                  display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+                  padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
+                  <span style={{ fontSize: 10, color: g.lineup_confirmed ? '#4ade80' : C.text3, fontFamily: NUM_FONT, fontWeight: 700 }}>
+                    {g.lineup_confirmed ? '✓ confirmed' : '◻ projected'}
+                  </span>
+                  <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 9, fontSize: 10, fontFamily: NUM_FONT }}>
+                    {temp > 0 && <span style={{ color: temp >= 82 ? C.orange : C.text2 }}>{Math.round(temp)}°</span>}
+                    {wind > 0 && <span style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}mph</span>}
+                    {parkF > 0 && <span style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>park ×{parkF.toFixed(2)}</span>}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {Object.entries(byTeam).map(([t, lineup]) => (
-                    <div key={t} style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: C.text3, marginBottom: 3, fontFamily: NUM_FONT }}>
-                        {t}
-                        <span style={{ fontWeight: 400, marginLeft: 5 }}>vs {String(lineup[0]?.pitcher_name || 'TBD').split(' ').slice(-1)[0]}</span>
+                <div style={{ display: 'flex', gap: 0 }}>
+                  {Object.entries(byTeam).map(([t, lineup], ti) => (
+                    <div key={t} style={{
+                      flex: 1, minWidth: 0, padding: '8px 12px',
+                      borderLeft: ti ? `1px solid ${C.border}` : 'none',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
+                        <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT }}>{t}</span>
+                        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                          vs {String(lineup[0]?.pitcher_name || 'TBD').split(' ').slice(-1)[0]}
+                          {lineup[0]?.pitcher_hr9 ? ` · ${Number(lineup[0].pitcher_hr9).toFixed(2)} HR/9` : ''}
+                        </span>
                       </div>
-                      {lineup.slice(0, 9).map((p) => (
-                        <div
-                          key={playerId(p)}
-                          onClick={() => onPlayerClick?.(p)}
-                          style={{ display: 'flex', gap: 5, alignItems: 'baseline', fontSize: 10.5, padding: '1px 0', cursor: 'pointer', minWidth: 0 }}
-                        >
-                          <span style={{ fontFamily: NUM_FONT, color: C.text3, width: 10, flexShrink: 0 }}>{p?.lineup_spot ?? '·'}</span>
-                          <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
-                          <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, flexShrink: 0 }}>{p?.bats}</span>
-                          {String(p?.game_pick_role || '').trim() && <span style={{ fontSize: 8, color: C.orange, flexShrink: 0 }}>🤖</span>}
-                          {p?.weak_spot_flag && <span title="Weak spot vs tonight's arm" style={{ fontSize: 8, flexShrink: 0 }}>⭐</span>}
-                          {hrScore(p) >= 60 && <span title={`HR score ${hrScore(p).toFixed(0)}`} style={{ fontSize: 8, flexShrink: 0 }}>🔥</span>}
-                          {Number(p?.last5_hits) >= 6 && <span title={`${p.last5_hits} hits in his last 5`} style={{ fontSize: 8, flexShrink: 0 }}>🧨</span>}
-                          <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 9, fontWeight: 700, flexShrink: 0,
-                            color: hrScore(p) >= 60 ? C.orange : hrScore(p) >= 45 ? '#FCD34D' : C.text3 }}>{hrScore(p).toFixed(0)}</span>
-                        </div>
-                      ))}
+                      {lineup.slice(0, 9).map((p) => {
+                        const hs = hrScore(p)
+                        return (
+                          <div key={playerId(p)} onClick={() => onPlayerClick?.(p)}
+                            style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2.5px 0', cursor: 'pointer', minWidth: 0 }}>
+                            <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 11, flexShrink: 0 }}>{p?.lineup_spot ?? '·'}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+                              {p?.name}
+                              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>{p?.bats}</span>
+                              {String(p?.game_pick_role || '').trim() && <span style={{ fontSize: 9, marginLeft: 3 }}>🤖</span>}
+                              {p?.weak_spot_flag && <span style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
+                              {Number(p?.last5_hits) >= 6 && <span style={{ fontSize: 9, marginLeft: 2 }}>🧨</span>}
+                            </span>
+                            <div style={{ flex: '0 0 46px', height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ width: `${Math.min(100, hs)}%`, height: '100%', borderRadius: 3,
+                                background: hs >= 60 ? '#f97316' : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
+                            </div>
+                            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
+                              color: hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>{hs.toFixed(0)}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   ))}
                 </div>
