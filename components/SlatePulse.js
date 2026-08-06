@@ -43,6 +43,8 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
   // ── yesterday's picks for the diff ──
   const [yday, setYday] = useState(null)
   const [showDiff, setShowDiff] = useState(false)
+  const [showAllUnconf, setShowAllUnconf] = useState(false)
+  const [colOpen, setColOpen] = useState({})
 
   const ydayDate = useMemo(() => {
     const per = backtest?.per_day
@@ -108,8 +110,11 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
               unconfirmed hitters homered 10.2% vs 15.2% confirmed across the archive — watch these until they lock
             </span>
           </div>
+          {/* Restraint pass (2026-08-06): a 49-chip wall buried the page.
+              Eight chips — the ones locking SOONEST, which are the only
+              urgent ones — and an honest expander for the rest. */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {unconfirmed.slice(0, 12).map(({ p, mins }) => (
+            {unconfirmed.slice(0, showAllUnconf ? unconfirmed.length : 8).map(({ p, mins }) => (
               <button
                 key={`${p?.player_id}-${p?.game_pk}`}
                 onClick={() => onPlayerClick?.(p)}
@@ -129,6 +134,15 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
                 }}>{fmtCountdown(mins)}</span>
               </button>
             ))}
+            {unconfirmed.length > 8 && (
+              <button onClick={() => setShowAllUnconf((v) => !v)} style={{
+                fontSize: 10, fontWeight: 700, color: '#FCD34D', cursor: 'pointer',
+                background: 'transparent', border: '1px dashed rgba(252,211,77,.4)',
+                borderRadius: 7, padding: '3px 10px', fontFamily: NUM_FONT,
+              }}>
+                {showAllUnconf ? 'show fewer' : `+${unconfirmed.length - 8} more`}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -146,47 +160,60 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
               {diff.added.length} new picks · {diff.dropped.length} dropped · {diff.changed.length} changed category
             </span>
           </div>
-          {showDiff && (
-            <div style={{ marginTop: 7, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 10.5 }}>
-              {diff.added.length > 0 && (
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                  <span style={{ color: '#4ade80', fontWeight: 800, fontSize: 9.5 }}>NEW</span>
-                  {diff.added.map(([nm, v]) => (
-                    <span key={nm} onClick={() => onPlayerClick?.(v.p)}
-                      style={{ cursor: 'pointer', color: C.text2 }}>
-                      {nameOf(v.p)} <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9 }}>{v.role}</b>
-                    </span>
-                  ))}
+          {/* COLUMNS, NOT RIVERS (2026-08-06). Thirty-six names run together
+              in a paragraph is a wall, not information. Three columns with
+              counts, ten rows each, expanders for the rest — the eye can
+              actually walk a list. */}
+          {showDiff && (() => {
+            const COLS = [
+              ['new', 'NEW', '#4ade80', diff.added.map(([nm, v]) => ({ key: nm, label: nameOf(v.p), tag: v.role, p: v.p }))],
+              ['moved', 'MOVED', '#FCD34D', diff.changed.map((c) => ({ key: c.nm, label: nameOf(c.p), tag: `${c.from}→${c.to}`, p: c.p }))],
+              ['dropped', 'DROPPED', '#f87171', diff.dropped.map(([nm, role]) => ({ key: nm, label: nm.replace(/\b\w/g, (ch) => ch.toUpperCase()), tag: role, p: null }))],
+            ].filter(([, , , list]) => list.length)
+            return (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
+                  {COLS.map(([k, label, color, list]) => {
+                    const open = !!colOpen[k]
+                    const shown = open ? list : list.slice(0, 10)
+                    return (
+                      <div key={k} style={{ minWidth: 0, background: 'rgba(255,255,255,.02)', border: `1px solid ${C.border}`, borderRadius: 9, padding: '7px 10px' }}>
+                        <div style={{ fontSize: 9.5, fontWeight: 900, color, letterSpacing: '.08em', fontFamily: NUM_FONT, marginBottom: 5 }}>
+                          {label} <span style={{ color: C.text3, fontWeight: 400 }}>{list.length}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {shown.map((it) => (
+                            <div key={it.key}
+                              onClick={() => it.p && onPlayerClick?.(it.p)}
+                              style={{
+                                display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0,
+                                cursor: it.p ? 'pointer' : 'default',
+                              }}>
+                              <span style={{
+                                fontSize: 10.5, fontWeight: 600, color: k === 'dropped' ? C.text3 : C.text2,
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                              }}>{it.label}</span>
+                              <span style={{ marginLeft: 'auto', fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800, color: k === 'moved' ? color : k === 'dropped' ? C.text3 : C.orange, flexShrink: 0 }}>{it.tag}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {list.length > 10 && (
+                          <button onClick={() => setColOpen((s) => ({ ...s, [k]: !open }))} style={{
+                            marginTop: 5, fontSize: 9, fontWeight: 700, color, cursor: 'pointer',
+                            background: 'transparent', border: 'none', padding: 0, fontFamily: NUM_FONT,
+                          }}>{open ? 'show fewer' : `+${list.length - 10} more`}</button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
-              {diff.changed.length > 0 && (
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                  <span style={{ color: '#FCD34D', fontWeight: 800, fontSize: 9.5 }}>MOVED</span>
-                  {diff.changed.map((c) => (
-                    <span key={c.nm} onClick={() => onPlayerClick?.(c.p)}
-                      style={{ cursor: 'pointer', color: C.text2 }}>
-                      {nameOf(c.p)} <b style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>{c.from}→</b>
-                      <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9 }}>{c.to}</b>
-                    </span>
-                  ))}
+                <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
+                  Yesterday&apos;s picks come from the graded archive; dropped names may simply not be
+                  playing today rather than demoted. The bot changing its mind is information either way.
                 </div>
-              )}
-              {diff.dropped.length > 0 && (
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                  <span style={{ color: '#f87171', fontWeight: 800, fontSize: 9.5 }}>DROPPED</span>
-                  {diff.dropped.map(([nm, role]) => (
-                    <span key={nm} style={{ color: C.text3 }}>
-                      {nm.replace(/\b\w/g, (c) => c.toUpperCase())} <span style={{ fontFamily: NUM_FONT, fontSize: 9 }}>{role}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.5 }}>
-                Yesterday&apos;s picks come from the graded archive; dropped names may simply not be
-                playing today rather than demoted. The bot changing its mind is information either way.
               </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
       )}
     </div>
