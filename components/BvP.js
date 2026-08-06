@@ -26,7 +26,21 @@ function Stat({ label, value, strong }) {
   )
 }
 
-export default function BvP({ batterId, pitcherId, pitcherName }) {
+// Loose name matching for spray rows: statcast writes "Last, First", the
+// slate writes "First Last" — token sets, lowercased, accents stripped.
+const nameTokens = (s) => new Set(
+  String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((t) => t.length > 1),
+)
+const sameName = (a, b) => {
+  const ta = nameTokens(a), tb = nameTokens(b)
+  if (!ta.size || !tb.size) return false
+  let hit = 0
+  ta.forEach((t) => { if (tb.has(t)) hit++ })
+  return hit >= Math.min(ta.size, tb.size)
+}
+
+export default function BvP({ batterId, pitcherId, pitcherName, player }) {
   const [data, setData] = useState(undefined)
 
   useEffect(() => {
@@ -52,6 +66,20 @@ export default function BvP({ batterId, pitcherId, pitcherName }) {
   const t = data.total
   const pa = num(t.plateAppearances)
   const hr = num(t.homeRuns)
+
+  // CONTACT QUALITY vs him — the results above say what happened; this says
+  // how the contact LOOKED. From the player's own tracked-ball log (season-
+  // long once the bot's spray window ships), filtered to balls hit off THIS
+  // pitcher by name. BBE / hard-hit / barrels / EV — the stuff a 3-for-7
+  // can't tell you.
+  const log = player?.batted_ball_log || player?.spray_chart || []
+  const vsHim = pitcherName ? log.filter((h) => sameName(h.pitcher || h.pitcher_name, pitcherName)) : []
+  const bbe = vsHim.length
+  const hh = vsHim.filter((h) => h.is_hard_hit).length
+  const brl = vsHim.filter((h) => h.is_barrel).length
+  const evs = vsHim.map((h) => Number(h.ev) || 0).filter((v) => v > 0)
+  const avgEv = evs.length ? evs.reduce((a, b) => a + b, 0) / evs.length : null
+  const maxEv = evs.length ? Math.max(...evs) : null
   const small = pa < 10
   const verdict = small
     ? `${pa} PA is noise, not a scouting report — color only.`
@@ -79,6 +107,39 @@ export default function BvP({ batterId, pitcherId, pitcherName }) {
         <Stat label="BB" value={num(t.baseOnBalls)} />
         <Stat label="K" value={num(t.strikeOuts)} />
       </div>
+
+      {bbe > 0 && (
+        <div style={{
+          display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'baseline', marginTop: 9,
+          paddingTop: 8, borderTop: `1px dashed ${C.border2}`,
+        }}>
+          <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>
+            Contact vs him
+          </span>
+          <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2 }}>
+            <b style={{ color: C.text }}>{bbe}</b> tracked ball{bbe === 1 ? '' : 's'}
+          </span>
+          <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: hh > 0 ? C.orange : C.text3 }}>
+            <b>{hh}</b> hard-hit
+          </span>
+          <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: brl > 0 ? C.orange : C.text3 }}>
+            <b>{brl}</b> barrel{brl === 1 ? '' : 's'}
+          </span>
+          {avgEv != null && (
+            <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2 }}>
+              avg EV <b>{avgEv.toFixed(1)}</b>
+            </span>
+          )}
+          {maxEv != null && (
+            <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: maxEv >= 105 ? C.orange : C.text2 }}>
+              max <b>{maxEv.toFixed(1)}</b>
+            </span>
+          )}
+          <span style={{ fontSize: 8.5, color: C.text3 }}>
+            how the contact looked, not just what it counted for — a loud 0-for-5 lives here
+          </span>
+        </div>
+      )}
 
       {data.seasons.length > 1 && (
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>

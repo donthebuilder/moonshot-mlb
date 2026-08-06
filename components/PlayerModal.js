@@ -407,7 +407,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               {/* The head-to-head leads the tab — it's the split everyone
                   asks for first, so it goes first, wearing its sample-size
                   caveat instead of hiding. */}
-              <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
+              <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />
               {!apiOnly && <PlayerSplits player={p} slateMode={slateMode} />}
               <SituationalSplits playerId={pid} kind="batter" />
             </>
