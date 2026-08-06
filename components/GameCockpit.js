@@ -61,7 +61,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
       border: '1px solid rgba(74,222,128,.28)', borderRadius: 11, padding: '9px 13px', marginBottom: 10,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 7 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900, color: '#4ade80' }}>🎥 Cockpit · LIVE</span>
+        <span style={{ fontSize: 11.5, fontWeight: 900, color: '#4ade80' }}>🔴 Live At-Bats</span>
         <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text }}>
           {ls.inningState || (ls.isTopInning ? 'Top' : 'Bot')} {ls.currentInning ?? '?'} ·{' '}
           {ls.outs ?? 0} out{(ls.outs ?? 0) === 1 ? '' : 's'} · count {ls.balls ?? 0}-{ls.strikes ?? 0}

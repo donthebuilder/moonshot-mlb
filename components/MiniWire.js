@@ -49,16 +49,20 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
   const addToasts = (items) => {
     if (!items.length) return
     setToasts((cur) => [...items, ...cur].slice(0, 4))
-    // Hidden tab + bell on → the same events reach the OS.
-    if (notifRef.current === 'on' && typeof document !== 'undefined' && document.hidden
-      && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      items.slice(0, 3).forEach((t) => {
+    // Bell on → homers and skin-on events also reach the OS. Originally this
+    // only fired with the tab HIDDEN; in practice (2026-08-06) that read as
+    // "I accepted notifications and got nothing" while watching the site —
+    // so homers by picks/watchlist now notify regardless of tab visibility,
+    // and everything else still waits for the tab to be in the background.
+    if (notifRef.current === 'on' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      const hidden = typeof document !== 'undefined' && document.hidden
+      items.filter((t) => t.pri === 0 || (hidden && t.pri <= 2)).slice(0, 3).forEach((t) => {
         try { new Notification(`${t.icon} Moonshot`, { body: t.text, tag: t.key, silent: t.pri > 0 }) } catch {}
       })
     }
     items.forEach((t) => setTimeout(() => {
       setToasts((cur) => cur.filter((x) => x.key !== t.key))
-    }, 9000))
+    }, t.pri === 0 ? 15000 : 9000))
   }
 
   useEffect(() => {
@@ -72,6 +76,7 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
       const prev = prevRef.current
       if (prev) {
         const watched = watchIds || new Set()
+        const slateIds = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
         const relevant = players.filter((p) => primaryRole(p) || watched.has(pidOf(p)))
         const out = []
         relevant.forEach((p) => {
@@ -96,6 +101,24 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
             fire('k', '⚠️', `${nameOf(p)} (${role} pick) is 0-${now.ab} with ${now.k} K — the strikeout script`, 2)
           }
         })
+        // ── EVERY slate homer toasts (2026-08-06). The wire chip updated but
+        // no toast fired because the hitter wasn't a pick — which read as a
+        // miss, not a filter. Homers are loud enough to earn a toast from
+        // ANYONE on the slate; picks/watchlist keep priority styling + OS
+        // notifications, everyone else is the quiet gray version. ──
+        Object.entries(s.lines).forEach(([idStr, now]) => {
+          const id = Number(idStr)
+          const was = prev[id]
+          if (!was || !(now.hr > was.hr)) return
+          const p = slateIds.get(id)
+          if (p && (primaryRole(p) || (watchIds || new Set()).has(pidOf(p)))) return // already handled above, full volume
+          const key = `${id}:anyhr:${now.hr}`
+          if (firedRef.current.has(key)) return
+          firedRef.current.add(key)
+          out.push({ key, icon: '💥', p: p || null, pri: 3,
+            text: `${p ? nameOf(p) : (now.name || 'Someone')} goes deep${now.hr > 1 ? ` — that's ${now.hr}` : ''}` })
+        })
+
         // ── DUE-UP: your pick is at the plate / on deck, right now ──
         const gameOf = {}
         s.games.forEach((g) => { gameOf[g.pk] = g })
