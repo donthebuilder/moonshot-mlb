@@ -29,6 +29,7 @@ from.
 | 13 | `pitcher_l5_*` block (era/hr9/whip) | mlb_dashboard.py | same place `pitcher_l3_*` is built | same query, n=5 |
 | 14 | ISO into `hr_score` itself | mlb_dashboard.py | wherever hr_score is blended — see the calibration section below | `season_iso`, already on the record |
 | 15 | Pair history per market: `same_day_hit_count`, `same_game_hit_count`, `same_day_hrr_count` alongside the existing co-HR counts | the pair-history builder that writes `pair_history_summary` (top_pairs) | same aggregation, run over `actual_hits`/HRR outcomes instead of only `actual_hr` | graded slots already carry the outcomes |
+| 17 | **Bot self-contradiction: trap flag on its own HR pick.** A hitter can carry `game_pick_role: HR` and `trap_flag: true` in the same payload — the bot designating and warning against the same bat. The site shows it (it's real information) but the fix is upstream: the pick-assignment pass should either respect the trap flag when filling the HR slot, or clear the flag when it designates. Either is defensible; disagreeing with itself is not. | mlb_dashboard.py | `game_pick_type_map` / wherever slots are assigned vs where trap_flag is set | both fields already computed |
 | 16 | **Fix `park_fit.dimensions` — verified wrong 2026-08-04.** Camden published `lf: 384` (the LINE is 333 — deep left-center is in the LF slot), Daikin got the generic 330/375/400/375/330 default (missing the 315 Crawford Boxes), Fenway lacks the 420 triangle. The site now ignores these in favor of a curated table; fixing the source lets every consumer trust them again. Note: `short_side`/`hr_friendly_side` may be computed FROM these bad dims — audit those too. | mlb_dashboard.py | wherever the park dimension lookup table lives | static data, one-time correction |
 
 What each unlocks, in one line: #1–3 make K Risk auditable and stop CONTACT
@@ -376,8 +377,25 @@ there); only low ISO — the one validated warning — still shows, as its pill.
 
 Concrete bot changes, in order of expected payoff:
 
-1. **HR picks: rank by overall_score, not hr_score** — or rebuild hr_score,
-   using overall_score's inputs as the starting point. Zero new data needed.
+1. **Fix the HR ranking — two paths, pick ONE, they are not additive.**
+
+   *Quick path:* wherever the per-game HR slot is filled (the sort inside
+   `game_pick_type_map` / slot assignment), change the sort key from
+   `hr_score` to `overall_score`. One line. Why that works at all: on the
+   archive, overall_score predicts homers better than hr_score (+7.3 vs +4.7
+   quartile spread) — not because "overall" is magic, but because hr_score
+   overweights recency and pitch-mix while underweighting stable power, and
+   overall's blend (board score + damage conversion + role) accidentally
+   dilutes exactly those noisy components. It's a better HR ranker by
+   accident, and using it costs nothing while the real fix is pending.
+
+   *Proper path:* rebuild hr_score itself — fold in ISO (the strongest
+   validated input), drop or invert any K-rate penalty (see below), keep the
+   matchup terms. Then RE-RUN the quartile test; if the rebuilt score beats
+   overall_score on HR outcomes (it should — it gets to use ISO directly
+   instead of by accident), rank by it and the quick path becomes obsolete.
+   The gate matters: don't switch to a rebuilt score that hasn't beaten the
+   accidental baseline it's replacing.
 2. **Slot players by their best category, not independently per category.**
    Players are consistently good at one job and bad at another (Bellinger 7/8
    HRR but 0/7 HR; Kurtz 7/9 HRR but 0/9 TOP; Jung 14/19 HIT but 0/6 TOP).
