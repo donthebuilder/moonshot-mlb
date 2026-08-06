@@ -12,6 +12,7 @@ import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
+import LineupSlotMatchup from '../LineupSlotMatchup'
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -155,10 +156,14 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
             const wind = Number(any.weather_wind_mph) || 0
             const wLbl = String(any.wind_direction_label || '')
             const parkF = Number(any.park_hr_factor) || Number(any.park_dist_factor) || 0
+            const isSel = g.game_pk === activeGame
             return (
-              <div key={g.game_pk} style={{
+              <div key={g.game_pk}
+                ref={(el) => { if (el) gameRefs.current[g.game_pk] = el }}
+                style={{
                 flex: '1 1 460px', minWidth: 0, background: C.bg2,
-                border: `1px solid ${C.border}`, borderRadius: 13, overflow: 'hidden',
+                border: `1px solid ${isSel ? C.orange : C.border}`, borderRadius: 13, overflow: 'hidden',
+                boxShadow: isSel ? `0 0 20px -8px ${C.orange}` : 'none', scrollMarginTop: 160,
               }}>
                 {/* header: matchup + conditions, PF-style but ours */}
                 <div style={{
@@ -214,6 +219,27 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                     </div>
                   ))}
                 </div>
+
+                {/* Clicking a game bubble earns the DEPTH read (2026-08-06):
+                    slot-by-slot — what this arm allows to each batting-order
+                    spot (live API, b1–b9) braided with what the batter in
+                    that spot does against this arm's side. 🔥 = both agree. */}
+                {isSel && (
+                  <div style={{ borderTop: `1px solid ${C.border}`, padding: '9px 12px', background: 'rgba(249,115,22,.02)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 900 }}>⚔ Slot-by-slot</span>
+                      <span style={{ fontSize: 9, color: C.text3 }}>
+                        bar = what the arm allows THAT spot (season OPS-against, live) · right numbers = the batter&apos;s AVG/ISO vs this arm&apos;s side
+                        {' '}· 💥 slot bleeds · ⭐ side match · <b style={{ color: C.orange }}>🔥 both — the built-in mismatch</b>
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                      {Object.entries(byTeam).map(([t, lineup]) => (
+                        <LineupSlotMatchup key={t} team={t} lineup={lineup} onPlayerClick={onPlayerClick} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}
