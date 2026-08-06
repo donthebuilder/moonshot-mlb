@@ -196,7 +196,7 @@ export default function Scoreboard({ players, results, backtest, onWatch, watchI
 
       {/* Unconfirmed-pick countdowns + what changed since yesterday. */}
       {/* The live feed — appears once first pitch lands, waits quietly before. */}
-      <LiveWire players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+      <LiveWire players={players} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
       <SlatePulse players={players} backtest={backtest} onPlayerClick={onPlayerClick} />
 
       <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
