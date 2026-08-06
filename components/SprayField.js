@@ -295,6 +295,8 @@ export default function SprayField({ player, height = 340, slateMode }) {
   const [only, setOnly] = useState('all')
   const [picked, setPicked] = useState(null)   // null = all pitches; else Set
   const [hover, setHover] = useState(null)
+  // The methodology essays live behind this now — see the cleanliness pass.
+  const [showHelp, setShowHelp] = useState(false)
   const [range, setRange] = useState('all')
   const [bbPick, setBbPick] = useState(null)   // null = all batted-ball types
 
@@ -956,55 +958,76 @@ export default function SprayField({ player, height = 340, slateMode }) {
               )
             })}
           </div>
-          <div style={{ fontSize: 9, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
-            Lanes are the bot&apos;s own <code>lane</code> field, so the counts match the rest of
-            the site. Read the labels loosely: the bot cuts lanes as vertical bands centred
-            about 30 ft right of home plate, so its <b style={{ color: C.text2 }}>CF</b> runs from
-            just left of straightaway centre out to right-centre, and <b style={{ color: C.text2 }}>LF</b>{' '}
-            covers everything past 88 ft to the pull side of a righty. The dashed lines show
-            where those cuts really fall; the solid line is true centre.
+          {/* CLEANLINESS PASS (2026-08-06): three paragraphs of methodology
+              sat permanently beside the chart — honest, but a wall. What
+              stays visible is what you need EVERY time: the colour key, the
+              wind one-liner, and the small-sample warning. The provenance
+              essays (lane cuts, park-relative wind, dims verification,
+              fielded-vs-carry) moved behind "How to read this". */}
+          <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
+            <b style={{ color: RESULT_COLORS.home_run }}>red</b> HR ·{' '}
+            <b style={{ color: RESULT_COLORS.triple }}>purple</b> 3B ·{' '}
+            <b style={{ color: RESULT_COLORS.double }}>green</b> 2B ·{' '}
+            <b style={{ color: RESULT_COLORS.single }}>blue</b> 1B · dark = out ·{' '}
+            <b style={{ color: C.text2 }}>ring = barrel</b> · shape = pitch · size = distance
           </div>
+          {hasWind && (
+            <div style={{ fontSize: 9.5, marginTop: 4, color: C.text3 }}>
+              <b style={{ color: windCol }}>Wind {windMph.toFixed(1)} mph {windLabel}</b>
+              {windOut ? ' — helping carry' : windIn ? ' — hurting carry' : ' — pushing sideways'}
+            </div>
+          )}
+          {hits.length < 25 && (
+            <div style={{ fontSize: 9.5, marginTop: 4, color: C.orange }}>
+              Only {hits.length} tracked batted balls — too few to read a spray tendency off.
+            </div>
+          )}
 
-          <div style={{ fontSize: 9, color: C.text3, marginTop: 9, lineHeight: 1.55 }}>
-            {hasWind && (
-              <div style={{ marginBottom: 4 }}>
-                <b style={{ color: windCol }}>Wind {windMph.toFixed(1)} mph {windLabel}</b> — the
-                drifting streaks and the arrow both point the way the ball gets carried.
-                {windOut ? ' Blowing out, so carry is helped.' : windIn ? ' Blowing in, so carry is hurt.' : ' Across the field, so it mostly moves balls sideways rather than helping or killing carry.'}
-                {' '}Direction here is <b style={{ color: C.text2 }}>park-relative, not a compass bearing</b>:
-                the feed gives a compass degree, but each park faces a different way and that
-                orientation isn&apos;t published, so the arrow shows out / in / across from the bot&apos;s
-                own label rather than inventing a heading. A crosswind isn&apos;t told left or right
-                either, so it&apos;s drawn on the axis without picking a side.
+          <button onClick={() => setShowHelp((v) => !v)} style={{
+            marginTop: 7, fontSize: 9.5, fontWeight: 700, color: C.text3, cursor: 'pointer',
+            background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 6,
+            padding: '3px 9px', fontFamily: NUM_FONT,
+          }}>{showHelp ? 'hide the fine print ▾' : 'how to read this ▸'}</button>
+
+          {showHelp && (
+            <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+              <div style={{ marginBottom: 5 }}>
+                Lanes are the bot&apos;s own <code>lane</code> field, so the counts match the rest of
+                the site. Read the labels loosely: the bot cuts lanes as vertical bands centred
+                about 30 ft right of home plate, so its <b style={{ color: C.text2 }}>CF</b> runs from
+                just left of straightaway centre out to right-centre, and <b style={{ color: C.text2 }}>LF</b>{' '}
+                covers everything past 88 ft to the pull side of a righty. The dashed lines show
+                where those cuts really fall; the solid line is true centre.
               </div>
-            )}
-            <b style={{ color: C.text2 }}>{knownPark ? venue : 'Generic park'}</b>
-            {knownPark
-              ? `${dimSource === 'table'
-                  ? ' — wall drawn from the curated dimensions table (the bot publishes dims too, but they were verified wrong at the corners — Camden 384 where the line is 333, Daikin missing the Crawford Boxes — so the table wins)'
-                  : ' — wall from the bot’s published dims; this venue isn’t in the curated table, so treat the corners as approximate'}, and a ball to left means what it means here.`
-              : ' — no dimensions on file for this venue, so a standard outline is drawn.'}
-            {' '}Position is where the ball was fielded, not how far it carried — a 30 ft
-            chopper that a shortstop takes at 130 ft belongs at 130 ft. Carry is in the hover.
-            <b style={{ color: RESULT_COLORS.home_run }}>Red</b> is a home run,{' '}
-            <b style={{ color: RESULT_COLORS.triple }}>purple</b> a triple,{' '}
-            <b style={{ color: RESULT_COLORS.double }}>green</b> a double,{' '}
-            <b style={{ color: RESULT_COLORS.single }}>blue</b> a single. Outs are near-black on
-            purpose — they're 62% of every hitter's contact, and a chart that shouts the common case
-            is a chart you can't read. <b style={{ color: C.text2 }}>A ring means barrel</b>: squared
-            up on launch angle and exit velocity, whether or not it fell in. Marker shape is the pitch type and
-            size is how far it went. Exit velocity is in the hover rather than the colour — shading
-            these by EV is what made every dot the same orange and the chart unreadable. The field is
-            a fixed 450 ft for every hitter, so two players stay directly comparable.
-            {foulCount > 0 && (
-              <> {foulCount} of these {hits.length} landed in foul ground; they&apos;re drawn
-              dashed, outside the lines, rather than hidden.</>
-            )}
-            {hits.length < 25 && (
-              <> <b style={{ color: C.orange }}>Only {hits.length} tracked batted balls</b> — too
-              few to read a spray tendency off.</>
-            )}
-          </div>
+              {hasWind && (
+                <div style={{ marginBottom: 5 }}>
+                  Wind direction is <b style={{ color: C.text2 }}>park-relative, not a compass bearing</b>:
+                  the feed gives a compass degree, but each park faces a different way and that
+                  orientation isn&apos;t published, so the arrow shows out / in / across from the bot&apos;s
+                  own label rather than inventing a heading. A crosswind isn&apos;t told left or right
+                  either, so it&apos;s drawn on the axis without picking a side.
+                </div>
+              )}
+              <div>
+                <b style={{ color: C.text2 }}>{knownPark ? venue : 'Generic park'}</b>
+                {knownPark
+                  ? `${dimSource === 'table'
+                      ? ' — wall drawn from the curated dimensions table (the bot publishes dims too, but they were verified wrong at the corners — Camden 384 where the line is 333, Daikin missing the Crawford Boxes — so the table wins)'
+                      : ' — wall from the bot’s published dims; this venue isn’t in the curated table, so treat the corners as approximate'}.`
+                  : ' — no dimensions on file for this venue, so a standard outline is drawn.'}
+                {' '}Position is where the ball was fielded, not how far it carried — a 30 ft
+                chopper that a shortstop takes at 130 ft belongs at 130 ft; carry is in the hover.
+                Outs are near-black on purpose — they&apos;re 62% of every hitter&apos;s contact, and a
+                chart that shouts the common case is a chart you can&apos;t read. EV is in the hover
+                rather than the colour, and the field is a fixed 450 ft for every hitter so two
+                players stay directly comparable.
+                {foulCount > 0 && (
+                  <> {foulCount} of these {hits.length} landed in foul ground; they&apos;re drawn
+                  dashed, outside the lines, rather than hidden.</>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
