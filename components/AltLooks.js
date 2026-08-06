@@ -100,6 +100,35 @@ const GROUPS = {
   'MATCHUP':  { color: '#22d3ee', icon: '🎯', why: 'The arm, the split, the spot' },
   'VARIANCE': { color: '#FCD34D', icon: '⚠️', why: 'Big power signals, thin sample — priced accordingly' },
   'ALT':      { color: '#a78bfa', icon: '🔄', why: 'Best of the rest by all three blends' },
+  'HIGH ACROSS CATEGORIES': { color: '#4ade80', icon: '🔎', cross: true,
+    why: 'Strong in several categories at once — the model’s consensus names' },
+  'HR UPSIDE / UNDERLISTED': { color: '#FB923C', icon: '🧨', cross: true,
+    why: 'Power signals bigger than his board rank — the sneaky HR lane' },
+}
+
+// MODEL CROSS-CHECK (2026-08-06) — the sheet's 🔎 section, same treatment as
+// ALT LOOKS: the bot assembles it at print time and never publishes it, so
+// these are its two blends lifted verbatim from
+// build_model_cross_check_plays() in mlb_dashboard.py.
+const multiScore = (p) => {
+  const den = Math.max(1, n(p?.recent_350_den, 0))
+  return (
+    0.30 * norm(p?.hr_score, 18, 60) +
+    0.24 * norm(p?.hrw_score, 35, 85) +
+    0.22 * norm(p?.hrr_score, 45, 85) +
+    0.14 * norm(p?.recent_ideal_hr_contact, 0.04, 0.30) +
+    0.10 * norm(n(p?.recent_375_num, 0) / den, 0.02, 0.25)
+  )
+}
+const upsideScore = (p) => {
+  const den = Math.max(1, n(p?.recent_350_den, 0))
+  return (
+    0.34 * norm(p?.recent_ideal_hr_contact, 0.04, 0.30) +
+    0.24 * norm(n(p?.recent_375_num, 0) / den, 0.02, 0.25) +
+    0.18 * norm(p?.hr_score, 20, 55) +
+    0.14 * norm(p?.hrw_score, 35, 85) +
+    0.10 * norm(p?.last5_xbh, 0, 5)
+  )
 }
 
 export default function AltLooks({ players = [], boardIds = new Set(), onPlayerClick }) {
@@ -147,8 +176,31 @@ export default function AltLooks({ players = [], boardIds = new Set(), onPlayerC
             (0.34 * matchup(a) + 0.33 * hot(a) + 0.33 * due(a))), 15 - soFar)
       : []
 
+    // Cross-check, verbatim selection: prefer players not already used
+    // anywhere above (board, picks, alt looks); if that leaves fewer than 8,
+    // fall back to everyone — exactly the bot's fresh/base logic. No true-
+    // avoid filter here, because the bot doesn't apply one either.
+    const fresh = players.filter((p) => !taken.has(playerId(p)))
+    const base = fresh.length >= 8 ? fresh : players
+    const localUsed = new Set()
+    const take = (cands, cap) => {
+      const out = []
+      for (const p of cands) {
+        const id = playerId(p)
+        if (localUsed.has(id)) continue
+        out.push(p); localUsed.add(id)
+        if (out.length >= cap) break
+      }
+      return out
+    }
+    const high = take([...base].sort((a, b) => multiScore(b) - multiScore(a)), 5)
+    const highIds = new Set(high.map(playerId))
+    const upside = take([...base].filter((p) => !highIds.has(playerId(p)))
+      .sort((a, b) => upsideScore(b) - upsideScore(a)), 4)
+
     return [
       ['HOT/DUE', hotDue], ['MATCHUP', match], ['VARIANCE', vari], ['ALT', filler],
+      ['HIGH ACROSS CATEGORIES', high], ['HR UPSIDE / UNDERLISTED', upside],
     ].filter(([, list]) => list.length)
   }, [players, boardIds])
 
@@ -173,8 +225,21 @@ export default function AltLooks({ players = [], boardIds = new Set(), onPlayerC
 
       {groups.map(([key, list]) => {
         const g = GROUPS[key]
+        const firstCross = groups.find(([k]) => GROUPS[k]?.cross)?.[0]
         return (
           <div key={key} style={{ marginBottom: 10 }}>
+            {key === firstCross && (
+              <div style={{
+                display: 'flex', alignItems: 'baseline', gap: 8, margin: '14px 0 6px',
+                paddingTop: 10, borderTop: `1px dashed ${C.border2}`,
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 900 }}>🔎 Model cross-check</span>
+                <span style={{ fontSize: 9.5, color: C.text3 }}>
+                  the sheet&apos;s extra-names section, rebuilt with the bot&apos;s own two blends —
+                  consensus strength and underlisted HR upside
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
               <span style={{ fontSize: 11 }}>{g.icon}</span>
               <span style={{
