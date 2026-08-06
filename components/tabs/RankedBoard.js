@@ -2,7 +2,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { playerId, nameOf, teamOf, clean, nn, hrScore, hitScore, prodScore, tbScore, barrelRate, pitchMixScore } from '../../lib/player'
-import { scoreFor } from '../../lib/scoring'
+import { scoreFor, isAligned } from '../../lib/scoring'
 import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
 import Heatmap from '../Heatmap'
@@ -119,6 +119,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             const others = Object.entries(cats).filter(([k]) => k !== selfLabel)
             const best = others.sort((a, b) => b[1] - a[1])[0]
             const pick = String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+            // 🤖 is category-strict (2026-08-06): on the HR board it lights
+            // only for THE HR pick, on Hits only for THE HIT pick, and so on.
+            // A HIT pick showing a robot on the HR board reads as an HR
+            // endorsement the bot never made — that's how confidence gets
+            // spent on the wrong bet.
+            const wantRole = { hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type]
             return {
               _key: `${playerId(p)}-${i}`,
               _raw: p,
@@ -126,8 +132,11 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               name: nameOf(p),
               team: teamOf(p),
               facing: clean(p?.pitcher_name, 'TBD'),
-              isPick: pick ? 1 : 0,
+              isPick: pick && pick === wantRole ? 1 : 0,
+              otherPick: pick && pick !== wantRole ? pick : '',
               weak: p?.weak_spot_flag ? 1 : 0,
+              aligned: isAligned(p) ? 1 : 0,
+              edgeF: nn(p?.pitch_type_match_score) > 0 ? 1 : 0,
               adj: scoreFor(p, type),
               ...(type === 'hr' ? { raw: hrScore(p), iso: nn(p?.season_iso) * 100 } : {}),
               rec: rec ? (rec[1] >= 3 ? `${(100 * rec[0] / rec[1]).toFixed(0)}% (${rec[0]}/${rec[1]})` : `${rec[0]}/${rec[1]}`) : '—',
@@ -146,8 +155,21 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             { key: 'team',   label: 'Tm', heat: false, w: 34, mono: true, dim: true },
             { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true },
             { key: 'isPick', label: '🤖', flag: true, mark: '●', w: 30,
-              title: 'A designated bot pick tonight' },
-            { key: 'weak',   label: '★', flag: true, mark: '★', w: 28 },
+              title: `The bot's designated ${{ hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
+            { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,
+              title: 'Picked tonight, but in a DIFFERENT category than this board — informational, not an endorsement here' },
+            { key: 'weak',   label: '★', flag: true, mark: '★', w: 28,
+              title: ['hr', 'hrr'].includes(type)
+                ? 'Weak spot — validated on HR outcomes: flagged hitters homered 18.0% vs 13.9%'
+                : 'Weak spot — an HR-validated signal (18.0% vs 13.9% HR). Shown for context on this board; it was not measured on this category\'s outcome.' },
+            { key: 'aligned', label: '🧩', flag: true, mark: '◆', w: 28,
+              title: ['hr', 'hrr'].includes(type)
+                ? 'Aligned — weak spot + pitch match + ISO ≥ .18. The measured stack: 29.2% HR across 154 graded slots'
+                : 'Aligned — the HR-validated stack (29.2% HR). Context here, not proof: it was measured on homers, not this category.' },
+            { key: 'edgeF', label: '🎯', flag: true, mark: '●', w: 28,
+              title: ['hr', 'hrr'].includes(type)
+                ? 'Pitch match — his damage pitches overlap tonight\'s arsenal: 18.4% vs 13.6% HR, and it stacks with ★ (23.3% together)'
+                : 'Pitch match — HR-validated (18.4% vs 13.6%). Context on this board, not category proof.' },
             { key: 'adj',    label: type === 'hr' ? 'Adj' : 'Score', w: 50, dp: 1,
               title: type === 'hr'
                 ? 'The number this board is ranked by: raw score × his ISO band’s measured HR rate'
