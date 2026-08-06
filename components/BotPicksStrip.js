@@ -4,7 +4,6 @@ import { C, NUM_FONT } from '../lib/theme'
 import {
   n, clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
 } from '../lib/player'
-import { isoAdjustedHr } from '../lib/scoring_additions'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
 //
@@ -38,10 +37,14 @@ import { isoAdjustedHr } from '../lib/scoring_additions'
 // has no reason to follow you down the page.
 
 const CATEGORIES = [
-  // HR ranks ISO-adjusted, same as the HR board — otherwise the strip's #1
-  // and the board's #1 could disagree about the same category.
+  // RAW bot score on purpose (2026-08-04). This strip is branded as THE
+  // BOT'S headline picks, and for a while the HR card ranked ISO-adjusted —
+  // which meant the site's Four and the bot's printed FOUR could name
+  // different hitters, and people noticed. The rule now: this strip mirrors
+  // the bot verbatim; the site's ISO-adjusted opinion lives on the HR Board,
+  // clearly labelled as the site's. One voice per surface.
   { role: 'HR',      label: 'HR',      icon: '🧨', color: '#f97316',
-    blurb: 'Going deep',     score: (p) => isoAdjustedHr(p, hrScore(p)) },
+    blurb: 'Going deep',     score: hrScore },
   { role: 'HIT',     label: 'HIT',     icon: '💠', color: '#a78bfa',
     blurb: 'Base-hit floor', score: hitScore },
   { role: 'HRR',     label: 'HRR',     icon: '🏁', color: '#22d3ee',
