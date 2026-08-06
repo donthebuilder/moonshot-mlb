@@ -41,7 +41,15 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
     if (notif === 'on') { setNotif('off'); try { localStorage.setItem('wire_notif', 'off') } catch {} ; return }
     if (typeof Notification === 'undefined') return
     const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
-    if (perm === 'granted') { setNotif('on'); try { localStorage.setItem('wire_notif', 'on') } catch {} }
+    if (perm === 'granted') {
+      setNotif('on'); notifRef.current = 'on'
+      try { localStorage.setItem('wire_notif', 'on') } catch {}
+      // Self-verifying arm (2026-08-06): "did it work?" answers itself — a
+      // demo toast fires instantly, and the same event hits the OS so you
+      // see both channels the moment you opt in.
+      addToasts([{ key: `test:${Date.now()}`, icon: '🔔', pri: 0, p: null,
+        text: 'Armed — homers, due-ups, bar clears and K-alerts pop here, and reach your desktop when this tab is hidden.' }])
+    }
   }
   const prevRef = useRef(null)     // previous lines, for the diff
   const firedRef = useRef(new Set()) // dedupe keys across refreshes
@@ -188,6 +196,25 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
             </div>
           ))}
           <style>{'@keyframes wireToastIn { from { transform: translateY(-8px); opacity: 0 } to { transform: none; opacity: 1 } }'}</style>
+        </div>
+      )}
+
+      {/* Scoreboard gets the bell alone — the full wire panel is right there,
+          but the notifications toggle was unreachable on the landing tab,
+          which is why "I accepted notis" never actually armed anything. */}
+      {tab === 'scoreboard' && live.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+          <button onClick={toggleNotif} style={{
+            display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer',
+            background: notif === 'on' ? 'rgba(74,222,128,.08)' : 'transparent',
+            border: `1px solid ${notif === 'on' ? 'rgba(74,222,128,.35)' : C.border}`,
+            borderRadius: 999, padding: '3px 11px',
+          }}>
+            <span style={{ fontSize: 12 }}>{notif === 'on' ? '🔔' : '🔕'}</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: NUM_FONT, color: notif === 'on' ? '#4ade80' : C.text3 }}>
+              {notif === 'on' ? 'notifications on' : 'turn on notifications'}
+            </span>
+          </button>
         </div>
       )}
 
