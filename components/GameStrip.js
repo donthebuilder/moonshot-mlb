@@ -34,9 +34,23 @@ export default function GameStrip({ games, activeGame, onSelect }) {
       // The pitching matchup — the single most informative line a game card
       // can carry, and it was missing. Both starters live on the hitter rows.
       const arms = [...new Set(gp.map((x) => x?.pitcher_name).filter(Boolean))].slice(0, 2)
+      // Extra cargo for the BIG cards — a hot card is physically wider now,
+      // so it carries more: the bot's designated pick for this game, and the
+      // best ALT look (the bot's own "secondary HR look" lane, alt_hr_score /
+      // alt_reason — verified on the live slim payload). Small cards skip
+      // these lines; earning pixels goes both ways.
+      const pick = gp.find((x) => /^(TOP|HR)\b/.test(String(x?.game_pick_role || '').split('/')[0].trim().toUpperCase()))
+      const alt = gp.reduce((a, b) => (nn(b?.alt_hr_score) > nn(a?.alt_hr_score) ? b : a), gp[0] || {})
+      const altOk = alt?.name && nn(alt.alt_hr_score) > 0 && alt !== head
       return {
         arms: arms.map((a) => String(a).split(' ').slice(-1)[0]).join(' v '),
         topBat: head?.name ? `${String(head.name).split(' ').slice(-1)[0]} ${hrScore(head).toFixed(0)}` : '',
+        topHrw: head?.name && nn(head?.hrw_score) > 0 ? nn(head.hrw_score).toFixed(0) : null,
+        pickName: pick?.name ? String(pick.name).split(' ').slice(-1)[0] : null,
+        pickRole: pick ? String(pick.game_pick_role).split('/')[0].trim().toUpperCase() : null,
+        altName: altOk ? String(alt.name).split(' ').slice(-1)[0] : null,
+        altScore: altOk ? nn(alt.alt_hr_score).toFixed(0) : null,
+        altWhy: altOk ? String(alt.alt_reason || '') : '',
         pk: g.game_pk,
         matchup: `${g.away || '—'} @ ${g.home || '—'}`,
         time: timeText(g.game_time),
@@ -123,7 +137,23 @@ export default function GameStrip({ games, activeGame, onSelect }) {
                 <div style={{
                   fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>🔝 {c.topBat}</div>
+                }}>🔝 {c.topBat}{c.heat >= 0.55 && c.topHrw ? ` · HRW ${c.topHrw}` : ''}</div>
+              )}
+              {/* Big cards carry more: the bot's designated pick and the top
+                  ALT look ride only on cards hot enough to have the width. */}
+              {c.heat >= 0.55 && c.pickName && (
+                <div style={{
+                  fontSize: 9, color: C.orange, fontFamily: NUM_FONT, marginTop: 1, fontWeight: 700,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>🤖 {c.pickName} <span style={{ opacity: 0.7, fontWeight: 400 }}>{c.pickRole} pick</span></div>
+              )}
+              {c.heat >= 0.55 && c.altName && (
+                <div
+                  title={c.altWhy || 'The bot’s secondary HR look in this game'}
+                  style={{
+                    fontSize: 9, color: '#A78BFA', fontFamily: NUM_FONT, marginTop: 1,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>🅰 {c.altName} {c.altScore} <span style={{ opacity: 0.6 }}>alt</span></div>
               )}
             </button>
           )
@@ -137,7 +167,9 @@ export default function GameStrip({ games, activeGame, onSelect }) {
         four board scores, then the median across the lineup — &ldquo;is this whole lineup
         dangerous&rdquo;, not &ldquo;is there one guy&rdquo;). ▲/▽ = above/below tonight&apos;s median.
         ⚾ the pitching matchup · 🔝 the game&apos;s top bat and his HR score · ★ weak lineup spots
-        · ✓/◻ lineup confirmed or projected.
+        · ✓/◻ lineup confirmed or projected. The hottest cards carry two extra lines the small ones
+        don&apos;t: 🤖 the bot&apos;s designated pick, and 🅰 its best <em>alt look</em> — the secondary
+        HR lane, hover for the reason.
       </div>
     </div>
   )
