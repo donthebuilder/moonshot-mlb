@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { thresholdRates, MARKETS } from '../lib/gamelogs'
+import { thresholdRates, lastSeasonRates, MARKETS } from '../lib/gamelogs'
 
 // PROP GRID v2 — the table version read like a spreadsheet bolted onto a
 // card UI. Now it's the site's own language: market pills on top, one hero
@@ -13,12 +13,17 @@ const rateCol = (pct) => pct >= 60 ? '#4ade80' : pct >= 40 ? '#FCD34D' : pct >= 
 
 export default function ThresholdGrid({ playerId }) {
   const [data, setData] = useState(null)
+  const [ls, setLs] = useState(null)
   const [mkt, setMkt] = useState('hr')
+  // PF's filter row, the part worth taking: slice every window by venue and
+  // watch the tiles recompute. 'all' | 'home' | 'away'.
+  const [venue, setVenue] = useState('all')
 
   useEffect(() => {
     let alive = true
     setData(null)
     thresholdRates(playerId).then((d) => { if (alive) setData(d) })
+    lastSeasonRates(playerId).then((d) => { if (alive) setLs(d) })
     return () => { alive = false }
   }, [playerId])
 
@@ -26,9 +31,22 @@ export default function ThresholdGrid({ playerId }) {
   if (!data) return null
 
   const m = MARKETS.find((x) => x.key === mkt) || MARKETS[0]
-  const r = data.markets[m.key]
-  if (!r) return null
-  const stk = r.streak
+  // Windows recomputed live from the filtered log, so Home/Away isn't a
+  // different page — it's the same tiles telling a different truth.
+  const pool = (data.logAll || data.log || []).filter((g) =>
+    venue === 'all' ? true : venue === 'home' ? g.home : !g.home)
+  const win = (size) => {
+    const seg = pool.slice(0, size)
+    return { ok: seg.filter(m.test).length, n: seg.length }
+  }
+  const r = { L5: win(5), L10: win(10), L20: win(20), Szn: win(pool.length) }
+  let stk = 0
+  if (pool.length) {
+    const first = m.test(pool[0]); let k = 0
+    for (const g of pool) { if (m.test(g) === first) k++; else break }
+    stk = first ? k : -k
+  }
+  const filteredLog = pool.slice(0, 20)
 
   return (
     <div style={{ marginTop: 14 }}>
@@ -56,6 +74,22 @@ export default function ThresholdGrid({ playerId }) {
         background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.03))`,
         border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px',
       }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+          {[['all', 'All'], ['home', 'Home'], ['away', 'Away']].map(([k, label]) => (
+            <button key={k} onClick={() => setVenue(k)} style={{
+              padding: '2px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+              fontWeight: 700, fontFamily: NUM_FONT,
+              border: `1px solid ${venue === k ? C.orange : C.border}`,
+              background: venue === k ? 'rgba(249,115,22,.14)' : 'transparent',
+              color: venue === k ? C.orange : C.text3,
+            }}>{label}</button>
+          ))}
+          {venue !== 'all' && (
+            <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, alignSelf: 'center' }}>
+              every tile and the timeline below recomputed for {venue} games only
+            </span>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 10 }}>
           {[['L5', 'Last 5'], ['L10', 'Last 10'], ['L20', 'Last 20'], ['Szn', 'Season']].map(([w, label]) => {
             const { ok, n } = r[w]
@@ -70,6 +104,16 @@ export default function ThresholdGrid({ playerId }) {
               </div>
             )
           })}
+          {ls?.[m.key]?.n > 0 && (
+            <div style={{ flex: '1 1 70px', textAlign: 'center', background: 'rgba(255,255,255,.02)', border: `1px dashed ${C.border}`, borderRadius: 9, padding: '6px 4px' }}
+              title="Last season, full year — the long-memory anchor the recent windows swing around">
+              <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>Last szn</div>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: rateCol((100 * ls[m.key].ok) / ls[m.key].n) }}>
+                {((100 * ls[m.key].ok) / ls[m.key].n).toFixed(0)}%
+              </div>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{ls[m.key].ok}/{ls[m.key].n}</div>
+            </div>
+          )}
           <div style={{
             flex: '0 0 64px', textAlign: 'center', borderRadius: 9, padding: '6px 4px',
             background: stk > 0 ? 'rgba(74,222,128,.10)' : stk < 0 ? 'rgba(248,113,113,.08)' : 'rgba(255,255,255,.03)',
@@ -83,9 +127,9 @@ export default function ThresholdGrid({ playerId }) {
           </div>
         </div>
 
-        {data.log && (
+        {filteredLog.length > 0 && (
           <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end' }}>
-            {[...data.log].reverse().map((g, gi) => {
+            {[...filteredLog].reverse().map((g, gi) => {
               const val = m.key === 'hit' ? g.h : m.key === 'tb2' ? g.tb : m.key === 'hr' ? g.hr : m.key === 'run' ? g.r : g.rbi
               const ok = m.test(g)
               const extra = m.key === 'tb2' ? val >= 4 : val >= 2
