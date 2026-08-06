@@ -263,6 +263,9 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
           {/* overview */}
           {tab === 'overview' && (
             <>
+              {/* The prop hero leads — the thing you came to check. Stats
+                  grid below it is the supporting evidence, not the opener. */}
+              <ThresholdGrid playerId={pid} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '8px 0 4px' }}>Model Scores</div>
@@ -328,7 +331,6 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               {/* Your own words, this device only — the read you had on him
                   three days ago that no stat column remembers. */}
               <PlayerNotes playerId={pid} />
-              <ThresholdGrid playerId={pid} />
             </>
           )}
 
