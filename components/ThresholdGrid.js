@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { thresholdRates, lastSeasonRates, staffQuality, MARKETS } from '../lib/gamelogs'
+import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, MARKETS } from '../lib/gamelogs'
 
 // PROP GRID v2 — the table version read like a spreadsheet bolted onto a
 // card UI. Now it's the site's own language: market pills on top, one hero
@@ -15,6 +15,7 @@ export default function ThresholdGrid({ playerId }) {
   const [data, setData] = useState(null)
   const [ls, setLs] = useState(null)
   const [staff, setStaff] = useState(null)
+  const [abbrs, setAbbrs] = useState(null)
   const [mkt, setMkt] = useState('hr')
   // PF's filter row, the part worth taking: slice every window by venue and
   // watch the tiles recompute. 'all' | 'home' | 'away'.
@@ -26,6 +27,7 @@ export default function ThresholdGrid({ playerId }) {
     thresholdRates(playerId).then((d) => { if (alive) setData(d) })
     lastSeasonRates(playerId).then((d) => { if (alive) setLs(d) })
     staffQuality().then((d) => { if (alive) setStaff(d) })
+    teamAbbrs().then((d) => { if (alive) setAbbrs(d) })
     return () => { alive = false }
   }, [playerId])
 
@@ -92,79 +94,89 @@ export default function ThresholdGrid({ playerId }) {
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 10 }}>
+        {/* ONE grid, equal cells (2026-08-06). The old flex row let tiles
+            wrap at odd widths and dumped the streak onto its own orphan line
+            — six loose boxes instead of one instrument panel. */}
+        <div style={{
+          display: 'grid', gap: 6, marginBottom: 12,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(62px, 1fr))',
+        }}>
           {[['L5', 'Last 5'], ['L10', 'Last 10'], ['L20', 'Last 20'], ['Szn', 'Season']].map(([w, label]) => {
             const { ok, n } = r[w]
             const pct = n ? (100 * ok) / n : null
             return (
-              <div key={w} style={{ flex: '1 1 70px', textAlign: 'center', background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`, borderRadius: 9, padding: '6px 4px' }}>
+              <div key={w} style={{ textAlign: 'center', background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`, borderRadius: 9, padding: '7px 4px 6px' }}>
                 <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
-                <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: pct != null ? rateCol(pct) : C.text3 }}>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: pct != null ? rateCol(pct) : C.text3 }}>
                   {pct != null ? `${pct.toFixed(0)}%` : '—'}
                 </div>
-                <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{n ? `${ok}/${n}` : ''}</div>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{n ? `${ok}/${n}` : ' '}</div>
               </div>
             )
           })}
           {ls?.[m.key]?.n > 0 && (
-            <div style={{ flex: '1 1 70px', textAlign: 'center', background: 'rgba(255,255,255,.02)', border: `1px dashed ${C.border}`, borderRadius: 9, padding: '6px 4px' }}
+            <div style={{ textAlign: 'center', background: 'rgba(255,255,255,.02)', border: `1px dashed ${C.border2}`, borderRadius: 9, padding: '7px 4px 6px' }}
               title="Last season, full year — the long-memory anchor the recent windows swing around">
-              <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>Last szn</div>
-              <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: rateCol((100 * ls[m.key].ok) / ls[m.key].n) }}>
+              <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{new Date().getFullYear() - 1}</div>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: rateCol((100 * ls[m.key].ok) / ls[m.key].n) }}>
                 {((100 * ls[m.key].ok) / ls[m.key].n).toFixed(0)}%
               </div>
               <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{ls[m.key].ok}/{ls[m.key].n}</div>
             </div>
           )}
           <div style={{
-            flex: '0 0 64px', textAlign: 'center', borderRadius: 9, padding: '6px 4px',
+            textAlign: 'center', borderRadius: 9, padding: '7px 4px 6px',
             background: stk > 0 ? 'rgba(74,222,128,.10)' : stk < 0 ? 'rgba(248,113,113,.08)' : 'rgba(255,255,255,.03)',
             border: `1px solid ${stk > 0 ? '#4ade8055' : stk < 0 ? '#f8717144' : C.border}`,
           }}>
             <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>Streak</div>
-            <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: stk > 0 ? '#4ade80' : stk < 0 ? '#f87171' : C.text3 }}>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: stk > 0 ? '#4ade80' : stk < 0 ? '#f87171' : C.text3 }}>
               {stk > 0 ? `W${stk}` : stk < 0 ? `L${-stk}` : '—'}
             </div>
             <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{m.label}</div>
           </div>
         </div>
 
+        {/* TIMELINE v2 (2026-08-06). v1 printed a truncated team NAME under
+            every bar — "Athle Athle Chica" garbage, because the gameLog API
+            carries no abbreviation. The words are gone: each bar now stands
+            on a small tint block that IS the opponent read (brighter orange =
+            softer staff, league OPS-against), abbreviations live in the
+            tooltip via a proper id→abbr map, and multis wear their number. */}
         {filteredLog.length > 0 && (
           <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end' }}>
             {[...filteredLog].reverse().map((g, gi) => {
               const val = m.key === 'hit' ? g.h : m.key === 'tb2' ? g.tb : m.key === 'hr' ? g.hr : m.key === 'run' ? g.r : g.rbi
               const ok = m.test(g)
               const extra = m.key === 'tb2' ? val >= 4 : val >= 2
-              // Opponent-quality tint: the opp label under each bar glows
-              // orange in proportion to how GENEROUS that staff is league-wide
-              // (OPS-against percentile). A green bar over a dim label — he
-              // did it against a real staff — is worth more than the same bar
-              // over a bright one.
               const q = staff?.[g.oppId]
-              const oppCol = q ? `rgba(249,115,22,${(0.3 + q.soft * 0.7).toFixed(2)})` : C.text3
-              const oppNote = q ? ` · staff OPS-against ${q.ops.toFixed(3)} (#${q.rank}/30 toughest)` : ''
+              const ab = abbrs?.[g.oppId] || g.opp
+              const oppCol = q ? `rgba(249,115,22,${(0.18 + q.soft * 0.72).toFixed(2)})` : 'rgba(255,255,255,.08)'
+              const oppNote = q ? ` · ${ab} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''
               return (
-                <div key={gi} title={`${g.date} ${g.home ? 'vs' : '@'} ${g.opp} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`}
-                  style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+                <div key={gi} title={`${g.date} ${g.home ? 'vs' : '@'} ${ab} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`}
+                  style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  {extra && (
+                    <div style={{ fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900, color: '#4ade80', textAlign: 'center', marginBottom: 1 }}>{val}</div>
+                  )}
                   <div style={{
-                    height: ok ? (extra ? 30 : 20) : 8, borderRadius: 3,
-                    background: ok ? (extra ? '#4ade80' : 'rgba(74,222,128,.55)') : 'rgba(248,113,113,.3)',
-                    boxShadow: extra ? '0 0 8px rgba(74,222,128,.5)' : 'none',
+                    height: ok ? (extra ? 34 : 22) : 6, borderRadius: '3px 3px 1px 1px',
+                    background: ok
+                      ? (extra ? 'linear-gradient(180deg, #86efac, #4ade80)' : 'linear-gradient(180deg, rgba(74,222,128,.75), rgba(74,222,128,.45))')
+                      : 'rgba(248,113,113,.28)',
+                    boxShadow: extra ? '0 0 9px rgba(74,222,128,.45)' : 'none',
                   }} />
-                  <div style={{
-                    fontSize: 6.5, color: oppCol, marginTop: 2, overflow: 'hidden',
-                    whiteSpace: 'nowrap', fontWeight: q && q.soft >= 0.7 ? 700 : 400,
-                  }}>{g.opp}</div>
+                  <div style={{ height: 3, borderRadius: 2, marginTop: 2, background: oppCol }} />
                 </div>
               )
             })}
           </div>
         )}
         <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-          Last {Math.min(20, data.games)} games, newest right — tall bright green is a multi ({m.key === 'tb2' ? '4+ TB' : '2+'}).
-          {staff
-            ? ' The opponent label under each bar carries the context: the brighter orange it glows, the softer that pitching staff is league-wide (OPS-against) — so green bars over dim labels are the ones earned against real arms. Hover any bar for the staff rank.'
-            : ' Raw outcomes, no opponent context; pair with the Pitch tab before trusting a hot week.'}
+          Last {Math.min(20, filteredLog.length)} games, newest right. Tall bright green = multi
+          ({m.key === 'tb2' ? '4+ TB' : '2+'}, its number on top){staff && <>; the strip under each bar is the
+          opposing staff — <span style={{ color: C.orange }}>brighter orange = softer arms</span>, so greens
+          over dark strips came against real pitching</>}. Hover any bar for the game.
         </div>
       </div>
     </div>
