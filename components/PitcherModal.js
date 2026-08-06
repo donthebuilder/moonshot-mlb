@@ -9,6 +9,7 @@ import PitcherSpots from './PitcherSpots'
 import PitcherProfile from './PitcherProfile'
 import SituationalSplits from './SituationalSplits'
 import PitcherField from './PitcherField'
+import SlotDamage from './SlotDamage'
 
 // The pitcher's own modal.
 //
@@ -196,6 +197,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
                   coordinates the payload doesn't publish for pitchers, and
                   the component says so on its face. */}
               <PitcherField pitcher={pitcher} />
+              <SlotDamage pitcher={pitcher} />
               {/* Live from MLB StatsAPI: home/away HR9, the pitches-1–75 vs
                   76+ fatigue split (the API's stand-in for times through the
                   order), and rest-day ERA. Not bot data, not in any score —
