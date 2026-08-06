@@ -10,6 +10,7 @@ import HRPitchProfile from '../HRPitchProfile'
 import PickScorecard, { pickJob } from '../PickScorecard'
 import { pillMeta } from '../../lib/pills'
 import ScoreAudit from '../ScoreAudit'
+import ReportCard from '../ReportCard'
 import PlayerPickRecord from '../PlayerPickRecord'
 import PLSimulator from '../PLSimulator'
 
@@ -1006,6 +1007,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       {/* sub-nav */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         <TabBtn active={subTab === 'overview'} onClick={() => setSubTab('overview')}>📊 Overview</TabBtn>
+        <TabBtn active={subTab === 'card'} onClick={() => setSubTab('card')}>🧾 Report card</TabBtn>
         <TabBtn active={subTab === 'pitcher'} onClick={() => setSubTab('pitcher')}>⚾ Pitchers</TabBtn>
         <TabBtn active={subTab === 'pitchtype'} onClick={() => setSubTab('pitchtype')}>🎯 HR by pitch</TabBtn>
         <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
@@ -1068,6 +1070,8 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       {/* P/L — the archive at your odds. Spans all graded days, ignores the
           day picker like Track record does. */}
       {subTab === 'pl' && <PLSimulator />}
+
+      {subTab === 'card' && <ReportCard backtest={backtest} />}
 
       {/* PICKS */}
       {subTab === 'picks' && (
