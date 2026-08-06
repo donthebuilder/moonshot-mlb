@@ -5,6 +5,67 @@ import { Empty } from '../ui'
 import { clean } from '../../lib/player'
 import DenseTable from '../DenseTable'
 import ZoneMap from '../ZoneMap'
+import { liveBattedBalls } from '../../lib/livegame'
+
+// ⚡ TONIGHT, LIVE (2026-08-06) — his batted balls from the game in progress
+// (or just finished), straight off the MLB live feed. The bot's log below is
+// history; this strip answers whether the pattern you bet on is SHOWING UP
+// TONIGHT — the loud line drive in the 2nd is the leading indicator the
+// homer in the 6th confirms. One fetch on open + a manual refresh button;
+// no polling, one player at a time.
+function TonightLive({ gamePk, batterId }) {
+  const [res, setRes] = useState(undefined)
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    let alive = true
+    liveBattedBalls(gamePk, batterId).then((d) => { if (alive) setRes(d) })
+    return () => { alive = false }
+  }, [gamePk, batterId, tick])
+
+  if (!gamePk || !batterId || res === null) return null
+  if (res === undefined) return null
+  if (res.state === 'Preview') return null
+  const balls = res.balls || []
+  const live = res.state === 'Live'
+
+  return (
+    <div style={{
+      display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
+      background: 'linear-gradient(155deg, rgba(74,222,128,.06), rgba(74,222,128,.015))',
+      border: '1px solid rgba(74,222,128,.25)', borderRadius: 10,
+      padding: '7px 11px', marginBottom: 10,
+    }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: '#4ade80' }}>
+        ⚡ Tonight{live ? ' · LIVE' : ' · final'}
+      </span>
+      {balls.length === 0 && (
+        <span style={{ fontSize: 10, color: C.text3 }}>no tracked contact yet</span>
+      )}
+      {balls.map((b, i) => {
+        const isHR = /home run/i.test(b.event)
+        const isHit = /single|double|triple/i.test(b.event)
+        const loud = b.ev >= 95
+        const col = isHR ? '#4ade80' : loud ? C.orange : isHit ? '#60A5FA' : C.text3
+        return (
+          <span key={i} title={`${b.half === 'top' ? 'T' : 'B'}${b.inning} — ${b.event} · ${b.traj}${b.dist ? ` · ${b.dist.toFixed(0)} ft` : ''}`}
+            style={{
+              fontFamily: NUM_FONT, fontSize: 10, fontWeight: loud || isHR ? 800 : 600, color: col,
+              border: `1px solid ${col}44`, borderRadius: 6, padding: '2px 7px',
+              background: isHR ? 'rgba(74,222,128,.10)' : 'transparent',
+            }}>
+            {isHR ? '💥 ' : ''}{b.ev.toFixed(1)}{b.la != null ? ` / ${b.la.toFixed(0)}°` : ''}
+            <span style={{ opacity: 0.65, marginLeft: 4 }}>{b.event.toLowerCase()}</span>
+          </span>
+        )
+      })}
+      <button onClick={() => { setRes(undefined); setTick((t) => t + 1) }} style={{
+        marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, color: C.text3, cursor: 'pointer',
+        background: 'transparent', border: `1px solid ${C.border2}`, borderRadius: 6,
+        padding: '2px 8px', fontFamily: NUM_FONT,
+      }}>↻ refresh</button>
+    </div>
+  )
+}
 
 // Exit-velocity log — every tracked batted ball, newest first.
 //
@@ -190,6 +251,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
 
   return (
     <div>
+      <TonightLive gamePk={player?.game_pk} batterId={pid} />
       <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} />
       <div style={{
         display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center',
