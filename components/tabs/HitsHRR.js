@@ -152,7 +152,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 }
 
 export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
-  const [view, setView] = useState('hrr')
+  const [view, setView] = useState('hr')
   const { filtered, state } = useBoardFilter(players)
 
   return (
@@ -170,14 +170,15 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
         marginBottom: 14,
       }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 900 }}>Hits / HRR / Contact</div>
+          <div style={{ fontSize: 14, fontWeight: 900 }}>Boards</div>
           <div style={{ fontSize: 10, color: C.text3, marginTop: 2 }}>
-            The categories that actually deliver — graded, not vibes.
+            Every ranked board in one place — each with its record stated, not implied.
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}>🏁 HRR</button>
+          <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}>🧨 HR</button>
           <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}>💠 Hits</button>
+          <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}>🏁 HRR</button>
           <button onClick={() => setView('contact')} style={btnStyle(C.blue,   view === 'contact')}>⚾ Contact</button>
           <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')}>⭐ Weak Spot</button>
           <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')}>🧩 Aligned</button>
@@ -192,8 +193,13 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
           those claims; this one can, so it does — per view, with the
           numbers, so the tab reads as the site's proven product rather than
           the undercard. */}
-      {['hrr', 'hit', 'contact'].includes(view) && (() => {
+      {(() => {
         const PROOF = {
+          hr: {
+            color: C.orange,
+            head: 'Ranked by the site, not the bot — and here’s why',
+            body: 'Adj = the bot’s raw hr_score × the measured HR rate of the hitter’s ISO band, because across 3,973 graded picks ISO bands ran 8.2%→22.2% while raw-score quartiles managed +4.7 points. Raw and ISO sit beside Adj so every rank is explainable. The bot’s untouched ranking lives on The Bot tab; the gap between the two boards IS the adjustment.',
+          },
           hit: {
             color: C.purple,
             head: 'The site’s most reliable product',
@@ -209,8 +215,24 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
             head: 'Real, with a caveat the others don’t have',
             body: 'CONTACT picks cleared 2+ TB 38.2% of the time — but the graded files record no walks, so a pick who walked twice is scored a failure. Treat these rates as a floor. contact_score itself is the flattest in the system (+3.5); lean on the player’s own "When picked" record over the score.',
           },
+          weakspot: {
+            color: C.yellow,
+            head: 'Validated: ⭐ hitters homer more',
+            body: 'A weak spot means tonight’s starter has given up real damage to this lineup slot. Measured across the archive: flagged hitters homered 18.0% vs 13.9% unflagged, and cleared 2+ TB 41.3% vs 37.5%. One of only three flags on the site that survives grading.',
+          },
+          aligned: {
+            color: C.purple,
+            head: 'Rebuilt on the two flags that grade out — the old 🧩 didn’t',
+            body: 'The bot’s 🧩 tag graded at 15.4% vs 14.6% baseline on 39 samples — nothing. Aligned now means the measured stack instead: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18. That trio homered 29.2% across 154 graded slots — more than double the 12.9% rate of hitters with neither flag, the strongest composite on the site.',
+          },
+          matchupedge: {
+            color: C.orange,
+            head: 'Validated: 🎯 pitch match is a real HR signal',
+            body: 'The hitter’s damage pitches overlap what tonight’s arm actually throws. Measured: matched hitters homered 18.4% vs 13.6% unmatched across 1,669 graded slots — the same size edge as the weak-spot flag, and the two stack: both together homered 23.3%.',
+          },
         }
         const pr = PROOF[view]
+        if (!pr) return null
         return (
           <div style={{
             background: `linear-gradient(155deg, ${pr.color}12, ${pr.color}04)`,
