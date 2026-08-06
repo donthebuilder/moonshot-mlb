@@ -16,6 +16,8 @@ import { detailUrl, zonesUrl } from '../lib/dataSource'
 import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
+import { hotColdZones } from '../lib/situational'
+import ZoneMap from './ZoneMap'
 
 // ── Pitch colors + names ──────────────────────────────────────────────────────
 const PITCH_COLORS = {
@@ -247,16 +249,100 @@ function PitchMatrix({ pitches, matchNote }) {
   )
 }
 
+// ── API fallback: pitcher zones straight from the league (2026-08-06) ────────
+// When the bot's cache hasn't reached this pitcher yet, the same MLB endpoint
+// that grades batter zones grades pitchers: per-zone SLG/AVG/OPS *against*
+// with MLB's own temps, plus raw pitch counts — his location tendency. So the
+// tab is never a dead end again.
+function ApiPitcherZones({ pitcherId, pitcherName }) {
+  const [data, setData] = useState(undefined)
+  const [view, setView] = useState('slg')
+  useEffect(() => {
+    let alive = true
+    setData(undefined)
+    hotColdZones(pitcherId, 'pitching').then((d) => { if (alive) setData(d) })
+    return () => { alive = false }
+  }, [pitcherId])
+
+  if (!pitcherId) return <div style={{fontSize:12,color:C.text3,padding:'1rem 0'}}>No starter attached to this hitter yet.</div>
+  if (data === undefined) return <div style={{fontSize:11,color:C.text3,padding:'1rem 0',fontFamily:NUM_FONT}}>Pulling his zones from the league…</div>
+  if (!data) return <div style={{fontSize:12,color:C.text3,padding:'1rem 0'}}>The API has no zone sample for this pitcher.</div>
+
+  const TEMP_A = { hot:0.8, warm:0.5, lukewarm:0.26, cool:0.12, cold:0.05 }
+  const VIEWS = [
+    ['slg','SLG against'],['avg','AVG against'],['ops','OPS against'],['pitches','Where he throws'],
+  ].filter(([k]) => data[k])
+  const zs = data[view] || {}
+  const totalPitches = view==='pitches'
+    ? Object.values(zs).reduce((a,z)=>a+(parseFloat(z.value)||0),0) : 0
+  const maxP = view==='pitches' ? Math.max(...Object.values(zs).map(z=>parseFloat(z.value)||0),1) : 1
+
+  const cell = (k) => {
+    const z = zs[k] || zs[String(Number(k))]
+    if (!z) return { v:'—', a:0 }
+    if (view==='pitches') {
+      const n = parseFloat(z.value)||0
+      return { v: totalPitches?`${(100*n/totalPitches).toFixed(0)}%`:'—', a: 0.05+0.7*(n/maxP), hot:n===maxP }
+    }
+    return { v:z.value, a:TEMP_A[z.temp]??0.15, hot:z.temp==='hot' }
+  }
+  const box = (k, big) => {
+    const c = cell(k)
+    return (
+      <div key={k} style={{
+        display:'flex',alignItems:'center',justifyContent:'center',
+        background:`rgba(249,115,22,${c.a.toFixed(2)})`,
+        border:`1px solid ${c.hot?'rgba(249,115,22,.7)':C.border}`,borderRadius:4,
+        minHeight:big?52:30,
+        boxShadow:c.hot?'0 0 10px rgba(249,115,22,.35)':'none',
+      }}>
+        <span style={{fontFamily:NUM_FONT,fontSize:big?11:9,fontWeight:c.hot?900:600,color:c.hot?'#fff':C.text2}}>{c.v}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div style={{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
+        {VIEWS.map(([k,label])=>(
+          <button key={k} onClick={()=>setView(k)} style={{
+            padding:'3px 10px',borderRadius:999,cursor:'pointer',fontSize:9.5,fontWeight:700,fontFamily:NUM_FONT,
+            border:`1px solid ${view===k?C.orange:C.border}`,
+            background:view===k?'rgba(249,115,22,.14)':'transparent',
+            color:view===k?C.orange:C.text3,
+          }}>{label}</button>
+        ))}
+        <span style={{fontSize:9,color:C.text3,fontFamily:NUM_FONT,marginLeft:'auto'}}>
+          live API · season · {pitcherName||'starter'}
+        </span>
+      </div>
+      <div style={{maxWidth:230}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,marginBottom:3}}>
+          {box('11')}{box('12')}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:3}}>
+          {['01','02','03','04','05','06','07','08','09'].map(k=>box(k,true))}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,marginTop:3}}>
+          {box('13')}{box('14')}
+        </div>
+      </div>
+      <div style={{fontSize:8.5,color:C.text3,marginTop:8,lineHeight:1.5}}>
+        Catcher&apos;s view; top/bottom strips are out-of-zone. {view==='pitches'
+          ? 'Share of all his pitches to each zone — brightest is where he lives.'
+          : 'What hitters do against him in each zone, MLB-graded — bright orange is where he bleeds.'}
+        {' '}This is the live-API read while the bot&apos;s deeper zone cache (xwOBA, kill zones) reaches this pitcher.
+      </div>
+    </div>
+  )
+}
+
 // ── Pitcher zones (damage + tendency) ────────────────────────────────────────
-function PitcherZones({ pitcherProfile, killZones }) {
+function PitcherZones({ pitcherProfile, killZones, pitcherId, pitcherName }) {
   const [view, setView] = useState('damage')
   const [metric, setMetric] = useState('xwoba')
 
-  if (!pitcherProfile) return (
-    <div style={{fontSize:12,color:C.text3,padding:'1rem 0'}}>
-      Pitcher zone profile not yet built. Re-run spray_cache.py to populate.
-    </div>
-  )
+  if (!pitcherProfile) return <ApiPitcherZones pitcherId={pitcherId} pitcherName={pitcherName} />
 
   const zones = view === 'damage' ? pitcherProfile.damage : pitcherProfile.tendency
   const metricKey = view === 'damage' ? metric : 'pct'
@@ -613,7 +699,7 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
           <div style={{fontSize:15,fontWeight:900}}>{player.name||'Hot zones'}</div>
           <div style={{fontSize:11,color:C.text3,fontFamily:NUM_FONT,marginTop:2}}>
             vs {player.pitcher_name||'—'} · {player.bats&&player.bats!=='?'?`${player.bats}HB · `:''}
-            {zoneProfile?`${zoneProfile.lookback}d · ${zoneProfile.total_pa} PA`:loading?'Loading…':'No zone data yet'}
+            {zoneProfile?`${zoneProfile.lookback}d · ${zoneProfile.total_pa} PA`:loading?'Loading…':'bot cache pending · live API below'}
           </div>
         </div>
         {onClose&&<button onClick={onClose} style={{background:'transparent',border:'none',color:C.text3,fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>}
@@ -623,20 +709,22 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
           sentence buried in each sub-tab. Previously you clicked three tabs and
           got three different half-sentences about spray_cache.py, which made it
           look like three separate problems rather than one unpublished file. */}
+      {/* REWRITTEN 2026-08-06. The old banner said zone data "has never been
+          published" — true when written, false since the publish fix landed
+          (ddaef65). The cache builds a BATCH of players per nightly run, so
+          some hitters simply haven't been reached yet. Either way the tab now
+          falls back to the live MLB API instead of a dead end, so the banner
+          is one calm sentence, not a bug report. */}
       {!zoneProfile && !pitcherProfile && !loading && (
         <div style={{
-          background:C.bg2, border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.orange}`,
-          borderRadius:10, padding:'10px 13px', marginBottom:12, fontSize:11,
-          color:C.text2, lineHeight:1.6,
+          background:C.bg2, border:`1px solid ${C.border}`,
+          borderRadius:10, padding:'8px 13px', marginBottom:12, fontSize:10.5,
+          color:C.text3, lineHeight:1.6,
         }}>
-          <b style={{color:C.orange}}>No zone data has ever been published.</b> This isn&apos;t a
-          load failure and re-running the bot won&apos;t change it. <code>spray_cache.py</code> does
-          compute these profiles, every day, successfully — but its workflow runs read-only with no
-          publish step, so the output dies with the runner and never reaches the site.
-          {' '}Three changes in the bot repo fix it; they&apos;re written up in{' '}
-          <code>ZONES-FIX.md</code>. Until then this tab shows the grid it will fill rather than
-          inventing numbers. <b style={{color:C.text2}}>Edge read</b> works now — it&apos;s built on
-          the pitch-level fields, which are published.
+          The bot&apos;s zone cache hasn&apos;t reached this matchup yet — it builds a batch of players
+          each nightly run. Everything below is pulled <b style={{color:C.text2}}>live from the MLB
+          API</b> instead: same zones, MLB&apos;s own hot/cold grading. The deeper bot layer (xwOBA,
+          kill zones, per-pitch splits) fills in on its own once his file publishes.
         </div>
       )}
 
@@ -679,9 +767,14 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
                     killZones={matchupKill}
                   />
                 ):(
-                  <div style={{...s.noData,width:196}}>Zone profile not yet built.</div>
+                  // No bot file → the live-API batter map, right here in the
+                  // same slot. Its own component; it self-fetches and shows
+                  // MLB-graded EV/SLG/OPS/AVG zones for ANY hitter.
+                  <div style={{width:270}}>
+                    <ZoneMap playerId={pid} bats={String(player?.bats||'').toUpperCase().slice(0,1)} />
+                  </div>
                 )}
-                <Legend/>
+                {zoneProfile && <Legend/>}
               </div>
               <div>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,flexWrap:'wrap',gap:4}}>
@@ -719,7 +812,8 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
 
       {/* ── PITCHER ZONES ── */}
       {tab==='pitcher'&&(
-        <PitcherZones pitcherProfile={pitcherProfile} killZones={killZones}/>
+        <PitcherZones pitcherProfile={pitcherProfile} killZones={killZones}
+          pitcherId={player?.pitcher_id} pitcherName={player?.pitcher_name}/>
       )}
 
       {/* ── PITCH MATRIX ── */}
