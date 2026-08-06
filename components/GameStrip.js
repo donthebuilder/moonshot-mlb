@@ -50,7 +50,15 @@ export default function GameStrip({ games, activeGame, onSelect }) {
       }
     })
     const slateMed = med(built.map((c) => c.gs))
-    return built.map((c) => ({ ...c, edge: c.gs >= slateMed ? '▲' : '▽' }))
+    // Heat rank: each card tinted by where its GS sits in tonight's range,
+    // so the best game glows like a hot cell and cold games recede.
+    const gsAll = built.map((c) => c.gs)
+    const lo = Math.min(...gsAll), hi = Math.max(...gsAll)
+    return built.map((c) => ({
+      ...c,
+      edge: c.gs >= slateMed ? '▲' : '▽',
+      heat: hi > lo ? (c.gs - lo) / (hi - lo) : 0.5,
+    }))
   }, [games])
 
   if (!cards.length) return null
@@ -74,8 +82,10 @@ export default function GameStrip({ games, activeGame, onSelect }) {
               style={{
                 textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
                 borderRadius: 10, minWidth: 0,
-                border: `1px solid ${on ? C.orange : C.border}`,
-                background: on ? 'rgba(249,115,22,0.09)' : C.bg2,
+                border: `1px solid ${on ? C.orange : `rgba(249,115,22,${(0.12 + c.heat * 0.5).toFixed(2)})`}`,
+                background: on
+                  ? 'rgba(249,115,22,0.09)'
+                  : `linear-gradient(155deg, rgba(249,115,22,${(c.heat * 0.13).toFixed(3)}), rgba(17,17,19,1))`,
                 boxShadow: on ? `0 0 22px -9px ${C.orange}` : 'none',
                 opacity: c.past && !on ? 0.45 : 1,
                 transition: 'border-color .12s, background .12s',
@@ -121,10 +131,12 @@ export default function GameStrip({ games, activeGame, onSelect }) {
       </div>
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 7 }}>
-        First-pitch order. <strong style={{ color: C.text2 }}>GS</strong> is the median of every
-        hitter&apos;s four board scores, then the median of those across the lineup — so it answers
-        &ldquo;is this whole lineup dangerous&rdquo;, not &ldquo;is there one guy here&rdquo;.
-        ▲/▽ is against the slate&apos;s own median. ★ counts weak lineup spots.
+        First-pitch order, heat-tinted — the warmer a card glows, the higher its{' '}
+        <strong style={{ color: C.text2 }}>GS</strong> (Game Score: the median of every hitter&apos;s
+        four board scores, then the median across the lineup — &ldquo;is this whole lineup
+        dangerous&rdquo;, not &ldquo;is there one guy&rdquo;). ▲/▽ = above/below tonight&apos;s median.
+        ⚾ the pitching matchup · 🔝 the game&apos;s top bat and his HR score · ★ weak lineup spots
+        · ✓/◻ lineup confirmed or projected.
       </div>
     </div>
   )

@@ -327,6 +327,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                     flex: '1 1 225px', minWidth: 0, position: 'relative',
                     display: 'flex', flexDirection: 'column',
                     marginTop: roleInfo ? 9 : 0,
+                    minHeight: 190,
                   }}>
                     {roleInfo && (
                       <span style={{
@@ -374,7 +375,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>{p?.name || '—'}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{p?.name || '—'}</span>
                       </div>
                       <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>
                         {p?.team} #{p?.lineup_spot ?? '?'} · vs {p?.pitcher_name || '?'} ({p?.pitcher_throws || '?'})
