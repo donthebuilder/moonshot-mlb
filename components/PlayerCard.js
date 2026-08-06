@@ -110,14 +110,19 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // again here used to double it up. The softer "Be Careful" trap case
   // (best_bet_type === "Avoid for HR" without true_avoid_hr) is a different,
   // less severe situation and gets its own ⚠️ instead of borrowing ⛔.
-  const emojis = []
+  // DECLUTTER (2026-08-06, "make cleaner"): five emojis before a name
+  // truncated the NAME — the one thing a card can't lose. Two emojis max,
+  // the full stack lives in the tooltip.
+  const emojisAll = []
   const re = roleEmoji(p)
-  if (re) emojis.push(re)
+  if (re) emojisAll.push([re, 'role'])
   const hrwE = HRW_EMOJI[(p?.hrw_zone || '').trim()]
-  if (hrwE) emojis.push(hrwE)
-  if (p?.high_confidence_hr_flag === true) emojis.push('🔒')
-  if (Number(p?.pitch_type_match_score || 0) > 0) emojis.push('🎯')
-  if (isSoftCaution) emojis.push('⚠️')
+  if (hrwE) emojisAll.push([hrwE, 'HRW zone'])
+  if (p?.high_confidence_hr_flag === true) emojisAll.push(['🔒', 'high confidence'])
+  if (Number(p?.pitch_type_match_score || 0) > 0) emojisAll.push(['🎯', 'pitch match'])
+  if (isSoftCaution) emojisAll.push(['⚠️', 'HR caution'])
+  const emojis = emojisAll.slice(0, 2).map(([e]) => e)
+  const emojiTitle = emojisAll.map(([e, why]) => `${e} ${why}`).join(' · ')
   const weakSpotReason = p?.weak_spot_flag === true
     ? (p?.weak_spot_reason || 'Weak lineup spot vs this pitcher.')
     : null
@@ -131,7 +136,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
             {/* emoji stack — no labels, no border, just emojis */}
             {emojis.length > 0 && (
-              <span style={{ fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0 }}>
+              <span title={emojiTitle} style={{ fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'help' }}>
                 {emojis.join('')}
               </span>
             )}
@@ -157,30 +162,36 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
         </div>
       </div>
 
-      {/* role / bet chips */}
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7 }}>
-        {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
-        {showRoleChip && <Chip color={color}>{role}</Chip>}
-        {showBetChip && <Chip color={C.text2}>{bet}</Chip>}
-        {risk && <Chip color={risk.color}>{risk.label}</Chip>}
-        {aligned && <Chip color={C.purple}>🧩 Aligned Signals</Chip>}
-        {gamePickLabel && <Chip color={C.yellow}>★ Bot's {gamePickLabel}</Chip>}
-        {recency && <Chip color={recency.color}>{recency.label}</Chip>}
+      {/* ONE chip row (2026-08-06). Designated pick cards were wearing every
+          chip family at once — role + bet + risk + aligned + pick + recency +
+          three pills, with a HIT pick showing "Avoid for HR" two lines under
+          its own badge. Rule now: a designated card leads with its ONE job
+          (the pick chip), keeps recency and its two strongest signals, and
+          drops everything that restates the ring or contradicts the job —
+          cross-market avoid verdicts included (they never applied to the
+          card's own category anyway). Undesignated cards keep the fuller
+          read, but in a single row. */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+        {gamePickLabel ? (
+          <>
+            <Chip color={C.yellow}>★ Bot&apos;s {gamePickLabel}</Chip>
+            {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
+            {recency && <Chip color={recency.color}>{recency.label}</Chip>}
+            {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
+          </>
+        ) : (
+          <>
+            {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
+            {showRoleChip && <Chip color={color}>{role}</Chip>}
+            {showBetChip && !gamePickLabel && bet !== role && <Chip color={C.text2}>{bet}</Chip>}
+            {risk && <Chip color={risk.color}>{risk.label}</Chip>}
+            {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
+            {recency && <Chip color={recency.color}>{recency.label}</Chip>}
+            {isAvoid && !altLook && <Chip color={AVOID_COLOR}>{avoidLabel}</Chip>}
+            {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
+          </>
+        )}
       </div>
-
-      {/* consolidated avoid signal — own row, own color, never stacks with role/bet */}
-      {isAvoid && !altLook && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7 }}>
-          <Chip color={AVOID_COLOR}>{avoidLabel}</Chip>
-        </div>
-      )}
-
-      {/* signal pills */}
-      {pills.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-          {pills.map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
-        </div>
-      )}
 
       {/* stats */}
       <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8, lineHeight: 1.5 }}>
