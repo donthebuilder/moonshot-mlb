@@ -67,6 +67,12 @@ function isPast(gameTime) {
 export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
   const [mode, setMode]         = useState('default')
   const [activeGame, setActive] = useState(null)
+  // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
+  // page to a card buried under ten others — "flies all the way to the
+  // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
+  // the slot-by-slot depth open; everything else steps aside until the back
+  // button (or re-clicking the bubble) restores the wall.
+  const [lineupFocus, setLineupFocus] = useState(null)
   const gameRefs                = useRef({})
 
   const games = useMemo(() => groupGames(players), [players])
@@ -100,6 +106,12 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
 
   const scrollTo = (pk) => {
     setActive(pk)
+    if (mode === 'lineups') {
+      // focus, don't fly — re-clicking the same bubble releases it
+      setLineupFocus((cur) => (cur === pk ? null : pk))
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     const el = gameRefs.current[pk]
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -144,7 +156,14 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
           arm he faces. Chips grew — a lineup you squint at isn't a tool. */}
       {mode === 'lineups' && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-          {games.map((g) => {
+          {lineupFocus && (
+            <button onClick={() => setLineupFocus(null)} style={{
+              flex: '1 1 100%', textAlign: 'left', cursor: 'pointer',
+              background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 9,
+              padding: '6px 12px', fontSize: 11, fontWeight: 700, color: C.text3,
+            }}>← All lineups</button>
+          )}
+          {(lineupFocus ? games.filter((g) => g.game_pk === lineupFocus) : games).map((g) => {
             const byTeam = {}
             ;(g.players || []).forEach((p) => {
               const t = p?.team || '?'
@@ -156,14 +175,14 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
             const wind = Number(any.weather_wind_mph) || 0
             const wLbl = String(any.wind_direction_label || '')
             const parkF = Number(any.park_hr_factor) || Number(any.park_dist_factor) || 0
-            const isSel = g.game_pk === activeGame
+            const isSel = g.game_pk === lineupFocus
             return (
               <div key={g.game_pk}
                 ref={(el) => { if (el) gameRefs.current[g.game_pk] = el }}
                 style={{
-                flex: '1 1 460px', minWidth: 0, background: C.bg2,
+                flex: isSel ? '1 1 100%' : '1 1 460px', minWidth: 0, background: C.bg2,
                 border: `1px solid ${isSel ? C.orange : C.border}`, borderRadius: 13, overflow: 'hidden',
-                boxShadow: isSel ? `0 0 20px -8px ${C.orange}` : 'none', scrollMarginTop: 160,
+                boxShadow: isSel ? `0 0 24px -8px ${C.orange}` : 'none', scrollMarginTop: 160,
               }}>
                 {/* header: matchup + conditions, PF-style but ours */}
                 <div style={{
