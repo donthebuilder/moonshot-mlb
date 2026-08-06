@@ -64,12 +64,16 @@ function LivePools({ results }) {
                   fontWeight: 800, color: col === C.border ? C.text3 : col,
                 }}>{hit}/{tot} HR</span>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
+              {/* GRID, not flow (2026-08-06): inline-wrapped names broke mid-
+                  list and left orphans hanging off the line. Two even columns,
+                  every name on its own line slot. */}
+              <div style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
                 {(pl.players || []).map((mb, j) => {
                   const gone = homered.has(String(mb?.name || '').toLowerCase())
                   return (
                     <span key={j} style={{
-                      fontSize: 10.5,
+                      fontSize: 10.5, lineHeight: 1.5, minWidth: 0,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       color: gone ? '#4ade80' : C.text3,
                       fontWeight: gone ? 700 : 400,
                     }}>{gone ? '💥 ' : ''}{mb?.name}</span>
@@ -117,9 +121,9 @@ function SlatePools({ pairBuilder }) {
                 {pl.kind}
               </span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
+            <div style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
               {arr(pl.players).map((mb, j) => (
-                <span key={j} style={{ fontSize: 10.5, color: C.text3 }}>{mb?.name}</span>
+                <span key={j} style={{ fontSize: 10.5, lineHeight: 1.5, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: C.text3 }}>{mb?.name}</span>
               ))}
             </div>
           </div>

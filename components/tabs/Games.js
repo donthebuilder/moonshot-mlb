@@ -258,25 +258,28 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                   if (!picks.length) return null
                   return (
                     <div style={{
-                      display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
                       padding: '7px 12px', borderTop: `1px solid ${C.border}`, background: 'rgba(255,255,255,.015)',
                     }}>
-                      <span style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>🤖 picks</span>
-                      {picks.map((p) => {
-                        const cat = prim(p)
-                        const col = CAT_COLOR[cat] || C.text3
-                        return (
-                          <button key={playerId(p)} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
-                            display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer',
-                            border: `1px solid ${col}55`, background: `${col}10`,
-                            borderRadius: 7, padding: '2px 8px',
-                          }}>
-                            <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em' }}>{cat}</span>
-                            <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
-                            <span style={{ fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
-                          </button>
-                        )
-                      })}
+                      {/* GRID (2026-08-06): five free-wrapping chips left one
+                          orphan dangling off the line on narrow cards. Auto-
+                          fit cells stretch every row edge to edge instead. */}
+                      <div style={{ display: 'grid', gap: 5, gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', alignItems: 'stretch' }}>
+                        {picks.map((p) => {
+                          const cat = prim(p)
+                          const col = CAT_COLOR[cat] || C.text3
+                          return (
+                            <button key={playerId(p)} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
+                              display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
+                              border: `1px solid ${col}55`, background: `${col}10`,
+                              borderRadius: 7, padding: '3px 8px',
+                            }}>
+                              <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{cat}</span>
+                              <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
+                              <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   )
                 })()}
