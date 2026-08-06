@@ -1061,7 +1061,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       {/* PER-PLAYER TRACK RECORD — spans every graded day, so it ignores the
           day picker above on purpose. */}
       {subTab === 'record' && (
-        <PlayerPickRecord players={players} onPlayerClick={onPlayerClick} />
+        <PlayerPickRecord players={players} backtest={backtest} onPlayerClick={onPlayerClick} />
       )}
 
       {/* P/L — the archive at your odds. Spans all graded days, ignores the

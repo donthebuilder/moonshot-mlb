@@ -111,7 +111,31 @@ export function usePickRecords(backtest) {
 
 // ── the matrix ───────────────────────────────────────────────────────────────
 
-export default function PlayerPickRecord({ players = [], onPlayerClick }) {
+export default function PlayerPickRecord({ players = [], backtest, onPlayerClick }) {
+  // BOT STREAK — consecutive most-recent designated picks that delivered,
+  // from the live graded branch (the snapshot has totals, not sequence).
+  const { days: liveDays } = usePickRecords(backtest)
+  const botStreak = useMemo(() => {
+    const seq = new Map() // name -> [{date, did}]
+    ;[...liveDays].sort((a, b) => (a.date < b.date ? 1 : -1)).forEach(({ json }) => {
+      const slots = json?.graded_slots || json?.results || []
+      slots.forEach((s2) => {
+        const role = String(s2?.game_pick_role || s2?.pick_type || '').split('/')[0].trim().toUpperCase()
+        const jb = JOBS[role]
+        const nm = String(s2?.name || '').toLowerCase().trim()
+        if (!jb || !nm) return
+        const ok = jb.test({ hits: i(s2.actual_hits), runs: i(s2.actual_runs), rbi: i(s2.actual_rbi), tb: i(s2.actual_tb), hr: i(s2.actual_hr) })
+        ;(seq.get(nm) || seq.set(nm, []).get(nm)).push(ok)
+      })
+    })
+    const m = new Map()
+    seq.forEach((arr2, nm) => {
+      let k = 0
+      for (const ok of arr2) { if (ok === arr2[0]) k++; else break }
+      m.set(nm, arr2[0] ? k : -k)
+    })
+    return m
+  }, [liveDays])
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
   const [minPicks, setMinPicks] = useState(5)
@@ -151,6 +175,7 @@ export default function PlayerPickRecord({ players = [], onPlayerClick }) {
       .map((p) => {
         const todayRole = todayPicks.get(String(p.n || '').toLowerCase().trim()) || ''
         const r = {
+          streak: botStreak.get(String(p.n || '').toLowerCase().trim()) ?? null,
           today: todayRole,
           isToday: todayRole ? 1 : 0,
           _key: p.n, _raw: { name: p.n, team: p.t },
@@ -219,6 +244,9 @@ export default function PlayerPickRecord({ players = [], onPlayerClick }) {
             fmt: (v) => (v ? v : '·'),
             title: 'He is one of tonight’s designated picks, in this category. The whole point of the archive: check his record in THAT column before trusting tonight’s designation.' },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
+          { key: 'streak', label: 'Streak', heat: false, w: 52, mono: true,
+            fmt: (v) => (v == null ? '—' : v > 0 ? `W${v}` : `L${-v}`),
+            title: 'Consecutive most-recent PICKS delivered (W) or missed (L), from the live graded branch — the bot-side streak, not his batting streak.' },
           { key: 'last', label: 'Last', heat: false, w: 44, mono: true, dim: true,
             title: 'Most recent day he was picked' },
           { key: 'picks', label: 'Picks', w: 46,

@@ -193,7 +193,7 @@ export default function Guide() {
           Every player card on the Games, Board, and Pool pages follows the same layout. Here's
           what each part means, top to bottom:
         </P>
-        <GlossaryRow icon="🔢" term="Score (top right, big number)" def="The model's overall home run confidence for this player today, on a 0-100 scale. Higher = more likely to homer. Anything 70+ is a strong play; under 50 is a longshot." example="78 = strong play, 45 = longshot" />
+        <GlossaryRow icon="🔢" term="Score (top right, big number)" def="The model's overall home run confidence for this player today, on a 0-100 scale. Higher = more likely to homer. Anything 70+ was a strong raw score; the HR Board now ranks by the ISO-adjusted Adj number, so read Adj there, not raw" example="78 = strong play, 45 = longshot" />
         <GlossaryRow icon="🅰️" term="Grade letter (next to score)" def="A simpler version of the score, like a school grade. A+ is the best, down through B, C, D." />
         <GlossaryRow icon="🏷️" term="Role tag (colored pill, e.g. '🏆 HR Bet')" def="The model's recommended way to use this player — see the Role Tags section below for what each one means." />
         <GlossaryRow icon="🔖" term="Signal pills (small tags like '375+', 'Low-K P')" def="Short callouts explaining WHY the model likes this player. See the Signal Pills glossary below for every one." />
