@@ -6,6 +6,7 @@ import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestP
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { Empty } from './ui'
 import Header from './Header'
+import MiniWire from './MiniWire'
 import Controls from './Controls'
 import Slip from './Slip'
 import PlayerModal from './PlayerModal'
@@ -157,6 +158,9 @@ export default function Dashboard() {
       <MobileCSS />
       <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={results} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
+        {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
+            has the full panel) — live info dies when it needs visiting. */}
+        <MiniWire players={players} tab={tab} onGo={() => setTab('scoreboard')} />
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
         {loading ? (
