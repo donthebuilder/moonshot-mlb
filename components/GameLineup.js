@@ -46,6 +46,23 @@ const COLUMNS = [
   { key: 'barrel', label: 'Brl%',  w: 42, dp: 1 },
   { key: 'ihr',    label: 'IHR',   w: 42, dp: 3 },
   { key: 'd375',   label: '375+',  w: 40 },
+  // FORM CLUSTER (2026-08-06, on request): what he's actually hitting lately,
+  // next to what the model thinks of him. All published slate fields.
+  { key: 'a5',     label: 'L5 AVG',  w: 50, dp: 3,
+    title: 'Batting average over his last 5 games' },
+  { key: 'a10',    label: 'L10 AVG', w: 52, dp: 3,
+    title: 'Batting average over his last 10 games' },
+  { key: 'aSzn',   label: 'Szn AVG', w: 52, dp: 3 },
+  { key: 'aArm',   label: 'vs Arm',  w: 50, dp: 3,
+    title: 'His average against the SIDE tonight’s starter throws from — matchup-aware, not a generic platoon line' },
+  { key: 'xw10',   label: 'xwOBA10', w: 56, dp: 3,
+    title: 'Expected wOBA over his last 10 games — quality of process, luck stripped out. Beats a hot AVG built on bloops.' },
+  { key: 'ev',     label: 'EV',      w: 44, dp: 1,
+    title: 'Recent average exit velocity' },
+  { key: 'hh',     label: 'HH%',     w: 44, dp: 0,
+    title: 'Recent hard-hit rate (95+ mph)' },
+  { key: 'since',  label: 'Since HR', w: 54, invert: true,
+    title: 'Games since his last homer. Inverted — recent is bright. Not a “due” signal, just recency.' },
   { key: 'hr9',    label: 'P HR/9', w: 46, dp: 2,
     title: 'Opposing starter’s HR per 9 — high is good for the hitter' },
 ]
@@ -84,6 +101,16 @@ export default function GameLineup({ players, onPlayerClick }) {
         barrel: barrelRate(p) * 100,
         ihr: ihrVal(p),
         d375: recent375(p),
+        a5: nn(p?.last5_avg) || null,
+        a10: nn(p?.last10_avg) || null,
+        aSzn: nn(p?.season_avg) || null,
+        aArm: (String(p?.pitcher_throws || '').toUpperCase() === 'L'
+          ? nn(p?.avg_vs_lhp) : String(p?.pitcher_throws || '').toUpperCase() === 'R'
+            ? nn(p?.avg_vs_rhp) : null) || null,
+        xw10: nn(p?.l10_xwoba) || null,
+        ev: nn(p?.recent_ev) || null,
+        hh: nn(p?.recent_hard_hit_rate) * 100,
+        since: nn(p?.games_since_last_hr),
         hr9: nn(p?.pitcher_hr9),
       }))
   }, [players, team])
