@@ -10,11 +10,17 @@ import { nameOf, teamOf, oppOf, hrScore, playerId } from '../lib/player'
 // opens this from any tab; three letters and Enter opens his modal.
 // Arrow keys move, Escape closes, top 8 shown.
 
+// League-wide fallback (2026-08-06): when nobody on the slate matches, the
+// same box searches EVERY active MLB player via the StatsAPI (verified live,
+// hydrate=currentTeam) and opens an API-only modal — props grid, splits, zone
+// map, all live-pulled. The bot's slate stops being the edge of the site.
 export default function QuickSearch({ players = [], onPick }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [sel, setSel] = useState(0)
+  const [apiHits, setApiHits] = useState([])
   const inputRef = useRef(null)
+  const debounceRef = useRef(null)
 
   useEffect(() => {
     const onKey = (e) => {
@@ -45,6 +51,32 @@ export default function QuickSearch({ players = [], onPick }) {
       .slice(0, 8)
   }, [q, players])
 
+  // API fallback — only fires when the slate comes up empty, debounced so we
+  // aren't hammering a public endpoint per keystroke.
+  useEffect(() => {
+    const k = q.trim()
+    setApiHits([])
+    if (k.length < 3 || hits.length) return
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(k)}&sportIds=1&active=true&hydrate=currentTeam`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          const ppl = (j?.people || []).filter((x) => x?.isPlayer !== false).slice(0, 6)
+          setApiHits(ppl.map((x) => ({
+            api_only: true,
+            player_id: x.id,
+            name: x.fullName,
+            team: x.currentTeam?.name || '',
+            bats: x.batSide?.code || '?',
+            position: x.primaryPosition?.abbreviation || '',
+          })))
+        })
+        .catch(() => {})
+    }, 350)
+    return () => clearTimeout(debounceRef.current)
+  }, [q, hits.length])
+
   const pick = (p) => { setOpen(false); onPick?.(p) }
 
   if (!open) return null
@@ -71,9 +103,10 @@ export default function QuickSearch({ players = [], onPick }) {
           value={q}
           onChange={(e) => { setQ(e.target.value); setSel(0) }}
           onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(hits.length - 1, s + 1)) }
+            const list = hits.length ? hits : apiHits
+            if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(list.length - 1, s + 1)) }
             if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(0, s - 1)) }
-            if (e.key === 'Enter' && hits[sel]) pick(hits[sel])
+            if (e.key === 'Enter' && list[sel]) pick(list[sel])
           }}
           placeholder="Jump to any player… (Esc to close)"
           style={{
@@ -109,10 +142,36 @@ export default function QuickSearch({ players = [], onPick }) {
             </span>
           </div>
         ))}
-        {q.trim().length >= 2 && !hits.length && (
+        {q.trim().length >= 2 && !hits.length && !apiHits.length && (
           <div style={{ padding: '10px 16px', fontSize: 11, color: C.text3 }}>
-            Nobody on tonight&apos;s slate matches.
+            Nobody on tonight&apos;s slate matches{q.trim().length >= 3 ? ' — searching the whole league…' : '.'}
           </div>
+        )}
+        {!hits.length && apiHits.length > 0 && (
+          <>
+            <div style={{ padding: '7px 16px 3px', fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>
+              Not on the slate — live API
+            </div>
+            {apiHits.map((p, i) => (
+              <div
+                key={p.player_id}
+                onClick={() => pick(p)}
+                onMouseEnter={() => setSel(i)}
+                style={{
+                  display: 'flex', alignItems: 'baseline', gap: 8, padding: '9px 16px',
+                  cursor: 'pointer',
+                  background: i === sel ? 'rgba(249,115,22,.12)' : 'transparent',
+                  borderLeft: `3px solid ${i === sel ? C.orange : 'transparent'}`,
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</span>
+                <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+                  {p.team}{p.position ? ` · ${p.position}` : ''} · {p.bats}HB
+                </span>
+                <span style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>API</span>
+              </div>
+            ))}
+          </>
         )}
       </div>
     </div>

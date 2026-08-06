@@ -20,6 +20,11 @@ export default function ThresholdGrid({ playerId }) {
   // PF's filter row, the part worth taking: slice every window by venue and
   // watch the tiles recompute. 'all' | 'home' | 'away'.
   const [venue, setVenue] = useState('all')
+  // Interactive (2026-08-06): the window tiles are BUTTONS — the timeline
+  // below follows whichever one is active — and tapping a bar pins that
+  // game's full line under the chart.
+  const [span, setSpan] = useState('L20')
+  const [selGame, setSelGame] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -50,7 +55,8 @@ export default function ThresholdGrid({ playerId }) {
     for (const g of pool) { if (m.test(g) === first) k++; else break }
     stk = first ? k : -k
   }
-  const filteredLog = pool.slice(0, 20)
+  const SPAN_N = { L5: 5, L10: 10, L20: 20, Szn: 40 }
+  const filteredLog = pool.slice(0, SPAN_N[span] || 20)
 
   // Per-market "big game" thresholds for the tall bright bars.
   const EXTRA = { hit: 2, tb2: 4, hr: 2, run: 2, rbi: 2, hrr: 3 }
@@ -78,7 +84,7 @@ export default function ThresholdGrid({ playerId }) {
           const rr = data.markets[x.key]
           const p10 = rr?.L10?.n ? (100 * rr.L10.ok) / rr.L10.n : null
           return (
-            <button key={x.key} onClick={() => setMkt(x.key)} style={{
+            <button key={x.key} onClick={() => { setMkt(x.key); setSelGame(null) }} style={{
               padding: '4px 11px', borderRadius: 999, cursor: 'pointer',
               fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT,
               border: `1px solid ${mkt === x.key ? C.orange : C.border}`,
@@ -108,7 +114,7 @@ export default function ThresholdGrid({ playerId }) {
         )}
         <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
           {[['all', 'All'], ['home', 'Home'], ['away', 'Away']].map(([k, label]) => (
-            <button key={k} onClick={() => setVenue(k)} style={{
+            <button key={k} onClick={() => { setVenue(k); setSelGame(null) }} style={{
               padding: '2px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
               fontWeight: 700, fontFamily: NUM_FONT,
               border: `1px solid ${venue === k ? C.orange : C.border}`,
@@ -132,14 +138,22 @@ export default function ThresholdGrid({ playerId }) {
           {[['L5', 'Last 5'], ['L10', 'Last 10'], ['L20', 'Last 20'], ['Szn', 'Season']].map(([w, label]) => {
             const { ok, n } = r[w]
             const pct = n ? (100 * ok) / n : null
+            const on = span === w
             return (
-              <div key={w} style={{ textAlign: 'center', background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`, borderRadius: 9, padding: '7px 4px 6px' }}>
-                <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
+              <button key={w} onClick={() => { setSpan(w); setSelGame(null) }}
+                title="Click — the timeline below shows exactly this window"
+                style={{
+                  textAlign: 'center', cursor: 'pointer',
+                  background: on ? 'rgba(249,115,22,.08)' : 'rgba(255,255,255,.03)',
+                  border: `1px solid ${on ? C.orange : C.border}`, borderRadius: 9, padding: '7px 4px 6px',
+                  boxShadow: on ? '0 0 10px rgba(249,115,22,.18)' : 'none',
+                }}>
+                <div style={{ fontSize: 8, color: on ? C.orange : C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
                 <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: pct != null ? rateCol(pct) : C.text3 }}>
                   {pct != null ? `${pct.toFixed(0)}%` : '—'}
                 </div>
-                <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{n ? `${ok}/${n}` : ' '}</div>
-              </div>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{n ? `${ok}/${n}` : ' '}</div>
+              </button>
             )
           })}
           {ls?.[m.key]?.n > 0 && (
@@ -181,9 +195,11 @@ export default function ThresholdGrid({ playerId }) {
               const ab = abbrs?.[g.oppId] || g.opp
               const oppCol = q ? `rgba(249,115,22,${(0.18 + q.soft * 0.72).toFixed(2)})` : 'rgba(255,255,255,.08)'
               const oppNote = q ? ` · ${ab} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''
+              const isSel = selGame === `${g.date}${gi}`
               return (
                 <div key={gi} title={`${g.date} ${g.home ? 'vs' : '@'} ${ab} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`}
-                  style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  onClick={() => setSelGame(isSel ? null : `${g.date}${gi}`)}
+                  style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', cursor: 'pointer' }}>
                   {extra && (
                     <div style={{ fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900, color: '#4ade80', textAlign: 'center', marginBottom: 1 }}>{val}</div>
                   )}
@@ -192,19 +208,46 @@ export default function ThresholdGrid({ playerId }) {
                     background: ok
                       ? (extra ? 'linear-gradient(180deg, #86efac, #4ade80)' : 'linear-gradient(180deg, rgba(74,222,128,.75), rgba(74,222,128,.45))')
                       : 'rgba(248,113,113,.28)',
-                    boxShadow: extra ? '0 0 9px rgba(74,222,128,.45)' : 'none',
+                    boxShadow: isSel ? '0 0 0 1.5px #fff' : extra ? '0 0 9px rgba(74,222,128,.45)' : 'none',
                   }} />
-                  <div style={{ height: 3, borderRadius: 2, marginTop: 2, background: oppCol }} />
+                  <div style={{ height: 3, borderRadius: 2, marginTop: 2, background: isSel ? '#fff' : oppCol }} />
                 </div>
               )
             })}
           </div>
         )}
+
+        {/* Tapped bar → the game pinned in full, no hover needed (mobile
+            can't hover a tooltip). */}
+        {selGame && (() => {
+          const rev = [...filteredLog].reverse()
+          const idx = rev.findIndex((g, gi) => `${g.date}${gi}` === selGame)
+          if (idx < 0) return null
+          const g = rev[idx]
+          const q = staff?.[g.oppId]
+          const ab = abbrs?.[g.oppId] || g.opp
+          return (
+            <div style={{
+              marginTop: 7, padding: '6px 10px', borderRadius: 8, fontSize: 10.5,
+              fontFamily: NUM_FONT, color: C.text2, background: 'rgba(255,255,255,.04)',
+              border: `1px solid ${C.border2}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline',
+            }}>
+              <b style={{ color: C.text }}>{g.date} {g.home ? 'vs' : '@'} {ab}</b>
+              <span>{g.h} H</span><span>{g.tb} TB</span>
+              <span style={{ color: g.hr > 0 ? '#4ade80' : undefined, fontWeight: g.hr > 0 ? 800 : 400 }}>{g.hr} HR</span>
+              <span>{g.r} R</span><span>{g.rbi} RBI</span><span style={{ color: C.text3 }}>{g.ab} AB</span>
+              {q && <span style={{ color: C.text3 }}>staff #{q.rank}/30 · OPS-ag {q.ops.toFixed(3)}</span>}
+              <button onClick={() => setSelGame(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 11 }}>✕</button>
+            </div>
+          )
+        })()}
+
         <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-          Last {Math.min(20, filteredLog.length)} games, newest right. Tall bright green = big game
+          {filteredLog.length} games, newest right — the timeline follows whichever window tile is
+          selected above. Tall bright green = big game
           ({m.key === 'tb2' ? '4+ TB' : m.key === 'hrr' ? '3+ combined' : '2+'}, its number on top){staff && <>; the strip under each bar is the
           opposing staff — <span style={{ color: C.orange }}>brighter orange = softer arms</span>, so greens
-          over dark strips came against real pitching</>}. Hover any bar for the game.
+          over dark strips came against real pitching</>}. Tap any bar to pin that game.
         </div>
       </div>
     </div>

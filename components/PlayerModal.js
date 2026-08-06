@@ -49,14 +49,18 @@ function TabBtn({ active, onClick, children }) {
 // and put the opposing starter nowhere at all, despite the whole slate being
 // built around him. Pitch and Spray are separate now, and the arm he's facing
 // has his own tab.
+// Reordered 2026-08-06: reading order, not build order. Overview (the bet),
+// Splits (the head-to-head + situational), EV Log (the contact + zone map),
+// then the deeper bot panels, with Pitcher last since he has his own modal.
+// The api-only subset below is the tabs that run entirely on live pulls.
 const TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'pitcher',  label: '🥎 Pitcher' },
+  { key: 'splits',   label: '📅 Splits' },
+  { key: 'ev',       label: '⚡ EV Log' },
   { key: 'pitch',    label: '🎯 Pitch' },
   { key: 'spray',    label: '🗺 Spray' },
-  { key: 'ev',       label: '⚡ EV Log' },
-  { key: 'splits',   label: '📅 Splits' },
   { key: 'zones',    label: '🔥 Hot Zones' },
+  { key: 'pitcher',  label: '🥎 Pitcher' },
 ]
 
 // `inline` renders the same content as a plain panel instead of a popup.
@@ -128,6 +132,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   const pid = player?.player_id || player?.id
   useEffect(() => {
     if (!pid) return
+    if (player?.api_only) { setDetail(null); setDetailState('missing'); return }
     let alive = true
     setDetailState('loading'); setDetail(null)
     fetch(detailUrl(pid, slateMode))
@@ -137,8 +142,19 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
     return () => { alive = false }
   }, [pid, slateMode])
 
+  // An API-only player can land while a bot-only tab is open — snap home.
+  useEffect(() => { if (player?.api_only) setTab('overview') }, [player])
+
   if (!player) return null
   const p = detail ? { ...player, ...detail } : player
+
+  // API-ONLY PLAYERS (2026-08-06): anyone found through the league-wide
+  // search who isn't on the bot's slate. Every live-pull panel works for them
+  // — props grid, situational splits, zone map, EV-log header — so those tabs
+  // show; the bot-fed panels (scores, pitch tables, spray) would render empty
+  // zeros and are hidden instead of faked.
+  const apiOnly = !!p?.api_only
+  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'splits', 'ev'].includes(t.key)) : TABS
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -175,8 +191,13 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             <div>
               <div style={{ fontSize: 19, fontWeight: 900 }}>{nameOf(p)}</div>
               <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}>
-                {teamOf(p)} vs {oppOf(p)} · Lineup #{clean(p?.lineup_spot, '?')} · {clean(p?.handedness || p?.bats, '?')}HB
-                {p?.pitcher_name && <span> · vs {p.pitcher_name} ({p.pitcher_throws}HP)</span>}
+                {apiOnly ? (
+                  <>{clean(p?.team, '—')}{p?.position ? ` · ${p.position}` : ''} · {clean(p?.bats, '?')}HB
+                    <span style={{ color: C.orange }}> · not on tonight&apos;s bot slate — everything here is live API</span></>
+                ) : (
+                  <>{teamOf(p)} vs {oppOf(p)} · Lineup #{clean(p?.lineup_spot, '?')} · {clean(p?.handedness || p?.bats, '?')}HB
+                    {p?.pitcher_name && <span> · vs {p.pitcher_name} ({p.pitcher_throws}HP)</span>}</>
+                )}
               </div>
             </div>
             {!inline && (
@@ -187,7 +208,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
           {/* Watchlist + slip. You could open a hitter from any board, decide
               he's worth playing, and then have to close the modal and find his
               card again to add him. Both actions live here now. */}
-          {(onAdd || onWatch) && (
+          {!apiOnly && (onAdd || onWatch) && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
               {onWatch && (
                 <button
@@ -227,7 +248,8 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             </div>
           )}
 
-          {/* chips */}
+          {/* chips — model opinions, so they don't exist for API-only players */}
+          {!apiOnly && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
             <Chip color={rc}>{role}</Chip>
             <Chip color={C.text2}>{bestBet(p, 'hr')}</Chip>
@@ -235,6 +257,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             {hasMatchupEdge && <Chip color={C.orange}>🎯 Matchup Edge</Chip>}
             {pills.map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
           </div>
+          )}
 
           {/* tab bar + range toggle */}
           <div style={{
@@ -243,7 +266,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             flexWrap: 'wrap',
           }}>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {TABS.map(t => (
+              {visibleTabs.map(t => (
                 <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
               ))}
             </div>
@@ -254,7 +277,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             {tab !== 'overview' && detailState === 'loading' && (
               <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>Loading detail…</span>
             )}
-            {tab !== 'overview' && (detailState === 'missing' || detailState === 'error') && (
+            {!apiOnly && tab !== 'overview' && (detailState === 'missing' || detailState === 'error') && (
               <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
                 No detail file published for this hitter
               </span>
@@ -267,6 +290,15 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               {/* The prop hero leads — the thing you came to check. Stats
                   grid below it is the supporting evidence, not the opener. */}
               <ThresholdGrid playerId={pid} />
+              {apiOnly && (
+                <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 12px', borderLeft: `2px solid ${C.orange}`, paddingLeft: 10 }}>
+                  He&apos;s not in tonight&apos;s bot run, so there are no model scores or batted-ball
+                  detail here — but the props record above, the Splits tab (situational, live), and
+                  the EV Log&apos;s strike-zone map all pull straight from the league API and work
+                  for any player in baseball.
+                </div>
+              )}
+              {!apiOnly && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '8px 0 4px' }}>Model Scores</div>
@@ -324,7 +356,8 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   {pb > 0 && <Row label="P-BABIP" value={pb.toFixed(3)} />}
                 </div>
               </div>
-              {clean(p?.note || p?.summary, '') !== '—' && clean(p?.note || p?.summary, '') !== '' && (
+              )}
+              {!apiOnly && clean(p?.note || p?.summary, '') !== '—' && clean(p?.note || p?.summary, '') !== '' && (
                 <div style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
                   {clean(p?.note || p?.summary)}
                 </div>
@@ -375,7 +408,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   asks for first, so it goes first, wearing its sample-size
                   caveat instead of hiding. */}
               <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />
-              <PlayerSplits player={p} slateMode={slateMode} />
+              {!apiOnly && <PlayerSplits player={p} slateMode={slateMode} />}
               <SituationalSplits playerId={pid} kind="batter" />
             </>
           )}
