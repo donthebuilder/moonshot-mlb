@@ -24,18 +24,24 @@ const STATS = [
   { key: 'avg', label: 'AVG', hint: 'Average on pitches in this zone' },
 ]
 
-function Cell({ z, big }) {
+// align: for the out-of-zone quadrants the middle of the cell is hidden under
+// the inner 3×3 grid, so the value is pinned into the VISIBLE outer corner.
+function Cell({ z, big, align }) {
   const alpha = z ? (TEMP_ALPHA[z.temp] ?? 0.15) : 0
+  const [v, h] = align || ['center', 'center']
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'flex',
+      alignItems: v === 'top' ? 'flex-start' : v === 'bottom' ? 'flex-end' : 'center',
+      justifyContent: h === 'left' ? 'flex-start' : h === 'right' ? 'flex-end' : 'center',
       background: z ? `rgba(249,115,22,${alpha})` : 'rgba(255,255,255,.02)',
       border: `1px solid ${z && z.temp === 'hot' ? 'rgba(249,115,22,.7)' : C.border}`,
-      borderRadius: 4, minHeight: big ? 44 : 0, height: '100%',
+      borderRadius: 4, height: '100%', minHeight: 0, minWidth: 0,
       boxShadow: z && z.temp === 'hot' ? '0 0 10px rgba(249,115,22,.35)' : 'none',
+      padding: align ? '5px 7px' : 0, overflow: 'hidden',
     }}>
       <span style={{
-        fontFamily: NUM_FONT, fontSize: big ? 11 : 9.5, fontWeight: z && z.temp === 'hot' ? 900 : 600,
+        fontFamily: NUM_FONT, fontSize: big ? 11 : 9, fontWeight: z && z.temp === 'hot' ? 900 : 600,
         color: z ? (z.temp === 'hot' ? '#fff' : C.text2) : C.text3,
       }}>{z ? z.value : '—'}</span>
     </div>
@@ -88,17 +94,23 @@ export default function ZoneMap({ playerId, bats }) {
         </span>
       </div>
 
-      {/* Out-of-zone quadrants framing the 3×3 zone — the Gameday layout. */}
-      <div style={{ maxWidth: 240, margin: '0 auto' }}>
+      {/* Out-of-zone quadrants framing the 3×3 zone — the Gameday layout.
+          FIXED HEIGHT (2026-08-06): v1 sized the frame off its children while
+          the inner grid was absolutely positioned — the parent collapsed flat
+          and the zone spilled over the caption and controls below it. The
+          frame now owns its box, and each quadrant's value is pinned into its
+          visible outer corner instead of centered under the inner grid. */}
+      <div style={{ maxWidth: 250, margin: '0 auto' }}>
         <div style={{
-          position: 'relative', padding: 26,
+          position: 'relative', height: 290,
           display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 3,
         }}>
-          {['11', '12', '13', '14'].map((k) => (
-            <Cell key={k} z={zs[k]} />
-          ))}
+          <Cell z={zs['11']} align={['top', 'left']} />
+          <Cell z={zs['12']} align={['top', 'right']} />
+          <Cell z={zs['13']} align={['bottom', 'left']} />
+          <Cell z={zs['14']} align={['bottom', 'right']} />
           <div style={{
-            position: 'absolute', inset: 26,
+            position: 'absolute', inset: 44,
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)',
             gap: 3, background: '#0b0b0d', borderRadius: 6, padding: 3,
             border: `1px solid ${C.border2}`,
