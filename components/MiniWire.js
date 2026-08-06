@@ -167,7 +167,9 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
       {/* toast stack — fixed, above everything, never blocks the page */}
       {toasts.length > 0 && (
         <div style={{
-          position: 'fixed', right: 14, bottom: 14, zIndex: 300,
+          // TOP-right (2026-08-06, on request) — where the eye actually goes
+          // for news. Offset clears the sticky header.
+          position: 'fixed', right: 14, top: 74, zIndex: 300,
           display: 'flex', flexDirection: 'column', gap: 7, maxWidth: 'min(340px, 90vw)',
         }}>
           {toasts.map((t) => (
@@ -185,7 +187,7 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
               <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text, lineHeight: 1.4 }}>{t.text}</span>
             </div>
           ))}
-          <style>{'@keyframes wireToastIn { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }'}</style>
+          <style>{'@keyframes wireToastIn { from { transform: translateY(-8px); opacity: 0 } to { transform: none; opacity: 1 } }'}</style>
         </div>
       )}
 
