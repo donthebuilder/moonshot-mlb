@@ -1,8 +1,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'MLB HR Dashboard',
-  description: 'MLB Home Run picks, results, and pair history',
+  title: 'MOONSHOT · MLB',
+  description: 'MOONSHOT — MLB home run picks, live wire, and receipts',
 }
 
 // THE MOBILE LINCHPIN (found missing 2026-08-05). Without a viewport export,

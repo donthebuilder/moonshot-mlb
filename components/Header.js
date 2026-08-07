@@ -203,9 +203,12 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
 
           <div>
             <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
-              <span style={{ fontSize:18, fontWeight:900, letterSpacing:'-0.04em', color:C.text }}>MLB</span>
-              <span style={{ fontSize:18, fontWeight:900, letterSpacing:'-0.04em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>HR</span>
-              <span style={{ fontSize:11, fontWeight:700, color:C.text3, marginLeft:2, letterSpacing:'0.06em', textTransform:'uppercase', alignSelf:'center' }}>Dashboard</span>
+              {/* MOONSHOT · MLB (2026-08-07): the receipts card, the Discord
+                  posts, and the URL all said MOONSHOT while the header still
+                  wore the pre-migration Streamlit name. The sport tag stays
+                  so an NFL sibling can slot in later as MOONSHOT · NFL. */}
+              <span style={{ fontSize:18, fontWeight:900, letterSpacing:'-0.02em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>MOONSHOT</span>
+              <span style={{ fontSize:11, fontWeight:700, color:C.text3, marginLeft:2, letterSpacing:'0.06em', textTransform:'uppercase', alignSelf:'center' }}>· MLB</span>
             </div>
             <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />
           </div>
