@@ -140,7 +140,11 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               aligned: isAligned(p) ? 1 : 0,
               edgeF: nn(p?.pitch_type_match_score) > 0 ? 1 : 0,
               adj: scoreFor(p, type),
-              ...(type === 'hr' ? { raw: hrScore(p), iso: nn(p?.season_iso) * 100 } : {}),
+              // Raw hr_score rides on EVERY category (2026-08-08, Donovan):
+              // whatever board you're reading, the HR context is one glance
+              // away — a HIT pick with a live 70 HR score is a different bet
+              // than one at 30.
+              ...(type === 'hr' ? { raw: hrScore(p), iso: nn(p?.season_iso) * 100 } : { hrRaw: hrScore(p) }),
               rec: rec ? (rec[1] >= 3 ? `${(100 * rec[0] / rec[1]).toFixed(0)}% (${rec[0]}/${rec[1]})` : `${rec[0]}/${rec[1]}`) : '—',
               recSort: rec && rec[1] >= 3 ? (100 * rec[0]) / rec[1] : null,
               bestOther: `${best[0]} ${best[1].toFixed(0)}`,
@@ -178,6 +182,10 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: type === 'hr'
                 ? 'The number this board is ranked by: raw score × his ISO band’s measured HR rate'
                 : 'The score this board is ranked by' },
+            ...(type !== 'hr' ? [
+              { key: 'hrRaw', label: 'HR sc', w: 48, dp: 1,
+                title: 'The bot’s raw hr_score, for context on every board — this column never ranks here, but a high number means the power lane is live for him tonight too' },
+            ] : []),
             ...(type === 'hr' ? [
               { key: 'raw', label: 'Raw', w: 44, dp: 1, title: 'The bot’s unadjusted hr_score' },
               { key: 'iso', label: 'ISO', w: 42, dp: 0,
