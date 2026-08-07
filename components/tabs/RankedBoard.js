@@ -134,6 +134,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               facing: clean(p?.pitcher_name, 'TBD'),
               isPick: pick && pick === wantRole ? 1 : 0,
               otherPick: pick && pick !== wantRole ? pick : '',
+              b2b: Number(p?.games_since_last_hr) === 0 ? 1 : 0,
               weak: p?.weak_spot_flag ? 1 : 0,
               aligned: isAligned(p) ? 1 : 0,
               edgeF: nn(p?.pitch_type_match_score) > 0 ? 1 : 0,
@@ -158,6 +159,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: `The bot's designated ${{ hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
             { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,
               title: 'Picked tonight, but in a DIFFERENT category than this board — informational, not an endorsement here' },
+            { key: 'b2b', label: '🔁', flag: true, mark: '↻', w: 28,
+              title: 'Homered his LAST game — tonight is the back-to-back try. A heads-up, not a signal: B2Bs are folklore-grade, the score columns are the evidence.' },
             { key: 'weak',   label: '★', flag: true, mark: '★', w: 28,
               title: ['hr', 'hrr'].includes(type)
                 ? 'Weak spot — validated on HR outcomes: flagged hitters homered 18.0% vs 13.9%'

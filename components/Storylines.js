@@ -93,7 +93,17 @@ export default function Storylines({ players = [], onPlayerClick }) {
     return () => { alive = false }
   }, [players.length])
 
-  if (!data?.people?.length) return null
+  // ── BACK-TO-BACK WATCH (2026-08-07) — pure slate field, no API needed.
+  // games_since_last_hr === 0 means he homered in his most recent game;
+  // tonight is the back-to-back try. Sorted by the bot's own HR score so the
+  // list leads with hitters the model still likes tonight, not just anyone
+  // who ran into one. Computed before the API guard on purpose: this section
+  // must survive a failed people fetch.
+  const b2b = players
+    .filter((p) => Number(p?.games_since_last_hr) === 0)
+    .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
+
+  if (!data?.people?.length && !b2b.length) return null
 
   const byId = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
   const statOf = (person, type) => {
@@ -103,7 +113,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
 
   // ── milestones ──
   const miles = []
-  data.people.forEach((person) => {
+  ;(data?.people || []).forEach((person) => {
     const p = byId.get(person.id)
     if (!p) return
     const season = statOf(person, 'season')
@@ -144,7 +154,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
 
   // ── revenge games — facing a team he used to wear ──
   const revenge = []
-  if (data.history && data.abbrs) {
+  if (data?.history && data?.abbrs) {
     players.forEach((p) => {
       const hist = data.history[Number(p?.player_id ?? p?.id)] || []
       const opp = oppOf(p), own = teamOf(p)
@@ -167,14 +177,14 @@ export default function Storylines({ players = [], onPlayerClick }) {
 
   // ── birthdays ──
   const mmdd = new Date().toLocaleDateString('en-CA').slice(5)
-  const bdays = data.people
+  const bdays = (data?.people || [])
     .filter((person) => String(person.birthDate || '').slice(5) === mmdd && byId.has(person.id))
     .map((person) => ({ p: byId.get(person.id), age: person.currentAge }))
 
   // ── giveaways ──
   const lastNames = new Map(players.map((p) => [String(nameOf(p)).split(' ').slice(-1)[0].toLowerCase(), p]))
   const giveaways = []
-  ;(data.promos?.dates?.[0]?.games || []).forEach((g) => {
+  ;(data?.promos?.dates?.[0]?.games || []).forEach((g) => {
     const home = g?.teams?.home?.team?.name || ''
     ;(g.promotions || []).forEach((pr) => {
       const nm = String(pr.name || '')
@@ -189,7 +199,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
   })
   giveaways.sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.isBobble ? 1 : 0) - (a.isBobble ? 1 : 0))
 
-  if (!miles.length && !bdays.length && !giveaways.length && !duels.length && !revenge.length && !rivalries.length) return null
+  if (!b2b.length && !miles.length && !bdays.length && !giveaways.length && !duels.length && !revenge.length && !rivalries.length) return null
 
   const Row = ({ icon, children, p }) => (
     <div onClick={() => p && onPlayerClick?.(p)} style={{
@@ -209,9 +219,21 @@ export default function Storylines({ players = [], onPlayerClick }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 Storylines</span>
         <span style={{ fontSize: 9.5, color: C.text3 }}>
-          milestones in reach tonight · birthdays · giveaway nights — the human layer, live from the league
+          back-to-backs · milestones in reach · birthdays · giveaway nights — the human layer, live from the league
         </span>
       </div>
+
+      {b2b.slice(0, 6).map((x, i) => (
+        <Row key={`bb${i}`} icon="🔁" p={x}>
+          <b style={{ color: C.text }}>{nameOf(x)}</b> went deep <b style={{ color: '#f87171' }}>last game</b> — back-to-back watch
+          <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
+        </Row>
+      ))}
+      {b2b.length > 6 && (
+        <Row icon="🔁">
+          <span style={{ color: C.text3 }}>+ {b2b.length - 6} more homered their last game — full list lives on the Due tab at window 1</span>
+        </Row>
+      )}
 
       {miles.slice(0, 6).map((m, i) => (
         <Row key={`m${i}`} icon="🏁" p={m.p}>
