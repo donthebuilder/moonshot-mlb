@@ -69,10 +69,13 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
     // so the best game glows like a hot cell and cold games recede.
     const gsAll = built.map((c) => c.gs)
     const lo = Math.min(...gsAll), hi = Math.max(...gsAll)
+    const byGs = [...built].sort((a, b) => b.gs - a.gs)
+    const rankOf = new Map(byGs.map((c, i) => [c.pk, i + 1]))
     return built.map((c) => ({
       ...c,
       edge: c.gs >= slateMed ? '▲' : '▽',
       heat: hi > lo ? (c.gs - lo) / (hi - lo) : 0.5,
+      gsRank: rankOf.get(c.pk) || 0,
     }))
   }, [games])
 
@@ -89,23 +92,39 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {cards.map((c) => {
           const on = activeGame === c.pk
+          // PERSONALITY BANDS (2026-08-07, same language as the park board):
+          // the hottest game on the slate is the MAIN EVENT and burns; cold
+          // games freeze quietly. Bands come from heat (GS within tonight's
+          // range), so every slate has exactly one main event.
+          const band = c.gsRank === 1 ? { icon: '🌋', word: 'MAIN EVENT', col: botView ? '#22d3ee' : '#f97316' }
+            : c.heat >= 0.62 ? { icon: '🔥', word: '', col: botView ? '#22d3ee' : '#fb923c' }
+            : c.heat >= 0.3 ? { icon: '', word: '', col: botView ? '#22d3ee' : C.orange }
+            : { icon: '🧊', word: '', col: '#38bdf8' }
           return (
             <button
               key={c.pk}
               onClick={() => onSelect(c.pk)}
               style={{
                 textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
-                borderRadius: 10, minWidth: 0,
+                borderRadius: 11, minWidth: 0, position: 'relative', overflow: 'hidden',
                 flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(138 + c.heat * 52)}px`,
-                border: `1px solid ${on ? (botView ? '#22d3ee' : C.orange) : botView ? `rgba(34,211,238,${(0.15 + c.heat * 0.45).toFixed(2)})` : `rgba(249,115,22,${(0.12 + c.heat * 0.5).toFixed(2)})`}`,
+                border: `1px solid ${on ? (botView ? '#22d3ee' : C.orange) : `${band.col}${c.heat >= 0.62 ? '66' : '30'}`}`,
                 background: on
                   ? 'rgba(249,115,22,0.09)'
-                  : `linear-gradient(155deg, rgba(249,115,22,${(c.heat * 0.13).toFixed(3)}), rgba(17,17,19,1))`,
-                boxShadow: on ? `0 0 22px -9px ${C.orange}` : 'none',
+                  : `linear-gradient(160deg, ${band.col}${c.gsRank === 1 ? '1f' : c.heat >= 0.62 ? '12' : '08'} 0%, rgba(17,17,19,1) 62%)`,
+                boxShadow: on ? `0 0 22px -9px ${C.orange}` : c.gsRank === 1 ? `0 0 14px ${band.col}2e` : 'none',
                 opacity: c.past && !on ? 0.45 : 1,
                 transition: 'border-color .12s, background .12s',
               }}
             >
+              {/* GS-rank watermark — the ghost numeral that says where this
+                  game sits on the slate without a legend */}
+              <div style={{
+                position: 'absolute', top: -6, right: 2, fontFamily: NUM_FONT,
+                fontSize: 40, fontWeight: 900, color: band.col, opacity: 0.09,
+                lineHeight: 1, pointerEvents: 'none',
+              }}>{c.gsRank}</div>
+
               <div style={{
                 fontSize: 10, textTransform: 'uppercase', letterSpacing: '.07em',
                 color: on ? C.orange : C.text3, fontWeight: 700,
@@ -113,18 +132,29 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
               }}>
                 <span>{c.confirmed ? '✓' : '◻'}</span>
                 <span style={{ fontFamily: NUM_FONT }}>{c.time}</span>
+                {band.word && (
+                  <span style={{ fontSize: 7.5, fontWeight: 900, color: band.col, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
+                    {band.icon} {band.word}
+                  </span>
+                )}
+                {!band.word && band.icon && <span style={{ fontSize: 9 }}>{band.icon}</span>}
                 {c.weak > 0 && <span style={{ marginLeft: 'auto', color: C.yellow }}>★{c.weak}</span>}
               </div>
 
               <div style={{
-                fontFamily: NUM_FONT, fontSize: 14.5, fontWeight: 800, marginTop: 2,
-                letterSpacing: '-.02em', color: on ? C.text : C.text2,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                textDecoration: c.past ? 'line-through' : 'none',
+                display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2, minWidth: 0,
               }}>
-                {c.matchup}
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text3, marginLeft: 6 }}>
-                  GS {c.gs.toFixed(0)}<span style={{ color: c.edge === '▲' ? C.orange : C.text3 }}>{c.edge}</span>
+                <span style={{
+                  fontFamily: NUM_FONT, fontSize: 14.5, fontWeight: 800,
+                  letterSpacing: '-.02em', color: on ? C.text : C.text2,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+                  textDecoration: c.past ? 'line-through' : 'none',
+                }}>{c.matchup}</span>
+                <span title="Game Score vs tonight's median" style={{
+                  fontFamily: NUM_FONT, fontSize: c.heat >= 0.62 ? 14 : 11.5, fontWeight: 900,
+                  color: band.col, flexShrink: 0,
+                }}>
+                  {c.gs.toFixed(0)}<span style={{ fontSize: 9, opacity: 0.8 }}>{c.edge}</span>
                 </span>
               </div>
 
@@ -162,7 +192,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
       </div>
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 7 }}>
-        First-pitch order, heat-tinted and heat-SIZED — the warmer a card glows and the wider it
+        First-pitch order, heat-tinted and heat-SIZED — 🌋 marks tonight's MAIN EVENT (highest GS), 🔥 runs hot, 🧊 runs cold; the ghost numeral is the game's GS rank. The warmer a card glows and the wider it
         stretches, the higher its{' '}
         <strong style={{ color: C.text2 }}>GS</strong> (Game Score: the median of every hitter&apos;s
         four board scores, then the median across the lineup — &ldquo;is this whole lineup
