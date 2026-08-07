@@ -101,9 +101,9 @@ export function useBoardFilter(players) {
   return { filtered, state }
 }
 
-const lbl = { fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700 }
+const lbl = { fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }
 const chip = (on, col = C.orange) => ({
-  padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+  padding: '4px 11px', fontSize: 11, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
   fontFamily: NUM_FONT,
   border: `1px solid ${on ? col : C.border}`,
   background: on ? `${col}20` : 'transparent',
@@ -122,8 +122,8 @@ export default function BoardFilters({ state, total, shown }) {
 
   return (
     <div className="board-filters" style={{
-      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
-      padding: '10px 13px', marginBottom: 12,
+      background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`, border: `1px solid ${C.border}`, borderRadius: 12,
+      padding: '13px 16px', marginBottom: 14,
     }}>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ minWidth: 230 }}>
@@ -136,7 +136,7 @@ export default function BoardFilters({ state, total, shown }) {
                 style={{ ...chip(bandStat === s.key), padding: '2px 6px', fontSize: 9 }}>{s.label}</button>
             ))}
           </div>
-          <div style={{ ...lbl, marginTop: 3 }}>
+          <div style={{ ...lbl, marginTop: 4, fontSize: 12, color: C.orange, fontFamily: NUM_FONT }}>
             {stat.label} {showV(hrwMin)}–{showV(hrwMax)}
             {bandStat !== 'hrw' && <span style={{ textTransform: 'none', letterSpacing: 0 }}> · {bandStat === 'iso' ? 'season' : 'recent window'}</span>}
           </div>
@@ -197,7 +197,7 @@ export default function BoardFilters({ state, total, shown }) {
             match {catMode === 'all' ? 'ALL' : 'ANY'}
           </button>
         )}
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: shown < total ? C.orange : C.text3, fontFamily: NUM_FONT, marginLeft: 'auto', border: `1px solid ${C.border}`, borderRadius: 999, padding: '2px 11px' }}>
           {shown} of {total}
         </span>
         {active && (

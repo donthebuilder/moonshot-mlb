@@ -26,7 +26,8 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect }) {
+export default function GameStrip({ games, activeGame, onSelect, mode }) {
+  const botView = mode === 'botview'
   const cards = useMemo(() => {
     const built = games.map((g) => {
       const gp = g.players || []
@@ -95,8 +96,8 @@ export default function GameStrip({ games, activeGame, onSelect }) {
               style={{
                 textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
                 borderRadius: 10, minWidth: 0,
-                flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(118 + c.heat * 46)}px`,
-                border: `1px solid ${on ? C.orange : `rgba(249,115,22,${(0.12 + c.heat * 0.5).toFixed(2)})`}`,
+                flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(138 + c.heat * 52)}px`,
+                border: `1px solid ${on ? (botView ? '#22d3ee' : C.orange) : botView ? `rgba(34,211,238,${(0.15 + c.heat * 0.45).toFixed(2)})` : `rgba(249,115,22,${(0.12 + c.heat * 0.5).toFixed(2)})`}`,
                 background: on
                   ? 'rgba(249,115,22,0.09)'
                   : `linear-gradient(155deg, rgba(249,115,22,${(c.heat * 0.13).toFixed(3)}), rgba(17,17,19,1))`,
@@ -106,7 +107,7 @@ export default function GameStrip({ games, activeGame, onSelect }) {
               }}
             >
               <div style={{
-                fontSize: 9, textTransform: 'uppercase', letterSpacing: '.07em',
+                fontSize: 10, textTransform: 'uppercase', letterSpacing: '.07em',
                 color: on ? C.orange : C.text3, fontWeight: 700,
                 display: 'flex', gap: 5, alignItems: 'center',
               }}>
@@ -116,34 +117,34 @@ export default function GameStrip({ games, activeGame, onSelect }) {
               </div>
 
               <div style={{
-                fontFamily: NUM_FONT, fontSize: 12.5, fontWeight: 800, marginTop: 2,
+                fontFamily: NUM_FONT, fontSize: 14.5, fontWeight: 800, marginTop: 2,
                 letterSpacing: '-.02em', color: on ? C.text : C.text2,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 textDecoration: c.past ? 'line-through' : 'none',
               }}>
                 {c.matchup}
-                <span style={{ fontSize: 9, fontWeight: 600, color: C.text3, marginLeft: 5 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text3, marginLeft: 6 }}>
                   GS {c.gs.toFixed(0)}<span style={{ color: c.edge === '▲' ? C.orange : C.text3 }}>{c.edge}</span>
                 </span>
               </div>
 
               {c.arms && (
                 <div style={{
-                  fontSize: 9, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
+                  fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>⚾ {c.arms}</div>
               )}
               {c.topBat && (
                 <div style={{
-                  fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
+                  fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>🔝 {c.topBat}{c.heat >= 0.55 && c.topHrw ? ` · HRW ${c.topHrw}` : ''}</div>
               )}
               {/* Big cards carry more: the bot's designated pick and the top
                   ALT look ride only on cards hot enough to have the width. */}
-              {c.heat >= 0.55 && c.pickName && (
+              {(botView || c.heat >= 0.55) && c.pickName && (
                 <div style={{
-                  fontSize: 9, color: C.orange, fontFamily: NUM_FONT, marginTop: 1, fontWeight: 700,
+                  fontSize: 10.5, color: C.orange, fontFamily: NUM_FONT, marginTop: 1, fontWeight: 700,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>🤖 {c.pickName} <span style={{ opacity: 0.7, fontWeight: 400 }}>{c.pickRole} pick</span></div>
               )}
@@ -151,7 +152,7 @@ export default function GameStrip({ games, activeGame, onSelect }) {
                 <div
                   title={c.altWhy || 'The bot’s secondary HR look in this game'}
                   style={{
-                    fontSize: 9, color: '#A78BFA', fontFamily: NUM_FONT, marginTop: 1,
+                    fontSize: 10.5, color: '#A78BFA', fontFamily: NUM_FONT, marginTop: 1,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>🅰 {c.altName} {c.altScore} <span style={{ opacity: 0.6 }}>alt</span></div>
               )}

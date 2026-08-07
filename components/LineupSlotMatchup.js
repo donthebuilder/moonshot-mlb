@@ -66,16 +66,35 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
         </div>
       )}
 
-      {lineup.slice(0, 9).map((p) => {
-        const spot = Number(p?.lineup_spot) || 0
-        const sd = bySlot[spot]
-        const es = effSide(p?.bats, throws)
-        const sideMatch = weakSide && es && weakSide === `${es}HB`
-        const slotMatch = sd && (sd.ops >= 0.8 || worst.has(spot))
-        const both = sideMatch && slotMatch
-        const vsAvg = throws === 'L' ? n(p?.avg_vs_lhp, 0) : n(p?.avg_vs_rhp, 0)
-        const vsIso = throws === 'L' ? n(p?.iso_vs_lhp, 0) : n(p?.iso_vs_rhp, 0)
+      {/* EDGE per row (2026-08-06, "go a little harder"): one 0–100 number
+          braiding the three reads — how hard the arm bleeds to THIS slot,
+          how hard this batter hits THIS side, and the side match. The panel
+          names its own biggest mismatch up top. */}
+      {(() => {
+        const rows9 = lineup.slice(0, 9).map((p) => {
+          const spot = Number(p?.lineup_spot) || 0
+          const sd = bySlot[spot]
+          const es = effSide(p?.bats, throws)
+          const sideMatch = weakSide && es && weakSide === `${es}HB`
+          const slotMatch = sd && (sd.ops >= 0.8 || worst.has(spot))
+          const vsAvg = throws === 'L' ? n(p?.avg_vs_lhp, 0) : n(p?.avg_vs_rhp, 0)
+          const vsIso = throws === 'L' ? n(p?.iso_vs_lhp, 0) : n(p?.iso_vs_rhp, 0)
+          const edge = Math.round(
+            (sd ? Math.max(0, Math.min(1, (sd.ops - 0.55) / 0.5)) : 0) * 55
+            + Math.min(1, vsIso / 0.28) * 30
+            + (sideMatch ? 15 : 0),
+          )
+          return { p, spot, sd, sideMatch, slotMatch, both: sideMatch && slotMatch, vsAvg, vsIso, edge }
+        })
+        const top = [...rows9].sort((a, b) => b.edge - a.edge)[0]
         return (
+          <>
+            {top && top.edge >= 55 && (
+              <div style={{ fontSize: 9.5, color: C.orange, fontFamily: NUM_FONT, marginBottom: 4 }}>
+                🔥 biggest mismatch: <b>#{top.spot} {top.p?.name}</b> · edge {top.edge}
+              </div>
+            )}
+            {rows9.map(({ p, spot, sd, sideMatch, slotMatch, both, vsAvg, vsIso, edge }) => (
           <div key={`${spot}-${p?.player_id}`} onClick={() => onPlayerClick?.(p)}
             title={sd ? `Slot ${spot}: he allows ${sd.ops.toFixed(3)} OPS · ${sd.hr} HR in ${sd.ab} AB to this spot` : undefined}
             style={{
@@ -105,12 +124,23 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
             <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: vsIso >= 0.2 ? C.orange : C.text3, width: 62, textAlign: 'right', flexShrink: 0 }}>
               {vsAvg > 0 ? `${vsAvg.toFixed(3).replace(/^0/, '')}/${vsIso.toFixed(3).replace(/^0/, '')}` : '—'}
             </span>
-            <span style={{ width: 24, textAlign: 'right', fontSize: 10, flexShrink: 0 }}>
+            {/* L5 form + the edge number */}
+            <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: n(p?.last5_hr, 0) > 0 ? C.orange : C.text3, width: 44, textAlign: 'right', flexShrink: 0 }}
+              title="Last 5 games: hits / homers">
+              L5 {n(p?.last5_hits, 0)}H{n(p?.last5_hr, 0) > 0 ? `/${n(p?.last5_hr, 0)}HR` : ''}
+            </span>
+            <span style={{
+              fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, width: 26, textAlign: 'right', flexShrink: 0,
+              color: edge >= 70 ? C.orange : edge >= 50 ? '#FCD34D' : C.text3,
+            }} title="Edge 0–100: slot damage (55) + his ISO vs this side (30) + side match (15)">{edge}</span>
+            <span style={{ width: 20, textAlign: 'right', fontSize: 10, flexShrink: 0 }}>
               {both ? '🔥' : slotMatch ? '💥' : sideMatch ? '⭐' : ''}
             </span>
           </div>
+            ))}
+          </>
         )
-      })}
+      })()}
     </div>
   )
 }

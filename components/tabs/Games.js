@@ -138,7 +138,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
         paddingTop: 4, paddingBottom: 8, marginBottom: 14,
         borderBottom: `1px solid ${C.border}`,
       }}>
-        <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} />
+        <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} />
       </div>
 
       {/* The slate's blind spot: hitters batting tonight the bot never
@@ -263,7 +263,10 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                       {/* GRID (2026-08-06): five free-wrapping chips left one
                           orphan dangling off the line on narrow cards. Auto-
                           fit cells stretch every row edge to edge instead. */}
-                      <div style={{ display: 'grid', gap: 5, gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', alignItems: 'stretch' }}>
+                      {/* ONE row of five, always (2026-08-06) — the wrapped
+                          second row read as clutter. Chips squeeze instead of
+                          wrapping; phones get the auto-fit fallback via CSS. */}
+                      <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch' }}>
                         {picks.map((p) => {
                           const cat = prim(p)
                           const col = CAT_COLOR[cat] || C.text3

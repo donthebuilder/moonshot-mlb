@@ -134,6 +134,15 @@ export default function MobileCSS() {
         .dense-scroll td button { min-height: 34px !important; }
         button { touch-action: manipulation; }
       }
+
+      /* 2026-08-06 live-layer surfaces. The lineup pick strip is one row of
+         five on desktop; phones can't fit five readable chips, so they get
+         the wrapping grid back. Slot-by-slot rows squeeze their L5 column
+         out on narrow screens rather than truncating names. */
+      @media (max-width: 560px) {
+        .pickstrip { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)) !important; }
+        .board-filters input[type="range"] { min-height: 28px; }
+      }
     `}</style>
   )
 }
