@@ -243,7 +243,7 @@ export default function Pitchers({ players, onPlayerClick }) {
           return {
             _key: p.pitcher_id ?? p.pitcher_name,
             _raw: p,
-            name: p.pitcher_name,
+            name: `${p.pitcher_name}${(p.lineup || []).some((x) => x?.raw?.pitcher_projected) ? ' ≈' : ''}`,
             t: p.pitcher_throws,
             tm: p.team,
             vs: p.opponent_team,

@@ -187,6 +187,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {risk && <Chip color={risk.color}>{risk.label}</Chip>}
             {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
             {recency && <Chip color={recency.color}>{recency.label}</Chip>}
+            {clean(p?.alt_look_tag, '') && <Chip color={C.purple}>🔄 {clean(p.alt_look_tag)}</Chip>}
             {isAvoid && !altLook && <Chip color={AVOID_COLOR}>{avoidLabel}</Chip>}
             {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
           </>

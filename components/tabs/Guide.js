@@ -173,6 +173,25 @@ export default function Guide() {
         <GlossaryRow icon="📉" term="Backtest 'Pooled' only has an HR column" def="The bot writes pooled_metrics as an empty object, so the other columns can't be pooled from what's published. HR is recomputed from total home runs over total pool size, which is a real pooled rate. Blank cells mean unmeasured — NOT zero. Day average has all six columns." />
       </Section>
 
+      {/* ── The live era ── everything added in the 2026-08 push: live layer,
+          accountability, patterns, storylines. Written after the features
+          shipped, against the live build. */}
+      <Section title="The live layer & accountability (newest)" emoji="📡" defaultOpen={true}>
+        <P>
+          The site now runs live during games and grades itself in public. These are the pieces:
+        </P>
+        <GlossaryRow icon="📡" term="Live Wire" def="A live strip that follows you on every tab once games start. Homers, bot picks clearing, and big nights pop as toasts in the top-right of the screen. The full panel lives on the Scoreboard tab: every homer chip, every pick graded live (✓ cleared, … pending, ✗ didn't get there), plus an alerts stack for pairs one leg in and picks running out of time." />
+        <GlossaryRow icon="🔔" term="OS notifications" def="Tap the bell on the live strip and allow notifications in your browser — homers and pick-clears then reach your desktop or phone even when the tab is in the background. A test notification fires when you arm it, so you know it works." />
+        <GlossaryRow icon="🎤" term="Due-up alerts" def="When a bot pick steps into the box you get 🎤 UP NOW; when he's on deck, ⏳. No refresh needed." />
+        <GlossaryRow icon="🔴" term="Live At-Bats" def="Click an in-progress game on the Games tab: count, outs, who's up / on deck / in the hole (bot picks badged 🤖), and the last few plate appearances with exit velo and distance." />
+        <GlossaryRow icon="🧾" term="Report Card" def="Results now opens on the Report Card: last night graded A–D against the bot's own baselines, season records per category, and trust curves. The dashed green line on every curve is the pick-lock date — numbers to the right of it are ground truth, numbers to the left ran before locking and are shown dimmer on purpose." />
+        <GlossaryRow icon="🔒" term="Pick lock" def="Each game's picks freeze at its first pitch. Before first pitch the bot may still update for late lineups; after it, what you saw is what gets graded. A pick who ends with 0 at-bats is a no-play, not a miss." />
+        <GlossaryRow icon="🧭" term="Props matrix + Patterns" def="The props grid is a heat matrix now — every market across L5/L10/L20/season/last year at once — and the Patterns panel mines each hitter's real splits (home/road, vs soft staffs, vs each arm side, recent surge, hot-after-big-game) and only shows a pattern when the gap and sample size both clear a bar. If nothing clears, it says so." />
+        <GlossaryRow icon="📖" term="Storylines" def="On the Scoreboard: milestone watch (career and season round numbers in hits, HR, RBI, runs, SB, doubles, triples, total bases), birthday hitters, bobblehead/giveaway nights, batter-vs-pitcher duels with history, and revenge games against former teams. Tiny samples, big folklore — labeled as such." />
+        <GlossaryRow icon="≈" term="≈ projected pitcher" def="When a team hasn't announced a starter, the bot projects the arm whose rotation turn it is instead of showing TBD. Anywhere you see a yellow ≈ next to a pitcher, that's a projection, not an official listing." />
+        <GlossaryRow icon="🔄" term="Alt look chip" def="The bot's cross-check: a hitter whose case grades clearly better in a different lane than the one you're browsing wears a 🔄 chip naming that lane." />
+      </Section>
+
       <ColorKey />
 
       {/* ── 1. Absolute basics ── */}
@@ -276,10 +295,10 @@ export default function Guide() {
       {/* ── 7. Hot Zones tab ── */}
       <Section title="Understanding the Hot Zones tab" emoji="🔥">
         <Note>
-          <b>Not live yet.</b> This panel needs zone profiles from the bot&apos;s spray_cache step,
-          and those aren&apos;t in the published data at the moment — checked across all 298 detail
-          files. The tab will fill in on its own once the bot publishes them; until then it shows an
-          empty state rather than guessing.
+          <b>Now pulls live.</b> When the bot&apos;s own zone file is missing for a player, the tab
+          fetches zone stats straight from the league API instead of sitting empty — including a
+          single ⚔ Matchup view that overlays where the hitter does damage against where
+          tonight&apos;s starter actually throws, with a one-line verdict.
         </Note>
         <P>
           When it is running: open any player&apos;s profile and tap &quot;Hot Zones&quot; to see
@@ -305,7 +324,7 @@ export default function Guide() {
         <GlossaryRow icon="🏊" term="Pools" def="Groups of 4-6 players for pool-style contests, balanced for diversity across games." />
         <GlossaryRow icon="📈" term="Scoreboard" def="Live/today's actual game scores and status." />
         <GlossaryRow icon="🏅" term="Leaders" def="Season-long statistical leaders across the league." />
-        <GlossaryRow icon="✅" term="Results" def="Shows how the model's picks actually performed after games finish — how many home runs were 'on the sheet' (predicted) vs missed." />
+        <GlossaryRow icon="✅" term="Results" def="Opens on the Report Card — letter grades, season records, trust curves — with day-by-day detail behind it. Shows how the model's picks actually performed after games finish — how many home runs were 'on the sheet' (predicted) vs missed." />
         <GlossaryRow icon="⭐" term="Watchlist" def="Save specific players to track them across the day, even if you switch tabs." />
         <GlossaryRow icon="🗺️" term="Spray" def="Visual chart showing exactly where on the field a player's batted balls have landed recently." />
         <GlossaryRow icon="🤖" term="Bot" def="A live-updating ranked board with raw model output, plus access to the bot's text logs." />

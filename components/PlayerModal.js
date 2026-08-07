@@ -199,7 +199,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                     <span style={{ color: C.orange }}> · not on tonight&apos;s bot slate — everything here is live API</span></>
                 ) : (
                   <>{teamOf(p)} vs {oppOf(p)} · Lineup #{clean(p?.lineup_spot, '?')} · {clean(p?.handedness || p?.bats, '?')}HB
-                    {p?.pitcher_name && <span> · vs {p.pitcher_name} ({p.pitcher_throws}HP)</span>}</>
+                    {p?.pitcher_name && <span> · vs {p.pitcher_name} ({p.pitcher_throws}HP){p?.pitcher_projected ? <span title="No probable announced — rotation projection, not an official listing" style={{ color: C.yellow }}> ≈</span> : null}</span>}</>
                 )}
               </div>
             </div>
