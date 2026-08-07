@@ -57,6 +57,12 @@ let _cache = null
 
 export default function Storylines({ players = [], onPlayerClick }) {
   const [data, setData] = useState(_cache)
+  // Collapsed by default (2026-08-07, Donovan: "storyline kinda fills the
+  // page too much"). The header keeps a live count summary so a closed panel
+  // still tells you whether tonight has stories worth opening. Persists.
+  const [open, setOpen] = useState(false)
+  useEffect(() => { try { if (localStorage.getItem('story_open') === '1') setOpen(true) } catch {} }, [])
+  const flip = () => setOpen((v) => { try { localStorage.setItem('story_open', v ? '0' : '1') } catch {}; return !v })
 
   useEffect(() => {
     if (_cache || !players.length) return
@@ -216,13 +222,23 @@ export default function Storylines({ players = [], onPlayerClick }) {
       background: `linear-gradient(155deg, ${C.bg2}, rgba(252,211,77,.03))`,
       border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14,
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 Storylines</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>
-          back-to-backs · milestones in reach · birthdays · giveaway nights — the human layer, live from the league
+      <div onClick={flip} style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: open ? 6 : 0, cursor: 'pointer', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 Storylines {open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          {[
+            b2b.length && `🔁 ${b2b.length} b2b`,
+            miles.length && `🏁 ${miles.length} milestone${miles.length > 1 ? 's' : ''}`,
+            duels.length && `⚔ ${duels.length} duel${duels.length > 1 ? 's' : ''}`,
+            revenge.length && `🔄 ${revenge.length} revenge`,
+            rivalries.length && `🔥 ${rivalries.length} rivalry`,
+            bdays.length && `🎂 ${bdays.length}`,
+            giveaways.length && `🎁 ${giveaways.length} giveaway${giveaways.length > 1 ? 's' : ''}`,
+          ].filter(Boolean).join(' · ')}
         </span>
+        {!open && <span style={{ fontSize: 9, color: C.text3 }}>— the human layer, tap to open</span>}
       </div>
 
+      {open && (<>
       {b2b.slice(0, 6).map((x, i) => (
         <Row key={`bb${i}`} icon="🔁" p={x}>
           <b style={{ color: C.text }}>{nameOf(x)}</b> went deep <b style={{ color: '#f87171' }}>last game</b> — back-to-back watch
@@ -278,6 +294,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
           {g.star && <b style={{ color: C.orange }}> — {nameOf(g.star)}&apos;s own night, the folklore game</b>}
         </Row>
       ))}
+      </>)}
     </div>
   )
 }

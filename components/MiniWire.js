@@ -238,8 +238,8 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
 
       {/* the strip — hidden on the Scoreboard (full wire lives there) */}
       {tab !== 'scoreboard' && live.length > 0 && (
-        <button onClick={onGo} title="Open the full Live Wire on the Scoreboard" style={{
-          display: 'flex', alignItems: 'baseline', gap: 10, width: '100%', cursor: 'pointer',
+        <div style={{
+          display: 'flex', alignItems: 'baseline', gap: 10, width: '100%',
           background: 'linear-gradient(90deg, rgba(74,222,128,.06), rgba(74,222,128,.015))',
           border: '1px solid rgba(74,222,128,.22)', borderRadius: 9,
           padding: '4px 12px', marginBottom: 10, textAlign: 'left',
@@ -257,8 +257,16 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
               : 'Click to get browser notifications when this tab is in the background — homers, your pick due up, K-alerts. Opt-in, nothing leaves your device.'}
             style={{ marginLeft: 'auto', fontSize: 12, cursor: 'pointer', opacity: notif === 'on' ? 1 : 0.55 }}
           >{notif === 'on' ? '🔔' : '🔕'}</span>
-          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>open wire →</span>
-        </button>
+          <button
+            onClick={onGo}
+            title="Open the full Live Wire on the Scoreboard"
+            style={{
+              fontSize: 9, color: '#4ade80', fontFamily: NUM_FONT, fontWeight: 800,
+              cursor: 'pointer', background: 'transparent',
+              border: '1px solid rgba(74,222,128,.3)', borderRadius: 6, padding: '2px 8px',
+            }}
+          >open wire →</button>
+        </div>
       )}
     </>
   )

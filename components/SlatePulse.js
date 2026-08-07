@@ -44,6 +44,12 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
   const [yday, setYday] = useState(null)
   const [showDiff, setShowDiff] = useState(false)
   const [showAllUnconf, setShowAllUnconf] = useState(false)
+  // Collapsible like the Since panel (2026-08-07, Donovan: everything on this
+  // page should be hideable). Choice persists per device; effect-read so the
+  // server render and first client render agree.
+  const [unconfOpen, setUnconfOpen] = useState(false)
+  useEffect(() => { try { if (localStorage.getItem('sp_unconf_open') === '1') setUnconfOpen(true) } catch {} }, [])
+  const flipUnconf = () => setUnconfOpen((v) => { try { localStorage.setItem('sp_unconf_open', v ? '0' : '1') } catch {}; return !v })
   const [colOpen, setColOpen] = useState({})
 
   const ydayDate = useMemo(() => {
@@ -121,14 +127,15 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
           border: '1px solid rgba(252,211,77,.3)', borderRadius: 11,
           padding: '8px 12px', marginBottom: 8,
         }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 5 }}>
+          <div onClick={flipUnconf} style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: unconfOpen ? 5 : 0, cursor: 'pointer' }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#FCD34D' }}>
-              ⏳ {unconfirmed.length} pick{unconfirmed.length > 1 ? 's' : ''} not lineup-confirmed
+              ⏳ {unconfirmed.length} pick{unconfirmed.length > 1 ? 's' : ''} not lineup-confirmed {unconfOpen ? '▾' : '▸'}
             </span>
             <span style={{ fontSize: 9, color: C.text3 }}>
               unconfirmed hitters homered 10.2% vs 15.2% confirmed across the archive — watch these until they lock
             </span>
           </div>
+          {unconfOpen && (<>
           {/* Restraint pass (2026-08-06): a 49-chip wall buried the page.
               Eight chips — the ones locking SOONEST, which are the only
               urgent ones — and an honest expander for the rest. */}
@@ -163,6 +170,7 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
               </button>
             )}
           </div>
+          </>)}
         </div>
       )}
 
