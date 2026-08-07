@@ -883,7 +883,9 @@ function HRByPitch({ homers = [], captureReport, players = [], pick, setPick }) 
 
 export default function Results({ results, backtest, players = [], onPlayerClick }) {
   const [tab, setTab] = useState('hr')
-  const [subTab, setSubTab] = useState('overview')
+  // Receipts-first (2026-08-06): the Report card IS the product — it opens
+  // the tab. Overview and the rest are one click away.
+  const [subTab, setSubTab] = useState('card')
   const [pitchPick, setPitchPick] = useState(null)
 
   // DAY PICKER.

@@ -107,16 +107,50 @@ export default function ReportCard({ backtest }) {
       })
       const base = n ? (100 * ok) / n : null
       const last = lastDate ? days.find((d) => d.date === lastDate) : null
-      return { cat, days, ok, n, approx, base, last, grade: gradeOf(last?.rate, base) }
+      // since the pick lock — the record that can't have been flattered
+      let lockOk = 0, lockN = 0
+      days.filter((d) => d.date >= LOCK_DATE).forEach((d) => {
+        if (d.ok != null) { lockOk += d.ok; lockN += d.n } else { lockOk += Math.round((d.rate / 100) * d.size); lockN += d.size }
+      })
+      return { cat, days, ok, n, approx, base, last, lockOk, lockN, grade: gradeOf(last?.rate, base) }
     })
     return { rows, lastDate, dates }
   }, [backtest])
 
   if (!model) return null
   const anyApprox = model.rows.some((r) => r.approx)
+  const seasonOk = model.rows.reduce((a, r) => a + r.ok, 0)
+  const seasonN = model.rows.reduce((a, r) => a + r.n, 0)
+  const lockOk = model.rows.reduce((a, r) => a + r.lockOk, 0)
+  const lockN = model.rows.reduce((a, r) => a + r.lockN, 0)
 
   return (
     <div>
+      {/* THE HEADLINE RECORD — season, and the part that can't be flattered */}
+      <div style={{
+        display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline',
+        background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.05))`,
+        border: `1px solid ${C.border}`, borderRadius: 11, padding: '10px 15px', marginBottom: 14,
+      }}>
+        <div>
+          <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Season, every pick</div>
+          <div style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900 }}>
+            {seasonOk}/{seasonN} <span style={{ fontSize: 14, color: seasonN && (100 * seasonOk) / seasonN >= 45 ? '#4ade80' : C.orange }}>{seasonN ? ((100 * seasonOk) / seasonN).toFixed(1) : '—'}%</span>
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 8.5, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Since the lock</div>
+          <div style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900, color: lockN ? C.text : C.text3 }}>
+            {lockN ? `${lockOk}/${lockN}` : 'building…'}
+            {lockN > 0 && <span style={{ fontSize: 14, marginLeft: 6, color: (100 * lockOk) / lockN >= 45 ? '#4ade80' : C.orange }}>{((100 * lockOk) / lockN).toFixed(1)}%</span>}
+          </div>
+        </div>
+        <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, flex: '1 1 260px', minWidth: 0 }}>
+          The since-lock number is the one that matters going forward: every pick in it froze at first
+          pitch and could never be revised. It starts small and grows nightly — that&apos;s the record
+          being built in public.
+        </div>
+      </div>
       {/* ── 1. last night ── */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>🧾 Report card</span>
