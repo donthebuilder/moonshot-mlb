@@ -5,6 +5,7 @@ import { btnStyle } from '../ui'
 import LongestBoard from './LongestBoard'
 import DueBoard from './DueBoard'
 import LuckReport from '../LuckReport'
+import ParkBoard from '../ParkBoard'
 
 // 🚀 POWER — Longest + Due, merged (2026-08-04).
 //
@@ -16,9 +17,17 @@ import LuckReport from '../LuckReport'
 
 export default function PowerTab({ players, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
   const [view, setView] = useState(initial)
+  // Park click → filter the Longest board to that game (2026-08-07). If the
+  // Due view is open, clicking a park flips to Longest first — the filter
+  // only means something there.
+  const [venueFilter, setVenueFilter] = useState('')
+  const pickVenue = (v) => { setVenueFilter(v); if (v) setView('longest') }
 
   return (
     <div>
+      {/* Tonight's parks, ranked — the page's weather report, above both boards */}
+      <ParkBoard players={players} activeVenue={venueFilter} onVenueClick={pickVenue} onPlayerClick={onPlayerClick} />
+
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         <button onClick={() => setView('longest')} style={btnStyle(C.orange, view === 'longest')}>
           🚀 Longest — who hits it farthest
@@ -28,7 +37,7 @@ export default function PowerTab({ players, onWatch, watchIds, onPlayerClick, in
         </button>
       </div>
       {view === 'longest'
-        ? <LongestBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+        ? <LongestBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} venueFilter={venueFilter} onClearVenue={() => setVenueFilter('')} />
         : <DueBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />}
 
       {/* Luck lives with power on purpose: Due is distance-based regression,
