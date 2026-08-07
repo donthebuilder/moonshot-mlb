@@ -1,7 +1,42 @@
 'use client'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../lib/player'
+
+// WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
+// board into tonight's weather desk — live game status (delayed / postponed /
+// suspended), first pitch, per-team lineup confirmation and a delay-risk
+// read off the rain chance. Context lane only; nothing here feeds a score.
+function useGameStatus() {
+  const [st, setSt] = useState({})
+  useEffect(() => {
+    let alive = true
+    const load = () => {
+      const today = new Date().toLocaleDateString('en-CA')
+      fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&fields=dates,games,gamePk,status,detailedState,abstractGameState`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!alive || !j) return
+          const m = {}
+          ;(j?.dates?.[0]?.games || []).forEach((g) => {
+            m[g.gamePk] = { detail: g?.status?.detailedState || '', state: g?.status?.abstractGameState || '' }
+          })
+          setSt(m)
+        })
+        .catch(() => {})
+    }
+    load()
+    const id = setInterval(load, 5 * 60_000) // weather desk cadence, not live-wire cadence
+    return () => { alive = false; clearInterval(id) }
+  }, [])
+  return st
+}
+
+const timeText = (t) => {
+  if (!t) return ''
+  const d = new Date(t)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
 
 // "Luis García Jr." must not render as "Jr." — keep the suffix attached.
 const SUFFIX = new Set(['jr.', 'jr', 'sr.', 'sr', 'ii', 'iii', 'iv'])
@@ -44,11 +79,17 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
           parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 0)),
           wxEff: n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null)),
           roof: clean(p?.roof, ''),
+          rain: n(p?.weather_precip_chance, n(p?.precip_chance, 0)) * 100,
+          time: p?.game_time || null,
           matchup: `${teamOf(p) || '?'} vs ${oppOf(p) || '?'}`,
           bats: [],
+          confByTeam: {},
         })
       }
-      map.get(pk).bats.push(p)
+      const g0 = map.get(pk)
+      g0.bats.push(p)
+      const tm = teamOf(p)
+      if (tm && !(tm in g0.confByTeam)) g0.confByTeam[tm] = p?.lineup_confirmed !== false
     })
     const out = [...map.values()].filter((g) => g.venue || g.temp)
     const windOut = (g) => /out/i.test(g.windLabel) ? g.wind : /in\b/i.test(g.windLabel) ? -g.wind : 0
@@ -62,6 +103,8 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
     out.sort((a, b) => b.edge - a.edge)
     return out
   }, [players])
+
+  const statuses = useGameStatus()
 
   if (!parks.length) return null
 
@@ -79,7 +122,7 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>🏟 Tonight&apos;s parks</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          🌋 launch pads → 🧊 ice boxes · park factor + tonight&apos;s air · tap to filter the board
+          🌋 launch pads → 🧊 ice boxes · live status, first pitch, rain risk, lineup checks · tap to filter the board
         </span>
       </div>
       <div style={{
@@ -137,6 +180,44 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
                 {g.parkHR > 0 && <span>×{g.parkHR.toFixed(2)}</span>}
                 {roofNote && <span>🏠 {roofNote}</span>}
               </div>
+
+              {/* the weather-desk line: live status beats schedule beats nothing */}
+              {(() => {
+                const st = statuses[g.pk]
+                const bad = st && /delay|postpon|suspend/i.test(st.detail)
+                const live = st?.state === 'Live'
+                const final = st?.state === 'Final'
+                const teams = Object.keys(g.confByTeam)
+                const rainy = g.rain >= 20 && !final && !/dome|closed/i.test(g.roof)
+                return (
+                  <div style={{ display: 'flex', gap: 7, alignItems: 'baseline', marginTop: 3, fontFamily: NUM_FONT, fontSize: 8.5, flexWrap: 'wrap' }}>
+                    {bad ? (
+                      <span style={{ color: '#f87171', fontWeight: 900 }}>⚠ {st.detail.toUpperCase()}</span>
+                    ) : live ? (
+                      <span style={{ color: '#4ade80', fontWeight: 800 }}>● LIVE</span>
+                    ) : final ? (
+                      <span style={{ color: C.text3, fontWeight: 700 }}>FINAL</span>
+                    ) : (
+                      g.time && <span style={{ color: C.text3 }}>⏰ {timeText(g.time)}</span>
+                    )}
+                    {rainy && (
+                      <span title="Rain chance from the bot's weather pull — a delay-risk read, not a forecast of one" style={{ color: g.rain >= 50 ? '#f87171' : '#7dd3fc', fontWeight: 800 }}>
+                        ☔ {Math.round(g.rain)}%{g.rain >= 50 ? ' delay risk' : ''}
+                      </span>
+                    )}
+                    {teams.length === 2 && !final && (
+                      <span title="Per-team lineup confirmation — ✓ posted, ◻ still projected" style={{ color: C.text3 }}>
+                        {teams.map((tm, ti) => (
+                          <span key={tm}>
+                            {tm} <b style={{ color: g.confByTeam[tm] ? '#4ade80' : '#FCD34D' }}>{g.confByTeam[tm] ? '✓' : '◻'}</b>
+                            {ti === 0 ? ' · ' : ''}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* threats as clean pills — the 💪 read as clip-art (Donovan).
                   Top-3 parks get a matchup hook instead: THE bat vs THE arm,

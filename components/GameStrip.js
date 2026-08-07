@@ -70,6 +70,18 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
         altName: altOk ? shortName(alt.name) : null,
         altScore: altOk ? nn(alt.alt_hr_score).toFixed(0) : null,
         altWhy: altOk ? String(alt.alt_reason || '') : '',
+        // BOTH lineups (2026-08-07, Donovan): one ✓ hid a half-projected
+        // game. Per-team marks now — ✓✓ both posted, ✓◻ one still projected.
+        confMarks: (() => {
+          const byTeam = {}
+          gp.forEach((x) => {
+            const tm = x?.team
+            if (tm && !(tm in byTeam)) byTeam[tm] = x?.lineup_confirmed !== false
+          })
+          const ts = Object.keys(byTeam)
+          if (ts.length !== 2) return null
+          return { marks: ts.map((t) => byTeam[t] ? '✓' : '◻').join(''), tip: ts.map((t) => `${t} ${byTeam[t] ? 'posted' : 'projected'}`).join(' · ') }
+        })(),
         pk: g.game_pk,
         matchup: `${g.away || '—'} @ ${g.home || '—'}`,
         time: timeText(g.game_time),
@@ -148,7 +160,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
                 color: on ? C.orange : C.text3, fontWeight: 700,
                 display: 'flex', gap: 5, alignItems: 'center',
               }}>
-                <span>{c.confirmed ? '✓' : '◻'}</span>
+                <span title={c.confMarks ? c.confMarks.tip : (c.confirmed ? 'lineups confirmed' : 'projected lineups')}>
+                  {c.confMarks ? c.confMarks.marks : (c.confirmed ? '✓' : '◻')}
+                </span>
                 <span style={{ fontFamily: NUM_FONT }}>{c.time}</span>
                 {band.word && (
                   <span style={{ fontSize: 7.5, fontWeight: 900, color: band.col, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
