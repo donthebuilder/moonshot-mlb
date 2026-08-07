@@ -44,10 +44,10 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   const sLo = Math.min(...shownScores, 0)
   const sHi = Math.max(...shownScores, 1)
 
+  // Mobile (2026-08-06): the side-by-side grid squeezed the detail pane into
+  // a sliver on phones — MobileCSS stacks these and shortens the list so
+  // picking a player doesn't mean scrolling past 200 rows.
   return (
-    {/* Mobile (2026-08-06): the side-by-side grid squeezed the detail pane
-        into a sliver on phones — MobileCSS stacks these and shortens the
-        list so picking a player doesn't mean scrolling past 200 rows. */}
     <div className="playerboard" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 14, alignItems: 'start' }}>
       <div className="playerboard-side" style={{ position: 'sticky', top: 12 }}>
         <input
