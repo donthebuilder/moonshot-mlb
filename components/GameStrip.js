@@ -13,6 +13,23 @@ import { nn, hrScore, prodScore, median as med } from '../lib/player'
 // First-pitch order, always. You read a slate chronologically -- re-ranking by
 // strength makes you hunt for the 7:05 game you're about to bet.
 
+// "J. Mlodzinski", suffix-aware — surnames alone truncated to "Thornt…" on
+// narrow cards and bare "Lowe" carried no identity (2026-08-07).
+const SUFFIX = new Set(['jr.', 'jr', 'sr.', 'sr', 'ii', 'iii', 'iv'])
+const shortName = (full) => {
+  const parts = String(full || '').trim().split(/\s+/)
+  if (!parts[0]) return ''
+  if (parts.length === 1) return parts[0]
+  const last = SUFFIX.has(parts[parts.length - 1].toLowerCase())
+    ? parts.slice(-2).join(' ') : parts[parts.length - 1]
+  return `${parts[0][0]}. ${last}`
+}
+const lastName = (full) => {
+  const parts = String(full || '').trim().split(/\s+/)
+  if (parts.length >= 2 && SUFFIX.has(parts[parts.length - 1].toLowerCase())) return parts.slice(-2).join(' ')
+  return parts.slice(-1)[0] || ''
+}
+
 const playerScore = (p) => med([
   hrScore(p), prodScore(p), nn(p?.hrw_score), nn(p?.damage_conversion_score),
 ])
@@ -44,12 +61,13 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
       const alt = gp.reduce((a, b) => (nn(b?.alt_hr_score) > nn(a?.alt_hr_score) ? b : a), gp[0] || {})
       const altOk = alt?.name && nn(alt.alt_hr_score) > 0 && alt !== head
       return {
-        arms: arms.map((a) => String(a).split(' ').slice(-1)[0]).join(' v '),
-        topBat: head?.name ? `${String(head.name).split(' ').slice(-1)[0]} ${hrScore(head).toFixed(0)}` : '',
+        arms: arms.map(lastName).join(' · '),
+        armsFull: arms.join(' vs '),
+        topBat: head?.name ? `${shortName(head.name)} ${hrScore(head).toFixed(0)}` : '',
         topHrw: head?.name && nn(head?.hrw_score) > 0 ? nn(head.hrw_score).toFixed(0) : null,
-        pickName: pick?.name ? String(pick.name).split(' ').slice(-1)[0] : null,
+        pickName: pick?.name ? shortName(pick.name) : null,
         pickRole: pick ? String(pick.game_pick_role).split('/')[0].trim().toUpperCase() : null,
-        altName: altOk ? String(alt.name).split(' ').slice(-1)[0] : null,
+        altName: altOk ? shortName(alt.name) : null,
         altScore: altOk ? nn(alt.alt_hr_score).toFixed(0) : null,
         altWhy: altOk ? String(alt.alt_reason || '') : '',
         pk: g.game_pk,
@@ -159,7 +177,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
               </div>
 
               {c.arms && (
-                <div style={{
+                <div title={c.armsFull} style={{
                   fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>⚾ {c.arms}</div>

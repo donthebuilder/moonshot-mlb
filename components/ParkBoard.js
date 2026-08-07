@@ -100,6 +100,7 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
               title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "the bot's weather HR effect" : 'wind/temp heuristic (bot weather effect not published for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs neutral. Ranks this board, scores nothing.`}
               style={{
                 cursor: 'pointer', position: 'relative', overflow: 'hidden', minWidth: 0,
+                gridColumn: i2 === 0 && g.edge > 0 ? 'span 2' : 'auto',
                 background: `linear-gradient(160deg, ${band.col}${isTop ? '26' : '14'} 0%, ${band.col}05 55%, transparent 100%)`,
                 border: `1px solid ${isActive ? band.col : `${band.col}${isTop ? '70' : '35'}`}`,
                 borderRadius: 12, padding: '9px 11px 8px',
@@ -137,21 +138,46 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
                 {roofNote && <span>🏠 {roofNote}</span>}
               </div>
 
-              {g.threats.length > 0 && (
-                <div style={{ display: 'flex', gap: 7, marginTop: 5, flexWrap: 'wrap', borderTop: `1px solid ${band.col}22`, paddingTop: 4 }}>
+              {/* threats as clean pills — the 💪 read as clip-art (Donovan).
+                  Top-3 parks get a matchup hook instead: THE bat vs THE arm,
+                  which is the sentence you'd actually say out loud. */}
+              {g.threats.length > 0 && (isTop ? (
+                <div style={{ marginTop: 5, borderTop: `1px solid ${band.col}22`, paddingTop: 4 }}>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); onPlayerClick?.(g.threats[0]) }}
+                    style={{ fontSize: 10, fontWeight: 800, color: C.text, cursor: 'pointer' }}
+                  >
+                    {surname(nameOf(g.threats[0]))}
+                    <b style={{ fontFamily: NUM_FONT, color: band.col }}> {n(g.threats[0]?.longest_hr_score, 0).toFixed(0)}</b>
+                    <span style={{ color: C.text3, fontWeight: 600 }}> vs {surname(clean(g.threats[0]?.pitcher_name, 'TBD'))}</span>
+                  </span>
+                  {g.threats[1] && (
+                    <span
+                      onClick={(e) => { e.stopPropagation(); onPlayerClick?.(g.threats[1]) }}
+                      style={{ fontSize: 9, color: C.text3, cursor: 'pointer', marginLeft: 8 }}
+                    >
+                      + {surname(nameOf(g.threats[1]))} <b style={{ fontFamily: NUM_FONT, color: band.col }}>{n(g.threats[1]?.longest_hr_score, 0).toFixed(0)}</b>
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap', borderTop: `1px solid ${band.col}22`, paddingTop: 4 }}>
                   {g.threats.map((p) => (
                     <span
                       key={p?.player_id || nameOf(p)}
                       onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }}
                       title={`Biggest distance threat in this building tonight — longest-HR score ${n(p?.longest_hr_score, 0).toFixed(0)}`}
-                      style={{ fontSize: 9, fontWeight: 700, color: C.text2, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      style={{
+                        fontSize: 8.5, fontWeight: 700, color: C.text2, cursor: 'pointer', whiteSpace: 'nowrap',
+                        border: `1px solid ${band.col}30`, borderRadius: 999, padding: '1px 7px',
+                        background: `${band.col}0a`,
+                      }}
                     >
-                      💪 {surname(nameOf(p))}
-                      <b style={{ fontFamily: NUM_FONT, color: band.col }}> {n(p?.longest_hr_score, 0).toFixed(0)}</b>
+                      {surname(nameOf(p))} <b style={{ fontFamily: NUM_FONT, color: band.col }}>{n(p?.longest_hr_score, 0).toFixed(0)}</b>
                     </span>
                   ))}
                 </div>
-              )}
+              ))}
             </div>
           )
         })}

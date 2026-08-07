@@ -68,67 +68,73 @@ function BoardRow({ p, i, onPlayerClick }) {
   const pickCol = pickColors[pick] || C.text3
   const isTrap = p.trap_flag && !p.got_hr
 
-  // HIDDEN GEM STYLING: this is the bot's own sheet as a board, so it wears
-  // the sheet's skin — a score-length ember bar burning under each row (width
-  // = hr_score), oversized mono rank, terminal warmth. Nothing else on the
-  // site looks like this on purpose.
+  // DE-TACKIFIED (2026-08-07, "the raw board looks tacky"): the full-height
+  // ember wash, zero-padded ranks and emoji pile-up read as decoration. Now:
+  // a 2px score underline at the row's foot, plain medals for the top three,
+  // flags capped at two with the full set in the tooltip, and the score in a
+  // tier color instead of flat orange.
   const barW = Math.min(100, Math.max(0, Number(p.hr_score) || 0))
+  const flagsAll = []
+  if (p.weak_spot_flag) flagsAll.push(['⭐', 'weak pitcher spot'])
+  if (p.pitch_type_match_flag) flagsAll.push(['🎯', p.pitch_type_match_note || 'pitch match'])
+  if (p.hidden_hr_value) flagsAll.push(['👻', 'hidden value'])
+  if (isTrap) flagsAll.push(['⚠️', p.trap_reason || 'trap flag'])
+  const flagTitle = flagsAll.map(([e, t]) => `${e} ${t}`).join(' · ')
+  const scoreCol = barW >= 70 ? C.orange : barW >= 55 ? '#FCD34D' : C.text2
+  const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
   return (
     <div
       style={{
         position: 'relative',
-        display: 'grid', gridTemplateColumns: '40px 1fr auto',
-        gap: 8, alignItems: 'center', padding: '9px 14px',
+        display: 'grid', gridTemplateColumns: '36px 1fr auto',
+        gap: 10, alignItems: 'center', padding: '8px 14px 9px',
         borderTop: i ? `1px solid ${C.border}` : 'none',
-        background: isTrap ? 'rgba(248,113,113,0.05)' : 'transparent',
+        background: isTrap ? 'rgba(248,113,113,0.04)' : 'transparent',
         cursor: onPlayerClick ? 'pointer' : 'default',
         overflow: 'hidden',
       }}
       onClick={() => onPlayerClick && onPlayerClick(p)}
     >
       <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: `${barW}%`,
-        background: 'linear-gradient(90deg, rgba(249,115,22,0.10), rgba(249,115,22,0.02))',
-        borderRight: '1px solid rgba(249,115,22,0.25)', pointerEvents: 'none',
+        position: 'absolute', left: 0, bottom: 0, height: 2, width: `${barW}%`,
+        background: `linear-gradient(90deg, ${scoreCol}, transparent)`,
+        opacity: 0.55, pointerEvents: 'none',
       }} />
-      <div style={{
-        fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, textAlign: 'center',
-        color: i < 3 ? C.orange : C.text3, position: 'relative',
-      }}>{String(i + 1).padStart(2, '0')}</div>
+      <div style={{ fontFamily: NUM_FONT, fontSize: medal ? 15 : 12, fontWeight: 800, textAlign: 'center', color: C.text3 }}>
+        {medal || i + 1}
+      </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</span>
-          {p.weak_spot_flag && <span style={{ fontSize: 11 }}>⭐</span>}
-          {p.pitch_type_match_flag && <span style={{ fontSize: 11 }} title={p.pitch_type_match_note || ''}>🎯</span>}
-          {p.hidden_hr_value && <span style={{ fontSize: 11 }}>👻</span>}
-          {isTrap && <span style={{ fontSize: 11 }} title={p.trap_reason || ''}>⚠️</span>}
-          <span style={{ fontSize: 10, color: C.text3 }}>{p.team}</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.team}</span>
+          {flagsAll.length > 0 && (
+            <span title={flagTitle} style={{ fontSize: 10.5, cursor: 'help', flexShrink: 0, letterSpacing: 1 }}>
+              {flagsAll.slice(0, 2).map(([e]) => e).join('')}
+            </span>
+          )}
           {pick && (
-            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: `${pickCol}22`, color: pickCol, fontWeight: 700, textTransform: 'uppercase', fontFamily: NUM_FONT }}>{pick}</span>
+            <span style={{ fontSize: 8.5, padding: '1px 6px', borderRadius: 999, border: `1px solid ${pickCol}55`, background: `${pickCol}14`, color: pickCol, fontWeight: 800, fontFamily: NUM_FONT, flexShrink: 0 }}>🤖 {pick}</span>
           )}
         </div>
-        <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           <span style={{ color: col }}>{role}</span>
-          {/* Family-tinted, chrome-free — the sheet skin keeps its terminal
-              feel, but the pills stop being undifferentiated grey. */}
-          {pills.map((pl, pi) => <span key={pi} title={pillMeta(pl).title} style={{ color: pillMeta(pl).color }}>{pl}</span>)}
-        </div>
-        <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
-          vs {p.pitcher_name} ({p.pitcher_throws}) · #{p.lineup_spot} · {p.opponent}
-          {p.pitcher_attack_tag ? ` · ${p.pitcher_attack_tag}` : ''}
+          {' · '}vs {p.pitcher_name} ({p.pitcher_throws}) · #{p.lineup_spot}
+          {pills.length > 0 && <> · {pills.map((pl, pi) => (
+            <span key={pi} title={pillMeta(pl).title} style={{ color: pillMeta(pl).color }}>{pl}{pi < pills.length - 1 ? ' ' : ''}</span>
+          ))}</>}
           {isTrap && p.trap_reason ? <span style={{ color: '#f87171', marginLeft: 4 }}>{p.trap_reason}</span> : null}
         </div>
       </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 16, color: C.orange }}>{Math.round(p.hr_score || 0)}</div>
-        <div style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
-          HRW {Math.round(p.hrw_score || 0)} {hrwEmoji(p.hrw_score || 0)}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
         {(p.last5_hr || 0) > 0 && (
-          <div style={{ fontFamily: NUM_FONT, fontSize: 10, color: (p.last5_hr || 0) >= 2 ? C.orange : C.text3 }}>
-            L5: {p.last5_hr}HR
-          </div>
+          <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: (p.last5_hr || 0) >= 2 ? C.orange : C.text3 }}>
+            L5 {p.last5_hr}HR
+          </span>
         )}
+        <span title={`HRW ${Math.round(p.hrw_score || 0)}`} style={{ fontSize: 11 }}>{hrwEmoji(p.hrw_score || 0)}</span>
+        <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 16, color: scoreCol, width: 34, textAlign: 'right' }}>
+          {Math.round(p.hr_score || 0)}
+        </span>
       </div>
     </div>
   )
