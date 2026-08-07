@@ -17,12 +17,17 @@ import { nameOf, teamOf, playerId } from '../lib/player'
 //      bobblehead is being handed out at his park.
 // Narrative on purpose — these are the lines you say out loud on stream.
 
+// 'xbh' is computed (2B+3B+HR); everything else reads straight off the stat.
 const S_MILES = [
-  { key: 'hits', label: 'H', targets: [200], within: 3, word: 'hits' },
-  { key: 'homeRuns', label: 'HR', targets: [30, 40, 50, 60], within: 2, word: 'homers' },
-  { key: 'rbi', label: 'RBI', targets: [100], within: 3, word: 'RBI' },
-  { key: 'runs', label: 'R', targets: [100], within: 3, word: 'runs' },
-  { key: 'stolenBases', label: 'SB', targets: [30, 40, 50], within: 2, word: 'steals' },
+  { key: 'hits', targets: [200], within: 3, word: 'hits' },
+  { key: 'homeRuns', targets: [30, 40, 50, 60], within: 2, word: 'homers' },
+  { key: 'rbi', targets: [100], within: 3, word: 'RBI' },
+  { key: 'runs', targets: [100], within: 3, word: 'runs' },
+  { key: 'stolenBases', targets: [30, 40, 50], within: 2, word: 'steals' },
+  { key: 'doubles', targets: [30, 40, 50], within: 2, word: 'doubles' },
+  { key: 'triples', targets: [10, 15], within: 1, word: 'triples' },
+  { key: 'totalBases', targets: [300, 350, 400], within: 8, word: 'total bases' },
+  { key: 'xbh', targets: [50, 60, 70, 80], within: 2, word: 'extra-base hits' },
 ]
 const C_MILES = [
   { key: 'hits', targets: [500, 1000, 1500, 2000, 2500, 3000], within: 5, word: 'career hits' },
@@ -30,7 +35,16 @@ const C_MILES = [
   { key: 'rbi', targets: [500, 1000, 1500, 2000], within: 5, word: 'career RBI' },
   { key: 'runs', targets: [500, 1000, 1500, 2000], within: 5, word: 'career runs' },
   { key: 'doubles', targets: [200, 300, 400, 500], within: 3, word: 'career doubles' },
+  { key: 'triples', targets: [50, 100], within: 2, word: 'career triples' },
+  { key: 'totalBases', targets: [1000, 2000, 3000, 4000, 5000], within: 10, word: 'career total bases' },
+  { key: 'xbh', targets: [300, 500, 700, 1000], within: 4, word: 'career extra-base hits' },
 ]
+
+const readStat = (st, key) => {
+  if (!st) return NaN
+  if (key === 'xbh') return (Number(st.doubles) || 0) + (Number(st.triples) || 0) + (Number(st.homeRuns) || 0)
+  return Number(st[key])
+}
 
 let _cache = null
 
@@ -74,7 +88,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
     const season = statOf(person, 'season')
     const career = statOf(person, 'career')
     S_MILES.forEach((m) => {
-      const v = Number(season?.[m.key])
+      const v = readStat(season, m.key)
       if (!Number.isFinite(v)) return
       m.targets.forEach((t) => {
         const need = t - v
@@ -82,7 +96,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
       })
     })
     C_MILES.forEach((m) => {
-      const v = Number(career?.[m.key])
+      const v = readStat(career, m.key)
       if (!Number.isFinite(v)) return
       m.targets.forEach((t) => {
         const need = t - v
