@@ -210,6 +210,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                         <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT }}>{t}</span>
                         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
                           vs {String(lineup[0]?.pitcher_name || 'TBD').split(' ').slice(-1)[0]}
+                          {lineup[0]?.pitcher_projected ? ' ≈' : ''}
                           {lineup[0]?.pitcher_hr9 ? ` · ${Number(lineup[0].pitcher_hr9).toFixed(2)} HR/9` : ''}
                         </span>
                       </div>

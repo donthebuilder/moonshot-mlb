@@ -60,7 +60,11 @@ function StarterPanel({ team, rows, onPlayerClick }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>{team} bats</span>
-        <span style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT }}>vs {name} ({throws}HP)</span>
+        <span style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT }}>
+          vs {name} ({throws}HP){rows.some((r2) => r2?.pitcher_projected) && (
+            <span title="No probable announced — this is the bot's rotation projection (the arm whose turn it is), not an official listing" style={{ color: C.yellow }}> ≈ projected</span>
+          )}
+        </span>
         {trend && (
           <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: trendUp ? '#4ade80' : C.text3 }}
             title="The starter's recent direction, from his L3 vs season gap">{trend}</span>
