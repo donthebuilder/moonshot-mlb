@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, clean, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
+import { teamAbbrs } from '../lib/gamelogs'
 
 // 📡 LIVE WIRE — the site's live feed, and deliberately NOT a highlight
 // ticker (ESPN owns that). This is the model grading itself in public:
@@ -22,7 +23,9 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
   const [busy, setBusy] = useState(false)
   const [auto, setAuto] = useState(false)
   const [open, setOpen] = useState(true)
+  const [abbrs, setAbbrs] = useState(null)
   const timer = useRef(null)
+  useEffect(() => { teamAbbrs().then(setAbbrs).catch(() => {}) }, [])
 
   const refresh = async () => {
     setBusy(true)
@@ -163,6 +166,33 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
             </div>
           )}
 
+          {/* the spine: every game, score and inning, live first */}
+          {abbrs && (live.length + finals.length) > 0 && (
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
+              {[...live, ...finals].map((g) => {
+                const isLive = g.state === 'Live'
+                const half = /top/i.test(g.half) ? '▲' : /bot/i.test(g.half) ? '▼' : ''
+                return (
+                  <div key={g.pk} title={isLive ? `${g.detail} — ${g.half} ${g.inning}` : g.detail} style={{
+                    display: 'flex', gap: 5, alignItems: 'baseline', fontFamily: NUM_FONT,
+                    border: `1px solid ${isLive ? 'rgba(74,222,128,.35)' : C.border}`,
+                    background: isLive ? 'rgba(74,222,128,.05)' : 'transparent',
+                    borderRadius: 6, padding: '2px 8px', opacity: isLive ? 1 : 0.55,
+                  }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, color: C.text2 }}>
+                      {abbrs[g.awayId] || '?'} <b style={{ color: C.text }}>{g.awayScore ?? '-'}</b>
+                      {'–'}
+                      <b style={{ color: C.text }}>{g.homeScore ?? '-'}</b> {abbrs[g.homeId] || '?'}
+                    </span>
+                    <span style={{ fontSize: 8.5, fontWeight: 900, color: isLive ? '#4ade80' : C.text3 }}>
+                      {isLive ? `${half}${g.inning ?? ''}` : 'F'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           {/* homers as they land, model-tagged */}
           {homers.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
@@ -192,6 +222,18 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
                 const done = line.state === 'Final'
                 const status = cleared === true ? '✓' : done ? '✗' : '…'
                 const sCol = cleared === true ? '#4ade80' : done ? 'rgba(248,113,113,.8)' : C.text3
+                // Round 2 (2026-08-07): the counting markets show live progress
+                // toward their own bar, and a pick literally at the plate says so.
+                const g = gameOf(line)
+                const pid2 = Number(p?.player_id ?? p?.id)
+                const due = line.state === 'Live' && g
+                  ? (g.upBatter === pid2 ? '🎤' : g.onDeck === pid2 ? '⏳' : '')
+                  : ''
+                const combo2 = line.h + line.r + line.rbi
+                const prog = cleared === true ? null
+                  : role === 'HRR' ? `${Math.min(combo2, 2)}/2`
+                  : (role === 'CONTACT' || role === 'TB') ? `${Math.min(line.tb, 2)}/2`
+                  : null
                 return (
                   <div key={pidOf(p)} onClick={() => onPlayerClick?.(p)} style={{
                     display: 'flex', gap: 6, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
@@ -204,6 +246,8 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                       {nameOf(p)}
                     </span>
+                    {due && <span title={due === '🎤' ? 'At the plate RIGHT NOW' : 'On deck'} style={{ fontSize: 10, flexShrink: 0 }}>{due}</span>}
+                    {prog && <span title="Live progress toward this pick's own bar" style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: prog.startsWith('1') ? '#FCD34D' : C.text3, flexShrink: 0 }}>{prog}</span>}
                     <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.text3, flexShrink: 0 }}>
                       {line.h}-{line.ab}{line.hr ? ` ${line.hr}HR` : ''}{line.tb > 1 ? ` ${line.tb}TB` : ''}
                     </span>

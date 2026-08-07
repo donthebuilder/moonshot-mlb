@@ -159,8 +159,34 @@ export default function ZoneMap({ playerId, bats }) {
     const bestH = ZONES.reduce((a, k) => (hE[k] > hE[a] ? k : a), ZONES[0])
     const bestP = ZONES.reduce((a, k) => (pE[k] > pE[a] ? k : a), ZONES[0])
     const bh = bz[Number(bestH)], bp = bz[Number(bestP)]
+    // COLLISION COUNT (2026-08-07, "how many matches are there"). Absolute
+    // gates, NOT the per-map normalization (which always crowns one cell per
+    // color even on a nothing matchup): a zone counts only when the starter
+    // really goes there (≥7% of pitches) AND the hitter is really dangerous
+    // (xSLG ≥ .500) or really lost (xwOBA ≤ .280) in it. So "0 collisions"
+    // is a possible — and honest — answer.
+    const hisZones = [], theirZones = []
+    if (hasP) ZONES.forEach((k) => {
+      const zn = Number(k); const b = bz[zn]; const u = use[zn] ?? 0
+      if (!b || u < 0.07 || b.low_sample) return
+      if ((b.xslg ?? 0) >= 0.5) hisZones.push(zn)
+      else if ((b.xwoba ?? 1) <= 0.28) theirZones.push(zn)
+    })
+    const tally = hasP ? (
+      <div style={{ fontSize: 10, fontFamily: NUM_FONT, marginBottom: 6, color: C.text2 }}>
+        ⚔ <b style={{ color: C.text }}>{hisZones.length + theirZones.length}</b> real collision{hisZones.length + theirZones.length === 1 ? '' : 's'} tonight
+        {hisZones.length + theirZones.length > 0 ? <>
+          {' — '}<b style={{ color: C.orange }}>{hisZones.length} his</b>
+          {hisZones.length > 0 && <span style={{ color: C.text3 }}> ({hisZones.map((z) => ZONE_NAME[z]).join(', ')})</span>}
+          {' · '}<b style={{ color: '#f87171' }}>{theirZones.length} the starter&apos;s</b>
+          {theirZones.length > 0 && <span style={{ color: C.text3 }}> ({theirZones.map((z) => ZONE_NAME[z]).join(', ')})</span>}
+        </> : <span style={{ color: C.text3 }}> — his zones and the starter&apos;s traffic barely overlap; the map below is relative shading only</span>}
+        <span title="A zone counts only when the starter throws there ≥7% AND the hitter slugs ≥.500 (his) or runs ≤.280 xwOBA (theirs), with a real sample. The map's colors are normalized per side; this count is absolute." style={{ cursor: 'help', color: C.text3 }}> ⓘ</span>
+      </div>
+    ) : null
     verdict = (
       <div style={{ fontSize: 10.5, lineHeight: 1.55, marginBottom: 9, color: C.text2 }}>
+        {tally}
         {bh && hE[bestH] > 0 && <>
           <b style={{ color: C.orange }}>⚡ Best edge:</b> {ZONE_NAME[Number(bestH)]} — he slugs{' '}
           <b style={{ fontFamily: NUM_FONT }}>{fmt3(bh.xslg)}</b> there
