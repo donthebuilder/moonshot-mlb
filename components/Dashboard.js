@@ -150,6 +150,15 @@ export default function Dashboard() {
   })
 
   const dateLabel = clean(obj(data).date || obj(data).slate_date || obj(data).label, mode === 'today' ? 'Today' : 'Tomorrow')
+  // STALE-RESULTS GATE (2026-08-07, Donovan's catch). From midnight until the
+  // grader's first run (~9am Phoenix), results_live.json on the branch is
+  // still LAST NIGHT's file — and "Live pools" / "Live HR Pairs" rendered it
+  // under today's header as if it were tonight. Pools and Pairs only get the
+  // results object when its date matches the slate being viewed; the Results
+  // tab keeps the ungated object because its day picker owns its own dates.
+  const slateDate = clean(obj(data).date || obj(data).slate_date, '')
+  const resultsForSlate =
+    (!slateDate || !clean(results?.date, '') || results.date === slateDate) ? results : null
   // These render from their own payloads, so an empty slate must not blank them.
   const tabsWithoutPlayers = ['pairs', 'bot', 'results', 'guide', 'watch', 'pairhist']
   const showEmpty = !loading && !players.length && !tabsWithoutPlayers.includes(tab)
@@ -187,9 +196,9 @@ export default function Dashboard() {
             {/* 'hitshrr' merged into 'board' — route kept as alias for old links */}
             {tab === 'hitshrr'     && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'scoreboard'  && <Scoreboard players={players} results={results} backtest={backtest} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
-            {tab === 'pools'       && <Pools players={players} results={results} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
+            {tab === 'pools'       && <Pools players={players} results={resultsForSlate} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={results} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
+            {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
