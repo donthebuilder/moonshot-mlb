@@ -11,6 +11,7 @@ import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
 
 const TITLES = {
+  top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
   hr:  ['HR Board',          'Top home run picks — ranked ISO-adjusted: raw score × measured HR rate of the hitter’s ISO band (8.2% low to 22.2% high, from 3,973 graded picks)'],
   hrr: ['HRR Board',         'Top runs + RBI picks'],
   hit: ['Hits Board',        'Top base-hit picks'],
@@ -32,7 +33,7 @@ function fetchMatrix() {
   return _matrixPromise
 }
 // Which archive category answers for each board type.
-const ARCHIVE_CAT = { hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }
+const ARCHIVE_CAT = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }
 
 export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60 }) {
   const [title, sub] = TITLES[type] || TITLES.hr
@@ -115,7 +116,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           rows={ranked.map((p, i) => {
             const rec = recordOf(nameOf(p))
             const cats = { HR: hrScore(p), Hit: hitScore(p), HRR: prodScore(p), TB: tbScore(p) }
-            const selfLabel = { hr: 'HR', hit: 'Hit', hrr: 'HRR', tb: 'TB', contact: 'TB' }[type] || 'HR'
+            const selfLabel = { top: 'HR', hr: 'HR', hit: 'Hit', hrr: 'HRR', tb: 'TB', contact: 'TB' }[type] || 'HR'
             const others = Object.entries(cats).filter(([k]) => k !== selfLabel)
             const best = others.sort((a, b) => b[1] - a[1])[0]
             const pick = String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
@@ -124,7 +125,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // A HIT pick showing a robot on the HR board reads as an HR
             // endorsement the bot never made — that's how confidence gets
             // spent on the wrong bet.
-            const wantRole = { hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type]
+            const wantRole = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type]
             return {
               _key: `${playerId(p)}-${i}`,
               _raw: p,
@@ -156,7 +157,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             { key: 'team',   label: 'Tm', heat: false, w: 34, mono: true, dim: true },
             { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true },
             { key: 'isPick', label: '🤖', flag: true, mark: '●', w: 30,
-              title: `The bot's designated ${{ hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
+              title: `The bot's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
             { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,
               title: 'Picked tonight, but in a DIFFERENT category than this board — informational, not an endorsement here' },
             { key: 'b2b', label: '🔁', flag: true, mark: '↻', w: 28,

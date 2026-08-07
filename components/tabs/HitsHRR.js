@@ -188,6 +188,7 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button onClick={() => setView('top')}     style={btnStyle(C.yellow, view === 'top')}>🥇 Top</button>
           <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}>🧨 HR</button>
           <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}>💠 Hits</button>
           <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}>🏁 HRR</button>
@@ -207,6 +208,11 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
           the undercard. */}
       {(() => {
         const PROOF = {
+          top: {
+            color: C.yellow,
+            head: 'The bot’s overall ranking — graded as an HR bet, honestly',
+            body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Graded on homers across the 39-day archive TOP delivered 19.2% — decent for an any-HR bet, and the recent locked stretch runs hotter (see the Report Card). Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
+          },
           hr: {
             color: C.orange,
             head: 'Ranked by the site, not the bot — and here’s why',
