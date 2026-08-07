@@ -173,6 +173,18 @@ export default function MobileCSS() {
       * { font-variant-numeric: tabular-nums; }
 
       /* Text selection + focus in the brand ember, not browser blue. */
+      /* search + team filter focus states (Controls.js wears classes because
+         inline styles can't express :focus) — ember ring, slight lift */
+      .moon-search:focus {
+        border-color: rgba(249,115,22,.65) !important;
+        box-shadow: 0 0 0 3px rgba(249,115,22,.13), 0 0 20px rgba(249,115,22,.10);
+      }
+      .moon-select:focus {
+        border-color: rgba(249,115,22,.65) !important;
+        box-shadow: 0 0 0 3px rgba(249,115,22,.13);
+      }
+      .moon-select option { background: #131315; color: #fafafa; font-weight: 500; }
+      input.moon-search::-webkit-search-cancel-button { display: none; }
       ::selection { background: rgba(249,115,22,.35); color: #fff; }
       :focus-visible { outline: 2px solid rgba(249,115,22,.6); outline-offset: 2px; border-radius: 4px; }
 
