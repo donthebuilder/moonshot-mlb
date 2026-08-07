@@ -164,6 +164,39 @@ export default function MobileCSS() {
         .lineup-cols .lineup-col:first-child { border-top: none; }
         .l5col { display: none !important; }
       }
+
+      /* ══ COSMETICS PASS (2026-08-06) — small touches, compounding ══ */
+
+      /* Tabular numerals everywhere: every score column, every record, every
+         countdown lines up digit-for-digit. The single cheapest thing that
+         makes a stats site feel engineered instead of typed. */
+      * { font-variant-numeric: tabular-nums; }
+
+      /* Text selection + focus in the brand ember, not browser blue. */
+      ::selection { background: rgba(249,115,22,.35); color: #fff; }
+      :focus-visible { outline: 2px solid rgba(249,115,22,.6); outline-offset: 2px; border-radius: 4px; }
+
+      /* Thin dark scrollbars — the stock chrome bars were the last stock
+         thing on the page. */
+      * { scrollbar-width: thin; scrollbar-color: #3a3a40 transparent; }
+      *::-webkit-scrollbar { width: 8px; height: 8px; }
+      *::-webkit-scrollbar-thumb { background: #3a3a40; border-radius: 4px; }
+      *::-webkit-scrollbar-thumb:hover { background: #f97316; }
+      *::-webkit-scrollbar-track { background: transparent; }
+
+      /* Tab switches breathe: content fades up 4px instead of teleporting. */
+      .tab-fade { animation: tabFade .16s ease-out; }
+      @keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+      /* Cards lift a hair on hover — grids that respond feel alive. */
+      .bot-picks-grid > *:hover, .pickstrip > button:hover {
+        transform: translateY(-1px);
+        transition: transform .1s ease-out;
+      }
+
+      /* The live dot actually pulses. */
+      .live-pulse { animation: livePulse 2s ease-in-out infinite; display: inline-block; }
+      @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
     `}</style>
   )
 }

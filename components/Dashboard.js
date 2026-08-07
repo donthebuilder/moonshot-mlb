@@ -157,6 +157,9 @@ export default function Dashboard() {
   return (
     <>
       <MobileCSS />
+      {/* The ember signature — same bar the night-receipts card wears. */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
+        background: 'linear-gradient(90deg, #f97316, #FCD34D 50%, #f97316)' }} />
       <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={results} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
@@ -173,7 +176,7 @@ export default function Dashboard() {
         ) : showEmpty ? (
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
-          <>
+          <div key={tab} className="tab-fade">
             {tab === 'games'       && <Games players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
@@ -193,7 +196,7 @@ export default function Dashboard() {
             {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} pairSummary={pairSummary} results={results} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide />}
-          </>
+          </div>
         )}
       </main>
       {/* ⌘K / "/" from anywhere → jump to any player's modal. */}

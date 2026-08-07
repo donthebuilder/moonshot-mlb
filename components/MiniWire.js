@@ -244,7 +244,7 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
           border: '1px solid rgba(74,222,128,.22)', borderRadius: 9,
           padding: '4px 12px', marginBottom: 10, textAlign: 'left',
         }}>
-          <span style={{ fontSize: 10.5, fontWeight: 900, color: '#4ade80' }}>📡 LIVE</span>
+          <span className="live-pulse" style={{ fontSize: 10.5, fontWeight: 900, color: '#4ade80' }}>📡 LIVE</span>
           <span style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT }}>
             {live.length} game{live.length > 1 ? 's' : ''}
             {picks.length > 0 && <> · picks <b style={{ color: cleared ? '#4ade80' : C.text2 }}>{cleared}/{picks.length}</b> cleared</>}
