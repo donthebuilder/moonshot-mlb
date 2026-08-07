@@ -77,28 +77,12 @@ export default function LuckReport({ players = [], onPlayerClick }) {
 
   if (!unlucky.length && !lucky.length) return null
 
-  const Card = ({ x, color }) => (
-    <div
-      onClick={() => onPlayerClick?.(x.p)}
-      style={{
-        background: `linear-gradient(155deg, ${color}12, ${color}04)`,
-        border: `1px solid ${color}35`, borderRadius: 10, padding: '7px 11px', minWidth: 0,
-        cursor: onPlayerClick ? 'pointer' : 'default',
-      }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nameOf(x.p)}</span>
-        <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, color }}>
-          {x.luck != null ? `${x.luck > 0 ? '+' : ''}${x.luck.toFixed(2)}` : `${x.gap > 0 ? '+' : ''}${Math.round(x.gap * 100)}`}
-        </span>
-      </div>
-      <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {x.luck != null
-          ? <>{teamOf(x.p)} · {n(x.p?.season_hr, 0)} HR vs {x.xhr.toFixed(1)} expected · {n(x.p?.xhr_bbe, 0)} tracked balls</>
-          : <>{teamOf(x.p)} · xwOBA10 {n(x.p?.l10_xwoba, 0).toFixed(3).replace(/^0/, '')} · L10 AVG {n(x.p?.last10_avg, 0).toFixed(3).replace(/^0/, '')}
-            {' '}· contact {Math.round(x.process * 100)}% vs results {Math.round(x.results * 100)}%</>}
-      </div>
-    </div>
-  )
+  // one ladder: unlucky first (most robbed on top), then lucky (most inflated last)
+  const ladder = [
+    ...unlucky.map((x) => ({ ...x, side: 'u' })),
+    ...[...lucky].reverse().map((x) => ({ ...x, side: 'l' })),
+  ].map((x) => ({ ...x, mag: Math.abs(x.luck != null ? x.luck : x.gap * 10) }))
+  const maxMag = Math.max(...ladder.map((x) => x.mag), 1e-9)
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -116,29 +100,57 @@ export default function LuckReport({ players = [], onPlayerClick }) {
           : 'Not a projection — a regression pointer built only from published fields. Gates: 100+ season PA, 10+ tracked batted balls, and a 20-point gap before anyone makes a list. When a hitter shows on neither list, his results match his contact — which is most hitters, most of the time.'}
       </div>
 
-      {unlucky.length > 0 && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-            <span style={{ fontSize: 10, fontWeight: 900, color: '#4ade80', letterSpacing: '.08em', fontFamily: NUM_FONT }}>💎 CRUSHING, NOT CASHING</span>
-            <span style={{ fontSize: 9, color: C.text3 }}>loud contact the box score hasn&apos;t paid yet — the bet is with him</span>
-          </div>
-          <div className="bot-picks-grid" style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
-            {unlucky.map((x) => <Card key={playerId(x.p)} x={x} color="#4ade80" />)}
-          </div>
-        </div>
-      )}
+      {/* legend */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 7, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 9.5, fontFamily: NUM_FONT }}>
+          <b style={{ color: '#4ade80' }}>◀ 💎 CRUSHING, NOT CASHING</b>
+          <span style={{ color: C.text3 }}> — loud contact, unpaid; the bet is with him</span>
+        </span>
+        <span style={{ fontSize: 9.5, fontFamily: NUM_FONT }}>
+          <span style={{ color: C.text3 }}>hot box score, ordinary contact — </span>
+          <b style={{ color: '#f87171' }}>🎈 CASHING, NOT CRUSHING ▶</b>
+        </span>
+      </div>
 
-      {lucky.length > 0 && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-            <span style={{ fontSize: 10, fontWeight: 900, color: '#f87171', letterSpacing: '.08em', fontFamily: NUM_FONT }}>🎈 CASHING, NOT CRUSHING</span>
-            <span style={{ fontSize: 9, color: C.text3 }}>hot box score, ordinary contact — what a streak looks like right before it isn&apos;t</span>
-          </div>
-          <div className="bot-picks-grid" style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
-            {lucky.map((x) => <Card key={playerId(x.p)} x={x} color="#f87171" />)}
-          </div>
-        </div>
-      )}
+      {/* the ladder — one zero line, both stories */}
+      <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px' }}>
+        {ladder.map((x, i) => {
+          const isU = x.side === 'u'
+          const color = isU ? '#4ade80' : '#f87171'
+          const w = Math.max(4, (50 * x.mag) / maxMag)
+          const valTxt = x.luck != null
+            ? `${x.luck > 0 ? '+' : ''}${x.luck.toFixed(2)}`
+            : `${x.gap > 0 ? '+' : ''}${Math.round(x.gap * 100)}`
+          const detail = x.luck != null
+            ? `${n(x.p?.season_hr, 0)} HR vs ${x.xhr.toFixed(1)} expected · ${n(x.p?.xhr_bbe, 0)} tracked`
+            : `contact ${Math.round(x.process * 100)}% vs results ${Math.round(x.results * 100)}%`
+          return (
+            <div
+              key={playerId(x.p)}
+              onClick={() => onPlayerClick?.(x.p)}
+              title={detail}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, cursor: onPlayerClick ? 'pointer' : 'default',
+                padding: '3px 0', borderBottom: i < ladder.length - 1 ? `1px solid ${C.border}` : 'none', minWidth: 0,
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, width: 148, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {nameOf(x.p)} <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(x.p)}</span>
+              </span>
+              <div style={{ flex: 1, position: 'relative', height: 12, minWidth: 60 }}>
+                <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: C.border2 }} />
+                <div style={{
+                  position: 'absolute', top: 2, bottom: 2, borderRadius: 3,
+                  background: `linear-gradient(90deg, ${color}55, ${color})`,
+                  ...(isU ? { right: '50%', width: `${w}%` } : { left: '50%', width: `${w}%` }),
+                }} />
+              </div>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 11.5, fontWeight: 900, color, width: 46, textAlign: 'right', flexShrink: 0 }}>{valTxt}</span>
+              <span className="l5col" style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, width: 205, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{detail}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

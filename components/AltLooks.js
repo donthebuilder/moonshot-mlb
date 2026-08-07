@@ -223,79 +223,61 @@ export default function AltLooks({ players = [], boardIds = new Set(), onPlayerC
         quality variance, not primary plays — the bot&apos;s words. One per game per group.
       </div>
 
-      {groups.map(([key, list]) => {
-        const g = GROUPS[key]
-        const firstCross = groups.find(([k]) => GROUPS[k]?.cross)?.[0]
-        return (
-          <div key={key} style={{ marginBottom: 10 }}>
-            {key === firstCross && (
-              <div style={{
-                display: 'flex', alignItems: 'baseline', gap: 8, margin: '14px 0 6px',
-                paddingTop: 10, borderTop: `1px dashed ${C.border2}`,
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 900 }}>🔎 Model cross-check</span>
-                <span style={{ fontSize: 9.5, color: C.text3 }}>
-                  the sheet&apos;s extra-names section, rebuilt with the bot&apos;s own two blends —
-                  consensus strength and underlisted HR upside
+      {/* LANES (2026-08-07): one grid, each group a colored column — the six
+          stacked card-walls read as one repetitive page; this reads in one
+          screenful. Score bars are normalized within each lane, so the bar
+          says "his rank in THIS lane", not a cross-lane comparison. */}
+      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', alignItems: 'start' }}>
+        {groups.map(([key, list]) => {
+          const g = GROUPS[key]
+          const maxSc = Math.max(...list.map((p) => hrScore(p)), 1e-9)
+          return (
+            <div key={key} style={{
+              background: C.bg2, border: `1px solid ${C.border}`,
+              borderTop: `2px solid ${g.color}`, borderRadius: 10, padding: '7px 10px', minWidth: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginBottom: 2 }}>
+                <span style={{ fontSize: 10.5 }}>{g.icon}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 900, color: g.color, letterSpacing: '.07em', fontFamily: NUM_FONT }}>
+                  {key}{g.cross ? ' 🔎' : ''}
                 </span>
               </div>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-              <span style={{ fontSize: 11 }}>{g.icon}</span>
-              <span style={{
-                fontSize: 10, fontWeight: 900, color: g.color,
-                letterSpacing: '.08em', fontFamily: NUM_FONT,
-              }}>{key}</span>
-              <span style={{ fontSize: 9, color: C.text3 }}>{g.why}</span>
-            </div>
-            <div className="bot-picks-grid" style={{
-              display: 'grid', gap: 6,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
-            }}>
-              {list.map((p) => {
+              <div style={{ fontSize: 8.5, color: C.text3, marginBottom: 6, lineHeight: 1.35 }}>{g.why}</div>
+              {list.map((p, i) => {
                 const thin = !trusted(p)
+                const sc = hrScore(p)
                 return (
                   <div
                     key={playerId(p)}
                     onClick={() => onPlayerClick?.(p)}
+                    title={`${nameOf(p)} — ${teamOf(p)} vs ${clean(p?.pitcher_name, 'TBD')} · L5 ${n(p?.last5_hits, 0)}H/${n(p?.last5_hr, 0)}HR/${n(p?.last5_xbh, 0)}XBH${thin ? ` · small sample (${n(p?.season_pa, 0)} PA)` : ''}`}
                     style={{
-                      background: `linear-gradient(155deg, ${g.color}14, ${g.color}05)`,
-                      border: `1px solid ${g.color}38`,
-                      borderRadius: 10, padding: '7px 11px', minWidth: 0,
-                      cursor: onPlayerClick ? 'pointer' : 'default',
+                      cursor: onPlayerClick ? 'pointer' : 'default', padding: '4px 0 3px',
+                      borderBottom: i < list.length - 1 ? `1px solid ${C.border}` : 'none', minWidth: 0,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                      <span style={{
-                        fontSize: 12, fontWeight: 800, minWidth: 0,
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      }}>{nameOf(p)}</span>
-                      {p?.weak_spot_flag === true && <span style={{ fontSize: 10 }}>⭐</span>}
-                      {thin && (
-                        <span
-                          title={`Small sample: ${n(p?.season_pa, 0)} PA, ${n(p?.recent_350_den, 0)} tracked batted balls — below the board's 40 PA / 10 BBE gate. That's why he's here and not on it.`}
-                          style={{ fontSize: 8.5, color: '#FCD34D', fontFamily: NUM_FONT, fontWeight: 800 }}
-                        >⚠ {n(p?.season_pa, 0)}PA</span>
-                      )}
-                      <span style={{
-                        marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 12.5,
-                        fontWeight: 900, color: g.color,
-                      }}>{hrScore(p).toFixed(1)}</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, minWidth: 0 }}>
+                      <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, width: 10, flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nameOf(p)}</span>
+                      {p?.weak_spot_flag === true && <span style={{ fontSize: 9, flexShrink: 0 }}>⭐</span>}
+                      {thin && <span style={{ fontSize: 8, color: '#FCD34D', fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>⚠{n(p?.season_pa, 0)}PA</span>}
+                      <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: g.color, flexShrink: 0 }}>{sc.toFixed(1)}</span>
                     </div>
-                    <div style={{
-                      fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>
-                      {teamOf(p)} · L5 {n(p?.last5_hits, 0)}H/{n(p?.last5_hr, 0)}HR/{n(p?.last5_xbh, 0)}XBH
-                      {' '}· vs {clean(p?.pitcher_name, 'TBD')}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                        {teamOf(p)} · vs {String(clean(p?.pitcher_name, 'TBD')).split(' ').slice(-1)[0]} · L5 {n(p?.last5_hr, 0)}HR/{n(p?.last5_xbh, 0)}XBH
+                      </span>
+                      <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,.05)', borderRadius: 2, minWidth: 24 }}>
+                        <div style={{ width: `${(100 * sc) / maxSc}%`, height: '100%', background: g.color, borderRadius: 2, opacity: 0.7 }} />
+                      </div>
                     </div>
                   </div>
                 )
               })}
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
