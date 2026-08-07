@@ -54,6 +54,19 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
   const prevRef = useRef(null)     // previous lines, for the diff
   const firedRef = useRef(new Set()) // dedupe keys across refreshes
 
+  // MANUAL TOAST (2026-08-06): fire the site's own on-screen notification
+  // from the browser console — built for streaming, where the site IS the
+  // screen. Open devtools and: moonToast('hi 👋')  or  moonToast('big night
+  // coming', '🔥'). Local to this browser only (no server, on purpose); it
+  // rides the exact same toast + OS-notification pipeline as the real ones.
+  useEffect(() => {
+    window.moonToast = (text, icon = '👋') => {
+      addToasts([{ key: `manual:${Date.now()}`, icon, text: String(text || 'hi'), p: null, pri: 0 }])
+    }
+    return () => { delete window.moonToast }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const addToasts = (items) => {
     if (!items.length) return
     setToasts((cur) => [...items, ...cur].slice(0, 4))
