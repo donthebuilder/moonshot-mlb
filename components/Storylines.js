@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, playerId } from '../lib/player'
+import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
+import { teamAbbrs } from '../lib/gamelogs'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -46,6 +47,12 @@ const readStat = (st, key) => {
   return Number(st[key])
 }
 
+// Curated classics — a rivalry is folklore, not an algorithm.
+const RIVALS = [
+  ['NYY', 'BOS'], ['LAD', 'SF'], ['LAD', 'SD'], ['CHC', 'STL'], ['CHC', 'CWS'],
+  ['NYY', 'NYM'], ['NYM', 'PHI'], ['NYM', 'ATL'], ['HOU', 'TEX'], ['BAL', 'WSH'], ['LAA', 'LAD'],
+]
+
 let _cache = null
 
 export default function Storylines({ players = [], onPlayerClick }) {
@@ -66,7 +73,21 @@ export default function Storylines({ players = [], onPlayerClick }) {
         const today = new Date().toLocaleDateString('en-CA')
         const promos = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=game(promotions)`)
           .then((r) => (r.ok ? r.json() : null)).catch(() => null)
-        if (alive) { _cache = { people, promos }; setData(_cache) }
+        // Team history (revenge games): yearByYear trimmed to season+team —
+        // a few KB for the whole slate. Verified live 2026-08-06.
+        const history = {}
+        for (let i = 0; i < ids.length; i += 100) {
+          const j = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${ids.slice(i, i + 100).join(',')}&hydrate=stats(group=[hitting],type=[yearByYear])&fields=people,id,stats,type,displayName,splits,season,team,id,name`)
+            .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+          ;(j?.people || []).forEach((person) => {
+            const blk = (person.stats || []).find((x) => x?.type?.displayName === 'yearByYear')
+            history[person.id] = (blk?.splits || [])
+              .map((sp) => ({ season: sp.season, teamId: sp?.team?.id }))
+              .filter((x) => x.teamId)
+          })
+        }
+        const abbrs = (await teamAbbrs().catch(() => null)) || {}
+        if (alive) { _cache = { people, promos, history, abbrs }; setData(_cache) }
       } catch { if (alive) setData({ people: [], promos: null }) }
     })()
     return () => { alive = false }
@@ -106,6 +127,44 @@ export default function Storylines({ players = [], onPlayerClick }) {
   })
   miles.sort((a, b) => a.prox - b.prox)
 
+  // ── BvP duels — free, straight off the slate's bvp_* fields ──
+  const duels = []
+  players.forEach((p) => {
+    const pa = num(p?.bvp_pa, 0), h = num(p?.bvp_hits, 0), hr = num(p?.bvp_hr, 0)
+    const ab = num(p?.bvp_ab, pa), avg = num(p?.bvp_avg, 0), ops = num(p?.bvp_ops, 0)
+    const arm = String(p?.pitcher_name || '').split(' ').slice(-1)[0]
+    if (!arm) return
+    if (pa >= 8 && (hr >= 2 || ops >= 1.05)) {
+      duels.push({ p, own: true, hr, text: `${h}-for-${ab}${hr ? `, ${hr} HR` : ''} lifetime vs ${arm}` })
+    } else if (pa >= 10 && avg <= 0.125 && hr === 0) {
+      duels.push({ p, own: false, hr: 0, text: `${h}-for-${ab} lifetime vs ${arm}` })
+    }
+  })
+  duels.sort((a, b) => (b.own === true) - (a.own === true) || b.hr - a.hr)
+
+  // ── revenge games — facing a team he used to wear ──
+  const revenge = []
+  if (data.history && data.abbrs) {
+    players.forEach((p) => {
+      const hist = data.history[Number(p?.player_id ?? p?.id)] || []
+      const opp = oppOf(p), own = teamOf(p)
+      const yrs = hist.filter((x) => data.abbrs[x.teamId] === opp && opp !== own).map((x) => x.season)
+      if (yrs.length) {
+        const span = yrs.length > 1 ? `${Math.min(...yrs)}–${String(Math.max(...yrs)).slice(2)}` : yrs[0]
+        revenge.push({ p, opp, span, last: Math.max(...yrs) })
+      }
+    })
+    revenge.sort((a, b) => b.last - a.last)
+  }
+
+  // ── rivalry nights — from the curated classics ──
+  const matchups = new Set()
+  players.forEach((p) => {
+    const a2 = teamOf(p), b2 = oppOf(p)
+    if (a2 && b2) matchups.add([a2, b2].sort().join('|'))
+  })
+  const rivalries = RIVALS.filter(([a2, b2]) => matchups.has([a2, b2].sort().join('|')))
+
   // ── birthdays ──
   const mmdd = new Date().toLocaleDateString('en-CA').slice(5)
   const bdays = data.people
@@ -130,7 +189,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
   })
   giveaways.sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.isBobble ? 1 : 0) - (a.isBobble ? 1 : 0))
 
-  if (!miles.length && !bdays.length && !giveaways.length) return null
+  if (!miles.length && !bdays.length && !giveaways.length && !duels.length && !revenge.length && !rivalries.length) return null
 
   const Row = ({ icon, children, p }) => (
     <div onClick={() => p && onPlayerClick?.(p)} style={{
@@ -159,6 +218,27 @@ export default function Storylines({ players = [], onPlayerClick }) {
           <b style={{ color: C.text }}>{nameOf(m.p)}</b> is <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{m.need}</b> away
           from <b style={{ fontFamily: NUM_FONT }}>{m.t.toLocaleString()}</b> {m.word}
           {m.need === 1 ? ' — could land tonight' : ''}
+        </Row>
+      ))}
+
+      {duels.slice(0, 4).map((d, i) => (
+        <Row key={`d${i}`} icon={d.own ? '⚔' : '🥶'} p={d.p}>
+          {d.own
+            ? <><b style={{ color: C.text }}>{nameOf(d.p)}</b> owns this matchup — <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{d.text}</b></>
+            : <><b style={{ color: C.text }}>{nameOf(d.p)}</b> has never solved him: <span style={{ fontFamily: NUM_FONT }}>{d.text}</span> — tiny samples, big folklore</>}
+        </Row>
+      ))}
+
+      {revenge.slice(0, 4).map((r, i) => (
+        <Row key={`r${i}`} icon="🔄" p={r.p}>
+          <b style={{ color: C.text }}>{nameOf(r.p)}</b> faces his old team — wore <b>{r.opp}</b> in{' '}
+          <span style={{ fontFamily: NUM_FONT }}>{r.span}</span>. Revenge games are theater, and theater sells.
+        </Row>
+      ))}
+
+      {rivalries.slice(0, 3).map(([a2, b2], i) => (
+        <Row key={`rv${i}`} icon="🔥">
+          Rivalry night: <b style={{ color: C.text }}>{a2} vs {b2}</b> — the games that never need a storyline get one anyway
         </Row>
       ))}
 
