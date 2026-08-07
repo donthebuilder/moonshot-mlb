@@ -45,6 +45,10 @@ const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1
 
 export default function GameStrip({ games, activeGame, onSelect, mode }) {
   const botView = mode === 'botview'
+  // Each Games-page mode wears its own accent (2026-08-08): ember for the
+  // default read, cyan for Bot Output, green for Lineups — the strip tells
+  // you which lens you're in before you read a single card.
+  const accent = botView ? '#22d3ee' : mode === 'lineups' ? '#4ade80' : '#f97316'
   const cards = useMemo(() => {
     const built = games.map((g) => {
       const gp = g.players || []
@@ -126,9 +130,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
           // the hottest game on the slate is the MAIN EVENT and burns; cold
           // games freeze quietly. Bands come from heat (GS within tonight's
           // range), so every slate has exactly one main event.
-          const band = c.gsRank === 1 ? { icon: '🌋', word: 'MAIN EVENT', col: botView ? '#22d3ee' : '#f97316' }
-            : c.heat >= 0.62 ? { icon: '🔥', word: '', col: botView ? '#22d3ee' : '#fb923c' }
-            : c.heat >= 0.3 ? { icon: '', word: '', col: botView ? '#22d3ee' : C.orange }
+          const band = c.gsRank === 1 ? { icon: '🌋', word: 'MAIN EVENT', col: accent }
+            : c.heat >= 0.62 ? { icon: '🔥', word: '', col: accent }
+            : c.heat >= 0.3 ? { icon: '', word: '', col: accent }
             : { icon: '🧊', word: '', col: '#38bdf8' }
           return (
             <button
@@ -138,7 +142,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
                 textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
                 borderRadius: 11, minWidth: 0, position: 'relative', overflow: 'hidden',
                 flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(138 + c.heat * 52)}px`,
-                border: `1px solid ${on ? (botView ? '#22d3ee' : C.orange) : `${band.col}${c.heat >= 0.62 ? '66' : '30'}`}`,
+                border: `1px solid ${on ? accent : `${band.col}${c.heat >= 0.62 ? '66' : '30'}`}`,
                 background: on
                   ? 'rgba(249,115,22,0.09)'
                   : `linear-gradient(160deg, ${band.col}${c.gsRank === 1 ? '1f' : c.heat >= 0.62 ? '12' : '08'} 0%, rgba(17,17,19,1) 62%)`,
@@ -195,6 +199,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
                   fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>⚾ {c.arms}</div>
+              )}
+              {(c.topBat || ((botView || c.heat >= 0.55) && c.pickName) || (c.heat >= 0.55 && c.altName)) && (
+                <div style={{ borderTop: `1px solid ${band.col}22`, marginTop: 3 }} />
               )}
               {c.topBat && (
                 <div style={{

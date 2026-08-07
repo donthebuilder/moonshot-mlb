@@ -141,10 +141,13 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
           🌋 launch pads → 🧊 ice boxes · live status, first pitch, rain risk, lineup checks · tap to filter the board
         </span>
       </div>
-      <div style={{
-        display: 'grid', gap: 8,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(172px, 1fr))',
-      }}>
+      {/* EVEN ROWS (2026-08-08, Donovan): auto-fill grid stranded ragged
+          rows once the featured card spanned two columns. Flex with grow —
+          the same trick the game chips use — stretches every row edge to
+          edge, and flex's default align-stretch keeps card heights even
+          within each row. The featured #1 park earns extra width through a
+          bigger basis instead of a grid span. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {parks.map((g, i2) => {
           const band = bandOf(g.edge)
           const isActive = activeVenue && g.venue === activeVenue
@@ -159,7 +162,7 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
               title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "the bot's weather HR effect" : 'wind/temp heuristic (bot weather effect not published for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs neutral. Ranks this board, scores nothing.`}
               style={{
                 cursor: 'pointer', position: 'relative', overflow: 'hidden', minWidth: 0,
-                gridColumn: i2 === 0 && g.edge > 0 ? 'span 2' : 'auto',
+                flex: `${i2 === 0 && g.edge > 0 ? 2 : 1} 1 ${i2 === 0 && g.edge > 0 ? 320 : 196}px`,
                 background: `linear-gradient(160deg, ${band.col}${isTop ? '26' : '14'} 0%, ${band.col}05 55%, transparent 100%)`,
                 border: `1px solid ${isActive ? band.col : `${band.col}${isTop ? '70' : '35'}`}`,
                 borderRadius: 12, padding: '9px 11px 8px',
