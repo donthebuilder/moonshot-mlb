@@ -137,6 +137,13 @@ export default function Leaders({ players = [], onPlayerClick }) {
     }
   }), [players])
 
+  // LENS SHORTCUTS (2026-08-07): one tap re-sorts the table to answer a
+  // question — remounting DenseTable via key so initialSort re-applies.
+  const [lens, setLens] = useState('ops')
+  const LENSES = [
+    ['ops', '🏆 Best hitters'], ['hr', '💣 Power'], ['iso', '⚡ Raw power'],
+    ['avg', '🎯 Contact'], ['obp', '🚶 On-base'], ['tb', '📦 Total bases'],
+  ]
   const rows = useMemo(() => {
     const q = query.toLowerCase().trim()
     return all
@@ -210,6 +217,12 @@ export default function Leaders({ players = [], onPlayerClick }) {
             <button key={k} onClick={() => setHand(k)} style={chip(hand === k)}>{l}</button>
           ))}
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+          <span style={lbl}>Lens</span>
+          {LENSES.map(([k, l]) => (
+            <button key={k} onClick={() => setLens(k)} style={chip(lens === k)}>{l}</button>
+          ))}
+        </div>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -226,10 +239,11 @@ export default function Leaders({ players = [], onPlayerClick }) {
         <Empty text={`Nobody clears ${minPA} plate appearances with this filter.`} />
       ) : (
         <DenseTable
+          key={lens}
           rows={rows}
           columns={COLUMNS}
           onRowClick={onPlayerClick}
-          initialSort="ops"
+          initialSort={lens}
           maxHeight={620}
           caption={`Season stats, unmodelled. Minimum PA is set to ${minPA} because rate stats on a small sample are noise — a .400 average on 30 plate appearances belongs to nobody. K% and PA/HR are inverted so bright still means good for the hitter; every other column reads high-is-good. TB is the one derived number: the payload has no season hits or at-bats, so it's SLG × (PA × (1 − BB%)), which ignores hit-by-pitch and sacrifices and runs slightly light. Rank by it, don't quote it.`}
         />

@@ -78,6 +78,47 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         even in a lineup.
       </div>
 
+      {/* 🔥 HOT CONNECTIONS (2026-08-07) — the page's answer to "so what do
+          I do with this": pairs BOTH playable tonight that connected in the
+          last week, ranked by pair score. History becomes a bet. */}
+      {(() => {
+        const hot = pairs
+          .filter((p) => {
+            if (!p?.recent_pair_hit) return false
+            const on = arr(p?.players).filter((pl) =>
+              onSlate.has(String(pl?.name || '').toLowerCase().replace(/[^a-z]/g, ''))).length
+            return on >= 2
+          })
+          .sort((a, b) => n(b?.pair_score, 0) - n(a?.pair_score, 0))
+          .slice(0, 4)
+        if (!hot.length) return null
+        return (
+          <div style={{ margin: '10px 0 4px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 900, color: C.orange }}>🔥 Hot connections</span>
+              <span style={{ fontSize: 9, color: C.text3 }}>co-homered inside the last 7 days AND both are in a lineup tonight — the only rows on this page you can actually play</span>
+            </div>
+            <div style={{ display: 'grid', gap: 7, gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+              {hot.map((pr, i) => (
+                <div key={i} style={{
+                  background: 'linear-gradient(155deg, rgba(249,115,22,.12), rgba(249,115,22,.03))',
+                  border: '1px solid rgba(249,115,22,.4)', borderRadius: 10, padding: '7px 11px',
+                }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 800 }}>
+                    {clean(pr?.player_1, '?')} <span style={{ color: C.orange }}>+</span> {clean(pr?.player_2, '?')}
+                  </div>
+                  <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
+                    ×{n(pr?.repeat_count, 0)} co-HR days · last {clean(pr?.last_hit_date, '—')}
+                    {pr?.same_game_flag ? ' · 🎯 same game' : ''}
+                    {' '}· score {n(pr?.pair_score, 0).toFixed(0)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {(() => {
         const sg = pairs.filter((p) => p?.same_game_flag).length
         const recent = pairs.filter((p) => p?.recent_pair_hit).length

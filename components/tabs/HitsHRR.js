@@ -28,12 +28,16 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
       />
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 10,
-        paddingBottom: 8,
-        borderBottom: `1px solid ${C.border}`,
+        marginBottom: 10, padding: '7px 12px',
+        background: `linear-gradient(90deg, #f59e0b14, transparent)`,
+        borderLeft: `3px solid #f59e0b`, borderRadius: 8,
       }}>
         <span style={{ fontSize: 16 }}>⭐</span>
         <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Weak Spot Matchups</span>
+        <span title="Validated: flagged hitters homered 18.0% vs 13.9% baseline across the graded archive" style={{
+          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: '#f59e0b', cursor: 'help',
+          border: `1px solid #f59e0b55`, borderRadius: 999, padding: '1px 8px',
+        }}>18.0% HR</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{ws.length} players</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
@@ -73,12 +77,16 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
       />
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 10,
-        paddingBottom: 8,
-        borderBottom: `1px solid ${C.border}`,
+        marginBottom: 10, padding: '7px 12px',
+        background: `linear-gradient(90deg, #a78bfa14, transparent)`,
+        borderLeft: `3px solid #a78bfa`, borderRadius: 8,
       }}>
         <span style={{ fontSize: 16 }}>🧩</span>
         <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Aligned Signals</span>
+        <span title="The measured stack: 29.2% HR across 154 graded slots — the strongest validated combo on the site" style={{
+          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: '#a78bfa', cursor: 'help',
+          border: `1px solid #a78bfa55`, borderRadius: 999, padding: '1px 8px',
+        }}>29.2% HR</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{aligned.length} players</span>
       </div>
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
@@ -122,12 +130,16 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
       />
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 10,
-        paddingBottom: 8,
-        borderBottom: `1px solid ${C.border}`,
+        marginBottom: 10, padding: '7px 12px',
+        background: `linear-gradient(90deg, #22d3ee14, transparent)`,
+        borderLeft: `3px solid #22d3ee`, borderRadius: 8,
       }}>
         <span style={{ fontSize: 16 }}>🎯</span>
         <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Matchup Edge</span>
+        <span title="Backtested separator: 23.9% HR with the flag vs 9.5% without" style={{
+          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: '#22d3ee', cursor: 'help',
+          border: `1px solid #22d3ee55`, borderRadius: 999, padding: '1px 8px',
+        }}>23.9% HR</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{edge.length} players</span>
       </div>
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>

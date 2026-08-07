@@ -172,6 +172,25 @@ function Board({ players, onPlayerClick }) {
         <span>👻 hidden value</span>
         <span>⚠️ trap flag</span>
       </div>
+      {/* 🥇 podium — the bot's own three favorites tonight, unadjusted */}
+      {sorted.length >= 3 && pickTab === 'all' && (
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 10 }}>
+          {sorted.slice(0, 3).map((p, i) => (
+            <button key={p.player_id || i} onClick={() => onPlayerClick?.(p)} style={{
+              display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
+              background: i === 0 ? 'linear-gradient(155deg, rgba(252,211,77,.14), rgba(252,211,77,.03))' : C.bg2,
+              border: `1px solid ${i === 0 ? 'rgba(252,211,77,.5)' : C.border}`,
+              borderRadius: 9, padding: '5px 12px',
+            }}>
+              <span style={{ fontSize: 13 }}>{['🥇', '🥈', '🥉'][i]}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 800 }}>{p.name}</span>
+              <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange }}>
+                {(p.top_board_score_v2 || 0).toFixed(1)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
       {rows.length === 0
         ? <Empty text="No picks in this category." />
         : (

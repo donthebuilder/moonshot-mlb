@@ -90,8 +90,20 @@ function LineupRow({ b, onPlayerClick }) {
 
 function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }) {
   const hasWeak = pitcher.weak_spot_count > 0
+  // BAND PERSONALITY (2026-08-07, same language as parks/games): from the
+  // HITTER's point of view — a leaky starter is a 🎯 TARGET and burns, a
+  // stingy one is a 🔒 WALL and cools. HR/9 + weak spots decide it.
+  const hr9 = Number(pitcher.pitcher_hr9) || 0
+  const band = (hr9 >= 1.5 || pitcher.weak_spot_count >= 3) ? { icon: '🎯', word: 'TARGET', col: '#f97316' }
+    : (hr9 >= 1.2 || pitcher.weak_spot_count >= 1) ? { icon: '🔥', word: 'LEAKY', col: '#fb923c' }
+    : hr9 > 0 && hr9 <= 0.85 ? { icon: '🔒', word: 'WALL', col: '#38bdf8' }
+    : { icon: '', word: '', col: '' }
   return (
-    <div style={{ background: C.bg2, border: `1px solid ${hasWeak ? '#f59e0b44' : C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
+    <div style={{
+      background: band.col ? `linear-gradient(160deg, ${band.col}0e 0%, ${C.bg2} 55%)` : C.bg2,
+      border: `1px solid ${band.col ? `${band.col}44` : C.border}`,
+      borderRadius: 12, overflow: 'hidden', marginBottom: 8,
+    }}>
       <div
         onClick={() => onToggle(pitcher.pitcher_id)}
         style={{
@@ -105,6 +117,14 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 14, fontWeight: 800 }}>{pitcher.pitcher_name}</span>
               <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{pitcher.pitcher_throws}HP</span>
+              {band.word && (
+                <span title={band.word === 'WALL'
+                  ? 'Stingy: HR/9 ≤ 0.85 — hitters facing him fight uphill tonight'
+                  : `From the hitter's side: HR/9 ${hr9 ? hr9.toFixed(2) : '—'}${pitcher.weak_spot_count ? ` + ${pitcher.weak_spot_count} weak spot${pitcher.weak_spot_count > 1 ? 's' : ''}` : ''} — this is an arm to attack`}
+                  style={{ fontSize: 8, fontWeight: 900, color: band.col, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
+                  {band.icon} {band.word}
+                </span>
+              )}
               {hasWeak && <Chip color="#f59e0b">⭐ {pitcher.weak_spot_count} weak spot{pitcher.weak_spot_count > 1 ? 's' : ''}</Chip>}
             </div>
             <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>

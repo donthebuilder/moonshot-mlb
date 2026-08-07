@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { gradedResultsUrl } from '../lib/dataSource'
+import { gradedResultsUrl, dataUrl } from '../lib/dataSource'
 import { clean } from '../lib/player'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
@@ -158,11 +158,18 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
   }, [players])
 
   useEffect(() => {
+    // LIVE FIRST (2026-08-07): the results workflow now rebuilds the matrix
+    // nightly on the data branch (frozen 39-day base + every branch-archived
+    // graded day), so the table stops aging. The static copy in /public
+    // remains as the fallback if the published one is missing or unreadable.
     let alive = true
-    fetch('/pick_matrix.json')
+    const stat = () => fetch('/pick_matrix.json')
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+    fetch(dataUrl('current/pick_matrix.json') + `?t=${Date.now()}`)
       .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((j) => (j?.players?.length ? j : stat()))
       .then((j) => { if (alive) { setData(j); setState(j ? 'done' : 'error') } })
-      .catch(() => { if (alive) setState('error') })
     return () => { alive = false }
   }, [])
 
