@@ -46,7 +46,9 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
   const worst = new Set([...(slots || [])].sort((a, b) => b.ops - a.ops).slice(0, 2).map((s) => s.slot))
 
   return (
-    <div style={{ flex: 1, minWidth: 0 }}>
+    // 300px basis so the two team panels stack on phones instead of
+    // squeezing into unreadable halves.
+    <div style={{ flex: '1 1 300px', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
         <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT }}>{team}</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
@@ -124,8 +126,8 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
             <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: vsIso >= 0.2 ? C.orange : C.text3, width: 62, textAlign: 'right', flexShrink: 0 }}>
               {vsAvg > 0 ? `${vsAvg.toFixed(3).replace(/^0/, '')}/${vsIso.toFixed(3).replace(/^0/, '')}` : '—'}
             </span>
-            {/* L5 form + the edge number */}
-            <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: n(p?.last5_hr, 0) > 0 ? C.orange : C.text3, width: 44, textAlign: 'right', flexShrink: 0 }}
+            {/* L5 form + the edge number (L5 yields on narrow screens) */}
+            <span className="l5col" style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: n(p?.last5_hr, 0) > 0 ? C.orange : C.text3, width: 44, textAlign: 'right', flexShrink: 0 }}
               title="Last 5 games: hits / homers">
               L5 {n(p?.last5_hits, 0)}H{n(p?.last5_hr, 0) > 0 ? `/${n(p?.last5_hr, 0)}HR` : ''}
             </span>

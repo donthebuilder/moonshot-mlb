@@ -45,15 +45,18 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   const sHi = Math.max(...shownScores, 1)
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 14, alignItems: 'start' }}>
-      <div style={{ position: 'sticky', top: 12 }}>
+    {/* Mobile (2026-08-06): the side-by-side grid squeezed the detail pane
+        into a sliver on phones — MobileCSS stacks these and shortens the
+        list so picking a player doesn't mean scrolling past 200 rows. */}
+    <div className="playerboard" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 14, alignItems: 'start' }}>
+      <div className="playerboard-side" style={{ position: 'sticky', top: 12 }}>
         <input
           style={{ ...inputStyle(), width: '100%', marginBottom: 8 }}
           placeholder="Search a hitter…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div style={{
+        <div className="playerboard-list" style={{
           border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden',
           maxHeight: '72vh', overflowY: 'auto', background: C.bg2,
         }}>

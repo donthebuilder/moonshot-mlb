@@ -200,9 +200,9 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                     {parkF > 0 && <span style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>park ×{parkF.toFixed(2)}</span>}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 0 }}>
+                <div className="lineup-cols" style={{ display: 'flex', gap: 0 }}>
                   {Object.entries(byTeam).map(([t, lineup], ti) => (
-                    <div key={t} style={{
+                    <div key={t} className="lineup-col" style={{
                       flex: 1, minWidth: 0, padding: '8px 12px',
                       borderLeft: ti ? `1px solid ${C.border}` : 'none',
                     }}>

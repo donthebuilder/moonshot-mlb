@@ -143,6 +143,27 @@ export default function MobileCSS() {
         .pickstrip { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)) !important; }
         .board-filters input[type="range"] { min-height: 28px; }
       }
+
+      /* Player tab (2026-08-06): the list+detail grid became a sliver war on
+         phones. Stack them — search + a SHORT scrollable list on top, the
+         full detail below it, nothing sticky (sticky sidebars fight thumb
+         scrolling). */
+      @media (max-width: 700px) {
+        .playerboard { grid-template-columns: 1fr !important; }
+        .playerboard-side { position: static !important; }
+        .playerboard-list { max-height: 34vh !important; }
+      }
+
+      /* Lineups (2026-08-06): two batting orders side-by-side means 9-char
+         columns on a phone. Stack the teams; the away/home divider rotates
+         from a left border to a top border. Slot-by-slot rows drop the L5
+         column so names and edge numbers keep their room. */
+      @media (max-width: 640px) {
+        .lineup-cols { flex-direction: column !important; }
+        .lineup-cols .lineup-col { border-left: none !important; border-top: 1px solid #26262b; }
+        .lineup-cols .lineup-col:first-child { border-top: none; }
+        .l5col { display: none !important; }
+      }
     `}</style>
   )
 }
