@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../lib/player'
+import { teamAbbrs } from '../lib/gamelogs'
+import { fetchPenFatigue, penTier } from '../lib/bullpen'
 
 // WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
 // board into tonight's weather desk — live game status (delayed / postponed /
@@ -105,6 +107,20 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
   }, [players])
 
   const statuses = useGameStatus()
+
+  // Bullpen fatigue, joined by abbreviation (slate rows carry abbrs, the
+  // boxscores carry ids — teamAbbrs() is the bridge, already cached).
+  const [penByAbbr, setPenByAbbr] = useState(null)
+  useEffect(() => {
+    Promise.all([fetchPenFatigue(), teamAbbrs()]).then(([pen, abbrs]) => {
+      const m = {}
+      Object.entries(pen || {}).forEach(([tid, t]) => {
+        const ab = abbrs?.[tid]
+        if (ab) m[ab] = t
+      })
+      setPenByAbbr(m)
+    }).catch(() => {})
+  }, [])
 
   if (!parks.length) return null
 
@@ -215,6 +231,35 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
                         ))}
                       </span>
                     )}
+                    {/* 🥵 gassed pens — yesterday's reliever workload, per side.
+                        A tired pen is tonight's late-inning HR window. */}
+                    {penByAbbr && !final && teams.map((tm) => {
+                      const tier = penTier(penByAbbr[tm])
+                      if (!tier) return null
+                      const t2 = penByAbbr[tm]
+                      return (
+                        <span
+                          key={`pen-${tm}`}
+                          title={`${tm} bullpen yesterday: ${t2.used} relievers, ${t2.pitches} pitches — ${t2.names.map((r2) => `${String(r2.name).split(' ').slice(-1)[0]} ${r2.pitches}p`).join(', ')}. Tired relief gives up homers; the late innings are the window.`}
+                          style={{ color: tier.col, fontWeight: 900, cursor: 'help' }}
+                        >{tier.icon} {tm} {tier.word}</span>
+                      )
+                    })}
+                    {/* 🌇 twilight cooling — directional physics, no invented
+                        forecast: external weather APIs failed verification, so
+                        this says WHICH WAY the air moves, not a made-up number. */}
+                    {(() => {
+                      if (final || live || bad) return null
+                      if (/dome|closed/i.test(g.roof)) return null
+                      if (!(g.temp >= 75) || !g.time) return null
+                      const h = new Date(g.time).getHours()
+                      if (Number.isNaN(h) || h < 16) return null
+                      return (
+                        <span title="Warm evening start in an open-air park: the air cools and thickens as the game goes — carry favors the EARLY innings tonight. Directional read, not a forecast number." style={{ color: '#fbbf24', cursor: 'help' }}>
+                          🌇 cools late
+                        </span>
+                      )
+                    })()}
                   </div>
                 )
               })()}

@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, clean, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
+import { fetchPenFatigue, penTier } from '../lib/bullpen'
 
 // 📡 LIVE WIRE — the site's live feed, and deliberately NOT a highlight
 // ticker (ESPN owns that). This is the model grading itself in public:
@@ -26,6 +27,8 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
   const [abbrs, setAbbrs] = useState(null)
   const timer = useRef(null)
   useEffect(() => { teamAbbrs().then(setAbbrs).catch(() => {}) }, [])
+  const [pen, setPen] = useState(null)
+  useEffect(() => { fetchPenFatigue().then(setPen).catch(() => {}) }, [])
 
   const refresh = async () => {
     setBusy(true)
@@ -108,6 +111,23 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
       : role === 'HRR' ? `2+ H+R+RBI (has ${line.h + line.r + line.rbi})`
       : `2+ TB (has ${line.tb})`
     alerts.push({ pri: 2, icon: '⏰', p, text: `${nameOf(p)} (${role} pick) still needs ${need} — ${g.inning}th inning` })
+  })
+  // 🚪 BULLPEN DOOR (2026-08-07): a starter climbing toward 90 means the
+  // soft underbelly is coming — and if that team's pen threw hard YESTERDAY,
+  // the two facts together are the alert. Pen data from yesterday's
+  // boxscores (lib/bullpen), starter counts live off tonight's.
+  live.forEach((g) => {
+    (g.starters || []).forEach((st) => {
+      if (!st?.pitches || st.pitches < 85) return
+      const tier = penTier(pen?.[st.teamId])
+      const nm = String(st.name || '').split(' ').slice(-1)[0]
+      if (tier?.key === 'gassed') {
+        const t2 = pen[st.teamId]
+        alerts.push({ pri: 1, icon: '🚪', text: `${nm} at ${st.pitches} pitches AND his pen threw ${t2.pitches} pitches yesterday (${t2.used} arms) — gassed relief is the HR window` })
+      } else if (st.pitches >= 95) {
+        alerts.push({ pri: 2, icon: '🚪', text: `${nm} at ${st.pitches} pitches — bullpen door opening` })
+      }
+    })
   })
   Object.entries(snap.lines).forEach(([id, l]) => {
     if (l.hr >= 2) {
