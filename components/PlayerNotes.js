@@ -30,7 +30,7 @@ export default function PlayerNotes({ playerId }) {
   const save = () => {
     const all = load()
     if (text.trim()) {
-      all[playerId] = { text: text.trim(), at: new Date().toISOString().slice(0, 10) }
+      all[playerId] = { text: text.trim(), at: new Date().toLocaleDateString('en-CA') }
     } else {
       delete all[playerId]
     }

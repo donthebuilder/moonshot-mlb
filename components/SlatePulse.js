@@ -53,7 +53,7 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
     // graded file can be TODAY's — and diffing today's slate against today's
     // own in-progress grading declared every pick "new" ("Since 08-05 · 85
     // new picks" on 08-05). Yesterday means yesterday.
-    const today = new Date().toISOString().slice(0, 10)
+    const today = new Date().toLocaleDateString('en-CA')
     const prior = dates.filter((d) => d < today)
     return prior[prior.length - 1] || null
   }, [backtest])

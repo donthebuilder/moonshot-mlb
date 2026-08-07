@@ -53,7 +53,7 @@ function downloadCsv(items) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  const stamp = new Date().toISOString().slice(0, 10)
+  const stamp = new Date().toLocaleDateString('en-CA')
   a.href = url
   a.download = `watchlist_${stamp}.csv`
   document.body.appendChild(a)
@@ -83,7 +83,7 @@ function downloadTxt(items) {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  const stamp = new Date().toISOString().slice(0, 10)
+  const stamp = new Date().toLocaleDateString('en-CA')
   a.href = url
   a.download = `watchlist_${stamp}.txt`
   document.body.appendChild(a)

@@ -79,7 +79,7 @@ export function downloadShareCard(items = []) {
   g.fillText('HR score is the site’s ISO-adjusted ranking · 🤖 = the bot’s designated pick tonight', 24, H - footH / 2)
 
   const a = document.createElement('a')
-  a.download = `watchlist_${new Date().toISOString().slice(0, 10)}.png`
+  a.download = `watchlist_${new Date().toLocaleDateString('en-CA')}.png`
   a.href = c.toDataURL('image/png')
   a.click()
 }
