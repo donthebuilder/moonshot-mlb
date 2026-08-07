@@ -7,6 +7,7 @@ import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { Empty } from './ui'
 import Header from './Header'
 import MiniWire from './MiniWire'
+import TabExplainer from './TabExplainer'
 import Controls from './Controls'
 import Slip from './Slip'
 import PlayerModal from './PlayerModal'
@@ -161,6 +162,10 @@ export default function Dashboard() {
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
         <MiniWire players={players} watchIds={watchIds} tab={tab} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
+        {/* One beginner paragraph per tab — auto-opens on first visit,
+            collapses to a pill forever after. The answer to "looks nice
+            but I don't know what I'm looking at." */}
+        <TabExplainer tab={tab} />
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
         {loading ? (
