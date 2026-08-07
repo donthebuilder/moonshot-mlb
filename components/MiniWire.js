@@ -108,6 +108,11 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
           if (role && now.k >= 2 && was.k < 2 && now.h === 0) {
             fire('k', '⚠️', `${nameOf(p)} (${role} pick) is 0-${now.ab} with ${now.k} K — the strikeout script`, 2)
           }
+          // Big-bases night: 4+ TB crossing, only when it wasn't a fresh
+          // homer doing the crossing (that toast already fired louder).
+          if (now.tb >= 4 && was.tb < 4 && now.hr === was.hr) {
+            fire('tb4', '🧨', `${nameOf(p)} is piling bases — ${now.tb} TB (${now.h}-${now.ab})`, 1)
+          }
         })
         // ── EVERY slate homer toasts (2026-08-06). The wire chip updated but
         // no toast fired because the hitter wasn't a pick — which read as a
