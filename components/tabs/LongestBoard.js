@@ -144,17 +144,26 @@ function GameConditions({ players = [] }) {
         wind: wWind(p),
         windLabel: clean(p?.wind_direction_label, ''),
         parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 0)),
+        wxEff: n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null)),
         roof: clean(p?.roof, ''),
         matchup: `${teamOf(p) || '?'}${oppOf(p) ? ` vs ${oppOf(p)}` : ''}`,
       })
     })
     const out = [...map.values()].filter((g) => g.venue || g.temp)
-    // Crude carry index just for ordering the strip: warm air + friendly park
-    // + wind blowing out. Display-only — it ranks cards, it scores nothing.
+    // RANKED PARK BOARD (2026-08-07). One honest edge number per park:
+    //   park term  — (park HR factor − 1) × 100, the bot's own park number
+    //   weather    — the bot's weather_hr_effect_pct when published, else a
+    //                gentle wind/temp heuristic (±1 per mph out/in, +1 per
+    //                ~7°F over 70) so the strip still ranks on thin payloads.
+    // It ranks cards and scores nothing — the board below is the evidence.
     const windOut = (g) => /out/i.test(g.windLabel) ? g.wind : /in\b/i.test(g.windLabel) ? -g.wind : 0
-    out.sort((a, b) =>
-      ((b.temp - 70) + 40 * (b.parkHR - 1) + windOut(b)) -
-      ((a.temp - 70) + 40 * (a.parkHR - 1) + windOut(a)))
+    out.forEach((g) => {
+      const parkTerm = g.parkHR > 0 ? (g.parkHR - 1) * 100 : 0
+      const wxTerm = g.wxEff != null ? g.wxEff : windOut(g) + (g.temp > 0 ? (g.temp - 70) / 7 : 0)
+      g.edge = parkTerm + wxTerm
+      g.wxFromBot = g.wxEff != null
+    })
+    out.sort((a, b) => b.edge - a.edge)
     return out
   }, [players])
 
@@ -165,20 +174,26 @@ function GameConditions({ players = [] }) {
       display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 8,
       WebkitOverflowScrolling: 'touch',
     }}>
-      {games.map((g) => {
+      {games.map((g, i) => {
         const warm = g.temp >= 82 ? '#f97316' : g.temp >= 70 ? '#FCD34D' : '#38bdf8'
         const out = /out/i.test(g.windLabel)
         const wIn = /in\b/i.test(g.windLabel)
+        const eCol = g.edge >= 8 ? C.orange : g.edge >= 3 ? '#FCD34D' : g.edge <= -3 ? '#38bdf8' : C.text3
         return (
-          <div key={g.pk} style={{
-            flexShrink: 0, minWidth: 148,
+          <div key={g.pk} title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "the bot's weather HR effect" : 'wind/temp (heuristic — bot weather effect not published for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs a neutral night. Ranks the strip, scores nothing.`} style={{
+            flexShrink: 0, minWidth: 148, position: 'relative',
             background: `linear-gradient(155deg, ${warm}14, ${warm}05)`,
             border: `1px solid ${warm}35`, borderRadius: 10, padding: '7px 11px',
           }}>
-            <div style={{
-              fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap',
-              overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170,
-            }}>{g.venue || g.matchup}</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <div style={{
+                fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap',
+                overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 118,
+              }}><span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{i + 1} </span>{g.venue || g.matchup}</div>
+              <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: eCol, flexShrink: 0 }}>
+                {g.edge > 0 ? '+' : ''}{g.edge.toFixed(0)}%
+              </span>
+            </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginTop: 2, fontFamily: NUM_FONT }}>
               {g.temp > 0 && (
                 <span style={{ fontSize: 13, fontWeight: 900, color: warm }}>{Math.round(g.temp)}°</span>
