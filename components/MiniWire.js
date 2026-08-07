@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, playerId as pidOf } from '../lib/player'
-import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
+import { fetchLiveSlate, pickCleared, fetchHrContext } from '../lib/liveSlate'
 
 // 📡 MINI WIRE + TOASTS — the live layer that follows you (2026-08-06).
 //
@@ -53,6 +53,30 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
   }
   const prevRef = useRef(null)     // previous lines, for the diff
   const firedRef = useRef(new Set()) // dedupe keys across refreshes
+
+  // ── CONTEXT ON EVERY BOMB (2026-08-08, the Real-app lesson). The base
+  // toast fires instantly off the boxscore diff; HALF A SECOND later the
+  // same toast upgrades in place with the statcast line and the story:
+  // "💥 Olson GOES YARD — 434ft at 108mph · his 33rd · back-to-back
+  // nights". One targeted feed call per fresh homer, never polled. If the
+  // feed hasn't written hitData yet, the base toast simply stands — the
+  // context is garnish, never a gate. ──
+  const enrichHr = (key, gamePk, batterId, p, line) => {
+    if (!gamePk) return
+    fetchHrContext(gamePk, batterId).then((ctx) => {
+      const bits = []
+      if (ctx?.dist) bits.push(`${Math.round(ctx.dist)}ft${ctx.ev ? ` at ${Math.round(ctx.ev)}mph` : ''}`)
+      else if (ctx?.ev) bits.push(`${Math.round(ctx.ev)}mph off the bat`)
+      const szn = Number(p?.season_hr)
+      if (Number.isFinite(szn) && szn >= 0 && line?.hr) {
+        const nth = szn + line.hr
+        if (nth > 0) bits.push(`his ${nth}${nth % 10 === 1 && nth % 100 !== 11 ? 'st' : nth % 10 === 2 && nth % 100 !== 12 ? 'nd' : nth % 10 === 3 && nth % 100 !== 13 ? 'rd' : 'th'}`)
+      }
+      if (Number(p?.games_since_last_hr) === 0 && line?.hr === 1) bits.push('back-to-back nights 🔁')
+      if (!bits.length) return
+      setToasts((ts) => ts.map((t) => t.key === key ? { ...t, text: `${t.text} — ${bits.join(' · ')}` } : t))
+    }).catch(() => {})
+  }
 
   // MANUAL TOAST (2026-08-06): fire the site's own on-screen notification
   // from the browser console — built for streaming, where the site IS the
@@ -111,7 +135,11 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
             firedRef.current.add(key)
             out.push({ key, icon, text, p, pri })
           }
-          if (now.hr > was.hr) fire('hr', '💥', `${nameOf(p)} GOES YARD${now.hr > 1 ? ` — that's ${now.hr}` : ''}${role ? ` · ${role} pick ✓` : ''}`, 0)
+          if (now.hr > was.hr) {
+            const hrKey = `${id}:hr:${now.hr}${now.d2}${now.d3}${now.k}${now.tb}`
+            fire('hr', '💥', `${nameOf(p)} GOES YARD${now.hr > 1 ? ` — that's ${now.hr}` : ''}${role ? ` · ${role} pick ✓` : ''}`, 0)
+            enrichHr(hrKey, now.pk, id, p, now)
+          }
           else {
             const clearedNow = role && pickCleared(role, now) === true && pickCleared(role, was) !== true
             if (now.d3 > was.d3) fire('d3', '🔥', `${nameOf(p)} TRIPLES${clearedNow ? ` — ${role} bar cleared ✓` : ''}`, 1)
@@ -143,6 +171,7 @@ export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerCl
           firedRef.current.add(key)
           out.push({ key, icon: '💥', p: p || null, pri: 3,
             text: `${p ? nameOf(p) : (now.name || 'Someone')} goes deep${now.hr > 1 ? ` — that's ${now.hr}` : ''}` })
+          enrichHr(key, now.pk, id, p, now)
         })
 
         // ── DUE-UP: your pick is at the plate / on deck, right now ──
