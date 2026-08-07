@@ -208,7 +208,24 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                   wore the pre-migration Streamlit name. The sport tag stays
                   so an NFL sibling can slot in later as MOONSHOT · NFL. */}
               <span style={{ fontSize:18, fontWeight:900, letterSpacing:'-0.02em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>MOONSHOT</span>
-              <span style={{ fontSize:11, fontWeight:700, color:C.text3, marginLeft:2, letterSpacing:'0.06em', textTransform:'uppercase', alignSelf:'center' }}>· MLB</span>
+              {/* SPORT SWITCHER (2026-08-08). MLB is home; NFL is a sibling
+                  SITE, one click away once it deploys — set NFL_URL below and
+                  the pill goes live. Until then it wears SEP and explains
+                  itself on hover instead of pretending. */}
+              <span style={{ display:'flex', gap:3, marginLeft:5, alignSelf:'center' }}>
+                <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999, background:'rgba(249,115,22,.15)', border:'1px solid rgba(249,115,22,.45)', color:C.orange }}>MLB</span>
+                {(() => {
+                  const NFL_URL = '' // ← set to the NFL site URL at launch
+                  const pill = {
+                    fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999,
+                    border:`1px solid ${C.border2}`, color:C.text3, textDecoration:'none',
+                    cursor: NFL_URL ? 'pointer' : 'help',
+                  }
+                  return NFL_URL
+                    ? <a href={NFL_URL} style={pill}>NFL</a>
+                    : <span title="MOONSHOT · NFL arrives for Week 1 — its own site, one click from here. TDs, receiving, rushing, passing, kicking. No defensive props." style={pill}>NFL <span style={{ fontSize:7.5, color:'#4ade80' }}>SEP</span></span>
+                })()}
+              </span>
             </div>
             <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />
           </div>

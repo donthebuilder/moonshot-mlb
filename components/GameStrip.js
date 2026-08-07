@@ -141,7 +141,10 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
               style={{
                 textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
                 borderRadius: 11, minWidth: 0, position: 'relative', overflow: 'hidden',
-                flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(138 + c.heat * 52)}px`,
+                // Words first (2026-08-08): basis widened so names and band
+                // words render whole like the park cards do, instead of
+                // ellipsing at the old 138px floor.
+                flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(158 + c.heat * 58)}px`,
                 border: `1px solid ${on ? accent : `${band.col}${c.heat >= 0.62 ? '66' : '30'}`}`,
                 background: on
                   ? 'rgba(249,115,22,0.09)'
@@ -162,14 +165,14 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
               <div style={{
                 fontSize: 10, textTransform: 'uppercase', letterSpacing: '.07em',
                 color: on ? C.orange : C.text3, fontWeight: 700,
-                display: 'flex', gap: 5, alignItems: 'center',
+                display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap',
               }}>
                 <span title={c.confMarks ? c.confMarks.tip : (c.confirmed ? 'lineups confirmed' : 'projected lineups')}>
                   {c.confMarks ? c.confMarks.marks : (c.confirmed ? '✓' : '◻')}
                 </span>
                 <span style={{ fontFamily: NUM_FONT }}>{c.time}</span>
                 {band.word && (
-                  <span style={{ fontSize: 7.5, fontWeight: 900, color: band.col, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
+                  <span style={{ fontSize: 8.5, fontWeight: 900, color: band.col, letterSpacing: '.1em', fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>
                     {band.icon} {band.word}
                   </span>
                 )}
