@@ -20,8 +20,19 @@ import PairBuilder from '../PairBuilder'
 
 // Live graded pools — pair_pool_results.graded_pools carries members and
 // homer_names, same structure Results shows.
-function LivePools({ results }) {
+// pool members carry names (and sometimes ids); resolve back to the slate
+// row so a tap opens the full modal (2026-08-08, Donovan: "make sure on the
+// live pools I can click the players to see their modal")
+const _pnorm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '')
+const makeResolver = (players) => {
+  const byId = new Map(players.map((p) => [String(p?.player_id ?? p?.id), p]))
+  const byName = new Map(players.map((p) => [_pnorm(p?.name || p?.player_name), p]))
+  return (mb) => byId.get(String(mb?.player_id ?? '')) || byName.get(_pnorm(mb?.name)) || null
+}
+
+function LivePools({ results, players = [], onPlayerClick }) {
   const pools = (results?.pair_pool_results?.graded_pools) || []
+  const resolve = makeResolver(players)
   if (!pools.length) return null
 
   return (
@@ -70,13 +81,20 @@ function LivePools({ results }) {
               <div style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
                 {(pl.players || []).map((mb, j) => {
                   const gone = homered.has(String(mb?.name || '').toLowerCase())
+                  const row = resolve(mb)
                   return (
-                    <span key={j} style={{
-                      fontSize: 10.5, lineHeight: 1.5, minWidth: 0,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      color: gone ? '#4ade80' : C.text3,
-                      fontWeight: gone ? 700 : 400,
-                    }}>{gone ? '💥 ' : ''}{mb?.name}</span>
+                    <span key={j}
+                      onClick={row ? () => onPlayerClick?.(row) : undefined}
+                      title={row ? 'open his card' : undefined}
+                      style={{
+                        fontSize: 10.5, lineHeight: 1.5, minWidth: 0,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        color: gone ? '#4ade80' : row ? C.text2 : C.text3,
+                        fontWeight: gone ? 700 : 400,
+                        cursor: row ? 'pointer' : 'default',
+                        textDecoration: row ? 'underline dotted rgba(255,255,255,.18)' : 'none',
+                        textUnderlineOffset: 3,
+                      }}>{gone ? '💥 ' : ''}{mb?.name}</span>
                   )
                 })}
               </div>
@@ -91,7 +109,8 @@ function LivePools({ results }) {
 // Pre-game fallback: before anything grades, show the same pools from the
 // pair-builder file so the page never reads empty. Ungraded on purpose — no
 // fake 0/4 progress before first pitch, just the rosters.
-function SlatePools({ pairBuilder }) {
+function SlatePools({ pairBuilder, players = [], onPlayerClick }) {
+  const resolve = makeResolver(players)
   const all = [
     ...arr(pairBuilder?.recommended_3mans).map((p) => ({ ...p, kind: '3-man' })),
     ...arr(pairBuilder?.pools_4man).map((p) => ({ ...p, kind: '4-man' })),
@@ -122,9 +141,21 @@ function SlatePools({ pairBuilder }) {
               </span>
             </div>
             <div style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-              {arr(pl.players).map((mb, j) => (
-                <span key={j} style={{ fontSize: 10.5, lineHeight: 1.5, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: C.text3 }}>{mb?.name}</span>
-              ))}
+              {arr(pl.players).map((mb, j) => {
+                const row = resolve(mb)
+                return (
+                  <span key={j}
+                    onClick={row ? () => onPlayerClick?.(row) : undefined}
+                    title={row ? 'open his card' : undefined}
+                    style={{
+                      fontSize: 10.5, lineHeight: 1.5, minWidth: 0, whiteSpace: 'nowrap',
+                      overflow: 'hidden', textOverflow: 'ellipsis',
+                      color: row ? C.text2 : C.text3, cursor: row ? 'pointer' : 'default',
+                      textDecoration: row ? 'underline dotted rgba(255,255,255,.18)' : 'none',
+                      textUnderlineOffset: 3,
+                    }}>{mb?.name}</span>
+                )
+              })}
             </div>
           </div>
         ))}
@@ -143,7 +174,9 @@ export default function Pools({ players = [], results, pairBuilder, pairHistoryS
         sub="The bot's group tickets, graded live · build your own pair below"
       />
 
-      {hasGraded ? <LivePools results={results} /> : <SlatePools pairBuilder={pairBuilder} />}
+      {hasGraded
+        ? <LivePools results={results} players={players} onPlayerClick={onPlayerClick} />
+        : <SlatePools pairBuilder={pairBuilder} players={players} onPlayerClick={onPlayerClick} />}
 
       {!hasGraded && !arr(pairBuilder?.pools_4man).length && !arr(pairBuilder?.pools_6man).length
         && !arr(pairBuilder?.recommended_3mans).length && (
