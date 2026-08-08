@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
 import { fetchJSON, normalizeData, groupGames } from '../lib/data'
 import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, setSlateMode } from '../lib/dataSource'
@@ -51,6 +51,19 @@ export default function Dashboard() {
   const [slip, setSlip] = useState([])
   const [watch, setWatch] = useState([])
   const [modalPlayer, setModalPlayer] = useState(null)
+
+  // DEEP LINKS (2026-08-08, wishlist #3). #tab=power&p=660271 is now a real
+  // address: tab restores immediately, the player modal opens as soon as the
+  // slate row exists. The hash writes back on tab change and modal
+  // open/close, so any view you're looking at is copy-paste shareable —
+  // which is how a Discord pick post becomes a link to its receipt.
+  const hashAppliedRef = useRef(false)
+  useEffect(() => {
+    const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+    const t = h.get('tab')
+    if (t) setTabRaw(t)
+  }, [])
+
   const [focusPlayerId, setFocusPlayerId] = useState(null)
 
   useEffect(() => {
@@ -114,6 +127,26 @@ export default function Dashboard() {
 
   const normalized = useMemo(() => normalizeData(data || {}), [data])
   const allPlayers = normalized.players
+
+  // (deep-link effects live below allPlayers — deps arrays evaluate at
+  // render time and a hoisted reference would hit the temporal dead zone)
+  useEffect(() => {
+    if (hashAppliedRef.current) return
+    const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+    const pid2 = h.get('p')
+    if (!pid2 || !allPlayers.length) return
+    const found = allPlayers.find((x) => String(x?.player_id ?? x?.id) === pid2)
+    if (found) { setModalPlayer(found); hashAppliedRef.current = true }
+  }, [allPlayers])
+  useEffect(() => {
+    const h = new URLSearchParams()
+    if (tab !== 'scoreboard') h.set('tab', tab)
+    const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
+    if (pid2) h.set('p', pid2)
+    const next = h.toString()
+    try { history.replaceState(null, '', next ? `#${next}` : window.location.pathname + window.location.search) } catch {}
+  }, [tab, modalPlayer])
+
 
   const players = useMemo(() => {
     return allPlayers.filter((p) => {

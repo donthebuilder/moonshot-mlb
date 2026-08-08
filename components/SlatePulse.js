@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { gradedResultsUrl } from '../lib/dataSource'
+import {gradedResultsUrl, dataUrl } from '../lib/dataSource'
 import { nameOf, teamOf, clean, n } from '../lib/player'
 
 // SLATE PULSE — two strips for the landing tab:
@@ -42,6 +42,22 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
 
   // ── yesterday's picks for the diff ──
   const [yday, setYday] = useState(null)
+  // 📓 the bot's own reasons (wishlist #2): pick_changes.json names the
+  // input that moved for every pick change — quoted here so the Since
+  // panel reads like a newsroom instead of a diff.
+  const [changelog, setChangelog] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetch(dataUrl('current/pick_changes.json') + `?t=${Date.now()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive && j?.changes?.length) setChangelog(j) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+  const reasonFor = (nm) => {
+    const hit = (changelog?.changes || []).find((c) => String(c.name || '').toLowerCase() === String(nm || '').toLowerCase())
+    return hit?.reason || ''
+  }
   const [showDiff, setShowDiff] = useState(false)
   const [showAllUnconf, setShowAllUnconf] = useState(false)
   // Collapsible like the Since panel (2026-08-07, Donovan: everything on this
@@ -214,13 +230,14 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
             const byName = new Map(players.map((p) => [String(nameOf(p)).toLowerCase().trim(), p]))
             const sortOk = (a, b) => (b.ok === true) - (a.ok === true) || (a.ok === false) - (b.ok === false)
             const held = (diff.held || []).map((h) => ({ key: h.nm, label: nameOf(h.p), tag: `${mark(h.cleared)}${h.role}`, ok: h.cleared, p: h.p })).sort(sortOk)
-            const added = diff.added.map(([nm, v]) => ({ key: nm, label: nameOf(v.p), tag: `${v.p?.lineup_confirmed === true ? '✓ ' : ''}${v.role}`, p: v.p, conf: v.p?.lineup_confirmed === true }))
+            const added = diff.added.map(([nm, v]) => ({ key: nm, label: nameOf(v.p), tag: `${v.p?.lineup_confirmed === true ? '✓ ' : ''}${v.role}`, p: v.p, conf: v.p?.lineup_confirmed === true, why: reasonFor(nameOf(v.p)) }))
               .sort((a, b) => (b.conf === true) - (a.conf === true))
             const moved = diff.changed.map((c) => ({ key: c.nm, label: nameOf(c.p), tag: `${mark(c.cleared)}${c.from}→${c.to}`, ok: c.cleared, p: c.p }))
               .sort((a, b) => (b.ok === false) - (a.ok === false))
             const droppedAll = diff.dropped.map(([nm, role, cleared]) => {
               const p = byName.get(nm) || null
-              return { key: nm, label: p ? nameOf(p) : nm.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+              return {
+                why: reasonFor(nm), key: nm, label: p ? nameOf(p) : nm.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
                 tag: `${mark(cleared)}${role}`, ok: cleared, p, demoted: !!p }
             }).sort((a, b) => (b.demoted === true) - (a.demoted === true))
             const heldOk = held.filter((x) => x.ok === true).length
@@ -276,8 +293,8 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                                 fontSize: 10.5, fontWeight: it.demoted ? 700 : 600,
                                 color: k === 'dropped' ? (it.demoted ? '#f87171' : C.text3) : C.text2,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                              }} title={it.demoted ? 'On tonight’s slate but stripped of the pick — a real demotion' : undefined}>
-                                {it.label}{it.demoted ? ' ▾' : ''}
+                              }} title={it.why || (it.demoted ? 'On tonight’s slate but stripped of the pick — a real demotion' : undefined)}>
+                                {it.label}{it.demoted ? ' ▾' : ''}{it.why ? <span style={{ fontSize: 8.5, marginLeft: 3, cursor: 'help' }}>📓</span> : null}
                               </span>
                               <span style={{
                                 marginLeft: 'auto', fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0,

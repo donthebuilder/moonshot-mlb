@@ -7,6 +7,7 @@ import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
 import ResultsDepth from './ResultsDepth'
 import HRPitchProfile from '../HRPitchProfile'
+import SignalAudit from '../SignalAudit'
 import PickScorecard, { pickJob } from '../PickScorecard'
 import { pillMeta } from '../../lib/pills'
 import ScoreAudit from '../ScoreAudit'
@@ -1087,6 +1088,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <TabBtn active={subTab === 'pitchtype'} onClick={() => setSubTab('pitchtype')}>🎯 HR by pitch</TabBtn>
         <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
         <TabBtn active={subTab === 'picks'} onClick={() => setSubTab('picks')}>📋 Picks</TabBtn>
+        <TabBtn active={subTab === 'signals'} onClick={() => setSubTab('signals')}>🔬 Signals</TabBtn>
         <TabBtn active={subTab === 'record'} onClick={() => setSubTab('record')}>👤 Track record</TabBtn>
         <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>💰 P/L</TabBtn>
       </div>
@@ -1141,6 +1143,10 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       {subTab === 'record' && (
         <PlayerPickRecord players={players} backtest={backtest} onPlayerClick={onPlayerClick} />
       )}
+
+      {/* 🔬 SIGNAL AUDIT — every displayed flag graded against the archive.
+          Spans all graded days; ignores the day picker like Track record. */}
+      {subTab === 'signals' && <SignalAudit backtest={backtest} />}
 
       {/* P/L — the archive at your odds. Spans all graded days, ignores the
           day picker like Track record does. */}
