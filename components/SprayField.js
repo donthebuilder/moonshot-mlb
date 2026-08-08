@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj, arr } from '../lib/player'
 import { detailUrl } from '../lib/dataSource'
@@ -297,7 +297,13 @@ export default function SprayField({ player, height = 340, slateMode }) {
   const [hover, setHover] = useState(null)
   // The methodology essays live behind this now — see the cleanliness pass.
   const [showHelp, setShowHelp] = useState(false)
-  const [range, setRange] = useState('all')
+  // L5 BY DEFAULT (2026-08-08, "auto spray to last 5 · auto open"): the
+  // chart opens on his last five games — the window that answers "what is
+  // he RIGHT NOW". If L5 turns out empty for this hitter (fresh call-up,
+  // tracking gap), it widens itself to All once, before he ever sees the
+  // empty state — but only if he hasn't touched the picker himself.
+  const [range, setRange] = useState('g5')
+  const rangeTouched = useRef(false)
   const [bbPick, setBbPick] = useState(null)   // null = all batted-ball types
 
   const pid = player?.player_id || player?.id
@@ -353,6 +359,11 @@ export default function SprayField({ player, height = 340, slateMode }) {
     () => [...new Set(hits.map((h) => h.date).filter(Boolean))].sort().reverse(),
     [hits],
   )
+  useEffect(() => {
+    if (rangeTouched.current || range !== 'g5' || !hits.length) return
+    const keep = new Set(gameDates.slice(0, 5))
+    if (!hits.some((h) => keep.has(h.date))) setRange('all')
+  }, [hits, gameDates, range])
   const inRange = useMemo(() => {
     const spec = RANGES.find((r) => r.key === range)
     if (!spec?.games) return hits
@@ -555,7 +566,7 @@ export default function SprayField({ player, height = 340, slateMode }) {
           return (
             <button
               key={r.key}
-              onClick={() => setRange(r.key)}
+              onClick={() => { rangeTouched.current = true; setRange(r.key) }}
               title={r.games ? `His last ${r.games} games with a tracked batted ball` : `All ${gameDates.length} games on file`}
               style={{
                 ...chipBtn(range === r.key, C.orange),
