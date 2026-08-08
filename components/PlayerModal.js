@@ -74,17 +74,28 @@ function VenueHrRow({ pid, venueName }) {
   if (!rec || !rec.games) {
     return <Row label="At tonight's park" value={rec ? 'no games here since last yr' : '—'} mono={false} />
   }
-  const hot = rec.hr >= 2
+  // MADE READABLE (2026-08-08, Donovan: "defs need more on that stat").
+  // Three reads in one line: the record, the per-game pace ("1 per 5.2" —
+  // 1-per-4 is elite, 1-per-8 is average), and the one that actually
+  // matters: the park rate vs HIS OWN rate over the same window. Sample-
+  // gated: under 8 games here, the vs-self read stays quiet.
+  const per = rec.rate > 0 ? (1 / rec.rate) : null
+  const vs = rec.games >= 8 ? rec.vsSelf : null
+  const vsWord = vs == null ? null
+    : vs >= 1.25 ? { t: '▲ plays UP for him', col: C.orange }
+    : vs <= 0.75 ? { t: '▼ plays down', col: '#38bdf8' }
+    : { t: '· his usual pace', col: C.text3 }
+  const hot = vs != null ? vs >= 1.25 : rec.hr >= 2
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-      {/* CLEANED (2026-08-08, Donovan): no emoji, no wrap — seasons moved
-          into the tooltip so the value stays one tidy line. */}
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
       <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}
-        title={`${venueName}, ${rec.seasons}: every game he played in this building, this season and last, from the league's game logs. A road park is a handful of dates — read the games count before the homers.`}>
+        title={`${venueName}, ${rec.seasons}: ${rec.hr} HR in ${rec.games} games here vs ${rec.hrAll} in ${rec.gamesAll} everywhere — same two seasons of game logs, so the comparison is apples to apples. Rules of thumb: 1 HR per 4 games = elite pace, 1 per 5–6 = real power, 1 per 8+ = average. Under 8 games here the vs-himself read is hidden — small samples lie.`}>
         At tonight&apos;s park
       </span>
       <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: hot ? C.orange : C.text }}>
         {rec.hr} HR / {rec.games} gm{rec.games !== 1 ? 's' : ''}
+        {per != null && rec.hr > 0 && <span style={{ color: C.text3, fontWeight: 500 }}> · 1 per {per.toFixed(1)}</span>}
+        {vsWord && <span style={{ color: vsWord.col, fontSize: 10.5 }}> {vsWord.t}</span>}
       </span>
     </div>
   )
