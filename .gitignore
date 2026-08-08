@@ -30,3 +30,8 @@ venv/
 
 # vercel
 .vercel
+
+# bot repo clone lives here for convenience — it is its own git repo,
+# never part of the site build. Tracking it as a gitlink made Vercel try
+# to fetch it as a submodule every deploy (2026-08-08 warning fix).
+bot-ship/
