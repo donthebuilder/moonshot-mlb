@@ -129,6 +129,18 @@ export default function Dashboard() {
   const normalized = useMemo(() => normalizeData(data || {}), [data])
   const allPlayers = normalized.players
 
+  // 🔄 LIVE WATCHLIST (2026-08-08, Donovan: "when I save someone at 1pm and
+  // they're projected it stays that way"). toggleWatch stores a SNAPSHOT of
+  // the row at star-time — so a 1pm save wore "projected" all night even
+  // after lineups posted. This re-resolves every saved id to tonight's
+  // CURRENT slate row on each data refresh; the stored snapshot is only the
+  // fallback for a player who's since left the slate. Confirmations, spots,
+  // scores and the graded chips all move through the day now.
+  const watchLive = useMemo(() => {
+    const byId = new Map(allPlayers.map((p) => [String(playerId(p)), p]))
+    return watch.map((s) => byId.get(String(playerId(s))) || s)
+  }, [watch, allPlayers])
+
   // (deep-link effects live below allPlayers — deps arrays evaluate at
   // render time and a hoisted reference would hit the temporal dead zone)
   useEffect(() => {
@@ -237,7 +249,7 @@ export default function Dashboard() {
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} pairSummary={pairSummary} results={results} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+            {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide />}
           </div>

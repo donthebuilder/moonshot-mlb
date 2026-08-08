@@ -448,16 +448,22 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
             {chips.map(({ p, g }) => {
               const hr = Number(g.actual_hr) > 0
               const hits = Number(g.actual_hits) || 0
+              const ab = Number(g.actual_ab) || 0
+              const fin = Number(g.is_final) === 1
               const col = hr ? '#4ade80' : hits > 0 ? '#a78bfa' : C.text3
               return (
-                <span key={playerId(p)} onClick={() => onPlayerClick?.(p)} style={{
-                  fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
-                  padding: '3px 9px', borderRadius: 7,
-                  border: `1px solid ${col}55`, color: col,
-                  background: hr ? 'rgba(74,222,128,.10)' : 'transparent',
-                  fontFamily: NUM_FONT,
-                }}>
-                  {hr ? '💥 ' : ''}{nameOf(p)} {hits}H{Number(g.actual_hr) > 0 ? `/${g.actual_hr}HR` : ''}
+                <span key={playerId(p)} onClick={() => onPlayerClick?.(p)}
+                  title={fin ? 'Game final — his full line is in' : 'Game in progress — line so far'}
+                  style={{
+                    fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+                    padding: '3px 9px', borderRadius: 7,
+                    border: `1px solid ${col}55`, color: col,
+                    background: hr ? 'rgba(74,222,128,.10)' : 'transparent',
+                    fontFamily: NUM_FONT, opacity: fin && !hr && !hits ? 0.65 : 1,
+                  }}>
+                  {hr ? '💥 ' : ''}{nameOf(p)} {ab > 0 ? `${hits}-${ab}` : `${hits}H`}
+                  {Number(g.actual_hr) > 0 ? ` · ${g.actual_hr}HR` : ''}
+                  {fin ? ' · F' : ' · live'}
                 </span>
               )
             })}
