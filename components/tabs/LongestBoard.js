@@ -225,31 +225,46 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
           The board below PROJECTS the farthest ball; this strip is who has
           actually hit it so far. */}
       {(() => {
+        // ONE ROW, and each bomb carries whether THIS BOARD called it
+        // (2026-08-08, pre-video): the hitter's pregame longest-HR rank
+        // rides each chip — 🎯#3 means the distance board had him third
+        // before the ball flew. That's the metric that grades the page.
+        const rankById = new Map(
+          [...players]
+            .sort((a2, b2) => n(b2?.longest_hr_score, 0) - n(a2?.longest_hr_score, 0))
+            .map((p2, i2) => [String(p2?.player_id ?? p2?.id), i2 + 1])
+        )
         const entries = (results?.hr_capture_report?.all_homer_entries || results?.merged_homers || [])
           .filter((h) => Number(h?.longest_ft) > 0)
-          .sort((a, b) => Number(b.longest_ft) - Number(a.longest_ft))
-          .slice(0, 8)
+          .sort((a2, b2) => Number(b2.longest_ft) - Number(a2.longest_ft))
+          .slice(0, 6)
         if (!entries.length) return null
         return (
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, marginBottom: 5 }}>
-              🚀 Longest tonight <span style={{ fontSize: 9, color: C.text3, fontWeight: 400 }}>— measured, not projected · updates as the tracker grades</span>
+              🚀 Longest tonight <span style={{ fontSize: 9, color: C.text3, fontWeight: 400 }}>— measured feet · 🎯#N = where THIS board ranked him pregame</span>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {entries.map((h, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 7, alignItems: 'baseline',
-                  border: `1px solid ${i === 0 ? 'rgba(249,115,22,.55)' : C.border}`,
-                  background: i === 0 ? 'rgba(249,115,22,.1)' : C.bg2,
-                  borderRadius: 8, padding: '4px 11px',
-                }}>
-                  {i === 0 && <span style={{ fontSize: 11 }}>👑</span>}
-                  <span style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange }}>{Math.round(h.longest_ft)}</span>
-                  <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>ft</span>
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>{h.name}</span>
-                  {Number(h?.max_ev_mph) > 0 && <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{Number(h.max_ev_mph).toFixed(0)}mph</span>}
-                </div>
-              ))}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
+              {entries.map((h, i) => {
+                const rk = rankById.get(String(h?.player_id))
+                return (
+                  <div key={i} style={{
+                    display: 'flex', gap: 7, alignItems: 'baseline', flexShrink: 0,
+                    border: `1px solid ${i === 0 ? 'rgba(249,115,22,.55)' : C.border}`,
+                    background: i === 0 ? 'rgba(249,115,22,.1)' : C.bg2,
+                    borderRadius: 8, padding: '4px 11px',
+                  }}>
+                    {i === 0 && <span style={{ fontSize: 11 }}>👑</span>}
+                    <span style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange }}>{Math.round(h.longest_ft)}</span>
+                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>ft</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{h.name}</span>
+                    {rk && rk <= 25 && (
+                      <span title={`This board ranked him #${rk} for distance BEFORE the game`} style={{ fontSize: 9, fontWeight: 900, color: rk <= 5 ? '#4ade80' : C.text3, fontFamily: NUM_FONT }}>🎯#{rk}</span>
+                    )}
+                    {Number(h?.max_ev_mph) > 0 && <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{Number(h.max_ev_mph).toFixed(0)}mph</span>}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )

@@ -1108,6 +1108,8 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       <div style={{ fontSize: 10, color: C.text3, margin: '-2px 0 10px', lineHeight: 1.5, fontFamily: NUM_FONT }}>
         {{
           overview: '📊 Tonight graded as it happens: capture rate, multi-hit days, score audit. Follows the day picker.',
+          card: '🧾 The season report card — letter grades, records, trust curves. Season-wide by design: the day picker does NOT move this view (last complete night is always shown).',
+          signals: '🔬 Every displayed flag graded against the whole archive. IGNORES the day picker — it spans everything.',
           pitcher: '⚾ Which arms gave it up tonight, joined to the slate. Follows the day picker.',
           pitchtype: '🎯 Each HR hitter against his own HR-by-pitch history — NOT the pitch it was hit off (unpublished). Follows the day picker.',
           pairs: '🔗 How the bot’s pairs and pools graded tonight. Follows the day picker.',
