@@ -41,6 +41,49 @@ const ZONE_NAME = {
 const fmt3 = (v) => (v == null ? '—' : v.toFixed(3).replace(/^0\./, '.'))
 const fmtPct = (v) => (v == null ? '—' : `${(100 * v).toFixed(v >= 0.1 ? 0 : 1)}%`)
 
+// ── Zone matches (audit #11, moved here 2026-08-08 when the Hot Zones tab
+// retired — "everything is in the ev log"). Per stat: a zone in the batter's
+// top-3 that is ALSO in the pitcher's top-3 damage zones, sample-gated.
+// Says "no match" out loud when nothing lines up.
+const MATCH_STATS = [
+  { key: 'hr_rate', label: 'HR',  col: '#f87171' },
+  { key: 'ba',      label: 'BA',  col: '#4ade80' },
+  { key: 'fb_rate', label: 'FLY', col: '#22d3ee' },
+  { key: 'gb_rate', label: 'GB',  col: '#FCD34D' },
+]
+const topZones = (cells, key, n = 3) => [...(cells || [])]
+  .filter((z) => !z.low_sample && z[key] != null && z[key] > 0)
+  .sort((a, b) => b[key] - a[key]).slice(0, n).map((z) => z.zone)
+
+function ZoneMatchStrip({ zp, pzp }) {
+  if (!zp || !pzp) return null
+  const bCells = zp.zones_13 || zp.zones_9 || []
+  const pCells = pzp.damage || []
+  const hasShape = bCells.some((z) => z.gb_rate != null) && pCells.some((z) => z.gb_rate != null)
+  const rows = MATCH_STATS.map((st) => {
+    const shapeStat = st.key === 'gb_rate' || st.key === 'fb_rate'
+    if (shapeStat && !hasShape) return { ...st, pending: true, zs: [] }
+    const zs = topZones(bCells, st.key).filter((z) => topZones(pCells, st.key).includes(z))
+    return { ...st, zs }
+  })
+  return (
+    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+      {rows.map((r) => (
+        <span key={r.key} title={r.pending ? 'gb/fly per zone publish with the next nightly cache' : `his top-3 ${r.label} zones ∩ the starter's top-3 bleed zones for the same stat`} style={{
+          fontSize: 9, fontFamily: NUM_FONT, borderRadius: 999, padding: '2px 8px',
+          border: `1px solid ${r.zs.length ? r.col + '66' : C.border}`,
+          color: r.zs.length ? r.col : C.text3, background: r.zs.length ? r.col + '14' : 'transparent',
+        }}>
+          <b>{r.label}</b>{' '}
+          {r.pending ? 'lands with tonight’s cache'
+            : r.zs.length ? r.zs.map((z) => ZONE_NAME[z]).join(' · ')
+            : 'no match'}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHover, hoverKey }) {
   const [v, h] = align || ['center', 'center']
   const base = red ? '248,113,113' : '249,115,22'
@@ -236,6 +279,7 @@ export default function ZoneMap({ playerId, bats }) {
       </div>
 
       {verdict}
+      {isMatch && <ZoneMatchStrip zp={zp} pzp={pzp} />}
 
       <div style={{ maxWidth: 250, margin: '0 auto' }}>
         <div style={{

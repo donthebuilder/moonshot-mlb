@@ -13,7 +13,6 @@ import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/s
 import { Chip } from './ui'
 import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
-import HotZoneMap from './HotZoneMap'
 import HRPitchProfile from './HRPitchProfile'
 import SprayField from './SprayField'
 import MatchupPitcher from './MatchupPitcher'
@@ -127,7 +126,10 @@ const TABS = [
   { key: 'ev',       label: '⚡ EV Log' },
   { key: 'pitch',    label: '🎯 Pitch' },
   { key: 'spray',    label: '🗺 Spray' },
-  { key: 'zones',    label: '🔥 Hot Zones' },
+  // Hot Zones tab RETIRED (2026-08-08, Donovan: "just remove the hot zones
+  // tab since everything is in the ev log") — the EV Log's ZoneMap absorbed
+  // all of it: matchup view, zone matches, hover popouts with gb/fly and
+  // starter bleed. One map, one home.
   { key: 'pitcher',  label: '🥎 Pitcher' },
 ]
 
@@ -484,15 +486,6 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               {!apiOnly && <PlayerSplits player={p} slateMode={slateMode} />}
               <SituationalSplits playerId={pid} kind="batter" />
             </>
-          )}
-
-          {/* hot zone map */}
-          {tab === 'zones' && (
-            <HotZoneMap
-              player={p}
-              slateMode={slateMode}
-              onClose={null}
-            />
           )}
 
     </Shell>
