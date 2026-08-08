@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
+import { dataUrl } from '../lib/dataSource'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -117,6 +118,40 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // must survive a failed people fetch.
   const isTmrw = slateDate && slateDate > new Date().toLocaleDateString('en-CA')
   const dayWord = isTmrw ? 'tomorrow' : 'tonight'
+
+  // ── STORYLINE TRACKER (2026-08-08, Donovan: "storylines need a tracker —
+  // nothing too crazy, just something if it happens during the day").
+  // The published live results already grade every slate player, so this is
+  // one small fetch on a 5-minute loop: pid → today's actual line. A
+  // storyline that CASHES gets a ✅ on its row and counts in the header —
+  // the page stops being a promise and starts being a scoreboard.
+  const [actuals, setActuals] = useState(null)
+  useEffect(() => {
+    if (isTmrw) { setActuals(null); return undefined }
+    let alive = true
+    const pull = () => {
+      fetch(dataUrl('current/results_live.json'))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!alive || !j) return
+          const m = new Map()
+          ;(j.graded_slots || j.results || []).forEach((s) => {
+            const pid = Number(s?.player_id)
+            if (pid) m.set(pid, { hr: Number(s?.actual_hr) || 0, hits: Number(s?.actual_hits) || 0 })
+          })
+          if (m.size) setActuals(m)
+        })
+        .catch(() => {})
+    }
+    pull()
+    const t = setInterval(pull, 5 * 60 * 1000)
+    return () => { alive = false; clearInterval(t) }
+  }, [isTmrw, dateKey])
+  const lineOf = (p) => actuals?.get(Number(p?.player_id ?? p?.id)) || null
+  const hrToday = (p) => (lineOf(p)?.hr || 0) > 0
+  const Cashed = ({ children }) => (
+    <b style={{ color: '#4ade80', fontFamily: NUM_FONT, fontSize: 10, marginLeft: 4, whiteSpace: 'nowrap' }}>✅ {children}</b>
+  )
   const b2b = players
     .filter((p) => Number(p?.games_since_last_hr) === 0)
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
@@ -225,6 +260,15 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     g.star || g.isBobble || /jersey|replica|figurine|poster|card|banner|ring|trophy/i.test(g.nm))
   majorGiveaways.sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.isBobble ? 1 : 0) - (a.isBobble ? 1 : 0))
 
+  // tracker tally: unique players whose storyline actually happened today
+  const cashedIds = new Set()
+  if (actuals) {
+    b2b.forEach((p) => { if (hrToday(p)) cashedIds.add(Number(p?.player_id)) })
+    miles.forEach((m) => { if (/homer/i.test(m.word) && hrToday(m.p)) cashedIds.add(Number(m.p?.player_id)) })
+    duels.forEach((d) => { if (d.own ? hrToday(d.p) : (lineOf(d.p)?.hits || 0) > 0) cashedIds.add(Number(d.p?.player_id)) })
+    revenge.forEach((r) => { if (hrToday(r.p) || (lineOf(r.p)?.hits || 0) > 0) cashedIds.add(Number(r.p?.player_id)) })
+  }
+
   const empty = !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
   if (empty && !compact) return null
   if (empty && compact) {
@@ -263,6 +307,12 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             majorGiveaways.length && `🎁 ${majorGiveaways.length} giveaway${majorGiveaways.length > 1 ? 's' : ''}`,
           ].filter(Boolean).join(' · ')}
         </span>
+        {cashedIds.size > 0 && (
+          <span style={{ fontSize: 9.5, fontWeight: 900, color: '#4ade80', fontFamily: NUM_FONT }}
+            title="Storylines that actually happened today — from the live graded results, refreshed every 5 minutes">
+            ✅ {cashedIds.size} came true
+          </span>
+        )}
         {!open && <span style={{ fontSize: 9, color: C.text3 }}>— the human layer, tap to open</span>}
       </div>
 
@@ -271,6 +321,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         <Row key={`bb${i}`} icon="🔁" p={x}>
           <b style={{ color: C.text }}>{nameOf(x)}</b> went deep <b style={{ color: '#f87171' }}>last game</b> — back-to-back watch
           <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
+          {hrToday(x) && <Cashed>DID IT AGAIN</Cashed>}
         </Row>
       ))}
       {!compact && b2b.length > 6 && (
@@ -285,6 +336,9 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           {' '}is <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{m.need}</b> away
           from <b style={{ fontFamily: NUM_FONT }}>{m.t.toLocaleString()}</b> {m.word}
           {m.need === 1 ? ` — could land ${dayWord}` : ''}
+          {/homer/i.test(m.word) && hrToday(m.p) && (
+            <Cashed>{m.need <= (lineOf(m.p)?.hr || 0) ? 'HIT THE NUMBER' : `homered — ${m.need - (lineOf(m.p)?.hr || 0)} to go`}</Cashed>
+          )}
         </Row>
       ))}
 
@@ -293,6 +347,8 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           {d.own
             ? <><b style={{ color: C.text }}>{nameOf(d.p)}</b> owns this matchup — <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{d.text}</b></>
             : <><b style={{ color: C.text }}>{nameOf(d.p)}</b> has never solved him: <span style={{ fontFamily: NUM_FONT }}>{d.text}</span> — tiny samples, big folklore</>}
+          {d.own && hrToday(d.p) && <Cashed>OWNED HIM AGAIN</Cashed>}
+          {!d.own && (lineOf(d.p)?.hits || 0) > 0 && <Cashed>finally solved him — {lineOf(d.p).hits} hit{lineOf(d.p).hits > 1 ? 's' : ''}</Cashed>}
         </Row>
       ))}
 
@@ -300,6 +356,8 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         <Row key={`r${i}`} icon="😤" p={r.p}>
           <b style={{ color: C.text }}>{nameOf(r.p)}</b> faces his old team — wore <b>{r.opp}</b> in{' '}
           <span style={{ fontFamily: NUM_FONT }}>{r.span}</span>. Revenge games are theater, and theater sells.
+          {hrToday(r.p) ? <Cashed>GOT &apos;EM</Cashed>
+            : (lineOf(r.p)?.hits || 0) > 0 ? <Cashed>{lineOf(r.p).hits} hit{lineOf(r.p).hits > 1 ? 's' : ''} off the old team</Cashed> : null}
         </Row>
       ))}
 
