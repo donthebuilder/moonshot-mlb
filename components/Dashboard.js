@@ -19,6 +19,7 @@ import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
 import SprayBoard from './tabs/SprayBoard'
 import PowerTab from './tabs/Power'
+import Derby from './tabs/Derby'
 import Backtest from './tabs/Backtest'
 import PlayerBoard from './tabs/PlayerBoard'
 import HitsHRR from './tabs/HitsHRR'
@@ -219,6 +220,7 @@ export default function Dashboard() {
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
           <div key={tab} className="tab-fade">
+            {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'games'       && <Games players={players} slateDate={slateDate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
