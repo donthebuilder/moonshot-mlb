@@ -2,6 +2,7 @@
 import { C, NUM_FONT } from '../lib/theme'
 import { n, nn, clean, nameOf, hrScore } from '../lib/player'
 import GameCockpit from './GameCockpit'
+import Storylines from './Storylines'
 
 // GAME DEEP DIVE — what clicking a game actually earns you (2026-08-06).
 //
@@ -115,7 +116,7 @@ function StarterPanel({ team, rows, onPlayerClick }) {
   )
 }
 
-export default function GameDeepDive({ game, onPlayerClick }) {
+export default function GameDeepDive({ game, allPlayers = [], onPlayerClick }) {
   const gp = game?.players || []
   if (!gp.length) return null
   const any = gp[0]
@@ -157,6 +158,19 @@ export default function GameDeepDive({ game, onPlayerClick }) {
         {teams.map((t) => (
           <StarterPanel key={t} team={t} rows={gp.filter((p) => clean(p?.team, '') === t)} onPlayerClick={onPlayerClick} />
         ))}
+      </div>
+
+      {/* this game's storylines — the same engine the Scoreboard runs,
+          scoped to one building: its duels, revenge games, B2B bats,
+          milestones in reach, birthdays and giveaway night (2026-08-08) */}
+      <div style={{ marginTop: 8 }}>
+        <Storylines
+          players={gp}
+          fetchPlayers={allPlayers.length ? allPlayers : gp}
+          gamePk={game?.game_pk}
+          compact
+          onPlayerClick={onPlayerClick}
+        />
       </div>
     </div>
   )

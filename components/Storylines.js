@@ -55,21 +55,31 @@ const RIVALS = [
 
 let _cache = null
 
-export default function Storylines({ players = [], onPlayerClick }) {
+// PER-GAME MODE (2026-08-08, "every game needs a storyline thing"):
+// the same engine, three extra props. `players` scopes what renders;
+// `fetchPlayers` (the FULL slate) feeds the API pull so the module cache is
+// always slate-wide no matter which mount fires first; `gamePk` narrows
+// giveaways to this building; `compact` = the deep-dive skin (always open,
+// no collapse persistence, smaller header).
+export default function Storylines({ players = [], fetchPlayers = null, gamePk = null, compact = false, onPlayerClick }) {
   const [data, setData] = useState(_cache)
   // Collapsed by default (2026-08-07, Donovan: "storyline kinda fills the
   // page too much"). The header keeps a live count summary so a closed panel
   // still tells you whether tonight has stories worth opening. Persists.
-  const [open, setOpen] = useState(false)
-  useEffect(() => { try { if (localStorage.getItem('story_open') === '1') setOpen(true) } catch {} }, [])
-  const flip = () => setOpen((v) => { try { localStorage.setItem('story_open', v ? '0' : '1') } catch {}; return !v })
+  const [open, setOpen] = useState(compact)
+  useEffect(() => { if (!compact) { try { if (localStorage.getItem('story_open') === '1') setOpen(true) } catch {} } }, [compact])
+  const flip = () => {
+    if (compact) return
+    setOpen((v) => { try { localStorage.setItem('story_open', v ? '0' : '1') } catch {}; return !v })
+  }
 
+  const pullFrom = (fetchPlayers && fetchPlayers.length ? fetchPlayers : players)
   useEffect(() => {
-    if (_cache || !players.length) return
+    if (_cache || !pullFrom.length) return
     let alive = true
     ;(async () => {
       try {
-        const ids = [...new Set(players.map((p) => Number(p?.player_id ?? p?.id)).filter(Boolean))]
+        const ids = [...new Set(pullFrom.map((p) => Number(p?.player_id ?? p?.id)).filter(Boolean))]
         const people = []
         for (let i = 0; i < ids.length; i += 100) {
           const j = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${ids.slice(i, i + 100).join(',')}&hydrate=stats(group=[hitting],type=[career,season])`)
@@ -97,7 +107,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
       } catch { if (alive) setData({ people: [], promos: null }) }
     })()
     return () => { alive = false }
-  }, [players.length])
+  }, [pullFrom.length])
 
   // ── BACK-TO-BACK WATCH (2026-08-07) — pure slate field, no API needed.
   // games_since_last_hr === 0 means he homered in his most recent game;
@@ -190,7 +200,9 @@ export default function Storylines({ players = [], onPlayerClick }) {
   // ── giveaways ──
   const lastNames = new Map(players.map((p) => [String(nameOf(p)).split(' ').slice(-1)[0].toLowerCase(), p]))
   const giveaways = []
-  ;(data?.promos?.dates?.[0]?.games || []).forEach((g) => {
+  ;(data?.promos?.dates?.[0]?.games || [])
+    .filter((g) => !gamePk || Number(g?.gamePk) === Number(gamePk))
+    .forEach((g) => {
     const home = g?.teams?.home?.team?.name || ''
     ;(g.promotions || []).forEach((pr) => {
       const nm = String(pr.name || '')
@@ -205,7 +217,15 @@ export default function Storylines({ players = [], onPlayerClick }) {
   })
   giveaways.sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.isBobble ? 1 : 0) - (a.isBobble ? 1 : 0))
 
-  if (!b2b.length && !miles.length && !bdays.length && !giveaways.length && !duels.length && !revenge.length && !rivalries.length) return null
+  const empty = !b2b.length && !miles.length && !bdays.length && !giveaways.length && !duels.length && !revenge.length && !rivalries.length
+  if (empty && !compact) return null
+  if (empty && compact) {
+    return (
+      <div style={{ fontSize: 10, color: C.text3, margin: '6px 0 10px', fontStyle: 'italic' }}>
+        📖 no storylines in this one — just baseball
+      </div>
+    )
+  }
 
   const Row = ({ icon, children, p }) => (
     <div onClick={() => p && onPlayerClick?.(p)} style={{
@@ -223,7 +243,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
       border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14,
     }}>
       <div onClick={flip} style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: open ? 6 : 0, cursor: 'pointer', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 Storylines {open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 {compact ? 'This game\u2019s storylines' : 'Storylines'} {compact ? '' : (open ? '▾' : '▸')}</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
           {[
             b2b.length && `🔁 ${b2b.length} b2b`,
@@ -245,7 +265,7 @@ export default function Storylines({ players = [], onPlayerClick }) {
           <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
         </Row>
       ))}
-      {b2b.length > 6 && (
+      {!compact && b2b.length > 6 && (
         <Row icon="🔁">
           <span style={{ color: C.text3 }}>+ {b2b.length - 6} more homered their last game — full list lives on the Due tab at window 1</span>
         </Row>

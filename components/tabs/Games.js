@@ -392,7 +392,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                 both full pitching matchups + each lineup's threat profile.
                 Only the SELECTED game gets it — the rest stay scannable. */}
             {isActive && activeGame === g.game_pk && (
-              <GameDeepDive game={g} onPlayerClick={onPlayerClick} />
+              <GameDeepDive game={g} allPlayers={players} onPlayerClick={onPlayerClick} />
             )}
 
             {isActive && (
