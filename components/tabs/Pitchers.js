@@ -1,6 +1,8 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { penStatsFor, fetchPenFatigue, penTier } from '../../lib/bullpen'
+import { teamAbbrs } from '../../lib/gamelogs'
 import { groupPitchers } from '../../lib/data'
 import { n, clean } from '../../lib/player'
 import { pitcherOverall } from '../../lib/scoring_additions'
@@ -30,6 +32,93 @@ function sortPitchers(pitchers, sortKey) {
   if (sortKey === 'hr9') return list.sort((a, b) => (b.pitcher_hr9 ?? -1) - (a.pitcher_hr9 ?? -1))
   if (sortKey === 'whip') return list.sort((a, b) => (b.pitcher_whip ?? -1) - (a.pitcher_whip ?? -1))
   return list.sort((a, b) => new Date(a.game_time || 0) - new Date(b.game_time || 0))
+}
+
+// 🚪 BULLPEN BOARD (audit #5, 2026-08-08). The starter table above answers
+// "who starts weak"; this answers the OTHER six innings — which pens on
+// tonight's slate leak homers (season reliever-only HR/9, sitCodes=rp, the
+// verified split behind penStatsFor) and which ones come in already tired
+// (yesterday's workload). Both live-API context lanes; nothing here scores.
+function BullpenBoard({ pitchers }) {
+  const [pen, setPen] = useState(null)          // ABBR → {hr9, hr, ip}
+  const [fatByAbbr, setFatByAbbr] = useState(null)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    penStatsFor().then((m) => setPen(m)).catch(() => {})
+    Promise.all([fetchPenFatigue(), teamAbbrs()]).then(([fat, abbrs]) => {
+      const m = {}
+      Object.entries(fat || {}).forEach(([tid, t]) => {
+        const ab = abbrs?.[tid]
+        if (ab) m[String(ab).toUpperCase()] = t
+      })
+      setFatByAbbr(m)
+    }).catch(() => {})
+  }, [])
+
+  const rows = useMemo(() => {
+    if (!pen) return []
+    const tonight = new Set()
+    pitchers.forEach((p) => {
+      [p.team, p.opponent_team].forEach((t) => t && tonight.add(String(t).toUpperCase()))
+    })
+    return [...tonight]
+      .map((ab) => ({ ab, st: pen.get(ab), tier: penTier(fatByAbbr?.[ab]), fat: fatByAbbr?.[ab] }))
+      .filter((r) => r.st?.hr9 != null)
+      .sort((a, b) => b.st.hr9 - a.st.hr9)
+  }, [pen, fatByAbbr, pitchers])
+
+  if (!rows.length) return null
+  const shown = open ? rows : rows.slice(0, 8)
+  const worst = rows[0]?.st?.hr9 || 1
+
+  return (
+    <div style={{
+      background: `linear-gradient(155deg, ${C.bg2}, rgba(248,113,113,.04))`,
+      border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 13px', marginBottom: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 900 }}>🚪 Bullpen board</span>
+        <span style={{ fontSize: 9.5, color: C.text3 }}>
+          the other six innings — tonight&apos;s pens ranked by season reliever-only HR/9, with yesterday&apos;s workload beside it
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {shown.map((r, i) => (
+          <div key={r.ab} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16 }}>{i + 1}</span>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, width: 34 }}>{r.ab}</span>
+            <div style={{ flex: '1 1 90px', maxWidth: 210, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}
+              title={`${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}`}>
+              <div style={{
+                width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
+                background: r.st.hr9 >= 1.3 ? '#f87171' : r.st.hr9 >= 1.05 ? C.orange : '#4ade80',
+              }} />
+            </div>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 40, color: r.st.hr9 >= 1.3 ? '#f87171' : C.text2 }}>
+              {r.st.hr9.toFixed(2)}
+            </span>
+            {r.tier && (
+              <span title={`${r.ab} bullpen yesterday: ${r.fat.used} relievers, ${r.fat.pitches} pitches`}
+                style={{ fontSize: 9, fontWeight: 900, color: r.tier.col }}>
+                {r.tier.icon} {r.tier.word}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {rows.length > 8 && (
+        <button onClick={() => setOpen(!open)} style={{
+          marginTop: 6, fontSize: 9.5, fontWeight: 700, cursor: 'pointer', color: C.text3,
+          background: 'transparent', border: `1px dashed ${C.border}`, borderRadius: 6, padding: '2px 9px',
+        }}>{open ? 'show less' : `all ${rows.length} pens`}</button>
+      )}
+      <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+        Red bar = a pen surrendering 1.30+ HR/9 — the late innings there are a live power window,
+        doubly so with a 🥵 tag (they threw heavy yesterday). Context lane: this ranks nothing else on the site.
+      </div>
+    </div>
+  )
 }
 
 function localTime(gameTime) {
@@ -224,6 +313,8 @@ export default function Pitchers({ players, onPlayerClick }) {
           </div>
         ))}
       </div>
+
+      <BullpenBoard pitchers={pitchers} />
 
       {/* Column groups — the other half of the usability fix. Thirty columns
           at once was a wall; each group is one question. */}

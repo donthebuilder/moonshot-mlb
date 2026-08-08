@@ -7,6 +7,7 @@ import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
 import Heatmap from '../Heatmap'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
+import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
 
@@ -150,6 +151,9 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               bestOther: `${best[0]} ${best[1].toFixed(0)}`,
               bestOtherV: best[1],
               hrw: nn(p?.hrw_score),
+              // audit #3 — lineup_spot verified in payload (Pairs/Games/Bot
+              // already read it); xPA is a static league table, see lib/xpa.js
+              xpa: xpaFor(p?.lineup_spot),
               l5: `${nn(p?.last5_hits)}H/${nn(p?.last5_hr)}HR`,
               hr9: nn(p?.pitcher_hr9),
             }
@@ -196,6 +200,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             { key: 'bestOther', label: 'Best other', heat: false, w: 66, mono: true, dim: true,
               title: 'His strongest OTHER category tonight — if this number dwarfs his score here, he might be the wrong kind of bet' },
             { key: 'hrw',    label: 'HRW', w: 44, dp: 0 },
+            { key: 'xpa',    label: 'xPA', w: 44, dp: 2, title: XPA_TITLE },
             { key: 'l5',     label: 'L5', heat: false, w: 58, mono: true, dim: true },
             { key: 'hr9',    label: 'P HR/9', w: 50, dp: 2 },
           ]}

@@ -23,6 +23,36 @@ import PlayerNotes from './PlayerNotes'
 import ThresholdGrid from './ThresholdGrid'
 import BvP from './BvP'
 import { venueRecord } from '../lib/venueHr'
+import { pullWallFor } from '../lib/walls'
+
+// 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
+// verified live; percentile computed from the same payload. Switch hitters
+// get their shorter side. Context row — never a score input.
+function PullWallRow({ bats, venueName }) {
+  const [w, setW] = useState(undefined)
+  useEffect(() => {
+    let alive = true
+    setW(undefined)
+    if (!venueName || !bats) { setW(null); return }
+    pullWallFor(bats, venueName).then((r) => { if (alive) setW(r) })
+    return () => { alive = false }
+  }, [bats, venueName])
+  if (w === undefined) return <Row label="Pull-side wall" value="…" />
+  if (!w) return null
+  const col = w.linePct != null && w.linePct <= 20 ? C.orange
+    : w.linePct != null && w.linePct >= 80 ? '#38bdf8' : C.text
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+      <span style={{ fontSize: 11, color: C.text3 }}
+        title={`His pull side (${w.side}) at ${venueName}: ${w.line} ft down the line${w.gap ? `, ${w.gap} ft to the gap` : ''}. Percentile is vs all 30 parks' same-side line from the league's own fieldInfo — ${w.linePct}% of parks are shorter. Context, not a score input.`}>
+        Pull-side wall 🧱
+      </span>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, color: col }}>
+        {w.side} {w.line} ft{w.gap ? ` / ${w.gap} gap` : ''}{w.word ? ` · ${w.word}` : ''}
+      </span>
+    </div>
+  )
+}
 
 // "Does he have HRs in THIS building" (2026-08-08). Self-fetching row:
 // season + last season gameLogs joined to venues by gamePk (the league has
@@ -345,6 +375,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="TB Score"  value={tbScore(p).toFixed(1)} />
                   <Row label="Pitch Mix" value={pitchMixScore(p).toFixed(1)} />
                   <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} />
+                  <PullWallRow bats={clean(p?.bats || p?.handedness, '')} venueName={clean(p?.venue_name, '')} />
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '8px 0 4px' }}>Batted Ball</div>

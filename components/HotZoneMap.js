@@ -181,7 +181,71 @@ const BATTER_METRICS = [
   { key:'xwoba',   label:'xwOBA', fmt: v => `.${String(Math.round(v*1000)).padStart(3,'0')}` },
   { key:'xslg',    label:'xSLG',  fmt: v => `.${String(Math.round(v*1000)).padStart(3,'0')}` },
   { key:'bbe',     label:'BBE',   fmt: v => String(v) },
+  // gb/fly (audit #11): rates over BBE, published by spray_cache starting
+  // 2026-08-08 — older cached profiles won't carry them, the UI says so.
+  { key:'fb_rate', label:'FLY%',  fmt: v => v==null?'—':`${(v*100).toFixed(0)}%` },
+  { key:'gb_rate', label:'GB%',   fmt: v => v==null?'—':`${(v*100).toFixed(0)}%` },
 ]
+
+// ── Zone match strip (audit #11, 2026-08-08) ─────────────────────────────────
+// The question the tab existed to answer but never actually printed: WHERE do
+// this batter's strengths land on this pitcher's weaknesses, per stat — and
+// when the answer is nowhere, say "nowhere" instead of going quiet. A match =
+// a zone in the batter's top-3 for the stat that is ALSO in the pitcher's
+// top-3 damage zones for the same stat (both sample-gated by low_sample).
+const MATCH_STATS = [
+  { key:'hr_rate', label:'HR',  col:'#f87171' },
+  { key:'ba',      label:'BA',  col:'#4ade80' },
+  { key:'fb_rate', label:'FLY', col:'#22d3ee' },
+  { key:'gb_rate', label:'GB',  col:'#FCD34D' },
+]
+function topZones(cells, key, n=3) {
+  return [...(cells||[])]
+    .filter(z => !z.low_sample && z[key] != null && z[key] > 0)
+    .sort((a,b) => b[key] - a[key]).slice(0, n).map(z => z.zone)
+}
+function ZoneMatchStrip({ zoneProfile, pitcherProfile }) {
+  if (!zoneProfile || !pitcherProfile) return null
+  const bCells = zoneProfile.zones_13 || zoneProfile.zones_9 || []
+  const pCells = pitcherProfile.damage || []
+  const hasShape = bCells.some(z => z.gb_rate != null) && pCells.some(z => z.gb_rate != null)
+  const rows = MATCH_STATS.map(st => {
+    const shapeStat = st.key === 'gb_rate' || st.key === 'fb_rate'
+    if (shapeStat && !hasShape) return { ...st, pending: true, zs: [] }
+    const zs = topZones(bCells, st.key).filter(z => topZones(pCells, st.key).includes(z))
+    return { ...st, zs }
+  })
+  const total = rows.reduce((a,r) => a + (r.zs?.length||0), 0)
+  return (
+    <div style={{
+      background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10,
+      padding:'8px 13px', marginBottom:12,
+    }}>
+      <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap'}}>
+        <span style={{fontSize:11,fontWeight:900}}>🎯 Zone matches</span>
+        <span style={{fontSize:9.5,color:C.text3}}>
+          {total > 0
+            ? `${total} — his best zones land on the pitcher's worst`
+            : 'none tonight — his strengths and this pitcher’s weak zones don’t line up'}
+        </span>
+      </div>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:6}}>
+        {rows.map(r => (
+          <span key={r.key} style={{
+            fontSize:9.5, fontFamily:NUM_FONT, borderRadius:999, padding:'2px 9px',
+            border:`1px solid ${r.zs.length ? r.col+'66' : C.border}`,
+            color: r.zs.length ? r.col : C.text3, background: r.zs.length ? r.col+'14' : 'transparent',
+          }}>
+            <b>{r.label}</b>{' '}
+            {r.pending ? 'lands with tonight’s cache rebuild'
+              : r.zs.length ? r.zs.map(z => ZONE_LABELS[z]||'Z'+z).join(' · ')
+              : 'no match'}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
 const PITCHER_METRICS = [
   { key:'xwoba',   label:'xwOBA', fmt: v => `.${String(Math.round(v*1000)).padStart(3,'0')}` },
   { key:'hr_rate', label:'HR%',   fmt: v => `${(v*100).toFixed(0)}%` },
@@ -605,10 +669,11 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
     // file. The detail file is still fetched because this panel also draws the
     // per-pitch profile out of it.
     //
-    // The zones fetch 404s until the Spray Cache workflow is changed to publish
-    // (permissions are read-only today, so it writes nothing). A 404 is not an
-    // error here — it's the expected state, and the empty state below says so
-    // rather than showing a spinner that never resolves.
+    // STALE-COMMENT FIX (2026-08-08, audit #11): this used to say the zones
+    // fetch 404s forever because the workflow never publishes. That's been
+    // false since ddaef65 — zones/today/ is live on the data branch (verified
+    // against the branch today). A 404 now just means the nightly batch
+    // hasn't reached this player yet; the empty state below says so.
     Promise.all([
       fetch(detailUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
       fetch(zonesUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -736,6 +801,7 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
       {/* ── BATTER ZONES ── */}
       {tab==='batter'&&(
         <div>
+          <ZoneMatchStrip zoneProfile={zoneProfile} pitcherProfile={pitcherProfile}/>
           <PitchToggles pitches={pitches} active={activePitches} onToggle={togglePitch} onClear={()=>setActivePitches(new Set())}/>
           {/* Active pitch callout */}
           {activePitches.size>0&&(

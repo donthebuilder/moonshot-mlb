@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
+import { fetchRestTravel } from '../lib/restTravel'
 
 // WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
 // board into tonight's weather desk — live game status (delayed / postponed /
@@ -124,6 +125,22 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
       setPenByAbbr(m)
     }).catch(() => {})
   }, [])
+
+  // 😴 rest & travel (audit #9): one schedule range call, flags per team.
+  // Unlike pen fatigue this DOES apply to a tomorrow slate — the range just
+  // shifts with the slate date. Context chips only; nothing is scored.
+  const [restByAbbr, setRestByAbbr] = useState(null)
+  useEffect(() => {
+    const date = slateDate || new Date().toLocaleDateString('en-CA')
+    Promise.all([fetchRestTravel(date), teamAbbrs()]).then(([rt, abbrs]) => {
+      const m = {}
+      rt.forEach((flags, tid) => {
+        const ab = abbrs?.[tid]
+        if (ab) m[ab] = flags
+      })
+      setRestByAbbr(m)
+    }).catch(() => {})
+  }, [slateDate])
 
   if (!parks.length) return null
 
@@ -251,6 +268,16 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                         >{tier.icon} {tm} {tier.word}</span>
                       )
                     })}
+                    {/* 😴 rest & travel — schedule facts, not vibes: day-after-
+                        night, doubleheaders, overnight park changes, 3-in-3. */}
+                    {restByAbbr && !final && teams.map((tm) => (
+                      (restByAbbr[tm] || []).map((f) => (
+                        <span key={`rt-${tm}-${f.label}`} title={`${tm}: ${f.title}`}
+                          style={{ color: '#a1a1aa', fontWeight: 800, cursor: 'help' }}>
+                          {f.icon} {tm} {f.label}
+                        </span>
+                      ))
+                    ))}
                     {/* 🌇 twilight cooling — directional physics, no invented
                         forecast: external weather APIs failed verification, so
                         this says WHICH WAY the air moves, not a made-up number. */}

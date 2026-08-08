@@ -30,6 +30,34 @@ const CATS = [
   { tier: 'CONTACT_PICKS', label: 'CONTACT', color: '#A78BFA', bar: '2+ TB', barLabel: '2+ total bases' },
 ]
 
+// Wilson 95% interval (audit #13, 2026-08-08). The season record is a small-n
+// binomial and a bare "48.1%" overstates how settled it is. Wilson over normal
+// approximation because our n's are exactly where the normal one lies (small
+// samples, rates far from 50%). Returns [lo, hi] in percent.
+const wilson = (ok, n) => {
+  if (!n) return null
+  const z = 1.96, p = ok / n, z2 = z * z
+  const den = 1 + z2 / n
+  const mid = (p + z2 / (2 * n)) / den
+  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / den
+  return [Math.max(0, (mid - half) * 100), Math.min(100, (mid + half) * 100)]
+}
+const ciText = (ok, n) => {
+  const ci = wilson(ok, n)
+  return ci ? `${ci[0].toFixed(0)}–${ci[1].toFixed(0)}%` : null
+}
+
+// Rolling form (audit #14): pooled own-bar rate over the trailing 7 and 30
+// graded days, held against the season base. Pooled counts, not an average of
+// nightly rates — a 3-pick night shouldn't weigh like a 40-pick night.
+const poolRate = (days) => {
+  let ok = 0, n = 0
+  days.forEach((d) => {
+    if (d.ok != null) { ok += d.ok; n += d.n } else { ok += Math.round((d.rate / 100) * d.size); n += d.size }
+  })
+  return n ? { rate: (100 * ok) / n, ok, n } : null
+}
+
 const gradeOf = (rate, base) => {
   if (rate == null || !base) return { g: '—', col: C.text3 }
   const r = rate / base
@@ -112,7 +140,11 @@ export default function ReportCard({ backtest }) {
       days.filter((d) => d.date >= LOCK_DATE).forEach((d) => {
         if (d.ok != null) { lockOk += d.ok; lockN += d.n } else { lockOk += Math.round((d.rate / 100) * d.size); lockN += d.size }
       })
-      return { cat, days, ok, n, approx, base, last, lockOk, lockN, grade: gradeOf(last?.rate, base) }
+      // trailing form windows by graded-day count (calendar gaps don't matter
+      // — an off-day slate teaches nothing)
+      const form7 = poolRate(days.slice(-7))
+      const form30 = poolRate(days.slice(-30))
+      return { cat, days, ok, n, approx, base, last, lockOk, lockN, form7, form30, grade: gradeOf(last?.rate, base) }
     })
     return { rows, lastDate, dates }
   }, [backtest])
@@ -137,6 +169,11 @@ export default function ReportCard({ backtest }) {
           <div style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900 }}>
             {seasonOk}/{seasonN} <span style={{ fontSize: 14, color: seasonN && (100 * seasonOk) / seasonN >= 45 ? '#4ade80' : C.orange }}>{seasonN ? ((100 * seasonOk) / seasonN).toFixed(1) : '—'}%</span>
           </div>
+          {seasonN > 0 && (
+            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }} title="95% Wilson interval — where the true rate plausibly lives given this sample size">
+              95% CI {ciText(seasonOk, seasonN)}
+            </div>
+          )}
         </div>
         <div>
           <div style={{ fontSize: 8.5, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Since the lock</div>
@@ -144,6 +181,11 @@ export default function ReportCard({ backtest }) {
             {lockN ? `${lockOk}/${lockN}` : 'building…'}
             {lockN > 0 && <span style={{ fontSize: 14, marginLeft: 6, color: (100 * lockOk) / lockN >= 45 ? '#4ade80' : C.orange }}>{((100 * lockOk) / lockN).toFixed(1)}%</span>}
           </div>
+          {lockN > 0 && (
+            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }} title="95% Wilson interval — wide while the locked sample is young, and it should be">
+              95% CI {ciText(lockOk, lockN)}
+            </div>
+          )}
         </div>
         <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, flex: '1 1 260px', minWidth: 0 }}>
           The since-lock number is the one that matters going forward: every pick in it froze at first
@@ -198,8 +240,39 @@ export default function ReportCard({ backtest }) {
             <span style={{ fontSize: 10, color: base >= 50 ? '#4ade80' : base >= 30 ? '#FCD34D' : C.text3, fontFamily: NUM_FONT }}>
               {base?.toFixed(1)}%
             </span>
+            {n > 0 && (
+              <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }} title="95% Wilson interval">
+                ({ciText(ok, n)})
+              </span>
+            )}
           </div>
         ))}
+      </div>
+
+      {/* ── model form: trailing 7 / 30 graded days (audit #14) ── */}
+      <div style={{ fontSize: 11.5, fontWeight: 900, marginBottom: 2 }}>Model form</div>
+      <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
+        Pooled own-bar rate over the last 7 and 30 graded days vs the season base — is the model
+        running hot, cold, or itself right now. Pooled counts, not averaged nights, so big slates
+        weigh what they should.
+      </div>
+      <div style={{ display: 'grid', gap: 8, marginBottom: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+        {model.rows.map(({ cat, base, form7, form30 }) => {
+          const d7 = form7 && base != null ? form7.rate - base : null
+          const arrow = (d) => d == null ? '' : d >= 3 ? ' ▲' : d <= -3 ? ' ▼' : ' ·'
+          const colOf = (d) => d == null ? C.text3 : d >= 3 ? '#4ade80' : d <= -3 ? '#f87171' : C.text2
+          return (
+            <div key={cat.tier} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${cat.color}`, borderRadius: 9, padding: '7px 11px' }}>
+              <div style={{ fontSize: 9, fontWeight: 900, color: cat.color, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{cat.label}</div>
+              <div style={{ fontSize: 10.5, fontFamily: NUM_FONT, marginTop: 3, color: colOf(d7) }}>
+                7d {form7 ? `${form7.rate.toFixed(0)}% (${form7.ok}/${form7.n})` : '—'}{arrow(d7)}
+              </div>
+              <div style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, marginTop: 1 }}>
+                30d {form30 ? `${form30.rate.toFixed(0)}%` : '—'} · season {base?.toFixed(0)}%
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* ── 3. trust curves ── */}
