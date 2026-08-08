@@ -203,6 +203,9 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     hr: h.is_hr ? 1 : 0,
     result: String(h.result || h.event || '').replace(/_/g, ' '),
     traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' '),
+    // is_pull_air is spray_cache's own flag: pulled AND in the air — the
+    // batted-ball shape that actually leaves buildings
+    pullAir: h.is_pull_air ? 1 : 0,
   })), [windowed, armFilter, batterHand, pitchSel, resFilter])
 
   const pid = player?.player_id || player?.id
@@ -368,13 +371,26 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         const hh = rows.filter((r) => r.hard).length
         const brl = rows.filter((r) => r.barrel).length
         const hr = rows.filter((r) => r.hr).length
+        // batted-ball shape over the same rows (2026-08-08, Donovan: "show
+        // gb fb ld pull barrel %s") — traj is Statcast's own bb_type label
+        const shapePct = (re) => {
+          const k = rows.filter((r) => re.test(r.traj)).length
+          return rows.length ? (100 * k) / rows.length : null
+        }
+        const pullAir = rows.filter((r) => r.pullAir).length
+        const pct = (v) => `${v.toFixed(0)}%`
         const cells = [
           ['AVG EV', avg('ev'), (v) => v.toFixed(1), '#fca63a'],
           ['AVG ANGLE', avg('la'), (v) => `${v.toFixed(0)}°`, C.text2],
           ['AVG DIST', avg('dist'), (v) => `${v.toFixed(0)}ft`, '#fca63a'],
           ['AVG VELO SEEN', avg('velo'), (v) => v.toFixed(1), C.text2],
+          ['GB', shapePct(/ground/i), pct, C.text2],
+          ['FLY', shapePct(/fly/i), pct, '#22d3ee'],
+          ['LD', shapePct(/line/i), pct, C.text2],
+          ['POP', shapePct(/pop/i), pct, C.text3],
+          ['PULL-AIR', pullAir, (v) => `${pct((100 * v) / rows.length)}`, '#fca63a'],
           ['HARD HIT', hh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#fca63a'],
-          ['BARRELS', brl, (v) => `${v}`, '#a78bfa'],
+          ['BARRELS', brl, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#a78bfa'],
           ['HR', hr, (v) => `${v}`, '#4ade80'],
         ]
         return (
