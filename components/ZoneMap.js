@@ -113,7 +113,10 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
   )
 }
 
-export default function ZoneMap({ playerId, bats }) {
+// per-pitch chip colors — matches the site's pitch language elsewhere
+const P_COLORS = { FF: '#f87171', SI: '#fb923c', FC: '#fbbf24', SL: '#22d3ee', ST: '#67e8f9', CU: '#a78bfa', KC: '#c4b5fd', CH: '#4ade80', FS: '#86efac', OTHER: '#9ca3af' }
+
+export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
   const [api, setApi] = useState(undefined)
   const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
@@ -280,6 +283,31 @@ export default function ZoneMap({ playerId, bats }) {
 
       {verdict}
       {isMatch && <ZoneMatchStrip zp={zp} pzp={pzp} />}
+
+      {/* per-pitch strip (2026-08-08, Donovan: "if there's per-pitch data
+          show that"). His batted-ball line against each of tonight's
+          pitches, usage-ordered. Stated honestly: no zone-BY-pitch split is
+          published anywhere, so this rides BESIDE the grid, never pretends
+          to be per-cell. */}
+      {pitchInfo && pitchInfo.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+          {pitchInfo.map((pi) => {
+            const col = P_COLORS[pi.code] || P_COLORS.OTHER
+            return (
+              <span key={pi.code}
+                title={`${pi.code}${pi.usage != null ? ` — ${pi.usage.toFixed(0)}% of tonight's starter's mix` : ''}. His batted balls vs this pitch (tracked window): ${pi.seen}${pi.hr ? `, ${pi.hr} HR` : ''}${pi.avgEv ? `, avg EV ${pi.avgEv.toFixed(1)}` : ''}. No zone-by-pitch split exists in the data — this is his line vs the pitch, not a per-cell map.`}
+                style={{
+                  fontSize: 9, fontFamily: NUM_FONT, borderRadius: 999, padding: '2px 9px',
+                  border: `1px solid ${col}55`, color: col, background: `${col}12`, whiteSpace: 'nowrap',
+                }}>
+                <b>{pi.code}</b>
+                {pi.usage != null && <span style={{ opacity: 0.85 }}> {pi.usage.toFixed(0)}%</span>}
+                {pi.seen > 0 && <span style={{ color: C.text2 }}> · {pi.seen}bb{pi.hr ? ` · ${pi.hr}HR` : ''}{pi.avgEv ? ` · ${pi.avgEv.toFixed(0)}ev` : ''}</span>}
+              </span>
+            )
+          })}
+        </div>
+      )}
 
       <div style={{ maxWidth: 250, margin: '0 auto' }}>
         <div style={{

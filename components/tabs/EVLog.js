@@ -159,6 +159,34 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   useEffect(() => {
     if (pitchSel === null && tonightMix.length) setPitchSel(new Set(tonightMix))
   }, [tonightMix, pitchSel])
+
+  // Usage % per pitch code from the published mix strings — feeds both the
+  // "P top 3" toggle and the zone map's per-pitch strip (2026-08-08).
+  const usagePct = useMemo(() => {
+    const m = {}
+    const side = String(player?.bats || '').toUpperCase().slice(0, 1) === 'L' ? 'lhb' : 'rhb'
+    const raw = player?.[`pitcher_primary_mix_vs_${side}`] || player?.pitcher_primary_mix || ''
+    String(raw).split('|').forEach((part) => {
+      const mt = part.trim().match(/^([A-Z]{2,3})\s+([\d.]+)\s*%?$/)
+      if (mt) m[mt[1]] = parseFloat(mt[2])
+    })
+    Object.entries(player?.pitcher_pitch_usage_pct || {}).forEach(([k, v]) => {
+      if (m[k] == null) m[k] = Number(v) || 0
+    })
+    return m
+  }, [player])
+
+  // ⌖ P TOP 3 (2026-08-08, Donovan: "pitch mix should toggle pitcher top 3
+  // pitches, but keep tonight's mix as an option") — the starter's three
+  // most-thrown pitches, the tighter read: 80%+ of what he'll actually see.
+  const topThree = useMemo(() => {
+    const seen = new Set(log.map((h) => h.pitch_type).filter(Boolean))
+    return Object.entries(usagePct)
+      .sort((a, b) => b[1] - a[1])
+      .map(([c]) => c)
+      .filter((c) => seen.has(c))
+      .slice(0, 3)
+  }, [usagePct, log])
   const allDates = useMemo(
     () => [...new Set(log.map((h) => h.date).filter(Boolean))].sort().reverse(),
     [log],
@@ -210,6 +238,32 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
 
   const pid = player?.player_id || player?.id
 
+  // Per-pitch line for the zone map's strip (2026-08-08, Donovan: "on the
+  // strike zone map if there's per-pitch data show that"). There is no
+  // zone-BY-pitch split published anywhere — the honest offer is his
+  // batted-ball line per pitch beside the map, not a fake per-pitch grid.
+  const pitchInfo = useMemo(() => {
+    const agg = {}
+    log.forEach((h) => {
+      const c = h.pitch_type
+      if (!c) return
+      const a = agg[c] || (agg[c] = { seen: 0, hr: 0, evSum: 0, evN: 0 })
+      a.seen += 1
+      if (h.is_hr) a.hr += 1
+      const ev = Number(h.ev)
+      if (Number.isFinite(ev)) { a.evSum += ev; a.evN += 1 }
+    })
+    return [...new Set([...Object.keys(usagePct), ...Object.keys(agg)])]
+      .map((c) => ({
+        code: c, usage: usagePct[c] ?? null,
+        seen: agg[c]?.seen || 0, hr: agg[c]?.hr || 0,
+        avgEv: agg[c]?.evN ? agg[c].evSum / agg[c].evN : null,
+      }))
+      .filter((x) => x.usage != null || x.seen >= 5)
+      .sort((a, b) => (b.usage ?? -1) - (a.usage ?? -1))
+      .slice(0, 5)
+  }, [log, usagePct])
+
   // The zone map is live API, so it renders even when the spray payload is
   // empty — the log needs the bot, the plate map doesn't.
   if (!log.length) {
@@ -255,7 +309,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   return (
     <div>
       <TonightLive gamePk={player?.game_pk} batterId={pid} />
-      <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} />
+      <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} pitchInfo={pitchInfo} />
       <div style={{
         display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center',
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
@@ -310,6 +364,13 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
               onClick={() => setPitchSel(new Set(tonightMix))}
               title={`${clean(player?.pitcher_name, "Tonight's starter")}'s mix vs ${String(player?.bats || '?').toUpperCase()}HB`}
             >⌖ Tonight&apos;s mix</button>
+          )}
+          {topThree.length > 0 && (
+            <button
+              style={seg(!!pitchSel && pitchSel.size === topThree.length && topThree.every((c) => pitchSel.has(c)))}
+              onClick={() => setPitchSel(new Set(topThree))}
+              title={`${clean(player?.pitcher_name, "Tonight's starter")}'s three most-thrown pitches — ${topThree.map((c) => `${c} ${usagePct[c]?.toFixed(0) ?? '?'}%`).join(', ')}. The tighter read: most of what he'll actually see.`}
+            >P top 3</button>
           )}
         </div>
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
