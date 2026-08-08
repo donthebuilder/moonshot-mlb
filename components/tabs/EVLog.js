@@ -357,6 +357,45 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         </div>
       )}
 
+      {/* WINDOW AVERAGES (2026-08-08, "show the avgs of each category at
+          the top"): computed from EXACTLY the rows below — change the
+          window or a filter and these move with it. */}
+      {rows.length > 0 && (() => {
+        const avg = (k) => {
+          const xs = rows.map((r) => Number(r[k])).filter(Number.isFinite)
+          return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null
+        }
+        const hh = rows.filter((r) => r.hard).length
+        const brl = rows.filter((r) => r.barrel).length
+        const hr = rows.filter((r) => r.hr).length
+        const cells = [
+          ['AVG EV', avg('ev'), (v) => v.toFixed(1), '#fca63a'],
+          ['AVG ANGLE', avg('la'), (v) => `${v.toFixed(0)}°`, C.text2],
+          ['AVG DIST', avg('dist'), (v) => `${v.toFixed(0)}ft`, '#fca63a'],
+          ['AVG VELO SEEN', avg('velo'), (v) => v.toFixed(1), C.text2],
+          ['HARD HIT', hh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#fca63a'],
+          ['BARRELS', brl, (v) => `${v}`, '#a78bfa'],
+          ['HR', hr, (v) => `${v}`, '#4ade80'],
+        ]
+        return (
+          <div style={{
+            display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 8,
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
+            padding: '8px 14px',
+          }}>
+            {cells.map(([l, v, fmt, col]) => v == null ? null : (
+              <div key={l} style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 7.5, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT }}>{l}</div>
+                <div style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{fmt(v)}</div>
+              </div>
+            ))}
+            <div style={{ marginLeft: 'auto', alignSelf: 'end', fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+              over the {rows.length} balls shown below
+            </div>
+          </div>
+        )
+      })()}
+
       <DenseTable
         rows={rows}
         columns={[

@@ -25,15 +25,20 @@ import { C, NUM_FONT } from '../lib/theme'
 // the page and its neighbour. The hue shift is unchanged: dark red-brown
 // through orange to light gold, because eight steps of one hue collapse into a
 // smear on a dense grid no matter how bright they are.
+// RAMP v2 (2026-08-08, "honestly the color looks nasty"): the old ramp's
+// bottom half was brown mud, which made whole tables read as dirt. Low
+// values now recede into cool charcoal/slate — visually QUIET — and heat
+// is earned: warmth only begins above the midpoint, saturating to ember.
+// Same 8 stops, same API, every table on the site inherits the fix.
 export const ORANGE_RAMP = [
-  '#4a2f10', // floor: readable against #09090b, still clearly "low"
-  '#6b3d10',
-  '#8d4d11',
-  '#b05d11',
-  '#d17214',
-  '#ea8a1b',
-  '#faa326', // hot
-  '#fec168', // light gold top
+  '#17171b', // floor: near-invisible, low means quiet
+  '#1f2027',
+  '#2b2c35', // cool slate — still "cold"
+  '#4b3a2a', // first hint of warmth
+  '#7a5220',
+  '#b06a18',
+  '#e08616', // hot
+  '#fca63a', // ember top
 ]
 
 const INK_DARK = '#1a0d02'
@@ -67,8 +72,9 @@ export function rampColor(v, lo, hi) {
 // assumption without anything failing loudly — the cells just got harder to
 // read as they got brighter.
 export const inkFor = (bg) => {
+  // ramp v2: only the top two stops are bright enough for dark ink
   const i = ORANGE_RAMP.indexOf(bg)
-  return i >= 4 ? INK_DARK : INK_LIGHT
+  return i >= 6 ? INK_DARK : INK_LIGHT
 }
 
 /**

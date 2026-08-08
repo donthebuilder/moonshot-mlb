@@ -29,11 +29,62 @@ const GROUPS = [
 
 const THIN_PA = 100
 
+// column set shared by the in-body tables and the missing-file branch
+const MISSING_COLS = [
+  { key: 'split', label: 'Split', heat: false, w: 78, bold: true, sticky: true },
+  { key: 'g', label: 'G', w: 38 }, { key: 'pa', label: 'PA', w: 44 },
+  { key: 'avg', label: 'AVG', w: 52, dp: 3 }, { key: 'obp', label: 'OBP', w: 52, dp: 3 },
+  { key: 'slg', label: 'SLG', w: 52, dp: 3 }, { key: 'ops', label: 'OPS', w: 54, dp: 3 },
+  { key: 'iso', label: 'ISO', w: 52, dp: 3 }, { key: 'hr', label: 'HR', w: 40 },
+  { key: 'hrPa', label: 'HR/PA%', w: 56, dp: 2 }, { key: 'xbh', label: 'XBH', w: 42 },
+  { key: 'rbi', label: 'RBI', w: 42 },
+  { key: 'kPct', label: 'K%', w: 46, dp: 1, invert: true },
+]
+
 export default function PlayerSplits({ player, slateMode }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
 
   const pid = player?.player_id || player?.id
+
+  // vs LHP / vs RHP / RISP — "all that jazz" (2026-08-08). The bot's splits
+  // file never carried the platoon cut, so this table comes straight from
+  // the league: statSplits sitCodes vl,vr,risp — full stat lines verified
+  // live. Season-long, so the samples are the realest on this tab.
+  const [lr, setLr] = useState(null)
+  useEffect(() => {
+    if (!pid) return
+    let alive = true
+    setLr(null)
+    const yr = new Date().getFullYear()
+    fetch(`https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=vl,vr,risp&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive) return
+        const rows = (j?.stats?.[0]?.splits || []).map((sp) => {
+          const st = sp?.stat || {}
+          const pa = n(st.plateAppearances, 0)
+          const hr = n(st.homeRuns, 0)
+          const label = sp?.split?.code === 'vl' ? 'vs LHP' : sp?.split?.code === 'vr' ? 'vs RHP' : 'RISP'
+          return {
+            _key: sp?.split?.code || label,
+            split: label,
+            g: n(st.gamesPlayed, 0), pa,
+            h: n(st.hits, 0), hr,
+            xbh: n(st.doubles, 0) + n(st.triples, 0) + hr,
+            rbi: n(st.rbi, 0),
+            avg: parseFloat(st.avg) || 0, obp: parseFloat(st.obp) || 0,
+            slg: parseFloat(st.slg) || 0, ops: parseFloat(st.ops) || 0,
+            iso: (parseFloat(st.slg) || 0) - (parseFloat(st.avg) || 0),
+            hrPa: pa ? (100 * hr) / pa : 0,
+            kPct: pa ? (100 * n(st.strikeOuts, 0)) / pa : 0,
+          }
+        })
+        if (rows.length) setLr(rows)
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [pid])
 
   useEffect(() => {
     if (!pid) return
@@ -83,11 +134,19 @@ export default function PlayerSplits({ player, slateMode }) {
   if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading splits…</div>
   if (state === 'missing' || state === 'error' || !tables.length) {
     return (
+      <div>
+      {lr && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>vs LHP / RHP · RISP <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, fontWeight: 400 }}>season · live from the league</span></div>
+          <DenseTable rows={lr} columns={MISSING_COLS} initialSort={null} maxHeight={200} />
+        </div>
+      )}
       <div style={{ fontSize: 11.5, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
         No splits file published for this hitter. These come from{' '}
         <code>player_splits.py</code>, which runs inside the Today and Tomorrow workflows and can be
         skipped on a slow slate — it&apos;s set to <code>continue-on-error</code>, so a miss here means
         that step timed out rather than that anything is broken.
+      </div>
       </div>
     )
   }
@@ -118,6 +177,24 @@ export default function PlayerSplits({ player, slateMode }) {
         so a bright cell means high for this hitter across that one split — never across splits or
         against the league. K% is inverted; everything else reads bright-is-better for the bat.
       </div>
+
+      {lr && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 800 }}>vs LHP / RHP · RISP</span>
+            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              season, straight from the league — the platoon cut the bot file never carried
+            </span>
+          </div>
+          <DenseTable
+            rows={lr}
+            columns={cols}
+            initialSort={null}
+            maxHeight={200}
+            caption="The most decision-relevant table on this tab: which ARM he punishes, and what he does with runners in scoring position. Season-long samples, live from the StatsAPI — check the PA column, then check which hand tonight's starter throws with."
+          />
+        </div>
+      )}
 
       {tables.map((t) => {
         const thinnest = Math.min(...t.rows.map((r) => r.pa))

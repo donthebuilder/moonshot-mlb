@@ -221,26 +221,52 @@ export default function HRPitchProfile({ player, slateMode }) {
         })}
       </div>
 
-      <DenseTable
-        rows={rows}
-        columns={[
-          { key: 'pitch',   label: 'Pitch',   heat: false, w: 110, bold: true, sticky: true },
-          { key: 'code',    label: 'Type',    heat: false, w: 40, mono: true, dim: true },
-          { key: 'tonight', label: 'Tonight%', w: 56, dp: 0,
-            title: "Share of tonight's starter's mix. Dark means he barely throws it." },
-          { key: 'hrs',     label: 'HR',      w: 40 },
-          { key: 'seen',    label: 'Seen',    w: 44,
-            title: 'Tracked batted balls against this pitch — the denominator' },
-          { key: 'rate',    label: 'HR/BBE%', w: 54, dp: 1 },
-          { key: 'avgDist', label: 'Avg ft',  w: 50, dp: 0 },
-          { key: 'maxDist', label: 'Max ft',  w: 50, dp: 0 },
-          { key: 'avgEV',   label: 'Avg EV',  w: 50, dp: 1 },
-          { key: 'avgVelo', label: 'Pitch mph', w: 58, dp: 1 },
-        ]}
-        initialSort="hrs"
-        maxHeight={260}
-        caption="Seen is the denominator on purpose — four homers off fastballs means little if fastballs are most of what he sees. This is a small sample by construction: a handful of homers in the tracked window is a reason to look closer, never a reason on its own."
-      />
+      {/* BAR CHART v2 (2026-08-08, "use a different type of chart"): the
+          ten-column heat table buried the one comparison that matters —
+          damage rate vs how much of it he'll SEE tonight. Two bars per
+          pitch: ember = HR per batted ball, cyan = tonight's usage. When
+          both bars run long on the same row, that's the pitch to watch. */}
+      <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '10px 14px' }}>
+        {(() => {
+          const maxRate = Math.max(...rows.map((r) => Number(r.rate) || 0), 1e-9)
+          const maxTon = Math.max(...rows.map((r) => Number(r.tonight) || 0), 1e-9)
+          return [...rows].sort((a, b) => (b.rate || 0) - (a.rate || 0)).map((r, i) => {
+            const rateW = Math.max(2, (100 * (Number(r.rate) || 0)) / maxRate)
+            const tonW = Math.max(2, (100 * (Number(r.tonight) || 0)) / maxTon)
+            const both = (Number(r.rate) || 0) >= maxRate * 0.6 && (Number(r.tonight) || 0) >= maxTon * 0.6
+            return (
+              <div key={r.code || i} style={{ padding: '6px 0', borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, width: 86, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {both ? '🎯 ' : ''}{r.pitch}
+                  </span>
+                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{r.code}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {r.hrs} HR / {r.seen} seen{r.avgDist ? ` · ${Number(r.avgDist).toFixed(0)}ft` : ''}{r.maxDist ? ` (max ${Number(r.maxDist).toFixed(0)})` : ''}{r.avgEV ? ` · ${Number(r.avgEV).toFixed(1)} EV` : ''}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
+                  <span style={{ fontSize: 8, color: '#fca63a', fontFamily: NUM_FONT, width: 58, flexShrink: 0, fontWeight: 800 }}>DMG {Number(r.rate || 0).toFixed(1)}%</span>
+                  <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,.05)', borderRadius: 3 }}>
+                    <div style={{ width: `${rateW}%`, height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, #7a5220, #fca63a)' }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 3 }}>
+                  <span style={{ fontSize: 8, color: '#22d3ee', fontFamily: NUM_FONT, width: 58, flexShrink: 0, fontWeight: 800 }}>2NITE {Number(r.tonight || 0).toFixed(0)}%</span>
+                  <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,.05)', borderRadius: 3 }}>
+                    <div style={{ width: `${tonW}%`, height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, rgba(34,211,238,.35), #22d3ee)', opacity: 0.85 }} />
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        })()}
+        <div style={{ fontSize: 9, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
+          Ember bar = his HR rate per batted ball against that pitch · cyan bar = how much of tonight&apos;s
+          starter&apos;s mix it is. 🎯 marks rows where BOTH run long — damage meeting supply. Bars are scaled
+          within this card; the numbers beside them are the truth. Small sample by construction.
+        </div>
+      </div>
     </div>
   )
 }
