@@ -172,6 +172,35 @@ export default function Backtest({ backtest }) {
         }
       />
 
+      {/* the headline, before any chart */}
+      {(() => {
+        const days = dayKeys.length
+        const acc = n(bt.overall_base_hit_accuracy, 0)
+        // best lane by did-its-job, day-averaged (the only basis every tier has)
+        let bestLane = null
+        rows.forEach((r) => {
+          // the did-its-job key's exact casing comes from the payload —
+          // find it case-insensitively instead of guessing
+          const key = Object.keys(r.values || {}).find((k2) => /did.?its.?job/i.test(k2))
+          const v = key ? Number(r.values[key]) : NaN
+          if (Number.isFinite(v) && (!bestLane || v > bestLane.v)) bestLane = { k: r.label, v }
+        })
+        const Tile = ({ label, value, sub, col }) => (
+          <div style={{ flex: '1 1 140px', minWidth: 0, background: C.bg2, border: `1px solid ${C.border}`, borderTop: `2px solid ${col}`, borderRadius: 10, padding: '8px 12px' }}>
+            <div style={{ fontSize: 8, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</div>
+            <div style={{ fontSize: 19, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{value}</div>
+            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
+          </div>
+        )
+        return (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '2px 0 12px' }}>
+            <Tile label="Bot overall base hit" value={`${acc.toFixed(1)}%`} sub="every pick, every graded day" col="#60A5FA" />
+            {bestLane && <Tile label="Best lane (did its job)" value={`${bestLane.v.toFixed(0)}%`} sub={bestLane.k} col="#4ade80" />}
+            <Tile label="Graded days" value={days} sub="the sample behind everything here" col={C.orange} />
+          </div>
+        )
+      })()}
+
       <RollingForm />
 
       <div style={{

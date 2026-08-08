@@ -1117,19 +1117,60 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         }[subTab]}
       </div>
 
-      {/* OVERVIEW */}
-      {subTab === 'overview' && (
+      {/* OVERVIEW — a story, not a pile (2026-08-08). Order: the night's
+          headline numbers → who delivered → how each lane did → the model
+          checks → what got away. Numbered flow headers keep the reader
+          located; every section is the same component it was, re-homed. */}
+      {subTab === 'overview' && (() => {
+        const judge = slots.filter((r) => (r.actual_ab || 0) > 0)
+        const withJob = judge.filter((r) => pickJob(r))
+        const didJob = withJob.filter((r) => pickJob(r)?.did).length
+        const baseHit = judge.filter((r) => (r.actual_hits || 0) >= 1).length
+        const hrOnly = judge.filter((r) => r.got_hr === 1 || (r.actual_hr || 0) > 0).length
+        const multi = judge.filter((r) => (r.actual_hits || 0) >= 2 || (r.actual_hr || 0) >= 2).length
+        const capPct = Number(captureReport?.hr_capture_pct || 0)
+        const Flow = ({ num, title, note }) => (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '20px 0 8px', paddingBottom: 5, borderBottom: `1px solid ${C.border}` }}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 999, padding: '1px 8px' }}>{num}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 900 }}>{title}</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>{note}</span>
+          </div>
+        )
+        const Tile = ({ label, value, sub, col }) => (
+          <div style={{ flex: '1 1 130px', minWidth: 0, background: C.bg2, border: `1px solid ${C.border}`, borderTop: `2px solid ${col}`, borderRadius: 10, padding: '8px 12px' }}>
+            <div style={{ fontSize: 8, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</div>
+            <div style={{ fontSize: 19, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{value}</div>
+            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
+          </div>
+        )
+        return (
         <>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <Tile label="Did its job" value={withJob.length ? `${((100 * didJob) / withJob.length).toFixed(0)}%` : '—'} sub={`${didJob}/${withJob.length} picks, own bars`} col="#4ade80" />
+            <Tile label="Base hit" value={judge.length ? `${((100 * baseHit) / judge.length).toFixed(0)}%` : '—'} sub={`${baseHit}/${judge.length} of every pick`} col="#60A5FA" />
+            <Tile label="If graded HR-only" value={judge.length ? `${((100 * hrOnly) / judge.length).toFixed(0)}%` : '—'} sub={`${hrOnly}/${judge.length} — the unfair yardstick`} col={C.orange} />
+            <Tile label="Multi-hit / multi-HR" value={multi} sub="big individual nights" col="#FCD34D" />
+            <Tile label="HR capture" value={`${capPct.toFixed(0)}%`} sub="slate homers on the sheet" col="#38bdf8" />
+          </div>
           <CaptureBanner report={captureReport} uniqueReport={uniqueReport} />
-          <TrackingLegend slots={slots} />
-          <ExpandedStats slots={slots} players={players} />
+
+          <Flow num="2" title="Who delivered" note="homers first, then the multi-hit nights" />
           <HRHits homers={homers} />
           <MultiHitCluster slots={slots} />
+
+          <Flow num="3" title="How each lane did" note="every category against its own bar" />
           <CategoryBar slots={slots} />
+
+          <Flow num="4" title="Model checks" note="what's being tracked, the slate summary, and whether the scores meant anything tonight" />
+          <TrackingLegend slots={slots} />
+          <ExpandedStats slots={slots} players={players} />
           <ScoreAudit slots={slots} players={players} />
+
+          <Flow num="5" title="What got away" note="homers the sheet never had" />
           <MissedHRs report={captureReport} />
         </>
-      )}
+        )
+      })()}
 
       {/* PITCHERS */}
       {subTab === 'pitcher' && (
