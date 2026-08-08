@@ -227,6 +227,22 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   // An API-only player can land while a bot-only tab is open — snap home.
   useEffect(() => { if (player?.api_only) setTab('overview') }, [player])
 
+  // LIVE SEASON FALLBACK (2026-08-08, Donovan: "season stats need to
+  // populate as best as possible" for non-slate players). When the bot
+  // fields are missing, one small people/stats call fills AVG/HR/PA/OPS.
+  const [liveSeason, setLiveSeason] = useState(null)
+  useEffect(() => {
+    setLiveSeason(null)
+    if (!pid) return undefined
+    const hasBot = player?.season_avg != null || player?.season_hr != null
+    if (hasBot) return undefined
+    let alive = true
+    import('../lib/savant').then(({ liveSeasonStats }) =>
+      liveSeasonStats(pid).then((s) => { if (alive && s) setLiveSeason(s) }))
+      .catch(() => {})
+    return () => { alive = false }
+  }, [pid, player])
+
   if (!player) return null
   const p = detail ? { ...player, ...detail } : player
 
@@ -412,9 +428,13 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '14px 0 4px' }}>Season</div>
-                  <Row label="AVG"    value={clean(p?.season_avg, '—')} />
-                  <Row label="HR"     value={clean(p?.season_hr, '—')} />
-                  <Row label="PA"     value={clean(p?.season_pa || p?.pa, '—')} />
+                  {/* live fallback fills these for non-slate players */}
+                  <Row label="AVG"    value={clean(p?.season_avg ?? liveSeason?.avg, '—')} />
+                  <Row label="HR"     value={clean(p?.season_hr ?? liveSeason?.hr, '—')} />
+                  <Row label="PA"     value={clean(p?.season_pa || p?.pa || liveSeason?.pa, '—')} />
+                  {liveSeason && p?.season_avg == null && (
+                    <Row label="OPS"  value={clean(liveSeason.ops, '—')} />
+                  )}
                   <Row label="K Rate" value={pct(p?.season_k_rate)} />
                   {b > 0 && <Row label="BABIP" value={b.toFixed(3)} />}
                 </div>

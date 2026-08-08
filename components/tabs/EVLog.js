@@ -124,7 +124,25 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   const [pitchSel, setPitchSel] = useState(null)   // null = all
   const [resFilter, setRes] = useState('ALL')
 
-  const log = player?.batted_ball_log || player?.spray_chart || []
+  const botLog = player?.batted_ball_log || player?.spray_chart || []
+
+  // 🔴 LIVE STATCAST FALLBACK (2026-08-08, Donovan: "players not on the bot
+  // — season stats need to populate as best as possible, esp EV Log"). The
+  // spray cache only builds files for slate players; for everyone else this
+  // pulls the same pitch-level data LIVE from Savant (CORS verified from
+  // this origin). Same row schema, so everything below just works.
+  const [liveLog, setLiveLog] = useState(null)   // null = untried/loading
+  useEffect(() => {
+    const pid2 = player?.player_id || player?.id
+    if (botLog.length || !pid2) { setLiveLog(null); return undefined }
+    let alive = true
+    import('../../lib/savant').then(({ savantBattedBalls }) =>
+      savantBattedBalls(pid2).then((rows) => { if (alive) setLiveLog(rows) }))
+      .catch(() => { if (alive) setLiveLog([]) })
+    return () => { alive = false }
+  }, [player, botLog.length])
+  const liveSource = !botLog.length && !!liveLog?.length
+  const log = botLog.length ? botLog : (liveLog || [])
 
   const pitchTypes = useMemo(
     () => ['ALL', ...new Set(log.map((h) => h.pitch_type).filter((p) => p && p !== 'nan'))],
@@ -270,7 +288,9 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     return (
       <div>
         <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} />
-        <Empty text="No batted ball data. Run spray_cache.py." />
+        {liveLog === null
+          ? <Empty text="No bot file for him — pulling his season live from Statcast…" />
+          : <Empty text="No batted-ball data — not in the bot's cache, and the live Statcast pull came back empty." />}
       </div>
     )
   }
@@ -309,6 +329,16 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   return (
     <div>
       <TonightLive gamePk={player?.game_pk} batterId={pid} />
+      {liveSource && (
+        <div style={{
+          fontSize: 9.5, color: C.text3, background: C.bg2, border: `1px solid ${C.border}`,
+          borderRadius: 8, padding: '5px 11px', marginBottom: 8, lineHeight: 1.5,
+        }}>
+          🔴 <b style={{ color: C.text2 }}>Live Statcast pull</b> — he&apos;s not in the bot&apos;s cache, so this
+          log came straight from Savant just now ({log.length} batted balls, this season). Same data,
+          different pipe; barrel/hard-hit/pull computed by Savant&apos;s own definitions.
+        </div>
+      )}
       <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} pitchInfo={pitchInfo} />
       <div style={{
         display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center',
