@@ -437,41 +437,87 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
     )
   }
 
+  // VERDICT QUADRANTS (2026-08-08, "more intuitive"): the page's question
+  // is not "list the pitchers" — it's "did the arms we targeted give it up,
+  // and did any arm burn us unflagged". Four buckets, in the order a bettor
+  // cares: called it, missed arm, flag didn't cash, quiet-as-expected
+  // (collapsed — no-news is the biggest and least interesting group).
+  const buckets = { called: [], missedArm: [], noCash: [], quiet: [] }
+  pitchers.forEach((p) => {
+    const targeted = !!(p.weak_side || (p.hr9 >= 1.2) || (p.whip >= 1.30))
+    const gave = p.hr_allowed_today > 0
+    p._targeted = targeted
+    if (targeted && gave) buckets.called.push(p)
+    else if (!targeted && gave) buckets.missedArm.push(p)
+    else if (targeted && !gave) buckets.noCash.push(p)
+    else buckets.quiet.push(p)
+  })
+  const flaggedN = buckets.called.length + buckets.noCash.length
+  const unflaggedHr = buckets.missedArm.reduce((a, p) => a + p.hr_allowed_today, 0)
+
+  const Row = ({ p, accent }) => {
+    const hitPicks = p.picks.filter(r => si(r.actual_hr) > 0).length
+    return (
+      <div style={{ padding: '7px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{p.name}</span>
+            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.throws}HP</span>
+            {p.weak_side && <span style={{ fontSize: 9.5, color: '#a78bfa', fontFamily: NUM_FONT }}>bleeds vs {p.weak_side}</span>}
+          </div>
+          <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
+            our picks vs him: <b style={{ color: hitPicks ? accent : C.text3 }}>{hitPicks}/{p.picks.length} homered</b>
+            {p.hr9 > 0 && <> · HR/9 <span style={{ color: p.hr9 >= 1.2 ? '#f87171' : C.text2 }}>{p.hr9.toFixed(2)}</span></>}
+            {p.whip > 0 && <> · WHIP <span style={{ color: p.whip >= 1.30 ? '#f87171' : C.text2 }}>{p.whip.toFixed(2)}</span></>}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, fontFamily: NUM_FONT, color: p.hr_allowed_today > 0 ? accent : C.text3 }}>
+            {p.hr_allowed_today} HR
+          </div>
+          <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{p.hit_allowed_today} H allowed</div>
+        </div>
+      </div>
+    )
+  }
+
+  const Group = ({ icon, label, note, list, accent, collapsed }) => {
+    if (!list.length) return null
+    const body = list.map((p, i) => <Row key={i} p={p} accent={accent} />)
+    return (
+      <div style={{ borderLeft: `3px solid ${accent}`, margin: '8px 10px', borderRadius: 8, background: `${accent}06`, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '7px 14px 5px' }}>
+          <span style={{ fontSize: 11 }}>{icon}</span>
+          <span style={{ fontSize: 10, fontWeight: 900, color: accent, letterSpacing: '.08em', fontFamily: NUM_FONT }}>{label}</span>
+          <span style={{ fontSize: 9, color: C.text3 }}>{note}</span>
+        </div>
+        {collapsed ? (
+          <details>
+            <summary style={{ fontSize: 9.5, color: C.text3, padding: '0 14px 8px', cursor: 'pointer', fontFamily: NUM_FONT }}>
+              {list.length} arm{list.length > 1 ? 's' : ''} — expand
+            </summary>
+            {body}
+          </details>
+        ) : body}
+      </div>
+    )
+  }
+
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
       <SectionHeader title="⚾ Pitcher Results — Model vs Actual" color="#38bdf8" />
-      <div style={{ padding: '8px 0' }}>
-        {pitchers.map((p, i) => {
-          const hrPct = p.picks.length ? (p.picks.filter(r => si(r.actual_hr) > 0).length / p.picks.length) * 100 : 0
-          const isWeak = p.weak_side || (p.hr9 >= 1.2) || (p.whip >= 1.30)
-          return (
-            <div key={i} style={{
-              padding: '8px 14px',
-              borderTop: i ? `1px solid ${C.border}` : 'none',
-              background: p.hr_allowed_today >= 2 ? `${C.red}08` : 'transparent',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{p.name}</span>
-                <span style={{ fontSize: 10, color: C.text3 }}>{p.throws}HP</span>
-                {isWeak && <Chip color="#38bdf8" style={{ fontSize: 9 }}>Weak Pitcher</Chip>}
-                {p.weak_side && <span style={{ fontSize: 10, color: '#a78bfa' }}>vs {p.weak_side}</span>}
-              </div>
-              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-                  <span>Picks: {p.picks.length}</span>
-                  {p.hr9 > 0 && <span style={{ marginLeft: 8 }}>HR/9: <span style={{ color: p.hr9 >= 1.2 ? C.red : C.text2 }}>{p.hr9.toFixed(2)}</span></span>}
-                  {p.whip > 0 && <span style={{ marginLeft: 8 }}>WHIP: <span style={{ color: p.whip >= 1.30 ? C.red : C.text2 }}>{p.whip.toFixed(2)}</span></span>}
-                  {p.fb_rate > 0 && <span style={{ marginLeft: 8 }}>FB%: {(p.fb_rate * 100).toFixed(0)}%</span>}
-                </div>
-                <div style={{ fontSize: 10, fontFamily: NUM_FONT }}>
-                  <span style={{ color: p.hr_allowed_today > 0 ? C.green : C.text3 }}>Today: {p.hr_allowed_today} HR · {p.hit_allowed_today} H</span>
-                  {p.picks.length > 0 && <span style={{ marginLeft: 8, color: barColor(hrPct) }}>{hrPct.toFixed(0)}% HR rate</span>}
-                </div>
-              </div>
-            </div>
-          )
-        })}
+      {/* the verdict, before the list */}
+      <div style={{ padding: '8px 14px 2px', fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
+        flagged <b style={{ color: C.text }}>{flaggedN}</b> weak arm{flaggedN !== 1 ? 's' : ''} ·{' '}
+        <b style={{ color: '#4ade80' }}>{buckets.called.length}</b> gave it up
+        {flaggedN > 0 && <> ({((100 * buckets.called.length) / flaggedN).toFixed(0)}%)</>}
+        {unflaggedHr > 0 && <> · <b style={{ color: '#f87171' }}>{unflaggedHr} HR</b> came off arms it didn&apos;t flag</>}
       </div>
+      <Group icon="🎯" label="CALLED IT" note="flagged weak, and he gave it up" list={buckets.called} accent="#4ade80" />
+      <Group icon="💥" label="BURNED US UNFLAGGED" note="the model didn't flag him — he homered anyway" list={buckets.missedArm} accent="#f87171" />
+      <Group icon="🧱" label="FLAG DIDN'T CASH" note="targeted as weak, held anyway" list={buckets.noCash} accent="#FCD34D" />
+      <Group icon="😴" label="QUIET, AS EXPECTED" note="unflagged, no damage — the biggest group and the least news" list={buckets.quiet} accent="#3f3f46" collapsed />
+      <div style={{ height: 8 }} />
     </Card>
   )
 }
