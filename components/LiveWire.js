@@ -57,7 +57,15 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
       const role = primaryRole(p)
       return { p, role, line, cleared: line ? pickCleared(role, line) : null }
     })
-    .sort((a, b) => (b.cleared === true) - (a.cleared === true))
+    // ROUND 3 ordering: the HUNT leads. Still-working live picks are the
+    // actionable rows; cleared ✓ follow as receipts; dead ✗ finals sink.
+    .sort((a, b) => {
+      const rank = (x) => !x.line ? 3
+        : x.cleared === false && x.line.state === 'Live' ? 0
+        : x.cleared === true ? 1
+        : 2
+      return rank(a) - rank(b)
+    })
   const graded = picks.filter((x) => x.line)
   const clearedCount = graded.filter((x) => x.cleared === true).length
 
@@ -139,6 +147,45 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
   alerts.sort((a, b) => a.pri - b.pri)
   const topAlerts = alerts.slice(0, 8)
 
+  // ── ROUND 3 (2026-08-08, Donovan: "tell when people still need a hit,
+  // make the live at-bats better, look better in general") ──
+
+  // what each working pick still needs, in plain words + urgency by inning
+  const needOf = (role, line) => {
+    const combo3 = line.h + line.r + line.rbi
+    if (role === 'HIT') return 'needs a hit'
+    if (role === 'HRR') return combo3 >= 2 ? null : `needs ${2 - combo3} more H+R+RBI`
+    if (role === 'CONTACT') return line.tb >= 2 ? null : `needs ${2 - line.tb} more TB`
+    return 'needs a homer'
+  }
+  const stillWorking = graded.filter((x) => x.cleared === false && x.line.state === 'Live')
+
+  // 🎤 AT THE PLATE — every slate name up or on deck RIGHT NOW, across all
+  // live games. Tap opens his card (zones + spray + EV log live there).
+  const atThePlate = []
+  live.forEach((g) => {
+    [[g.upBatter, 'up'], [g.onDeck, 'deck']].forEach(([bid, when]) => {
+      const p = slateIds.get(Number(bid))
+      if (!p) return
+      const role = primaryRole(p)
+      const pk2 = { role, watched: watchIds?.has(pidOf(p)) }
+      if (!role && !pk2.watched) return
+      const half = /top/i.test(g.half) ? '▲' : /bot/i.test(g.half) ? '▼' : ''
+      atThePlate.push({
+        p, when, role, watched: pk2.watched,
+        ctx: `${abbrs?.[g.awayId] || ''}–${abbrs?.[g.homeId] || ''} ${half}${g.inning ?? ''}`,
+        need: role ? needOf(role, snap.lines[Number(pidOf(p))] || { h: 0, r: 0, rbi: 0, tb: 0 }) : null,
+      })
+    })
+  })
+  atThePlate.sort((a, b) => (a.when === 'up' ? 0 : 1) - (b.when === 'up' ? 0 : 1))
+
+  const SecLbl = ({ children }) => (
+    <div style={{ fontSize: 8, fontWeight: 900, color: C.text3, letterSpacing: '.12em', textTransform: 'uppercase', fontFamily: NUM_FONT, margin: '10px 0 4px' }}>
+      {children}
+    </div>
+  )
+
   return (
     <div style={{
       background: `linear-gradient(155deg, ${C.bg2}, rgba(74,222,128,.025))`,
@@ -147,12 +194,20 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', cursor: 'pointer' }}
         onClick={() => setOpen((v) => !v)}>
-        <span style={{ fontSize: 12, fontWeight: 900, color: '#4ade80' }}>
+        <span style={{ fontSize: 12, fontWeight: 900, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {live.length > 0 && (
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%', background: '#4ade80',
+              boxShadow: '0 0 8px #4ade80', animation: 'wirePulse 1.6s ease-in-out infinite',
+            }} />
+          )}
           📡 Live wire {open ? '▾' : '▸'}
         </span>
+        <style>{'@keyframes wirePulse{0%,100%{opacity:1}50%{opacity:.35}}'}</style>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {live.length ? `${live.length} live` : 'slate final'}
-          {graded.length > 0 && <> · picks {clearedCount}/{graded.length} cleared</>}
+          {graded.length > 0 && <> · <b style={{ color: '#4ade80' }}>{clearedCount}</b>/{graded.length} cleared</>}
+          {stillWorking.length > 0 && <> · <b style={{ color: '#FCD34D' }}>{stillWorking.length}</b> still hunting</>}
           {homers.length > 0 && <> · {homers.reduce((a, h) => a + h.l.hr, 0)} HR</>}
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -170,9 +225,39 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
 
       {open && (
         <>
+          {/* 🎤 at the plate — the wire's heartbeat: your names batting NOW.
+              Tap = his full card, where the zone map and spray chart live. */}
+          {atThePlate.length > 0 && (
+            <>
+              <SecLbl>🎤 At the plate</SecLbl>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {atThePlate.slice(0, 6).map((ab2, i) => (
+                  <button key={i} onClick={() => onPlayerClick?.(ab2.p)}
+                    title="Open his card — zone map, spray chart and live EV log inside"
+                    style={{
+                      display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
+                      border: `1px solid ${ab2.when === 'up' ? 'rgba(74,222,128,.55)' : 'rgba(252,211,77,.35)'}`,
+                      background: ab2.when === 'up' ? 'rgba(74,222,128,.09)' : 'rgba(252,211,77,.05)',
+                      borderRadius: 8, padding: '4px 11px',
+                      boxShadow: ab2.when === 'up' ? '0 0 12px rgba(74,222,128,.15)' : 'none',
+                    }}>
+                    <span style={{ fontSize: 11 }}>{ab2.when === 'up' ? '🎤' : '⏳'}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text }}>{nameOf(ab2.p)}</span>
+                    {ab2.role && <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[ab2.role] || C.orange }}>🤖 {ab2.role}</span>}
+                    {ab2.watched && <span style={{ fontSize: 9 }}>★</span>}
+                    {ab2.need && <span style={{ fontSize: 9, color: '#FCD34D', fontFamily: NUM_FONT }}>{ab2.need}</span>}
+                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{ab2.ctx}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* 🔔 look out — live tension, urgency-ordered */}
           {topAlerts.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
+            <>
+            <SecLbl>🔔 Look out</SecLbl>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {topAlerts.map((a, i) => (
                 <div key={i} onClick={() => a.p && onPlayerClick?.(a.p)} style={{
                   display: 'flex', gap: 7, alignItems: 'baseline', cursor: a.p ? 'pointer' : 'default',
@@ -185,11 +270,14 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 </div>
               ))}
             </div>
+            </>
           )}
 
           {/* the spine: every game, score and inning, live first */}
           {abbrs && (live.length + finals.length) > 0 && (
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
+            <>
+            <SecLbl>🏟 The slate</SecLbl>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {[...live, ...finals].map((g) => {
                 const isLive = g.state === 'Live'
                 const half = /top/i.test(g.half) ? '▲' : /bot/i.test(g.half) ? '▼' : ''
@@ -212,11 +300,14 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 )
               })}
             </div>
+            </>
           )}
 
           {/* homers as they land, model-tagged */}
           {homers.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+            <>
+            <SecLbl>💥 Tonight&apos;s homers</SecLbl>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {homers.map((h) => (
                 <button key={h.id} onClick={() => h.p && onPlayerClick?.(h.p)} style={{
                   display: 'flex', gap: 6, alignItems: 'baseline', cursor: h.p ? 'pointer' : 'default',
@@ -233,11 +324,14 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 </button>
               ))}
             </div>
+            </>
           )}
 
           {/* the picks, graded live against their own bars */}
           {graded.length > 0 && (
-            <div style={{ display: 'grid', gap: 3, marginTop: 9, gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))' }}>
+            <>
+            <SecLbl>🤖 The picks — live vs their own bars</SecLbl>
+            <div style={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
               {graded.map(({ p, role, line, cleared }) => {
                 const col = ROLE_COLOR[role] || C.text3
                 const done = line.state === 'Final'
@@ -268,6 +362,14 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                       {nameOf(p)}
                     </span>
                     {due && <span title={due === '🎤' ? 'At the plate RIGHT NOW' : 'On deck'} style={{ fontSize: 10, flexShrink: 0 }}>{due}</span>}
+                    {/* ROUND 3: uncleared + live = say WHAT he still needs,
+                        colored by how late it's getting */}
+                    {cleared === false && line.state === 'Live' && needOf(role, line) && (
+                      <span title={`${needOf(role, line)} — ${g?.inning ? `${g.inning}th inning` : 'game live'}`} style={{
+                        fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, flexShrink: 0,
+                        color: (g?.inning ?? 0) >= 7 ? '#f87171' : (g?.inning ?? 0) >= 5 ? '#FCD34D' : C.text3,
+                      }}>{needOf(role, line)}{(g?.inning ?? 0) >= 7 ? ` · ${g.inning}th` : ''}</span>
+                    )}
                     {prog && <span title="Live progress toward this pick's own bar" style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: prog.startsWith('1') ? '#FCD34D' : C.text3, flexShrink: 0 }}>{prog}</span>}
                     <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.text3, flexShrink: 0 }}>
                       {line.h}-{line.ab}{line.hr ? ` ${line.hr}HR` : ''}{line.tb > 1 ? ` ${line.tb}TB` : ''}
@@ -276,6 +378,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 )
               })}
             </div>
+            </>
           )}
 
           <div style={{ fontSize: 8.5, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
