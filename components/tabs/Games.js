@@ -64,7 +64,7 @@ function isPast(gameTime) {
   return new Date(gameTime) < new Date(Date.now() - 3 * 60 * 60 * 1000) // 3hr buffer for late games
 }
 
-export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
+export default function Games({ players, slateDate = '', onAdd, onWatch, watchIds, onPlayerClick }) {
   const [mode, setMode]         = useState('default')
   const [activeGame, setActive] = useState(null)
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
@@ -392,7 +392,7 @@ export default function Games({ players, onAdd, onWatch, watchIds, onPlayerClick
                 both full pitching matchups + each lineup's threat profile.
                 Only the SELECTED game gets it — the rest stay scannable. */}
             {isActive && activeGame === g.game_pk && (
-              <GameDeepDive game={g} allPlayers={players} onPlayerClick={onPlayerClick} />
+              <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
             )}
 
             {isActive && (

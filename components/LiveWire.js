@@ -19,7 +19,7 @@ import { fetchPenFatigue, penTier } from '../lib/bullpen'
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
 
-export default function LiveWire({ players = [], results, watchIds, onPlayerClick }) {
+export default function LiveWire({ players = [], results, watchIds, mode = 'today', onPlayerClick }) {
   const [snap, setSnap] = useState(null)
   const [busy, setBusy] = useState(false)
   const [auto, setAuto] = useState(false)
@@ -42,6 +42,7 @@ export default function LiveWire({ players = [], results, watchIds, onPlayerClic
     return () => clearInterval(timer.current)
   }, [auto])
 
+  if (mode === 'tomorrow') return null // tonight instrument — see MiniWire
   if (!snap) return null
   const live = snap.games.filter((g) => g.state === 'Live')
   const finals = snap.games.filter((g) => g.state === 'Final')

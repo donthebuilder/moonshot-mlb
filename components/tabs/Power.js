@@ -15,7 +15,7 @@ import ParkBoard from '../ParkBoard'
 // audience, same night, one tab with a toggle. Both boards arrive intact —
 // nothing was cut, only the wall between them.
 
-export default function PowerTab({ players, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
+export default function PowerTab({ players, slateDate = '', onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
   const [view, setView] = useState(initial)
   // Park click → filter the Longest board to that game (2026-08-07). If the
   // Due view is open, clicking a park flips to Longest first — the filter
@@ -26,7 +26,7 @@ export default function PowerTab({ players, onWatch, watchIds, onPlayerClick, in
   return (
     <div>
       {/* Tonight's parks, ranked — the page's weather report, above both boards */}
-      <ParkBoard players={players} activeVenue={venueFilter} onVenueClick={pickVenue} onPlayerClick={onPlayerClick} />
+      <ParkBoard players={players} slateDate={slateDate} activeVenue={venueFilter} onVenueClick={pickVenue} onPlayerClick={onPlayerClick} />
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         <button onClick={() => setView('longest')} style={btnStyle(C.orange, view === 'longest')}>

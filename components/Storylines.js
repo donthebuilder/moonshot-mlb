@@ -53,7 +53,7 @@ const RIVALS = [
   ['NYY', 'NYM'], ['NYM', 'PHI'], ['NYM', 'ATL'], ['HOU', 'TEX'], ['BAL', 'WSH'], ['LAA', 'LAD'],
 ]
 
-let _cache = null
+let _cacheByDate = {}
 
 // PER-GAME MODE (2026-08-08, "every game needs a storyline thing"):
 // the same engine, three extra props. `players` scopes what renders;
@@ -61,8 +61,9 @@ let _cache = null
 // always slate-wide no matter which mount fires first; `gamePk` narrows
 // giveaways to this building; `compact` = the deep-dive skin (always open,
 // no collapse persistence, smaller header).
-export default function Storylines({ players = [], fetchPlayers = null, gamePk = null, compact = false, onPlayerClick }) {
-  const [data, setData] = useState(_cache)
+export default function Storylines({ players = [], fetchPlayers = null, gamePk = null, compact = false, slateDate = '', onPlayerClick }) {
+  const dateKey = slateDate || new Date().toLocaleDateString('en-CA')
+  const [data, setData] = useState(_cacheByDate[dateKey] || null)
   // Collapsed by default (2026-08-07, Donovan: "storyline kinda fills the
   // page too much"). The header keeps a live count summary so a closed panel
   // still tells you whether tonight has stories worth opening. Persists.
@@ -75,7 +76,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
   const pullFrom = (fetchPlayers && fetchPlayers.length ? fetchPlayers : players)
   useEffect(() => {
-    if (_cache || !pullFrom.length) return
+    if (_cacheByDate[dateKey] || !pullFrom.length) { setData(_cacheByDate[dateKey] || null); return }
     let alive = true
     ;(async () => {
       try {
@@ -86,8 +87,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             .then((r) => (r.ok ? r.json() : null)).catch(() => null)
           people.push(...(j?.people || []))
         }
-        const today = new Date().toLocaleDateString('en-CA')
-        const promos = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=game(promotions)`)
+        const promos = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateKey}&hydrate=game(promotions)`)
           .then((r) => (r.ok ? r.json() : null)).catch(() => null)
         // Team history (revenge games): yearByYear trimmed to season+team —
         // a few KB for the whole slate. Verified live 2026-08-06.
@@ -103,11 +103,11 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           })
         }
         const abbrs = (await teamAbbrs().catch(() => null)) || {}
-        if (alive) { _cache = { people, promos, history, abbrs }; setData(_cache) }
+        if (alive) { _cacheByDate[dateKey] = { people, promos, history, abbrs }; setData(_cacheByDate[dateKey]) }
       } catch { if (alive) setData({ people: [], promos: null }) }
     })()
     return () => { alive = false }
-  }, [pullFrom.length])
+  }, [pullFrom.length, dateKey])
 
   // ── BACK-TO-BACK WATCH (2026-08-07) — pure slate field, no API needed.
   // games_since_last_hr === 0 means he homered in his most recent game;
@@ -115,6 +115,8 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // list leads with hitters the model still likes tonight, not just anyone
   // who ran into one. Computed before the API guard on purpose: this section
   // must survive a failed people fetch.
+  const isTmrw = slateDate && slateDate > new Date().toLocaleDateString('en-CA')
+  const dayWord = isTmrw ? 'tomorrow' : 'tonight'
   const b2b = players
     .filter((p) => Number(p?.games_since_last_hr) === 0)
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
@@ -192,7 +194,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   const rivalries = RIVALS.filter(([a2, b2]) => matchups.has([a2, b2].sort().join('|')))
 
   // ── birthdays ──
-  const mmdd = new Date().toLocaleDateString('en-CA').slice(5)
+  const mmdd = dateKey.slice(5)
   const bdays = (data?.people || [])
     .filter((person) => String(person.birthDate || '').slice(5) === mmdd && byId.has(person.id))
     .map((person) => ({ p: byId.get(person.id), age: person.currentAge }))
@@ -275,7 +277,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         <Row key={`m${i}`} icon="🏁" p={m.p}>
           <b style={{ color: C.text }}>{nameOf(m.p)}</b> is <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{m.need}</b> away
           from <b style={{ fontFamily: NUM_FONT }}>{m.t.toLocaleString()}</b> {m.word}
-          {m.need === 1 ? ' — could land tonight' : ''}
+          {m.need === 1 ? ` — could land ${dayWord}` : ''}
         </Row>
       ))}
 
@@ -302,7 +304,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
       {bdays.map((b, i) => (
         <Row key={`b${i}`} icon="🎂" p={b.p}>
-          <b style={{ color: C.text }}>{nameOf(b.p)}</b> turns <b style={{ fontFamily: NUM_FONT }}>{b.age}</b> today —
+          <b style={{ color: C.text }}>{nameOf(b.p)}</b> turns <b style={{ fontFamily: NUM_FONT }}>{b.age}</b> {isTmrw ? 'tomorrow' : 'today'} —
           birthday bombs are folklore, not physics, but nobody fades the birthday boy on stream
         </Row>
       ))}

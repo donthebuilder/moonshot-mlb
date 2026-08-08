@@ -31,7 +31,7 @@ const fmtCountdown = (m) => {
   return `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
-export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
+export default function SlatePulse({ players = [], slateDate = '', backtest, onPlayerClick }) {
   // ── unconfirmed designated picks ──
   const unconfirmed = useMemo(() => (
     players
@@ -59,10 +59,13 @@ export default function SlatePulse({ players = [], backtest, onPlayerClick }) {
     // graded file can be TODAY's — and diffing today's slate against today's
     // own in-progress grading declared every pick "new" ("Since 08-05 · 85
     // new picks" on 08-05). Yesterday means yesterday.
-    const today = new Date().toLocaleDateString('en-CA')
-    const prior = dates.filter((d) => d < today)
+    // TOMORROW MODE (2026-08-08): the boundary is the SLATE's date, so a
+    // tomorrow board diffs against the latest graded day before tomorrow —
+    // i.e. today once it grades — instead of skipping a day.
+    const bound = slateDate || new Date().toLocaleDateString('en-CA')
+    const prior = dates.filter((d) => d < bound)
     return prior[prior.length - 1] || null
-  }, [backtest])
+  }, [backtest, slateDate])
 
   useEffect(() => {
     if (!ydayDate) return

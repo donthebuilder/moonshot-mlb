@@ -88,7 +88,7 @@ function Tracker({ title, count, children, note }) {
   )
 }
 
-export default function Scoreboard({ players, results, backtest, onWatch, watchIds, onPlayerClick, onNavigate }) {
+export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -197,9 +197,9 @@ export default function Scoreboard({ players, results, backtest, onWatch, watchI
 
       {/* Unconfirmed-pick countdowns + what changed since yesterday. */}
       {/* The live feed — appears once first pitch lands, waits quietly before. */}
-      <LiveWire players={players} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-      <SlatePulse players={players} backtest={backtest} onPlayerClick={onPlayerClick} />
-      <Storylines players={players} onPlayerClick={onPlayerClick} />
+      <LiveWire players={players} mode={mode} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+      <SlatePulse players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
+      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
 
       <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
 

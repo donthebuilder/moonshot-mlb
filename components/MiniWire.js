@@ -23,7 +23,11 @@ import { fetchLiveSlate, pickCleared, fetchHrContext } from '../lib/liveSlate'
 
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
 
-export default function MiniWire({ players = [], watchIds, tab, onGo, onPlayerClick }) {
+export default function MiniWire({ players = [], watchIds, tab, mode = 'today', onGo, onPlayerClick }) {
+  // TOMORROW MODE (2026-08-08): the wire is a TONIGHT instrument. Grading
+  // tomorrow's picks against tonight's boxscores by shared player_id would
+  // be silent nonsense — dark is the honest state.
+  if (mode === 'tomorrow') return null
   const [snap, setSnap] = useState(null)
   const [toasts, setToasts] = useState([])
   // Browser notifications (2026-08-06): opt-in via the bell. When the tab is

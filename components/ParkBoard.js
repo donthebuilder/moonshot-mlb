@@ -9,13 +9,13 @@ import { fetchPenFatigue, penTier } from '../lib/bullpen'
 // board into tonight's weather desk — live game status (delayed / postponed /
 // suspended), first pitch, per-team lineup confirmation and a delay-risk
 // read off the rain chance. Context lane only; nothing here feeds a score.
-function useGameStatus() {
+function useGameStatus(slateDate) {
   const [st, setSt] = useState({})
   useEffect(() => {
     let alive = true
     const load = () => {
-      const today = new Date().toLocaleDateString('en-CA')
-      fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&fields=dates,games,gamePk,status,detailedState,abstractGameState`)
+      const day = slateDate || new Date().toLocaleDateString('en-CA')
+      fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${day}&fields=dates,games,gamePk,status,detailedState,abstractGameState`)
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
           if (!alive || !j) return
@@ -30,7 +30,7 @@ function useGameStatus() {
     load()
     const id = setInterval(load, 5 * 60_000) // weather desk cadence, not live-wire cadence
     return () => { alive = false; clearInterval(id) }
-  }, [])
+  }, [slateDate])
   return st
 }
 
@@ -65,7 +65,7 @@ const surname = (full) => {
 const wTemp = (p) => n(p?.weather_temp_f, n(p?.temp_f, 0))
 const wWind = (p) => n(p?.weather_wind_mph, n(p?.wind_mph, 0))
 
-export default function ParkBoard({ players = [], activeVenue, onVenueClick, onPlayerClick }) {
+export default function ParkBoard({ players = [], slateDate = '', activeVenue, onVenueClick, onPlayerClick }) {
   const parks = useMemo(() => {
     const map = new Map()
     players.forEach((p) => {
@@ -106,7 +106,10 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
     return out
   }, [players])
 
-  const statuses = useGameStatus()
+  const statuses = useGameStatus(slateDate)
+  // pen fatigue means 'threw YESTERDAY' — that claim is only true for a
+  // today slate; on tomorrow's board the relevant night hasn't happened.
+  const penApplies = !slateDate || slateDate <= new Date().toLocaleDateString('en-CA')
 
   // Bullpen fatigue, joined by abbreviation (slate rows carry abbrs, the
   // boxscores carry ids — teamAbbrs() is the bridge, already cached).
@@ -236,7 +239,7 @@ export default function ParkBoard({ players = [], activeVenue, onVenueClick, onP
                     )}
                     {/* 🥵 gassed pens — yesterday's reliever workload, per side.
                         A tired pen is tonight's late-inning HR window. */}
-                    {penByAbbr && !final && teams.map((tm) => {
+                    {penApplies && penByAbbr && !final && teams.map((tm) => {
                       const tier = penTier(penByAbbr[tm])
                       if (!tier) return null
                       const t2 = penByAbbr[tm]
