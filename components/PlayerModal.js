@@ -59,15 +59,16 @@ function PullWallRow({ bats, venueName }) {
 // season + last season gameLogs joined to venues by gamePk (the league has
 // no byVenue split — probed). Color, not a score input; the sample is said
 // out loud and a 0 renders honestly instead of hiding.
-function VenueHrRow({ pid, venueName }) {
+function VenueHrRow({ pid, venueName, gamePk }) {
   const [rec, setRec] = useState(undefined)
   useEffect(() => {
     let alive = true
     setRec(undefined)
     if (!pid || !venueName) { setRec(null); return }
-    venueRecord(pid, venueName).then((r) => { if (alive) setRec(r) })
+    // gamePk → venue-ID matching (immune to park renames); name is fallback
+    venueRecord(pid, venueName, gamePk).then((r) => { if (alive) setRec(r) })
     return () => { alive = false }
-  }, [pid, venueName])
+  }, [pid, venueName, gamePk])
   if (rec === undefined) {
     return <Row label="At tonight's park" value="…" />
   }
@@ -391,7 +392,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="Hit Score" value={hitScore(p).toFixed(1)} />
                   <Row label="TB Score"  value={tbScore(p).toFixed(1)} />
                   <Row label="Pitch Mix" value={pitchMixScore(p).toFixed(1)} />
-                  <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} />
+                  <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} gamePk={p?.game_pk} />
                   <PullWallRow bats={clean(p?.bats || p?.handedness, '')} venueName={clean(p?.venue_name, '')} />
                 </div>
                 <div>
