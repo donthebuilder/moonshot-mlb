@@ -91,6 +91,9 @@ function Tile({ label, value, sub }) {
 // first, then by homers in the window, so "went last night" leads.
 function RecentBombers({ all = [], onPlayerClick }) {
   const [win, setWin] = useState(5)
+  // EXACT-DAY MODE (2026-08-08, Donovan): clicking 2g shows ONLY the hitters
+  // whose last homer came exactly two games ago — a bucket, not a range.
+  const [exact, setExact] = useState(true)
   const [open, setOpen] = useState(true)
 
   // THE ONE PARAMETER: games_since_last_hr, on 267/267 slate rows.
@@ -108,11 +111,11 @@ function RecentBombers({ all = [], onPlayerClick }) {
   // says so.
   const rows = useMemo(() => (
     all
-      .filter((r) => r.drought <= win - 1)
+      .filter((r) => exact ? r.drought === win - 1 : r.drought <= win - 1)
       .sort((a, b) => (a.drought - b.drought)
         || (n(b._raw?.last5_hr, 0) - n(a._raw?.last5_hr, 0))
         || (b.hr - a.hr))
-  ), [all, win])
+  ), [all, win, exact])
 
   return (
     <div style={{ margin: '10px 0 16px' }}>
@@ -121,9 +124,15 @@ function RecentBombers({ all = [], onPlayerClick }) {
           onClick={() => setOpen((v) => !v)}
           style={{ fontSize: 12, fontWeight: 800, cursor: 'pointer', color: C.text }}
         >💥 Went deep recently {open ? '▾' : '▸'}</span>
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 4 }}>
-          within last
-        </span>
+        <button
+          onClick={() => setExact((v) => !v)}
+          title={exact ? 'Showing hitters whose last HR came EXACTLY N games ago — click for within-last-N' : 'Showing everyone within the last N games — click for the exact-day bucket'}
+          style={{
+            padding: '3px 9px', borderRadius: 7, cursor: 'pointer', fontSize: 9,
+            fontWeight: 800, fontFamily: NUM_FONT, letterSpacing: '.06em',
+            border: `1px solid ${C.border2}`, background: 'transparent', color: C.text3,
+          }}
+        >{exact ? 'EXACTLY' : 'WITHIN'}</button>
         {[1, 2, 3, 4, 5].map((w) => (
           <button
             key={w}

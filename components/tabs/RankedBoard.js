@@ -200,7 +200,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             { key: 'hr9',    label: 'P HR/9', w: 50, dp: 2 },
           ]}
           onRowClick={onPlayerClick}
-          initialSort={null}
+          initialSort={type === 'hr' ? 'raw' : null}
           maxHeight={520}
           caption={`Ranked by ${type === 'hr' ? 'Adj — the ISO-adjusted score, with Raw and ISO beside it so every rank is explainable' : 'the category score'}. "When picked" is the archive speaking: what he actually did the other times the bot designated him here. Click any header to re-sort; the # column always gets you back to the board's own order.`}
         />

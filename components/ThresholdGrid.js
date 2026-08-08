@@ -26,11 +26,14 @@ const rateCol = (pct) => pct >= 60 ? '#4ade80' : pct >= 40 ? '#FCD34D' : pct >= 
 const cellBg = (pct) => pct == null ? 'transparent'
   : pct >= 60 ? 'rgba(74,222,128,.13)' : pct >= 40 ? 'rgba(252,211,77,.10)' : pct >= 25 ? 'rgba(249,115,22,.10)' : 'rgba(248,113,113,.07)'
 
-const LINES = { hit: [1, 2], tb2: [2, 3, 4], hr: [1, 2], hrr: [1, 2, 3], run: [1, 2], rbi: [1, 2] }
-const SHORT = { hit: 'Hit', tb2: 'TB', hr: 'HR', hrr: 'HRR', run: 'Run', rbi: 'RBI' }
+const LINES = { hit: [1, 2], tb2: [2, 3, 4], hr: [1, 2], hrr: [1, 2, 3], run: [1, 2], rbi: [1, 2], k1: [1, 2] }
+const SHORT = { hit: 'Hit', tb2: 'TB', hr: 'HR', hrr: 'HRR', run: 'Run', rbi: 'RBI', k1: 'K' }
 const VAL = {
   hit: (g) => g.h, tb2: (g) => g.tb, hr: (g) => g.hr,
   run: (g) => g.r, rbi: (g) => g.rbi, hrr: (g) => g.h + g.r + g.rbi,
+  // K reads INVERTED from every other lane: a high K rate is the pitcher's
+  // prop, not the hitter's — the grid shades it the same, the read flips.
+  k1: (g) => g.k,
 }
 
 export default function ThresholdGrid({ playerId }) {

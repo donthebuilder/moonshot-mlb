@@ -189,8 +189,8 @@ export default function Dashboard() {
             {tab === 'games'       && <Games players={players} slateDate={slateDate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
-            {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'due'         && <PowerTab players={players} slateDate={slateDate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
+            {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'due'         && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
             {/* 'hitshrr' merged into 'board' — route kept as alias for old links */}

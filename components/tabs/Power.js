@@ -15,7 +15,7 @@ import ParkBoard from '../ParkBoard'
 // audience, same night, one tab with a toggle. Both boards arrive intact —
 // nothing was cut, only the wall between them.
 
-export default function PowerTab({ players, slateDate = '', onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
+export default function PowerTab({ players, slateDate = '', results = null, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
   const [view, setView] = useState(initial)
   // Park click → filter the Longest board to that game (2026-08-07). If the
   // Due view is open, clicking a park flips to Longest first — the filter
@@ -37,7 +37,7 @@ export default function PowerTab({ players, slateDate = '', onWatch, watchIds, o
         </button>
       </div>
       {view === 'longest'
-        ? <LongestBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} venueFilter={venueFilter} onClearVenue={() => setVenueFilter('')} />
+        ? <LongestBoard players={players} results={results} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} venueFilter={venueFilter} onClearVenue={() => setVenueFilter('')} />
         : <DueBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />}
 
       {/* Luck lives with power on purpose: Due is distance-based regression,

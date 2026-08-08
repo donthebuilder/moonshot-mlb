@@ -126,7 +126,7 @@ const buildColumns = (onWatch) => [
     title: 'Park barrel factor — above 1.00 helps hard contact' },
 ]
 
-export default function LongestBoard({ players = [], onWatch, watchIds, onPlayerClick, venueFilter = '', onClearVenue }) {
+export default function LongestBoard({ players = [], results = null, onWatch, watchIds, onPlayerClick, venueFilter = '', onClearVenue }) {
   const [rankBy, setRankBy] = useState('adj')
   const [top, setTop] = useState(25)
   const [minBBE, setMinBBE] = useState(0)
@@ -219,6 +219,41 @@ export default function LongestBoard({ players = [], onWatch, watchIds, onPlayer
         opinion. It&apos;s kept gentle on purpose: the bot already folds park into the raw score, and
         double-counting it would just rank Coors first every night.
       </div>
+
+      {/* 🚀 LONGEST TRACKER — tonight's actual bombs by distance, live off
+          the tracker's statcast fold (longest_ft rides the homer entries).
+          The board below PROJECTS the farthest ball; this strip is who has
+          actually hit it so far. */}
+      {(() => {
+        const entries = (results?.hr_capture_report?.all_homer_entries || results?.merged_homers || [])
+          .filter((h) => Number(h?.longest_ft) > 0)
+          .sort((a, b) => Number(b.longest_ft) - Number(a.longest_ft))
+          .slice(0, 8)
+        if (!entries.length) return null
+        return (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, marginBottom: 5 }}>
+              🚀 Longest tonight <span style={{ fontSize: 9, color: C.text3, fontWeight: 400 }}>— measured, not projected · updates as the tracker grades</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {entries.map((h, i) => (
+                <div key={i} style={{
+                  display: 'flex', gap: 7, alignItems: 'baseline',
+                  border: `1px solid ${i === 0 ? 'rgba(249,115,22,.55)' : C.border}`,
+                  background: i === 0 ? 'rgba(249,115,22,.1)' : C.bg2,
+                  borderRadius: 8, padding: '4px 11px',
+                }}>
+                  {i === 0 && <span style={{ fontSize: 11 }}>👑</span>}
+                  <span style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange }}>{Math.round(h.longest_ft)}</span>
+                  <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>ft</span>
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>{h.name}</span>
+                  {Number(h?.max_ev_mph) > 0 && <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{Number(h.max_ev_mph).toFixed(0)}mph</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {venueFilter && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 10 }}>

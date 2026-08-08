@@ -410,11 +410,16 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
           picks: [],
           hr_allowed_today: 0,
           hit_allowed_today: 0,
+          k_today: 0,
         }
       }
       map[name].picks.push(r)
       if (si(r.actual_hr) > 0) map[name].hr_allowed_today += si(r.actual_hr)
       if (si(r.actual_hits) > 0) map[name].hit_allowed_today += si(r.actual_hits)
+      // actual_k rides every graded slot (tracker line 1335) — the K's he
+      // hung on OUR hitters. Partial by construction (only picks counted),
+      // the label says so.
+      if (si(r.actual_k) > 0) map[name].k_today += si(r.actual_k)
     }
     const out = Object.values(map)
       .filter(p => p.picks.length > 0)
@@ -475,7 +480,9 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
           <div style={{ fontSize: 16, fontWeight: 900, fontFamily: NUM_FONT, color: p.hr_allowed_today > 0 ? accent : C.text3 }}>
             {p.hr_allowed_today} HR
           </div>
-          <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{p.hit_allowed_today} H allowed</div>
+          <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+            {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? '#f87171' : C.text3, cursor: 'help' }}>{p.k_today} K</span>
+          </div>
         </div>
       </div>
     )
@@ -995,7 +1002,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   const pickRows = tab === 'board' ? topBoard : tab === 'hr' ? hrRows : allRows
 
   const DayPicker = () => (
-    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+<div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
       <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Day</span>
       <TabBtn active={day === 'live'} onClick={() => setDay('live')}>Live / today</TabBtn>
       {gradedDays.map((d) => (
@@ -1053,6 +1060,26 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       )}
 
       {/* sub-nav */}
+      <details style={{ marginBottom: 10, background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+        <summary style={{ padding: '8px 13px', fontSize: 11, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>
+          📖 How to read Results <span style={{ fontSize: 9, color: C.text3, fontWeight: 400 }}>— 60-second walkthrough</span>
+        </summary>
+        <div style={{ padding: '2px 14px 12px', fontSize: 11, color: C.text2, lineHeight: 1.75 }}>
+          <b style={{ color: C.orange }}>Start with the Report Card</b> — the headline strip is the whole story:
+          the season record on every pick, and the <b>since-the-lock</b> record beside it, which is the honest one
+          (those picks froze at first pitch and could never be edited). Letter grades compare each night to the
+          bot&apos;s OWN baselines — a 20% HR night is an A while a 55% HIT night is a D, because the bars differ.
+          <br /><b style={{ color: '#38bdf8' }}>Pitchers</b> answers &quot;did the arms we targeted give it up&quot; —
+          🎯 called it, 💥 burned us unflagged (the model&apos;s real misses), 🧱 flag didn&apos;t cash.
+          <br /><b style={{ color: '#a78bfa' }}>Picks</b> grades every pick against its own bar — a HIT pick that
+          singled counts even without a homer; grading everything on homers is the classic mistake this page avoids.
+          <br /><b style={{ color: '#4ade80' }}>Track record</b> ignores the day picker entirely: it&apos;s every
+          player the bot has ever designated, per category, with rates only shown at 3+ picks.
+          <br /><span style={{ color: C.text3 }}>The day picker up top moves ONLY this tab. A ≈ next to old records
+          means reconstructed from rate×pool — the older file format didn&apos;t store counts. And everywhere on this
+          site: the ❓ pill under the tabs explains the page you&apos;re on.</span>
+        </div>
+      </details>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         <TabBtn active={subTab === 'overview'} onClick={() => setSubTab('overview')}>📊 Overview</TabBtn>
         <TabBtn active={subTab === 'card'} onClick={() => setSubTab('card')}>🧾 Report card</TabBtn>
