@@ -824,23 +824,18 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
           {!loading&&!error&&(
             <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:'1rem',alignItems:'start'}}>
               <div>
-                <div style={{...s.sLbl,textAlign:'center'}}>{metric==='hr_rate'?'9-zone HR':'9-zone'}</div>
-                {zoneProfile?(
-                  <Grid9
-                    zones={zoneProfile.zones_9||[]}
-                    metricKey={metric}
-                    metricFmt={metricFmt}
-                    killZones={matchupKill}
-                  />
-                ):(
-                  // No bot file → the live-API batter map, right here in the
-                  // same slot. Its own component; it self-fetches and shows
-                  // MLB-graded EV/SLG/OPS/AVG zones for ANY hitter.
-                  <div style={{width:270}}>
-                    <ZoneMap playerId={pid} bats={String(player?.bats||'').toUpperCase().slice(0,1)} />
-                  </div>
-                )}
-                {zoneProfile && <Legend/>}
+                {/* ONE MAP (2026-08-08, Donovan: "figure out how to make ev
+                    log and hot zone one... while keeping the look of ev log").
+                    This slot used to render its own Grid9 when the bot file
+                    existed — a second zone grid with a different face than
+                    the EV Log's. Now the EV Log's ZoneMap IS the map here
+                    too: same component, same look, and its hover popout
+                    already carries everything Grid9 showed (per-zone line,
+                    gb/fly, starter traffic, kill zones) plus the matchup
+                    view. Grid9/Legend stay defined for the pitcher panel. */}
+                <div style={{width:270}}>
+                  <ZoneMap playerId={pid} bats={String(player?.bats||'').toUpperCase().slice(0,1)} />
+                </div>
               </div>
               <div>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,flexWrap:'wrap',gap:4}}>

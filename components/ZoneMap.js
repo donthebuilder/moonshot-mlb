@@ -41,11 +41,14 @@ const ZONE_NAME = {
 const fmt3 = (v) => (v == null ? '—' : v.toFixed(3).replace(/^0\./, '.'))
 const fmtPct = (v) => (v == null ? '—' : `${(100 * v).toFixed(v >= 0.1 ? 0 : 1)}%`)
 
-function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim }) {
+function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHover, hoverKey }) {
   const [v, h] = align || ['center', 'center']
   const base = red ? '248,113,113' : '249,115,22'
   return (
-    <div title={title} style={{
+    <div title={title}
+      onMouseEnter={onHover ? () => onHover(hoverKey) : undefined}
+      onMouseLeave={onHover ? () => onHover(null) : undefined}
+      style={{
       display: 'flex', flexDirection: 'column',
       alignItems: h === 'left' ? 'flex-start' : h === 'right' ? 'flex-end' : 'center',
       justifyContent: v === 'top' ? 'flex-start' : v === 'bottom' ? 'flex-end' : 'center',
@@ -71,6 +74,12 @@ export default function ZoneMap({ playerId, bats }) {
   const [api, setApi] = useState(undefined)
   const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
+  // 🔍 hover popout (2026-08-08, Donovan: "i wish it was like hover over pop
+  // out") — a real card instead of the browser's sluggish title bubble. It
+  // carries EVERYTHING the Hot Zones tab knows about the cell: his line, his
+  // batted-ball shape, the starter's traffic and bleed there. This is how
+  // EV Log and Hot Zones become one map without EV Log changing its face.
+  const [hover, setHover] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -103,20 +112,21 @@ export default function ZoneMap({ playerId, bats }) {
   const ZONES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '11', '12', '13', '14']
   let cells = {}
   let verdict = null
+  // lifted out of the matchup branch so the hover popout can read them
+  const bz = {}; (zp?.zones_13 || zp?.zones_9 || []).forEach((z) => { bz[z.zone] = z })
+  const use = {}; (pzp?.tendency || []).forEach((t) => { use[t.zone] = t.pct })
+  const pd = {}; (pzp?.damage || []).forEach((d) => { pd[d.zone] = d })
+  const kill = new Set(pzp?.kill_zones || [])
+  const apiZs = api?.[stat === 'matchup' ? 'ev' : stat] || {}
 
   if (!isMatch) {
-    const zs = api?.[stat === 'matchup' ? 'ev' : stat] || {}
     ZONES.forEach((k) => {
-      const z = zs[k] || zs[String(Number(k))]
+      const z = apiZs[k] || apiZs[String(Number(k))]
       cells[k] = z
-        ? { main: z.value, alpha: TEMP_ALPHA[z.temp] ?? 0.15, glow: z.temp === 'hot', title: `${ZONE_NAME[Number(k)]} · ${z.temp}` }
+        ? { main: z.value, alpha: TEMP_ALPHA[z.temp] ?? 0.15, glow: z.temp === 'hot' }
         : { main: '—', alpha: 0 }
     })
   } else {
-    const bz = {}; (zp.zones_13 || zp.zones_9 || []).forEach((z) => { bz[z.zone] = z })
-    const use = {}; (pzp?.tendency || []).forEach((t) => { use[t.zone] = t.pct })
-    const pd = {}; (pzp?.damage || []).forEach((d) => { pd[d.zone] = d })
-    const kill = new Set(pzp?.kill_zones || [])
     const hasP = !!pzp
 
     // Two edge scores per zone, each normalized to its own max so the
@@ -141,7 +151,7 @@ export default function ZoneMap({ playerId, bats }) {
       const h = hE[k] / hMax, p = pE[k] / pMax
       const hitterWins = h >= p
       const strength = hitterWins ? h : p
-      const isKill = kill.has(zn)
+      // native title dropped — the hover popout carries all of it, instantly
       cells[k] = {
         main: fmt3(b.xslg),
         sub: hasP && use[zn] != null ? fmtPct(use[zn]) : null,
@@ -150,8 +160,6 @@ export default function ZoneMap({ playerId, bats }) {
         red: !hitterWins,
         glow: strength >= 0.7,
         dim: b.low_sample,
-        title: `${ZONE_NAME[zn]} — him: ${b.hr} HR · ${fmt3(b.ba)} BA · xSLG ${fmt3(b.xslg)} in ${b.pa} PA`
-          + (hasP ? ` — starter: throws here ${fmtPct(use[zn])}, allows xSLG ${fmt3(pd[zn]?.xslg)}${isKill ? ' · KILL ZONE' : ''}` : ''),
       }
     })
 
@@ -234,10 +242,10 @@ export default function ZoneMap({ playerId, bats }) {
           position: 'relative', height: 290,
           display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 3,
         }}>
-          <Cell {...cells['11']} align={['top', 'left']} />
-          <Cell {...cells['12']} align={['top', 'right']} />
-          <Cell {...cells['13']} align={['bottom', 'left']} />
-          <Cell {...cells['14']} align={['bottom', 'right']} />
+          <Cell {...cells['11']} align={['top', 'left']} onHover={setHover} hoverKey="11" />
+          <Cell {...cells['12']} align={['top', 'right']} onHover={setHover} hoverKey="12" />
+          <Cell {...cells['13']} align={['bottom', 'left']} onHover={setHover} hoverKey="13" />
+          <Cell {...cells['14']} align={['bottom', 'right']} onHover={setHover} hoverKey="14" />
           <div style={{
             position: 'absolute', inset: 44,
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)',
@@ -245,9 +253,53 @@ export default function ZoneMap({ playerId, bats }) {
             border: `1px solid ${C.border2}`,
           }}>
             {['01', '02', '03', '04', '05', '06', '07', '08', '09'].map((k) => (
-              <Cell key={k} {...cells[k]} big />
+              <Cell key={k} {...cells[k]} big onHover={setHover} hoverKey={k} />
             ))}
           </div>
+
+          {/* THE POPOUT — everything Hot Zones knows about the cell, on
+              hover, instantly, without leaving this map. It sits on the
+              opposite side of the hovered cell so it never covers it. */}
+          {hover != null && (() => {
+            const zn = Number(hover)
+            const col = zn >= 11 ? (zn === 11 || zn === 13 ? 0 : 2) : (zn - 1) % 3
+            const row = zn >= 11 ? (zn <= 12 ? 0 : 2) : Math.floor((zn - 1) / 3)
+            const b = bz[zn]
+            const z = apiZs[hover] || apiZs[String(zn)]
+            const isKill = kill.has(zn)
+            const L = ({ children, dim: d2 }) => (
+              <div style={{ fontSize: 9, fontFamily: NUM_FONT, color: d2 ? C.text3 : C.text2, lineHeight: 1.6, whiteSpace: 'nowrap' }}>{children}</div>
+            )
+            const shape = b && (b.gb_rate != null || b.fb_rate != null)
+            return (
+              <div style={{
+                position: 'absolute', zIndex: 6, pointerEvents: 'none', width: 158,
+                ...(col === 2 ? { right: '62%' } : { left: '62%' }),
+                ...(row === 2 ? { bottom: 0 } : row === 1 ? { top: '28%' } : { top: 0 }),
+                background: '#0b0b0d', border: `1px solid ${isKill ? 'rgba(248,113,113,.55)' : C.border2}`,
+                borderRadius: 8, padding: '7px 10px', boxShadow: '0 6px 20px rgba(0,0,0,.55)',
+              }}>
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: isKill ? '#f87171' : C.text, marginBottom: 2, whiteSpace: 'nowrap' }}>
+                  {ZONE_NAME[zn]}{isKill ? ' · KILL ZONE' : ''}
+                </div>
+                {b ? (<>
+                  <L>{b.pa} PA · {b.hr} HR · BA {fmt3(b.ba)}</L>
+                  <L>xSLG {fmt3(b.xslg)} · xwOBA {fmt3(b.xwoba)}</L>
+                  {shape
+                    ? <L>GB {fmtPct(b.gb_rate)} · FLY {fmtPct(b.fb_rate)}</L>
+                    : <L dim>gb/fly land with tonight&apos;s cache</L>}
+                  {pzp && use[zn] != null && (
+                    <L>starter: {fmtPct(use[zn])} here{pd[zn]?.xslg != null ? ` · bleeds ${fmt3(pd[zn].xslg)}` : ''}</L>
+                  )}
+                  {b.low_sample && <L dim>small sample — read lightly</L>}
+                </>) : z ? (
+                  <L>{active?.label} {z.value} · {z.temp}</L>
+                ) : (
+                  <L dim>no data in this zone</L>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
 

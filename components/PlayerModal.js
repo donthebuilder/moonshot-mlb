@@ -43,12 +43,14 @@ function PullWallRow({ bats, venueName }) {
     : w.linePct != null && w.linePct >= 80 ? '#38bdf8' : C.text
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 11, color: C.text3 }}
+      {/* CLEANED (2026-08-08, Donovan): no emoji, one line — the full
+          sentence lives in the tooltip. */}
+      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}
         title={`His pull side (${w.side}) at ${venueName}: ${w.line} ft down the line${w.gap ? `, ${w.gap} ft to the gap` : ''}. Percentile is vs all 30 parks' same-side line from the league's own fieldInfo — ${w.linePct}% of parks are shorter. Context, not a score input.`}>
-        Pull-side wall 🧱
+        Pull-side wall
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, color: col }}>
-        {w.side} {w.line} ft{w.gap ? ` / ${w.gap} gap` : ''}{w.word ? ` · ${w.word}` : ''}
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col }}>
+        {w.side} {w.line}′{w.gap ? `/${w.gap}′` : ''}{w.word ? ` · ${w.word}` : ''}
       </span>
     </div>
   )
@@ -76,12 +78,14 @@ function VenueHrRow({ pid, venueName }) {
   const hot = rec.hr >= 2
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 11, color: C.text3 }}
+      {/* CLEANED (2026-08-08, Donovan): no emoji, no wrap — seasons moved
+          into the tooltip so the value stays one tidy line. */}
+      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}
         title={`${venueName}, ${rec.seasons}: every game he played in this building, this season and last, from the league's game logs. A road park is a handful of dates — read the games count before the homers.`}>
-        At tonight&apos;s park 🏟
+        At tonight&apos;s park
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, color: hot ? C.orange : C.text }}>
-        {rec.hr} HR in {rec.games} gm{rec.games !== 1 ? 's' : ''} ({rec.seasons})
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: hot ? C.orange : C.text }}>
+        {rec.hr} HR / {rec.games} gm{rec.games !== 1 ? 's' : ''}
       </span>
     </div>
   )
