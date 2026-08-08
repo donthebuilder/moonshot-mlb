@@ -990,7 +990,14 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   const pairPoolResults = view?.pair_pool_results || null
   const date = String(view?.label || view?.date || 'Today')
 
-  const topBoard = useMemo(() => slots.filter(r => r.rank != null).sort((a, b) => a.rank - b.rank), [slots])
+  // topBoard dedupes too (2026-08-08): a hitter can hold TWO ranked slot
+  // types (Top Board + Top Picks), which put the same man on the board
+  // twice with identical lines. One row per player, best rank wins.
+  const topBoard = useMemo(() => {
+    const seen = new Set()
+    return slots.filter(r => r.rank != null).sort((a, b) => a.rank - b.rank)
+      .filter(r => { const k = String(r.player_id); if (seen.has(k)) return false; seen.add(k); return true })
+  }, [slots])
   const hrRows = useMemo(() => slots.filter(r => r.got_hr === 1 || (r.actual_hr || 0) > 0), [slots])
   const allRows = useMemo(() => {
     const seen = new Set()
