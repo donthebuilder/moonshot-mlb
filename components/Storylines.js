@@ -217,9 +217,15 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       giveaways.push({ home, nm, isBobble, star, dist: pr.distribution || '' })
     })
   })
-  giveaways.sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.isBobble ? 1 : 0) - (a.isBobble ? 1 : 0))
+  // CURATION (2026-08-08, Donovan: "less of the second unless major or
+  // player oriented"): a giveaway earns a line only when it's about a
+  // PLAYER (his own night, a bobblehead, a jersey/replica) — generic polos
+  // and tees are stadium ops, not storylines.
+  const majorGiveaways = giveaways.filter((g) =>
+    g.star || g.isBobble || /jersey|replica|figurine|poster|card|banner|ring|trophy/i.test(g.nm))
+  majorGiveaways.sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.isBobble ? 1 : 0) - (a.isBobble ? 1 : 0))
 
-  const empty = !b2b.length && !miles.length && !bdays.length && !giveaways.length && !duels.length && !revenge.length && !rivalries.length
+  const empty = !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
   if (empty && !compact) return null
   if (empty && compact) {
     return (
@@ -251,10 +257,10 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             b2b.length && `🔁 ${b2b.length} b2b`,
             miles.length && `🏁 ${miles.length} milestone${miles.length > 1 ? 's' : ''}`,
             duels.length && `⚔ ${duels.length} duel${duels.length > 1 ? 's' : ''}`,
-            revenge.length && `🔄 ${revenge.length} revenge`,
+            revenge.length && `😤 ${revenge.length} revenge`,
             rivalries.length && `🔥 ${rivalries.length} rivalry`,
             bdays.length && `🎂 ${bdays.length}`,
-            giveaways.length && `🎁 ${giveaways.length} giveaway${giveaways.length > 1 ? 's' : ''}`,
+            majorGiveaways.length && `🎁 ${majorGiveaways.length} giveaway${majorGiveaways.length > 1 ? 's' : ''}`,
           ].filter(Boolean).join(' · ')}
         </span>
         {!open && <span style={{ fontSize: 9, color: C.text3 }}>— the human layer, tap to open</span>}
@@ -273,9 +279,10 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         </Row>
       )}
 
-      {miles.slice(0, 6).map((m, i) => (
+      {miles.slice(0, 10).map((m, i) => (
         <Row key={`m${i}`} icon="🏁" p={m.p}>
-          <b style={{ color: C.text }}>{nameOf(m.p)}</b> is <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{m.need}</b> away
+          <b style={{ color: C.text, display: 'inline-block', minWidth: 138, verticalAlign: 'top' }}>{nameOf(m.p)}</b>
+          {' '}is <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{m.need}</b> away
           from <b style={{ fontFamily: NUM_FONT }}>{m.t.toLocaleString()}</b> {m.word}
           {m.need === 1 ? ` — could land ${dayWord}` : ''}
         </Row>
@@ -290,7 +297,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       ))}
 
       {revenge.slice(0, 4).map((r, i) => (
-        <Row key={`r${i}`} icon="🔄" p={r.p}>
+        <Row key={`r${i}`} icon="😤" p={r.p}>
           <b style={{ color: C.text }}>{nameOf(r.p)}</b> faces his old team — wore <b>{r.opp}</b> in{' '}
           <span style={{ fontFamily: NUM_FONT }}>{r.span}</span>. Revenge games are theater, and theater sells.
         </Row>
@@ -309,7 +316,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         </Row>
       ))}
 
-      {giveaways.slice(0, 5).map((g, i) => (
+      {majorGiveaways.slice(0, 3).map((g, i) => (
         <Row key={`g${i}`} icon={g.isBobble ? '🧸' : '🎁'} p={g.star}>
           <b style={{ color: C.text }}>{g.home}</b>: {g.nm}
           {g.dist ? <span style={{ color: C.text3, fontFamily: NUM_FONT }}> · {g.dist}</span> : ''}
