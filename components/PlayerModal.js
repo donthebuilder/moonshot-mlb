@@ -22,6 +22,40 @@ import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
 import ThresholdGrid from './ThresholdGrid'
 import BvP from './BvP'
+import { venueRecord } from '../lib/venueHr'
+
+// "Does he have HRs in THIS building" (2026-08-08). Self-fetching row:
+// season + last season gameLogs joined to venues by gamePk (the league has
+// no byVenue split — probed). Color, not a score input; the sample is said
+// out loud and a 0 renders honestly instead of hiding.
+function VenueHrRow({ pid, venueName }) {
+  const [rec, setRec] = useState(undefined)
+  useEffect(() => {
+    let alive = true
+    setRec(undefined)
+    if (!pid || !venueName) { setRec(null); return }
+    venueRecord(pid, venueName).then((r) => { if (alive) setRec(r) })
+    return () => { alive = false }
+  }, [pid, venueName])
+  if (rec === undefined) {
+    return <Row label="At tonight's park" value="…" />
+  }
+  if (!rec || !rec.games) {
+    return <Row label="At tonight's park" value={rec ? 'no games here since last yr' : '—'} mono={false} />
+  }
+  const hot = rec.hr >= 2
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+      <span style={{ fontSize: 11, color: C.text3 }}
+        title={`${venueName}, ${rec.seasons}: every game he played in this building, this season and last, from the league's game logs. A road park is a handful of dates — read the games count before the homers.`}>
+        At tonight&apos;s park 🏟
+      </span>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, color: hot ? C.orange : C.text }}>
+        {rec.hr} HR in {rec.games} gm{rec.games !== 1 ? 's' : ''} ({rec.seasons})
+      </span>
+    </div>
+  )
+}
 
 function Row({ label, value, mono = true }) {
   return (
@@ -310,6 +344,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="Hit Score" value={hitScore(p).toFixed(1)} />
                   <Row label="TB Score"  value={tbScore(p).toFixed(1)} />
                   <Row label="Pitch Mix" value={pitchMixScore(p).toFixed(1)} />
+                  <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} />
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '8px 0 4px' }}>Batted Ball</div>
