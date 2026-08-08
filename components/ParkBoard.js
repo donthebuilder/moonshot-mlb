@@ -5,6 +5,7 @@ import { n, clean, nameOf, teamOf, oppOf } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
 import { fetchRestTravel } from '../lib/restTravel'
+import { dataUrl } from '../lib/dataSource'
 
 // WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
 // board into tonight's weather desk — live game status (delayed / postponed /
@@ -141,6 +142,24 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
       setRestByAbbr(m)
     }).catch(() => {})
   }, [slateDate])
+
+  // 🏟 HOUSE HISTORY (2026-08-08, Donovan: "for the players in that park
+  // too"). The bot's nightly context pack carries every slate player's HR
+  // record at tonight's building (venue-ID matched). One fetch; each card
+  // then names its bats with real history here. Date-gated: the pack is
+  // today's slate, so tomorrow mode shows nothing rather than wrong parks.
+  // Quiet until the first pack publishes — no file, no line, no fakes.
+  const [housePack, setHousePack] = useState(null)
+  useEffect(() => {
+    fetch(dataUrl('current/context_pack_latest.json'))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j?.players) setHousePack(j) })
+      .catch(() => {})
+  }, [])
+  // strict date gate: the pack must be FOR the slate being viewed — a stale
+  // pack quietly showing yesterday's parks would be worse than nothing
+  const packApplies = housePack
+    && housePack.slate_date === (slateDate || new Date().toLocaleDateString('en-CA'))
 
   if (!parks.length) return null
 
@@ -337,6 +356,37 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                   ))}
                 </div>
               ))}
+
+              {/* 🏟 house history — tonight's bats who have actually homered
+                  in THIS building (bot context pack, venue-ID matched).
+                  ▲ marks a hitter whose rate here beats his own overall
+                  rate by 25%+ on 8+ games — the park likes him back. */}
+              {packApplies && (() => {
+                const vets = g.bats
+                  .map((p) => ({ p, vh: housePack.players?.[String(p?.player_id)]?.venue_hr }))
+                  .filter((x) => x.vh && x.vh.hr >= 2)
+                  .sort((a, b) => b.vh.hr - a.vh.hr)
+                  .slice(0, 3)
+                if (!vets.length) return null
+                return (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginTop: 4, flexWrap: 'wrap', fontFamily: NUM_FONT, fontSize: 8.5 }}>
+                    <span style={{ color: C.text3, fontWeight: 800, letterSpacing: '.05em' }}>🏟</span>
+                    {vets.map(({ p, vh }) => {
+                      const up = vh.games >= 8 && vh.vs_self != null && vh.vs_self >= 1.25
+                      return (
+                        <span
+                          key={p?.player_id}
+                          onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }}
+                          title={`${nameOf(p)} in this building, ${vh.seasons}: ${vh.hr} HR in ${vh.games} games${vh.vs_self != null ? ` — ${(vh.vs_self).toFixed(2)}× his overall HR rate` : ''}${up ? '. The park plays UP for him.' : ''}`}
+                          style={{ color: up ? band.col : C.text2, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          {surname(nameOf(p))} <b>{vh.hr}</b><span style={{ color: C.text3, fontWeight: 500 }}>/{vh.games}g</span>{up ? '▲' : ''}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
           )
         })}
