@@ -153,6 +153,41 @@ function ProjectedHRStat({ mode }) {
 
 // ── date display ──────────────────────────────────────────────────────────────
 
+// Aa COMFORT SIZE (2026-08-08): the whole site scales 0% / +12% / +24%
+// with one tap — dense 9px tables become readable for anyone without a
+// single component changing. zoom scales layout proportionally (all
+// modern engines); the choice persists per device.
+function ComfortToggle() {
+  const [lvl, setLvl] = useState(0)
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem('ui_comfort') || 0)
+      if (saved) setLvl(saved)
+    } catch {}
+  }, [])
+  useEffect(() => {
+    const z = [1, 1.12, 1.24][lvl] || 1
+    try { document.body.style.zoom = z === 1 ? '' : String(z) } catch {}
+    try { localStorage.setItem('ui_comfort', String(lvl)) } catch {}
+  }, [lvl])
+  return (
+    <button
+      onClick={() => setLvl((v) => (v + 1) % 3)}
+      title={`Text size: ${['normal', 'large (+12%)', 'extra large (+24%)'][lvl]} — tap to cycle. Scales the whole site; your choice is remembered on this device.`}
+      style={{
+        display:'flex', alignItems:'baseline', gap:1, cursor:'pointer',
+        background: lvl ? 'rgba(249,115,22,.12)' : 'transparent',
+        border:`1px solid ${lvl ? 'rgba(249,115,22,.45)' : C.border2}`,
+        color: lvl ? C.orange : C.text3, borderRadius:8, padding:'3px 8px',
+      }}
+    >
+      <span style={{ fontSize:9, fontWeight:700 }}>A</span>
+      <span style={{ fontSize:13, fontWeight:900 }}>a</span>
+      {lvl > 0 && <span style={{ fontSize:8, fontFamily:NUM_FONT, marginLeft:2 }}>+{lvl * 12}%</span>}
+    </button>
+  )
+}
+
 function DateBadge({ label }) {
   const [time, setTime] = useState('')
   useEffect(() => {
@@ -254,6 +289,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
         </div>
 
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <ComfortToggle />
           <DateBadge label={dateLabel || 'Loading…'} />
           <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1px solid ${C.border}` }}>
             <button
