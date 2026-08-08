@@ -749,14 +749,15 @@ function PickRow({ r, i, onPlayerClick }) {
         cursor: onPlayerClick ? 'pointer' : 'default',
       }}
     >
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
+        {rank
+          ? <span style={{ fontSize: 10, color: gotHR ? C.green : C.text3, fontWeight: gotHR ? 800 : 400, fontFamily: NUM_FONT }}>#{rank}</span>
+          : null}
         {gotHR
-          ? <span style={{ fontSize: 14 }}>✅</span>
+          ? <div style={{ fontSize: 12 }}>💥</div>
           : multiHit
-          ? <span style={{ fontSize: 12 }}>⭐</span>
-          : rank
-          ? <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>#{rank}</span>
-          : <span style={{ fontSize: 11, color: C.border }}>·</span>}
+          ? <div style={{ fontSize: 11 }}>⭐</div>
+          : !rank ? <span style={{ fontSize: 11, color: C.border }}>·</span> : null}
       </div>
 
       <div style={{ minWidth: 0 }}>
@@ -816,7 +817,7 @@ function PickRow({ r, i, onPlayerClick }) {
               ? <div>{r.actual_runs}R {r.actual_rbi}RBI</div>
               : null}
             {!(r.actual_hits > 0) && !(r.actual_runs > 0) && !gotHR
-              ? <div style={{ color: C.border }}>0-fer</div>
+              ? <div style={{ color: C.border }}>{(r.actual_ab || 0) > 0 ? `0-${r.actual_ab}` : 'no AB'}</div>
               : null}
           </div>
         ) : (
@@ -995,7 +996,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
     const seen = new Set()
     return [...slots]
       .sort((a, b) => (b.top_board_score_v2 || 0) - (a.top_board_score_v2 || 0))
-      .filter(r => { if (seen.has(r.player_id)) return false; seen.add(r.player_id); return true })
+      .filter(r => { const k = String(r.player_id); if (seen.has(k)) return false; seen.add(k); return true })
   }, [slots])
 
   const topHit = topBoard.filter(r => r.got_hr === 1 || (r.actual_hr || 0) > 0).length
