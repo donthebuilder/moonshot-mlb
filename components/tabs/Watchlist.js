@@ -8,6 +8,7 @@ import { tierRole, isAligned } from '../../lib/scoring'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
 import DenseTable from '../DenseTable'
+import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import PlayerCard from '../PlayerCard'
 import { downloadShareCard } from '../shareCard'
 
@@ -297,6 +298,24 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
     })
     return m
   }, [results])
+  // THE SAME FILTER RIG THE BOARDS RUN (2026-08-09, on request). A watchlist
+  // that grows past a dozen names has the same problem a board does — you want
+  // the lefties, or the ones on a leaky arm, or the band of the stat you care
+  // about tonight — and the answer already existed one file over. useBoardFilter
+  // is mounted on the ON-SLATE saves only: off-slate names have no current
+  // numbers to filter by, so putting them through a Brl% band would silently
+  // drop them for having no data rather than for failing a test. They keep
+  // their own strip below, untouched.
+  //
+  // Hooks run before the empty-list early return on purpose — an empty
+  // watchlist is a render path, not an excuse to change the hook order.
+  const slateIds = useMemo(() => new Set(players.map((p) => String(playerId(p)))), [players])
+  const onSlate = useMemo(
+    () => items.filter((p) => slateIds.has(String(playerId(p)))),
+    [items, slateIds],
+  )
+  const { filtered: filteredOnSlate, state: filterState } = useBoardFilter(onSlate)
+
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -471,13 +490,15 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
           saves are excluded — their numbers would be stale — they live in the
           off-slate strip below instead. */}
       {(() => {
-        const slateIds = new Set(players.map((p) => String(playerId(p))))
-        const on = items.filter((p) => slateIds.has(String(playerId(p))))
-        if (!on.length) return null
+        if (!onSlate.length) return null
         return (
           <div style={{ marginBottom: 12 }}>
+            <BoardFilters state={filterState} total={onSlate.length} shown={filteredOnSlate.length} />
+            {!filteredOnSlate.length ? (
+              <Empty text="None of your saved hitters clear this filter. Reset it above — the categories are rarer than they look, and a band set for one stat means nothing in another's units." />
+            ) : (
             <DenseTable
-              rows={on.map((p) => ({
+              rows={filteredOnSlate.map((p) => ({
                 _key: String(playerId(p)),
                 _raw: p,
                 watched: 1,
@@ -540,8 +561,9 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
               onRowClick={(r) => r && onPlayerClick?.(r)}
               initialSort="hr"
               maxHeight={380}
-              caption="Your saved hitters, side by side — every column heats against THIS LIST only, so bright means best of your saves, not best of the slate. ★ un-saves without leaving the table."
+              caption="Your saved hitters, side by side — every column heats against THE FILTERED LIST only, so bright means best of what's currently shown, not best of the slate. Narrow the filter and the colours re-scale to the survivors. ★ un-saves without leaving the table."
             />
+            )}
           </div>
         )
       })()}
@@ -587,7 +609,6 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
           STALE numbers with nothing saying so. Click still opens the modal,
           which pulls his season live when there's no bot row. */}
       {(() => {
-        const slateIds = new Set(players.map((p) => String(playerId(p))))
         const off = items.filter((p) => !slateIds.has(String(playerId(p))))
         if (!off.length) return null
         return (
