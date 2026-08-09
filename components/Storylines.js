@@ -517,8 +517,12 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         : <span key={j}>{x.text}</span>
   ))
 
+  // className="tap-row" (2026-08-10 phone pass): every line in this panel is a
+  // clickable div at 11px with 3px of padding — about 21px tall, sitting flush
+  // against the next one. On a phone that's a coin toss between two players.
+  // .tap-row is the existing hook that floors it at 34px on a touch device.
   const Row = ({ icon, children, p }) => (
-    <div onClick={() => p && onPlayerClick?.(p)} style={{
+    <div onClick={() => p && onPlayerClick?.(p)} className={p ? 'tap-row' : undefined} style={{
       display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11, lineHeight: 1.55,
       padding: '3px 0', cursor: p ? 'pointer' : 'default', color: C.text2,
     }}>
@@ -564,6 +568,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       {!open && mlines.length > 0 && (
         <div
           onClick={() => onPlayerClick?.(mlines[0].player)}
+          className="tap-row"
           style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: 'pointer' }}
         >
           ⚾ <Parts parts={mlines[0].parts} />
@@ -577,6 +582,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       {!open && ffacts.length > 0 && (
         <div
           onClick={() => onPlayerClick?.(ffacts[0].player)}
+          className="tap-row"
           title={`Counted from his published game log — ${ffacts[0].sample}. Nothing here is modelled.`}
           style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: 'pointer' }}
         >
@@ -606,6 +612,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             <div
               key={`mx${m.pid}`}
               onClick={() => onPlayerClick?.(m.player)}
+              className="tap-row"
               title={`Game logs, ${m.seasons || 'this season and last'} — his at ${m.venue}, the starter's at ${m.venue}. Counted from published game logs, not modelled.`}
               style={{
                 display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.55,
@@ -639,6 +646,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             <div
               key={`ff${f.key}`}
               onClick={() => onPlayerClick?.(f.player)}
+              className="tap-row"
               title={`Counted from his published hitting game log this season — ${f.sample}. Any “most” was checked across every hitter this panel actually computed tonight, and the line names how many that was. Nothing here is modelled or estimated.`}
               style={{
                 display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.55,

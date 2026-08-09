@@ -427,9 +427,13 @@ function ComingUp({ game, lineup, selectedId, onPick, onOpen }) {
         </span>
       </div>
 
-      {/* the two that matter most, given their own row */}
+      {/* The two that matter most, given their own row.
+          .atplate-deck is a phone hook: these two cards are minWidth 168, so at
+          a 390px portrait viewport they total 345px inside 346px of card — they
+          "fit" by one pixel, and then the text inside them (name + "board 87 ·
+          🤖 HR") has nowhere to go. On a phone they get a row each. */}
       {(deck || hole) && (
-        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div className="atplate-deck" style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginBottom: 10 }}>
           {[['ON DECK', deck, '#FCD34D'], ['IN THE HOLE', hole, '#a78bfa']].map(([tag, row, col]) => (
             row ? (
               <button key={tag} onClick={() => onPick(row.id)} className="tap-row" style={{

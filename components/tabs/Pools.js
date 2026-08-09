@@ -78,7 +78,12 @@ function LivePools({ results, players = [], onPlayerClick }) {
               {/* GRID, not flow (2026-08-06): inline-wrapped names broke mid-
                   list and left orphans hanging off the line. Two even columns,
                   every name on its own line slot. */}
-              <div style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+              {/* .pool-names is a phone hook only. Two columns of names is the
+                  right desktop density; on a portrait phone each column is
+                  ~165px and the names — the entire content of a pool — start
+                  ellipsising. MobileCSS stacks them to one column and gives
+                  each clickable name a thumb-sized row. */}
+              <div className="pool-names" style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
                 {(pl.players || []).map((mb, j) => {
                   const gone = homered.has(String(mb?.name || '').toLowerCase())
                   const row = resolve(mb)

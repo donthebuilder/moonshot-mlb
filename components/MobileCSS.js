@@ -234,6 +234,21 @@ export default function MobileCSS() {
         [style*="font-size:9"], [style*="font-size: 9"] { font-size: 10px !important; }
       }
 
+      /* ── 2a. 7.5px SLIPPED THROUGH (2026-08-10 portrait audit) ──
+         The rule above was written against 8-9.5px and there are TWELVE inline
+         7.5px sizes on the site that it never matched — the zone map's usage
+         percentage under each cell, DenseTable's sort-order superscript, the
+         header's slate line, ParkBoard, BvP, EV Log, the game cockpit, the
+         lineup slot rows, At the Plate's ON DECK / IN THE HOLE labels and the
+         deep-dive. 7.5px is not small text on a phone, it is decoration.
+         Same substring trick, same verified-safe reasoning: grepped
+         components/ for inline font sizes in the 70-79 range and there are
+         none, so "font-size:7" can only ever match 7-7.9px. SVG charts set
+         font-size as an ATTRIBUTE, so no chart label is touched. */
+      @media (max-width: 560px) {
+        [style*="font-size:7"], [style*="font-size: 7"] { font-size: 10px !important; }
+      }
+
       /* ── 3. TAP TARGETS ──
          Buttons already get min-height 32px under 700px. The gap was the
          clickable DIVS — the Home top-10 rows and the weakest-arms rows are
@@ -344,6 +359,48 @@ export default function MobileCSS() {
         .chart-cols { flex-direction: column !important; }
         .chart-cols > div { flex: 1 1 auto !important; width: 100% !important; }
       }
+
+      /* ══════════════════════════════════════════════════════════════════
+         PORTRAIT PASS (2026-08-10) — a second audit at 390×844 specifically,
+         after the 2026-08-09 pass. Five things the first pass didn't reach.
+         Every one of them was found by measuring the real inline styles
+         against 374px of content (390 minus .dashboard-main's 8px gutters),
+         not by eyeballing a screenshot.
+         ══════════════════════════════════════════════════════════════════ */
+
+      @media (max-width: 560px) {
+        /* 1. POOL MEMBERS — a pool IS its names, and they were in two columns
+              of ~165px each with ellipsis on. "Vladimir Guerrero Jr." does not
+              survive that, and a truncated pool tells you nothing. One column,
+              full names. (Pools tab, both the graded and the pre-game view.) */
+        .pool-names { grid-template-columns: 1fr !important; }
+
+        /* 2. AT THE PLATE — the ON DECK / IN THE HOLE cards are minWidth 168
+              each, so two of them plus the 9px gap is 345px inside 346px of
+              card. They "fit" by one pixel and their contents don't. A row
+              each on a phone. */
+        .atplate-deck > button { flex: 1 1 100% !important; min-width: 0 !important; }
+
+        /* 3. THE HEATMAP'S NAME COLUMN — 150px of a 374px screen, 40%, and it
+              is sticky, so it took 40% of every horizontal scroll position
+              with it. DenseTable's sticky column was capped at 124px by the
+              last pass; the heatmap doesn't use DenseTable and was missed.
+              Same cap, plus the shadow that makes it read as pinned rather
+              than as a rendering artefact. */
+        .heat-scroll th:first-child, .heat-scroll td:first-child {
+          width: auto !important; min-width: 0 !important; max-width: 112px !important;
+        }
+        .heat-scroll td:first-child { box-shadow: 7px 0 11px rgba(0,0,0,.34); }
+      }
+
+      /* 4. POOL NAMES ARE TAP TARGETS. Each one opens that hitter's card, at
+            10.5px with a 1.5 line-height — a 16px target, half of what a thumb
+            needs, stacked directly on the next one. */
+      @media (pointer: coarse) {
+        .pool-names > span { min-height: 32px; display: flex; align-items: center; }
+      }
+
+      /* 5. Nothing here changes a single pixel above 560px. */
 
       /* ── GLOSSARY DOTS ──
          The ⓘ next to a stat label is the only route to an explanation on a

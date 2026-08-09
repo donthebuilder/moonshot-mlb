@@ -203,7 +203,11 @@ export default function ThresholdGrid({ playerId }) {
         border: `1px solid ${C.border}`, borderRadius: 12, padding: '13px 15px',
       }}>
         {/* ══ THE MATRIX ══ */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* .dense-scroll (2026-08-10 phone pass): this was a bare
+            overflowX:auto, so on a phone it scrolled with a stock scrollbar, no
+            momentum, and at full desktop cell padding — the one dense table on
+            the site that wasn't wearing the treatment every other one has. */}
+        <div className="dense-scroll" style={{ overflowX: 'auto' }}>
           {/* Tightened 2026-08-08: spacing and padding trimmed so the whole
               matrix sits above the fold in the modal — the grid's value is
               seeing every market at once, which a scroll defeats. */}
