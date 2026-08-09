@@ -14,6 +14,7 @@ import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
+import MobileFold from '../MobileFold'
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -242,7 +243,24 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
           orders facing each other around a center spine, each hitter a
           full-size row with an HR-score bar, badges, and his line vs the
           arm he faces. Chips grew — a lineup you squint at isn't a tool. */}
+      {/* 📱 PHONE FOLD (2026-08-09). The lineups wall is one card per game and
+          each card is two nine-man orders plus a header and a pick strip —
+          call it 400px a game, so twelve games is thirty screens. It is the
+          longest single scroll on the site. Folded on a phone unless a game is
+          already focused, in which case there is exactly one card and folding
+          it would just hide what the user asked for. Desktop is untouched. */}
       {mode === 'lineups' && (
+        <MobileFold
+          // remount when the focus changes so tapping a game bubble in the
+          // sticky strip OPENS the fold on that game rather than silently
+          // focusing a card behind a closed door
+          key={lineupFocus || 'all'}
+          title="⚾ Every batting order"
+          summary={lineupFocus ? 'the game you picked' : `${games.length} games · tap a game bubble above for slot-by-slot depth`}
+          count={lineupFocus ? 1 : games.length}
+          accent={C.green}
+          defaultOpen={!!lineupFocus}
+        >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           {lineupFocus && (
             <button onClick={() => setLineupFocus(null)} style={{
@@ -400,6 +418,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
             )
           })}
         </div>
+        </MobileFold>
       )}
 
       {/* ── THE CARD GRID (restored 2026-08-08, owner feedback) ──────────

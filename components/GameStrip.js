@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
+import MobileFold from './MobileFold'
 
 // Game selector strip — the PropFinder pattern.
 //
@@ -139,7 +140,24 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
 
   if (!cards.length) return null
 
+  // 📱 THE PHONE FOLD (2026-08-09, Donovan: "same with games"). A dozen game
+  // cards at one per row is the same wall the park board was. The summary
+  // names tonight's MAIN EVENT — the highest Game Score, which is the card
+  // the heat-sizing exists to point at — plus how many games there are and
+  // how many haven't started, so "is there anything left tonight" is answered
+  // without opening it.
+  const main = cards.find((c) => c.gsRank === 1) || cards[0]
+  const upcoming = cards.filter((c) => !c.past).length
+  const foldSummary = `${cards.length} games · 🌋 ${main.matchup} ${main.gs.toFixed(0)}`
+    + (upcoming < cards.length ? ` · ${upcoming} still to come` : '')
+
   return (
+    <MobileFold
+      title={botView ? '🤖 Games' : mode === 'lineups' ? '⚾ Jump to a game' : '🎮 Tonight’s games'}
+      summary={foldSummary}
+      count={cards.length}
+      accent={accent}
+    >
     <div style={{ marginBottom: 16 }}>
       {/* EVEN ROWS (2026-08-06): auto-fill grid stranded orphans — 12 games
           on a 10-wide row left two cards floating in six empty cells. Flex
@@ -294,5 +312,6 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         {' '}Click a card to open the full deep-dive below the grid; click it again to close.
       </div>
     </div>
+    </MobileFold>
   )
 }

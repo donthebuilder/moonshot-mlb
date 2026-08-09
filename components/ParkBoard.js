@@ -6,6 +6,7 @@ import { teamAbbrs } from '../lib/gamelogs'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
 import { fetchRestTravel } from '../lib/restTravel'
 import { dataUrl } from '../lib/dataSource'
+import MobileFold from './MobileFold'
 
 // WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
 // board into tonight's weather desk — live game status (delayed / postponed /
@@ -172,7 +173,17 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
     : edge >= -8 ? { icon: '🌬', col: '#7dd3fc', word: 'HEAVY AIR' }
     : { icon: '🧊', col: '#38bdf8', word: 'ICE BOX' }
 
+  // 📱 THE PHONE FOLD (2026-08-09, Donovan: "tonight's parks could be a drop
+  // down on mobile, it's too long to scroll"). Fifteen cards are three tidy
+  // rows on a desktop and fifteen full screens on a phone. The summary has to
+  // carry the headline fact or the fold is just a wall with a door in it, so
+  // it names the best air in the league tonight and by how much — which is
+  // the one thing most people open this board for.
+  const best = parks[0]
+  const foldSummary = `${parks.length} parks · best air ${best.edge > 0 ? '+' : ''}${best.edge.toFixed(0)}% ${best.venue || best.matchup}`
+
   return (
+    <MobileFold title="🏟 Tonight's parks" summary={foldSummary} count={parks.length}>
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>🏟 Tonight&apos;s parks</span>
@@ -479,5 +490,6 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
         })}
       </div>
     </div>
+    </MobileFold>
   )
 }
