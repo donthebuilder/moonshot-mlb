@@ -6,6 +6,7 @@ import LongestBoard from './LongestBoard'
 import DueBoard from './DueBoard'
 import LuckReport from '../LuckReport'
 import ParkBoard from '../ParkBoard'
+import FenceBoard from '../FenceBoard'
 
 // 🚀 POWER — Longest + Due, merged (2026-08-04).
 //
@@ -27,6 +28,9 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
     <div>
       {/* Tonight's parks, ranked — the page's weather report, above both boards */}
       <ParkBoard players={players} slateDate={slateDate} activeVenue={venueFilter} onVenueClick={pickVenue} onPlayerClick={onPlayerClick} />
+
+      {/* 🧱 fence riders — pulled wall-scrapers vs tonight's actual wall */}
+      <FenceBoard players={players} onPlayerClick={onPlayerClick} />
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         <button onClick={() => setView('longest')} style={btnStyle(C.orange, view === 'longest')}>
