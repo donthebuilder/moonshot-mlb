@@ -5,6 +5,7 @@ import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
 import { dataUrl } from '../lib/dataSource'
 import { matchupStories } from '../lib/matchupStory'
+import { funFacts } from '../lib/funFacts'
 import { dedupeGraded } from '../lib/graded'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
@@ -61,6 +62,8 @@ let _cacheByDate = {}
 // gameLogs. Key is the exact set of hitters this mount is showing, so the
 // slate panel and each game's deep-dive keep their own.
 const _mlineCache = new Map()
+// 🎩 fun facts, cached the same way and on the same key shape
+const _ffactCache = new Map()
 
 // PER-GAME MODE (2026-08-08, "every game needs a storyline thing"):
 // the same engine, three extra props. `players` scopes what renders;
@@ -148,6 +151,35 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mkey, compact])
+
+  // ── 🎩 FUN FACTS (2026-08-10) ──
+  //
+  // Donovan: "I want to know in-game storylines like 'Mr. Sunday' — Christian
+  // Walker, he's got the most HRs on Sunday in the game. Fun things like that,
+  // whimsical stats that help." lib/funFacts.js computes them off the hitting
+  // game logs the props grid already caches, and refuses to crown anybody on a
+  // thin number — see that file for the floors and the tie handling.
+  //
+  // SCOPE IS ALWAYS THE SLATE, NEVER THIS MOUNT. Unlike the matchup lines,
+  // these carry "most of the N bats we checked tonight", so the pool has to be
+  // the same wherever the panel renders — it reads `pullFrom` (the full slate)
+  // rather than `players`. And the per-game deep-dive skin doesn't show them at
+  // all: a slate-wide superlative on a single game's card is a category error.
+  const [ffacts, setFfacts] = useState([])
+  const fkey = pullFrom.map((p) => Number(p?.player_id ?? p?.id) || 0).join(',')
+  useEffect(() => {
+    if (compact || !fkey) { setFfacts([]); return undefined }
+    const ck = `${dateKey}|${fkey}`
+    const cached = _ffactCache.get(ck)
+    if (cached) { setFfacts(cached); return undefined }
+    let alive = true
+    setFfacts([])
+    funFacts(pullFrom, { look: 40, limit: 4, slateDate: dateKey })
+      .then((r) => { const out = r || []; _ffactCache.set(ck, out); if (alive) setFfacts(out) })
+      .catch(() => {})
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fkey, dateKey, compact])
 
   // ── BACK-TO-BACK WATCH (2026-08-07) — pure slate field, no API needed.
   // games_since_last_hr === 0 means he homered in his most recent game;
@@ -310,7 +342,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
   // The matchup lines are their own pull, so they must survive a failed
   // people fetch the same way the b2b watch does.
-  if (!data?.people?.length && !b2b.length && !mlines.length) return null
+  if (!data?.people?.length && !b2b.length && !mlines.length && !ffacts.length) return null
 
   const byId = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
   const statOf = (person, type) => {
@@ -463,7 +495,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // true of every game ever played, so letting it count would retire the
   // honest "no storylines in this one — just baseball" line entirely.
   const hasLeaders = false   // slate HR leaders retired 2026-08-09
-  const empty = !hasLeaders && !mlines.length && !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
+  const empty = !hasLeaders && !mlines.length && !ffacts.length && !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
   if (empty && !compact) return null
   if (empty && compact) {
     return (
@@ -472,6 +504,18 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       </div>
     )
   }
+
+  // Both the matchup lines and the fun facts return the same tagged `parts`
+  // array, so they render through one component: names bold, every COUNTED
+  // number in the mono font. That contrast is doing real work — it lets a
+  // reader see at a glance which words are claims and which are prose.
+  const Parts = ({ parts: bits }) => bits.map((x, j) => (
+    x.type === 'name'
+      ? <b key={j} style={{ color: C.text }}>{x.text}</b>
+      : x.type === 'num'
+        ? <b key={j} style={{ fontFamily: NUM_FONT, color: C.orange }}>{x.text}</b>
+        : <span key={j}>{x.text}</span>
+  ))
 
   const Row = ({ icon, children, p }) => (
     <div onClick={() => p && onPlayerClick?.(p)} style={{
@@ -493,6 +537,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
           {[
             mlines.length && `⚾ ${mlines.length} matchup line${mlines.length > 1 ? 's' : ''}`,
+            ffacts.length && `🎩 ${ffacts.length} fun fact${ffacts.length > 1 ? 's' : ''}`,
             b2b.length && `🔁 ${b2b.length} b2b`,
             miles.length && `🏁 ${miles.length} milestone${miles.length > 1 ? 's' : ''}`,
             duels.length && `⚔ ${duels.length} duel${duels.length > 1 ? 's' : ''}`,
@@ -521,14 +566,21 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           onClick={() => onPlayerClick?.(mlines[0].player)}
           style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: 'pointer' }}
         >
-          ⚾{' '}
-          {mlines[0].parts.map((x, j) => (
-            x.type === 'name'
-              ? <b key={j} style={{ color: C.text }}>{x.text}</b>
-              : x.type === 'num'
-                ? <b key={j} style={{ fontFamily: NUM_FONT, color: C.orange }}>{x.text}</b>
-                : <span key={j}>{x.text}</span>
-          ))}
+          ⚾ <Parts parts={mlines[0].parts} />
+        </div>
+      )}
+
+      {/* THE COMPACT FUN FACT — this is the Home-page version. Home renders
+          this panel collapsed, so without a peek line the whimsical layer would
+          only exist for people who open a shut panel. One fact, the rarest one,
+          no chrome, tap for his card. */}
+      {!open && ffacts.length > 0 && (
+        <div
+          onClick={() => onPlayerClick?.(ffacts[0].player)}
+          title={`Counted from his published game log — ${ffacts[0].sample}. Nothing here is modelled.`}
+          style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: 'pointer' }}
+        >
+          {ffacts[0].icon} <Parts parts={ffacts[0].parts} />
         </div>
       )}
 
@@ -562,14 +614,41 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             >
               <span style={{ flexShrink: 0 }}>⚾</span>
               <span style={{ minWidth: 0 }}>
-                {m.parts.map((x, j) => (
-                  x.type === 'name'
-                    ? <b key={j} style={{ color: C.text }}>{x.text}</b>
-                    : x.type === 'num'
-                      ? <b key={j} style={{ fontFamily: NUM_FONT, color: C.orange }}>{x.text}</b>
-                      : <span key={j}>{x.text}</span>
-                ))}
+                <Parts parts={m.parts} />
                 {hrToday(m.player) && <Cashed>WENT DEEP</Cashed>}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 🎩 FUN FACTS — the whimsical layer. Sorted rarest-first by the lib, so
+          the line that leads is the one worth saying out loud. Each states its
+          own sample in the sentence and carries the full provenance in the
+          tooltip; every "most" claim was checked across the whole set of
+          hitters the lib actually computed, and the line says how many that
+          was. See lib/funFacts.js for the floors — a two-homer Sunday does not
+          get a nickname. */}
+      {ffacts.length > 0 && (
+        <div style={{ marginBottom: 5 }}>
+          <div style={{
+            fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
+            fontFamily: NUM_FONT, margin: '4px 0 2px',
+          }}>🎩 FUN FACTS</div>
+          {ffacts.map((f) => (
+            <div
+              key={`ff${f.key}`}
+              onClick={() => onPlayerClick?.(f.player)}
+              title={`Counted from his published hitting game log this season — ${f.sample}. Any “most” was checked across every hitter this panel actually computed tonight, and the line names how many that was. Nothing here is modelled or estimated.`}
+              style={{
+                display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.55,
+                padding: '3px 0', cursor: 'pointer', color: C.text2,
+              }}
+            >
+              <span style={{ flexShrink: 0 }}>{f.icon}</span>
+              <span style={{ minWidth: 0 }}>
+                <Parts parts={f.parts} />
+                {hrToday(f.player) && <Cashed>WENT DEEP TONIGHT</Cashed>}
               </span>
             </div>
           ))}
