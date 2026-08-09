@@ -83,15 +83,14 @@ function BullpenBoard({ pitchers }) {
           the other six innings — tonight&apos;s pens ranked by season reliever-only HR/9, with yesterday&apos;s workload beside it
         </span>
       </div>
-      {/* TWO-COLUMN, COMPACT (2026-08-08): the single-column list padded a
-          half-empty box with 200px bars — the ranking reads just as fast at
-          half the height and none of the dead air. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', columnGap: 20, rowGap: 3 }}>
+      {/* SINGLE-COLUMN, RANKED (owner feedback 2026-08-08): the two-column
+          grid read as noise — one pen per row, top to bottom, is the list. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {shown.map((r, i) => (
-          <div key={r.ab} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <div key={r.ab} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16 }}>{i + 1}</span>
             <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, width: 34 }}>{r.ab}</span>
-            <div style={{ flex: '1 1 60px', height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}
+            <div style={{ flex: '1 1 90px', maxWidth: 210, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}
               title={`${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}`}>
               <div style={{
                 width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
