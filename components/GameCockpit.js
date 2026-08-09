@@ -12,9 +12,46 @@ import { clean } from '../lib/player'
 // heavy object, so it loads for ONE gamePk, only while this panel is open,
 // 30s opt-in auto or the button. Self-hides pregame and postgame.
 
-const FIELDS = 'gameData,status,abstractGameState,liveData,linescore,currentInning,isTopInning,inningState,outs,balls,strikes,offense,batter,onDeck,inHole,id,fullName,plays,allPlays,currentPlay,result,event,description,about,inning,halfInning,matchup,playEvents,isPitch,hitData,launchSpeed,launchAngle,totalDistance'
+const FIELDS = 'gameData,status,abstractGameState,teams,abbreviation,liveData,linescore,currentInning,isTopInning,inningState,outs,balls,strikes,offense,batter,onDeck,inHole,first,second,third,home,away,runs,id,fullName,plays,allPlays,currentPlay,result,event,description,about,inning,halfInning,matchup,playEvents,isPitch,hitData,launchSpeed,launchAngle,totalDistance'
 
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+
+// Result → plain words + a color that MEANS something (2026-08-08, "make
+// better and more intuitive"): green = on base, red-dim = out, blue = free
+// pass. The raw feed says "grounded_into_double_play"; a human says GIDP.
+const RESULT_STYLE = [
+  [/home.?run/i,            { icon: '💥', word: 'HOMER', col: '#4ade80', bold: true }],
+  [/triple/i,               { icon: '●', word: 'triple', col: '#4ade80' }],
+  [/double(?!.?play)/i,     { icon: '●', word: 'double', col: '#4ade80' }],
+  [/single/i,               { icon: '●', word: 'single', col: '#4ade80' }],
+  [/intent.?walk/i,         { icon: '◦', word: 'IBB', col: '#60a5fa' }],
+  [/walk|hit.?by.?pitch/i,  { icon: '◦', word: 'walk', col: '#60a5fa' }],
+  [/strikeout|struck/i,     { icon: '✕', word: 'K', col: 'rgba(248,113,113,.75)' }],
+  [/double.?play|gidp/i,    { icon: '✕', word: 'GIDP', col: 'rgba(248,113,113,.75)' }],
+  [/sac/i,                  { icon: '·', word: 'sac', col: null }],
+  [/error/i,                { icon: '·', word: 'reached on error', col: '#FCD34D' }],
+]
+const styleFor = (event) => {
+  for (const [re, s] of RESULT_STYLE) if (re.test(event || '')) return s
+  return { icon: '·', word: String(event || '').toLowerCase().replace(/_/g, ' '), col: null }
+}
+
+// ◆ = runner on. Second base sits on top — it reads like the field.
+function Bases({ off }) {
+  const on = (b) => !!(off?.[b]?.id)
+  const d = (filled) => ({
+    width: 7, height: 7, transform: 'rotate(45deg)', borderRadius: 1.5,
+    background: filled ? '#FCD34D' : 'transparent',
+    border: `1.5px solid ${filled ? '#FCD34D' : 'rgba(255,255,255,.25)'}`,
+  })
+  return (
+    <span title={`Bases: ${['first', 'second', 'third'].filter(on).join(', ') || 'empty'}`}
+      style={{ display: 'inline-grid', gridTemplateColumns: '9px 9px 9px', gridTemplateRows: '9px 9px', alignItems: 'center', justifyItems: 'center', verticalAlign: 'middle' }}>
+      <span /><span style={d(on('second'))} /><span />
+      <span style={d(on('third'))} /><span /><span style={d(on('first'))} />
+    </span>
+  )
+}
 
 export default function GameCockpit({ game, onPlayerClick }) {
   const gamePk = game?.game_pk
@@ -62,9 +99,25 @@ export default function GameCockpit({ game, onPlayerClick }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 7 }}>
         <span style={{ fontSize: 11.5, fontWeight: 900, color: '#4ade80' }}>🔴 Live At-Bats</span>
-        <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text }}>
-          {ls.inningState || (ls.isTopInning ? 'Top' : 'Bot')} {ls.currentInning ?? '?'} ·{' '}
-          {ls.outs ?? 0} out{(ls.outs ?? 0) === 1 ? '' : 's'} · count {ls.balls ?? 0}-{ls.strikes ?? 0}
+        {/* the score — somehow missing from a live game panel until now */}
+        {(() => {
+          const gt = data?.gameData?.teams || {}
+          const aR = ls?.teams?.away?.runs, hR = ls?.teams?.home?.runs
+          if (aR == null && hR == null) return null
+          return (
+            <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: C.text }}>
+              {gt?.away?.abbreviation || 'AWY'} {aR ?? 0}–{hR ?? 0} {gt?.home?.abbreviation || 'HOM'}
+            </span>
+          )
+        })()}
+        <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span>{ls.inningState || (ls.isTopInning ? 'Top' : 'Bot')} {ls.currentInning ?? '?'}</span>
+          {/* outs as dots — read at a glance, no words needed */}
+          <span title={`${ls.outs ?? 0} out${(ls.outs ?? 0) === 1 ? '' : 's'}`} style={{ letterSpacing: 2, color: '#f87171', fontSize: 9 }}>
+            {'●'.repeat(Math.min(3, ls.outs ?? 0))}<span style={{ color: 'rgba(255,255,255,.2)' }}>{'●'.repeat(Math.max(0, 3 - (ls.outs ?? 0)))}</span>
+          </span>
+          <Bases off={ls?.offense} />
+          <span><b style={{ color: C.text }}>{ls.balls ?? 0}-{ls.strikes ?? 0}</b> count</span>
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           <button onClick={() => setAuto((v) => !v)} style={{
@@ -79,51 +132,68 @@ export default function GameCockpit({ game, onPlayerClick }) {
         </span>
       </div>
 
-      {/* at the plate / waiting — the due-up read, in order */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 10.5, fontFamily: NUM_FONT, marginBottom: 8 }}>
+      {/* the batter spotlight + who's coming — labeled, in order */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         {ls?.offense?.batter && (
-          <span onClick={() => clickFor(ls.offense.batter.id)} style={{ cursor: roleOf[ls.offense.batter.id] ? 'pointer' : 'default' }}>
-            <b style={{ color: '#4ade80' }}>🎤 {clean(ls.offense.batter.fullName, '?')}</b>
-            <span style={{ color: C.text3 }}>{badge(ls.offense.batter.id)}{curPitches ? ` · pitch ${curPitches + 1}` : ''}</span>
+          <span onClick={() => clickFor(ls.offense.batter.id)} style={{
+            display: 'inline-flex', alignItems: 'baseline', gap: 6,
+            cursor: roleOf[ls.offense.batter.id] ? 'pointer' : 'default',
+            background: 'rgba(74,222,128,.10)', border: '1px solid rgba(74,222,128,.4)',
+            borderRadius: 8, padding: '4px 11px',
+          }}>
+            <span style={{ fontSize: 11 }}>🎤</span>
+            <b style={{ fontSize: 12.5, color: C.text }}>{clean(ls.offense.batter.fullName, '?')}</b>
+            <span style={{ fontSize: 9.5, color: C.orange, fontWeight: 900, fontFamily: NUM_FONT }}>{badge(ls.offense.batter.id).replace(' · ', '')}</span>
+            {curPitches > 0 && <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>pitch {curPitches + 1}</span>}
           </span>
         )}
-        {ls?.offense?.onDeck && (
-          <span onClick={() => clickFor(ls.offense.onDeck.id)} style={{ color: C.text2, cursor: roleOf[ls.offense.onDeck.id] ? 'pointer' : 'default' }}>
-            ⏳ {clean(ls.offense.onDeck.fullName, '?')}<span style={{ color: C.text3 }}>{badge(ls.offense.onDeck.id)}</span>
-          </span>
-        )}
-        {ls?.offense?.inHole && (
-          <span style={{ color: C.text3 }}>
-            ³ {clean(ls.offense.inHole.fullName, '?')}{badge(ls.offense.inHole.id)}
-          </span>
-        )}
+        <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3, display: 'flex', gap: 10 }}>
+          {ls?.offense?.onDeck && (
+            <span onClick={() => clickFor(ls.offense.onDeck.id)} style={{ cursor: roleOf[ls.offense.onDeck.id] ? 'pointer' : 'default' }}>
+              <span style={{ fontSize: 7.5, fontWeight: 900, letterSpacing: '.08em', color: C.text3 }}>NEXT </span>
+              <b style={{ color: C.text2 }}>{clean(ls.offense.onDeck.fullName, '?')}</b>{badge(ls.offense.onDeck.id)}
+            </span>
+          )}
+          {ls?.offense?.inHole && (
+            <span>
+              <span style={{ fontSize: 7.5, fontWeight: 900, letterSpacing: '.08em' }}>THEN </span>
+              {clean(ls.offense.inHole.fullName, '?')}{badge(ls.offense.inHole.id)}
+            </span>
+          )}
+        </span>
       </div>
 
       {/* the last plate appearances, ball-off-the-bat included */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {done.map((pl, i) => {
           const ev = (pl.playEvents || []).map((e) => e?.hitData).find((h) => h?.launchSpeed != null)
-          const isHR = /home.?run/i.test(pl?.result?.event || '')
-          const isHit = /single|double|triple/i.test(pl?.result?.event || '')
+          const st = styleFor(pl?.result?.event)
           const bid = pl?.matchup?.batter?.id
+          const evN = ev ? Number(ev.launchSpeed) : null
+          const distN = ev?.totalDistance ? Number(ev.totalDistance) : null
+          const onBase = st.col === '#4ade80' || st.col === '#60a5fa' || st.col === '#FCD34D'
           return (
             <div key={i} onClick={() => clickFor(bid)} style={{
               display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 10, fontFamily: NUM_FONT,
               padding: '2px 6px', borderRadius: 5, minWidth: 0,
-              background: isHR ? 'rgba(74,222,128,.08)' : 'transparent',
+              background: st.bold ? 'rgba(74,222,128,.09)' : 'transparent',
+              borderLeft: `2px solid ${onBase ? (st.col + '88') : 'transparent'}`,
               cursor: roleOf[bid] ? 'pointer' : 'default',
             }}>
               <span style={{ color: C.text3, width: 26, flexShrink: 0 }}>{pl?.about?.halfInning === 'top' ? 'T' : 'B'}{pl?.about?.inning}</span>
-              <span style={{ fontWeight: 700, color: isHR ? '#4ade80' : isHit ? C.text : C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+              <span style={{ fontWeight: 700, color: onBase ? C.text : C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                 {clean(pl?.matchup?.batter?.fullName, '?').split(' ').slice(-1)[0]}
                 <span style={{ color: C.orange, fontWeight: 800 }}>{badge(bid)}</span>
               </span>
-              <span style={{ color: isHR ? '#4ade80' : isHit ? C.text2 : C.text3, whiteSpace: 'nowrap' }}>
-                {isHR ? '💥 ' : ''}{String(pl?.result?.event || '').toLowerCase()}
+              <span style={{ color: st.col || C.text3, fontWeight: st.bold ? 900 : 600, whiteSpace: 'nowrap' }}>
+                {st.icon} {st.word}
               </span>
+              {/* ball off the bat: EV always when tracked; distance only when
+                  it MEANS something (200+ ft) — "67 ft" on a chopper was
+                  noise wearing a number's clothes */}
               {ev && (
-                <span style={{ marginLeft: 'auto', color: Number(ev.launchSpeed) >= 95 ? C.orange : C.text3, flexShrink: 0 }}>
-                  {Number(ev.launchSpeed).toFixed(1)} mph{ev.totalDistance ? ` · ${Number(ev.totalDistance).toFixed(0)} ft` : ''}
+                <span style={{ marginLeft: 'auto', flexShrink: 0, color: evN >= 100 ? '#f87171' : evN >= 95 ? C.orange : C.text3, fontWeight: evN >= 95 ? 800 : 400 }}>
+                  {evN.toFixed(1)}{distN >= 200 ? ` · ${distN.toFixed(0)} ft` : ''}
                 </span>
               )}
             </div>
@@ -131,8 +201,9 @@ export default function GameCockpit({ game, onPlayerClick }) {
         })}
       </div>
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.45 }}>
-        Last {done.length} plate appearances, newest first — EV and carry shown where tracked, orange when 95+.
-        🤖 marks tonight&apos;s picks. One game, one feed, refreshed every 30s while open.
+        Last {done.length} PAs, newest first. <span style={{ color: '#4ade80' }}>Green edge = reached base</span> ·
+        ✕ = out · exit velo when tracked (<span style={{ color: C.orange }}>orange 95+</span>, <span style={{ color: '#f87171' }}>red 100+</span>),
+        distance only on real carry (200+ ft). ◆ = runner on. 🤖 = tonight&apos;s picks. One game, one feed, 30s refresh while open.
       </div>
     </div>
   )
