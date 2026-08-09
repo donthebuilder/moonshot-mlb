@@ -71,6 +71,15 @@ const buildColumns = (onWatch) => [
   { key: 'kRisk',  label: 'K risk', w: 50, dp: 0, invert: true,
     title: 'Strikeout risk: hitter K% 40%, pitcher K% 25%, SwStr 20%, putaway 15%. Inverted — low is good for the bat. Composite, not a bot field, and not calibrated: the graded archive has no strikeout outcome to check it against.' },
   { key: 'hr9',     label: 'P HR/9', w: 46, dp: 2 },
+  // PARK (2026-08-09). The one piece of tonight's context this table never
+  // carried. The Park board ranks buildings and every board on the site talks
+  // about carry, but the sheet with all 268 hitters on it had no way to ask
+  // "who's in a launch pad tonight" — you had to read the park board, memorise
+  // the venues, then come back and scan by opponent. It's park_hr_factor, the
+  // same field the park board ranks on, already stamped on every slate row.
+  { key: 'park',    label: 'Park',   w: 46, dp: 2,
+    fmt: (v) => (v == null || !Number.isFinite(Number(v)) ? '—' : `×${Number(v).toFixed(2)}`),
+    title: "The bot's park HR factor for tonight's building. 1.00 is neutral, ×1.10 means the park adds about 10% of home-run rate. Bright is hitter-friendly, same as every other column. Park only — the weather adjustment lives on the Park board, not in this number. A dash means no factor was published for that game." },
 ]
 
 // Two trackers above the grid, ported from Streamlit. Both answer questions
@@ -122,6 +131,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       ihr: ihrVal(p),
       k: n(p?.season_k_rate, 0) * 100,
       hr9: n(p?.pitcher_hr9, 0),
+      // null rather than 0 when the field is absent — a park factor of zero
+      // isn't a thing, and a 0.00 in this column would read as "worst park on
+      // the slate" instead of "not published".
+      park: n(p?.park_hr_factor, 0) > 0 ? n(p?.park_hr_factor, 0) : null,
       kRisk: kRiskScore(p),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }))
@@ -264,15 +277,30 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         title="Scoreboard"
         sub={`${rows.length} batters · ★${lit('weak')} weak spot · ◆${lit('aligned')} aligned · ▲${lit('edge')} matchup edge${liveNow ? ' · live — sections reordered around the action' : ''}`}
         right={
-          alignedCount > 0 && (
-            <button
-              onClick={() => setAlignedOnly((v) => !v)}
-              title="Weak-spot + pitch-match + real recent contact quality all stacking together"
-              style={btnStyle(C.purple, alignedOnly)}
-            >
-              ◆ Aligned only ({alignedCount})
-            </button>
-          )
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {alignedCount > 0 && (
+              <button
+                onClick={() => setAlignedOnly((v) => !v)}
+                title="Weak-spot + pitch-match + real recent contact quality all stacking together"
+                style={btnStyle(C.purple, alignedOnly)}
+              >
+                ◆ Aligned only ({alignedCount})
+              </button>
+            )}
+            {/* The Park column below gives you the raw factor per hitter; the
+                ranked board with weather, wind, rain and first pitch lives on
+                Power. A link, not a second copy of the board — this page
+                already carries seven panels. */}
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('longest')}
+                title="Tonight's parks ranked — park factor plus weather, wind, rain risk and first pitch, on the Power tab"
+                style={btnStyle(C.orange, false)}
+              >
+                🏟 Parks ranked →
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -284,7 +312,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         onRowClick={onPlayerClick}
         initialSort="hr"
         maxHeight={640}
-        caption="Every numeric column coloured against its own range. K% is inverted — a high strikeout rate is bad for the hitter, so it reads dark. Click a header to sort, a row to open the hitter."
+        caption="Every numeric column coloured against its own range. K% is inverted — a high strikeout rate is bad for the hitter, so it reads dark. Park is tonight's park HR factor (1.00 neutral), so sorting by it pulls every hitter in a launch pad to the top; it's the park term only, with no weather in it. Click a header to sort, a row to open the hitter."
       />
     </div>
   )
