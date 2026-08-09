@@ -72,10 +72,23 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       const topScore = (x) => nn(x?.top_board_score_v2 ?? x?.overall_score)
       const topPickP = gp.filter((x) => roleOf(x) === 'TOP').sort((a, b) => topScore(b) - topScore(a))[0]
       const hrPickP = gp.filter((x) => roleOf(x) === 'HR').sort((a, b) => nn(b?.hr_score) - nn(a?.hr_score))[0]
-      // The best ALT look (the bot's own "secondary HR look" lane,
-      // alt_hr_score / alt_reason) still rides only on the hot, wide cards.
-      const alt = gp.reduce((a, b) => (nn(b?.alt_hr_score) > nn(a?.alt_hr_score) ? b : a), gp[0] || {})
-      const altOk = alt?.name && nn(alt.alt_hr_score) > 0 && alt !== head
+      // ALT ON EVERY CARD (2026-08-09, owner: "every bubble should show TOP,
+      // HR and ALT so I can decide either/or at a glance"). It used to ride
+      // only on hot cards (heat >= .55) as a separate line in its own type
+      // colour, which meant the one decision the strip exists for — top vs
+      // homer vs the secondary look — could only be made on a third of the
+      // slate. It's now the third chip in the same row, same grammar, purple.
+      //
+      // Honest gate kept: the chip appears only when the bot actually
+      // published an alt_hr_score above zero, and the best alt is taken from
+      // the hitters who AREN'T already the TOP or HR chip, so a card never
+      // shows the same man twice. No alt lane on the card = no chip.
+      const idOf = (x) => Number(x?.player_id ?? x?.id)
+      const taken = new Set([topPickP, hrPickP].filter(Boolean).map(idOf))
+      const alt = gp
+        .filter((x) => x?.name && nn(x?.alt_hr_score) > 0 && !taken.has(idOf(x)))
+        .sort((a, b) => nn(b?.alt_hr_score) - nn(a?.alt_hr_score))[0] || null
+      const altOk = !!alt
       return {
         arms: arms.map(lastName).join(' · '),
         armsFull: arms.join(' vs '),
@@ -83,9 +96,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         topHrw: head?.name && nn(head?.hrw_score) > 0 ? nn(head.hrw_score).toFixed(0) : null,
         topPick: topPickP?.name ? { name: shortName(topPickP.name), score: topScore(topPickP).toFixed(0), p: topPickP } : null,
         hrPick: hrPickP?.name ? { name: shortName(hrPickP.name), score: nn(hrPickP.hr_score).toFixed(0), p: hrPickP } : null,
-        altP: altOk ? alt : null,
-        altName: altOk ? shortName(alt.name) : null,
-        altScore: altOk ? nn(alt.alt_hr_score).toFixed(0) : null,
+        altPick: altOk ? { name: shortName(alt.name), score: nn(alt.alt_hr_score).toFixed(0), p: alt } : null,
         altWhy: altOk ? String(alt.alt_reason || '') : '',
         // BOTH lineups (2026-08-07, Donovan): one ✓ hid a half-projected
         // game. Per-team marks now — ✓✓ both posted, ✓◻ one still projected.
@@ -216,7 +227,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>⚾ {c.arms}</div>
               )}
-              {(c.topBat || c.topPick || c.hrPick || (c.heat >= 0.55 && c.altName)) && (
+              {(c.topBat || c.topPick || c.hrPick || c.altPick) && (
                 <div style={{ borderTop: `1px solid ${band.col}22`, marginTop: 3 }} />
               )}
               {c.topBat && (
@@ -225,43 +236,41 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>🔝 {c.topBat}{c.heat >= 0.55 && c.topHrw ? ` · HRW ${c.topHrw}` : ''}</div>
               )}
-              {/* Headline picks on EVERY card (owner feedback 2026-08-08):
-                  the TOP and HR slots, name + score, in category colors. */}
-              {(c.topPick || c.hrPick) && (
-                <div style={{ display: 'flex', gap: 4, marginTop: 3, minWidth: 0 }}>
+              {/* THE EITHER/OR ROW (2026-08-09, owner: "every card's bubble
+                  should show TOP, HR and ALT so I can decide either/or at a
+                  glance"). One row, one grammar, three category colours —
+                  yellow TOP, orange HR, purple ALT — each a tappable pair leg.
+                  Layout: equal flex with a real min width and a 31% basis, so
+                  three fit side by side on a wide card and fall to a clean
+                  2 + 1 on a narrow one rather than squeezing every name into
+                  an ellipsis. The name is the only thing allowed to truncate,
+                  and the tag and score never move. */}
+              {(c.topPick || c.hrPick || c.altPick) && (
+                <div style={{ display: 'flex', gap: 3, marginTop: 3, minWidth: 0, flexWrap: 'wrap' }}>
                   {[['TOP', c.topPick, '#FCD34D', "The bot's TOP pick in this game"],
-                    ['HR', c.hrPick, '#FB923C', "The bot's HR pick in this game"]].map(([tag, pk2, col, tip]) => pk2 && (
+                    ['HR', c.hrPick, '#FB923C', "The bot's HR pick in this game"],
+                    ['ALT', c.altPick, '#A78BFA', c.altWhy || "The bot's secondary HR look in this game"],
+                  ].map(([tag, pk2, col, tip]) => pk2 && (
                     <span key={tag}
-                      title={pairing ? `${tip} — tap to add him as a pair leg` : tip}
+                      title={pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}`}
                       onClick={pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined}
                       style={{
-                      display: 'inline-flex', gap: 4, alignItems: 'baseline', minWidth: 0, flex: '0 1 auto',
+                      display: 'inline-flex', gap: 3, alignItems: 'baseline',
+                      minWidth: 84, flex: '1 1 31%',
                       fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text2,
                       cursor: pairing ? 'pointer' : 'inherit',
                       border: `1px solid ${isLeg(pk2.p) ? col : `${col}40`}`,
                       background: isLeg(pk2.p) ? `${col}30` : `${col}0d`,
                       boxShadow: isLeg(pk2.p) ? `0 0 10px ${col}55` : 'none',
-                      borderRadius: 6, padding: '1px 6px',
+                      borderRadius: 6, padding: '1px 5px',
                     }}>
                       {isLeg(pk2.p) && <span style={{ fontSize: 8 }}>🔗</span>}
-                      <b style={{ color: col, fontSize: 8, letterSpacing: '.06em' }}>{tag}</b>
-                      <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0 }}>{pk2.name}</span>
-                      <b style={{ color: col }}>{pk2.score}</b>
+                      <b style={{ color: col, fontSize: 8, letterSpacing: '.06em', flexShrink: 0 }}>{tag}</b>
+                      <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0, flex: '1 1 auto' }}>{pk2.name}</span>
+                      <b style={{ color: col, flexShrink: 0 }}>{pk2.score}</b>
                     </span>
                   ))}
                 </div>
-              )}
-              {c.heat >= 0.55 && c.altName && (
-                <div
-                  title={pairing ? `${c.altWhy || 'The bot’s secondary HR look'} — tap to add him as a pair leg` : (c.altWhy || 'The bot’s secondary HR look in this game')}
-                  onClick={pairing && c.altP ? (e) => { e.stopPropagation(); onPairPick(c.altP) } : undefined}
-                  style={{
-                    fontSize: 10.5, color: '#A78BFA', fontFamily: NUM_FONT, marginTop: 1,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    cursor: pairing && c.altP ? 'pointer' : 'inherit',
-                    fontWeight: isLeg(c.altP) ? 900 : 400,
-                    textShadow: isLeg(c.altP) ? '0 0 10px rgba(167,139,250,.8)' : 'none',
-                  }}>{isLeg(c.altP) ? '🔗 ' : '🅰 '}{c.altName} {c.altScore} <span style={{ opacity: 0.6 }}>alt</span></div>
               )}
             </button>
           )
@@ -275,10 +284,14 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         four board scores, then the median across the lineup — &ldquo;is this whole lineup
         dangerous&rdquo;, not &ldquo;is there one guy&rdquo;). ▲/▽ = above/below tonight&apos;s median.
         ⚾ the pitching matchup · 🔝 the game&apos;s top bat and his HR score · ★ weak lineup spots
-        · ✓✓/✓◻ per-team lineup posted or projected. Every card names the game&apos;s TOP and HR
-        picks (name + score, in category colors); the hottest cards add 🅰 the bot&apos;s best
-        <em> alt look</em> — the secondary HR lane, hover for the reason. Click a card to open the
-        full deep-dive below the grid; click it again to close.
+        · ✓✓/✓◻ per-team lineup posted or projected. Every card carries the same three chips —
+        <strong style={{ color: '#FCD34D' }}> TOP</strong>,
+        <strong style={{ color: '#FB923C' }}> HR</strong> and
+        <strong style={{ color: '#A78BFA' }}> ALT</strong> (the bot&apos;s secondary HR lane, hover for
+        the reason) — name and score, so the either/or is one glance. A chip only appears when the
+        bot actually published that lane, and never names the same hitter twice on one card.
+        {onPairPick ? ' Tap any chip to add him as a pair leg; 🔗 marks the legs you already have.' : ''}
+        {' '}Click a card to open the full deep-dive below the grid; click it again to close.
       </div>
     </div>
   )
