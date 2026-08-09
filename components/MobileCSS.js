@@ -345,6 +345,18 @@ export default function MobileCSS() {
         .chart-cols > div { flex: 1 1 auto !important; width: 100% !important; }
       }
 
+      /* ── GLOSSARY DOTS ──
+         The ⓘ next to a stat label is the only route to an explanation on a
+         touch device (title= tooltips do not exist there), so it has to be
+         hittable. It sits inside a table header whose own click sorts the
+         column, which means an over-large target is a bug and an under-large
+         one is unusable — 26px of padded box around a 10px glyph is the
+         compromise, measured against the 9px gap between header cells. */
+      .explain-dot { padding: 3px 5px; margin: -3px -1px -3px 2px; display: inline-block; }
+      @media (pointer: coarse) {
+        .explain-dot { padding: 6px 8px; margin: -6px -4px -6px 0; font-size: 11px !important; }
+      }
+
       /* ══ COSMETICS PASS (2026-08-06) — small touches, compounding ══ */
 
       /* Tabular numerals everywhere: every score column, every record, every

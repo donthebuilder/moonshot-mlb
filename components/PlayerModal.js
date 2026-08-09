@@ -11,6 +11,7 @@ import {
 } from '../lib/player'
 import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/scoring'
 import { Chip } from './ui'
+import Explain from './Explain'
 import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
 import HRPitchProfile from './HRPitchProfile'
@@ -137,10 +138,20 @@ function OppDefenseRow({ opp }) {
 // ellipsis and carry the full text in the tooltip — so a long pitcher name
 // or a "no games here since last yr" can't push the column apart at any
 // modal width. Never let text overflow the box; let it truncate honestly.
-function Row({ label, value, mono = true }) {
+// GLOSSARY ON TAP (2026-08-09). Every row here is a label and a number, and
+// the label is an abbreviation — "IHR", "PMix", "P-BABIP". On a desktop the
+// surrounding tooltips fill that gap; on a phone there are no tooltips at all,
+// so this column of numbers arrives with no words attached to it whatsoever.
+// A label that has a plain-English entry in the glossary becomes tappable and
+// grows the sentence underneath itself. `explain` overrides for a one-off.
+function Row({ label, value, mono = true, term, explain, title }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 0', borderBottom: `1px solid ${C.border}`, minWidth: 0 }}>
-      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
+      {/* nowrap stays: the explanation itself re-enables normal wrapping
+          inside its own box, so a long sentence can't stretch the row. */}
+      <span title={title} style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 0 }}>
+        <Explain label={label} term={term} text={explain} />
+      </span>
       <span
         title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
         style={{
@@ -483,7 +494,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '14px 0 4px' }}>Season</div>
                   {/* live fallback fills these for non-slate players */}
                   <Row label="AVG"    value={clean(p?.season_avg ?? liveSeason?.avg, '—')} />
-                  <Row label="HR"     value={clean(p?.season_hr ?? liveSeason?.hr, '—')} />
+                  {/* explicit: a bare "HR" in the Season block is his home-run
+                      COUNT, not the HR score the glossary would hand it. */}
+                  <Row label="HR"     value={clean(p?.season_hr ?? liveSeason?.hr, '—')}
+                    explain="Home runs he has actually hit this season." />
                   <Row label="PA"     value={clean(p?.season_pa || p?.pa || liveSeason?.pa, '—')} />
                   {liveSeason && p?.season_avg == null && (
                     <Row label="OPS"  value={clean(liveSeason.ops, '—')} />

@@ -236,7 +236,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
             fmt: (v) => (v == null ? '—' : `#${v}`) },
           { key: 'name', label: 'Player', heat: false, w: 132, bold: true },
           { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
-          { key: 'hr',   label: 'HR',     w: 34 },
+          // explicit: here "HR" is homers hit TONIGHT, not the HR score the
+          // glossary would otherwise attach to that label
+          { key: 'hr',   label: 'HR',     w: 34,
+            explain: 'How many home runs he has already hit tonight.' },
           { key: 'score', label: 'HR score', w: 54, dp: 1 },
           { key: 'role', label: 'Role',   heat: false, w: 78, dim: true },
         ]}
@@ -325,7 +328,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         every hitter on the slate, sorted by home-run score — <b style={{ color: C.text2 }}>you can
         use the order without reading a single column</b>. Sort by any other header to ask a
         different question (Hit for contact plays, Park for launch pads, K risk for the ones likely
-        to strike out), and click any row to open that hitter.
+        to strike out), and click any row to open that hitter.{' '}
+        <b style={{ color: C.text2 }}>Don&apos;t know what a column means? Tap the ⓘ next to its
+        name</b> — it says so in plain English, no baseball background needed.
       </div>
 
       <DenseTable

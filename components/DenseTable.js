@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
+import { explainFor, InfoDot, ExplainBanner } from './Explain'
 
 // DenseTable — the PropFinder table pattern.
 //
@@ -42,6 +43,20 @@ export default function DenseTable({
   // you can't see is worse than no stack at all, because you can't tell why
   // the rows moved.
   const [sort, setSort] = useState(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])
+
+  // 📖 TAP A HEADER'S ⓘ FOR WHAT THE COLUMN MEANS (2026-08-09).
+  //
+  // Every column already carries a `title=`, and on a phone a title attribute
+  // shows nothing at all — there is no hover on a touch screen. So the 25
+  // columns of this table have, on the surface where it matters most, no
+  // labels beyond four-letter abbreviations: PMATCH, HRW, IHR, PMIX. That is
+  // "I still don't see what I'm looking at", literally.
+  //
+  // The explanation opens in a banner ABOVE the table rather than inside the
+  // header cell, for two reasons: a th in a 25-column nowrap header has no
+  // room to grow a sentence, and the header's own click is already spoken for
+  // by sorting (the dot stops propagation so the two never collide).
+  const [explain, setExplain] = useState(null)
 
   const heatCols = useMemo(() => columns.filter((c) => c.heat !== false && !c.flag && !c.action), [columns])
 
@@ -103,6 +118,7 @@ export default function DenseTable({
 
   return (
     <div>
+      <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)} />
       {/* .dense-wrap exists only so MobileCSS can hang a right-edge fade off
           it. The fade can't live on .dense-scroll itself — a pseudo-element on
           a scroll container scrolls away with the content, so it would drift
@@ -119,6 +135,10 @@ export default function DenseTable({
                 const si = sort.findIndex((x) => x.key === c.key)
                 const on = si >= 0
                 const dir = on ? sort[si].dir : null
+                // A column opts in by having a glossary entry for its key or
+                // its label; anything unknown simply gets no dot, so this is
+                // safe for every table on the site without touching them.
+                const plain = c.explain || explainFor(c.term, c.key, c.label)
                 return (
                   <th
                     key={c.key}
@@ -143,6 +163,14 @@ export default function DenseTable({
                     }}
                   >
                     {c.label}
+                    {plain && (
+                      <InfoDot
+                        on={explain?.key === c.key}
+                        onClick={() => setExplain((cur) => (
+                          cur?.key === c.key ? null : { key: c.key, label: c.label, text: plain }
+                        ))}
+                      />
+                    )}
                     {on && (
                       <>
                         {dir === 'desc' ? ' ▾' : ' ▴'}
