@@ -274,6 +274,25 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           sub={record ? `every pick, ${record.days} graded days` : 'grading archive not published yet'} />
       </div>
 
+      {/* ── NOTHING BUILT YET. One honest card instead of eight strips each
+             quietly rendering nothing — an empty page that says why is a
+             different experience from an empty page. ── */}
+      {empty && (
+        <div style={{
+          background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 14,
+          padding: '16px 18px', marginBottom: 14,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 5 }}>Nothing on the board yet</div>
+          <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 620 }}>
+            The bot builds the slate on its morning run: every hitter scored, every starter graded,
+            the parks and the air read. Once it publishes, this page fills in with tonight&apos;s
+            headline game, the angles worth saying out loud, the leakiest arms and the top ten HR and
+            hit plays — all of it from that file. Until then the doors below still work, and the
+            Results tab still has every graded night behind it.
+          </div>
+        </div>
+      )}
+
       {/* ── THE HEADLINE GAME ────────────────────────────────────────── */}
       {headline && (
         <div style={{
@@ -310,17 +329,31 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
         </div>
       )}
 
-      {/* ── TONIGHT'S STORYLINES — hero lines, not tables ────────────── */}
-      {(b2b.length > 0 || fenceRider || pens.length > 0) && (
+      {/* ── TONIGHT'S ANGLES — hero lines, not tables ─────────────────
+          Renamed from "storylines" in the 2026-08-09 polish pass: the full
+          Storylines engine renders directly below, and two adjacent panels
+          both called storylines made the page look like it was repeating
+          itself. These are the three hand-picked lines; that one is the
+          whole ledger. */}
+      {players.length > 0 && (
         <div style={{
           background: `linear-gradient(155deg, rgba(252,211,77,.06), ${C.bg2} 60%)`,
           border: '1px solid rgba(252,211,77,.25)', borderRadius: 14,
           padding: '13px 16px', marginBottom: 14,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <span style={{ fontSize: 9.5, fontWeight: 900, color: C.yellow, letterSpacing: '.1em', fontFamily: NUM_FONT }}>📖 TONIGHT&apos;S STORYLINES</span>
+            <span style={{ fontSize: 9.5, fontWeight: 900, color: C.yellow, letterSpacing: '.1em', fontFamily: NUM_FONT }}>📖 TONIGHT&apos;S ANGLES</span>
             <span style={{ fontSize: 9.5, color: C.text3 }}>the lines you say out loud — every one from tonight&apos;s own data</span>
           </div>
+
+          {!b2b.length && !fenceRider && !pens.length && (
+            <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, padding: '2px 0' }}>
+              None of the three fired tonight: nobody on the slate homered in his last game, the fence
+              board hasn&apos;t published for this date, and no bullpen crossed a workload threshold
+              yesterday. Empty because the checks came back empty, not because the panel is broken —
+              the full storyline ledger is right below.
+            </div>
+          )}
 
           {b2b.length > 0 && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
@@ -382,7 +415,12 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
 
       {/* The full storyline engine — milestones, duels, revenge games,
           birthdays, giveaways. Same panel the Scoreboard carries; collapsed
-          by default, the header counts tell you if it's worth opening. */}
+          by default, the header counts tell you if it's worth opening. It sat
+          eight hundred lines further down, below two stat boards, which split
+          the narrative half of the page in two. It belongs next to the angles
+          it expands on. */}
+      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+
       {/* ── TOP WEATHER GAMES (2026-08-08) — the three friendliest airs
           tonight, same edge math as the park board (bot park factor +
           published weather effect, heuristic fallback). Tap → Power page. */}
@@ -401,11 +439,35 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
             + (wxEff != null ? wxEff : windOut + (temp > 0 ? (temp - 70) / 7 : 0))
           seen.set(pk, { venue: clean(p?.venue_name, ''), matchup: `${teamOf(p)} vs ${oppOf(p)}`, temp, wind, wl, edge })
         })
-        const tops = [...seen.values()].filter((g) => g.venue).sort((a, b) => b.edge - a.edge).slice(0, 3)
-        if (!tops.length || tops[0].edge <= 0) return null
+        const ranked = [...seen.values()].filter((g) => g.venue).sort((a, b) => b.edge - a.edge)
+        const tops = ranked.slice(0, 3)
+        // HONEST EMPTY STATE (2026-08-09 polish pass). This strip used to
+        // vanish whole when no park cleared a positive edge, which reads as a
+        // page that forgot a section rather than as the real finding — that
+        // tonight's parks and air are neutral or against. It says so now.
+        // It also had no heading at all: three bare tiles with a "+8%" and no
+        // statement of what the percentage was OF.
+        if (!players.length) return null
         return (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: '.09em', fontFamily: NUM_FONT }}>🌤 BEST AIR TONIGHT</span>
+              <span style={{ fontSize: 9.5, color: C.text3 }}>
+                park factor plus the published weather effect, as a percentage swing on home runs — tap for the full park ladder
+              </span>
+            </div>
+            {!tops.length || tops[0].edge <= 0 ? (
+              <div style={{
+                background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
+                padding: '10px 14px', fontSize: 10.5, color: C.text3, lineHeight: 1.6,
+              }}>
+                No park on tonight&apos;s slate is playing above neutral once its factor and air are
+                combined{ranked.length ? ` — the best of the ${ranked.length} is ${ranked[0].venue} at ${ranked[0].edge.toFixed(0)}%` : ''}.
+                That is the finding, not a missing section.
+              </div>
+            ) : (
           <div style={{
-            display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 14,
+            display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'stretch',
           }}>
             {tops.map((g, i) => (
               <div key={g.venue} onClick={() => onNavigate?.('longest')} style={{
@@ -419,7 +481,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
                     +{g.edge.toFixed(0)}%
                   </span>
                   <span style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>
-                    {i === 0 ? 'BEST AIR TONIGHT' : 'CARRIES'}
+                    {i === 0 ? 'TOP OF THE SLATE' : 'ALSO CARRIES'}
                   </span>
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 800, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.venue}</div>
@@ -428,6 +490,8 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
                 </div>
               </div>
             ))}
+          </div>
+            )}
           </div>
         )
       })()}
@@ -456,7 +520,21 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
         const trending = all
           .filter((a) => a.trend === 'worsening' || (a.l3hr9 != null && a.hr9 > 0 && a.l3hr9 >= a.hr9 + 0.4))
           .sort((a, b) => (b.l3hr9 ?? b.hr9) - (a.l3hr9 ?? a.hr9)).slice(0, 4)
-        if (!weakest.length) return null
+        if (!weakest.length) {
+          // Honest empty state: the slate exists but no starter carries a
+          // published HR/9 yet — usually TBD starters early in the morning.
+          if (!players.length) return null
+          return (
+            <div style={{
+              background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
+              padding: '10px 14px', marginBottom: 14, fontSize: 10.5, color: C.text3, lineHeight: 1.6,
+            }}>
+              🩹 <b style={{ color: C.text2 }}>Weakest arms tonight</b> — no starter on this slate
+              carries a published HR/9 yet, which usually means the probables are still TBD. The
+              board fills in on its own as they&apos;re announced.
+            </div>
+          )
+        }
         const Arm = ({ a, i, showTrend }) => (
           <div onClick={() => onNavigate?.('pitchers')} style={{
             display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
@@ -573,8 +651,6 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           })}
         </div>
       )}
-
-      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
 
       {/* ── THREE DOORS ──────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
