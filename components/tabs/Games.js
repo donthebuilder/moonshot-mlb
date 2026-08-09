@@ -151,15 +151,23 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
   if (!games.length) return <Empty text="No games found yet." />
 
   const scrollTo = (pk) => {
-    setActive(pk)
     if (mode === 'lineups') {
+      setActive(pk)
       // focus, don't fly — re-clicking the same bubble releases it
       setLineupFocus((cur) => (cur === pk ? null : pk))
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    const el = gameRefs.current[pk]
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // card grid: clicking a card TOGGLES its in-place deep-dive below the
+    // grid — re-click closes, a new card switches and scrolls to the panel
+    setActive((cur) => {
+      const next = cur === pk ? null : pk
+      if (next != null) setTimeout(() => {
+        const el = gameRefs.current[pk]
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 60)
+      return next
+    })
   }
 
   return (
@@ -169,7 +177,7 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
         sub={`${games.length} games · ${slots.length} time slots · ${
           mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
           : mode === 'botview' ? "the picks with the bot's five category bars per card"
-          : 'the whole evening by first-pitch window — tap any game card for the full deep-dive, in place'
+          : 'the slate as heat-sized game cards — tap one for the full deep-dive, in place'
         }`}
         right={
           <div style={{ display: 'flex', gap: 6 }}>
@@ -180,16 +188,17 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
         }
       />
 
-      {/* Game selector. Was a sticky bar of matchup pills -- it told you a
-          game existed and nothing else, so picking one meant opening several
-          to find the live one. The cards carry the deciding numbers. */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 20, background: '#09090b',
-        paddingTop: 4, paddingBottom: 8, marginBottom: 14,
-        borderBottom: `1px solid ${C.border}`,
-      }}>
-        <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} />
-      </div>
+      {/* Lineups keeps the strip as its sticky jump bar; Default and Bot
+          Output render the card grid as the page itself, below. */}
+      {mode === 'lineups' && (
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 20, background: '#09090b',
+          paddingTop: 4, paddingBottom: 8, marginBottom: 14,
+          borderBottom: `1px solid ${C.border}`,
+        }}>
+          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} />
+        </div>
+      )}
 
       {/* The slate's blind spot: hitters batting tonight the bot never
           scored. Collapsed by default, fetches only on expand. */}
@@ -364,34 +373,18 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
         </div>
       )}
 
-      {/* ── THE RUNDOWN (redesigned 2026-08-08) ─────────────────────────
-          Default and Bot Output no longer render one orphaned game under a
-          strip — the page is now the evening itself: every game, grouped
-          under its first-pitch window, each as a calm matchup card that
-          answers the four questions in order (who plays, which arms, what
-          conditions, who the bot likes) and expands IN PLACE for the full
-          deep-dive. The strip stays as a jump bar. */}
-      {mode !== 'lineups' && slots.map(([slotKey, slotGames]) => {
-        const slotLabel = slotKey === 'TBD'
-          ? 'Time TBD'
-          : new Date(Number(slotKey)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-        const slotPast = slotKey !== 'TBD' && slotGames.every((sg) => isPast(sg.game_time))
-        return (
-          <div key={slotKey} style={{ marginBottom: 20 }}>
-            {/* the window header — the clock owns the grouping */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '0 0 9px' }}>
-              <span style={{
-                fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.01em',
-                color: slotPast ? C.text3 : C.orange,
-              }}>{slotLabel}</span>
-              <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                {slotGames.length} game{slotGames.length > 1 ? 's' : ''}{slotPast ? ' · window passed' : ''}
-              </span>
-              <div style={{ flex: 1, height: 1, alignSelf: 'center', background: `linear-gradient(90deg, ${slotPast ? C.border : 'rgba(249,115,22,.35)'}, transparent)` }} />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {slotGames.map((g) => {
+      {/* ── THE CARD GRID (restored 2026-08-08, owner feedback) ──────────
+          The rundown LIST is gone as the top level: Default and Bot Output
+          open on the heat-tinted, heat-SIZED game cards (GameStrip) — the
+          grid Donovan liked — now carrying each game's TOP + HR headline
+          picks and both lineup ✓ marks right on the card. Clicking a card
+          opens the SAME in-place deep-dive the rundown had, directly under
+          the grid; clicking the card (or its header) again closes it. */}
+      {mode !== 'lineups' && (
+        <>
+          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {games.filter((g) => g.game_pk === activeGame).map((g) => {
                 const picks = picksFor(g)
                 const isDesignated = picks.length > 0
                 const sorted = isDesignated
@@ -620,10 +613,9 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                   </section>
                 )
               })}
-            </div>
           </div>
-        )
-      })}
+        </>
+      )}
 
       {/* Bottom of the page on purpose. The strip and the game panel are the
           task; this is the check you read afterwards to see whether the slate
