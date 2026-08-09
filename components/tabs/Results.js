@@ -1098,7 +1098,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <TabBtn active={subTab === 'picks'} onClick={() => setSubTab('picks')}>📋 Picks</TabBtn>
         <TabBtn active={subTab === 'signals'} onClick={() => setSubTab('signals')}>🔬 Signals</TabBtn>
         <TabBtn active={subTab === 'record'} onClick={() => setSubTab('record')}>👤 Track record</TabBtn>
-        <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>💰 P/L</TabBtn>
+        <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>🌙 P/L</TabBtn>
       </div>
 
       {/* ONE LINE OF ORIENTATION under the sub-nav — this tab grew seven
@@ -1115,7 +1115,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           pairs: '🔗 How the bot’s pairs and pools graded tonight. Follows the day picker.',
           picks: '📋 Every pick with its result — and “Did its job” grades each against its own category. Follows the day picker.',
           record: '👤 Every player the bot has ever picked, per category, across all 39 archived days. IGNORES the day picker — it spans everything.',
-          pl: '💰 The whole archive replayed at your odds, flat stakes. IGNORES the day picker — it spans everything.',
+          pl: '🌙 The whole archive replayed at flat stakes, scored in moons (1 moon = 1 unit, never dollars). IGNORES the day picker — it spans everything.',
         }[subTab]}
       </div>
 
