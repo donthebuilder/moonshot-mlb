@@ -14,9 +14,26 @@ import { rampColor, inkFor } from '../Heatmap'
 // to sit and read for five minutes, and this is the tab you leave open while
 // you work through one hitter.
 
+// QUESTION CHIPS (2026-08-08, "more inquisitive"): the list used to answer
+// exactly one question — who's top by HR score. Each chip is a question you'd
+// otherwise dig for, using only fields already on the slate row.
+const ASKS = [
+  { key: 'bot',  label: '🤖 Bot picks', test: (p) => String(p?.game_pick_role || '').trim() !== '',
+    why: 'Hitters the bot designated for one of tonight’s five pick slots' },
+  { key: 'weak', label: '⭐ Weak spots', test: (p) => p?.weak_spot_flag === true,
+    why: 'Batting in a lineup spot this starter has been beaten in' },
+  { key: 'hot',  label: '🧨 Hot L5', test: (p) => n(p?.last5_hits, 0) >= 6 || n(p?.last5_hr, 0) >= 2,
+    why: '6+ hits or 2+ homers over his last five games' },
+  { key: 'edge', label: '🎯 Pitch match', test: (p) => n(p?.pitch_type_match_score, 0) > 0,
+    why: 'The model found a documented batter-vs-pitch exploit — the single largest graded separator' },
+  { key: 'due',  label: '🔁 HR recently', test: (p) => n(p?.games_since_last_hr, 99) <= 2,
+    why: 'Homered inside his last two games — the back-to-back chase' },
+]
+
 export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  const [ask, setAsk] = useState(null)
 
   const ranked = useMemo(
     () => [...players].sort((a, b) => scoreFor(b, 'hr') - scoreFor(a, 'hr')),
@@ -25,11 +42,12 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
 
   const matches = useMemo(() => {
     const q = query.toLowerCase().trim()
-    if (!q) return ranked.slice(0, 40)
-    return ranked
+    const asked = ask ? ranked.filter(ASKS.find((a) => a.key === ask)?.test || (() => true)) : ranked
+    if (!q) return asked.slice(0, 40)
+    return asked
       .filter((p) => `${nameOf(p)} ${teamOf(p)} ${oppOf(p)}`.toLowerCase().includes(q))
       .slice(0, 40)
-  }, [ranked, query])
+  }, [ranked, query, ask])
 
   const selected = useMemo(
     () => ranked.find((p) => playerId(p) === selectedId) || matches[0] || null,
@@ -51,11 +69,32 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
     <div className="playerboard" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 14, alignItems: 'start' }}>
       <div className="playerboard-side" style={{ position: 'sticky', top: 12 }}>
         <input
-          style={{ ...inputStyle(), width: '100%', marginBottom: 8 }}
+          style={{ ...inputStyle(), width: '100%', marginBottom: 6 }}
           placeholder="Search a hitter…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+          {ASKS.map((a) => {
+            const on = ask === a.key
+            return (
+              <button key={a.key} onClick={() => setAsk(on ? null : a.key)} title={a.why}
+                style={{
+                  padding: '2px 8px', fontSize: 9, fontWeight: 700, borderRadius: 999, cursor: 'pointer',
+                  border: `1px solid ${on ? C.orange : C.border}`,
+                  background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                  color: on ? C.orange : C.text3, whiteSpace: 'nowrap',
+                }}>{a.label}</button>
+            )
+          })}
+          <button
+            onClick={() => { const pool = matches.length ? matches : ranked; const pick = pool[Math.floor(Math.random() * pool.length)]; if (pick) setSelectedId(playerId(pick)) }}
+            title="Open a random hitter from the current list — for the nights you want the site to start the conversation"
+            style={{
+              padding: '2px 8px', fontSize: 9, fontWeight: 700, borderRadius: 999, cursor: 'pointer',
+              border: `1px dashed ${C.border2}`, background: 'transparent', color: C.text3, whiteSpace: 'nowrap',
+            }}>🎲</button>
+        </div>
         <div className="playerboard-list" style={{
           border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden',
           maxHeight: '72vh', overflowY: 'auto', background: C.bg2,
@@ -80,9 +119,11 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {nameOf(p)}
+                    {String(p?.game_pick_role || '').trim() && <span title="Bot pick tonight" style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
+                    {p?.weak_spot_flag && <span title="Weak lineup spot vs this starter" style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
                   </span>
                   <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                    {teamOf(p)} vs {oppOf(p)} · {clean(p?.pitcher_name, 'TBD')}
+                    {teamOf(p)} vs {oppOf(p)} · #{clean(p?.lineup_spot, '?')} · {clean(p?.pitcher_name, 'TBD')}
                   </span>
                 </span>
                 {(() => {
