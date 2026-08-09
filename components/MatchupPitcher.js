@@ -44,6 +44,24 @@ const pctOf = (v) => {
   return `${(x <= 1 ? x * 100 : x).toFixed(1)}%`
 }
 
+// One section-title voice for the whole tab (2026-08-08 tighten pass): the
+// old headers were three ad-hoc bold lines at three sizes, which is why the
+// tab read as a pile rather than a page. Same size, same rule, every section.
+function SectionTitle({ label, sub, subColor }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+      margin: '14px 0 5px', paddingTop: 10, borderTop: `1px solid ${C.border}`,
+    }}>
+      <span style={{
+        fontSize: 10.5, fontWeight: 900, letterSpacing: '.08em',
+        textTransform: 'uppercase', color: C.text,
+      }}>{label}</span>
+      {sub && <span style={{ fontSize: 9.5, color: subColor || C.text3, fontFamily: NUM_FONT }}>{sub}</span>}
+    </div>
+  )
+}
+
 function Stat({ label, value, note, tone }) {
   return (
     <div style={{
@@ -391,22 +409,22 @@ export default function MatchupPitcher({ player, slateMode }) {
 
       {arsenal.length > 0 && (
         <>
-          <div style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 4px' }}>
-            Arsenal <span style={{ fontSize: 10, color: C.text3, fontWeight: 500, fontFamily: NUM_FONT }}>
-              — {side === 'overall' ? 'overall usage (no side split published)' : `his mix ${side}, the side this hitter bats from`}
-            </span>
-          </div>
+          <SectionTitle
+            label="Arsenal"
+            sub={side === 'overall' ? 'overall usage — no side split published' : `his mix ${side}, the side this hitter bats from`}
+            subColor={side === 'overall' ? C.text3 : C.orange}
+          />
           <DenseTable
             rows={arsenal}
             columns={[
               { key: 'pitch',  label: 'Pitch',  heat: false, w: 92, bold: true, sticky: true },
-              { key: 'code',   label: 'Type',   heat: false, w: 38, mono: true, dim: true },
-              { key: 'usage',  label: 'Usage%', w: 54, dp: 1, title: 'Share of his pitches. Not good or bad — just how often you see it.' },
+              { key: 'usage',  label: 'Usage', w: 58, dp: 1, fmt: (v) => `${Number(v).toFixed(1)}%`,
+                title: 'Share of his pitches. Not good or bad — just how often you see it.' },
               { key: 'seen',   label: 'Thrown', w: 50 },
               { key: 'bbe',    label: 'BBE',    w: 42, title: 'Balls in play against this pitch — the denominator' },
               { key: 'hr',     label: 'HR',     w: 38 },
               { key: 'hrRate', label: 'HR/BBE%', w: 58, dp: 1 },
-              { key: 'ev',     label: 'EV allowed', w: 62, dp: 1 },
+              { key: 'ev',     label: 'EV alw', w: 52, dp: 1, title: 'Average exit velocity allowed on this pitch' },
               { key: 'hard',   label: 'HH%',    w: 46, dp: 0 },
               { key: 'barrel', label: 'Barrel%', w: 54, dp: 1 },
               { key: 'xwoba',  label: 'xwOBA',  w: 50, dp: 3, fmt: (v) => (v == null ? '—' : Number(v).toFixed(3)) },
@@ -418,63 +436,66 @@ export default function MatchupPitcher({ player, slateMode }) {
         </>
       )}
 
-      {zones.length > 0 && (
-        <>
-          <div style={{ fontSize: 12, fontWeight: 800, margin: '14px 0 4px' }}>
-            Damage by order third
-          </div>
-          <DenseTable
-            rows={zones}
-            columns={[
-              { key: 'zone',   label: 'Order',  heat: false, w: 118, bold: true, sticky: true },
-              { key: 'pa',     label: 'PA',     w: 44 },
-              { key: 'slg',    label: 'SLG',    w: 52, dp: 3 },
-              { key: 'iso',    label: 'ISO',    w: 52, dp: 3 },
-              { key: 'hr',     label: 'HR',     w: 38 },
-              { key: 'hrRate', label: 'HR%',    w: 48, dp: 1 },
-              { key: 'hard',   label: 'HH%',    w: 48, dp: 1 },
-              { key: 'barrel', label: 'Barrel%', w: 54, dp: 1 },
-              { key: 'damage', label: 'Damage', w: 56, dp: 0 },
-              { key: 'label',  label: 'Read',   heat: false, w: 74, dim: true },
-              { key: 'sample', label: 'Sample', heat: false, w: 62, dim: true },
-            ]}
-            initialSort="damage"
-            maxHeight={200}
-            caption="Three spots pooled per row, so these carry roughly triple the plate appearances of any single spot and are the number to trust when the two disagree. Sample is the bot's own word for how much is behind it."
-          />
-        </>
+      {/* SIDE BY SIDE (2026-08-08 tighten pass): thirds and per-spot answer
+          the same question at two zoom levels, so they belong next to each
+          other, not one on top of the other with the sturdier table scrolled
+          off screen. Wide screens get both at once; narrow ones wrap. */}
+      {(zones.length > 0 || spots.length > 0) && (
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          {zones.length > 0 && (
+            <div style={{ flex: '1 1 380px', minWidth: 0 }}>
+              <SectionTitle label="Damage by order third" sub="the sturdier read — three spots pooled" />
+              <DenseTable
+                rows={zones}
+                columns={[
+                  { key: 'zone',   label: 'Order',  heat: false, w: 100, bold: true, sticky: true },
+                  { key: 'pa',     label: 'PA',     w: 40 },
+                  { key: 'slg',    label: 'SLG',    w: 50, dp: 3 },
+                  { key: 'iso',    label: 'ISO',    w: 50, dp: 3 },
+                  { key: 'hr',     label: 'HR',     w: 34 },
+                  { key: 'hrRate', label: 'HR%',    w: 44, dp: 1 },
+                  { key: 'hard',   label: 'HH%',    w: 44, dp: 1 },
+                  { key: 'barrel', label: 'Brl%',   w: 44, dp: 1 },
+                  { key: 'damage', label: 'Dmg',    w: 44, dp: 0 },
+                  { key: 'label',  label: 'Read',   heat: false, w: 70, dim: true },
+                ]}
+                initialSort="damage"
+                maxHeight={200}
+                caption="Three spots pooled per row — roughly triple the PA of any single spot, and the number to trust when the two tables disagree."
+              />
+            </div>
+          )}
+          {spots.length > 0 && (
+            <div style={{ flex: '1 1 380px', minWidth: 0 }}>
+              <SectionTitle
+                label="Damage by lineup spot"
+                sub={spot != null ? `this hitter bats #${spot}` : 'nine thin slices of one season'}
+                subColor={spot != null ? C.orange : C.text3}
+              />
+              <DenseTable
+                rows={spots}
+                columns={[
+                  { key: 'spot',   label: '#',      w: 30 },
+                  { key: 'mine',   label: 'Him',    flag: true, mark: '●', w: 32 },
+                  { key: 'pa',     label: 'PA',     w: 40 },
+                  { key: 'slg',    label: 'SLG',    w: 50, dp: 3 },
+                  { key: 'iso',    label: 'ISO',    w: 50, dp: 3 },
+                  { key: 'hr',     label: 'HR',     w: 34 },
+                  { key: 'hrRate', label: 'HR%',    w: 44, dp: 1 },
+                  { key: 'hard',   label: 'HH%',    w: 44, dp: 1 },
+                  { key: 'ev',     label: 'EV',     w: 44, dp: 1 },
+                  { key: 'damage', label: 'Dmg',    w: 44, dp: 0 },
+                ]}
+                initialSort="spot"
+                maxHeight={280}
+                caption="Nine rows split from the same season, so each is thin — most sit around 10–15 PA, a handful of swings. The weakest table on the page; the thirds beside it say the same thing with triple the sample. # is a label, not a score."
+              />
+            </div>
+          )}
+        </div>
       )}
 
       </>)}
-
-      {showDetail && spots.length > 0 && (
-        <>
-          <div style={{ fontSize: 12, fontWeight: 800, margin: '14px 0 4px' }}>
-            Damage by lineup spot
-            {spot != null && <span style={{ fontSize: 10, color: C.orange, fontWeight: 500, fontFamily: NUM_FONT }}> — this hitter bats #{spot}</span>}
-          </div>
-          <DenseTable
-            rows={spots}
-            columns={[
-              { key: 'spot',   label: 'Spot',   w: 44 },
-              { key: 'mine',   label: 'Him',    flag: true, mark: '●', w: 34 },
-              { key: 'pa',     label: 'PA',     w: 44 },
-              { key: 'slg',    label: 'SLG',    w: 52, dp: 3 },
-              { key: 'iso',    label: 'ISO',    w: 52, dp: 3 },
-              { key: 'hr',     label: 'HR',     w: 38 },
-              { key: 'hrRate', label: 'HR%',    w: 48, dp: 1 },
-              { key: 'hard',   label: 'HH%',    w: 48, dp: 1 },
-              { key: 'ev',     label: 'EV',     w: 46, dp: 1 },
-              { key: 'damage', label: 'Damage', w: 56, dp: 0 },
-              { key: 'label',  label: 'Read',   heat: false, w: 74, dim: true },
-              { key: 'sample', label: 'Sample', heat: false, w: 62, dim: true },
-            ]}
-            initialSort="spot"
-            maxHeight={280}
-            caption="Nine rows split from the same season, so each one is thin — most sit around 10–15 plate appearances, which is a handful of swings and swings wildly. This is the weakest table on the page; the order-thirds table above says the same thing with three times the sample. Spot is shaded like the rest but means nothing on its own — it's a label, not a score."
-          />
-        </>
-      )}
     </div>
   )
 }
