@@ -4,6 +4,9 @@ import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj, arr } from '../lib/player'
 import { detailUrl } from '../lib/dataSource'
 import { rampColor } from './Heatmap'
+// Pitch colours shared with ZoneMap and the live feed parser, so a sinker is
+// the same orange on the spray chips as it is on the strike-zone dots.
+import { pitchColor } from '../lib/livePitches'
 
 // Spray field — radar, not a ballpark illustration.
 //
@@ -350,6 +353,9 @@ export default function SprayField({
   // tonight's layer
   const [hoverLive, setHoverLive] = useState(null)
   const [liveOn, setLiveOn] = useState(true)
+  // Tonight-only cuts: contact quality and the pitch that produced the ball.
+  const [liveCut, setLiveCut] = useState('all')   // all | hh | barrel | xbh
+  const [livePitch, setLivePitch] = useState(null) // null = every pitch type
 
   const pid = player?.player_id || player?.id
 
@@ -526,13 +532,43 @@ export default function SprayField({
     return { ...b, r: p.dist, ang: p.ang, hr: liveIsHR(b) }
   }).filter(Boolean), [liveBalls])
 
-  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all') }
+  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all'); setLiveCut('all'); setLivePitch(null) }
 
   const liveN = liveHits.length
   // In liveOnly the ● Tonight chip isn't rendered (it lives in the season
   // window row), so the live layer is always on — otherwise the toggle would
   // be the only thing between this chart and a permanently empty field.
-  const liveDrawn = liveOnly || liveOn ? liveHits : []
+  // ── TONIGHT-ONLY FILTERS (2026-08-09) ────────────────────────────────────
+  // Donovan: "at plate spray need pitches and hh barrels xbh filters."
+  // Four cuts on the same 53-dot picture, plus the pitch that produced each
+  // ball. Every flag is computed in lib/livePitches.js from the ball's own
+  // exit velo / launch angle / result event — see that file for the barrel
+  // definition, which is the published one and not an approximation.
+  //
+  // COUNTS ARE ALWAYS SHOWN ON THE CHIP. A filter that can return zero without
+  // warning you is a filter that reads as a broken chart, and this sample is
+  // small enough that "Barrels 0" is a normal, true answer.
+  const liveCuts = useMemo(() => ([
+    { k: 'all', label: 'All', n: liveHits.length, col: C.text2, tip: 'Every ball in play from this game.' },
+    { k: 'hh', label: 'Hard hit', n: liveHits.filter((b) => b.hh).length, col: '#fb923c', tip: 'Left the bat at 95 mph or more — Statcast’s own hard-hit line. No launch-angle condition.' },
+    { k: 'barrel', label: 'Barrels', n: liveHits.filter((b) => b.barrel).length, col: '#f87171', tip: 'Statcast barrel: the exit-velo / launch-angle combinations that have historically produced a .500 average and 1.500 slugging. Starts at 98 mph in a 26–30° window and widens with velocity. Computed from this ball’s own EV and LA.' },
+    { k: 'xbh', label: 'XBH', n: liveHits.filter((b) => b.xbh).length, col: '#a78bfa', tip: 'Doubles, triples and homers — read from the play’s own result, not inferred from distance.' },
+  ]), [liveHits])
+  // Pitch types present in tonight's contact, so the row can never offer a
+  // filter that would return nothing.
+  const livePitchTypes = useMemo(() => {
+    const m = new Map()
+    liveHits.forEach((b) => { if (b.type) m.set(b.type, (m.get(b.type) || 0) + 1) })
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+  }, [liveHits])
+
+  const liveFiltered = useMemo(() => liveHits.filter((b) => {
+    const okCut = liveCut === 'all' ? true : !!b[liveCut]
+    const okPitch = !livePitch || b.type === livePitch
+    return okCut && okPitch
+  }), [liveHits, liveCut, livePitch])
+
+  const liveDrawn = liveOnly || liveOn ? liveFiltered : []
   const fid = Number(liveFocusId) || null
   const anyFocus = fid ? liveHits.some((b) => Number(b.batterId) === fid) : false
 
@@ -650,6 +686,49 @@ export default function SprayField({
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
             {liveN} ball{liveN === 1 ? '' : 's'} in play this game · no season sample on this chart
           </span>
+        </div>
+      )}
+
+      {/* Contact-quality cuts + the pitch that produced the ball. Counts ride
+          on every chip so an empty result reads as an answer, not a bug. */}
+      {liveOnly && liveN > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+          {liveCuts.map((c) => (
+            <button key={c.k} onClick={() => setLiveCut(c.k)} title={c.tip}
+              disabled={c.n === 0 && c.k !== 'all'}
+              style={{
+                ...chipBtn(liveCut === c.k, c.col), padding: '2px 8px', fontSize: 9.5,
+                opacity: c.n === 0 && c.k !== 'all' ? 0.3 : 1,
+                cursor: c.n === 0 && c.k !== 'all' ? 'default' : 'pointer',
+              }}>
+              {c.label} <b style={{ fontFamily: NUM_FONT }}>{c.n}</b>
+            </button>
+          ))}
+          {livePitchTypes.length > 1 && (
+            <>
+              <span style={{ fontSize: 9, color: C.text3, marginLeft: 4, textTransform: 'uppercase', letterSpacing: '.07em' }}>Pitch</span>
+              {livePitchTypes.map(([code, ct]) => (
+                <button key={code}
+                  onClick={() => setLivePitch((v) => (v === code ? null : code))}
+                  title={`${PITCH_NAMES[code] || code} — ${ct} ball${ct === 1 ? '' : 's'} in play off it tonight. The pitch and the batted ball come off the same play event, so this is the pitch that was actually hit.`}
+                  style={{ ...chipBtn(livePitch === code, pitchColor(code)), padding: '2px 8px', fontSize: 9.5 }}>
+                  {PITCH_NAMES[code] || code} <b style={{ fontFamily: NUM_FONT }}>{ct}</b>
+                </button>
+              ))}
+            </>
+          )}
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
+            showing {liveFiltered.length} of {liveN}
+          </span>
+        </div>
+      )}
+
+      {/* A cut that empties the field says so — the picture alone can't. */}
+      {liveOnly && liveN > 0 && liveFiltered.length === 0 && (
+        <div style={{ fontSize: 10.5, color: C.orange, marginBottom: 6, lineHeight: 1.5 }}>
+          Nothing in this game matches that cut yet — {liveN} ball{liveN === 1 ? '' : 's'} in play,
+          none of them {liveCut === 'barrel' ? 'barrelled' : liveCut === 'hh' ? 'hit 95+ mph' : 'for extra bases'}
+          {livePitch ? ` off a ${PITCH_NAMES[livePitch] || livePitch}` : ''}. That&apos;s the answer, not an error.
         </div>
       )}
 

@@ -1,11 +1,12 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   playerId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
   nn, n, clean, arr, obj, barrelRate, avgEV, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
 import { dedupeGraded } from '../../lib/graded'
+import { recordNight, ledgerTotals } from '../../lib/watchLedger'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
 import DenseTable from '../DenseTable'
@@ -287,7 +288,108 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
   )
 }
 
-export default function Watchlist({ items, players = [], pairSummary, results, onWatch, onAdd, onPlayerClick }) {
+// ⭐ THE TRACKER (2026-08-09, Donovan: "add a tracker to the watchlist like
+// results, something minimal but useful").
+//
+// The page already showed TONIGHT. What it couldn't answer is the question
+// that decides whether keeping a watchlist is worth the trouble: does starring
+// names work for you, over time? So each graded night's counts get written to
+// this device (lib/watchLedger.js) and this strip reads them back.
+//
+// FOUR NUMBERS AND A SPARK ROW. Not a chart — he asked for minimal, and the
+// Results tab is where charts live. Every rate prints its own denominator,
+// because "18%" over 11 at-bats is not a fact about anything.
+//
+// SCOPE IS SAID OUT LOUD. There is no account and no server here; the
+// watchlist is device-local and so is its record. A number whose scope you
+// misunderstand is worse than no number.
+function WatchTracker({ items, nightOf, slateDate, mode }) {
+  const [led, setLed] = useState(null)
+
+  // Write tonight, then read the whole ledger back. Recording is idempotent by
+  // date — this runs on every results refresh and just overwrites today's row
+  // as grading progresses, so the ledger converges on the final numbers
+  // instead of double-counting a night.
+  //
+  // TOMORROW SLATES RECORD NOTHING. There is no result to record, and writing
+  // a row for a date that hasn't happened would put a permanent 0-for-N in the
+  // history the moment somebody clicks the Tomorrow toggle.
+  useEffect(() => {
+    if (mode !== 'tomorrow' && slateDate) {
+      const lines = items.map((p) => {
+        const g = nightOf.get(String(playerId(p)))
+        return g ? { ab: n(g.actual_ab, 0), hr: n(g.actual_hr, 0), hits: n(g.actual_hits, 0) } : null
+      }).filter(Boolean)
+      if (lines.length) recordNight(slateDate, lines)
+    }
+    setLed(ledgerTotals())
+  }, [items, nightOf, slateDate, mode])
+
+  if (!led || !led.nights) return null
+
+  const spark = led.rows.slice(-14)
+  const cell = (label, value, sub, col) => (
+    <div key={label} style={{
+      background: `linear-gradient(135deg, ${col}12, ${col}04)`,
+      border: `1px solid ${col}33`, borderRadius: 10, padding: '7px 13px', minWidth: 0,
+    }}>
+      <div style={{ fontSize: 8.5, textTransform: 'uppercase', letterSpacing: '.07em', color: C.text3, fontWeight: 800 }}>{label}</div>
+      <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: col, lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
+    </div>
+  )
+
+  return (
+    <div style={{
+      background: `linear-gradient(155deg, ${C.bg2}, rgba(252,211,77,.03))`,
+      border: '1px solid rgba(252,211,77,.25)', borderRadius: 12,
+      padding: '9px 13px', marginBottom: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 900 }}>⭐ Your watchlist, graded</span>
+        <span style={{ fontSize: 9.5, color: C.text3 }}>
+          {led.nights} night{led.nights === 1 ? '' : 's'} recorded on this device
+        </span>
+      </div>
+      <div className="watch-track" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        {cell('Went deep', led.hrPct == null ? '—' : `${led.hrPct.toFixed(1)}%`, `${led.hr} of ${led.n} starts`, led.hr ? '#4ade80' : C.text3)}
+        {cell('Got a hit', led.hitPct == null ? '—' : `${led.hitPct.toFixed(1)}%`, `${led.hit} of ${led.n}`, '#a78bfa')}
+        {cell('Starts tracked', led.n, `across ${led.nights} night${led.nights === 1 ? '' : 's'}`, C.orange)}
+        {cell('Void', led.void, 'saved but never batted', C.text3)}
+      </div>
+      {spark.length > 1 && (
+        <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', marginBottom: 6 }}>
+          {spark.map((r) => {
+            // Bar height is the night's homer rate; the tooltip carries the
+            // raw counts, because a tall bar off two at-bats is not a good night.
+            const rate = r.n ? r.hr / r.n : 0
+            const h = 4 + Math.round(rate * 20)
+            return (
+              <span key={r.date}
+                title={`${r.date} — ${r.hr} of ${r.n} saved hitters homered${r.void ? `, ${r.void} never batted` : ''}`}
+                style={{
+                  width: 12, height: h, borderRadius: 2, cursor: 'help',
+                  background: r.hr ? '#4ade80' : 'rgba(255,255,255,.10)',
+                  boxShadow: r.hr ? '0 0 6px rgba(74,222,128,.35)' : 'none',
+                }} />
+            )
+          })}
+          <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 4, alignSelf: 'center' }}>
+            last {spark.length} nights · bar = share who homered
+          </span>
+        </div>
+      )}
+      <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.55 }}>
+        Counted the same way the bot grades itself: a saved hitter only counts on a night he actually
+        batted — scratched and never-used names are <b style={{ color: C.text2 }}>void, not misses</b>.
+        This history lives in your browser, like the watchlist does, so it only knows the nights you had
+        this page open. Clearing your browser data clears it.
+      </div>
+    </div>
+  )
+}
+
+export default function Watchlist({ items, players = [], pairSummary, results, slateDate = '', mode = 'today', onWatch, onAdd, onPlayerClick }) {
   // ACCURACY CHECK — did the list deliver tonight? Graded slots joined by
   // player_id give each saved hitter his live line; saved names outside the
   // graded pool stay unknown rather than counting as misses.
@@ -420,6 +522,8 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
           </div>
         }
       />
+      <WatchTracker items={items} nightOf={nightOf} slateDate={slateDate} mode={mode} />
+
       {/* VITALS STRIP — the list as one glance: size, bot overlap, power,
           matchup edges. Each tile is the answer to a question you'd otherwise
           scan twelve cards for. */}
