@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { Empty } from '../ui'
 import { clean } from '../../lib/player'
@@ -112,10 +112,15 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   // what he'll see tonight". One click back to All widens it.
   const tonightArm = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
   const [armFilter, setArmFilter] = useState(tonightArm === 'L' || tonightArm === 'R' ? tonightArm : 'ALL')
+  // DE-GLITCHED (2026-08-08): these resets used to key off the player OBJECT,
+  // which the parent rebuilds on every render — so opening the tab fired a
+  // reset, which re-rendered, which fired another. Keying off the player ID
+  // means one reset per actual player change and none for render churn.
+  const pidKey = player?.player_id || player?.id || null
   useEffect(() => {
     const a = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
     setArmFilter(a === 'L' || a === 'R' ? a : 'ALL')
-  }, [player])
+  }, [pidKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const [batterHand, setBatterHand] = useState('ALL')
   // Pitch selection defaults to tonight's starter's arsenal, matched to the
   // side this hitter bats from — the same behaviour the Spray tab has. The
@@ -133,14 +138,13 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   // this origin). Same row schema, so everything below just works.
   const [liveLog, setLiveLog] = useState(null)   // null = untried/loading
   useEffect(() => {
-    const pid2 = player?.player_id || player?.id
-    if (botLog.length || !pid2) { setLiveLog(null); return undefined }
+    if (botLog.length || !pidKey) { setLiveLog(null); return undefined }
     let alive = true
     import('../../lib/savant').then(({ savantBattedBalls }) =>
-      savantBattedBalls(pid2).then((rows) => { if (alive) setLiveLog(rows) }))
+      savantBattedBalls(pidKey).then((rows) => { if (alive) setLiveLog(rows) }))
       .catch(() => { if (alive) setLiveLog([]) })
     return () => { alive = false }
-  }, [player, botLog.length])
+  }, [pidKey, botLog.length])
   const liveSource = !botLog.length && !!liveLog?.length
   const log = botLog.length ? botLog : (liveLog || [])
 
@@ -174,9 +178,19 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     return [...codes].filter((c) => seen.has(c))
   }, [player, log])
 
+  // THE "ALL PITCHES" BUG (2026-08-08, "glitchy when it clicks on"): the old
+  // effect re-applied tonight's mix whenever pitchSel was null — which is
+  // exactly the state the All Pitches button sets. Click All, effect snaps it
+  // back to the mix, button appears dead / the table flickers. The default is
+  // now applied ONCE per player, and null stays null after that.
+  const mixApplied = useRef(null)
   useEffect(() => {
-    if (pitchSel === null && tonightMix.length) setPitchSel(new Set(tonightMix))
-  }, [tonightMix, pitchSel])
+    if (mixApplied.current === pidKey) return
+    if (tonightMix.length) {
+      setPitchSel(new Set(tonightMix))
+      mixApplied.current = pidKey
+    }
+  }, [tonightMix, pidKey])
 
   // Usage % per pitch code from the published mix strings — feeds both the
   // "P top 3" toggle and the zone map's per-pitch strip (2026-08-08).
@@ -403,10 +417,18 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
             >P top 3</button>
           )}
         </div>
+        {/* USAGE ON THE BUTTON (2026-08-08, on request): each pitch wears the
+            starter's usage % for it, and the row sorts heaviest-thrown first —
+            so "what will he actually see tonight" is readable off the buttons
+            without opening a tooltip. Pitches the starter doesn't throw sort
+            last with no number, which is its own signal. */}
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-          {pitchTypes.filter((p) => p !== 'ALL').map((p) => {
+          {pitchTypes.filter((p) => p !== 'ALL')
+            .sort((a, b) => (usagePct[b] ?? -1) - (usagePct[a] ?? -1))
+            .map((p) => {
             const on = !!pitchSel && pitchSel.has(p)
             const inMix = tonightMix.includes(p)
+            const use = usagePct[p]
             return (
               <button key={p}
                 onClick={() => setPitchSel((s) => {
@@ -414,7 +436,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
                   if (next.has(p)) next.delete(p); else next.add(p)
                   return next.size ? next : null
                 })}
-                title={`${PITCH_NAMES[p] || p}${inMix ? " — in tonight's mix" : " — not in tonight's mix"}`}
+                title={`${PITCH_NAMES[p] || p}${use != null ? ` — tonight's starter throws it ${use.toFixed(0)}% of the time` : " — tonight's starter doesn't throw this (or no mix published)"}${inMix ? " · in tonight's mix" : ''}`}
                 style={{
                   padding: '3px 7px', fontSize: 9.5, fontWeight: 700, borderRadius: 5, cursor: 'pointer',
                   fontFamily: NUM_FONT,
@@ -423,6 +445,12 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
                   color: on ? C.orange : C.text3,
                 }}>
                 {inMix && <span style={{ color: C.orange, marginRight: 2 }}>•</span>}{p}
+                {use != null && (
+                  <span style={{
+                    marginLeft: 3, fontWeight: 800, fontSize: 8.5,
+                    color: on ? C.orange : use >= 25 ? C.text2 : C.text3,
+                  }}>{use.toFixed(0)}%</span>
+                )}
               </button>
             )
           })}
