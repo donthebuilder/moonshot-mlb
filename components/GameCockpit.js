@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
 import ZoneMap from './ZoneMap'
 import SprayField from './SprayField'
+import LivePitchPlot from './LivePitchPlot'
 
 // 🎥 GAME COCKPIT — per-at-bat depth for the ONE game you're locked into.
 //
@@ -14,6 +15,10 @@ import SprayField from './SprayField'
 // heavy object, so it loads for ONE gamePk, only while this panel is open,
 // 30s opt-in auto or the button. Self-hides pregame and postgame.
 
+// NOTE (2026-08-09): `fields` is a WHITELIST — anything not named here is
+// stripped by the server. That's exactly how the due-up alert stayed dead for
+// weeks (offense/batter were never requested). LivePitchPlot does its own
+// fetch with its own field list, so this one only needs the cockpit's keys.
 const FIELDS = 'gameData,status,abstractGameState,teams,abbreviation,liveData,linescore,currentInning,isTopInning,inningState,outs,balls,strikes,offense,batter,onDeck,inHole,first,second,third,home,away,runs,id,fullName,plays,allPlays,currentPlay,result,event,description,about,inning,halfInning,matchup,playEvents,isPitch,hitData,launchSpeed,launchAngle,totalDistance'
 
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
@@ -179,6 +184,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
             <summary style={{ cursor: 'pointer', fontSize: 10.5, fontWeight: 700, color: C.text2 }}>
               🎯 Zone map &amp; spray for {clean(ls.offense.batter.fullName, 'the batter')}
             </summary>
+            <LivePitchPlot gamePk={gamePk} batterId={Number(bid)} batterName={clean(ls.offense.batter.fullName, '')} compact />
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
               <div style={{ flex: '1 1 280px', minWidth: 0 }}>
                 <ZoneMap playerId={Number(bid)} bats={String(row?.bats || '').toUpperCase().slice(0, 1)} />

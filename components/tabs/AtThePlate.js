@@ -6,6 +6,7 @@ import { fetchLiveSlate } from '../../lib/liveSlate'
 import { Empty } from '../ui'
 import ZoneMap from '../ZoneMap'
 import SprayField from '../SprayField'
+import LivePitchPlot from '../LivePitchPlot'
 
 // 🎤 AT THE PLATE — the live batter's room (2026-08-09, Donovan: "add the
 // spray chart and the zone map to the live at-bats, and make it a solo page
@@ -157,6 +158,11 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               {a.onDeck && <span style={{ color: C.text3 }}> · on deck: {nameOf(a.onDeck)}</span>}
             </div>
           </div>
+
+          {/* 🔴 the live game itself — every pitch and every ball in play,
+              plotted from the feed's own coordinates. Defaults to THIS
+              batter; one tap widens it to the whole game. */}
+          <LivePitchPlot gamePk={a.g.pk} batterId={a.pid} batterName={nameOf(p)} />
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div style={{ flex: '1 1 300px', minWidth: 0 }}>
