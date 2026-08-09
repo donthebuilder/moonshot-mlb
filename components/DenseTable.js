@@ -25,6 +25,10 @@ export default function DenseTable({
   dense = true,
   caption = '',
   maxRows = 200,
+  // dimRow(row) -> true renders that row at reduced opacity. Used for
+  // sample gates: a rate built on four batted balls should not sit at the
+  // same visual weight as one built on two hundred.
+  dimRow = null,
 }) {
   // MULTI-SORT. `sort` is an ordered list of keys, not one key.
   //
@@ -151,7 +155,10 @@ export default function DenseTable({
               <tr
                 key={r._key ?? ri}
                 onClick={onRowClick ? () => onRowClick(r._raw ?? r) : undefined}
-                style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+                style={{
+                  cursor: onRowClick ? 'pointer' : 'default',
+                  opacity: dimRow?.(r) ? 0.42 : 1,
+                }}
                 className="dense-row"
               >
                 {columns.map((c) => {
@@ -219,8 +226,15 @@ export default function DenseTable({
                   const bg = Number.isFinite(num)
                     ? (c.invert ? rampColor(hi - (num - lo), lo, hi) : rampColor(num, lo, hi))
                     : null
+                  // ROUNDED TOOLTIP. This used to print the raw float, so
+                  // hovering a Fit cell read "Fit: 38.36650000000001" — a
+                  // float-precision artefact presented as if it were a
+                  // measurement. Show it at the column's own precision.
+                  const titleNum = !Number.isFinite(num) ? '—'
+                    : Number.isInteger(num) ? String(num)
+                    : num.toFixed(c.dp ?? 2)
                   return (
-                    <td key={c.key} title={`${c.label}: ${Number.isFinite(num) ? num : '—'}`} style={{
+                    <td key={c.key} title={`${c.label}: ${titleNum}`} style={{
                       background: bg || C.bg3, color: bg ? inkFor(bg) : C.text3,
                       fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700,
                       textAlign: 'center', padding: pad,
