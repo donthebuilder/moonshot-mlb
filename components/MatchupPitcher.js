@@ -62,15 +62,93 @@ function SectionTitle({ label, sub, subColor }) {
   )
 }
 
-function Stat({ label, value, note, tone }) {
+// GROUPED STAT TILES (2026-08-09). Owner on the old flat grid of fourteen:
+// "lazy and confusing to read, not usable". It was one undifferentiated row
+// where HR/9 sat next to SwStr% sat next to 400+ allowed, and nothing told you
+// that half of those are reasons to attack him and the other half are reasons
+// he'll beat you. Three groups now, each with a one-line header saying what it
+// tells you.
+//
+// The meters are drawn against a FIXED league-typical display range, not
+// against tonight's slate and not against a percentile — we don't publish
+// pitcher percentiles, so claiming one would be invented. The range and the
+// league-average tick are both in each tile's tooltip, and the group caption
+// says what the scale is. Where there's no defensible range (375+/400+ allowed
+// are raw season counts) the tile shows the number with no bar rather than a
+// bar against a made-up ceiling.
+const METERS = {
+  hr9:      { lo: 0.50, hi: 2.00, mid: 1.20, unit: ' HR/9' },
+  barrel:   { lo: 3,    hi: 13,   mid: 8,    unit: '% barrels' },
+  ev:       { lo: 85,   hi: 92,   mid: 88.5, unit: ' mph' },
+  babip:    { lo: 0.250, hi: 0.330, mid: 0.290, unit: ' BABIP' },
+  meatball: { lo: 5,    hi: 12,   mid: 7.5,  unit: '% meatballs' },
+  // Documented on this file already: pitch_mix_score runs 15–95 on the live
+  // slate with a median of 71.5, so this one IS a real observed range.
+  pmix:     { lo: 15,   hi: 95,   mid: 71.5, unit: ' mix fit' },
+}
+
+// Everything on this tab is oriented toward the HITTER, so every metered stat
+// here happens to run the same way: higher is better for the bat. The fill is
+// ember above the league tick and grey below it.
+function Meter({ v, spec }) {
+  if (v == null || !spec || !Number.isFinite(v)) return null
+  const { lo, hi, mid } = spec
+  const clamp = (x) => Math.max(0, Math.min(1, x))
+  const f = clamp((v - lo) / (hi - lo))
+  const m = clamp((mid - lo) / (hi - lo))
+  const hot = v >= mid
   return (
-    <div style={{
+    <div style={{ position: 'relative', height: 5, borderRadius: 3, background: C.bg3, marginTop: 5, overflow: 'hidden' }}>
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0,
+        width: `${(f * 100).toFixed(1)}%`,
+        background: hot ? C.orange : 'rgba(255,255,255,.22)',
+        borderRadius: 3,
+      }} />
+      <div style={{
+        position: 'absolute', left: `${(m * 100).toFixed(1)}%`, top: -1, bottom: -1,
+        width: 1.5, background: 'rgba(255,255,255,.45)',
+      }} />
+    </div>
+  )
+}
+
+function Stat({ label, value, note, tone, meter, meterKey, title }) {
+  const spec = meterKey ? METERS[meterKey] : null
+  const tip = title || (spec
+    ? `${label}. Bar runs ${spec.lo}–${spec.hi}${spec.unit}; the pale tick is roughly league average (${spec.mid}). Fixed display scale, not a percentile.`
+    : label)
+  return (
+    <div title={tip} style={{
       background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
       padding: '8px 11px', minWidth: 104, flex: '1 1 104px',
     }}>
       <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
       <div style={{ fontSize: 16, fontWeight: 800, fontFamily: NUM_FONT, color: tone || C.text, marginTop: 2 }}>{value}</div>
       {note && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 1 }}>{note}</div>}
+      {spec && <Meter v={meter} spec={spec} />}
+    </div>
+  )
+}
+
+// One group of tiles with a header that says what the group is FOR. The header
+// is the whole fix: "🎯 Attackable — the case for the bat" tells you how to
+// read the five numbers under it before you read any of them.
+function StatGroup({ icon, title, blurb, color, children }) {
+  return (
+    <div style={{
+      border: `1px solid ${color}2e`, borderLeft: `3px solid ${color}`,
+      background: `${color}07`, borderRadius: 11, padding: '9px 11px 11px', marginBottom: 9,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', marginBottom: 7 }}>
+        <span style={{ fontSize: 12 }}>{icon}</span>
+        <span style={{
+          fontSize: 10.5, fontWeight: 900, color, letterSpacing: '.07em',
+          textTransform: 'uppercase', fontFamily: NUM_FONT,
+        }}>{title}</span>
+        <span style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, flex: '1 1 200px', minWidth: 0 }}>{blurb}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>{children}</div>
     </div>
   )
 }
@@ -233,29 +311,39 @@ export default function MatchupPitcher({ player, slateMode }) {
         )}
       </div>
 
-      {/* Verdict first. One line, then the reasons, then everything else on
-          request. */}
+      {/* Verdict first. Owner likes this box, so 2026-08-09 only tightened it:
+          the tally moved up onto the headline row so the shape of the call is
+          readable without reading any reason, the reasons themselves sit on a
+          tighter rhythm, and the toggle moved inline beside them instead of
+          taking a line of its own. Same logic, same sentences, less air. */}
       <div style={{
         background: C.bg2, border: `1px solid ${verdict.col}55`,
         borderLeft: `4px solid ${verdict.col}`,
-        borderRadius: 12, padding: '11px 14px', marginBottom: 12,
+        borderRadius: 12, padding: '9px 13px', marginBottom: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 17, fontWeight: 900, color: verdict.col }}>{verdict.label}</span>
-          <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: 17, fontWeight: 900, color: verdict.col, lineHeight: 1.1 }}>{verdict.label}</span>
+          <span style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT }}>
             for {nameOf(player)} · {bats || '?'}HB vs {clean(player.pitcher_throws, '?')}HP
           </span>
+          {reasons.length > 0 && (
+            <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, alignItems: 'baseline', fontFamily: NUM_FONT, fontSize: 10 }}>
+              <span style={{ color: C.orange, fontWeight: 900 }}>+{forCount}</span>
+              <span style={{ color: C.text3 }}>/</span>
+              <span style={{ color: C.text2, fontWeight: 900 }}>−{againstCount}</span>
+            </span>
+          )}
         </div>
 
         {reasons.length === 0 ? (
-          <div style={{ fontSize: 11, color: C.text3, marginTop: 5 }}>
+          <div style={{ fontSize: 10.5, color: C.text3, marginTop: 4 }}>
             Nothing stands out either way — a league-average matchup on every input this site checks.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 5 }}>
             {reasons.map((r, i) => (
-              <div key={i} style={{ fontSize: 11, color: C.text2, display: 'flex', gap: 7 }}>
-                <span style={{ color: r.good ? C.orange : C.text3, fontWeight: 800, flexShrink: 0 }}>
+              <div key={i} style={{ fontSize: 10.5, color: C.text2, display: 'flex', gap: 6, lineHeight: 1.5 }}>
+                <span style={{ color: r.good ? C.orange : C.text3, fontWeight: 900, flexShrink: 0 }}>
                   {r.good ? '+' : '−'}
                 </span>
                 <span>{r.text}</span>
@@ -267,7 +355,7 @@ export default function MatchupPitcher({ player, slateMode }) {
         <button
           onClick={() => setShowDetail((v) => !v)}
           style={{
-            marginTop: 9, padding: '4px 11px', fontSize: 10.5, fontWeight: 700,
+            marginTop: 7, padding: '3px 10px', fontSize: 10, fontWeight: 700,
             borderRadius: 7, cursor: 'pointer', fontFamily: NUM_FONT,
             border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
           }}
@@ -307,64 +395,116 @@ export default function MatchupPitcher({ player, slateMode }) {
         )}
       </div>
 
-      {/* The headline read. Everything here is "how good is this for the guy at
-          the plate", not "how good is this pitcher". */}
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
-        <Stat label="HR/9" value={hr9 == null ? '—' : hr9.toFixed(2)}
-          tone={hr9 >= 1.4 ? C.orange : hr9 <= 0.9 ? C.text3 : C.text}
-          note={hr9 >= 1.4 ? 'gives them up' : hr9 <= 0.9 ? 'suppresses them' : 'league-ish'} />
-        <Stat label="Weak side" value={weakSide || '—'}
-          tone={matchesWeak ? C.orange : C.text}
-          note={matchesWeak ? `${bats}HB — that's this hitter` : weakSide ? 'not this hitter' : 'none published'} />
-        <Stat label={effHand ? `HR/9 vs ${effHand}HB` : 'HR/9 overall'}
-          value={(() => {
-            if (!effHand) return hr9 == null ? '—' : hr9.toFixed(2)
-            const v = n(effHand === 'L' ? player.pitcher_hr9_vs_lhb : player.pitcher_hr9_vs_rhb, null)
-            return v == null ? '—' : v.toFixed(2)
-          })()}
-          note={effHand ? 'his split against this side' : 'both sides combined'} />
-        <Stat label={effHand ? `WHIP vs ${effHand}HB` : 'WHIP overall'}
-          value={(() => {
-            if (!effHand) return clean(player.pitcher_whip, '—')
-            const v = n(effHand === 'L' ? player.pitcher_whip_vs_lhb : player.pitcher_whip_vs_rhb, null)
-            return v == null ? '—' : v.toFixed(2)
-          })()}
-          note="baserunners against this side" />
-        <Stat label="Meatball%" value={n(player.pitcher_meatball_pct, null) == null ? '—' : `${n(player.pitcher_meatball_pct).toFixed(1)}%`}
-          note="pitches down the middle" />
-        <Stat label="SwStr%" value={pctOf(player.pitcher_swstr_pct)}
-          note="swing and miss — high is bad for the hitter" />
-        <Stat label="Whiff%" value={pctOf(player.pitcher_whiff_pct)}
-          note="misses per swing" />
-        <Stat label="K%" value={pctOf(player.pitcher_k_rate)}
-          note="how often he ends it himself" />
-        <Stat label="Barrel% allowed" value={pctOf(player.pitcher_barrel_allowed)}
-          note="contact quality against" />
-        <Stat label="EV allowed" value={n(player.pitcher_ev_allowed, null) == null ? '—' : `${n(player.pitcher_ev_allowed).toFixed(1)}`}
-          note="avg exit velo he gives up" />
-        <Stat label="BABIP against" value={n(player.pitcher_babip, null) == null ? '—' : n(player.pitcher_babip).toFixed(3)}
-          tone={n(player.pitcher_babip, 0) < 0.270 ? C.orange : C.text}
-          note={n(player.pitcher_babip, 0) < 0.270 ? 'low — some of that is luck' : 'balls in play against'} />
-        <Stat label="375+ allowed" value={n(player.pitcher_375_allowed, null) == null ? '—' : String(Math.round(n(player.pitcher_375_allowed)))}
-          note="balls he's let travel" />
-        <Stat label="400+ allowed" value={n(player.pitcher_400_allowed, null) == null ? '—' : String(Math.round(n(player.pitcher_400_allowed)))}
-          tone={n(player.pitcher_400_allowed, 0) >= 5 ? C.orange : C.text}
-          note="real distance given up" />
-        {/* Moved here from the Hot Zones "Signals" sub-tab, which was a second
-            copy of this row one click away inside a different tab. */}
-        <Stat label="Putaway%" value={pctOf(player.pitcher_putaway_pct)}
-          note="2-strike counts he finishes" />
-        <Stat label="1st-pitch K%" value={pctOf(player.pitcher_first_pitch_strike_pct)}
-          note="how often he gets ahead" />
-        <Stat label="Pitch-mix score" value={n(player.pitch_mix_score, null) == null ? '—' : n(player.pitch_mix_score).toFixed(0)}
-          tone={n(player.pitch_mix_score, 0) >= 70 ? C.orange : C.text}
-          note={clean(player.pitch_mix_note, 'batter vs this arsenal')} />
-      </div>
+      {/* THE THREE GROUPS. Everything here is "how good is this for the guy at
+          the plate", not "how good is this pitcher" — and now the grouping
+          says which of those two things each number is measuring. */}
+      {(() => {
+        // Normalised 0-100 values for the meters. The bot writes some rates as
+        // fractions and some as percentages, so run them all through the same
+        // normaliser the display uses rather than metering raw fields.
+        const asPct = (v) => { const x = n(v, null); return x == null ? null : (x <= 1 ? x * 100 : x) }
+        const meatball = asPct(player.pitcher_meatball_pct)
+        const barrel = asPct(player.pitcher_barrel_allowed)
+        const evAlw = n(player.pitcher_ev_allowed, null)
+        const babip = n(player.pitcher_babip, null)
+        const pmixV = n(player.pitch_mix_score, null)
+        const d375 = n(player.pitcher_375_allowed, null)
+        const d400 = n(player.pitcher_400_allowed, null)
+        const sideHr9 = effHand ? n(effHand === 'L' ? player.pitcher_hr9_vs_lhb : player.pitcher_hr9_vs_rhb, null) : hr9
+        const sideWhip = effHand
+          ? n(effHand === 'L' ? player.pitcher_whip_vs_lhb : player.pitcher_whip_vs_rhb, null)
+          : n(player.pitcher_whip, null)
+
+        return (
+          <>
+            <StatGroup
+              icon="🎯"
+              title="Attackable"
+              color={C.orange}
+              blurb="What he gives up. Every bar here fills to the right when it's good news for the bat."
+            >
+              <Stat label="HR/9" value={hr9 == null ? '—' : hr9.toFixed(2)}
+                tone={hr9 >= 1.4 ? C.orange : hr9 <= 0.9 ? C.text3 : C.text}
+                note={hr9 == null ? 'not published' : hr9 >= 1.4 ? 'gives them up' : hr9 <= 0.9 ? 'suppresses them' : 'league-ish'}
+                meter={hr9} meterKey="hr9" />
+              <Stat label={effHand ? `HR/9 vs ${effHand}HB` : 'HR/9 overall'}
+                value={sideHr9 == null ? '—' : sideHr9.toFixed(2)}
+                note={effHand ? 'his split against this side' : 'both sides combined'}
+                meter={sideHr9} meterKey="hr9" />
+              <Stat label="Barrel% allowed" value={pctOf(player.pitcher_barrel_allowed)}
+                note="contact quality against"
+                meter={barrel} meterKey="barrel" />
+              <Stat label="EV allowed" value={evAlw == null ? '—' : evAlw.toFixed(1)}
+                note="avg exit velo he gives up"
+                meter={evAlw} meterKey="ev" />
+              <Stat label={effHand ? `WHIP vs ${effHand}HB` : 'WHIP overall'}
+                value={sideWhip == null ? '—' : sideWhip.toFixed(2)}
+                note="baserunners against this side"
+                title="Walks and hits per inning against this side. No bar: WHIP is traffic, not damage, and it doesn't map cleanly onto a good-for-the-hitter scale." />
+              {/* Raw season counts. No bar, on purpose — a count has no league
+                  range to draw against without inventing a ceiling. */}
+              <Stat label="375+ allowed" value={d375 == null ? '—' : String(Math.round(d375))}
+                note="balls he's let travel"
+                title="Count of 375ft+ balls allowed this season. Shown as a bare count — a season total has no league-typical range to meter it against, so drawing a bar would mean inventing a ceiling." />
+              <Stat label="400+ allowed" value={d400 == null ? '—' : String(Math.round(d400))}
+                tone={n(player.pitcher_400_allowed, 0) >= 5 ? C.orange : C.text}
+                note="real distance given up"
+                title="Count of 400ft+ balls allowed this season. Same reason as 375+: a bare count, no invented bar." />
+            </StatGroup>
+
+            <StatGroup
+              icon="🛡"
+              title="His weapons"
+              color="#60A5FA"
+              blurb="How he beats hitters. A big number in this group is bad news for the bat — no bars and no shading here on purpose, so nothing in it can be misread as an edge."
+            >
+              <Stat label="K%" value={pctOf(player.pitcher_k_rate)}
+                note="how often he ends it himself" />
+              <Stat label="SwStr%" value={pctOf(player.pitcher_swstr_pct)}
+                note="swing and miss per pitch" />
+              <Stat label="Whiff%" value={pctOf(player.pitcher_whiff_pct)}
+                note="misses per swing" />
+              <Stat label="Putaway%" value={pctOf(player.pitcher_putaway_pct)}
+                note="2-strike counts he finishes" />
+              <Stat label="1st-pitch K%" value={pctOf(player.pitcher_first_pitch_strike_pct)}
+                note="how often he gets ahead" />
+            </StatGroup>
+
+            <StatGroup
+              icon="📍"
+              title="Location & fit"
+              color="#a78bfa"
+              blurb="Where he puts it, who it suits, and how much of his line is luck. Bars fill right when it favours the bat."
+            >
+              <Stat label="Meatball%" value={meatball == null ? '—' : `${meatball.toFixed(1)}%`}
+                note="pitches down the middle"
+                meter={meatball} meterKey="meatball" />
+              <Stat label="Pitch-mix score" value={pmixV == null ? '—' : pmixV.toFixed(0)}
+                tone={pmixV != null && pmixV >= 70 ? C.orange : C.text}
+                note={clean(player.pitch_mix_note, 'this batter vs this arsenal')}
+                meter={pmixV} meterKey="pmix" />
+              <Stat label="Weak side" value={weakSide || '—'}
+                tone={matchesWeak ? C.orange : C.text}
+                note={matchesWeak ? `${bats}HB — that's this hitter` : weakSide ? 'not this hitter' : 'none published'}
+                title="The batting side he's published as vulnerable to. Categorical, so there's nothing to meter — it either matches this hitter or it doesn't." />
+              <Stat label="BABIP against" value={babip == null ? '—' : babip.toFixed(3)}
+                tone={babip != null && babip < 0.270 ? C.orange : C.text}
+                note={babip != null && babip < 0.270 ? 'low — some of that is luck' : 'balls in play against'}
+                meter={babip} meterKey="babip" />
+            </StatGroup>
+          </>
+        )
+      })()}
 
       <div style={{ fontSize: 9, color: C.text3, marginBottom: 12, lineHeight: 1.5 }}>
-        SwStr%, Whiff% and K% are the pitcher&apos;s strengths, so a big number there is bad news for
-        the bat — they&apos;re shown plain rather than shaded, because putting them on the
-        bright-is-good ramp would invert the meaning of every other tile in this row.
+        The bars run against a <b style={{ color: C.text2 }}>fixed league-typical range</b> with a pale
+        tick at roughly league average — they are not percentiles, because this site doesn&apos;t publish
+        pitcher percentiles and a fake one would be worse than no bar. Each tile&apos;s tooltip states its
+        range. Raw season counts (375+ / 400+ allowed) and categorical fields (weak side) get no bar at
+        all rather than one drawn against an invented ceiling. And the whole
+        <b style={{ color: '#60A5FA' }}> His weapons</b> group is deliberately plain: K%, SwStr%, Whiff%,
+        Putaway% and 1st-pitch K% are the pitcher&apos;s strengths, so shading them on a bright-is-good
+        ramp would invert the meaning of every other tile on the page.
         {n(player.pitcher_babip, 0) > 0 && n(player.pitcher_babip, 0) < 0.270 && (
           <> His BABIP against is {n(player.pitcher_babip).toFixed(3)}, which is below the ~.290 a
           defence-neutral pitcher usually settles at. Some of that is his contact management and
