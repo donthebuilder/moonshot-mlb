@@ -3,7 +3,30 @@ import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { ORANGE_RAMP, inkFor } from '../Heatmap'
 
-// ── Reusable bits ─────────────────────────────────────────────────────────────
+// GUIDE — rewritten short, 2026-08-09.
+//
+// It was 385 lines across eleven accordions, and most of it was either a
+// changelog ("What's new", "The live layer") or a second copy of a tooltip
+// that already exists on the thing it describes. A reference manual is the
+// wrong shape for someone whose actual question is "what do I look at first?"
+//
+// What it is now: a five-step path at the top that answers that question, one
+// short section on colour (the only visual language on the site that has no
+// tooltip anywhere), a compact glossary of the symbols and stats, and a
+// one-line-per-tab map. Everything cut was a duplicate of an in-page tooltip
+// or a dated release note:
+//
+//   · "What's new — read this first" (11 rows) — a changelog, not a guide.
+//   · "The live layer & accountability" (10 rows) — same.
+//   · "Full emoji & symbol index (A–Z)" (24 rows) — every entry repeated the
+//     Role tags and Signal pills sections directly above it.
+//   · "How to read a player card" — every part of the card has a title
+//     attribute that says the same thing when you hover it.
+//   · "Baseball basics" — trimmed to the four terms the site actually
+//     assumes; AB and "vs" were not the confusing part.
+//   · "What is a trap?" — folded into the ⚠️ glossary row it explained.
+
+// ── small pieces ─────────────────────────────────────────────────────────────
 
 function Section({ title, emoji, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -39,41 +62,66 @@ function Note({ children, color = C.orange }) {
   )
 }
 
-function GlossaryRow({ icon, term, def, example }) {
+// One line per term. The old version carried an optional example line under
+// every row; it doubled the height of the glossary and the examples were
+// mostly restatements, so the definition has to do the whole job now.
+function Term({ icon, term, def }) {
   return (
-    <div style={{ display: 'flex', gap: 11, padding: '9px 0', borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ width: 28, flexShrink: 0, fontSize: 16, textAlign: 'center', lineHeight: '20px' }}>{icon}</div>
+    <div style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ width: 24, flexShrink: 0, fontSize: 14, textAlign: 'center', lineHeight: '18px' }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text, marginBottom: 2 }}>{term}</div>
-        <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.55 }}>{def}</div>
-        {example && <div style={{ fontSize: 10.5, color: C.text3, marginTop: 3, fontFamily: NUM_FONT }}>e.g. {example}</div>}
+        <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{term}</span>
+        <span style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.55 }}> — {def}</span>
       </div>
     </div>
   )
 }
 
-function StatRow({ stat, def, good, bad }) {
+function Stat({ stat, def, good }) {
   return (
-    <div style={{ padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 3 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 800, color: C.orange, fontFamily: NUM_FONT }}>{stat}</span>
-      </div>
-      <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.55, marginBottom: good||bad ? 4 : 0 }}>{def}</div>
-      {(good || bad) && (
-        <div style={{ display: 'flex', gap: 10, fontSize: 10.5, fontFamily: NUM_FONT }}>
-          {good && <span style={{ color: '#4ade80' }}>✓ {good}</span>}
-          {bad && <span style={{ color: '#f87171' }}>✕ {bad}</span>}
-        </div>
-      )}
+    <div style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
+      <span style={{ fontSize: 11.5, fontWeight: 800, color: C.orange, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>{stat}</span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.text2, lineHeight: 1.55 }}>
+        {def}
+        {good && <span style={{ color: '#4ade80', fontFamily: NUM_FONT }}> · {good}</span>}
+      </span>
     </div>
   )
 }
 
-// ── Main Guide ───────────────────────────────────────────────────────────────
+// THE FIVE STEPS. First, second, third — in order, with the tab named and the
+// one thing to read on it. This is the whole point of the page.
+const STEPS = [
+  {
+    n: 1,
+    title: 'Open the Home tab and read the four tiles',
+    body: 'Games tonight, the bot’s projected homer range, first pitch, and its base-hit record across every graded night. Thirty seconds tells you whether tonight is a big slate and whether the model has been right lately.',
+  },
+  {
+    n: 2,
+    title: 'Go to Scoreboard and look at the top of the list',
+    body: 'Every hitter on the slate, ranked. The brightest names at the top are the ones the model likes most tonight. You do not have to understand a single column to use the order.',
+  },
+  {
+    n: 3,
+    title: 'Tap a name to open his card',
+    body: 'The card says why he is up there: the arm he faces, his recent contact, where he does damage in the zone. Every number on it has a tooltip — hover anything you don’t recognise instead of coming back here.',
+  },
+  {
+    n: 4,
+    title: 'Check the tag, not just the score',
+    body: 'A 🏆 HR Bet and a 💠 Contact are both good picks for different bets. The tag tells you which market he belongs in — betting a contact hitter to homer is the most common way to lose with a right read.',
+  },
+  {
+    n: 5,
+    title: 'The next morning, open Results',
+    body: 'Every pick graded against the job it was picked for, wins and losses alike. That is the tab that tells you how much to trust everything above it. Nothing on this site is worth anything without it.',
+  },
+]
 
-// Colour is now doing real work on every board, and a colour scale nobody
-// explained is just decoration that looks like information. This is the one
-// place the ramp is defined in words.
+// The colour ramp is the one visual language on the site with no tooltip
+// attached to it, so it stays — trimmed to the two facts that actually change
+// how you read a board.
 function ColorKey() {
   const steps = ['lowest', '', '', '', '', '', '', 'highest']
   return (
@@ -81,9 +129,12 @@ function ColorKey() {
       background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
       padding: '13px 16px', marginBottom: 10,
     }}>
-      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>🎨 Reading the colours</div>
+      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 3 }}>🎨 Reading the colours</div>
+      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 9 }}>
+        <b style={{ color: C.text2 }}>What this answers:</b> what a bright cell on any board means.
+      </div>
 
-      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', marginBottom: 7 }}>
+      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', marginBottom: 9 }}>
         {ORANGE_RAMP.map((c, i) => (
           <div key={c} style={{
             flex: 1, background: c, color: inkFor(c), fontFamily: NUM_FONT,
@@ -94,291 +145,142 @@ function ColorKey() {
       </div>
 
       <P>
-        One colour, eight steps. Brightness is the value — dark means low, bright amber means high.
-        There's no second colour for &ldquo;bad&rdquo;, because on these boards a low score isn&apos;t
-        bad, it&apos;s just low.
+        One colour, eight steps: dark is low, bright amber is high. There is no second colour for
+        &ldquo;bad&rdquo;, because a low score isn&apos;t bad, it&apos;s just low.
       </P>
-
       <P>
-        <b>Every column is scaled on its own.</b> This is the part worth internalising: a bright cell
-        means high <i>for today&apos;s slate, in that column</i>. It does not mean the number is big,
-        and it does not compare across columns. On a quiet slate the best hitter still lights up —
-        he&apos;s the brightest of what&apos;s available, not necessarily good.
+        <b>Every column is scaled on its own</b> — bright means high <i>for tonight, in that column</i>,
+        not big in absolute terms and never comparable across columns. On a quiet slate the best
+        hitter available still lights up.
       </P>
-
       <P>
-        Two columns run <b>backwards</b> on purpose, because this is a hitter&apos;s site and bright
-        always means good for the hitter: <b>K%</b> on the Scoreboard, and <b>K/9</b> and{' '}
-        <b>SwStr%</b> on Pitchers. A pitcher who misses bats is bad news for the lineup no matter how
-        the rest of his line reads, so he stays dark.
+        Three columns run <b>backwards</b> on purpose, because bright always means good for the
+        hitter: <b>K%</b> on the Scoreboard, <b>K/9</b> and <b>SwStr%</b> on Pitchers. A pitcher who
+        misses bats stays dark.
       </P>
-
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 12 }}>
-        {[['★', 'Weak spot — this starter has already been beaten in this lineup slot'],
-          ['◆', 'Aligned — weak spot, pitch match and real recent contact all stacking'],
-          ['▲', 'Matchup edge — bats into the side of the plate this pitcher is worst against']].map(([m, t]) => (
-          <div key={m} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: C.text2 }}>
-            <span style={{
-              background: ORANGE_RAMP[5], color: '#1a0d02', fontFamily: NUM_FONT,
-              fontWeight: 800, fontSize: 11, borderRadius: 4, padding: '2px 6px',
-            }}>{m}</span>
-            <span style={{ maxWidth: 260, lineHeight: 1.45 }}>{t}</span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
 
 export default function Guide() {
-  // Centred. A 720px column pinned to the left of a 1300px page left half the
-  // screen empty and made the text look like it had fallen over. The reading
-  // width stays capped — long lines are harder to read, not easier — but the
-  // column now sits in the middle of the page like every other tab's content.
   return (
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
-      {/* Intro */}
-      <div style={{ marginBottom: 18 }}>
+      <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 6 }}>Guide</div>
         <P>
-          This dashboard predicts which MLB batters are most likely to hit a home run today.
-          You don't need to know advanced baseball stats to use it — this page explains every
-          symbol, color, and number you'll see, in plain language.
+          This site predicts which hitters are most likely to go deep tonight, and then grades
+          itself on it the next morning. You don&apos;t need to know a single advanced stat to use
+          it — follow the five steps below in order.
         </P>
-        <Note>
-          New here? Start with <b>Reading the colours</b> directly below, then{' '}
-          <b>&quot;How to read a player card&quot;</b>, then check the
-          <b> Emoji &amp; Symbol Key</b> any time you see something you don&apos;t recognize.
-        </Note>
       </div>
 
-      {/* ── What changed ── kept at the top because the rest of this page was
-          written against an older build and a reader who's used the site will
-          notice the gaps before they reach the glossary. */}
-      <Section title="What's new — read this first" emoji="🆕" defaultOpen={true}>
-        <P>
-          The site has changed a lot recently. If you used it before, these are the differences that
-          matter, and a few honest notes about what still isn&apos;t working.
-        </P>
-        <GlossaryRow icon="📋" term="Scoreboard is the first tab" def="Every hitter, every column, sortable. Start wide and narrow down. Games moved further along — it's a per-game read, which is where you go once you already know who you're interested in." />
-        <GlossaryRow icon="↕️" term="Shift-click to multi-sort" def="Click a header to sort. SHIFT-click another to add it as a tiebreaker under the first — the small number in the header shows the order. Third shift-click drops it. Works on every table on the site." />
-        <GlossaryRow icon="⭐" term="Watchlist from the boards" def="The ☆ column on Scoreboard, Due and Longest adds a hitter to your watchlist without opening him. The player card has it too, plus buttons to add him straight to the slip." />
-        <GlossaryRow icon="🥎" term="Player card tabs" def="Overview, Splits, EV Log, Pitch, Spray, Pitcher. The old Hot Zones tab retired — everything it knew (matchup zones, kill zones, per-pitch data) now lives inside the EV Log's strike-zone map, one map with hover popouts instead of two." />
-        <GlossaryRow icon="🗺" term="Spray charts were plotting the wrong number" def="They used the ball's projected carry, which for a ground ball is about 30 feet — so roughly 43% of every hitter's chart was piled on top of home plate. They now plot where the ball was actually fielded. If you looked at this before and it seemed broken, that's why." />
-        <GlossaryRow icon="🎯" term="Pitch chips pre-select tonight's arsenal" def="On the Spray tab the pitch filters come up already set to what tonight's starter throws, matched to your platoon side. So the first thing you see is only the balls he put in play against pitches he'll actually see." />
-        <GlossaryRow icon="🧩" term="Pairs are grouped by the bot's own lanes" def="TOP 30, Core, Statcast, Flex, Value Power. Scores are NOT comparable between lanes — TOP 30 runs around 100 and the lettered lanes around 12–16, different formulas — so each lane is ranked against itself only." />
-        <GlossaryRow icon="📅" term="Results has a day picker" def="Nine graded days are kept, so last night's card doesn't vanish in the morning. Only the Results tab moves when you switch days; everything else stays on tonight's slate." />
-        <GlossaryRow icon="🔥" term="Zone data publishes nightly now" def="The old plumbing bug that threw zone profiles away is fixed — the bot publishes them every day, and the EV Log's strike-zone map shows the matchup view (his zones vs the starter's traffic), zone matches for HR/BA/GB/FLY, and hover popouts with the full per-zone line." />
-        <GlossaryRow icon="📉" term="Backtest 'Pooled' only has an HR column" def="The bot writes pooled_metrics as an empty object, so the other columns can't be pooled from what's published. HR is recomputed from total home runs over total pool size, which is a real pooled rate. Blank cells mean unmeasured — NOT zero. Day average has all six columns." />
-      </Section>
-
-      {/* ── The live era ── everything added in the 2026-08 push: live layer,
-          accountability, patterns, storylines. Written after the features
-          shipped, against the live build. */}
-      <Section title="The live layer & accountability (newest)" emoji="📡" defaultOpen={true}>
-        <P>
-          The site now runs live during games and grades itself in public. These are the pieces:
-        </P>
-        <GlossaryRow icon="📡" term="Live Wire" def="A live strip that follows you on every tab once games start. Homers, bot picks clearing, and big nights pop as toasts in the top-right of the screen. The full panel lives on the Scoreboard tab: every homer chip, every pick graded live (✓ cleared, … pending, ✗ didn't get there), plus an alerts stack for pairs one leg in and picks running out of time." />
-        <GlossaryRow icon="🔔" term="OS notifications" def="Tap the bell on the live strip and allow notifications in your browser — homers and pick-clears then reach your desktop or phone even when the tab is in the background. A test notification fires when you arm it, so you know it works." />
-        <GlossaryRow icon="🎤" term="Due-up alerts" def="When a bot pick steps into the box you get 🎤 UP NOW; when he's on deck, ⏳. No refresh needed." />
-        <GlossaryRow icon="🔴" term="Live At-Bats" def="Click an in-progress game on the Games tab: count, outs, who's up / on deck / in the hole (bot picks badged 🤖), and the last few plate appearances with exit velo and distance." />
-        <GlossaryRow icon="🧾" term="Report Card" def="Results now opens on the Report Card: last night graded A–D against the bot's own baselines, season records per category, and trust curves. The dashed green line on every curve is the pick-lock date — numbers to the right of it are ground truth, numbers to the left ran before locking and are shown dimmer on purpose." />
-        <GlossaryRow icon="🔒" term="Pick lock" def="Each game's picks freeze at its first pitch. Before first pitch the bot may still update for late lineups; after it, what you saw is what gets graded. A pick who ends with 0 at-bats is a no-play, not a miss." />
-        <GlossaryRow icon="🧭" term="Props matrix + Patterns" def="The props grid is a heat matrix now — every market across L5/L10/L20/season/last year at once — and the Patterns panel mines each hitter's real splits (home/road, vs soft staffs, vs each arm side, recent surge, hot-after-big-game) and only shows a pattern when the gap and sample size both clear a bar. If nothing clears, it says so." />
-        <GlossaryRow icon="📖" term="Storylines" def="On the Scoreboard: back-to-back watch (hitters who homered their last game, 🔁 — also flagged on cards and boards), milestone watch (career and season round numbers in hits, HR, RBI, runs, SB, doubles, triples, total bases), birthday hitters, bobblehead/giveaway nights, batter-vs-pitcher duels with history, and revenge games against former teams. Tiny samples, big folklore — labeled as such." />
-        <GlossaryRow icon="≈" term="≈ projected pitcher" def="When a team hasn't announced a starter, the bot projects the arm whose rotation turn it is instead of showing TBD. Anywhere you see a yellow ≈ next to a pitcher, that's a projection, not an official listing." />
-        <GlossaryRow icon="🔄" term="Alt look chip" def="The bot's cross-check: a hitter whose case grades clearly better in a different lane than the one you're browsing wears a 🔄 chip naming that lane." />
-      </Section>
+      {/* ── START HERE — the whole reason this page exists ── */}
+      <div style={{
+        background: `linear-gradient(155deg, rgba(249,115,22,.11), ${C.bg2} 60%)`,
+        border: `1px solid ${C.orange}55`, borderRadius: 14,
+        padding: '16px 18px', marginBottom: 14,
+      }}>
+        <div style={{ fontSize: 9.5, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT, marginBottom: 3 }}>
+          ▶ START HERE
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 900, marginBottom: 10 }}>
+          Five steps, in order
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          {STEPS.map((s) => (
+            <div key={s.n} style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+              <span style={{
+                flexShrink: 0, width: 24, height: 24, borderRadius: '50%',
+                border: `1px solid ${C.orange}77`, background: `${C.orange}18`,
+                color: C.orange, fontFamily: NUM_FONT, fontWeight: 900, fontSize: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{s.n}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.4 }}>{s.title}</div>
+                <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>{s.body}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.orange}33` }}>
+          That&apos;s the whole path. Everything below is reference — open a section only when a
+          symbol or a stat on screen doesn&apos;t make sense, and remember that almost everything on
+          this site explains itself if you hover it.
+        </div>
+      </div>
 
       <ColorKey />
 
-      {/* ── 1. Absolute basics ── */}
-      <Section title="Baseball basics (skip if you already know)" emoji="⚾" defaultOpen={true}>
-        <P>A few terms used everywhere on this site:</P>
-        <GlossaryRow icon="🏃" term="At-bat (AB)" def="One turn a batter gets to hit against the pitcher." />
-        <GlossaryRow icon="🏠" term="Home run (HR)" def="The batter hits the ball over the outfield wall and scores automatically. The best possible outcome for a batter." />
-        <GlossaryRow icon="🎯" term="Pitcher / Batter matchup" def="Every at-bat is one pitcher throwing to one batter. This site is about predicting which batters will go deep against today's specific pitcher." />
-        <GlossaryRow icon="🤚" term="Batter's hand (L/R)" def="Whether a batter swings left-handed (LHB) or right-handed (RHB). This matters because pitchers perform differently against each side." />
-        <GlossaryRow icon="🫱" term="Pitcher's arm (LHP/RHP)" def="Whether the pitcher throws left-handed (LHP) or right-handed (RHP). Same-handed matchups (RHP vs RHB) usually favor the pitcher; opposite-handed matchups usually favor the batter." />
-        <GlossaryRow icon="📋" term="Lineup spot" def="A number 1-9 showing where in the batting order a player hits. Spots 1-5 ('top of the order') usually get more chances to bat and are often the team's best hitters." />
-        <GlossaryRow icon="🆚" term="vs" def="Shorthand for 'against.' 'Soto vs Lowder' means Juan Soto batting against pitcher Lowder today." />
+      {/* ── SYMBOLS ── role tags and signal pills, merged. They were two
+             sections plus an A–Z index that repeated both. ── */}
+      <Section title="Symbols you'll see on a player" emoji="🔖" defaultOpen={true}>
+        <P><b style={{ color: C.text }}>The role tag — which bet he belongs in</b></P>
+        <Term icon="🏆" term="HR Bet" def="top-confidence home run play: recent power, a favourable matchup and a pitch-type fit all at once." />
+        <Term icon="🔥" term="HR Lean" def="a good home run shot, not quite airtight. Historically the best-performing tag on the site." />
+        <Term icon="🏁" term="HRR / XBH" def="extra-base hits rather than a homer specifically. Good for total-bases bets." />
+        <Term icon="🔭" term="Power Watch" def="real raw power, more matchup uncertainty. Monitor, don't lead with him." />
+        <Term icon="💠" term="Contact / Monitor" def="no homer projected. Can still be a fine hits pick — just not a power one." />
+        <Term icon="⛔" term="True Avoid HR" def="the model expects no homer and has CAPPED his score. Steer clear for power." />
+        <Term icon="↪️" term="Skip HR / redirect" def="a verdict on the market, never the player: his case is stronger on Hit, HRR or TB, and the tag says which." />
+
+        <div style={{ height: 10 }} />
+        <P><b style={{ color: C.text }}>The small pills — why the model likes him</b></P>
+        <Term icon="⭐" term="Weak spot" def="this lineup spot has been beaten before against tonight's starter." />
+        <Term icon="🎯" term="Pitch match" def="the pitcher throws a lot of something this exact hitter crushes." />
+        <Term icon="🧩" term="Aligned signals" def="weak spot + pitch match + real recent hard contact, all at once. The strongest tested combination on the site — stronger than any of the three alone." />
+        <Term icon="👻" term="Hidden value" def="the model likes him more than the field will." />
+        <Term icon="⚠️" term="Trap" def="the surface stats look good but the contact underneath doesn't — cheap hits, weak grounders, a lucky stretch. A soft warning; ⛔ above is the hard one." />
+        <Term icon="🛡️" term="Weak P" def="the opposing starter's own numbers are below average. Good news for the whole lineup." />
+        <Term icon="🧊" term="GB / Trap arm" def="a ground-ball pitcher. Ground balls don't leave the yard, so this is a tough power matchup no matter how the rest reads." />
+        <Term icon="🔁" term="Back-to-back watch" def="he homered in his most recent game and is trying again tonight." />
+        <Term icon="≈" term="Projected pitcher" def="the starter isn't announced — this is whoever's rotation turn it is, not an official listing." />
       </Section>
 
-      {/* ── 2. How to read a player card ── */}
-      <Section title="How to read a player card" emoji="🃏" defaultOpen={true}>
-        <P>
-          Every player card on the Games, Board, and Pool pages follows the same layout. Here's
-          what each part means, top to bottom:
-        </P>
-        <GlossaryRow icon="🔢" term="Score (top right, big number)" def="The model's overall home run confidence for this player today, on a 0-100 scale. Higher = more likely to homer. Anything 70+ was a strong raw score; the HR Board now ranks by the ISO-adjusted Adj number, so read Adj there, not raw" example="78 = strong play, 45 = longshot" />
-        <GlossaryRow icon="🅰️" term="Grade letter (next to score)" def="A simpler version of the score, like a school grade. A+ is the best, down through B, C, D." />
-        <GlossaryRow icon="🏷️" term="Role tag (colored pill, e.g. '🏆 HR Bet')" def="The model's recommended way to use this player — see the Role Tags section below for what each one means." />
-        <GlossaryRow icon="🔖" term="Signal pills (small tags like '375+', 'Low-K P')" def="Short callouts explaining WHY the model likes this player. See the Signal Pills glossary below for every one." />
-        <GlossaryRow icon="📊" term="Stat line (BA · HR · K% · BABIP · WHIP)" def="The player's and pitcher's underlying season numbers — explained fully in the Stats Glossary below." />
-        <GlossaryRow icon="👆" term="Tap the name" def="Tapping any player's name opens their full profile: hot zones, pitch-by-pitch breakdown, recent batted balls, and more." />
+      {/* ── STATS ── one line each, only the ones that appear on screen ── */}
+      <Section title="Stats glossary" emoji="📊">
+        <P><b style={{ color: C.text }}>Hitters</b></P>
+        <Stat stat="BA" def="batting average — hits per at-bat." good=".280+ is good" />
+        <Stat stat="ISO" def="isolated power — extra bases per at-bat, ignoring singles. The archive's strongest single HR predictor." good=".200+ is real power" />
+        <Stat stat="K%" def="how often he strikes out. Lower means more balls in play." good="under 20% is low" />
+        <Stat stat="EV" def="exit velocity — how fast the ball leaves the bat." good="95+ mph is hard contact" />
+        <Stat stat="Barrel%" def="share of batted balls with the ideal exit-velocity-and-angle combination." good="10%+ is elite" />
+        <Stat stat="HH%" def="hard-hit rate — share of batted balls at 95+ mph." good="40%+ is strong" />
+        <Stat stat="BABIP" def="average on balls in play. Far from ~.300 in either direction usually means luck, not skill." />
+        <Stat stat="xwOBA" def="overall hitting quality from contact rather than outcomes — strips luck out." good=".370+ is excellent" />
+
+        <div style={{ height: 10 }} />
+        <P><b style={{ color: C.text }}>Pitchers</b></P>
+        <Stat stat="HR/9" def="home runs allowed per nine innings. The most direct 'is he homer-prone' number on the site." good="over 1.3 is leaky — good for you" />
+        <Stat stat="ERA" def="runs allowed per nine innings. Lower is a tougher matchup for hitters." />
+        <Stat stat="WHIP" def="walks plus hits per inning. Higher means more traffic." good="over 1.40 is leaky" />
+        <Stat stat="K/9" def="strikeouts per nine. High means he misses bats — bad for your hitter, so it's coloured backwards." />
+        <Stat stat="Meatball%" def="how often he leaves one over the plate. Higher is better for you." good="20%+ is mistake-prone" />
       </Section>
 
-      {/* ── 3. Role tags ── */}
-      <Section title="Role tags — what each colored pill means" emoji="🏷️">
-        <P>The model sorts every player into one role based on how confident it is. From best to longshot:</P>
-        <GlossaryRow icon="🏆" term="HR Bet" def="The model's top-confidence home run play. Requires strong recent power, a favorable damage-conversion matchup, and a good pitch-type fit all lining up at once. (Changed from 🧨 — same meaning, new icon so it doesn't collide with the HR pick_type tag elsewhere in the app.)" />
-        <GlossaryRow icon="🔥" term="HR Lean" def="A good home run shot — strong signals, but not quite as airtight as an 'HR Bet'. Historically this has been the single best-performing tag in the app." />
-        <GlossaryRow icon="🏁" term="HRR / XBH" def="HRR = 'Home Run Race' — these are good bets for extra-base hits (doubles, triples, HRs) even if a home run isn't a lock. Good for Total Bases bets." />
-        <GlossaryRow icon="🔭" term="Power Watch" def="Has real raw power but more uncertainty in the matchup. Worth monitoring, lower-confidence HR shot. (Changed from 👀 — that icon was being used for two unrelated things at once; see the HRW timing section below.)" />
-        <GlossaryRow icon="💠" term="Contact / Monitor" def="The model isn't projecting a home run here. May still be a fine pick for hits/contact bets, just not power." />
-        <GlossaryRow icon="⛔" term="True Avoid HR" def="The model actively expects this player to NOT homer today and has capped their score accordingly — usually a tough pitcher matchup or cold recent power. Steer clear for HR bets. (The ⛔ marks an actual score cap, not just a caution — see ⚠️ below for the softer version.)" />
-        <GlossaryRow icon="↪️" term="Skip HR / redirect tags" def="A verdict on the MARKET, never on the player. When a hitter's case is clearly stronger on another outcome, his tag now says what he is — Hit, HRR or TB — instead of warning you off. 'Skip for HR' appears only when he has no strong case on any market tonight. This replaced the old 'Avoid HR' wording, which read like the site hated a player who was merely mis-marketed." />
-        <GlossaryRow icon="🏆" term="Top" def="The single best play on the entire slate across all categories — the model's #1 most confident pick of the day." />
+      {/* ── TAB MAP ── one line each ── */}
+      <Section title="What each tab is for" emoji="🧭">
+        <Term icon="🏠" term="Home" def="tonight in four numbers, the headline game, and the way in." />
+        <Term icon="📊" term="Scoreboard" def="every hitter, every column, sortable. The wide view — start here." />
+        <Term icon="⚾" term="Games" def="one matchup at a time: the arm, the park, the lineup." />
+        <Term icon="🏆" term="HR Board" def="ranked purely by home-run score." />
+        <Term icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
+        <Term icon="💣" term="Due" def="hitters overdue for one. Read the HR/PA column, not the drought — a long gap with no power behind it is just a hitter who doesn't homer." />
+        <Term icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
+        <Term icon="🔗" term="Pairs / 🏊 Pools" def="two-man and four-to-six-man combinations, plus the Pair Builder for making your own." />
+        <Term icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />
+        <Term icon="🗺️" term="Spray" def="where a hitter's batted balls actually land." />
+        <Term icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />
+        <Term icon="🏅" term="Leaders" def="season-long league leaders." />
+        <Term icon="✅" term="Results" def="the receipts — last night graded, and the season record behind it." />
+        <Term icon="⭐" term="Watchlist" def="names you starred, followed across every tab." />
+        <Term icon="🤖" term="Bot" def="the raw model output and its own text logs, unfiltered." />
       </Section>
 
-      {/* ── 4. Signal pills ── */}
-      <Section title="Signal pills — the short tags on each card" emoji="🔖">
-        <P>These small tags explain the specific reasons behind a player's score:</P>
-        <GlossaryRow icon="⭐" term="weak pitcher spot" def="This batter's lineup spot has historically performed well against this pitcher specifically." />
-        <GlossaryRow icon="🎯" term="pitch type match (PMix)" def="The pitcher throws a pitch type that this exact batter crushes. E.g. 'PMix: SL' means the pitcher throws a lot of sliders and this batter hits sliders hard." />
-        <GlossaryRow icon="🧩" term="Aligned Signals" def="New tag: fires when a weak pitcher spot, a pitch-type match, AND real recent contact quality (hard-hit balls or a home run already in the recent sample) all line up together. This combination has tested as the strongest signal in the app — stronger than any of the three alone." />
-        <GlossaryRow icon="👻" term="hidden value" def="A player the model likes more than the public would expect — often a good 'value' pick that won't be heavily picked by others." />
-        <GlossaryRow icon="⚠️" term="trap flag" def="A caution that this player's surface stats look good but the model found a red flag underneath (see Trap Flag note below). This is a soft warning — the score may be lightly adjusted but isn't hard-capped. Compare to ⛔ above, which means the score WAS capped." />
-        <GlossaryRow icon="🛡️" term="Weak P (Weak Pitcher)" def="The opposing pitcher has below-average numbers (high ERA/WHIP, allows lots of hard contact) — generally good news for any batter facing them." />
-        <GlossaryRow icon="" term="375+ / 350+ / 400+" def="Counts of how many times recently this player has hit a ball at least that many feet. More long fly balls = closer to clearing the fence for a home run." example="'375+' badge = hit a ball 375ft or further recently" />
-        <GlossaryRow icon="" term="L5 2HR / L5 Hits" def="'Last 5 games' stats — L5 2HR means 2 home runs in their last 5 games. Shows if a player is hot right now." />
-        <GlossaryRow icon="" term="Pull 80%" def="This batter pulls the ball (hits it to their power side) 80% of the time recently. Pulled fly balls travel shorter distances to the fence and are more likely to be home runs." />
-        <GlossaryRow icon="" term="HH 50%" def="'Hard Hit' rate — 50% of this player's batted balls recently were hit 95+ mph. Higher is better; means they're squaring the ball up." />
-        <GlossaryRow icon="" term="Low-K P" def="The opposing pitcher has a low strikeout rate, meaning batters put the ball in play against them more often — more chances for damage." />
-        <GlossaryRow icon="🧊" term="GB/TRAP (pitcher tag)" def="This pitcher mostly induces ground balls, which rarely become home runs. A tougher matchup for power hitters even if other stats look appealing." />
-        <GlossaryRow icon="🔥" term="HR ENVIRONMENT (pitcher tag)" def="Conditions favor home runs against this pitcher — hot weather, hitter-friendly park, and/or a fly-ball-prone pitcher." />
-      </Section>
-
-      {/* ── 5. Trap flag explainer ── */}
-      <Section title="What is a 'trap'?" emoji="⚠️">
-        <P>
-          A trap is when a player's basic stats look impressive (good batting average, recent
-          hits) but the model has found a deeper reason to be cautious — for example, most of
-          their recent hits were weakly-hit ground balls or singles rather than hard contact, or
-          they've been getting lucky on bloop hits that won't show up as a home run today.
-        </P>
-        <Note color="#f87171">
-          Think of a trap flag as the model saying: "Don't be fooled by the surface-level
-          numbers — look closer before betting on this player for power."
-        </Note>
-      </Section>
-
-      {/* ── 6. Stats glossary ── */}
-      <Section title="Stats glossary — every abbreviation explained" emoji="📊">
-        <P><b style={{ color: C.text }}>Batter stats</b></P>
-        <StatRow stat="BA (Batting Average)" def="How often a batter gets a hit per at-bat, on a scale of 0 to 1.000 (written like .275). Higher = better hitter." good=".280+ = good" bad="below .230 = weak" />
-        <StatRow stat="HR (Home Runs)" def="Total home runs hit this season." />
-        <StatRow stat="K% (Strikeout rate)" def="The percentage of at-bats that end in a strikeout. Lower is generally better for a hitter — it means more balls in play." good="under 20% = good" bad="over 28% = high" />
-        <StatRow stat="BB% (Walk rate)" def="Percentage of at-bats ending in a walk (free pass to first base)." />
-        <StatRow stat="ISO (Isolated Power)" def="Measures raw power — extra bases per at-bat, ignoring singles. Higher means more doubles/triples/homers." good=".200+ = real power" bad="under .120 = limited power" />
-        <StatRow stat="BABIP" def="Batting average only on balls put in play (excludes home runs/strikeouts/walks). Used to spot lucky or unlucky stretches — a BABIP way above or below ~.300 often means regression is coming." />
-        <StatRow stat="EV (Exit Velocity)" def="How fast the ball comes off the bat, in mph. Higher = harder contact = more likely to go far." good="95+ mph = hard hit" bad="under 85 mph = weak contact" />
-        <StatRow stat="Launch Angle" def="The vertical angle the ball leaves the bat, in degrees. Home runs usually come from balls hit between roughly 25-35°. Too low = ground ball, too high = pop-up." />
-        <StatRow stat="Barrel %" def="Percentage of batted balls hit with the ideal combination of exit velocity and launch angle for extra-base damage. The single best predictor of home run power." good="10%+ = elite power" />
-        <StatRow stat="Hard Hit %" def="Percentage of batted balls hit 95+ mph. A simpler cousin of barrel rate." good="40%+ = strong contact quality" />
-        <StatRow stat="xwOBA (expected weighted on-base average)" def="A advanced all-in-one hitting quality stat based on contact quality, not actual outcomes. Strips out luck — shows how well a batter is really hitting the ball." good=".370+ = excellent" bad="under .300 = poor contact quality" />
-        <StatRow stat="xSLG (expected slugging)" def="Like xwOBA but focused specifically on power/extra bases. Higher = more raw power based on contact quality." />
-
-        <div style={{ height: 8 }} />
-        <P><b style={{ color: C.text }}>Pitcher stats</b></P>
-        <StatRow stat="ERA (Earned Run Average)" def="Average runs a pitcher allows per 9 innings. Lower is better for the pitcher (= tougher matchup for batters)." good="under 3.50 = strong pitcher" bad="over 4.75 = vulnerable" />
-        <StatRow stat="WHIP" def="Walks + Hits allowed per inning pitched. Lower = pitcher allows fewer batters on base." good="under 1.20 = stingy" bad="over 1.40 = leaky" />
-        <StatRow stat="HR/9" def="Home runs allowed per 9 innings pitched. The most direct 'is this pitcher homer-prone' stat." good="under 1.0 = stingy" bad="over 1.3 = homer-prone" />
-        <StatRow stat="P-BABIP (Pitcher BABIP)" def="Same idea as batter BABIP, but for the pitcher — shows if their results have been lucky or unlucky lately." />
-        <StatRow stat="K9 / K-rate" def="Strikeouts per 9 innings, or as a percentage of batters faced. Lower means more contact allowed — more opportunity for batters." />
-        <StatRow stat="Meatball rate" def="How often a pitcher throws a pitch in an easily-hittable location. Higher = more mistakes = good for batters." good="20%+ = mistake-prone" />
-        <StatRow stat="Whiff %" def="How often batters swing and miss against this pitcher. Lower = easier to make contact against." />
-      </Section>
-
-      {/* ── 7. the strike-zone map (Hot Zones absorbed into EV Log 2026-08-08) ── */}
-      <Section title="Understanding the strike-zone map (EV Log)" emoji="🔥">
-        <Note>
-          <b>One map now.</b> The Hot Zones tab retired — its whole toolkit lives inside the EV
-          Log&apos;s strike-zone map: the ⚔ Matchup view (his damage zones vs where tonight&apos;s
-          starter actually throws, with a verdict line and collision count), zone-match pills for
-          HR/BA/GB/FLY that say &quot;no match&quot; out loud when nothing lines up, per-pitch chips,
-          and hover popouts carrying the full per-zone line. Players missing from the bot&apos;s
-          cache fall back to a live league pull automatically.
-        </Note>
-        <P>
-          Open any player&apos;s card, tap &quot;EV Log&quot;, and the map is at the top —
-          hover (or tap) any cell for everything known about that spot.
-        </P>
-        <GlossaryRow icon="🟥🟧⬜🟦" term="Zone map colors" def="Each of the 9 boxes is a location in the strike zone (imagine looking at the zone from the catcher's view). Red = the batter performs great there. Orange = decent. Gray = average. Blue = the batter struggles there." />
-        <GlossaryRow icon="🔥" term="'KILL' zone badge" def="A zone marked KILL means three things line up at once: the pitcher often throws the ball there, the pitcher gets hit hard there, AND this batter is dangerous there. These are the best spots to watch for a home run." />
-        <GlossaryRow icon="🎯" term="Pitch toggle pills" def="Tap a pitch type (like 'SL' for slider) to highlight stats for just that pitch — shows how the batter does specifically against that pitch type." />
-        <GlossaryRow icon="📡" term="Signals tab" def="Shows pitcher 'control' numbers like meatball rate and whiff rate, plus how the pitcher performs specifically against left-handed or right-handed batters." />
-        <GlossaryRow icon="🎯" term="Edge score (Kill Zone tab)" def="A single 0-100 number combining pitch mix fit, meatball rate, and zone overlap — a quick summary of how favorable this matchup is." />
-      </Section>
-
-      {/* ── 8. Other tabs ── */}
-      <Section title="What's on each tab" emoji="🧭">
-        <GlossaryRow icon="🏟️" term="Games" def="Pick a game from the card strip, then read its full lineup as a dense table. Projected output for the whole slate sits at the bottom." />
-        <GlossaryRow icon="🚀" term="Longest" def="Who hits the farthest ball tonight — a distance board, not a probability board. It disagrees with the HR tab regularly, and that's the point." />
-        <GlossaryRow icon="💣" term="Due" def="Hitters overdue for a homer. Read the Ratio and HR/PA columns, not the drought: a long gap with no power behind it is just a hitter who doesn't homer." />
-        <GlossaryRow icon="🧬" term="Pair History" def="Which two hitters have gone deep on the same day all season, plus the Pair Builder — pick an anchor and get his partners who are playing tonight." />
-        <GlossaryRow icon="🔍" term="Player" def="The player card as a full page instead of a popup, for when you want to sit with one hitter." />
-        <GlossaryRow icon="🏆" term="HR Board" def="A ranked leaderboard of every player by home run score, highest to lowest." />
-        <GlossaryRow icon="💎" term="Hits & HRR" def="Focused on contact and extra-base-hit plays rather than pure home run bets." />
-        <GlossaryRow icon="🔗" term="Pairs" def="Suggested 2-player combinations for parlay-style bets, picked because both players' matchups work well together." />
-        <GlossaryRow icon="🏊" term="Pools" def="Groups of 4-6 players for pool-style contests, balanced for diversity across games." />
-        <GlossaryRow icon="📈" term="Scoreboard" def="Live/today's actual game scores and status." />
-        <GlossaryRow icon="🏅" term="Leaders" def="Season-long statistical leaders across the league." />
-        <GlossaryRow icon="✅" term="Results" def="Opens on the Report Card — letter grades, season records, trust curves — with day-by-day detail behind it. Shows how the model's picks actually performed after games finish — how many home runs were 'on the sheet' (predicted) vs missed." />
-        <GlossaryRow icon="⭐" term="Watchlist" def="Save specific players to track them across the day, even if you switch tabs." />
-        <GlossaryRow icon="🗺️" term="Spray" def="Visual chart showing exactly where on the field a player's batted balls have landed recently." />
-        <GlossaryRow icon="🤖" term="Bot" def="A live-updating ranked board with raw model output, plus access to the bot's text logs." />
-      </Section>
-
-      {/* ── 9. Color key ── */}
-      {/* ── 10. Full emoji index ── */}
-      <Section title="Full emoji & symbol index (A-Z reference)" emoji="🔤">
-        <P>Every emoji used anywhere on the site, alphabetized by where it appears:</P>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          <GlossaryRow icon="🚀" term="🚀 — Strong HR timing (HRW 70-80)" def="A solid, reliable HRW score. Used on the Bot board and player cards." />
-          <GlossaryRow icon="🌋" term="🌋 — Extreme HR timing (HRW 80+)" def="Very hot, but the model treats scores this high as less reliable than 70-80 — deliberately downweighted since the graded sample favored 55-70 over extreme 80+." />
-          <GlossaryRow icon="⚡" term="⚡ — Playable HR timing (HRW 60-69)" def="Also used for the 'EV Log' tab icon in the player profile." />
-          <GlossaryRow icon="🌤️" term="🌤️ — Borderline HR timing (HRW 50-59)" def="Building/uncertain conditions — not cold, not hot." />
-          <GlossaryRow icon="🧊" term="🧊 — Weak HR timing (under 50) / GB-Trap pitcher" def="Either a cold HR Watch score, or (on a pitcher) a ground-ball-heavy pitcher who suppresses home runs." />
-          <GlossaryRow icon="🏆" term="🏆 — HR Bet role / Top pick of the slate" def="The model's top home run confidence tier, or the single highest-confidence play across the entire day. See Role Tags." />
-          <GlossaryRow icon="🔥" term="🔥 — HR Lean role / HR-friendly pitcher / Kill Zone" def="Multiple meanings by context: a strong-but-not-top role tag, a pitcher tag meaning conditions favor homers, or a 'kill zone' badge in Hot Zones." />
-          <GlossaryRow icon="🏁" term="🏁 — HRR / XBH role" def="Good bet for extra-base hits. See Role Tags." />
-          <GlossaryRow icon="🔭" term="🔭 — Power Watch role" def="Real raw power, more matchup uncertainty. See Role Tags." />
-          <GlossaryRow icon="💠" term="💠 — Contact / Monitor role" def="Lower home run confidence, may still be good for contact bets." />
-          <GlossaryRow icon="⛔" term="⛔ — True Avoid HR role (score capped)" def="Model expects no home run and has actively capped the score. See Role Tags." />
-          <GlossaryRow icon="🧩" term="🧩 — Aligned Signals" def="Weak-spot + pitch-match + real recent contact quality all stacking together. The strongest validated combo." />
-
-          <GlossaryRow icon="⭐" term="⭐ — Weak pitcher spot signal" def="This lineup spot has done well historically vs this pitcher." />
-          <GlossaryRow icon="🎯" term="🎯 — Pitch type match signal / Pitch tab icon" def="The pitcher throws something this batter crushes — or, the 'Pitch' tab in a player profile." />
-          <GlossaryRow icon="👻" term="👻 — Hidden value signal" def="A player the model likes more than the public would expect." />
-          <GlossaryRow icon="⚠️" term="⚠️ — Trap flag warning" def="Surface stats look good but a deeper red flag exists. See Trap explainer above." />
-          <GlossaryRow icon="✅" term="✅ — Confirmed home run result" def="Used on the Results tab to mark a home run that the model predicted." />
-          <GlossaryRow icon="❌" term="❌ — Missed result" def="Used on the Results tab for home runs the model did not predict." />
-          <GlossaryRow icon="✓" term="✓ — Matches a noted weakness" def="Shown next to 'Weak Side' in a player profile when the batter's hand matches the pitcher's known weak side." />
-          <GlossaryRow icon="🗺️" term="🗺️ — Spray tab" def="Opens the visual batted-ball location chart." />
-          <GlossaryRow icon="📡" term="📡 — Signals tab" def="Pitcher control/danger metrics inside Hot Zones." />
-          <GlossaryRow icon="⚾" term="⚾ — Contact pick category" def="Used to label contact-focused (non-power) picks." />
-          <GlossaryRow icon="🏊" term="🏊 — Pool grouping" def="Used to label 4-man / 6-man pool sections." />
-          <GlossaryRow icon="🔗" term="🔗 — Pairs section" def="Used to label paired-player betting combinations." />
-        </div>
-      </Section>
-
-      {/* ── 11. For absolute beginners ── */}
-      <Section title="New to baseball betting? Start here" emoji="🌱">
-        <P>If all of this still feels like a lot, here's the simplest possible way to use this site:</P>
-        <ol style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.8, paddingLeft: 18, marginBottom: 10 }}>
-          <li>Go to the <b>HR Board</b> tab.</li>
-          <li>Look at the players with the <b>🏆 HR Bet</b> tag and the highest score (top of the list).</li>
-          <li>Tap a player's name to open their profile and check the <b>🔥 Hot Zones → Kill zone</b> tab — a high "Edge score" is a good sign.</li>
-          <li>That's it. Everything else on this site is for going deeper once you're comfortable.</li>
-        </ol>
-        <Note>
-          No prediction model is ever 100% — these are probability-based picks, not guarantees.
-          Treat every score as "more or less likely," never as a sure thing.
-        </Note>
-      </Section>
+      <Note>
+        No model is ever right every night. Every score here is &ldquo;more or less likely&rdquo;,
+        never a guarantee — and the Results tab exists so you can see exactly how much less.
+      </Note>
 
     </div>
   )

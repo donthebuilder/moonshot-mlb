@@ -58,6 +58,18 @@ function StatCell({ label, value, sub, col = C.orange, pulse = false }) {
 }
 
 export default function Home({ players = [], results, backtest, mode = 'today', slateDate = '', dateLabel = '', onNavigate, onPlayerClick }) {
+  // "New here?" dismissal. Read in an effect, not at init, so the server and
+  // the first client render agree — reading localStorage during render is how
+  // you get a hydration mismatch on a page that is otherwise static.
+  const [startDone, setStartDone] = useState(false)
+  useEffect(() => {
+    try { if (localStorage.getItem('home_start_done') === '1') setStartDone(true) } catch {}
+  }, [])
+  const dismissStart = () => {
+    setStartDone(true)
+    try { localStorage.setItem('home_start_done', '1') } catch {}
+  }
+
   const [hour, setHour] = useState(null) // effect-set so server/client agree
   useEffect(() => {
     setHour(new Date().getHours())
@@ -193,6 +205,17 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
 
   const empty = !players.length
 
+  // NEW HERE? (2026-08-09, owner: "people want it spoon-fed"). Three things,
+  // in order, each one a link to the tab that does it. Dismissible and
+  // remembered, because it's onboarding and onboarding that won't go away
+  // becomes furniture. Nothing here is data — it's three sentences and three
+  // tab jumps, so it renders on an empty slate too.
+  const START = [
+    { tab: 'scoreboard', n: 1, title: 'See who the model likes', body: 'Scoreboard, top of the list. You don’t need to read a single column to use the order.' },
+    { tab: 'games', n: 2, title: 'Look at one game', body: 'Games — the arm, the park, the lineup, and the pick for that matchup.' },
+    { tab: 'results', n: 3, title: 'Check if it’s been right', body: 'Results grades every pick against its own job, every night. Read this before trusting anything above it.' },
+  ]
+
   const DOORS = [
     { tab: 'scoreboard', icon: '📊', title: 'The Scoreboard', color: C.orange,
       body: 'Every hitter on the slate, every column, live once first pitch lands. The Four — the bot’s headline picks — sit right on top.' },
@@ -257,6 +280,63 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           }}>{pulse}</div>
         )}
       </div>
+
+      {/* ── NEW HERE? ────────────────────────────────────────────────── */}
+      {!startDone && (
+        <div style={{
+          background: `linear-gradient(155deg, rgba(249,115,22,.1), ${C.bg2} 60%)`,
+          border: `1px solid ${C.orange}4d`, borderRadius: 14,
+          padding: '13px 16px', marginBottom: 14,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 9 }}>
+            <span style={{ fontSize: 13, fontWeight: 900 }}>New here? Start with these 3 things</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>in this order — it takes about two minutes</span>
+            <button
+              onClick={dismissStart}
+              title="Hide this. The full five-step version lives on the Guide tab."
+              style={{
+                marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`,
+                borderRadius: 999, padding: '2px 10px', cursor: 'pointer',
+                fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT,
+              }}
+            >Got it, hide this</button>
+          </div>
+          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+            {START.map((s) => (
+              <div
+                key={s.tab}
+                onClick={() => onNavigate?.(s.tab)}
+                style={{
+                  flex: '1 1 210px', minWidth: 0, cursor: 'pointer',
+                  background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 11,
+                  padding: '10px 13px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                  <span style={{
+                    width: 19, height: 19, borderRadius: '50%', flexShrink: 0,
+                    border: `1px solid ${C.orange}77`, background: `${C.orange}18`, color: C.orange,
+                    fontFamily: NUM_FONT, fontWeight: 900, fontSize: 10.5,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{s.n}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{s.title}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: C.orange }}>→</span>
+                </div>
+                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{s.body}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 10, color: C.text3, marginTop: 9, lineHeight: 1.5 }}>
+            Want the longer version?{' '}
+            <span
+              onClick={() => onNavigate?.('guide')}
+              style={{ color: C.orange, cursor: 'pointer', fontWeight: 700 }}
+            >Open the Guide →</span>{' '}
+            — five steps, a colour key and a plain-language glossary. Everywhere else on this site,
+            hovering a number tells you what it is.
+          </div>
+        </div>
+      )}
 
       {/* ── TONIGHT AT A GLANCE ──────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
