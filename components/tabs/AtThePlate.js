@@ -180,7 +180,8 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     () => (feed?.pitches || []).filter((p) => Number(p.batterId) === Number(selectedId)),
     [feed, selectedId],
   )
-  const liveBalls = feed?.balls || []
+  // memoized so the spray chart isn't handed a fresh array every render
+  const liveBalls = useMemo(() => feed?.balls || [], [feed])
 
   if (isTomorrow) {
     return <Empty text="At the Plate is a tonight instrument — flip back to Today once games start." />
