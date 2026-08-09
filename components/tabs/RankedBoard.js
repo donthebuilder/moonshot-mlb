@@ -77,17 +77,26 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
     <div>
       <BoardFilters state={state} total={players.length} shown={filtered.length} />
       {!ranked.length && <Empty text={state.active ? 'No hitters clear this filter.' : `No ${type.toUpperCase()} picks yet.`} />}
-      {/* Section header — matches Games.js game header style */}
+      {/* Section header — refreshed dress (2026-08-08, modest): the title
+          wears the board's ember signature as a gradient underline, and the
+          count moves into a pill. Structure unchanged — "I like the lead". */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 0,
         paddingBottom: 8,
-        borderBottom: `1px solid ${C.border}`,
+        gap: 10, flexWrap: 'wrap',
       }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>{title}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: '-.02em' }}>{title}</span>
+            <span style={{
+              fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, color: C.orange,
+              border: '1px solid rgba(249,115,22,.4)', background: 'rgba(249,115,22,.08)',
+              borderRadius: 999, padding: '1px 9px',
+            }}>{ranked.length} ranked</span>
+          </div>
           <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{sub}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -103,9 +112,13 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             background: viewMode === 'cards' ? 'rgba(249,115,22,.12)' : 'transparent',
             color: viewMode === 'cards' ? C.orange : C.text3,
           }}>▦ Cards</button>
-          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{ranked.length} players</span>
         </div>
       </div>
+      {/* the ember underline — the same signature the top bar wears */}
+      <div style={{
+        height: 2, marginBottom: 10, borderRadius: 1,
+        background: 'linear-gradient(90deg, #f97316, rgba(252,211,77,.5) 45%, transparent)',
+      }} />
 
       {/* THE RANKED LIST — rank number first, then the exact score the sort
           uses, then why. "When picked" is his archive record in THIS

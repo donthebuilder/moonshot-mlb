@@ -119,12 +119,16 @@ export default function DenseTable({
                       position: c.sticky ? 'sticky' : undefined,
                       left: c.sticky ? 0 : undefined,
                       zIndex: c.sticky ? 4 : undefined,
-                      background: C.bg2, cursor: 'pointer', userSelect: 'none',
+                      // Header dress (2026-08-08, modest): a darker cap row
+                      // with an ember underline — solid under the sorted
+                      // column, faint elsewhere — so "what am I sorted by"
+                      // reads from the header itself.
+                      background: C.bg3, cursor: 'pointer', userSelect: 'none',
                       fontSize: 8.5, letterSpacing: '.06em', textTransform: 'uppercase',
-                      color: on ? C.orange : C.text3, fontWeight: 700,
+                      color: on ? C.orange : C.text3, fontWeight: on ? 900 : 700,
                       padding: pad, whiteSpace: 'nowrap',
                       textAlign: c.heat === false ? 'left' : 'center',
-                      borderBottom: `1px solid ${C.border}`,
+                      borderBottom: `2px solid ${on ? C.orange : 'rgba(249,115,22,.18)'}`,
                       width: c.w, minWidth: c.w,
                     }}
                   >
