@@ -103,6 +103,11 @@ export default function DenseTable({
 
   return (
     <div>
+      {/* .dense-wrap exists only so MobileCSS can hang a right-edge fade off
+          it. The fade can't live on .dense-scroll itself — a pseudo-element on
+          a scroll container scrolls away with the content, so it would drift
+          off screen exactly when you need it. */}
+      <div className="dense-wrap">
       <div className="dense-scroll" style={{
         border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'auto',
         maxHeight, background: C.bg2,
@@ -117,6 +122,7 @@ export default function DenseTable({
                 return (
                   <th
                     key={c.key}
+                    className={c.sticky ? 'dense-sticky' : undefined}
                     onClick={(e) => toggle(c.key, e.shiftKey)}
                     title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
                     style={{
@@ -206,7 +212,7 @@ export default function DenseTable({
 
                   if (c.heat === false) {
                     return (
-                      <td key={c.key} style={{
+                      <td key={c.key} className={c.sticky ? 'dense-sticky' : undefined} style={{
                         position: c.sticky ? 'sticky' : undefined,
                         left: c.sticky ? 0 : undefined,
                         zIndex: c.sticky ? 1 : undefined,
@@ -247,6 +253,16 @@ export default function DenseTable({
             ))}
           </tbody>
         </table>
+      </div>
+      </div>
+      {/* PHONE AFFORDANCE. These tables are 15-25 columns wide; on a 390px
+          screen you see the name and about three of them. The scroll always
+          worked, but nothing on screen said it was there, so the honest
+          reading of the page was "this table is broken". Hidden above 860px
+          by MobileCSS — on a desktop the whole table is already visible and
+          the line would just be noise. */}
+      <div className="dense-swipe" aria-hidden="true">
+        swipe the table sideways for the rest of the columns → <span>(the name column stays put)</span>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         {truncated > 0 && (

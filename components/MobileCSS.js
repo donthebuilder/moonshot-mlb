@@ -165,6 +165,134 @@ export default function MobileCSS() {
         .l5col { display: none !important; }
       }
 
+      /* ══════════════════════════════════════════════════════════════════
+         PHONE PASS (2026-08-09) — "a lot of the I-don't-know-what-I'm-
+         looking-at comes from mobile."
+
+         Audited against the real components at a 390px viewport (≈374px of
+         content after .dashboard-main's 8px gutters), not against a guess.
+         Four findings, four fixes, all of them here rather than scattered
+         through fifty components:
+         ══════════════════════════════════════════════════════════════════ */
+
+      /* ── 1. THE DENSE TABLES SCROLL, BUT NOTHING SAID SO ──
+         Every board on this site is a DenseTable: 15-25 columns, sticky name
+         column, horizontal scroll. On a phone you see the name and about
+         three columns, with no scrollbar (we hide them), no shadow, and no
+         hint. The honest reading of that screen is "the table is cut off and
+         broken" — which is most of the confusion, on the most-visited views.
+         Three things fix it: a fade at the right edge so the content visibly
+         continues, a hard shadow on the sticky column so it reads as pinned
+         rather than as a rendering artefact, and one line of text. */
+      .dense-swipe { display: none; }
+      @media (max-width: 860px) {
+        .dense-wrap { position: relative; }
+        .dense-wrap::after {
+          content: ''; position: absolute; top: 1px; right: 1px; bottom: 1px; width: 30px;
+          pointer-events: none; border-radius: 0 12px 12px 0;
+          background: linear-gradient(90deg, rgba(17,17,19,0), rgba(17,17,19,.9));
+        }
+        /* the pinned column reads as pinned */
+        .dense-sticky { box-shadow: 7px 0 11px rgba(0,0,0,.34); }
+        /* ...and stops eating 45% of the screen. The inline width/min-width
+           on these headers is 148-240px, set for a desktop table; min-width:0
+           lets the column shrink to its content and max-width caps it, so a
+           long name ellipsises (the cell already has overflow:hidden) instead
+           of leaving four columns of room for the numbers. Narrow sticky
+           columns (Spot, Split, Date) are unaffected — they're already under
+           the cap. */
+        .dense-sticky { width: auto !important; min-width: 0 !important; max-width: 124px !important; }
+        .dense-swipe {
+          display: block; margin-top: 5px;
+          font-size: 10px; color: #f97316; line-height: 1.5;
+        }
+        .dense-swipe span { color: #6b6b74; }
+      }
+
+      /* ── 2. ANYTHING UNDER 9px IS NOT READABLE ON A PHONE ──
+         The design language leans on 8-9.5px for labels, units and captions.
+         That's legible on a 27" monitor at arm's length and genuinely not
+         legible on a phone, and it is disproportionately the text that says
+         WHAT a number is — exactly the "what am I looking at" text.
+
+         Matching on the inline style is ugly but it is the only handle:
+         every size on this site is an inline style, so no class selector can
+         reach them. Verified safe: grepped for fontSize 80-99 across
+         components/ and there are none, so a font-size:8 / font-size:9
+         prefix can only ever match 8-9.5px. SVG charts set font-size as an
+         ATTRIBUTE, not a style, so no chart label is touched by this.
+
+         BOTH SPACINGS ARE MATCHED ON PURPOSE. React's server render emits the
+         style attribute as a raw string with no space after the colon
+         (font-size:8.5px), but when the client sets or updates a style it
+         goes through the CSSOM, and the browser re-serializes the attribute
+         with a space (font-size: 8.5px). Matching only one form would make
+         this rule work until the component re-rendered — the worst kind of
+         bug to chase. */
+      @media (max-width: 560px) {
+        [style*="font-size:8"], [style*="font-size: 8"],
+        [style*="font-size:9"], [style*="font-size: 9"] { font-size: 10px !important; }
+      }
+
+      /* ── 3. TAP TARGETS ──
+         Buttons already get min-height 32px under 700px. The gap was the
+         clickable DIVS — the Home top-10 rows and the weakest-arms rows are
+         2px/5px padding around 11px text, about 20px tall, sitting 2px
+         apart. On a phone that's a coin toss between two players. */
+      @media (pointer: coarse) {
+        .tap-row { min-height: 34px; padding-top: 6px !important; padding-bottom: 6px !important; }
+        .dense-scroll td button { min-height: 36px !important; }
+        .chip-row button, .dash-tabs button { min-height: 34px; }
+      }
+
+      /* ── 4. STRIPS THAT SQUEEZE ──
+         Audited every flex strip in the high-traffic views rather than
+         assuming: the bases are 200-340px almost everywhere, which already
+         collapses to one card per row at 374px. The only ones that don't are
+         the four-up number tiles — Home's "tonight at a glance", the Results
+         takeaway tiles and the Backtest headline tiles, all flex 1 1 130-140px
+         — which land 2+2 or, at some widths, an ugly 3+1 with the third tile
+         clipping a 19px number. Pinned to an even two per row, then stacked
+         outright below 380px where half of 374px can't hold "28.2%" plus its
+         caption. Matched on the basis so all three strips are covered from
+         one place; .home-stats is the same rule with a name on it. */
+      @media (max-width: 560px) {
+        .home-stats > div,
+        [style*="flex:1 1 130px"], [style*="flex: 1 1 130px"],
+        [style*="flex:1 1 140px"], [style*="flex: 1 1 140px"] {
+          flex: 1 1 calc(50% - 5px) !important; min-width: calc(50% - 5px) !important;
+        }
+      }
+      @media (max-width: 380px) {
+        .home-stats > div,
+        [style*="flex:1 1 130px"], [style*="flex: 1 1 130px"],
+        [style*="flex:1 1 140px"], [style*="flex: 1 1 140px"] {
+          flex: 1 1 100% !important; min-width: 100% !important;
+        }
+      }
+
+      /* Tab headers: the "right" slot is three or four mode buttons that wrap
+         into extra rows of pills under the h2, pushing the content down. One
+         sideways-scrolling row instead. Only when there IS a right slot —
+         :not(:first-child) keeps a bare title untouched. */
+      @media (max-width: 700px) {
+        .panel-title { align-items: stretch !important; }
+        .panel-title > :last-child:not(:first-child) {
+          width: 100%; overflow-x: auto; flex-wrap: nowrap !important;
+          -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .panel-title > :last-child:not(:first-child)::-webkit-scrollbar { display: none; }
+        .panel-title h2 { font-size: 21px !important; }
+      }
+
+      /* The player modal already goes full-bleed at 860px. What it didn't do
+         was leave room to breathe at the bottom — a full-height sheet on iOS
+         hides its last rows behind the browser chrome — or keep its six tab
+         pills on one line (that's the .chip-row it now wears). */
+      @media (max-width: 860px) {
+        .modal-content { padding-bottom: 40px !important; }
+      }
+
       /* ══ COSMETICS PASS (2026-08-06) — small touches, compounding ══ */
 
       /* Tabular numerals everywhere: every score column, every record, every

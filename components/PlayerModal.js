@@ -341,8 +341,15 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                 )}
               </div>
             </div>
+            {/* the ✕ was a bare 22px glyph — about a 22px square to hit with a
+                thumb on a modal that now covers the whole phone screen. The
+                padding makes it a real target without moving it a pixel. */}
             {!inline && (
-              <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.text3, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              <button onClick={onClose} aria-label="Close" style={{
+                background: 'transparent', border: 'none', color: C.text3, fontSize: 22,
+                cursor: 'pointer', lineHeight: 1, padding: '4px 10px', margin: '-4px -10px 0 0',
+                minWidth: 40, flexShrink: 0,
+              }}>✕</button>
             )}
           </div>
 
@@ -406,7 +413,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             gap: 8, marginBottom: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 10,
             flexWrap: 'wrap',
           }}>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {/* chip-row: on a phone six tab pills wrap to three lines and push
+                the panel below the fold before you've read anything. Same
+                sideways-scrolling treatment the board category chips get. */}
+            <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {visibleTabs.map(t => (
                 <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
               ))}

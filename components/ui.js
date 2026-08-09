@@ -67,7 +67,11 @@ export function inputStyle() {
 
 export function PanelTitle({ title, sub, right }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'end', flexWrap: 'wrap', margin: '4px 0 14px' }}>
+    // .panel-title: every tab's header. The `right` slot is usually three or
+    // four mode buttons, which on a phone wrap into a second and third row of
+    // pills stacked under the h2. MobileCSS turns that slot into one
+    // sideways-scrolling row instead.
+    <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'end', flexWrap: 'wrap', margin: '4px 0 14px' }}>
       <div style={{ minWidth: 0 }}>
         <h2 style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em' }}>{title}</h2>
         {sub && <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}

@@ -339,7 +339,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
       )}
 
       {/* ── TONIGHT AT A GLANCE ──────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+      <div className="home-stats" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
         <StatCell label="Games" col={C.blue} pulse={isLive}
           value={empty ? '—' : games.length}
           sub={empty ? 'slate not built yet' : `${games.filter((g) => g.lineup_confirmed).length} with confirmed lineups`} />
@@ -616,7 +616,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           )
         }
         const Arm = ({ a, i, showTrend }) => (
-          <div onClick={() => onNavigate?.('pitchers')} style={{
+          <div onClick={() => onNavigate?.('pitchers')} className="tap-row" style={{
             display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
             padding: '2px 5px', borderRadius: 6, minWidth: 0,
           }} title={`${a.nm} vs ${a.vs}: ${a.hr9.toFixed(2)} HR/9 season${a.l3hr9 != null ? `, ${a.l3hr9.toFixed(2)} over his last 3 starts` : ''}${a.weak ? ` · ${a.weak} weak lineup spots against him` : ''} — tap for the Pitchers workbench`}>
@@ -696,7 +696,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
                     const hr9 = n(p?.pitcher_hr9, 0)
                     const leaky = hr9 >= 1.4
                     return (
-                      <div key={i} onClick={() => onPlayerClick?.(p)} style={{
+                      <div key={i} onClick={() => onPlayerClick?.(p)} className="tap-row" style={{
                         display: 'flex', gap: 7, alignItems: 'center', cursor: 'pointer',
                         padding: '2px 5px', borderRadius: 6, minWidth: 0,
                         background: i === 0 ? `${col}12` : 'transparent',
