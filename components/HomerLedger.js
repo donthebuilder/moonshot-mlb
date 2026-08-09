@@ -67,7 +67,8 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
         .catch(() => {})
     }
     pull()
-    const t = setInterval(pull, 3 * 60 * 1000)
+    // Background tabs don't poll (2026-08-09 scan).
+    const t = setInterval(() => { if (!document.hidden) pull() }, 3 * 60 * 1000)
     return () => { alive = false; clearInterval(t) }
   }, [isTmrw, dateKey])
 

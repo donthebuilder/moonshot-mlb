@@ -31,7 +31,8 @@ function useGameStatus(slateDate) {
         .catch(() => {})
     }
     load()
-    const id = setInterval(load, 5 * 60_000) // weather desk cadence, not live-wire cadence
+    // Background tabs don't poll (2026-08-09 scan).
+    const id = setInterval(() => { if (!document.hidden) load() }, 5 * 60_000) // weather desk cadence, not live-wire cadence
     return () => { alive = false; clearInterval(id) }
   }, [slateDate])
   return st

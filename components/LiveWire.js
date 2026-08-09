@@ -30,9 +30,12 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
   const [pen, setPen] = useState(null)
   useEffect(() => { fetchPenFatigue().then(setPen).catch(() => {}) }, [])
 
-  const refresh = async () => {
+  // The button means "now" — it bypasses the shared 15s snapshot cache in
+  // lib/liveSlate.js. The auto timer does not: that's exactly the caller the
+  // cache exists to collapse against MiniWire and At the Plate.
+  const refresh = async (force = false) => {
     setBusy(true)
-    const s = await fetchLiveSlate()
+    const s = await fetchLiveSlate({ force })
     setSnap(s); setBusy(false)
   }
   useEffect(() => { refresh() }, [])
@@ -262,7 +265,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
             border: `1px solid ${auto ? '#4ade80' : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
             color: auto ? '#4ade80' : C.text3,
           }}>{auto ? '● auto 60s' : '○ auto'}</button>
-          <button onClick={refresh} disabled={busy} style={{
+          <button onClick={() => refresh(true)} disabled={busy} style={{
             fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
             border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
           }}>{busy ? '…' : '↻ refresh'}</button>

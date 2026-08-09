@@ -252,7 +252,9 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         .catch(() => {})
     }
     pull()
-    const t = setInterval(pull, 5 * 60 * 1000)
+    // Background tabs don't poll (2026-08-09 scan) — same guard every other
+    // timer on the site carries.
+    const t = setInterval(() => { if (!document.hidden) pull() }, 5 * 60 * 1000)
     return () => { alive = false; clearInterval(t) }
   }, [isTmrw, dateKey])
   // (1) id join, both sides numeric.

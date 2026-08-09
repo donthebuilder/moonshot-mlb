@@ -375,19 +375,27 @@ export default function MobileCSS() {
               full names. (Pools tab, both the graded and the pre-game view.) */
         .pool-names { grid-template-columns: 1fr !important; }
 
-        /* STAT STRIP (2026-08-09). Four boxes across a 346px card is ~82px
-              each, which holds "Barrel / 24.3%" but not much more. The labels
-              are already the shortest honest words for these stats, so the
-              phone gets a smaller label rather than a truncated one, and the
-              number — the thing being read — keeps its size. */
         /* LIVE WIRE PICKS. Two 300px columns don't fit 346px, so the grid was
               already collapsing — but to a row height built for a mouse. One
               column, a real tap target, and the name gets the width back. */
         .wire-picks { grid-template-columns: 1fr !important; gap: 1px !important; }
         .wire-picks > div { min-height: 30px; }
 
-        .stat-strip { gap: 4px !important; }
-        .stat-strip > div > div:first-child { font-size: 7px !important; letter-spacing: 0 !important; }
+        /* STAT STRIP (2026-08-09, corrected the same day).
+              Four boxes across a 346px card is ~82px each — enough for
+              "Barrel / 24.3%" and not much else.
+
+              THE FIRST VERSION OF THIS RULE FOUGHT THIS FILE AND WOULD HAVE
+              WON. It bought width by shrinking the labels to 7px, which is
+              precisely what rule 2a above exists to stop — and at equal
+              !important a three-part class selector outranks an
+              attribute-substring one, so the labels would have gone 8 → 10 →
+              7 and reintroduced a fixed audit finding inside its own fix.
+
+              Two columns instead. Each box gets ~160px, the labels keep the
+              10px the rest of the site guarantees them, and the strip becomes
+              two rows — which costs nothing in a card that scrolls anyway. */
+        .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 4px !important; }
 
         /* 2. AT THE PLATE — the ON DECK / IN THE HOLE cards are minWidth 168
               each, so two of them plus the 9px gap is 345px inside 346px of

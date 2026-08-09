@@ -114,13 +114,27 @@ export default function Dashboard() {
   // (checked via results.live_mode, the same flag live_results_tracker.py
   // already writes) and slower otherwise, so it's responsive during games
   // without hammering the JSON files all day when nothing is happening.
+  //
+  // HIDDEN TABS DON'T POLL (2026-08-09 scan). This is the heaviest timer on
+  // the site — each tick refetches FIVE payloads (slate, results, pair
+  // builder, pair summary, backtest) — and it was the only one with no
+  // `document.hidden` guard. Every other poller here has one. On a phone left
+  // on this tab in the background that is five requests every 45 seconds,
+  // forever, for a screen nobody is looking at: pure battery and data.
+  //
+  // Skipping while hidden creates a second problem, so it's handled in the
+  // same effect: come back after twenty minutes away and you'd be staring at
+  // twenty-minute-old scores until the next tick. A visibilitychange listener
+  // refreshes immediately on return, so the tab is fresher than before rather
+  // than staler — you get the update when you actually look.
   useEffect(() => {
     const isLive = results?.live_mode === true
     const intervalMs = isLive ? 45_000 : 5 * 60_000 // 45s live, 5min idle
-    const id = setInterval(() => {
-      setRefreshKey((k) => k + 1) // refreshKey > 0 here, so no loading spinner
-    }, intervalMs)
-    return () => clearInterval(id)
+    const bump = () => setRefreshKey((k) => k + 1)   // >0, so no loading spinner
+    const id = setInterval(() => { if (!document.hidden) bump() }, intervalMs)
+    const onVis = () => { if (!document.hidden) bump() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
   }, [results?.live_mode])
 
   // Re-fetches everything above by bumping refreshKey, which the effect

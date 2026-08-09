@@ -61,8 +61,11 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
 
   const isTomorrow = mode === 'tomorrow'
 
-  const pullSlate = async () => {
-    const s = await fetchLiveSlate()
+  const pullSlate = async (force = false) => {
+    // The shared 15s snapshot cache in lib/liveSlate.js collapses this against
+    // MiniWire, which is mounted right above this tab and pulls the identical
+    // schedule + boxscores. `force` is for the user's own refresh button.
+    const s = await fetchLiveSlate({ force })
     if (s) setSnap(s)
   }
   useEffect(() => {
@@ -131,7 +134,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   // the current batter of the selected game resets the hitter selection
   useEffect(() => { setPinnedHitter(null) }, [gamePk])
 
-  const refresh = () => { pullSlate(); pullFeed(gamePk) }
+  const refresh = () => { pullSlate(true); pullFeed(gamePk) }
 
   // ── the batting order, as the boxscore has it right now ───────────────────
   const lineup = useMemo(() => {
