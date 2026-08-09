@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
+import { dedupeGraded } from '../lib/graded'
 import DenseTable from './DenseTable'
 import { usePickRecords } from './PlayerPickRecord'
 
@@ -130,8 +131,16 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
 
   const totalOk = rows.filter((r) => r.did).length
   // Slate-wide HR rate, the honest yardstick for the HR and TOP buckets.
-  const baseHr = slots.length
-    ? (100 * slots.filter((s) => s?.got_hr === 1 || i(s?.actual_hr) > 0).length) / slots.length
+  //
+  // DEDUPED (lib/graded.js) while the per-category rows above stay raw. The
+  // category rates ARE per pick — a hitter picked twice is two picks, graded
+  // twice — but this is the baseline they're measured AGAINST, and a baseline
+  // is a rate over HITTERS. Counting the multi-category picks twice in it
+  // dragged the yardstick toward the picks it was supposed to be independent
+  // of, which is the one number on this card that has to be clean.
+  const uniq = dedupeGraded(slots)
+  const baseHr = uniq.length
+    ? (100 * uniq.filter((s) => s?.got_hr === 1 || i(s?.actual_hr) > 0).length) / uniq.length
     : 0
 
   return (

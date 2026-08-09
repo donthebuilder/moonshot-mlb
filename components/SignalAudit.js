@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { usePickRecords } from './PlayerPickRecord'
+import { dedupeGraded } from '../lib/graded'
 
 // 🔬 SIGNAL AUDIT — the honesty machine, turned on ourselves (2026-08-08,
 // wishlist #1). The site wears a lot of decorations: ⭐ 🎯 🧩 🔁 ⚠️ 👻 🔒
@@ -44,10 +45,17 @@ export default function SignalAudit({ backtest }) {
   const { days, state } = usePickRecords(backtest)
 
   const { rows, topBeat, daysN, totalN } = useMemo(() => {
+    // DEDUPED PER DAY (lib/graded.js). Every signal below is a SLATE-ROW flag
+    // — weak_spot_flag, hrw_score, games_since_last_hr — so it is identical on
+    // both graded rows of a hitter designated in two categories. Walking the
+    // raw slots counted that hitter, his flag and his outcome TWICE inside one
+    // night, which double-weights exactly the players the bot likes most: the
+    // multi-category picks. That biases every lift on this page, and this page
+    // exists to be the honest one. Deduping is per day, never across days — the
+    // same hitter flagged on Tuesday and on Friday is genuinely two data points.
     const slots = []
     days.forEach(({ json }) => {
-      const arr = json?.graded_slots || json?.results || []
-      arr.forEach((s) => { if (s && s.actual_ab != null) slots.push(s) })
+      dedupeGraded(json).forEach((s) => { if (s && s.actual_ab != null) slots.push(s) })
     })
     const judgeable = slots.filter((s) => Number(s.actual_ab) > 0)
     const hrOf = (xs) => xs.length ? xs.filter((s) => Number(s.actual_hr) > 0).length / xs.length : 0

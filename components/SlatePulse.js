@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {gradedResultsUrl, dataUrl } from '../lib/dataSource'
 import { nameOf, teamOf, clean, n } from '../lib/player'
+import { dedupeGraded } from '../lib/graded'
 
 // SLATE PULSE — two strips for the landing tab:
 //
@@ -95,8 +96,14 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
 
   const diff = useMemo(() => {
     if (!yday) return null
-    const slots = Array.isArray(yday?.graded_slots) ? yday.graded_slots
-      : Array.isArray(yday?.results) ? yday.results : []
+    // DEDUPED (lib/graded.js). The graded file is one row per pick CATEGORY,
+    // and `was` below is keyed by NAME — so a hitter picked as TOP *and* HR
+    // yesterday wrote his name twice and whichever row happened to be walked
+    // last set his role. That made the diff invent category changes ("HR →
+    // TOP") that never happened, and mis-mark whether the pick cleared.
+    // One row per player first; the primary role then reads off the merged
+    // row, so it's the same answer whatever order the file is in.
+    const slots = dedupeGraded(yday)
     // Did last night's pick CLEAR? Per-category bars, same rules the archive
     // grades on: HR/TOP = homered, HIT = got a hit, HRR = 2+ H+R+RBI,
     // CONTACT = 2+ TB. Null (no mark) when the slot never finalized.

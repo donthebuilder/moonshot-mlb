@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { dataUrl } from '../lib/dataSource'
 import { nameOf, playerId, surname, arr, n } from '../lib/player'
+import { dedupeGraded } from '../lib/graded'
 
 // 👀 HIS PARTNERS WENT, HE DIDN'T (2026-08-08; reworked 2026-08-09).
 //
@@ -53,7 +54,12 @@ export default function PartnerWatch({ players = [], pairHistorySummary, onPlaye
         if (!j) return
         const homeredIds = new Set(); const homeredNames = new Set()
         const playedIds = new Set(); const playedNames = new Set()
-        ;(j.graded_slots || j.results || []).forEach((s) => {
+        // One row per player before reading his line (lib/graded.js). The
+        // Sets happened to survive the duplicate rows, but "did he play"
+        // reads actual_ab, and a two-category hitter has two rows that can be
+        // a step apart mid-grading — dedupeGraded takes the max of each, so
+        // the answer can't depend on which category is walked last.
+        dedupeGraded(j.graded_slots || j.results || []).forEach((s) => {
           const id = idOf(s)
           const k = norm(s?.name || s?.player_name)
           if (!id && !k) return

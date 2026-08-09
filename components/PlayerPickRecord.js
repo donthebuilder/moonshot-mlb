@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { gradedResultsUrl, dataUrl } from '../lib/dataSource'
 import { clean } from '../lib/player'
+import { dedupeGraded } from '../lib/graded'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
 
@@ -79,6 +80,12 @@ export function usePickRecords(backtest) {
     return () => { alive = false }
   }, [dates])
 
+  // NOT DEDUPED, DELIBERATELY (see lib/graded.js for the rule and when it
+  // applies). Everything here is per pick CATEGORY — byCat is the whole point
+  // of the table, and `picks` is documented in the column header as "total
+  // picks across every category", so a hitter designated TOP *and* HR on one
+  // night genuinely is two picks with two separate bars to clear. The streak
+  // above IS deduped, because a streak counts nights.
   const byPlayer = useMemo(() => {
     const map = new Map()
     days.forEach(({ json }) => {
@@ -115,11 +122,16 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
   // BOT STREAK — consecutive most-recent designated picks that delivered,
   // from the live graded branch (the snapshot has totals, not sequence).
   const { days: liveDays } = usePickRecords(backtest)
+  // ONE ENTRY PER PLAYER PER NIGHT (lib/graded.js). This is a SEQUENCE, so the
+  // duplicate rows the graded file publishes per pick category were the worst
+  // possible bug for it: a hitter picked as TOP *and* HR pushed TWO entries
+  // for ONE night, and since both carry the same line they were always the
+  // same result — so "W3" could mean two nights, and a single miss could end a
+  // streak twice. Deduped per day, a night is a night.
   const botStreak = useMemo(() => {
-    const seq = new Map() // name -> [{date, did}]
+    const seq = new Map() // name -> [did, …] most recent first
     ;[...liveDays].sort((a, b) => (a.date < b.date ? 1 : -1)).forEach(({ json }) => {
-      const slots = json?.graded_slots || json?.results || []
-      slots.forEach((s2) => {
+      dedupeGraded(json).forEach((s2) => {
         const role = String(s2?.game_pick_role || s2?.pick_type || '').split('/')[0].trim().toUpperCase()
         const jb = JOBS[role]
         const nm = String(s2?.name || '').toLowerCase().trim()

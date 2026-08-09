@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { gradedResultsUrl } from '../../lib/dataSource'
+import { dedupeGraded } from '../../lib/graded'
 import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
@@ -758,6 +759,15 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       .filter(r => { const k = String(r.player_id); if (seen.has(k)) return false; seen.add(k); return true })
   }, [slots])
 
+  // ONE ROW PER PLAYER (lib/graded.js). `slots` stays raw for everything whose
+  // subject is a PICK — the scorecard, the per-lane bars, the category tables,
+  // where a hitter designated twice genuinely is two picks. `uniqSlots` is for
+  // everything whose subject is a PLAYER: how many hitters got a base hit, how
+  // many wore the ⭐, how many are still live. Those were counting the
+  // multi-category picks twice, which quietly inflated exactly the hitters the
+  // bot likes most.
+  const uniqSlots = useMemo(() => dedupeGraded(slots), [slots])
+
   const topHit = topBoard.filter(r => r.got_hr === 1 || (r.actual_hr || 0) > 0).length
 
   const prettyDay = (d) => {
@@ -932,13 +942,15 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           on — and demotes the heavier panels behind honest toggles. The
           numbered flow stays, but every number opens with its sentence. */}
       {subTab === 'overview' && (() => {
-        const judge = slots.filter((r) => (r.actual_ab || 0) > 0)
+        // PLAYER-level counts run off uniqSlots; PICK-level ones (withJob,
+        // the lanes) stay on the raw slots — see the uniqSlots comment above.
+        const judge = uniqSlots.filter((r) => (r.actual_ab || 0) > 0)
         const withJob = judge.filter((r) => pickJob(r))
         const didJob = withJob.filter((r) => pickJob(r)?.did).length
         const baseHit = judge.filter((r) => (r.actual_hits || 0) >= 1).length
         const hrOnly = judge.filter((r) => r.got_hr === 1 || (r.actual_hr || 0) > 0).length
         const multi = judge.filter((r) => (r.actual_hits || 0) >= 2 || (r.actual_hr || 0) >= 2).length
-        const stillLive = slots.filter((r) => r.is_final !== 1).length
+        const stillLive = uniqSlots.filter((r) => r.is_final !== 1).length
         const capPct = Number(captureReport?.hr_capture_pct || 0)
         const capCaught = si(captureReport?.caught_hrs_on_sheet)
         const capTotal = si(captureReport?.total_hrs_on_slate)
@@ -1093,7 +1105,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           {/* 3 · WHO DELIVERED — names stay visible; names are the takeaway */}
           <Flow num="3" title="Who delivered" note="homers first, then the multi-hit nights" />
           <HRHits homers={homers} />
-          <MultiHitCluster slots={slots} />
+          <MultiHitCluster slots={uniqSlots} />
 
           {/* 4 · THE LANES — sentence-sized lines, bars folded */}
           <Flow num="4" title="How each lane did" note="every category against its own bar, smallest samples included" />
@@ -1122,9 +1134,9 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           {/* 5 · MODEL CHECKS — all receipts, all folded */}
           <Flow num="5" title="Model checks" note="the receipts — open when you want to audit, skip when you just want the read" />
           <Fold label="🔬 Flags, slate summary and score audit — did the numbers mean anything tonight">
-            <TrackingLegend slots={slots} />
-            <ExpandedStats slots={slots} players={players} />
-            <ScoreAudit slots={slots} players={players} />
+            <TrackingLegend slots={uniqSlots} />
+            <ExpandedStats slots={uniqSlots} players={players} />
+            <ScoreAudit slots={uniqSlots} players={players} />
           </Fold>
 
           {/* 6 · WHAT GOT AWAY — the sentence up top already counted them */}
@@ -1166,7 +1178,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
 
       {/* PITCHERS */}
       {subTab === 'pitcher' && (
-        <PitcherWeaknessDigest slots={slots} players={players} />
+        <PitcherWeaknessDigest slots={uniqSlots} players={players} />
       )}
 
       {/* PAIRS & POOLS */}

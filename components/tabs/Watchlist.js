@@ -5,6 +5,7 @@ import {
   nn, n, clean, arr, obj, barrelRate, avgEV, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
+import { dedupeGraded } from '../../lib/graded'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
 import DenseTable from '../DenseTable'
@@ -290,10 +291,15 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
   // ACCURACY CHECK — did the list deliver tonight? Graded slots joined by
   // player_id give each saved hitter his live line; saved names outside the
   // graded pool stay unknown rather than counting as misses.
+  //
+  // DEDUPED FIRST (lib/graded.js): the graded file publishes one row per pick
+  // CATEGORY, so a saved hitter designated in two of them had two rows and
+  // this map kept whichever one came last. dedupeGraded merges them, taking
+  // the max of each actual_* field, so a starred name can't show the lower of
+  // two lines depending on category order.
   const nightOf = useMemo(() => {
-    const slots = results?.graded_slots || results?.results || []
     const m = new Map()
-    slots.forEach((s2) => {
+    dedupeGraded(results?.graded_slots || results?.results || []).forEach((s2) => {
       if (s2?.player_id != null) m.set(String(s2.player_id), s2)
     })
     return m

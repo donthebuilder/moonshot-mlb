@@ -5,6 +5,7 @@ import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
 import { dataUrl } from '../lib/dataSource'
 import { matchupStories } from '../lib/matchupStory'
+import { dedupeGraded } from '../lib/graded'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -203,8 +204,13 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           // have no graded results for tonight — show none rather than
           // yesterday's.
           if (String(j.date || '') !== String(dateKey)) { setActuals(null); return }
+          // ONE ROW PER PLAYER (dedupeGraded — see lib/graded.js for why the
+          // file has two rows for a hitter designated in two categories).
+          // The old Map.set let the LAST category silently overwrite the
+          // first; on a mid-grading file where one category was a step ahead
+          // of the other, that could hand back the lower line.
           const m = new Map()
-          ;(j.graded_slots || j.results || []).forEach((s) => {
+          dedupeGraded(j.graded_slots || j.results || []).forEach((s) => {
             const pid = Number(s?.player_id)
             if (pid) m.set(pid, { hr: Number(s?.actual_hr) || 0, hits: Number(s?.actual_hits) || 0 })
           })
@@ -251,7 +257,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       .then((j) => {
         if (!alive || !j) return
         const s = new Set()
-        ;(j.graded_slots || j.results || []).forEach((r2) => {
+        dedupeGraded(j.graded_slots || j.results || []).forEach((r2) => {
           const pid = Number(r2?.player_id)
           if (pid && Number(r2?.actual_hr) > 0) s.add(pid)
         })

@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, hrScore, median, hitScore, prodScore, nn } from '../lib/player'
 import { isAligned } from '../lib/scoring'
+import { dedupeGraded } from '../lib/graded'
 
 // The header strip — the two Streamlit tile rows merged into one.
 //
@@ -84,7 +85,12 @@ export default function SlateTiles({ players = [], results, games = [], projecte
     const report = results?.hr_capture_report
     const actual = n(report?.total_hrs_on_slate, null)
     const onSheet = n(report?.caught_hrs_on_sheet, null)
-    const settled = (results?.graded_slots || results?.results || [])
+    // SETTLED PLAYERS, not settled slots (lib/graded.js). The graded file
+    // publishes a row per pick CATEGORY, so a hitter designated twice counted
+    // twice here and the tile could read higher than the number of hitters
+    // actually finished — on a header tile sitting next to "Lineups ✓ 84 of
+    // 143", a count that can exceed the field is a number nobody can read.
+    const settled = dedupeGraded(results)
       .filter((r) => r && r.grade && r.grade !== 'PENDING').length
 
     // Best game by the same two-median Game Score the strip uses, so the

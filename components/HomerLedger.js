@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { dataUrl } from '../lib/dataSource'
 import { nameOf, teamOf, n } from '../lib/player'
+import { dedupeGraded } from '../lib/graded'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
 // home run people are hitting — like if you notice more people getting their
@@ -56,15 +57,12 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
           // DEDUPE BY PLAYER (2026-08-09). A hitter designated in two
           // categories (TOP *and* HR, say) gets a graded slot per category,
           // each carrying the same actual_hr — walking the slots naively
-          // counted his homer twice and inflated the night's total. One
-          // entry per player, keeping the max.
-          const byPid = new Map()
-          ;(j.graded_slots || j.results || []).forEach((s) => {
-            const hr = n(s?.actual_hr, 0)
-            const pid = Number(s?.player_id)
-            if (hr > 0 && pid) byPid.set(pid, Math.max(byPid.get(pid) || 0, hr))
-          })
-          setRows([...byPid.entries()].map(([pid, hr]) => ({ pid, hr })))
+          // counted his homer twice and inflated the night's total. The rule
+          // now lives in lib/graded.js because it had bitten three components;
+          // this call site kept its own copy of it until then.
+          setRows(dedupeGraded(j.graded_slots || j.results || [])
+            .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0) }))
+            .filter((x) => x.pid && x.hr > 0))
         })
         .catch(() => {})
     }

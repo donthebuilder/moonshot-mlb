@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { arr, obj, n, clean, hitScore, prodScore, tbScore } from '../../lib/player'
+import { dedupeGraded } from '../../lib/graded'
 import { rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
 
@@ -157,10 +158,18 @@ export default function ResultsDepth({ results, onPlayerClick }) {
 
   // Hit rate by model score band — the single chart that says whether the
   // score means anything. If it isn't monotonic, the score isn't ranking.
+  //
+  // DEDUPED (lib/graded.js): hr_score is a slate-row field, identical on both
+  // graded rows of a hitter designated in two categories, so the raw slots put
+  // that hitter in the same band twice with the same outcome. Multi-category
+  // picks skew high, so the double-counting landed almost entirely in the top
+  // band — the exact place this chart is being read. The tiers above stay on
+  // the raw slots on purpose: those ARE per-category, by definition.
+  const uniq = useMemo(() => dedupeGraded(slots), [slots])
   const bands = useMemo(() => {
     const edges = [[0, 40], [40, 55], [55, 70], [70, 101]]
     return edges.map(([lo, hi]) => {
-      const inBand = slots.filter((s) => {
+      const inBand = uniq.filter((s) => {
         const v = n(s?.hr_score, 0)
         return v >= lo && v < hi
       })
@@ -171,7 +180,7 @@ export default function ResultsDepth({ results, onPlayerClick }) {
         value: inBand.length ? (100 * hr) / inBand.length : 0,
       }
     }).filter((b) => b.nSlots > 0)
-  }, [slots])
+  }, [uniq])
 
   const everyPick = useMemo(() => {
     return slots
