@@ -7,7 +7,7 @@ import {
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
   recent375, recent400, recent350, ihrVal,
   avgEV, maxEV, hardHitRate, barrelRate, launchAngle,
-  babipVal, pitcherBabipVal, avgVsRHP, avgVsLHP,
+  babipVal, pitcherBabipVal, avgVsRHP, avgVsLHP, whiffProfile,
 } from '../lib/player'
 import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/scoring'
 import { Chip } from './ui'
@@ -482,6 +482,42 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="Barrel %"     value={pct(barrelRate(p))} />
                   <Row label="Hard Hit %"   value={pct(hardHitRate(p))} />
                   <Row label="Launch Angle" value={launchAngle(p) ? launchAngle(p).toFixed(1) + '°' : '—'} />
+                  {/* 🌀 WHIFF (2026-08-09, from the Discord: "missing the whiff
+                      on the stats for players in the modal"). The bot publishes
+                      no overall batter whiff rate — only per-pitch-type rates,
+                      in the detail file. whiffProfile() reconstructs the total
+                      from those published counts by exact arithmetic; see the
+                      note in lib/player.js for the identity and its one
+                      caveat. When there is no per-pitch profile to rebuild it
+                      from, the row says so instead of showing a fabricated
+                      number or quietly disappearing. */}
+                  {(() => {
+                    const w = whiffProfile(p)
+                    if (!w) {
+                      return (
+                        <Row
+                          label="Whiff %"
+                          value="not published"
+                          mono={false}
+                          explain="How often he swings and misses. The bot hasn't published this hitter's pitch-by-pitch swing data yet, and we won't guess at it."
+                        />
+                      )
+                    }
+                    const tip = `Rebuilt from his published per-pitch-type rates across ${w.types} pitch types: `
+                      + `about ${w.swings} swings out of ${w.pitches} pitches seen. `
+                      + `Whiff% is misses per SWING; SwStr% is misses per PITCH. `
+                      + `League-average whiff is roughly 24% — under 20% is a contact hitter, over 30% is swing-and-miss. `
+                      + `A pitch type he has never missed can't have its swings recovered and is left out of the totals, `
+                      + `which nudges this a hair high for such a hitter.`
+                    return (
+                      <>
+                        <Row label="Whiff %" title={tip}
+                          value={`${(w.whiff * 100).toFixed(1)}%`} />
+                        <Row label="SwStr %" title={tip}
+                          value={`${(w.swstr * 100).toFixed(1)}%`} />
+                      </>
+                    )
+                  })()}
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '14px 0 4px' }}>Recent Distance</div>
