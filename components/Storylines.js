@@ -125,21 +125,52 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // one small fetch on a 5-minute loop: pid → today's actual line. A
   // storyline that CASHES gets a ✅ on its row and counts in the header —
   // the page stops being a promise and starts being a scoreboard.
+  //
+  // VERIFIED SEMANTICS OF THE ✅ (audited 2026-08-09, and it was wrong):
+  //
+  //   1. THE JOIN IS BY player_id, never by name. results_live.json publishes
+  //      player_id on every graded row and so does the slate, so `actuals` is
+  //      keyed on the numeric id and looked up the same way. Names are never
+  //      compared here — two Will Smiths is a real thing.
+  //
+  //   2. THE FILE MUST BE FOR THE SLATE ON SCREEN. This is the bug that was
+  //      firing false ✅s. results_live.json carries a top-level `date`, and
+  //      the bot leaves the LAST graded slate in that file until the next one
+  //      starts grading — on 2026-08-09 it still held 2026-07-26. The tracker
+  //      read `actual_hr` out of it unconditionally, so a hitter flagged for
+  //      back-to-back watch (games_since_last_hr === 0, i.e. he homered in his
+  //      most recent game) was matched against a stale file that recorded that
+  //      very homer, and got a "✅ DID IT AGAIN" for the homer that put him on
+  //      the list in the first place. Now the payload is dropped unless
+  //      j.date === the slate date being viewed, so a ✅ can only ever mean a
+  //      homer hit TODAY, in a game on TODAY's slate.
+  //
+  //   3. THE LABEL SAYS WHICH DAY IT MEANS. "DID IT AGAIN" was ambiguous; the
+  //      b2b row now reads "HOMERED AGAIN TODAY".
+  //
+  //   4. Cache-busted, because raw.githubusercontent serves a five-minute
+  //      max-age and the 5-minute poll was re-reading its own cached copy.
   const [actuals, setActuals] = useState(null)
   useEffect(() => {
-    if (isTmrw) { setActuals(null); return undefined }
+    setActuals(null)
+    if (isTmrw) return undefined
     let alive = true
     const pull = () => {
-      fetch(dataUrl('current/results_live.json'))
+      const u = dataUrl('current/results_live.json')
+      fetch(`${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
           if (!alive || !j) return
+          // (2) the gate. No date, or a date that isn't this slate's, means we
+          // have no graded results for tonight — show none rather than
+          // yesterday's.
+          if (String(j.date || '') !== String(dateKey)) { setActuals(null); return }
           const m = new Map()
           ;(j.graded_slots || j.results || []).forEach((s) => {
             const pid = Number(s?.player_id)
             if (pid) m.set(pid, { hr: Number(s?.actual_hr) || 0, hits: Number(s?.actual_hits) || 0 })
           })
-          if (m.size) setActuals(m)
+          setActuals(m.size ? m : null)
         })
         .catch(() => {})
     }
@@ -147,10 +178,15 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     const t = setInterval(pull, 5 * 60 * 1000)
     return () => { alive = false; clearInterval(t) }
   }, [isTmrw, dateKey])
-  const lineOf = (p) => actuals?.get(Number(p?.player_id ?? p?.id)) || null
+  // (1) id join, both sides numeric.
+  const lineOf = (p) => {
+    const pid = Number(p?.player_id ?? p?.id)
+    return (pid && actuals?.get(pid)) || null
+  }
   const hrToday = (p) => (lineOf(p)?.hr || 0) > 0
   const Cashed = ({ children }) => (
-    <b style={{ color: '#4ade80', fontFamily: NUM_FONT, fontSize: 10, marginLeft: 4, whiteSpace: 'nowrap' }}>✅ {children}</b>
+    <b style={{ color: '#4ade80', fontFamily: NUM_FONT, fontSize: 10, marginLeft: 4, whiteSpace: 'nowrap' }}
+      title={`Graded from today's live results (${dateKey}) — a homer hit today, not the one that put him on this list.`}>✅ {children}</b>
   )
   const b2b = players
     .filter((p) => Number(p?.games_since_last_hr) === 0)
@@ -261,12 +297,15 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   majorGiveaways.sort((a, b) => (b.star ? 1 : 0) - (a.star ? 1 : 0) || (b.isBobble ? 1 : 0) - (a.isBobble ? 1 : 0))
 
   // tracker tally: unique players whose storyline actually happened today
+  // Same id join as the ✅ itself; a row with no id can't be graded and is not
+  // counted (rather than collapsing into one NaN bucket, which it used to).
   const cashedIds = new Set()
+  const mark = (p, ok) => { const pid = Number(p?.player_id ?? p?.id); if (pid && ok) cashedIds.add(pid) }
   if (actuals) {
-    b2b.forEach((p) => { if (hrToday(p)) cashedIds.add(Number(p?.player_id)) })
-    miles.forEach((m) => { if (/homer/i.test(m.word) && hrToday(m.p)) cashedIds.add(Number(m.p?.player_id)) })
-    duels.forEach((d) => { if (d.own ? hrToday(d.p) : (lineOf(d.p)?.hits || 0) > 0) cashedIds.add(Number(d.p?.player_id)) })
-    revenge.forEach((r) => { if (hrToday(r.p) || (lineOf(r.p)?.hits || 0) > 0) cashedIds.add(Number(r.p?.player_id)) })
+    b2b.forEach((p) => mark(p, hrToday(p)))
+    miles.forEach((m) => mark(m.p, /homer/i.test(m.word) && hrToday(m.p)))
+    duels.forEach((d) => mark(d.p, d.own ? hrToday(d.p) : (lineOf(d.p)?.hits || 0) > 0))
+    revenge.forEach((r) => mark(r.p, hrToday(r.p) || (lineOf(r.p)?.hits || 0) > 0))
   }
 
   const empty = !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
@@ -309,7 +348,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         </span>
         {cashedIds.size > 0 && (
           <span style={{ fontSize: 9.5, fontWeight: 900, color: '#4ade80', fontFamily: NUM_FONT }}
-            title="Storylines that actually happened today — from the live graded results, refreshed every 5 minutes">
+            title={`Storylines that actually happened on ${dateKey} — from that day's live graded results, refreshed every 5 minutes. Nothing is counted unless the graded file is for this slate.`}>
             ✅ {cashedIds.size} came true
           </span>
         )}
@@ -321,7 +360,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         <Row key={`bb${i}`} icon="🔁" p={x}>
           <b style={{ color: C.text }}>{nameOf(x)}</b> went deep <b style={{ color: '#f87171' }}>last game</b> — back-to-back watch
           <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
-          {hrToday(x) && <Cashed>DID IT AGAIN</Cashed>}
+          {hrToday(x) && <Cashed>HOMERED AGAIN TODAY</Cashed>}
         </Row>
       ))}
       {!compact && b2b.length > 6 && (
