@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
 import { dataUrl } from '../lib/dataSource'
+import { matchupStories } from '../lib/matchupStory'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -55,6 +56,10 @@ const RIVALS = [
 ]
 
 let _cacheByDate = {}
+// matchup lines, cached per mount-scope so switching tabs doesn't re-pull the
+// gameLogs. Key is the exact set of hitters this mount is showing, so the
+// slate panel and each game's deep-dive keep their own.
+const _mlineCache = new Map()
 
 // PER-GAME MODE (2026-08-08, "every game needs a storyline thing"):
 // the same engine, three extra props. `players` scopes what renders;
@@ -109,6 +114,39 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     })()
     return () => { alive = false }
   }, [pullFrom.length, dateKey])
+
+  // ── ⚾ TONIGHT'S MATCHUP LINES (2026-08-09) — the lead section ──
+  //
+  // The panel used to open with slate trivia (most homers on the slate, most
+  // career homers). Donovan: "most hr on the slate and most career hrs is not
+  // what I'm looking for." True and useless — the leaderboard already says it,
+  // and neither line was about TONIGHT'S MATCHUP.
+  //
+  // What he asked for instead, verbatim: "Alonso has 4 HR in his last 6 at
+  // Citi and Gore has given up 3 in two starts here." THIS hitter, THIS park,
+  // THIS arm, a real count on both sides. lib/matchupStory.js assembles it
+  // from live game logs (hitting AND pitching, joined to venue IDs) and
+  // refuses to write a clause whose sample doesn't exist — see that file for
+  // the rules. It returns null far more often than not, which is the point.
+  //
+  // SCOPE: this reads `players`, not `fetchPlayers`, so the deep-dive mount
+  // shows the lines for THAT game's hitters and the slate panel shows the
+  // slate's. Cost is controlled inside the lib — a short candidate list, small
+  // batches, and one cached pitcher pull shared by his whole lineup.
+  const [mlines, setMlines] = useState([])
+  const mkey = players.map((p) => Number(p?.player_id ?? p?.id) || 0).join(',')
+  useEffect(() => {
+    if (!mkey) { setMlines([]); return undefined }
+    const cached = _mlineCache.get(mkey)
+    if (cached) { setMlines(cached); return undefined }
+    let alive = true
+    setMlines([])
+    matchupStories(players, { look: compact ? 12 : 20, limit: compact ? 3 : 5 })
+      .then((r) => { const out = r || []; _mlineCache.set(mkey, out); if (alive) setMlines(out) })
+      .catch(() => {})
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mkey, compact])
 
   // ── BACK-TO-BACK WATCH (2026-08-07) — pure slate field, no API needed.
   // games_since_last_hr === 0 means he homered in his most recent game;
@@ -232,7 +270,9 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // homers apart, and a check we can't defend is worse than no check.
   const b2bVerified = ydayHr instanceof Set
 
-  if (!data?.people?.length && !b2b.length) return null
+  // The matchup lines are their own pull, so they must survive a failed
+  // people fetch the same way the b2b watch does.
+  if (!data?.people?.length && !b2b.length && !mlines.length) return null
 
   const byId = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
   const statOf = (person, type) => {
@@ -373,6 +413,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     // the leader going deep tonight is that storyline landing, same as any
     // other row — cashedIds is a Set of ids, so a player already counted
     // elsewhere doesn't get counted twice
+    mlines.forEach((m) => mark(m.player, hrToday(m.player)))
     b2b.forEach((p) => mark(p, b2bVerified && hrToday(p)))
     miles.forEach((m) => mark(m.p, /homer/i.test(m.word) && hrToday(m.p)))
     duels.forEach((d) => mark(d.p, d.own ? hrToday(d.p) : (lineOf(d.p)?.hits || 0) > 0))
@@ -384,7 +425,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // true of every game ever played, so letting it count would retire the
   // honest "no storylines in this one — just baseball" line entirely.
   const hasLeaders = false   // slate HR leaders retired 2026-08-09
-  const empty = !hasLeaders && !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
+  const empty = !hasLeaders && !mlines.length && !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
   if (empty && !compact) return null
   if (empty && compact) {
     return (
@@ -413,6 +454,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 {compact ? 'This game\u2019s storylines' : 'Storylines'} {compact ? '' : (open ? '▾' : '▸')}</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
           {[
+            mlines.length && `⚾ ${mlines.length} matchup line${mlines.length > 1 ? 's' : ''}`,
             b2b.length && `🔁 ${b2b.length} b2b`,
             miles.length && `🏁 ${miles.length} milestone${miles.length > 1 ? 's' : ''}`,
             duels.length && `⚔ ${duels.length} duel${duels.length > 1 ? 's' : ''}`,
@@ -431,6 +473,27 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         {!open && <span style={{ fontSize: 9, color: C.text3 }}>— the human layer, tap to open</span>}
       </div>
 
+      {/* The strongest matchup line stays visible even when the panel is
+          shut. The panel is collapsed by default because it "kinda fills the
+          page" (2026-08-07), but a closed panel hiding the one line that IS
+          about tonight's matchup defeats the point of writing it. One line,
+          no chrome, tap to open the rest. */}
+      {!open && mlines.length > 0 && (
+        <div
+          onClick={() => onPlayerClick?.(mlines[0].player)}
+          style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: 'pointer' }}
+        >
+          ⚾{' '}
+          {mlines[0].parts.map((x, j) => (
+            x.type === 'name'
+              ? <b key={j} style={{ color: C.text }}>{x.text}</b>
+              : x.type === 'num'
+                ? <b key={j} style={{ fontFamily: NUM_FONT, color: C.orange }}>{x.text}</b>
+                : <span key={j}>{x.text}</span>
+          ))}
+        </div>
+      )}
+
       {open && (<>
       {/* HERO LINES — the two biggest bats in the building, stated plainly.
           These lead because they're the only storylines that are true every
@@ -440,7 +503,39 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             hr on the slate and most career hrs is not what I'm looking
             for"). They were true and useless — the leaderboard says the
             same thing, and neither line was about TONIGHT'S matchup,
-            which is what a storyline has to be. */}
+            which is what a storyline has to be. The ⚾ block below is
+            what replaced them. */}
+      )}
+
+      {/* ⚾ THE MATCHUP LINES — one clean sentence per hitter, this park,
+          this arm. Name bold, every counted number in the mono font, whole
+          row clickable through to his card. */}
+      {mlines.length > 0 && (
+        <div style={{ marginBottom: 5 }}>
+          {mlines.map((m) => (
+            <div
+              key={`mx${m.pid}`}
+              onClick={() => onPlayerClick?.(m.player)}
+              title={`Game logs, ${m.seasons || 'this season and last'} — his at ${m.venue}, the starter's at ${m.venue}. Counted from published game logs, not modelled.`}
+              style={{
+                display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.55,
+                padding: '3px 0', cursor: 'pointer', color: C.text2,
+              }}
+            >
+              <span style={{ flexShrink: 0 }}>⚾</span>
+              <span style={{ minWidth: 0 }}>
+                {m.parts.map((x, j) => (
+                  x.type === 'name'
+                    ? <b key={j} style={{ color: C.text }}>{x.text}</b>
+                    : x.type === 'num'
+                      ? <b key={j} style={{ fontFamily: NUM_FONT, color: C.orange }}>{x.text}</b>
+                      : <span key={j}>{x.text}</span>
+                ))}
+                {hrToday(m.player) && <Cashed>WENT DEEP</Cashed>}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {b2b.slice(0, 6).map((x, i) => (
