@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { hotColdZones } from '../lib/situational'
 import { zonesUrl } from '../lib/dataSource'
+import {
+  KIND_LABEL, PITCH_NAMES as LIVE_PITCH_NAMES, pitchColor, pitchSummary,
+  pitchTypes, zoneBox, zoneCell, zoneFrac, inZone as pitchInZone,
+} from '../lib/livePitches'
 
 // STRIKE-ZONE MAP v3 — one map for both players.
 //
@@ -116,7 +120,73 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
 // per-pitch chip colors — matches the site's pitch language elsewhere
 const P_COLORS = { FF: '#f87171', SI: '#fb923c', FC: '#fbbf24', SL: '#22d3ee', ST: '#67e8f9', CU: '#a78bfa', KC: '#c4b5fd', CH: '#4ade80', FS: '#86efac', OTHER: '#9ca3af' }
 
-export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
+// ── TONIGHT'S PITCHES, ON THIS MAP ──────────────────────────────────────────
+//
+// 2026-08-10, Donovan: "there's no way to just use the spray and strike map we
+// already have as the live ones as well?" — so the live feed comes to the map
+// instead of the map being rebuilt somewhere else. Everything below draws
+// inside the grid that was already here: same cells, same colours, same hover
+// popout, one extra layer of real dots on top.
+//
+// GEOMETRY. The grid container is 290px tall and the 3x3 strike zone sits at
+// inset 44 with 3px of padding and a 1px border, so the zone's interior spans
+// 48px in from every edge. A pitch at fraction (fx, fz) of the zone therefore
+// lands at
+//     x = 48px + fx * (width - 96px)      y = 48px + fz * 194px
+// and anything outside 0..1 lands in the shadow ring, which is exactly what
+// the four corner cells are for. The ring is 48px deep, so a pitch further out
+// than that is pinned to the frame and drawn hollow-dim rather than dropped —
+// the map never silently loses a pitch.
+const ZG = { pad: 48, h: 290 }
+const FX_LO = -0.26, FX_HI = 1.26
+const FZ_LO = -0.21, FZ_HI = 1.21
+const clampf = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
+
+function livePos(f) {
+  const fx = clampf(f.fx, FX_LO, FX_HI)
+  const fz = clampf(f.fz, FZ_LO, FZ_HI)
+  return {
+    left: `calc(${ZG.pad}px + ${(fx * 100).toFixed(2)}% - ${(fx * ZG.pad * 2).toFixed(2)}px)`,
+    top: `${(ZG.pad + fz * (ZG.h - ZG.pad * 2)).toFixed(1)}px`,
+    pinned: fx !== f.fx || fz !== f.fz,
+  }
+}
+
+const pos_pinned = (f) => f.fx < FX_LO || f.fx > FX_HI || f.fz < FZ_LO || f.fz > FZ_HI
+
+// Shape says WHAT HAPPENED, colour says WHAT WAS THROWN. Six outcomes, drawn
+// as plain elements so they inherit the card's typography rather than
+// importing a second chart's visual language.
+function LiveDot({ kind, col, on, pinned }) {
+  // static, centred by the 18px hit-area wrapper around it
+  const base = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxSizing: 'border-box', pointerEvents: 'none', flexShrink: 0,
+    opacity: pinned ? 0.4 : on ? 1 : 0.92,
+    filter: on ? `drop-shadow(0 0 6px ${col})` : 'none',
+  }
+  if (kind === 'whiff') {
+    return <span style={{ ...base, width: 14, height: 14, color: col, fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, lineHeight: 1 }}>✕</span>
+  }
+  if (kind === 'inplay') {
+    return <span style={{ ...base, width: 13, height: 13, borderRadius: '50%', background: col, border: '1.6px solid #fff' }} />
+  }
+  if (kind === 'foul') {
+    return <span style={{ ...base, width: 9, height: 9, borderRadius: 1, background: `${col}66`, border: `1.2px solid ${col}` }} />
+  }
+  if (kind === 'hbp') {
+    return <span style={{ ...base, width: 9, height: 9, transform: 'rotate(45deg)', border: `1.6px solid ${col}`, background: 'transparent' }} />
+  }
+  if (kind === 'called') {
+    return <span style={{ ...base, width: 11, height: 11, borderRadius: '50%', background: `${col}3d`, border: `1.6px solid ${col}`, boxShadow: `0 0 0 2px ${col}2e` }} />
+  }
+  // taken ball — the ones he didn't offer at, kept quiet
+  return <span style={{ ...base, width: 9, height: 9, borderRadius: '50%', border: `1.4px solid ${col}`, background: 'transparent', opacity: pinned ? 0.3 : 0.55 }} />
+}
+
+const LIVE_KINDS = ['ball', 'called', 'whiff', 'foul', 'inplay']
+
+export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches = null, liveLabel = '', liveNote = '' }) {
   const [api, setApi] = useState(undefined)
   const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
@@ -126,6 +196,12 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
   // batted-ball shape, the starter's traffic and bleed there. This is how
   // EV Log and Hot Zones become one map without EV Log changing its face.
   const [hover, setHover] = useState(null)
+  // tonight's layer: which dot is under the cursor, and an optional pitch-type
+  // filter driven by the same pills the rest of the card uses
+  const [hoverP, setHoverP] = useState(null)
+  const [liveType, setLiveType] = useState(null)
+
+  useEffect(() => { setHoverP(null); setLiveType(null) }, [playerId])
 
   useEffect(() => {
     let alive = true
@@ -150,10 +226,31 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
   const hasBot = !!(zp && (zp.zones_13 || zp.zones_9))
   const isMatch = stat === 'matchup' && hasBot
 
-  if (api === undefined && !hasBot) {
+  // ── tonight's layer ───────────────────────────────────────────────────────
+  // Everything here is derived from exactly the pitches handed in, so the
+  // legend, the summary and the dots can never describe different samples.
+  const allLive = Array.isArray(livePitches) ? livePitches : []
+  const liveTypes = pitchTypes(allLive)
+  const live = liveType ? allLive.filter((p) => p.type === liveType) : allLive
+  const lbox = zoneBox(allLive)
+  const lsum = pitchSummary(live, lbox)
+  const hasLive = allLive.length > 0
+  // every drawn pitch bucketed into the cell it landed in, so the cell popout
+  // can say what was thrown there tonight
+  const liveByCell = {}
+  live.forEach((p) => {
+    const zn = zoneCell(p, lbox)
+    ;(liveByCell[zn] = liveByCell[zn] || []).push(p)
+  })
+  // the most recent plate appearance inside this set — "how they're working
+  // him right now", in the order it happened
+  const lastPi = live.length ? Math.max(...live.map((p) => p.pi)) : null
+  const lastAb = lastPi == null ? [] : live.filter((p) => p.pi === lastPi).sort((a, b) => a.seq - b.seq)
+
+  if (api === undefined && !hasBot && !hasLive) {
     return <div style={{ fontSize: 10, color: C.text3, padding: '6px 0', fontFamily: NUM_FONT }}>Loading zone map…</div>
   }
-  if (!api && !hasBot) return null
+  if (!api && !hasBot && !hasLive) return null
 
   const ZONES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '11', '12', '13', '14']
   let cells = {}
@@ -265,6 +362,13 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>⌖ Strike-zone map</span>
+        {hasLive && (
+          <span title={`${allLive.length} tracked pitches from tonight's feed, plotted on this same map`} style={{
+            fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
+            color: '#4ade80', border: '1px solid rgba(74,222,128,.45)', background: 'rgba(74,222,128,.10)',
+            borderRadius: 999, padding: '2px 8px',
+          }}>● LIVE {allLive.length}</span>
+        )}
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {pills.map((s) => (
             <button key={s.key} onClick={() => setStat(s.key)} title={s.hint} style={{
@@ -309,6 +413,64 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
         </div>
       )}
 
+      {/* TONIGHT'S NUMBERS — computed from exactly the dots drawn below, so
+          the strip can never describe a different sample than the picture. */}
+      {hasLive && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5 }}>
+            {[
+              ['PITCHES', String(lsum.n), C.text, `Every tracked pitch to ${liveLabel || 'this hitter'} tonight`],
+              ['STRIKE', lsum.n ? `${Math.round((100 * lsum.strikes) / lsum.n)}%` : '—', '#fbbf24', 'Called, swung at, fouled or put in play'],
+              ['IN ZONE', lsum.n ? `${Math.round((100 * lsum.inZone) / lsum.n)}%` : '—', C.cyan, "Inside the batter's own measured zone"],
+              ['WHIFF', lsum.swings ? `${Math.round((100 * lsum.whiffs) / lsum.swings)}%` : '—', '#f87171', `${lsum.whiffs} misses on ${lsum.swings} swings`],
+              ['CHASE', lsum.outZone ? `${Math.round((100 * lsum.chases) / lsum.outZone)}%` : '—', '#a78bfa', `${lsum.chases} swings at ${lsum.outZone} pitches out of the zone`],
+              ['AVG V', lsum.veloAvg != null ? lsum.veloAvg.toFixed(1) : '—', '#fb923c', 'Average release speed of the pitches shown'],
+            ].map(([k, v, col, tip]) => (
+              <span key={k} title={tip} style={{
+                display: 'inline-flex', gap: 5, alignItems: 'baseline', fontFamily: NUM_FONT,
+                border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
+                borderRadius: 7, padding: '2px 8px',
+              }}>
+                <b style={{ fontSize: 7.5, letterSpacing: '.09em', color: C.text3 }}>{k}</b>
+                <b style={{ fontSize: 11, color: col }}>{v}</b>
+              </span>
+            ))}
+          </div>
+          {liveTypes.length > 0 && (
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <button onClick={() => setLiveType(null)} style={{
+                fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
+                borderRadius: 999, padding: '2px 9px',
+                border: `1px solid ${liveType ? C.border : C.border2}`,
+                background: liveType ? 'transparent' : 'rgba(255,255,255,.05)',
+                color: liveType ? C.text3 : C.text2,
+              }}>all tonight</button>
+              {liveTypes.map((t) => {
+                const col = pitchColor(t.code)
+                const on = liveType === t.code
+                return (
+                  <button
+                    key={t.code}
+                    onClick={() => setLiveType((v) => (v === t.code ? null : t.code))}
+                    title={`${LIVE_PITCH_NAMES[t.code] || t.code} · ${t.n} thrown tonight${t.velo != null ? ` · ${t.velo.toFixed(1)} mph avg` : ''}${t.swings ? ` · ${t.whiffs}/${t.swings} whiffs on swings` : ''}`}
+                    style={{
+                      fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
+                      borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap',
+                      border: `1px solid ${on ? col : C.border}`,
+                      background: on ? `${col}1f` : 'transparent',
+                      color: on ? col : C.text2,
+                    }}
+                  >
+                    <span style={{ color: col }}>●</span> <b>{t.code}</b> {t.n}
+                    {t.velo != null && <span style={{ opacity: 0.7 }}> · {t.velo.toFixed(0)}</span>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ maxWidth: 250, margin: '0 auto' }}>
         <div style={{
           position: 'relative', height: 290,
@@ -328,6 +490,70 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
               <Cell key={k} {...cells[k]} big onHover={setHover} hoverKey={k} />
             ))}
           </div>
+
+          {/* TONIGHT'S DOTS — the live feed's own pX/pZ, converted into this
+              grid's coordinate space and drawn on top of the cells that were
+              already here. Shape = what happened, colour = what was thrown. */}
+          {hasLive && (
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4 }}>
+              {/* the batter's own measured zone, traced over the 3x3 so the
+                  dots have the box they were actually judged against */}
+              <div style={{
+                position: 'absolute', left: ZG.pad, right: ZG.pad, top: ZG.pad, bottom: ZG.pad,
+                border: '1px dashed rgba(255,255,255,.28)', borderRadius: 3,
+              }} />
+              {live.map((p, i) => {
+                const pos = livePos(zoneFrac(p, lbox))
+                const on = hoverP === i
+                return (
+                  <span
+                    key={`${p.pi}-${p.seq}`}
+                    onMouseEnter={() => setHoverP(i)}
+                    onMouseLeave={() => setHoverP((v) => (v === i ? null : v))}
+                    style={{
+                      position: 'absolute', left: pos.left, top: pos.top,
+                      width: 18, height: 18, transform: 'translate(-50%,-50%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      pointerEvents: 'auto', cursor: 'crosshair', zIndex: on ? 5 : 4,
+                    }}
+                  >
+                    <LiveDot kind={p.kind} col={pitchColor(p.type)} on={on} pinned={pos.pinned} />
+                  </span>
+                )
+              })}
+            </div>
+          )}
+
+          {/* the popout for a single live pitch — same card, same type, same
+              placement rule as the cell popout below it */}
+          {hasLive && hoverP != null && live[hoverP] && (() => {
+            const p = live[hoverP]
+            const f = zoneFrac(p, lbox)
+            const col = pitchColor(p.type)
+            const L = ({ children, dim: d2 }) => (
+              <div style={{ fontSize: 9, fontFamily: NUM_FONT, color: d2 ? C.text3 : C.text2, lineHeight: 1.6, whiteSpace: 'nowrap' }}>{children}</div>
+            )
+            return (
+              <div style={{
+                position: 'absolute', zIndex: 7, pointerEvents: 'none', width: 170,
+                ...(f.fx > 0.5 ? { right: '62%' } : { left: '62%' }),
+                ...(f.fz > 0.66 ? { bottom: 0 } : f.fz > 0.33 ? { top: '28%' } : { top: 0 }),
+                background: '#0b0b0d', border: `1px solid ${col}88`,
+                borderRadius: 8, padding: '7px 10px', boxShadow: '0 6px 20px rgba(0,0,0,.55)',
+              }}>
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: col, marginBottom: 2, whiteSpace: 'nowrap' }}>
+                  {p.typeName || LIVE_PITCH_NAMES[p.type] || p.type || 'pitch'}
+                  {p.velo != null ? ` · ${p.velo.toFixed(1)} mph` : ''}
+                </div>
+                <L>{p.call || KIND_LABEL[p.kind]}</L>
+                <L>pitch {p.seq} of the PA · {p.cnt} count</L>
+                <L dim>{pitchInZone(p, lbox) ? 'in the zone' : 'out of the zone'} · {ZONE_NAME[zoneCell(p, lbox)]}</L>
+                {p.batterName && <L dim>{p.batterName} vs {p.pitcherName || '—'}</L>}
+                {p.inning != null && <L dim>{String(p.half || '').slice(0, 3)} {p.inning}</L>}
+                {pos_pinned(f) && <L dim>drawn at the frame — it missed further than this map goes</L>}
+              </div>
+            )
+          })()}
 
           {/* THE POPOUT — everything Hot Zones knows about the cell, on
               hover, instantly, without leaving this map. It sits on the
@@ -369,20 +595,108 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null }) {
                 ) : (
                   <L dim>no data in this zone</L>
                 )}
+                {/* WHAT WAS THROWN HERE TONIGHT — the live layer joins the
+                    same popout rather than opening a second language. */}
+                {hasLive && (() => {
+                  const here = liveByCell[zn] || []
+                  return (
+                    <div style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.08em', color: '#4ade80', fontFamily: NUM_FONT }}>
+                        ● TONIGHT
+                      </div>
+                      {here.length === 0 ? (
+                        <L dim>nothing thrown here yet</L>
+                      ) : (<>
+                        <L>{here.length} pitch{here.length === 1 ? '' : 'es'}
+                          {here.filter((p) => p.kind === 'whiff').length > 0 ? ` · ${here.filter((p) => p.kind === 'whiff').length} whiff` : ''}
+                          {here.filter((p) => p.kind === 'inplay').length > 0 ? ` · ${here.filter((p) => p.kind === 'inplay').length} in play` : ''}
+                        </L>
+                        {[...new Set(here.map((p) => p.type).filter(Boolean))].slice(0, 4).map((t) => {
+                          const of = here.filter((p) => p.type === t)
+                          const vs = of.map((p) => p.velo).filter((v) => v != null)
+                          return (
+                            <L key={t}>
+                              <span style={{ color: pitchColor(t) }}>●</span> {t} ×{of.length}
+                              {vs.length ? ` · ${(vs.reduce((a, c) => a + c, 0) / vs.length).toFixed(0)} mph` : ''}
+                            </L>
+                          )
+                        })}
+                        <L dim>{here[here.length - 1].call || KIND_LABEL[here[here.length - 1].kind]} (last)</L>
+                      </>)}
+                    </div>
+                  )
+                })()}
               </div>
             )
           })()}
         </div>
       </div>
 
+      {/* LIVE KEY — the shapes, in the same row height and type as the rest
+          of this card, so nothing here reads as a borrowed chart. */}
+      {hasLive && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 7, fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ color: '#4ade80', fontWeight: 900, letterSpacing: '.07em' }}>● TONIGHT</span>
+          {LIVE_KINDS.map((k) => (
+            <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ display: 'inline-flex', width: 15, height: 15, alignItems: 'center', justifyContent: 'center' }}>
+                <LiveDot kind={k} col={C.text2} />
+              </span>
+              {KIND_LABEL[k]}
+            </span>
+          ))}
+          <span style={{ marginLeft: 'auto' }}>colour = pitch type</span>
+        </div>
+      )}
+
+      {/* THIS AT-BAT, PITCH BY PITCH — how they're working him right now, in
+          the order it happened, with the count before each pitch. */}
+      {hasLive && lastAb.length > 0 && (
+        <div style={{ marginTop: 7, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 9px', background: 'rgba(74,222,128,.035)' }}>
+          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.07em', color: '#4ade80', fontFamily: NUM_FONT, marginBottom: 3 }}>
+            LATEST PLATE APPEARANCE
+            {lastAb[0].batterName ? ` · ${lastAb[0].batterName}` : ''}
+            {lastAb[0].pitcherName ? ` vs ${lastAb[0].pitcherName}` : ''}
+            {lastAb[0].inning != null ? ` · ${String(lastAb[0].half || '').slice(0, 3)}${lastAb[0].inning}` : ''}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {lastAb.map((p) => (
+              <div key={`${p.pi}-${p.seq}`} style={{ display: 'flex', gap: 7, alignItems: 'baseline', fontSize: 9.5, fontFamily: NUM_FONT, minWidth: 0 }}>
+                <span style={{ color: C.text3, width: 12, flexShrink: 0 }}>{p.seq}</span>
+                <span style={{ color: C.text2, width: 24, flexShrink: 0 }}>{p.cnt}</span>
+                <span style={{ color: pitchColor(p.type), fontWeight: 800, width: 26, flexShrink: 0 }}>{p.type || '—'}</span>
+                <span style={{ color: C.text2, width: 30, flexShrink: 0 }}>{p.velo != null ? p.velo.toFixed(0) : '—'}</span>
+                <span style={{
+                  color: p.kind === 'whiff' ? '#f87171' : p.kind === 'inplay' ? '#4ade80' : p.kind === 'called' ? '#fbbf24' : C.text3,
+                  fontWeight: p.kind === 'whiff' || p.kind === 'inplay' ? 800 : 500,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+                }}>{p.call || KIND_LABEL[p.kind]}</span>
+                <span style={{ marginLeft: 'auto', flexShrink: 0, color: C.text3 }}>
+                  {pitchInZone(p, lbox) ? 'zone' : 'off'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+        {hasLive && <>
+          <b style={{ color: '#4ade80' }}>Tonight&apos;s dots</b> are the live feed&apos;s own pX/pZ, laid over the
+          same grid: the dashed box is the batter&apos;s measured zone ({lbox.bot.toFixed(2)}–{lbox.top.toFixed(2)} ft
+          {lbox.measured ? '' : ', league default — no measured zone in this feed yet'}), anything outside it sits
+          in the shadow corners. Hover a dot for the pitch, the call and the count; hover a cell for what was
+          thrown there tonight on top of his season line.{liveNote ? ` ${liveNote}` : ''}{' '}
+        </>}
         {isMatch
           ? <>One map, both players. The number is HIS xSLG in that zone; the small number is how often
             tonight&apos;s starter throws there. <span style={{ color: C.orange }}>Orange = his damage meets
             their traffic</span> (⚡ strongest edge) · <span style={{ color: '#f87171' }}>red = his hole meets
             their traffic</span> (⚠ biggest danger) · dim = nothing collides there. Hover any cell for both
             sides of it.</>
-          : <>{active?.label} by pitch location, MLB-graded hot/cold — brighter orange is hotter for the hitter.</>}
+          : (api || hasBot)
+            ? <>{active?.label} by pitch location, MLB-graded hot/cold — brighter orange is hotter for the hitter.</>
+            : <>No season zone file for this hitter yet, so the cells are empty on purpose — only tonight&apos;s dots are real here.</>}
         {' '}Catcher&apos;s view{bats === 'L' ? ' — for this lefty, inside is the right column' : bats === 'R' ? ' — for this righty, inside is the left column' : ''}. Corners are out-of-zone. Faded = small sample.
       </div>
     </div>

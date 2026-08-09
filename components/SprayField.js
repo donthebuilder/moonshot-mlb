@@ -289,7 +289,30 @@ function dimsFor(player) {
   return { dims: DEFAULT_PARK, source: 'default' }
 }
 
-export default function SprayField({ player, height = 340, slateMode }) {
+// ── TONIGHT'S BALLS ON THE SAME FIELD ───────────────────────────────────────
+//
+// 2026-08-10, Donovan: "there's no way to just use the spray and strike map we
+// already have as the live ones as well?" — so the live feed's batted balls
+// come HERE rather than to a second chart with its own look. They ride the
+// same wall, the same arcs, the same colour language (colour = what happened);
+// the only thing that separates them from the season dots is a white ring,
+// because they are the ones that happened tonight.
+//
+// The coordinates are the identical Statcast grid the bot publishes for its
+// tracked balls (plate at 125.42 / 198.27, 2.5 ft per unit, y inverted), so
+// they go through the same toPolar() and land in the same places. Nothing is
+// re-scaled and nothing is modeled.
+const liveIsHR = (b) => /home_run/i.test(b?.event || '')
+const liveColor = (b) => (liveIsHR(b) ? RESULT_COLORS.home_run
+  : /triple/i.test(b?.event || '') ? RESULT_COLORS.triple
+  : /double/i.test(b?.event || '') ? RESULT_COLORS.double
+  : /single/i.test(b?.event || '') ? RESULT_COLORS.single
+  : RESULT_COLORS.out)
+
+export default function SprayField({
+  player, height = 340, slateMode,
+  liveBalls = null, liveFocusId = null, liveLabel = '',
+}) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
   const [only, setOnly] = useState('all')
@@ -305,6 +328,9 @@ export default function SprayField({ player, height = 340, slateMode }) {
   const [range, setRange] = useState('g5')
   const rangeTouched = useRef(false)
   const [bbPick, setBbPick] = useState(null)   // null = all batted-ball types
+  // tonight's layer
+  const [hoverLive, setHoverLive] = useState(null)
+  const [liveOn, setLiveOn] = useState(true)
 
   const pid = player?.player_id || player?.id
 
@@ -473,16 +499,28 @@ export default function SprayField({ player, height = 340, slateMode }) {
     return okClass && okPitch && okBB
   }), [inRange, only, picked, bbPick])
 
+  // Tonight's balls, through the same transform as the season ones.
+  const liveHits = useMemo(() => (Array.isArray(liveBalls) ? liveBalls : []).map((b) => {
+    const p = toPolar({ hc_x: b?.cx, hc_y: b?.cy })
+    if (!p) return null
+    return { ...b, r: p.dist, ang: p.ang, hr: liveIsHR(b) }
+  }).filter(Boolean), [liveBalls])
+
   const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all') }
 
-  if (!pid) return null
-  if (state === 'loading') {
+  const liveN = liveHits.length
+  const liveDrawn = liveOn ? liveHits : []
+  const fid = Number(liveFocusId) || null
+  const anyFocus = fid ? liveHits.some((b) => Number(b.batterId) === fid) : false
+
+  if (!pid && !liveN) return null
+  if (state === 'loading' && !liveN) {
     return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
   }
-  if (state === 'error') {
+  if (state === 'error' && !liveN) {
     return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Couldn&apos;t load his batted-ball detail.</div>
   }
-  if (!hits.length) {
+  if (!hits.length && !liveN) {
     return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>No tracked batted balls for this hitter.</div>
   }
 
@@ -589,14 +627,27 @@ export default function SprayField({ player, height = 340, slateMode }) {
           {gamesShown}G · {inRange.length} of {hits.length} BBE
           {newest ? ` · through ${newest}` : ''}
         </span>
+        {liveN > 0 && (
+          <button
+            onClick={() => setLiveOn((v) => !v)}
+            title="Tonight's tracked balls in play from the live feed, on this same field. Ringed in white so they can't be mistaken for the season sample."
+            style={{ ...chipBtn(liveOn, '#4ade80'), padding: '2px 8px', fontSize: 9.5 }}
+          >● Tonight {liveN}</button>
+        )}
         <button onClick={reset} style={{ ...chipBtn(false, C.text3), padding: '2px 8px', fontSize: 9.5, marginLeft: 'auto' }}>
           Reset
         </button>
       </div>
 
-      {inRange.length === 0 && (
+      {inRange.length === 0 && hits.length > 0 && (
         <div style={{ fontSize: 10.5, color: C.orange, marginBottom: 6 }}>
           No tracked batted balls in this window — his last one was {newest || 'unknown'}. Widen the range.
+        </div>
+      )}
+      {hits.length === 0 && liveN > 0 && (
+        <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6, lineHeight: 1.5 }}>
+          No tracked batted balls on file for this hitter — the field below is
+          tonight&apos;s live contact only.
         </div>
       )}
       {range !== 'all' && inRange.length > 0 && inRange.length < 20 && (
@@ -884,6 +935,47 @@ export default function SprayField({ player, height = 340, slateMode }) {
             )
           })}
 
+          {/* TONIGHT'S BALLS — same field, same colour language, drawn last so
+              they sit on top of the season sample. The white ring is the only
+              thing that separates them; the current hitter's stay solid and
+              the rest of the game's are dimmed. */}
+          {liveDrawn.map((b, i) => {
+            const ang = Math.max(-EDGE, Math.min(EDGE, b.ang))
+            const [x, y] = pt(Math.min(b.r, R), ang)
+            const col = liveColor(b)
+            const focus = !anyFocus || Number(b.batterId) === fid
+            const on = hoverLive === i
+            const rr = b.hr ? 5.6 : 4.2
+            return (
+              <g key={`live-${i}`}>
+                <g style={{ pointerEvents: 'none' }} opacity={focus ? 1 : 0.28}>
+                  <circle cx={x} cy={y} r={rr} fill={col} stroke="#f4f4f5" strokeWidth={focus ? 1.3 : 0.8} />
+                  {b.hr && <circle cx={x} cy={y} r={rr + 3.4} fill="none" stroke={col} strokeWidth="1.1" opacity="0.85" />}
+                  {on && <circle cx={x} cy={y} r="12" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.9" />}
+                </g>
+                <circle
+                  cx={x} cy={y} r="9" fill="transparent"
+                  onMouseEnter={() => setHoverLive(i)}
+                  onMouseLeave={() => setHoverLive((v) => (v === i ? null : v))}
+                  style={{ cursor: 'crosshair' }}
+                />
+              </g>
+            )
+          })}
+          {/* tonight's homers wear their distance — the one number you'd quote */}
+          {liveDrawn.map((b, i) => {
+            if (!b.hr) return null
+            const ang = Math.max(-EDGE, Math.min(EDGE, b.ang))
+            const [x, y] = pt(Math.min(b.r, R), ang)
+            return (
+              <text key={`livehr-${i}`} x={x} y={y - 9} fill={RESULT_COLORS.home_run} fontSize="8.5"
+                fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle"
+                stroke="#0a0806" strokeWidth="2" paintOrder="stroke">
+                {b.dist ? `${Number(b.dist).toFixed(0)} ft` : 'HR'}
+              </text>
+            )
+          })}
+
           {/* Wall distances at the three points people actually quote. */}
           {[[-45, dims[0]], [0, dims[2]], [45, dims[4]]].map(([a, d]) => {
             const [x, y] = pt(d + 26, a)
@@ -939,7 +1031,25 @@ export default function SprayField({ player, height = 340, slateMode }) {
             appears and disappears — the layout shift was half of what made
             hovering feel broken. */}
         <div style={{ flex: 1, minWidth: 160, minHeight: 54 }}>
-          {hover != null && shown[hover] ? (
+          {hoverLive != null && liveDrawn[hoverLive] ? (
+            <div style={{ fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7 }}>
+              <div style={{ color: '#4ade80', fontSize: 8, fontWeight: 900, letterSpacing: '.09em' }}>● TONIGHT</div>
+              <div style={{ color: liveColor(liveDrawn[hoverLive]), fontWeight: 800, fontSize: 11 }}>
+                {String(liveDrawn[hoverLive].event || 'in play').replace(/_/g, ' ').toUpperCase()}
+              </div>
+              <div style={{ color: C.text }}>{clean(liveDrawn[hoverLive].batterName, 'unknown hitter')}</div>
+              <div style={{ color: C.text2 }}>
+                {liveDrawn[hoverLive].ev != null ? `${Number(liveDrawn[hoverLive].ev).toFixed(1)} mph` : 'EV n/a'}
+                {liveDrawn[hoverLive].la != null ? ` · ${Number(liveDrawn[hoverLive].la).toFixed(0)}°` : ''}
+                {liveDrawn[hoverLive].dist ? ` · ${Number(liveDrawn[hoverLive].dist).toFixed(0)} ft` : ''}
+              </div>
+              <div style={{ color: C.text3 }}>
+                {String(liveDrawn[hoverLive].traj || '').replace(/_/g, ' ') || 'trajectory n/a'}
+                {liveDrawn[hoverLive].pitcherName ? ` · off ${liveDrawn[hoverLive].pitcherName}` : ''}
+                {liveDrawn[hoverLive].inning != null ? ` · ${String(liveDrawn[hoverLive].half || '').slice(0, 3)}${liveDrawn[hoverLive].inning}` : ''}
+              </div>
+            </div>
+          ) : hover != null && shown[hover] ? (
             <div style={{ fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7 }}>
               <div style={{ color: C.orange, fontWeight: 800, fontSize: 11 }}>
                 {(shown[hover].event || 'batted ball').replace(/_/g, ' ').toUpperCase()}
@@ -991,13 +1101,49 @@ export default function SprayField({ player, height = 340, slateMode }) {
             <b style={{ color: RESULT_COLORS.single }}>blue</b> 1B · dark = out ·{' '}
             <b style={{ color: C.text2 }}>ring = barrel</b> · shape = pitch · size = distance
           </div>
+
+          {/* TONIGHT — the live layer explains itself in the same footer type
+              as everything else, and says out loud what it is. */}
+          {liveN > 0 && (
+            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5, lineHeight: 1.6 }}>
+              <b style={{ color: '#4ade80' }}>● Tonight:</b>{' '}
+              {liveOn ? <>
+                {liveN} tracked ball{liveN === 1 ? '' : 's'} in play from the live feed, ringed in white on the
+                same field. Same colours as above — red = homer, green = double, blue = single, dark = out.
+                {anyFocus
+                  ? <> <b style={{ color: C.text2 }}>{clean(liveLabel, 'the current hitter')}</b>&apos;s stay solid; the rest of
+                    the game&apos;s are dimmed.</>
+                  : ' Every hitter in the game is shown.'}
+                {' '}Homers carry their distance. Hover any ringed dot for the hitter, exit velo and result.
+              </> : <>hidden — tap the ● Tonight chip to bring the live balls back.</>}
+              {liveOn && (() => {
+                const hardestLive = liveHits.filter((b) => b.ev != null).sort((a, b) => b.ev - a.ev)[0]
+                const farLive = liveHits.filter((b) => b.dist).sort((a, b) => b.dist - a.dist)[0]
+                if (!hardestLive && !farLive) return null
+                return (
+                  <div style={{ marginTop: 3, fontFamily: NUM_FONT, color: C.text2 }}>
+                    {hardestLive && <>
+                      <b style={{ color: RESULT_COLORS.home_run }}>Hardest:</b>{' '}
+                      {clean(hardestLive.batterName, '?')} <b style={{ color: C.text }}>{Number(hardestLive.ev).toFixed(1)}</b> mph
+                      {' · '}{String(hardestLive.event || 'in play').replace(/_/g, ' ')}
+                    </>}
+                    {farLive && (!hardestLive || farLive !== hardestLive) && <>
+                      {hardestLive ? ' · ' : ''}
+                      <b style={{ color: C.orange }}>Farthest:</b>{' '}
+                      {clean(farLive.batterName, '?')} <b style={{ color: C.text }}>{Number(farLive.dist).toFixed(0)}</b> ft
+                    </>}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
           {hasWind && (
             <div style={{ fontSize: 9.5, marginTop: 4, color: C.text3 }}>
               <b style={{ color: windCol }}>Wind {windMph.toFixed(1)} mph {windLabel}</b>
               {windOut ? ' — helping carry' : windIn ? ' — hurting carry' : ' — pushing sideways'}
             </div>
           )}
-          {hits.length < 25 && (
+          {hits.length > 0 && hits.length < 25 && (
             <div style={{ fontSize: 9.5, marginTop: 4, color: C.orange }}>
               Only {hits.length} tracked batted balls — too few to read a spray tendency off.
             </div>
