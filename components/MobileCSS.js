@@ -375,6 +375,14 @@ export default function MobileCSS() {
               full names. (Pools tab, both the graded and the pre-game view.) */
         .pool-names { grid-template-columns: 1fr !important; }
 
+        /* STAT STRIP (2026-08-09). Four boxes across a 346px card is ~82px
+              each, which holds "Barrel / 24.3%" but not much more. The labels
+              are already the shortest honest words for these stats, so the
+              phone gets a smaller label rather than a truncated one, and the
+              number — the thing being read — keeps its size. */
+        .stat-strip { gap: 4px !important; }
+        .stat-strip > div > div:first-child { font-size: 7px !important; letter-spacing: 0 !important; }
+
         /* 2. AT THE PLATE — the ON DECK / IN THE HOLE cards are minWidth 168
               each, so two of them plus the 9px gap is 345px inside 346px of
               card. They "fit" by one pixel and their contents don't. A row

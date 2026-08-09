@@ -34,6 +34,7 @@ import Pairs from './tabs/Pairs'
 import Bot from './tabs/Bot'
 import Pitchers from './tabs/Pitchers'
 import QuickSearch from './QuickSearch'
+import { SlateScaleProvider } from '../lib/statline'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
 
@@ -214,7 +215,12 @@ export default function Dashboard() {
   const showEmpty = !loading && !players.length && !tabsWithoutPlayers.includes(tab)
 
   return (
-    <>
+    // Slate-relative stat colour, computed ONCE for the whole slate and read
+    // through context by every card. A board with 300 rows would otherwise
+    // re-rank the slate 300 times; more importantly, every surface shares one
+    // set of cutoffs, so the same barrel rate can't be green on the HR board
+    // and grey in the player's card. See lib/statline.js.
+    <SlateScaleProvider players={allPlayers}>
       <MobileCSS />
       {/* The ember signature — same bar the night-receipts card wears. */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
@@ -289,6 +295,6 @@ export default function Dashboard() {
         onWatch={toggleWatch}
         watched={modalPlayer ? watchIds.has(playerId(modalPlayer)) : false}
       />
-    </>
+    </SlateScaleProvider>
   )
 }

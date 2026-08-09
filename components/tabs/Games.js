@@ -15,6 +15,46 @@ import GameDeepDive from '../GameDeepDive'
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold from '../MobileFold'
+import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
+
+// A game card's pick chip, stat-first.
+//
+// Own component rather than inline JSX because it reads the slate scale from
+// context, and a hook cannot live inside a .map() callback.
+function StatChip({ p, cat, col, score, onClick }) {
+  const scale = useSlateScale()
+  const lead = statLineFor(p, cat, 1)[0] || null
+  const tone = lead ? toneFor(scale, lead) : null
+  const statCol = lead ? (tone ? TONE_COLOR[tone] : C.text2) : C.text3
+  return (
+    <button onClick={onClick} title={lead ? toneTitle(tone, scale, lead) : undefined} style={{
+      display: 'flex', flexDirection: 'column', gap: 2, cursor: 'pointer', minWidth: 0,
+      border: `1px solid ${col}55`, background: `${col}10`,
+      borderRadius: 7, padding: '4px 8px 5px', textAlign: 'left',
+    }}>
+      <span style={{ display: 'flex', gap: 5, alignItems: 'baseline', minWidth: 0 }}>
+        <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{cat}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          {String(p?.name || '').split(' ').slice(-1)[0]}
+        </span>
+      </span>
+      <span style={{ display: 'flex', gap: 5, alignItems: 'baseline', minWidth: 0 }}>
+        {lead ? (
+          <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+            <b style={{ color: statCol, fontWeight: 800 }}>{lead.text}</b>
+            <span style={{ color: C.text3 }}> {lead.label.toLowerCase()}</span>
+          </span>
+        ) : (
+          // No published stat for him — say nothing rather than print a dash.
+          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>no stat yet</span>
+        )}
+        <span title="The bot's score for this category" style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: `${col}cc`, fontFamily: NUM_FONT, flexShrink: 0 }}>
+          {score.toFixed(0)}
+        </span>
+      </span>
+    </button>
+  )
+}
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -524,15 +564,17 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                             const cat = primaryRole(p)
                             const col = CAT_COLOR[cat] || C.text3
                             return (
-                              <button key={playerId(p)} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
-                                display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
-                                border: `1px solid ${col}55`, background: `${col}10`,
-                                borderRadius: 7, padding: '3px 8px',
-                              }}>
-                                <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{cat}</span>
-                                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
-                                <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SCORE[cat](p) || 0).toFixed(0)}</span>
-                              </button>
+                              // THE CHIP NOW CARRIES A REASON (2026-08-09).
+                              // It used to read "HR · Alonso · 82" — a name and
+                              // a number with nothing behind it, which is the
+                              // exact complaint about our boards versus theirs.
+                              // Second line is the single stat that most drives
+                              // THIS category for him, in slate-relative colour;
+                              // the bot's score stays beside it, smaller. Both
+                              // numbers, one glance, and the stat leads.
+                              <StatChip key={playerId(p)} p={p} cat={cat} col={col}
+                                score={CAT_SCORE[cat](p) || 0}
+                                onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} />
                             )
                           })}
                         </div>

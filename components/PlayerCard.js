@@ -6,6 +6,7 @@ import {
 } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { Chip, Card } from './ui'
+import StatStrip from './StatStrip'
 
 // 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
 // double-booked with the old Power Watch role emoji (now 🔭).
@@ -166,9 +167,20 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {teamOf(p) || '—'} vs {oppOf(p) || '—'} · {clean(p?.lineup_spot, '—')}{p?.lineup_confirmed === false ? <span style={{ color: C.text3 }}> (proj.)</span> : null} · {clean(p?.handedness || p?.bats, '—')}
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1, fontFamily: NUM_FONT }}>{score.toFixed(0)}</div>
-          <div style={{ fontSize: 9, color: C.text3, marginTop: 2 }}>{grade}</div>
+        {/* THE SCORE, DEMOTED (2026-08-09). It used to be 22px and the first
+            thing your eye hit — a 0–100 number the reader has no independent
+            handle on. It is still here, still the bot's verdict, but it now
+            sits as a badge beside the stats that earned it. Nothing was
+            removed; the reading order changed. */}
+        <div title={`The bot's ${type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.`}
+          style={{
+            textAlign: 'center', flexShrink: 0, cursor: 'help',
+            border: `1px solid ${color}44`, background: `${color}10`,
+            borderRadius: 8, padding: '3px 8px 4px',
+          }}>
+          <div style={{ fontSize: 7.5, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>BOT</div>
+          <div style={{ fontSize: 15, fontWeight: 900, color, lineHeight: 1.1, fontFamily: NUM_FONT }}>{score.toFixed(0)}</div>
+          <div style={{ fontSize: 8, color: C.text3 }}>{grade}</div>
         </div>
       </div>
 
@@ -204,8 +216,14 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
         )}
       </div>
 
-      {/* stats */}
-      <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8, lineHeight: 1.5 }}>
+      {/* STATS FIRST (2026-08-09). This was "BA · HR · K" in 10px grey — the
+          same three season numbers for a 40-homer bat and a leadoff slap
+          hitter, in the colour we use for things that don't matter. It is now
+          the four stats that actually drive THIS market, each coloured
+          against tonight's slate. The old line survives underneath as the
+          fine print it always was. */}
+      <StatStrip p={p} type={type} count={4} style={{ marginBottom: 7 }} />
+      <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8, lineHeight: 1.5 }}>
         BA {clean(p?.season_avg, '—')} · HR {clean(p?.season_hr, '—')} · K {pct(p?.season_k_rate)}
         {b > 0 ? ` · BABIP ${b.toFixed(3)}` : ''}
         {pb >= 0.33 ? ` · P-BABIP ${pb.toFixed(3)}` : ''}

@@ -12,6 +12,7 @@ import {
 import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/scoring'
 import { Chip } from './ui'
 import Explain from './Explain'
+import StatStrip, { HitRateBoxes } from './StatStrip'
 import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
 import HRPitchProfile from './HRPitchProfile'
@@ -363,6 +364,17 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               }}>✕</button>
             )}
           </div>
+
+          {/* STAT-FIRST HEADER (2026-08-09). The card used to open on chips,
+              then model scores. The two sites people call easier to read both
+              open on the same thing: the raw numbers, colour-coded, and a
+              recent-homer count. Both are here now, above everything — the
+              model scores are still a scroll away in their own panel, where a
+              verdict belongs. The homer boxes keep their denominators visible
+              because L5/L10 count GAMES and season counts PLATE APPEARANCES;
+              stacking those as bare percentages compares two different units. */}
+          <StatStrip p={p} type="hr" count={6} style={{ marginBottom: 8 }} />
+          <HitRateBoxes p={p} style={{ marginBottom: 10, maxWidth: 320 }} />
 
           {/* Watchlist + slip. You could open a hitter from any board, decide
               he's worth playing, and then have to close the modal and find his
