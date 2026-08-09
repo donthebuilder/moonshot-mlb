@@ -163,30 +163,34 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
 
   if (!parks.length) return null
 
-  // Visual bands (2026-08-07, "this need to be cooler"): the edge number
-  // decides the card's whole personality — launch pads burn, ice boxes
-  // freeze, the middle stays quiet. Top three glow.
+  // Visual bands: the edge number decides the row's whole personality —
+  // launch pads burn, ice boxes freeze, the middle stays quiet.
   const bandOf = (edge) => edge >= 10 ? { icon: '🌋', col: '#f97316', word: 'LAUNCH PAD' }
     : edge >= 5 ? { icon: '🔥', col: '#fb923c', word: 'CARRIES' }
     : edge >= 0 ? { icon: '🌤', col: '#FCD34D', word: 'FAIR' }
     : edge >= -8 ? { icon: '🌬', col: '#7dd3fc', word: 'HEAVY AIR' }
     : { icon: '🧊', col: '#38bdf8', word: 'ICE BOX' }
 
+  // THE LADDER (2026-08-08 redesign — "a whole new look, not the same cards
+  // polished"). The wall of tiles becomes one ranked ladder: every park a
+  // full-width rung on a SHARED edge axis, a diverging bar from the neutral
+  // line — ember right for carry, ice left for heavy air — so the whole
+  // slate's spread is readable in one glance instead of card-by-card.
+  // Every data element survives: edge %, band, conditions, live weather
+  // desk, lineup checks, pen tags, rest/travel chips, threats and house
+  // history — they just live in lanes on the rung now.
+  const maxAbs = Math.max(4, ...parks.map((g) => Math.abs(g.edge)))
+
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>🏟 Tonight&apos;s parks</span>
+        <span style={{ fontSize: 12.5, fontWeight: 900 }}>🏟 The park ladder</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          🌋 launch pads → 🧊 ice boxes · live status, first pitch, rain risk, lineup checks · tap to filter the board
+          every yard on one axis — bar right of the line helps hitters, left fights them · live status, rain risk, lineup checks, pens, rest · tap a rung to filter the board
         </span>
       </div>
-      {/* EVEN ROWS (2026-08-08, Donovan): auto-fill grid stranded ragged
-          rows once the featured card spanned two columns. Flex with grow —
-          the same trick the game chips use — stretches every row edge to
-          edge, and flex's default align-stretch keeps card heights even
-          within each row. The featured #1 park earns extra width through a
-          bigger basis instead of a grid span. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+
+      <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
         {parks.map((g, i2) => {
           const band = bandOf(g.edge)
           const isActive = activeVenue && g.venue === activeVenue
@@ -194,49 +198,70 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
           const out = /out/i.test(g.windLabel)
           const wIn = /in\b/i.test(g.windLabel)
           const roofNote = g.roof && !/open/i.test(g.roof) ? g.roof : ''
+          const frac = Math.min(1, Math.abs(g.edge) / maxAbs)
           return (
             <div
               key={g.pk}
               onClick={() => onVenueClick?.(isActive ? '' : g.venue)}
-              title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "the bot's weather HR effect" : 'wind/temp heuristic (bot weather effect not published for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs neutral. Ranks this board, scores nothing.`}
+              title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "the bot's weather HR effect" : 'wind/temp heuristic (bot weather effect not published for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs neutral. Ranks this ladder, scores nothing.`}
               style={{
-                cursor: 'pointer', position: 'relative', overflow: 'hidden', minWidth: 0,
-                flex: `${i2 === 0 && g.edge > 0 ? 2 : 1} 1 ${i2 === 0 && g.edge > 0 ? 320 : 196}px`,
-                background: `linear-gradient(160deg, ${band.col}${isTop ? '26' : '14'} 0%, ${band.col}05 55%, transparent 100%)`,
-                border: `1px solid ${isActive ? band.col : `${band.col}${isTop ? '70' : '35'}`}`,
-                borderRadius: 12, padding: '9px 11px 8px',
-                boxShadow: isActive ? `0 0 18px ${band.col}44` : isTop ? `0 0 12px ${band.col}22` : 'none',
+                cursor: 'pointer', minWidth: 0, position: 'relative',
+                display: 'flex', gap: 12, alignItems: 'flex-start',
+                padding: '9px 14px 8px',
+                borderBottom: i2 < parks.length - 1 ? `1px solid ${C.border}` : 'none',
+                borderLeft: `3px solid ${isActive ? band.col : isTop ? `${band.col}88` : 'transparent'}`,
+                background: isActive
+                  ? `linear-gradient(90deg, ${band.col}1c, transparent 60%)`
+                  : isTop ? `linear-gradient(90deg, ${band.col}0d, transparent 55%)` : 'transparent',
               }}
             >
-              {/* rank watermark */}
-              <div style={{
-                position: 'absolute', top: -8, right: 2, fontFamily: NUM_FONT,
-                fontSize: 44, fontWeight: 900, color: band.col, opacity: 0.10, lineHeight: 1, pointerEvents: 'none',
-              }}>{i2 + 1}</div>
+              {/* rank — the ladder is the order */}
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, width: 22, flexShrink: 0,
+                color: isTop ? band.col : C.text3, textAlign: 'right', paddingTop: 2,
+              }}>{i2 + 1}</span>
 
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 15 }}>{band.icon}</span>
-                <span style={{ fontSize: 19, fontWeight: 900, fontFamily: NUM_FONT, color: band.col, letterSpacing: '-0.02em' }}>
-                  {g.edge > 0 ? '+' : ''}{g.edge.toFixed(0)}%
-                </span>
-                <span style={{ fontSize: 7.5, fontWeight: 900, color: band.col, letterSpacing: '.1em', fontFamily: NUM_FONT, opacity: 0.85 }}>
-                  {band.word}
-                </span>
+              {/* the shared axis — edge number over a diverging bar */}
+              <div style={{ width: 132, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                  <span style={{ fontSize: 12 }}>{band.icon}</span>
+                  <span style={{ fontSize: 16, fontWeight: 900, fontFamily: NUM_FONT, color: band.col, letterSpacing: '-0.02em' }}>
+                    {g.edge > 0 ? '+' : ''}{g.edge.toFixed(0)}%
+                  </span>
+                  <span style={{ fontSize: 7, fontWeight: 900, color: band.col, letterSpacing: '.09em', fontFamily: NUM_FONT, opacity: 0.85 }}>
+                    {band.word}
+                  </span>
+                </div>
+                <div style={{ position: 'relative', height: 6, marginTop: 4, background: 'rgba(255,255,255,.05)', borderRadius: 3, overflow: 'hidden' }}>
+                  {/* neutral line */}
+                  <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: C.border2 }} />
+                  <div style={{
+                    position: 'absolute', top: 0, bottom: 0,
+                    left: g.edge >= 0 ? '50%' : `${50 - frac * 50}%`,
+                    width: `${frac * 50}%`,
+                    background: `linear-gradient(90deg, ${band.col}66, ${band.col})`,
+                    borderRadius: 3,
+                  }} />
+                </div>
               </div>
 
-              <div style={{ fontSize: 11, fontWeight: 800, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {g.venue || g.matchup}
-              </div>
-              <div style={{ display: 'flex', gap: 7, alignItems: 'baseline', marginTop: 2, fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
-                <span style={{ fontWeight: 800, color: C.text2 }}>{g.matchup}</span>
+              {/* the rung's story — venue, conditions, weather desk, bats */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', minWidth: 0 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '46%' }}>
+                  {g.venue || g.matchup}
+                </span>
+                <span style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, color: C.text2 }}>{g.matchup}</span>
+                <span style={{ display: 'flex', gap: 7, alignItems: 'baseline', fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
                 {g.temp > 0 && <span style={{ color: g.temp >= 82 ? '#fb923c' : g.temp <= 58 ? '#38bdf8' : C.text3 }}>{Math.round(g.temp)}°</span>}
                 {g.wind > 0 && (
                   <span title={g.windLabel} style={{ color: out ? '#fb923c' : wIn ? '#38bdf8' : C.text3, fontWeight: 800 }}>
                     {out ? '↗' : wIn ? '↙' : '→'}{Math.round(g.wind)}
                   </span>
                 )}
-                {g.parkHR > 0 && <span>×{g.parkHR.toFixed(2)}</span>}
+                {g.parkHR > 0 && <span title="Raw park HR factor before weather">×{g.parkHR.toFixed(2)}</span>}
                 {roofNote && <span>🏠 {roofNote}</span>}
+                </span>
               </div>
 
               {/* the weather-desk line: live status beats schedule beats nothing */}
@@ -387,6 +412,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                   </div>
                 )
               })()}
+              </div>
             </div>
           )
         })}
