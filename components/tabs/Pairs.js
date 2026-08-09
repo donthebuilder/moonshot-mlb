@@ -1325,6 +1325,7 @@ function HistorySection({ data, q, players=[] }) {
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 
 import PairMe from '../PairMe'
+import PartnerWatch from '../PartnerWatch'
 import PairBoard from '../PairBoard'
 
 // SLIMMED TO TWO VIEWS (2026-08-04). Build a Pair moved to the Pools tab —
@@ -1347,6 +1348,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
 
   return (
     <div>
+      <PartnerWatch players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />
       <PairMe players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />
       <PanelTitle
         title="Pairs"
