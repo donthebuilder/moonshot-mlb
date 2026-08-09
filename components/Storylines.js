@@ -246,35 +246,67 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // back-to-back watch if yesterday's results say he homered. When that file
   // hasn't published, the section still renders (it must survive a missing
   // file) but the ✅ is withheld — an unverifiable claim doesn't get a check.
-  const [ydayHr, setYdayHr] = useState(undefined)   // undefined = unknown
+  // ROUND TWO (2026-08-10) — a user reported Chourio on the back-to-back
+  // watch when he had NOT homered the night before; he homered that same
+  // day. Two holes were left:
+  //
+  //   (a) TOMORROW SLATES SKIPPED VERIFICATION ENTIRELY. The effect bailed on
+  //       `isTmrw`, so every candidate rendered unchecked — which is exactly
+  //       the report. On a tomorrow slate the SETUP homer is TODAY's, so the
+  //       proof lives in today's live results, not in a graded file.
+  //   (b) A MISSING FILE MEANT "SHOW EVERYTHING". The filter passed rows
+  //       through whenever proof was unavailable, so an outage silently
+  //       became a page full of unverifiable claims.
+  //
+  // Both are now closed the same way: the proof source follows the slate, and
+  // WITHOUT PROOF THE SECTION DOES NOT RENDER. A back-to-back watch nobody
+  // can stand behind is worse than no back-to-back watch — this panel's whole
+  // value is that its claims are checkable.
+  const [setupHr, setSetupHr] = useState(undefined) // Set = verified, null = no proof
   useEffect(() => {
-    if (isTmrw) { setYdayHr(undefined); return undefined }
     let alive = true
-    const d = new Date(new Date(`${dateKey}T12:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10)
-    const u = dataUrl(`current/graded_results_${d}.json`)
-    fetch(`${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (!alive || !j) return
-        const s = new Set()
-        dedupeGraded(j.graded_slots || j.results || []).forEach((r2) => {
-          const pid = Number(r2?.player_id)
-          if (pid && Number(r2?.actual_hr) > 0) s.add(pid)
-        })
-        setYdayHr(s)
+    setSetupHr(undefined)
+    const collect = (j) => {
+      const s2 = new Set()
+      dedupeGraded(j?.graded_slots || j?.results || []).forEach((r2) => {
+        const pid = Number(r2?.player_id)
+        if (pid && Number(r2?.actual_hr) > 0) s2.add(pid)
       })
-      .catch(() => {})
+      return s2
+    }
+    const bust2 = (u) => `${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`
+    const today = new Date().toLocaleDateString('en-CA')
+    if (isTmrw) {
+      // tomorrow's slate: "back-to-back" means he goes deep TODAY and again
+      // tomorrow, so today's live results are the setup proof.
+      fetch(bust2(dataUrl('current/results_live.json')))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!alive) return
+          // the live file holds the last graded slate until a new one starts
+          if (!j || String(j.date || '') !== today) { setSetupHr(null); return }
+          setSetupHr(collect(j))
+        })
+        .catch(() => { if (alive) setSetupHr(null) })
+    } else {
+      const d = new Date(new Date(`${dateKey}T12:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10)
+      fetch(bust2(dataUrl(`current/graded_results_${d}.json`)))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!alive) return
+          setSetupHr(j ? collect(j) : null)
+        })
+        .catch(() => { if (alive) setSetupHr(null) })
+    }
     return () => { alive = false }
   }, [isTmrw, dateKey])
 
-  const b2b = players
+  const b2bVerified = setupHr instanceof Set
+  const b2b = !b2bVerified ? [] : players
     .filter((p) => Number(p?.games_since_last_hr) === 0)
-    // when yesterday's file is available, the setup homer must be IN it
-    .filter((p) => !(ydayHr instanceof Set) || ydayHr.has(Number(p?.player_id ?? p?.id)))
+    // the setup homer must appear in the proof file — no proof, no row
+    .filter((p) => setupHr.has(Number(p?.player_id ?? p?.id)))
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
-  // ✅ only when the setup is verified — otherwise we can't tell the two
-  // homers apart, and a check we can't defend is worse than no check.
-  const b2bVerified = ydayHr instanceof Set
 
   // The matchup lines are their own pull, so they must survive a failed
   // people fetch the same way the b2b watch does.
@@ -546,7 +578,11 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
       {b2b.slice(0, 6).map((x, i) => (
         <Row key={`bb${i}`} icon="🔁" p={x}>
-          <b style={{ color: C.text }}>{nameOf(x)}</b> went deep <b style={{ color: '#f87171' }}>last game</b> — back-to-back watch
+          {/* the day is NAMED, so nobody has to guess which night the setup
+              homer was (2026-08-10 user report). On a tomorrow slate the
+              setup is today's game; on a today slate it's last night's. */}
+          <b style={{ color: C.text }}>{nameOf(x)}</b> homered{' '}
+          <b style={{ color: '#f87171' }}>{isTmrw ? 'today' : 'last night'}</b> — back-to-back watch for {dayWord}
           <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
           {b2bVerified && hrToday(x) && <Cashed>HOMERED AGAIN TODAY</Cashed>}
         </Row>
