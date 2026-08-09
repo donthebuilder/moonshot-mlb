@@ -309,16 +309,16 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         )}
         <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
           {feed === undefined ? 'loading tonight’s feed…'
-            : feed === null ? 'live feed unavailable — season data only'
+            : feed === null ? 'live feed unavailable — nothing to plot'
             : `${feed.pitches.length} pitches · ${feed.balls.length} balls in play this game`}
         </span>
       </div>
 
       {feed && livePitchesFor.length === 0 && (
         <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
-          {selName || 'He'} hasn&apos;t seen a tracked pitch tonight yet, so the zone map is his season
-          profile only — tonight&apos;s dots appear the moment he steps in. The spray chart already
-          shows every ball put in play in this game.
+          {selName || 'He'} hasn&apos;t seen a tracked pitch tonight yet, so the zone map below has no dots
+          on it — just the heat and the starter&apos;s usage as background. They appear the moment he
+          steps in.
         </div>
       )}
 
@@ -329,9 +329,16 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           charts in 180px columns. The class makes the stack explicit. */}
       <div className="chart-cols" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+          {/* liveOnly (2026-08-10, Donovan: "for the spray and the strike map I
+              want those to be at-the-plate specific, no outside data on those.
+              Besides like percents and heat matches and such — I like where
+              it's at"). The heat, the percentages and the matchup shading stay
+              as background; the season value inside each cell is off, so the
+              only markers are tonight's pitches. */}
           <ZoneMap
             playerId={Number(selectedId)}
             bats={bats}
+            liveOnly
             livePitches={livePitchesFor}
             liveLabel={selName}
           />
@@ -351,13 +358,18 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                 }}>● LIVE {liveBalls.length}</span>
               )}
               <span style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-                tracked batted balls + tonight
+                tonight only
               </span>
             </div>
+            {/* liveOnly — same request as the zone map above. The field, the
+                real wall, the arcs and the result colours stay; the season
+                batted balls, the window chips and the lane shares are off, so
+                the only dots on the field are the ones hit in this game. */}
             <SprayField
               player={selP}
               slateMode={slateMode}
               height={320}
+              liveOnly
               liveBalls={liveBalls}
               liveFocusId={Number(selectedId)}
               liveLabel={selName}
@@ -367,11 +379,14 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
       </div>
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 10, lineHeight: 1.65, maxWidth: 760 }}>
-        The same zone map and spray chart the player card uses, carrying tonight&apos;s feed as well as
-        the season data — one look everywhere. Tonight&apos;s pitches are the feed&apos;s own pX/pZ laid on
-        the zone grid; tonight&apos;s batted balls are its own hit coordinates laid on the same field,
-        ringed in white. Tap anyone in the batting order above to point both charts at him without
-        leaving the page. Refreshes every 25s while this tab is visible.
+        The same zone map and spray chart the player card uses, in their <b style={{ color: C.text2 }}>tonight-only</b>{' '}
+        skin: every dot on this page comes from this game and nothing else. Tonight&apos;s pitches are the
+        feed&apos;s own pX/pZ laid on the zone grid; tonight&apos;s batted balls are its own hit coordinates
+        laid on this park&apos;s real wall. The zone cells keep their heat, the starter&apos;s usage
+        percentages and the matchup shading as background, and the season number that normally sits
+        inside each cell is one hover away rather than painted over the dots. Tap anyone in the batting
+        order above to point both charts at him without leaving the page. Refreshes every 25s while this
+        tab is visible.
       </div>
     </div>
   )

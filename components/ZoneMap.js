@@ -194,7 +194,28 @@ function LiveDot({ kind, col, on, pinned }) {
 
 const LIVE_KINDS = ['ball', 'called', 'whiff', 'foul', 'inplay']
 
-export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches = null, liveLabel = '', liveNote = '' }) {
+// ── liveOnly: THE AT-THE-PLATE SKIN ─────────────────────────────────────────
+//
+// 2026-08-10, Donovan: "for the spray and the strike map I want those to be
+// at-the-plate specific, no outside data on those. Besides like percents and
+// heat matches and such — I like where it's at, just needs to straighten up."
+//
+// Read that carefully, because it is not "strip the map". The HEAT and the
+// MATCHUP SHADING are what he likes and they stay: the cell colour, the
+// starter's usage percentage, the collision verdict, the zone-match strip. What
+// goes is the season VALUE printed inside each cell — his xSLG (or EV/SLG/OPS/
+// AVG) as a number, and the ⚡/⚠ marks that sit beside it. Those are marks on a
+// map whose markers are supposed to be tonight's pitches, and with both drawn a
+// cell has two things in it competing to be read.
+//
+// So in liveOnly the grid becomes exactly what he described: heat and percents
+// as BACKGROUND, tonight's dots as the only foreground. Everything a hover
+// reveals is unchanged — the popout still carries his season line for the cell,
+// because a tooltip is something you ask for rather than something drawn over
+// the picture.
+//
+// Off by default. The player modal and the EV Log get the map they had.
+export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = false, livePitches = null, liveLabel = '', liveNote = '' }) {
   const [api, setApi] = useState(undefined)
   const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
@@ -258,7 +279,26 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches 
   if (api === undefined && !hasBot && !hasLive) {
     return <div style={{ fontSize: 10, color: C.text3, padding: '6px 0', fontFamily: NUM_FONT }}>Loading zone map…</div>
   }
-  if (!api && !hasBot && !hasLive) return null
+  // In liveOnly the map is worth drawing even with nothing thrown yet — the
+  // heat and the matchup shading are the background he asked to keep, and the
+  // note below the grid says out loud that no pitch has landed on it. With NO
+  // background either, there is genuinely nothing to draw, and it says so.
+  if (!api && !hasBot && !hasLive) {
+    if (!liveOnly) return null
+    return (
+      <div style={{
+        background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.03))`,
+        border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', marginBottom: 10,
+        fontSize: 10.5, color: C.text3, lineHeight: 1.6,
+      }}>
+        <b style={{ color: C.text, fontSize: 12 }}>⌖ Strike-zone map</b>
+        <div style={{ marginTop: 5 }}>
+          No pitches to this hitter yet tonight, and no season zone profile on file for him either —
+          so there is nothing honest to draw. Dots appear the moment he sees a pitch.
+        </div>
+      </div>
+    )
+  }
 
   const ZONES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '11', '12', '13', '14']
   let cells = {}
@@ -360,6 +400,14 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches 
     )
   }
 
+  // liveOnly: keep the heat, the shading and the starter's usage percentage as
+  // background; drop the season VALUE and the ⚡/⚠ marks so tonight's dots are
+  // the only markers on the grid. The hover popout is untouched — the number is
+  // still one gesture away, it just isn't painted over the picture.
+  if (liveOnly) {
+    Object.keys(cells).forEach((k) => { cells[k] = { ...cells[k], main: '', mark: null } })
+  }
+
   const pills = [...(hasBot ? [{ key: 'matchup', label: '⚔ Matchup', hint: 'Both players on one map — where his zones and the starter’s pitches collide, and who wins each collision' }] : []), ...API_STATS]
   const active = pills.find((s) => s.key === stat) || pills[0]
 
@@ -370,7 +418,14 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches 
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>⌖ Strike-zone map</span>
-        {hasLive && (
+        {liveOnly && (
+          <span title="On this page the only dots are tonight's pitches to this hitter. The cell colour and the starter's usage percentage stay as background context." style={{
+            fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
+            color: '#4ade80', border: '1px solid rgba(74,222,128,.5)', background: 'rgba(74,222,128,.10)',
+            borderRadius: 999, padding: '2px 8px',
+          }}>● TONIGHT ONLY {allLive.length}</span>
+        )}
+        {!liveOnly && hasLive && (
           <span title={`${allLive.length} tracked pitches from tonight's feed, plotted on this same map`} style={{
             fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
             color: '#4ade80', border: '1px solid rgba(74,222,128,.45)', background: 'rgba(74,222,128,.10)',
@@ -392,6 +447,18 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches 
           {isMatch ? `bot zone cache · ~${zp?.lookback || 120}d · him + tonight's starter` : 'live API · season · MLB grading'}
         </span>
       </div>
+
+      {/* HONEST EMPTY STATE. The grid below still carries the heat and the
+          matchup shading — that's the background he asked to keep — but with no
+          pitch on it yet, the map must not be read as "he's seen nothing in the
+          zone". It says which it is. */}
+      {liveOnly && !hasLive && (
+        <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
+          No pitches to <b style={{ color: C.text2 }}>{liveLabel || 'this hitter'}</b> yet tonight. The
+          shading below is his season heat and the starter&apos;s usage, kept as background — the only
+          dots this map will ever draw are tonight&apos;s, and they appear the moment he steps in.
+        </div>
+      )}
 
       {verdict}
       {isMatch && <ZoneMatchStrip zp={zp} pzp={pzp} />}
@@ -699,7 +766,14 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches 
           in the shadow corners. Hover a dot for the pitch, the call and the count; hover a cell for what was
           thrown there tonight on top of his season line.{liveNote ? ` ${liveNote}` : ''}{' '}
         </>}
-        {isMatch
+        {liveOnly
+          ? <>The cells carry <b style={{ color: C.text2 }}>colour and percentage only</b> on this page —
+            the season value that normally sits in each cell is off, so tonight&apos;s pitches are the only
+            markers drawn. <span style={{ color: C.orange }}>Orange = his damage meets the starter&apos;s
+            traffic</span> · <span style={{ color: '#f87171' }}>red = his hole meets it</span> · dim =
+            nothing collides there{isMatch ? '' : ' (brighter orange = hotter for the hitter)'}. Hover any
+            cell for his full line there and what was thrown into it tonight.</>
+          : isMatch
           ? <>One map, both players. The number is HIS xSLG in that zone; the small number is how often
             tonight&apos;s starter throws there. <span style={{ color: C.orange }}>Orange = his damage meets
             their traffic</span> (⚡ strongest edge) · <span style={{ color: '#f87171' }}>red = his hole meets

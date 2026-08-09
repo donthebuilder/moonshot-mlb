@@ -309,8 +309,27 @@ const liveColor = (b) => (liveIsHR(b) ? RESULT_COLORS.home_run
   : /single/i.test(b?.event || '') ? RESULT_COLORS.single
   : RESULT_COLORS.out)
 
+// ── liveOnly: THE AT-THE-PLATE SKIN ─────────────────────────────────────────
+//
+// 2026-08-10, Donovan on the At the Plate page: "for the spray and the strike
+// map I want those to be at-the-plate specific, no outside data on those."
+//
+// He is right, and the reason is that page's job. Everywhere else this chart
+// answers "what does this hitter do" — a season of tracked contact, filtered by
+// pitch and window. On At the Plate the question is "what is happening in this
+// game, right now", and a field of 300 season dots with tonight's four ringed
+// in white buries the four that matter under the three hundred that don't.
+//
+// So `liveOnly` keeps everything that IS the picture — the park's real wall,
+// the warning track, the distance arcs, the lanes, the wind, the result colour
+// language — and drops every dot, chip, share and lane bar that came from the
+// season sample. The season detail fetch is not even made: there is nothing on
+// screen for it to feed, so it isn't requested.
+//
+// Nothing about the player modal, the EV Log or the Power board changes: the
+// prop defaults to false, and the season chart is untouched.
 export default function SprayField({
-  player, height = 340, slateMode,
+  player, height = 340, slateMode, liveOnly = false,
   liveBalls = null, liveFocusId = null, liveLabel = '',
 }) {
   const [data, setData] = useState(null)
@@ -335,7 +354,8 @@ export default function SprayField({
   const pid = player?.player_id || player?.id
 
   useEffect(() => {
-    if (!pid) return
+    // liveOnly draws no season dots, so it asks for no season data.
+    if (!pid || liveOnly) return
     let alive = true
     setState('loading'); setData(null); setPicked(null); setOnly('all')
     setRange('all'); setBbPick(null)
@@ -344,7 +364,7 @@ export default function SprayField({
       .then((j) => { if (alive) { setData(j); setState('done') } })
       .catch(() => { if (alive) setState('error') })
     return () => { alive = false }
-  }, [pid, slateMode])
+  }, [pid, slateMode, liveOnly])
 
   const hits = useMemo(() => arr(data?.spray_chart).map((h) => {
     const p = toPolar(h)
@@ -509,9 +529,24 @@ export default function SprayField({
   const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all') }
 
   const liveN = liveHits.length
-  const liveDrawn = liveOn ? liveHits : []
+  // In liveOnly the ● Tonight chip isn't rendered (it lives in the season
+  // window row), so the live layer is always on — otherwise the toggle would
+  // be the only thing between this chart and a permanently empty field.
+  const liveDrawn = liveOnly || liveOn ? liveHits : []
   const fid = Number(liveFocusId) || null
   const anyFocus = fid ? liveHits.some((b) => Number(b.batterId) === fid) : false
+
+  // HONEST EMPTY STATE for the tonight-only skin. There is no season fallback
+  // to quietly show instead — that is the whole point of the skin — so an empty
+  // game says so in plain words rather than drawing a bare field.
+  if (liveOnly && !liveN) {
+    return (
+      <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
+        No balls in play from this game yet tonight — this chart is <b style={{ color: C.text2 }}>tonight
+        only</b>, so it stays empty until somebody makes contact. It fills in on its own.
+      </div>
+    )
+  }
 
   if (!pid && !liveN) return null
   if (state === 'loading' && !liveN) {
@@ -603,7 +638,23 @@ export default function SprayField({
 
   return (
     <div>
+      {/* TONIGHT ONLY — the At the Plate skin says what it is instead of
+          offering season windows it doesn't draw. */}
+      {liveOnly && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+          <span style={{
+            fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
+            color: '#4ade80', border: '1px solid rgba(74,222,128,.5)', background: 'rgba(74,222,128,.10)',
+            borderRadius: 999, padding: '2px 9px',
+          }}>● TONIGHT ONLY</span>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+            {liveN} ball{liveN === 1 ? '' : 's'} in play this game · no season sample on this chart
+          </span>
+        </div>
+      )}
+
       {/* Date window. Counts everywhere else on the panel follow it. */}
+      {!liveOnly && (
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5, alignItems: 'center' }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Games</span>
         {RANGES.map((r) => {
@@ -638,13 +689,14 @@ export default function SprayField({
           Reset
         </button>
       </div>
+      )}
 
       {inRange.length === 0 && hits.length > 0 && (
         <div style={{ fontSize: 10.5, color: C.orange, marginBottom: 6 }}>
           No tracked batted balls in this window — his last one was {newest || 'unknown'}. Widen the range.
         </div>
       )}
-      {hits.length === 0 && liveN > 0 && (
+      {!liveOnly && hits.length === 0 && liveN > 0 && (
         <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6, lineHeight: 1.5 }}>
           No tracked batted balls on file for this hitter — the field below is
           tonight&apos;s live contact only.
@@ -660,6 +712,7 @@ export default function SprayField({
 
       {/* Result chips: label, count and share on the chip itself. Click to
           filter. No separate legend to fall out of step with the chart. */}
+      {!liveOnly && (
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5 }}>
         {classes.map((c) => (
           <button
@@ -674,11 +727,12 @@ export default function SprayField({
           </button>
         ))}
       </div>
+      )}
 
       {/* Pitch chips. This is the question the panel exists for: does he only
           do damage against one pitch, and does tonight's arm throw it? The
           chips now come up pre-set to the starter's mix against this side. */}
-      {pitches.length > 0 && (
+      {!liveOnly && pitches.length > 0 && (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
           <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Pitch</span>
           <button onClick={() => setPicked(null)} style={chipBtn(allPicked, C.orange)}>All</button>
@@ -717,6 +771,7 @@ export default function SprayField({
       {/* Batted-ball type. Ground balls are 43% of a typical hitter's tracked
           balls and tell you nothing about power, so being able to drop them is
           the difference between a spray chart and a fielding chart. */}
+      {!liveOnly && (
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Contact</span>
         <button onClick={() => setBbPick(null)} style={{ ...chipBtn(!bbPick, C.orange), padding: '2px 8px', fontSize: 9.5 }}>All</button>
@@ -743,8 +798,9 @@ export default function SprayField({
           style={{ ...chipBtn(!!bbPick && bbPick.size === 2 && bbPick.has('fly_ball') && bbPick.has('line_drive'), C.orange), padding: '2px 8px', fontSize: 9.5 }}
         >Air only</button>
       </div>
+      )}
 
-      {matchable.length > 0 && (
+      {!liveOnly && matchable.length > 0 && (
         <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>
           Dotted chips are pitches {pitcherName || "tonight's starter"} actually throws
           {tonight.side ? ` to ${tonight.side === 'lhb' ? 'left' : 'right'}-handed bats` : ''}
@@ -1072,11 +1128,20 @@ export default function SprayField({
             </div>
           ) : (
             <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
-              Hover a ball for pitch, exit velo and carry.
-              {' '}Showing <b style={{ color: C.text2 }}>{shown.length}</b> of {hits.length} batted balls.
+              {liveOnly ? <>
+                Hover a ball for the hitter, exit velo and result.
+                {' '}Showing <b style={{ color: C.text2 }}>{liveN}</b> ball{liveN === 1 ? '' : 's'} in play
+                from this game — nothing from any other night.
+              </> : <>
+                Hover a ball for pitch, exit velo and carry.
+                {' '}Showing <b style={{ color: C.text2 }}>{shown.length}</b> of {hits.length} batted balls.
+              </>}
             </div>
           )}
 
+          {/* Lane shares are a SEASON read — five bars off tonight's three
+              batted balls would be a shape drawn from nothing. Hidden here. */}
+          {!liveOnly && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {laneCounts.map((l) => {
               const pctv = hits.length ? (100 * l.n) / hits.length : 0
@@ -1094,6 +1159,7 @@ export default function SprayField({
               )
             })}
           </div>
+          )}
           {/* CLEANLINESS PASS (2026-08-06): three paragraphs of methodology
               sat permanently beside the chart — honest, but a wall. What
               stays visible is what you need EVERY time: the colour key, the
@@ -1113,16 +1179,19 @@ export default function SprayField({
           {liveN > 0 && (
             <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5, lineHeight: 1.6 }}>
               <b style={{ color: '#4ade80' }}>● Tonight:</b>{' '}
-              {liveOn ? <>
-                {liveN} tracked ball{liveN === 1 ? '' : 's'} in play from the live feed, ringed in white on the
-                same field. Same colours as above — red = homer, green = double, blue = single, dark = out.
+              {liveOnly || liveOn ? <>
+                {liveN} tracked ball{liveN === 1 ? '' : 's'} in play from the live feed
+                {liveOnly
+                  ? ', and nothing else — this chart carries no season sample. The wall is this park’s real dimensions and the arcs are fixed feet, so a dot’s position is where the ball was actually fielded'
+                  : ', ringed in white on the same field'}.
+                {' '}Colour = result — red = homer, green = double, blue = single, dark = out.
                 {anyFocus
                   ? <> <b style={{ color: C.text2 }}>{clean(liveLabel, 'the current hitter')}</b>&apos;s stay solid; the rest of
                     the game&apos;s are dimmed.</>
                   : ' Every hitter in the game is shown.'}
                 {' '}Homers carry their distance. Hover any ringed dot for the hitter, exit velo and result.
               </> : <>hidden — tap the ● Tonight chip to bring the live balls back.</>}
-              {liveOn && (() => {
+              {(liveOnly || liveOn) && (() => {
                 const hardestLive = liveHits.filter((b) => b.ev != null).sort((a, b) => b.ev - a.ev)[0]
                 const farLive = liveHits.filter((b) => b.dist).sort((a, b) => b.dist - a.dist)[0]
                 if (!hardestLive && !farLive) return null
@@ -1163,6 +1232,9 @@ export default function SprayField({
 
           {showHelp && (
             <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+              {/* the lane cuts are still DRAWN in liveOnly (they're geometry),
+                  but their counts aren't, so the counts paragraph is dropped */}
+              {!liveOnly && (
               <div style={{ marginBottom: 5 }}>
                 Lanes are the bot&apos;s own <code>lane</code> field, so the counts match the rest of
                 the site. Read the labels loosely: the bot cuts lanes as vertical bands centred
@@ -1171,6 +1243,7 @@ export default function SprayField({
                 covers everything past 88 ft to the pull side of a righty. The dashed lines show
                 where those cuts really fall; the solid line is true centre.
               </div>
+              )}
               {hasWind && (
                 <div style={{ marginBottom: 5 }}>
                   Wind direction is <b style={{ color: C.text2 }}>park-relative, not a compass bearing</b>:
