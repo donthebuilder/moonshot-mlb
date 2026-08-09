@@ -64,6 +64,52 @@ function isPast(gameTime) {
   return new Date(gameTime) < new Date(Date.now() - 3 * 60 * 60 * 1000) // 3hr buffer for late games
 }
 
+// The five designated slots for a game — the same ones Results grades.
+// Shared by the rundown cards and the expanded pick row so the two can
+// never disagree about who a game's picks are.
+const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+const CAT_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
+const CAT_SCORE = {
+  TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? p?.hr_score ?? 0,
+  HR: (p) => p?.hr_score ?? 0,
+  HIT: (p) => p?.hit_score ?? 0,
+  HRR: (p) => p?.hrr_score ?? 0,
+  CONTACT: (p) => p?.contact_score ?? 0,
+}
+const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+const picksFor = (g) => CAT_ORDER
+  .map((cat) => [...(g.players || [])]
+    .filter((p) => primaryRole(p) === cat)
+    .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0])
+  .filter(Boolean)
+
+// The two sides of a game: each team with the ARM ITS BATTERS FACE — every
+// hitter row already carries his opposing pitcher, so side one's pitcher is
+// just the first row's pitcher fields.
+function sidesOf(g) {
+  const byTeam = {}
+  ;(g.players || []).forEach((p) => {
+    const t = p?.team || '?'
+    ;(byTeam[t] = byTeam[t] || []).push(p)
+  })
+  Object.values(byTeam).forEach((l) => l.sort((a, b) => (Number(a?.lineup_spot) || 99) - (Number(b?.lineup_spot) || 99)))
+  const order = [g.away, g.home].filter((t) => byTeam[t])
+  const teams = order.length === 2 ? order : Object.keys(byTeam)
+  return teams.map((t) => {
+    const lineup = byTeam[t]
+    return {
+      team: t,
+      lineup,
+      arm: lineup[0]?.pitcher_name || 'TBD',
+      throws: lineup[0]?.pitcher_throws || '',
+      hr9: Number(lineup[0]?.pitcher_hr9) || null,
+      era: Number(lineup[0]?.pitcher_era) || null,
+      projected: !!lineup[0]?.pitcher_projected,
+      stars: lineup.filter((p) => p?.weak_spot_flag).length,
+    }
+  })
+}
+
 export default function Games({ players, slateDate = '', onAdd, onWatch, watchIds, onPlayerClick }) {
   const [mode, setMode]         = useState('default')
   const [activeGame, setActive] = useState(null)
@@ -123,7 +169,7 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
         sub={`${games.length} games · ${slots.length} time slots · ${
           mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
           : mode === 'botview' ? "the picks with the bot's five category bars per card"
-          : 'pick a game up top; it gets the full deep-dive below'
+          : 'the whole evening by first-pitch window — tap any game card for the full deep-dive, in place'
         }`}
         right={
           <div style={{ display: 'flex', gap: 6 }}>
@@ -318,155 +364,183 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
         </div>
       )}
 
-      {/* ── Selected game ── */}
-      {/* Only the selected game renders. The strip above is the selector; an
-          accordion of all fifteen underneath was the same list a second time,
-          and because every row started collapsed the lineup table was never
-          on screen. */}
-      {mode !== 'lineups' && games.filter((g) => g.game_pk === activeGame).map((g) => {
-        // THE GAME'S DESIGNATED PICKS, one per category — the same five slots
-        // the results tracker grades. This grid used to show the top 8 by HR
-        // score, which overlapped the picks but wasn't them: a game could
-        // show eight power bats while its actual HIT and CONTACT picks sat
-        // below the cut, so what you saw here never matched what Results
-        // graded. Now it's exactly the bot's slots, in category order. If a
-        // game somehow carries two hitters with the same primary role, the
-        // higher score on that category's own scale wins — same rule as The
-        // Four — so there is always exactly one per category.
-        const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
-        const CAT_SCORE = {
-          TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? p?.hr_score ?? 0,
-          HR: (p) => p?.hr_score ?? 0,
-          HIT: (p) => p?.hit_score ?? 0,
-          HRR: (p) => p?.hrr_score ?? 0,
-          CONTACT: (p) => p?.contact_score ?? 0,
-        }
-        const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
-        const picks = CAT_ORDER
-          .map((cat) => [...g.players]
-            .filter((p) => primaryRole(p) === cat)
-            .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0])
-          .filter(Boolean)
-        // Fallback for a game with no designated picks published yet (early
-        // slate build): top four by HR score, labelled as such below.
-        const sorted = picks.length
-          ? picks
-          : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4)
-        const isDesignated = picks.length > 0
-        const past = isPast(g.game_time)
-        const isActive = true
-
+      {/* ── THE RUNDOWN (redesigned 2026-08-08) ─────────────────────────
+          Default and Bot Output no longer render one orphaned game under a
+          strip — the page is now the evening itself: every game, grouped
+          under its first-pitch window, each as a calm matchup card that
+          answers the four questions in order (who plays, which arms, what
+          conditions, who the bot likes) and expands IN PLACE for the full
+          deep-dive. The strip stays as a jump bar. */}
+      {mode !== 'lineups' && slots.map(([slotKey, slotGames]) => {
+        const slotLabel = slotKey === 'TBD'
+          ? 'Time TBD'
+          : new Date(Number(slotKey)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+        const slotPast = slotKey !== 'TBD' && slotGames.every((sg) => isPast(sg.game_time))
         return (
-          <section
-            key={g.game_pk}
-            ref={el => { gameRefs.current[g.game_pk] = el }}
-            style={{ marginBottom: isActive ? 28 : 4, scrollMarginTop: 160 }}
-          >
-            {/* game header. The dead onClick + pointer cursor are gone
-                (2026-08-08) — a header that LOOKS clickable and does nothing
-                reads as broken; the strip above is the selector. */}
-            <div
-              style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                marginBottom: isActive ? 10 : 0, padding: isActive ? '0 0 8px' : '8px 4px',
-                borderBottom: `2px solid ${isActive ? C.orange : C.border}`,
-                transition: 'border-color .15s, padding .15s',
-                background: isActive ? 'transparent' : 'rgba(255,255,255,0.015)',
-                borderRadius: isActive ? 0 : 8,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: isActive ? 15 : 13, fontWeight: 800, color: past ? C.text3 : C.text }}>
-                    {past ? '✓ ' : ''}{g.away || '—'} @ {g.home || '—'}
-                  </div>
-                  {isActive && (
-                    <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
-                      {localTime(g.game_time)} · {g.lineup_confirmed ? 'Lineup confirmed' : 'Projected lineup'}
-                      {past && <span style={{ color: C.border, marginLeft: 6 }}>· Game passed</span>}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-                {!isActive && `${localTime(g.game_time)} · `}{g.players.length} batters
-              </div>
+          <div key={slotKey} style={{ marginBottom: 20 }}>
+            {/* the window header — the clock owns the grouping */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '0 0 9px' }}>
+              <span style={{
+                fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.01em',
+                color: slotPast ? C.text3 : C.orange,
+              }}>{slotLabel}</span>
+              <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                {slotGames.length} game{slotGames.length > 1 ? 's' : ''}{slotPast ? ' · window passed' : ''}
+              </span>
+              <div style={{ flex: 1, height: 1, alignSelf: 'center', background: `linear-gradient(90deg, ${slotPast ? C.border : 'rgba(249,115,22,.35)'}, transparent)` }} />
             </div>
 
-            {/* The clicked game earns depth (2026-08-06): conditions ribbon +
-                both full pitching matchups + each lineup's threat profile.
-                Only the SELECTED game gets it — the rest stay scannable. */}
-            {isActive && activeGame === g.game_pk && (
-              <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {slotGames.map((g) => {
+                const picks = picksFor(g)
+                const isDesignated = picks.length > 0
+                const sorted = isDesignated
+                  ? picks
+                  : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4)
+                const past = isPast(g.game_time)
+                const isActive = g.game_pk === activeGame
+                const sides = sidesOf(g)
+                const any = (g.players || [])[0] || {}
+                const temp = Number(any.weather_temp_f) || 0
+                const wind = Number(any.weather_wind_mph) || 0
+                const wLbl = String(any.wind_direction_label || '')
+                const parkF = Number(any.park_hr_factor) || Number(any.park_dist_factor) || 0
 
-            {isActive && (
-              <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
-            )}
+                return (
+                  <section
+                    key={g.game_pk}
+                    ref={(el) => { gameRefs.current[g.game_pk] = el }}
+                    style={{
+                      scrollMarginTop: 160, minWidth: 0,
+                      background: isActive ? `linear-gradient(160deg, rgba(249,115,22,.05), ${C.bg2} 45%)` : C.bg2,
+                      border: `1px solid ${isActive ? 'rgba(249,115,22,.5)' : C.border}`,
+                      borderRadius: 14, overflow: 'hidden',
+                      boxShadow: isActive ? '0 0 26px -10px rgba(249,115,22,.5)' : 'none',
+                      opacity: past && !isActive ? 0.65 : 1,
+                    }}
+                  >
+                    {/* ── card header: matchup + duel + conditions + picks ── */}
+                    <div
+                      onClick={() => setActive(isActive ? null : g.game_pk)}
+                      style={{ cursor: 'pointer', padding: '11px 14px 10px' }}
+                      title={isActive ? 'Collapse this game' : 'Open the full read on this game'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
+                        <span style={{ fontSize: 17, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
+                          {past ? '✓ ' : ''}{g.away || '—'} <span style={{ color: C.text3, fontWeight: 400 }}>@</span> {g.home || '—'}
+                        </span>
+                        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: NUM_FONT, color: g.lineup_confirmed ? C.green : C.text3 }}>
+                          {g.lineup_confirmed ? '✓ lineups in' : '◻ projected'}
+                        </span>
+                        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                          {temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
+                          {wind > 0 && <span title={`Wind: ${wLbl || 'direction n/a'}`} style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}</span>}
+                          {parkF > 0 && <span title="Park HR factor — above 1.00 the yard helps hitters" style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>×{parkF.toFixed(2)}</span>}
+                          <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
+                        </span>
+                      </div>
 
-            {isActive && (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
-                <span style={{ fontSize: 11.5, fontWeight: 800 }}>
-                  {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
-                </span>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                  {isDesignated
-                    ? 'one per category, the same five slots Results grades'
-                    : 'no designated picks published for this game yet'}
-                </span>
-              </div>
-            )}
+                      {/* the pitcher duel — each side wears the arm ITS bats face */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 7 }}>
+                        {sides.map((s) => (
+                          <div key={s.team} style={{
+                            flex: '1 1 200px', minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7,
+                            background: 'rgba(255,255,255,.025)', border: `1px solid ${C.border}`,
+                            borderRadius: 8, padding: '4px 10px',
+                          }}>
+                            <span style={{ fontSize: 10.5, fontWeight: 900, fontFamily: NUM_FONT, flexShrink: 0 }}>{s.team}</span>
+                            <span style={{ fontSize: 9.5, color: C.text3, flexShrink: 0 }}>vs</span>
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {s.arm}{s.throws ? ` (${s.throws})` : ''}{s.projected ? ' ≈' : ''}
+                            </span>
+                            <span style={{ marginLeft: 'auto', display: 'flex', gap: 7, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5 }}>
+                              {s.hr9 != null && (
+                                <span title="HR allowed per 9 innings — higher favors the bats" style={{ color: s.hr9 >= 1.3 ? C.orange : C.text3, fontWeight: 700 }}>
+                                  {s.hr9.toFixed(2)} HR/9
+                                </span>
+                              )}
+                              {s.stars > 0 && (
+                                <span title={`${s.stars} weak lineup spot${s.stars > 1 ? 's' : ''} this order can reach`} style={{ color: '#FCD34D', fontWeight: 800 }}>★{s.stars}</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
 
-            {/* FLEX, NOT GRID, on purpose. Five cards in an auto-fit grid
-                leave an orphan on any width that fits four columns — one card
-                alone with three empty cells, which is the "rows aren't full"
-                problem. Flex with grow lets the last row stretch to fill, so
-                the five picks always occupy the complete width, and each card
-                wears its category as a colored banner so the row reads as the
-                five slots rather than five loose players. */}
-            {isActive && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
-              {sorted.map((p) => {
-                const roleInfo = isDesignated ? getRoleDisplay(p) : null
-                // CONNECTED, not stacked. The first pass put a banner strip
-                // ON TOP of each card — but the card keeps its own border and
-                // corners, so banner and card read as two disconnected boxes.
-                // Now the category is a ring drawn around the card itself
-                // (boxShadow hugs whatever radius the card has) with the
-                // label as a tag punched through the top edge — one object,
-                // clearly labelled, instead of a hat on a box.
-                const wrap = (inner) => (
-                  // TIGHTER (2026-08-08): basis 225→240 so five across only
-                  // happens on truly wide screens — the old width was where
-                  // "Freddie Freem…" came from — and the floor drops so the
-                  // cards hug their content instead of padding air.
-                  <div key={playerId(p)} style={{
-                    flex: '1 1 240px', minWidth: 0, position: 'relative',
-                    display: 'flex', flexDirection: 'column',
-                    marginTop: roleInfo ? 9 : 0,
-                    minHeight: 170,
-                  }}>
-                    {roleInfo && (
-                      <span style={{
-                        position: 'absolute', top: -8, left: 13, zIndex: 2,
-                        background: '#09090b',
-                        border: `1px solid ${roleInfo.color}99`,
-                        color: roleInfo.color, borderRadius: 6, padding: '1px 9px',
-                        fontSize: 9, fontWeight: 900, letterSpacing: '.08em',
-                        textTransform: 'uppercase', fontFamily: NUM_FONT,
-                        boxShadow: `0 0 10px ${roleInfo.color}33`,
-                      }}>{roleInfo.label}</span>
-                    )}
-                    <div style={{
-                      flex: 1, display: 'flex', flexDirection: 'column',
-                      borderRadius: 14,
-                      boxShadow: roleInfo
-                        ? `0 0 0 1px ${roleInfo.color}66, 0 0 16px ${roleInfo.color}1c`
-                        : 'none',
-                    }}>{inner}</div>
-                  </div>
-                )
-                if (mode === 'botview') {
+                      {/* pick chips — the bot's five slots, always visible */}
+                      {picks.length > 0 && (
+                        <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch', marginTop: 8 }}>
+                          {picks.map((p) => {
+                            const cat = primaryRole(p)
+                            const col = CAT_COLOR[cat] || C.text3
+                            return (
+                              <button key={playerId(p)} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
+                                display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
+                                border: `1px solid ${col}55`, background: `${col}10`,
+                                borderRadius: 7, padding: '3px 8px',
+                              }}>
+                                <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{cat}</span>
+                                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
+                                <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SCORE[cat](p) || 0).toFixed(0)}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── expanded: the full read, in place ── */}
+                    {isActive && (
+                      <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
+                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+                        <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
+
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 800 }}>
+                            {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
+                          </span>
+                          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                            {isDesignated
+                              ? 'one per category, the same five slots Results grades'
+                              : 'no designated picks published for this game yet'}
+                          </span>
+                        </div>
+
+                        {/* FLEX, NOT GRID, on purpose — the last row stretches to
+                            fill, no orphan card beside empty cells. Each card wears
+                            its category as a ring + tag: one object, labelled. */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
+                          {sorted.map((p) => {
+                            const roleInfo = isDesignated ? getRoleDisplay(p) : null
+                            const wrap = (inner) => (
+                              <div key={playerId(p)} style={{
+                                flex: '1 1 240px', minWidth: 0, position: 'relative',
+                                display: 'flex', flexDirection: 'column',
+                                marginTop: roleInfo ? 9 : 0,
+                                minHeight: 170,
+                              }}>
+                                {roleInfo && (
+                                  <span style={{
+                                    position: 'absolute', top: -8, left: 13, zIndex: 2,
+                                    background: '#09090b',
+                                    border: `1px solid ${roleInfo.color}99`,
+                                    color: roleInfo.color, borderRadius: 6, padding: '1px 9px',
+                                    fontSize: 9, fontWeight: 900, letterSpacing: '.08em',
+                                    textTransform: 'uppercase', fontFamily: NUM_FONT,
+                                    boxShadow: `0 0 10px ${roleInfo.color}33`,
+                                  }}>{roleInfo.label}</span>
+                                )}
+                                <div style={{
+                                  flex: 1, display: 'flex', flexDirection: 'column',
+                                  borderRadius: 14,
+                                  boxShadow: roleInfo
+                                    ? `0 0 0 1px ${roleInfo.color}66, 0 0 16px ${roleInfo.color}1c`
+                                    : 'none',
+                                }}>{inner}</div>
+                              </div>
+                            )
+                            if (mode === 'botview') {
                   const { color: lcolor } = getRoleDisplay(p)
                   const pills = Array.isArray(p?.signal_pills) ? p.signal_pills : []
                   // Each bar in its category's site-wide colour, and the bar
@@ -531,18 +605,23 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                     </div>
                   )
                 }
-                return wrap(
-                  <PlayerCard
-                    p={p} type="hr"
-                    onAdd={onAdd} onWatch={onWatch}
-                    watched={watchIds.has(playerId(p))}
-                    onClick={() => onPlayerClick?.(p)}
-                  />
+                            return wrap(
+                              <PlayerCard
+                                p={p} type="hr"
+                                onAdd={onAdd} onWatch={onWatch}
+                                watched={watchIds.has(playerId(p))}
+                                onClick={() => onPlayerClick?.(p)}
+                              />
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </section>
                 )
               })}
             </div>
-            )}
-          </section>
+          </div>
         )
       })}
 
