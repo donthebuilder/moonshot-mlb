@@ -188,9 +188,49 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     <b style={{ color: '#4ade80', fontFamily: NUM_FONT, fontSize: 10, marginLeft: 4, whiteSpace: 'nowrap' }}
       title={`Graded from today's live results (${dateKey}) — a homer hit today, not the one that put him on this list.`}>✅ {children}</b>
   )
+  // ── THE SAME-HOMER TRAP (fixed properly 2026-08-09, second report) ──
+  // `games_since_last_hr === 0` means "he homered in his most recent game".
+  // On a slate rebuilt after an early game has already finished, THAT GAME
+  // IS TODAY — so a hitter who went deep in the 12:05 window enters the B2B
+  // list because of today's homer, and then the tracker matches him against
+  // that very same homer in today's graded file and awards ✅. One homer,
+  // counted as both the setup and the payoff. The date gate couldn't catch
+  // it: both halves genuinely are today.
+  //
+  // The fix is to demand independent proof that the SETUP homer happened
+  // YESTERDAY, from yesterday's own graded file. A hitter only joins the
+  // back-to-back watch if yesterday's results say he homered. When that file
+  // hasn't published, the section still renders (it must survive a missing
+  // file) but the ✅ is withheld — an unverifiable claim doesn't get a check.
+  const [ydayHr, setYdayHr] = useState(undefined)   // undefined = unknown
+  useEffect(() => {
+    if (isTmrw) { setYdayHr(undefined); return undefined }
+    let alive = true
+    const d = new Date(new Date(`${dateKey}T12:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10)
+    const u = dataUrl(`current/graded_results_${d}.json`)
+    fetch(`${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive || !j) return
+        const s = new Set()
+        ;(j.graded_slots || j.results || []).forEach((r2) => {
+          const pid = Number(r2?.player_id)
+          if (pid && Number(r2?.actual_hr) > 0) s.add(pid)
+        })
+        setYdayHr(s)
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [isTmrw, dateKey])
+
   const b2b = players
     .filter((p) => Number(p?.games_since_last_hr) === 0)
+    // when yesterday's file is available, the setup homer must be IN it
+    .filter((p) => !(ydayHr instanceof Set) || ydayHr.has(Number(p?.player_id ?? p?.id)))
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
+  // ✅ only when the setup is verified — otherwise we can't tell the two
+  // homers apart, and a check we can't defend is worse than no check.
+  const b2bVerified = ydayHr instanceof Set
 
   if (!data?.people?.length && !b2b.length) return null
 
@@ -302,7 +342,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   const cashedIds = new Set()
   const mark = (p, ok) => { const pid = Number(p?.player_id ?? p?.id); if (pid && ok) cashedIds.add(pid) }
   if (actuals) {
-    b2b.forEach((p) => mark(p, hrToday(p)))
+    b2b.forEach((p) => mark(p, b2bVerified && hrToday(p)))
     miles.forEach((m) => mark(m.p, /homer/i.test(m.word) && hrToday(m.p)))
     duels.forEach((d) => mark(d.p, d.own ? hrToday(d.p) : (lineOf(d.p)?.hits || 0) > 0))
     revenge.forEach((r) => mark(r.p, hrToday(r.p) || (lineOf(r.p)?.hits || 0) > 0))
@@ -360,7 +400,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         <Row key={`bb${i}`} icon="🔁" p={x}>
           <b style={{ color: C.text }}>{nameOf(x)}</b> went deep <b style={{ color: '#f87171' }}>last game</b> — back-to-back watch
           <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
-          {hrToday(x) && <Cashed>HOMERED AGAIN TODAY</Cashed>}
+          {b2bVerified && hrToday(x) && <Cashed>HOMERED AGAIN TODAY</Cashed>}
         </Row>
       ))}
       {!compact && b2b.length > 6 && (
