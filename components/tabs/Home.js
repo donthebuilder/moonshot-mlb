@@ -383,6 +383,70 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
       {/* The full storyline engine — milestones, duels, revenge games,
           birthdays, giveaways. Same panel the Scoreboard carries; collapsed
           by default, the header counts tell you if it's worth opening. */}
+      {/* ── TONIGHT'S TOP 10s (2026-08-08, Donovan: "top 10 hits and hr for
+          the home page, awesome but digestible") — two clean boards, ranked
+          by the site's own scores, with the ARM each bat gets to attack:
+          ★ = weak lineup spot vs this starter, red HR/9 = a leaking arm. */}
+      {players.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          {[
+            { title: '💣 Top 10 — HR plays', col: '#FB923C', score: hrScore, door: 'board' },
+            { title: '🎯 Top 10 — Hit plays', col: '#60A5FA', score: hitScore, door: 'hitshrr' },
+          ].map(({ title, col, score, door }) => {
+            const rows = [...players].sort((a, b) => score(b) - score(a)).slice(0, 10)
+            const max = score(rows[0]) || 1
+            return (
+              <div key={title} style={{
+                flex: '1 1 340px', minWidth: 0,
+                background: `linear-gradient(155deg, ${C.bg2}, ${col}08)`,
+                border: `1px solid ${col}30`, borderRadius: 12, padding: '10px 13px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
+                  <span style={{ fontSize: 12, fontWeight: 900 }}>{title}</span>
+                  <span onClick={() => onNavigate?.(door)} style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {rows.map((p, i) => {
+                    const s = score(p)
+                    const hr9 = n(p?.pitcher_hr9, 0)
+                    const leaky = hr9 >= 1.4
+                    return (
+                      <div key={i} onClick={() => onPlayerClick?.(p)} style={{
+                        display: 'flex', gap: 7, alignItems: 'center', cursor: 'pointer',
+                        padding: '2px 5px', borderRadius: 6, minWidth: 0,
+                        background: i === 0 ? `${col}12` : 'transparent',
+                      }}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: i < 3 ? col : C.text3, fontWeight: 900, width: 16, flexShrink: 0 }}>
+                          {i + 1}
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+                          {nameOf(p)}
+                          {p?.weak_spot_flag ? <span title="Weak lineup spot vs this starter — the validated 18.0% vs 13.9% flag" style={{ fontSize: 9 }}> ★</span> : null}
+                        </span>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          vs {clean(p?.pitcher_name, 'TBD').split(' ').slice(-1)[0]}
+                          {hr9 > 0 && <b style={{ color: leaky ? '#f87171' : C.text3 }} title={leaky ? 'This arm leaks homers — 1.40+ HR/9' : 'Starter HR/9'}> {hr9.toFixed(2)}</b>}
+                        </span>
+                        <div style={{ flex: '0 0 46px', height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(100, (100 * s) / max)}%`, height: '100%', background: col, opacity: i < 3 ? 1 : 0.55 }} />
+                        </div>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: i < 3 ? col : C.text2, width: 24, textAlign: 'right', flexShrink: 0 }}>
+                          {s.toFixed(0)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+                  Ranked by the site&apos;s own score · ★ weak spot vs tonight&apos;s starter ·{' '}
+                  <b style={{ color: '#f87171' }}>red HR/9</b> = a leaking arm. Tap a name for his card.
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
 
       {/* ── THREE DOORS ──────────────────────────────────────────────── */}
