@@ -238,7 +238,7 @@ export default function Dashboard() {
           <div key={tab} className="tab-fade">
             {tab === 'home'        && <Home players={allPlayers} results={results} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
-            {tab === 'games'       && <Games players={players} slateDate={slateDate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'games'       && <Games players={players} slateDate={slateDate} pairHistorySummary={pairSummary} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}

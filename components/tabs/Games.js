@@ -13,6 +13,7 @@ import { pillMeta, pillStyle } from '../../lib/pills'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import LineupSlotMatchup from '../LineupSlotMatchup'
+import PairTray from '../PairTray'
 
 const ROLE_CONFIG = {
   TOP:     { label: 'Top Pick',     color: '#FCD34D' },
@@ -110,7 +111,22 @@ function sidesOf(g) {
   })
 }
 
-export default function Games({ players, slateDate = '', onAdd, onWatch, watchIds, onPlayerClick }) {
+export default function Games({ players, slateDate = '', pairHistorySummary, onAdd, onWatch, watchIds, onPlayerClick }) {
+  // 🔗 build a pair straight off the grid (2026-08-09). Two legs max; tapping
+  // a third rolls the oldest off so it always reads as "these two".
+  const [pairLegs, setPairLegs] = useState([])
+  const [pairMarket, setPairMarket] = useState('hr')
+  const pairIds = useMemo(() => new Set(pairLegs.map((p) => Number(p?.player_id ?? p?.id))), [pairLegs])
+  const togglePairLeg = (p) => {
+    const id = Number(p?.player_id ?? p?.id)
+    if (!id) return
+    setPairLegs((cur) => {
+      if (cur.some((x) => Number(x?.player_id ?? x?.id) === id)) {
+        return cur.filter((x) => Number(x?.player_id ?? x?.id) !== id)
+      }
+      return [...cur, p].slice(-2)
+    })
+  }
   const [mode, setMode]         = useState('default')
   const [activeGame, setActive] = useState(null)
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
@@ -209,7 +225,7 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
           paddingTop: 4, paddingBottom: 8, marginBottom: 14,
           borderBottom: `1px solid ${C.border}`,
         }}>
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} />
+          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} />
         </div>
       )}
 
@@ -395,7 +411,7 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
           the grid; clicking the card (or its header) again closes it. */}
       {mode !== 'lineups' && (
         <>
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} />
+          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {games.filter((g) => g.game_pk === activeGame).map((g) => {
                 const picks = picksFor(g)
@@ -670,6 +686,16 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
           agreed with what you just looked at. */}
       <ProjectedOutput games={games} players={players} />
 
+      {/* sticky at the bottom while you shop the grid */}
+      <PairTray
+        legs={pairLegs}
+        market={pairMarket}
+        onMarket={setPairMarket}
+        onRemove={togglePairLeg}
+        onClear={() => setPairLegs([])}
+        pairHistorySummary={pairHistorySummary}
+        onPlayerClick={onPlayerClick}
+      />
     </div>
   )
 }

@@ -43,7 +43,15 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds }) {
+  // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
+  // should be able to visually pair a TOP pick or HR pick / alt pick from
+  // each game"). The chips below become tappable legs: tap one here, tap
+  // another on a different card, and the tray at the bottom of the Games
+  // page holds the pair. Tapping a chip must NOT open the game card, so
+  // every chip stops propagation.
+  const pairing = typeof onPairPick === 'function'
+  const isLeg = (pl) => pairing && pl && pairIds?.has(Number(pl?.player_id ?? pl?.id))
   const botView = mode === 'botview'
   // Each Games-page mode wears its own accent (2026-08-08): ember for the
   // default read, cyan for Bot Output, green for Lineups — the strip tells
@@ -73,8 +81,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
         armsFull: arms.join(' vs '),
         topBat: head?.name ? `${shortName(head.name)} ${hrScore(head).toFixed(0)}` : '',
         topHrw: head?.name && nn(head?.hrw_score) > 0 ? nn(head.hrw_score).toFixed(0) : null,
-        topPick: topPickP?.name ? { name: shortName(topPickP.name), score: topScore(topPickP).toFixed(0) } : null,
-        hrPick: hrPickP?.name ? { name: shortName(hrPickP.name), score: nn(hrPickP.hr_score).toFixed(0) } : null,
+        topPick: topPickP?.name ? { name: shortName(topPickP.name), score: topScore(topPickP).toFixed(0), p: topPickP } : null,
+        hrPick: hrPickP?.name ? { name: shortName(hrPickP.name), score: nn(hrPickP.hr_score).toFixed(0), p: hrPickP } : null,
+        altP: altOk ? alt : null,
         altName: altOk ? shortName(alt.name) : null,
         altScore: altOk ? nn(alt.alt_hr_score).toFixed(0) : null,
         altWhy: altOk ? String(alt.alt_reason || '') : '',
@@ -222,11 +231,19 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
                 <div style={{ display: 'flex', gap: 4, marginTop: 3, minWidth: 0 }}>
                   {[['TOP', c.topPick, '#FCD34D', "The bot's TOP pick in this game"],
                     ['HR', c.hrPick, '#FB923C', "The bot's HR pick in this game"]].map(([tag, pk2, col, tip]) => pk2 && (
-                    <span key={tag} title={tip} style={{
+                    <span key={tag}
+                      title={pairing ? `${tip} — tap to add him as a pair leg` : tip}
+                      onClick={pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined}
+                      style={{
                       display: 'inline-flex', gap: 4, alignItems: 'baseline', minWidth: 0, flex: '0 1 auto',
                       fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text2,
-                      border: `1px solid ${col}40`, background: `${col}0d`, borderRadius: 6, padding: '1px 6px',
+                      cursor: pairing ? 'pointer' : 'inherit',
+                      border: `1px solid ${isLeg(pk2.p) ? col : `${col}40`}`,
+                      background: isLeg(pk2.p) ? `${col}30` : `${col}0d`,
+                      boxShadow: isLeg(pk2.p) ? `0 0 10px ${col}55` : 'none',
+                      borderRadius: 6, padding: '1px 6px',
                     }}>
+                      {isLeg(pk2.p) && <span style={{ fontSize: 8 }}>🔗</span>}
                       <b style={{ color: col, fontSize: 8, letterSpacing: '.06em' }}>{tag}</b>
                       <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0 }}>{pk2.name}</span>
                       <b style={{ color: col }}>{pk2.score}</b>
@@ -236,11 +253,15 @@ export default function GameStrip({ games, activeGame, onSelect, mode }) {
               )}
               {c.heat >= 0.55 && c.altName && (
                 <div
-                  title={c.altWhy || 'The bot’s secondary HR look in this game'}
+                  title={pairing ? `${c.altWhy || 'The bot’s secondary HR look'} — tap to add him as a pair leg` : (c.altWhy || 'The bot’s secondary HR look in this game')}
+                  onClick={pairing && c.altP ? (e) => { e.stopPropagation(); onPairPick(c.altP) } : undefined}
                   style={{
                     fontSize: 10.5, color: '#A78BFA', fontFamily: NUM_FONT, marginTop: 1,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>🅰 {c.altName} {c.altScore} <span style={{ opacity: 0.6 }}>alt</span></div>
+                    cursor: pairing && c.altP ? 'pointer' : 'inherit',
+                    fontWeight: isLeg(c.altP) ? 900 : 400,
+                    textShadow: isLeg(c.altP) ? '0 0 10px rgba(167,139,250,.8)' : 'none',
+                  }}>{isLeg(c.altP) ? '🔗 ' : '🅰 '}{c.altName} {c.altScore} <span style={{ opacity: 0.6 }}>alt</span></div>
               )}
             </button>
           )
