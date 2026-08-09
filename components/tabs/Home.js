@@ -383,6 +383,55 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
       {/* The full storyline engine — milestones, duels, revenge games,
           birthdays, giveaways. Same panel the Scoreboard carries; collapsed
           by default, the header counts tell you if it's worth opening. */}
+      {/* ── TOP WEATHER GAMES (2026-08-08) — the three friendliest airs
+          tonight, same edge math as the park board (bot park factor +
+          published weather effect, heuristic fallback). Tap → Power page. */}
+      {(() => {
+        const seen = new Map()
+        players.forEach((p) => {
+          const pk = p?.game_pk
+          if (pk == null || seen.has(pk)) return
+          const parkHR = n(p?.park_hr_factor, n(p?.park_dist_factor, 0))
+          const temp = n(p?.weather_temp_f, n(p?.temp_f, 0))
+          const wind = n(p?.weather_wind_mph, n(p?.wind_mph, 0))
+          const wl = clean(p?.wind_direction_label, '')
+          const wxEff = n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null))
+          const windOut = /out/i.test(wl) ? wind : /in\b/i.test(wl) ? -wind : 0
+          const edge = (parkHR > 0 ? (parkHR - 1) * 100 : 0)
+            + (wxEff != null ? wxEff : windOut + (temp > 0 ? (temp - 70) / 7 : 0))
+          seen.set(pk, { venue: clean(p?.venue_name, ''), matchup: `${teamOf(p)} vs ${oppOf(p)}`, temp, wind, wl, edge })
+        })
+        const tops = [...seen.values()].filter((g) => g.venue).sort((a, b) => b.edge - a.edge).slice(0, 3)
+        if (!tops.length || tops[0].edge <= 0) return null
+        return (
+          <div style={{
+            display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 14,
+          }}>
+            {tops.map((g, i) => (
+              <div key={g.venue} onClick={() => onNavigate?.('longest')} style={{
+                flex: '1 1 210px', minWidth: 0, cursor: 'pointer',
+                background: `linear-gradient(155deg, rgba(249,115,22,${0.10 - i * 0.03}), ${C.bg2})`,
+                border: `1px solid rgba(249,115,22,${0.4 - i * 0.1})`, borderRadius: 12, padding: '9px 13px',
+              }} title="The park + air edge from the Power page's board — tap for the full park ladder">
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                  <span style={{ fontSize: 13 }}>{g.edge >= 10 ? '🌋' : g.edge >= 5 ? '🔥' : '🌤'}</span>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: '#FB923C' }}>
+                    +{g.edge.toFixed(0)}%
+                  </span>
+                  <span style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>
+                    {i === 0 ? 'BEST AIR TONIGHT' : 'CARRIES'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 800, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.venue}</div>
+                <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
+                  {g.matchup}{g.temp > 0 ? ` · ${Math.round(g.temp)}°` : ''}{g.wind > 0 ? ` · ${Math.round(g.wind)}mph ${/out/i.test(g.wl) ? 'out' : /in\b/i.test(g.wl) ? 'in' : ''}` : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* ── TONIGHT'S TOP 10s (2026-08-08, Donovan: "top 10 hits and hr for
           the home page, awesome but digestible") — two clean boards, ranked
           by the site's own scores, with the ARM each bat gets to attack:
