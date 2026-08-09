@@ -103,10 +103,11 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
             ))}
           </div>
           <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
-            All stats, no feel: distances are Statcast landing measurements, pull is Savant&apos;s own
-            pull-air flag, wall dimensions are the league&apos;s fieldInfo. &quot;At the wall&quot; = pulled
-            320–374 ft — outs in most parks, homers over a short porch. 🎯 marks a hitter whose pull side
-            tonight is a bottom-25% wall. Window: his last 15 game dates.
+            Distances are Statcast landing measurements, pull is Savant&apos;s own pull-air flag, wall
+            dimensions are the league&apos;s fieldInfo. &quot;At the wall&quot; = pulled 320–374 ft — outs in
+            most parks, homers over a short porch. 🎯 marks a hitter whose pull side tonight is a
+            bottom-25% wall. Window: his last 15 game dates. <b style={{ color: C.text2 }}>Stats and
+            analysis only — not financial or betting advice.</b>
           </div>
         </>
       )}
