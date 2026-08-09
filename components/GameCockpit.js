@@ -2,9 +2,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
-import ZoneMap from './ZoneMap'
-import SprayField from './SprayField'
-import LivePitchPlot from './LivePitchPlot'
 
 // 🎥 GAME COCKPIT — per-at-bat depth for the ONE game you're locked into.
 //
@@ -17,8 +14,9 @@ import LivePitchPlot from './LivePitchPlot'
 
 // NOTE (2026-08-09): `fields` is a WHITELIST — anything not named here is
 // stripped by the server. That's exactly how the due-up alert stayed dead for
-// weeks (offense/batter were never requested). LivePitchPlot does its own
-// fetch with its own field list, so this one only needs the cockpit's keys.
+// weeks (offense/batter were never requested). This list is the cockpit's own
+// keys only; the live charts on At the Plate fetch their own field list
+// through lib/livePitches.
 const FIELDS = 'gameData,status,abstractGameState,teams,abbreviation,liveData,linescore,currentInning,isTopInning,inningState,outs,balls,strikes,offense,batter,onDeck,inHole,first,second,third,home,away,runs,id,fullName,plays,allPlays,currentPlay,result,event,description,about,inning,halfInning,matchup,playEvents,isPitch,hitData,launchSpeed,launchAngle,totalDistance'
 
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
@@ -170,40 +168,11 @@ export default function GameCockpit({ game, onPlayerClick }) {
         </span>
       </div>
 
-      {/* 🎯 THE BATTER'S CHARTS (2026-08-09, Donovan: "add the spray chart
-          and the zone map to the live at-bats"). Folded shut by default —
-          the cockpit's job is the count and the last few PAs; the charts are
-          for when you want to stare. The dedicated At the Plate tab shows
-          them open across every live game. */}
-      {(() => {
-        const bid = ls?.offense?.batter?.id
-        const row = bid ? roleOf[Number(bid)]?.p : null
-        if (!bid) return null
-        return (
-          <details style={{ marginBottom: 8 }}>
-            <summary style={{ cursor: 'pointer', fontSize: 10.5, fontWeight: 700, color: C.text2 }}>
-              🎯 Zone map &amp; spray for {clean(ls.offense.batter.fullName, 'the batter')}
-            </summary>
-            <LivePitchPlot gamePk={gamePk} batterId={Number(bid)} batterName={clean(ls.offense.batter.fullName, '')} compact />
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-              <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-                <ZoneMap playerId={Number(bid)} bats={String(row?.bats || '').toUpperCase().slice(0, 1)} />
-              </div>
-              {row && (
-                <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-                  <SprayField player={row} height={300} />
-                </div>
-              )}
-            </div>
-            {!row && (
-              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6 }}>
-                He isn&apos;t on tonight&apos;s published slate, so there&apos;s no spray file — the zone
-                map above still pulls live.
-              </div>
-            )}
-          </details>
-        )
-      })()}
+      {/* THE CHARTS LEFT THIS PANEL (2026-08-10, Donovan: "you can remove the
+          spray and zone from the live at-bats on the games page"). The cockpit
+          is the count / outs / bases / last-PAs instrument and nothing else —
+          the zone map and spray chart, now carrying the live feed themselves,
+          live on the At the Plate tab where there's room to read them. */}
 
       {/* the last plate appearances, ball-off-the-bat included */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
