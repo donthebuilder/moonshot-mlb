@@ -48,7 +48,7 @@ function PullWallRow({ bats, venueName }) {
         title={`His pull side (${w.side}) at ${venueName}: ${w.line} ft down the line${w.gap ? `, ${w.gap} ft to the gap` : ''}. Percentile is vs all 30 parks' same-side line from the league's own fieldInfo — ${w.linePct}% of parks are shorter. Context, not a score input.`}>
         Pull-side wall
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col }}>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {w.side} {w.line}′{w.gap ? `/${w.gap}′` : ''}{w.word ? ` · ${w.word}` : ''}
       </span>
     </div>
@@ -93,7 +93,7 @@ function VenueHrRow({ pid, venueName, gamePk }) {
         title={`${venueName}, ${rec.seasons}: ${rec.hr} HR in ${rec.games} games here vs ${rec.hrAll} in ${rec.gamesAll} everywhere — same two seasons of game logs, so the comparison is apples to apples. Rules of thumb: 1 HR per 4 games = elite pace, 1 per 5–6 = real power, 1 per 8+ = average. Under 8 games here the vs-himself read is hidden — small samples lie.`}>
         At tonight&apos;s park
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: hot ? C.orange : C.text }}>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: hot ? C.orange : C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {rec.hr} HR / {rec.games} gm{rec.games !== 1 ? 's' : ''}
         {per != null && rec.hr > 0 && <span style={{ color: C.text3, fontWeight: 500 }}> · 1 per {per.toFixed(1)}</span>}
         {vsWord && <span style={{ color: vsWord.col, fontSize: 10.5 }}> {vsWord.t}</span>}
@@ -126,18 +126,27 @@ function OppDefenseRow({ opp }) {
         title={`${opp}'s BABIP-against: how often a ball in play against them becomes a hit, from the league's season totals. Percentile vs all 30 teams — high = leaky defense, good news for HIT/TB props. Context only; not folded into any score.`}>
         Opp defense
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col }}>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         .{String(Math.round(d.babip * 1000)).padStart(3, '0')} BABIP · {d.word}
       </span>
     </div>
   )
 }
 
+// FIT PASS (2026-08-08): labels keep their width, values shrink with an
+// ellipsis and carry the full text in the tooltip — so a long pitcher name
+// or a "no games here since last yr" can't push the column apart at any
+// modal width. Never let text overflow the box; let it truncate honestly.
 function Row({ label, value, mono = true }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 11, color: C.text3 }}>{label}</span>
-      <span style={{ fontSize: 12, color: C.text, fontFamily: mono ? NUM_FONT : 'inherit', fontWeight: 600 }}>{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 0', borderBottom: `1px solid ${C.border}`, minWidth: 0 }}>
+      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
+      <span
+        title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
+        style={{
+          fontSize: 12, color: C.text, fontFamily: mono ? NUM_FONT : 'inherit', fontWeight: 600,
+          minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right',
+        }}>{value}</span>
     </div>
   )
 }
@@ -431,7 +440,9 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                 </div>
               )}
               {!apiOnly && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: 14 }}>
+              // auto-fit so the two columns become one on a phone instead of
+              // squeezing every value row into ellipsis territory
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0 24px', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '8px 0 4px' }}>Model Scores</div>
                   <Row label="HR Score"  value={hrScore(p).toFixed(1)} />
