@@ -65,6 +65,34 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
   const prevRef = useRef(null)     // previous lines, for the diff
   const firedRef = useRef(new Set()) // dedupe keys across refreshes
 
+  // 📱 QUIETER ON A PHONE (2026-08-09, Donovan: "the on-screen notifications
+  // on the phone may be too much" — while the OS notifications are the part
+  // he loves).
+  //
+  // The two channels are deliberately NOT treated the same here. A stack of
+  // four toasts is a corner of a desktop monitor and most of a phone screen:
+  // at 340px wide and ~44px tall each, four of them plus the gaps cover
+  // roughly 200px starting 74px down, which on a 390x844 phone is the entire
+  // top third of the page — over the header, the tabs and the first rows of
+  // whatever you were reading. That is the complaint.
+  //
+  // So on a phone the ON-SCREEN stack drops to two and clears faster. The OS
+  // notification path below is untouched: same permission flow, same events,
+  // same priority gates, same three-per-batch cap. Nothing about which events
+  // notify changes on any device.
+  const narrowRef = useRef(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+    // pointer:coarse catches a big phone or a tablet in landscape, which the
+    // width query alone would miss and which has the same problem.
+    const mq = window.matchMedia('(max-width: 700px), (pointer: coarse)')
+    const apply = () => { narrowRef.current = mq.matches }
+    apply()
+    if (mq.addEventListener) { mq.addEventListener('change', apply); return () => mq.removeEventListener('change', apply) }
+    mq.addListener(apply)
+    return () => mq.removeListener(apply)
+  }, [])
+
   // ── CONTEXT ON EVERY BOMB (2026-08-08, the Real-app lesson). The base
   // toast fires instantly off the boxscore diff; HALF A SECOND later the
   // same toast upgrades in place with the statcast line and the story:
@@ -104,7 +132,9 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
 
   const addToasts = (items) => {
     if (!items.length) return
-    setToasts((cur) => [...items, ...cur].slice(0, 4))
+    const narrow = narrowRef.current
+    // ON-SCREEN stack only. Four on a desktop, two on a phone.
+    setToasts((cur) => [...items, ...cur].slice(0, narrow ? 2 : 4))
     // Bell on → homers and skin-on events also reach the OS. Originally this
     // only fired with the tab HIDDEN; in practice (2026-08-06) that read as
     // "I accepted notifications and got nothing" while watching the site —
@@ -122,9 +152,13 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
         try { new Notification(`${t.icon} Moonshot`, { body: t.text, tag: t.key, silent: t.pri > 0.5 }) } catch {}
       })
     }
+    // Dwell. Shorter on a phone, and homers still get roughly double
+    // everything else because a homer is the one you want to actually read.
+    // The OS notification stays on the lock screen either way, so a toast
+    // that clears early on a phone loses nothing.
     items.forEach((t) => setTimeout(() => {
       setToasts((cur) => cur.filter((x) => x.key !== t.key))
-    }, t.pri === 0 ? 15000 : 9000))
+    }, t.pri === 0 ? (narrow ? 9000 : 15000) : (narrow ? 5000 : 9000)))
   }
 
   useEffect(() => {
