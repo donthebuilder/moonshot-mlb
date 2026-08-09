@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { penStatsFor, fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
@@ -83,12 +83,15 @@ function BullpenBoard({ pitchers }) {
           the other six innings — tonight&apos;s pens ranked by season reliever-only HR/9, with yesterday&apos;s workload beside it
         </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* TWO-COLUMN, COMPACT (2026-08-08): the single-column list padded a
+          half-empty box with 200px bars — the ranking reads just as fast at
+          half the height and none of the dead air. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', columnGap: 20, rowGap: 3 }}>
         {shown.map((r, i) => (
-          <div key={r.ab} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div key={r.ab} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16 }}>{i + 1}</span>
             <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, width: 34 }}>{r.ab}</span>
-            <div style={{ flex: '1 1 90px', maxWidth: 210, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}
+            <div style={{ flex: '1 1 60px', height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}
               title={`${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}`}>
               <div style={{
                 width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
@@ -267,58 +270,130 @@ export default function Pitchers({ players, onPlayerClick }) {
 
   const pitchers = useMemo(() => groupPitchers(players), [players])
   const sorted = useMemo(() => sortPitchers(pitchers, sortKey), [pitchers, sortKey])
+  const tableRef = useRef(null)
 
   if (!pitchers.length) return <Empty text="No pitcher data found yet." />
 
-  // TONIGHT'S VERDICT, before any table: the three most attackable arms and
-  // the three to stay away from, by the overall score. The usability
-  // complaint about this page was fair — it opened with a 30-column table
-  // and made you derive the conclusion yourself. Now the conclusion leads
-  // and the table is the receipts.
+  // THE WORKBENCH (2026-08-08 redesign — "lazy and unusable" no more). The
+  // old verdict was 3+3 bare names in two boxes: it told you WHO but never
+  // WITH WHAT. Every pitcher entry from groupPitchers already carries his
+  // full opposing lineup, so each attack card now answers the page's real
+  // question in one glance: this arm, his leak numbers, and the three bats
+  // best equipped to punish him tonight — clickable, straight to the hitter.
   const byOverall = [...pitchers]
     .map((p) => ({ p, ov: pitcherOverall(p.lineup?.[0]?.raw || {}) }))
     .filter((x) => x.ov > 0)
     .sort((a, b) => b.ov - a.ov)
   const targets = byOverall.slice(0, 3)
   const avoids = byOverall.slice(-3).reverse()
+  const topBats = (p, k = 3) => [...(p.lineup || [])].sort((a, b) => b.hr_score - a.hr_score).slice(0, k)
 
   return (
     <div>
       <PanelTitle
         title="Pitchers"
-        sub={`${pitchers.length} starters today · click to see opposing lineup`}
+        sub={`${pitchers.length} starters · who to attack, with which bats — every arm one click deep`}
+        right={
+          <button
+            onClick={() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            style={btnStyle(C.cyan, false)}
+          >↓ Full starter table</button>
+        }
       />
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        {[['🎯 Attack tonight', targets, C.orange], ['🧊 Stay away', avoids, '#60a5fa']].map(([label, list, col]) => (
-          <div key={label} style={{
-            flex: '1 1 300px', minWidth: 0,
-            background: `linear-gradient(155deg, ${col}10, ${col}04)`,
-            border: `1px solid ${col}35`, borderRadius: 11, padding: '8px 12px',
+      {/* ── ATTACK CARDS — the arm, his leaks, and the bats to do it with ── */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        {targets.map(({ p, ov }, i) => (
+          <div key={p.pitcher_id ?? p.pitcher_name} style={{
+            flex: '1 1 280px', minWidth: 0,
+            background: `linear-gradient(160deg, rgba(249,115,22,${i === 0 ? '.14' : '.09'}), ${C.bg2} 60%)`,
+            border: `1px solid rgba(249,115,22,${i === 0 ? '.55' : '.35'})`,
+            borderRadius: 13, padding: '10px 13px',
+            boxShadow: i === 0 ? '0 0 18px rgba(249,115,22,.14)' : 'none',
           }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: col, marginBottom: 5 }}>{label}</div>
-            {list.map(({ p, ov }) => (
-              <div
-                key={p.pitcher_id ?? p.pitcher_name}
-                onClick={() => setModalPitcher(p)}
-                style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '2px 0', cursor: 'pointer' }}
-              >
-                <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, color: col, width: 26 }}>{ov.toFixed(0)}</span>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{p.pitcher_name}</span>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                  {p.team} vs {p.opponent_team} · HR/9 {n(p.pitcher_hr9, 0).toFixed(2)}
-                </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+              <span style={{ fontSize: 9, fontWeight: 900, color: C.orange, letterSpacing: '.09em', fontFamily: NUM_FONT, flexShrink: 0 }}>
+                🎯 ATTACK #{i + 1}
+              </span>
+              <span title="Blended attackability score — see the table's Overall column" style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, flexShrink: 0 }}>{ov.toFixed(0)}</span>
+            </div>
+            <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', marginTop: 3 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 800 }}>{p.pitcher_name}</span>
+              <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginLeft: 6 }}>{p.pitcher_throws}HP · {p.team} vs {p.opponent_team} · {localTime(p.game_time)}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 4, fontFamily: NUM_FONT, fontSize: 10 }}>
+              <span title="HR allowed per nine — the leak" style={{ color: n(p.pitcher_hr9, 0) >= 1.3 ? C.orange : C.text2, fontWeight: 800 }}>HR/9 {n(p.pitcher_hr9, 0).toFixed(2)}</span>
+              <span style={{ color: C.text3 }}>ERA {n(p.pitcher_era, 0).toFixed(2)}</span>
+              <span style={{ color: C.text3 }}>WHIP {n(p.pitcher_whip, 0).toFixed(2)}</span>
+              {p.weak_spot_count > 0 && <span title="Weak lineup spots the opposing order fills tonight" style={{ color: '#FCD34D', fontWeight: 800 }}>★{p.weak_spot_count} weak spot{p.weak_spot_count > 1 ? 's' : ''}</span>}
+              {!p.lineup_confirmed && <span style={{ color: C.text3 }}>◻ proj. lineup</span>}
+            </div>
+            {/* the point of the card: attack WITH these bats */}
+            <div style={{ marginTop: 7, paddingTop: 6, borderTop: '1px solid rgba(249,115,22,.2)' }}>
+              <div style={{ fontSize: 8.5, fontWeight: 800, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>Attack with</div>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {topBats(p).map((b) => (
+                  <button key={b.player_id ?? b.name} onClick={() => onPlayerClick?.(b.raw)}
+                    title={`${b.name} — HR score ${Math.round(b.hr_score)}${b.weak_spot_flag ? ' · sits in a weak spot for this arm' : ''}`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'baseline', gap: 5, cursor: 'pointer', minWidth: 0,
+                      background: C.bg3, border: `1px solid ${b.weak_spot_flag ? 'rgba(252,211,77,.5)' : C.border2}`,
+                      borderRadius: 8, padding: '3px 9px',
+                    }}>
+                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{b.lineup_spot ?? '·'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{String(b.name || '').split(' ').slice(-1)[0]}</span>
+                    {b.weak_spot_flag && <span style={{ fontSize: 9 }}>⭐</span>}
+                    <span style={{ fontSize: 10.5, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT }}>{Math.round(b.hr_score)}</span>
+                  </button>
+                ))}
+                {!p.lineup?.length && <span style={{ fontSize: 9.5, color: C.text3 }}>no opposing bats on the slate yet</span>}
               </div>
-            ))}
+            </div>
           </div>
         ))}
       </div>
+
+      {/* ── STAY AWAY — one compact strip, not a twin box of dead space ── */}
+      {avoids.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 12,
+        }}>
+          {avoids.map(({ p, ov }) => {
+            const best = topBats(p, 1)[0]
+            return (
+              <div key={p.pitcher_id ?? p.pitcher_name} style={{
+                flex: '1 1 220px', minWidth: 0,
+                background: 'linear-gradient(160deg, rgba(96,165,250,.08), transparent 65%)',
+                border: '1px solid rgba(96,165,250,.3)', borderRadius: 11, padding: '7px 11px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+                  <span style={{ fontSize: 8.5, fontWeight: 900, color: '#60a5fa', letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT }}>{ov.toFixed(0)}</span>
+                </div>
+                <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', marginTop: 2, minWidth: 0 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 800 }}>{p.pitcher_name}</span>
+                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5 }}>{p.team} vs {p.opponent_team} · HR/9 {n(p.pitcher_hr9, 0).toFixed(2)} · ERA {n(p.pitcher_era, 0).toFixed(2)}</span>
+                </div>
+                {best && (
+                  <div style={{ fontSize: 9, color: C.text3, marginTop: 3 }}>
+                    If you must:{' '}
+                    <span onClick={() => onPlayerClick?.(best.raw)} style={{ color: C.text2, fontWeight: 700, cursor: 'pointer' }}>
+                      {best.name} <b style={{ fontFamily: NUM_FONT, color: '#60a5fa' }}>{Math.round(best.hr_score)}</b>
+                    </span>
+                    {' '}is his lineup&apos;s best-armed bat.
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <BullpenBoard pitchers={pitchers} />
 
       {/* Column groups — the other half of the usability fix. Thirty columns
           at once was a wall; each group is one question. */}
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+      <div ref={tableRef} style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center', scrollMarginTop: 130 }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Columns</span>
         {[['core', 'Core'], ['recent', 'Recent form'], ['bot', 'Bot scores'], ['bb', 'Batted ball'], ['all', 'Everything']].map(([k, label]) => (
           <button key={k} onClick={() => setColGroup(k)} style={{
