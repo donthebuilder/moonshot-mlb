@@ -431,11 +431,15 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                 // label as a tag punched through the top edge — one object,
                 // clearly labelled, instead of a hat on a box.
                 const wrap = (inner) => (
+                  // TIGHTER (2026-08-08): basis 225→240 so five across only
+                  // happens on truly wide screens — the old width was where
+                  // "Freddie Freem…" came from — and the floor drops so the
+                  // cards hug their content instead of padding air.
                   <div key={playerId(p)} style={{
-                    flex: '1 1 225px', minWidth: 0, position: 'relative',
+                    flex: '1 1 240px', minWidth: 0, position: 'relative',
                     display: 'flex', flexDirection: 'column',
                     marginTop: roleInfo ? 9 : 0,
-                    minHeight: 190,
+                    minHeight: 170,
                   }}>
                     {roleInfo && (
                       <span style={{
@@ -482,8 +486,13 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                         padding: '11px 14px', cursor: 'pointer', flex: 1,
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{p?.name || '—'}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2, minWidth: 0 }}>
+                        {/* same rule as PlayerCard: long names shrink, never clip */}
+                        <span title={p?.name || ''} style={{
+                          fontSize: String(p?.name || '').length > 18 ? 11.5 : 13,
+                          fontWeight: 700, lineHeight: 1.25, minWidth: 0,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>{p?.name || '—'}</span>
                       </div>
                       <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>
                         {p?.team} #{p?.lineup_spot ?? '?'} · vs {p?.pitcher_name || '?'} ({p?.pitcher_throws || '?'})

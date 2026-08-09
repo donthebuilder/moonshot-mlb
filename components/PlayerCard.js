@@ -151,7 +151,14 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
                 ⭐
               </span>
             )}
-            <span style={{ fontWeight: 900, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {/* NAME FITS (2026-08-08): "Freddie Freem…" is not a name. Long
+                names step the font down instead of losing letters, and the
+                full name always rides in the tooltip as a backstop. */}
+            <span title={nameOf(p)} style={{
+              fontWeight: 900,
+              fontSize: String(nameOf(p) || '').length > 18 ? 11.5 : String(nameOf(p) || '').length > 14 ? 12.5 : 14,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+            }}>
               {nameOf(p)}
             </span>
           </div>
