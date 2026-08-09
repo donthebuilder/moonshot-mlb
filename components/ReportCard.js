@@ -155,42 +155,84 @@ export default function ReportCard({ backtest }) {
   const seasonN = model.rows.reduce((a, r) => a + r.n, 0)
   const lockOk = model.rows.reduce((a, r) => a + r.lockOk, 0)
   const lockN = model.rows.reduce((a, r) => a + r.lockN, 0)
+  const seasonPct = seasonN ? (100 * seasonOk) / seasonN : null
+  const lockPct = lockN ? (100 * lockOk) / lockN : null
+  const lockNights = model.dates.filter((d) => d >= LOCK_DATE).length
+
+  // TURNED UP 2026-08-09 (owner likes this block — "make the two headline
+  // records more prominent"). Same two numbers, same CIs, same honesty; they
+  // just stop looking like a caption. Each record is now its own card with the
+  // count at display size, and the since-lock card carries the ember/green
+  // accent because it's the one being built in public.
+  const Record = ({ kicker, kickerCol, value, pctVal, ci, ciTitle, foot, accent }) => (
+    <div style={{
+      flex: '1 1 220px', minWidth: 0,
+      background: accent
+        ? `linear-gradient(150deg, rgba(74,222,128,.10), rgba(74,222,128,.02))`
+        : `linear-gradient(150deg, rgba(255,255,255,.05), rgba(255,255,255,.012))`,
+      border: `1px solid ${accent ? 'rgba(74,222,128,.34)' : C.border}`,
+      boxShadow: accent ? '0 0 22px rgba(74,222,128,.07) inset' : 'none',
+      borderRadius: 13, padding: '12px 16px',
+    }}>
+      <div style={{
+        fontSize: 9, color: kickerCol, textTransform: 'uppercase',
+        letterSpacing: '.11em', fontWeight: 900, marginBottom: 3,
+      }}>{kicker}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+        <span style={{
+          fontFamily: NUM_FONT, fontSize: 34, fontWeight: 900,
+          lineHeight: 1.05, letterSpacing: '-.03em',
+          color: value === 'building…' ? C.text3 : C.text,
+        }}>{value}</span>
+        {pctVal != null && (
+          <span style={{
+            fontFamily: NUM_FONT, fontSize: 19, fontWeight: 900,
+            color: pctVal >= 45 ? '#4ade80' : C.orange,
+          }}>{pctVal.toFixed(1)}%</span>
+        )}
+      </div>
+      {ci && (
+        <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 4 }} title={ciTitle}>
+          95% CI {ci}
+        </div>
+      )}
+      {foot && <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>{foot}</div>}
+    </div>
+  )
 
   return (
     <div>
       {/* THE HEADLINE RECORD — season, and the part that can't be flattered */}
       <div style={{
-        display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline',
         background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.05))`,
-        border: `1px solid ${C.border}`, borderRadius: 11, padding: '10px 15px', marginBottom: 14,
+        border: `1px solid ${C.border}`, borderRadius: 14, padding: '12px 13px', marginBottom: 14,
       }}>
-        <div>
-          <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Season, every pick</div>
-          <div style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900 }}>
-            {seasonOk}/{seasonN} <span style={{ fontSize: 14, color: seasonN && (100 * seasonOk) / seasonN >= 45 ? '#4ade80' : C.orange }}>{seasonN ? ((100 * seasonOk) / seasonN).toFixed(1) : '—'}%</span>
-          </div>
-          {seasonN > 0 && (
-            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }} title="95% Wilson interval — where the true rate plausibly lives given this sample size">
-              95% CI {ciText(seasonOk, seasonN)}
-            </div>
-          )}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Record
+            kicker="Season, every pick"
+            kickerCol={C.text3}
+            value={seasonN ? `${seasonOk}/${seasonN}` : '—'}
+            pctVal={seasonPct}
+            ci={seasonN > 0 ? ciText(seasonOk, seasonN) : null}
+            ciTitle="95% Wilson interval — where the true rate plausibly lives given this sample size"
+            foot={`every graded night on file · ${model.dates.length} days`}
+          />
+          <Record
+            kicker="✅ Since the lock"
+            kickerCol="#4ade80"
+            value={lockN ? `${lockOk}/${lockN}` : 'building…'}
+            pctVal={lockPct}
+            ci={lockN > 0 ? ciText(lockOk, lockN) : null}
+            ciTitle="95% Wilson interval — wide while the locked sample is young, and it should be"
+            foot={lockN ? `${lockNights} locked night${lockNights === 1 ? '' : 's'} since ${LOCK_DATE}` : `locking since ${LOCK_DATE}`}
+            accent
+          />
         </div>
-        <div>
-          <div style={{ fontSize: 8.5, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Since the lock</div>
-          <div style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900, color: lockN ? C.text : C.text3 }}>
-            {lockN ? `${lockOk}/${lockN}` : 'building…'}
-            {lockN > 0 && <span style={{ fontSize: 14, marginLeft: 6, color: (100 * lockOk) / lockN >= 45 ? '#4ade80' : C.orange }}>{((100 * lockOk) / lockN).toFixed(1)}%</span>}
-          </div>
-          {lockN > 0 && (
-            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }} title="95% Wilson interval — wide while the locked sample is young, and it should be">
-              95% CI {ciText(lockOk, lockN)}
-            </div>
-          )}
-        </div>
-        <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, flex: '1 1 260px', minWidth: 0 }}>
-          The since-lock number is the one that matters going forward: every pick in it froze at first
-          pitch and could never be revised. It starts small and grows nightly — that&apos;s the record
-          being built in public.
+        <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
+          The <b style={{ color: '#4ade80' }}>since-lock</b> number is the one that matters going forward:
+          every pick in it froze at first pitch and could never be revised. It starts small and grows
+          nightly — that&apos;s the record being built in public. The intervals are there because a
+          headline rate on a young sample is a guess wearing a decimal point.
         </div>
       </div>
       {/* ── 1. last night ── */}
