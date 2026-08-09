@@ -172,11 +172,97 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   const lit = (k) => rows.filter((r) => r[k]).length
 
+  // ── SECTION ORDER (2026-08-08 rearrange): live first when live ──────────
+  // Pre-game the page reads top-down as a plan: how to read it → the picks →
+  // the pulse. Once games are live it reads as a broadcast: the wire and
+  // who's gone yard jump to the top, and the orientation panels step back.
+  // Heavy panels (storylines, weak spots, and gone-yard pre-live) collapse
+  // by default so the first screen is calm — everything is one click deep,
+  // nothing is gone.
+  const liveNow = results?.live_mode === true
+
+  const Fold = ({ label, open = false, children }) => (
+    <details open={open} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 10 }}>
+      <summary style={{ padding: '8px 13px', fontSize: 11, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
+      <div style={{ padding: '2px 12px 10px' }}>{children}</div>
+    </details>
+  )
+
+  const secStart = <StartHere key="start" onNavigate={onNavigate} />
+  const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+  const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
+  const secPicks = <BotPicksStrip key="picks" players={players} onPlayerClick={onPlayerClick} />
+  const secStories = (
+    <Fold key="stories" label="📰 Storylines — tonight's angles, written from the slate">
+      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+    </Fold>
+  )
+  const goneTable = goneYard.length > 0 && (
+    <Tracker
+      title="💥 Gone yard"
+      count={goneYard.length}
+      note={`${goneYard.filter((r) => r.rank && r.rank <= 15).length} of ${goneYard.length} came from the top 15 of the board.`}
+    >
+      <DenseTable
+        rows={goneYard}
+        columns={[
+          { key: 'rank', label: 'Board', heat: false, w: 46, mono: true, dim: true,
+            fmt: (v) => (v == null ? '—' : `#${v}`) },
+          { key: 'name', label: 'Player', heat: false, w: 132, bold: true },
+          { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
+          { key: 'hr',   label: 'HR',     w: 34 },
+          { key: 'score', label: 'HR score', w: 54, dp: 1 },
+          { key: 'role', label: 'Role',   heat: false, w: 78, dim: true },
+        ]}
+        onRowClick={onPlayerClick}
+        initialSort="score"
+        maxHeight={260}
+        caption=""
+      />
+    </Tracker>
+  )
+  // Live: who's gone yard is the news — it renders open, right under the
+  // wire. Pre-live (or an empty list) it stays out of the way.
+  const secGone = goneYard.length > 0 && (
+    liveNow
+      ? <div key="gone" style={{ marginBottom: 14 }}>{goneTable}</div>
+      : <Fold key="gone" label={`💥 Gone yard (${goneYard.length}) — tonight's homers vs where the board had them`}>{goneTable}</Fold>
+  )
+  const secWeak = weakSpots.length > 0 && (
+    <Fold key="weak" label={`★ Weak spots (${weakSpots.length}) — the arms with reachable soft spots tonight`}>
+      <Tracker
+        title="★ Weak spots"
+        count={weakSpots.length}
+        note="Damage is how hard that pitcher gets hit in those spots. Sorted hardest first."
+      >
+        <DenseTable
+          rows={weakSpots}
+          columns={[
+            { key: 'pitcher', label: 'Pitcher', heat: false, w: 126, bold: true },
+            { key: 'hr9',     label: 'HR/9',    w: 44, dp: 2 },
+            { key: 'spots',   label: 'Spots',   heat: false, w: 54, mono: true, dim: true },
+            { key: 'hitters', label: 'Hitters', heat: false, w: 190, dim: true },
+            { key: 'damage',  label: 'Damage',  w: 52, dp: 1 },
+          ]}
+          initialSort="damage"
+          maxHeight={260}
+          caption=""
+        />
+      </Tracker>
+    </Fold>
+  )
+
+  const order = liveNow
+    // broadcast order: the wire, the homers, then tonight's picks, then context
+    ? [secWire, secGone, secPicks, secPulse, secStories, secWeak, secStart]
+    // plan order: orientation, the picks, the (quiet) wire, the pulse, context
+    : [secStart, secPicks, secWire, secPulse, secStories, secGone, secWeak]
+
   return (
     <div>
       <PanelTitle
         title="Scoreboard"
-        sub={`${rows.length} batters · ★${lit('weak')} weak spot · ◆${lit('aligned')} aligned · ▲${lit('edge')} matchup edge`}
+        sub={`${rows.length} batters · ★${lit('weak')} weak spot · ◆${lit('aligned')} aligned · ▲${lit('edge')} matchup edge${liveNow ? ' · live — sections reordered around the action' : ''}`}
         right={
           alignedCount > 0 && (
             <button
@@ -190,70 +276,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         }
       />
 
-      {/* First thing a new visitor sees: the workflow, drawn, not a wall of
-          glossary text. Dismisses per device; a small "?" chip brings it
-          back. The Guide tab keeps the depth. */}
-      <StartHere onNavigate={onNavigate} />
-
-      {/* Unconfirmed-pick countdowns + what changed since yesterday. */}
-      {/* The live feed — appears once first pitch lands, waits quietly before. */}
-      <LiveWire players={players} mode={mode} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-      <SlatePulse players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
-      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
-
-      <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
-
-      <div style={{
-        display: 'grid', gap: 16, marginBottom: 18,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-      }}>
-        {goneYard.length > 0 && (
-          <Tracker
-            title="💥 Gone yard"
-            count={goneYard.length}
-            note={`${goneYard.filter((r) => r.rank && r.rank <= 15).length} of ${goneYard.length} came from the top 15 of the board.`}
-          >
-            <DenseTable
-              rows={goneYard}
-              columns={[
-                { key: 'rank', label: 'Board', heat: false, w: 46, mono: true, dim: true,
-                  fmt: (v) => (v == null ? '—' : `#${v}`) },
-                { key: 'name', label: 'Player', heat: false, w: 132, bold: true },
-                { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
-                { key: 'hr',   label: 'HR',     w: 34 },
-                { key: 'score', label: 'HR score', w: 54, dp: 1 },
-                { key: 'role', label: 'Role',   heat: false, w: 78, dim: true },
-              ]}
-              onRowClick={onPlayerClick}
-              initialSort="score"
-              maxHeight={260}
-              caption=""
-            />
-          </Tracker>
-        )}
-
-        {weakSpots.length > 0 && (
-          <Tracker
-            title="★ Weak spots"
-            count={weakSpots.length}
-            note="Damage is how hard that pitcher gets hit in those spots. Sorted hardest first."
-          >
-            <DenseTable
-              rows={weakSpots}
-              columns={[
-                { key: 'pitcher', label: 'Pitcher', heat: false, w: 126, bold: true },
-                { key: 'hr9',     label: 'HR/9',    w: 44, dp: 2 },
-                { key: 'spots',   label: 'Spots',   heat: false, w: 54, mono: true, dim: true },
-                { key: 'hitters', label: 'Hitters', heat: false, w: 190, dim: true },
-                { key: 'damage',  label: 'Damage',  w: 52, dp: 1 },
-              ]}
-              initialSort="damage"
-              maxHeight={260}
-              caption=""
-            />
-          </Tracker>
-        )}
-      </div>
+      {order}
 
       <DenseTable
         rows={rows}
