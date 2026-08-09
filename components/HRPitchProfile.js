@@ -150,16 +150,41 @@ export default function HRPitchProfile({ player, slateMode }) {
         <div style={{ fontSize: 10, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em' }}>
           Does {clean(player?.pitcher_name, "tonight's starter")} throw what he hits?
         </div>
-        <div style={{
-          fontSize: 17, fontWeight: 800, margin: '3px 0 2px',
-          color: covered > 0 ? C.orange : C.text2,
-        }}>
-          {covered} of {totalHR} homers came off pitches he&apos;ll see tonight
+        {/* THE HEADLINE, as one number and one sentence (2026-08-09, owner:
+            "make all that better and usable"). It used to be a 17px sentence
+            with the count buried mid-line, followed by a run-on of
+            "Slider 3HR · 32% usage · Changeup 1HR · 11% usage" — prose doing
+            a chart's job. The count is the number now; the per-pitch detail
+            is the labelled bars below, where it can be compared. */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 11, flexWrap: 'wrap', margin: '4px 0 2px' }}>
+          <span style={{
+            fontFamily: NUM_FONT, fontSize: 34, fontWeight: 900, lineHeight: 1,
+            color: covered > 0 ? C.orange : C.text3,
+          }}>
+            {covered}<span style={{ fontSize: 17, color: C.text3, fontWeight: 700 }}>/{totalHR}</span>
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, minWidth: 190, flex: '1 1 220px', lineHeight: 1.45 }}>
+            {covered > 0
+              ? <>of his tracked homers came off a pitch {clean(player?.pitcher_name, "tonight's starter")} actually throws.</>
+              : <>None of his tracked homers came off a pitch in this arsenal.</>}
+          </span>
         </div>
-        <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT }}>
-          {overlap.length
-            ? overlap.map((r) => `${r.pitch} ${r.hrs}HR · ${r.tonight.toFixed(0)}% usage`).join('  ·  ')
-            : 'No overlap — the pitches he goes deep on are not in this arsenal.'}
+        {/* Sample size, stated rather than implied. */}
+        <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.55 }}>
+          {totalHR} homer{totalHR === 1 ? '' : 's'} in his tracked batted-ball window, spread over{' '}
+          {rows.length} pitch type{rows.length === 1 ? '' : 's'} ·{' '}
+          {overlap.length} of those {overlap.length === 1 ? 'type is' : 'types are'} in tonight&apos;s mix
+          {(() => {
+            const lead = [...overlap].sort((a, b) => (b.hrs - a.hrs) || (b.tonight - a.tonight))[0]
+            if (!lead) return null
+            return (
+              <>
+                {' '}· biggest overlap is the <b style={{ color: C.text2 }}>{lead.pitch}</b>:{' '}
+                {lead.hrs} HR on {lead.seen} tracked ball{lead.seen === 1 ? '' : 's'} in play,{' '}
+                {lead.tonight.toFixed(0)}% of what he&apos;ll see
+              </>
+            )
+          })()}
         </div>
 
         {mixWeighted && (
@@ -206,6 +231,14 @@ export default function HRPitchProfile({ player, slateMode }) {
           pitch: ember = HR per batted ball, cyan = tonight's usage. When
           both bars run long on the same row, that's the pitch to watch. */}
       <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '10px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6, paddingBottom: 5, borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.07em', textTransform: 'uppercase', color: C.text2, fontFamily: NUM_FONT }}>
+            Pitch by pitch — damage vs supply
+          </span>
+          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+            sorted by damage rate · sample size on every row · rows under 10 tracked balls in play are dimmed
+          </span>
+        </div>
         {(() => {
           const maxRate = Math.max(...rows.map((r) => Number(r.rate) || 0), 1e-9)
           const maxTon = Math.max(...rows.map((r) => Number(r.tonight) || 0), 1e-9)
@@ -214,14 +247,19 @@ export default function HRPitchProfile({ player, slateMode }) {
             const tonW = Math.max(2, (100 * (Number(r.tonight) || 0)) / maxTon)
             const both = (Number(r.rate) || 0) >= maxRate * 0.6 && (Number(r.tonight) || 0) >= maxTon * 0.6
             return (
-              <div key={r.code || i} style={{ padding: '6px 0', borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+              <div key={r.code || i} style={{
+                padding: '6px 0', borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : 'none',
+                // Same honesty rule the pitch-breakdown table runs: a rate on
+                // under ten tracked balls in play is mostly the last swing.
+                opacity: Number(r.seen) < 10 ? 0.5 : 1,
+              }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
                   <span style={{ fontSize: 12, fontWeight: 800, width: 86, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {both ? '🎯 ' : ''}{r.pitch}
                   </span>
                   <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{r.code}</span>
                   <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {r.hrs} HR / {r.seen} seen{r.avgDist ? ` · ${Number(r.avgDist).toFixed(0)}ft` : ''}{r.maxDist ? ` (max ${Number(r.maxDist).toFixed(0)})` : ''}{r.avgEV ? ` · ${Number(r.avgEV).toFixed(1)} EV` : ''}
+                    n={r.seen} · {r.hrs} HR{r.avgDist ? ` · ${Number(r.avgDist).toFixed(0)}ft` : ''}{r.maxDist ? ` (max ${Number(r.maxDist).toFixed(0)})` : ''}{r.avgEV ? ` · ${Number(r.avgEV).toFixed(1)} EV` : ''}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
