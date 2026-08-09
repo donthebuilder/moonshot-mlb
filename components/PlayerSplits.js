@@ -169,8 +169,53 @@ export default function PlayerSplits({ player, slateMode }) {
       title: 'Inverted — a low strikeout rate is the good outcome for the hitter.' },
   ]
 
+  // TONIGHT'S ARM, LEADING THE TAB (2026-08-08 hierarchy pass): four equal
+  // tables gave the tab no front door. The platoon line for the side he'll
+  // actually see tonight is the one split that moves a decision, so it opens
+  // the page as tiles — the relevant side lit, the other side dim for
+  // contrast, RISP along for the ride. Same live-API rows as the table below.
+  const tonightArm = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
+  const lrTiles = lr && (() => {
+    const vsL = lr.find((r) => r.split === 'vs LHP')
+    const vsR = lr.find((r) => r.split === 'vs RHP')
+    const risp = lr.find((r) => r.split === 'RISP')
+    const tiles = [
+      vsL && { label: 'vs LHP', r: vsL, hot: tonightArm === 'L' },
+      vsR && { label: 'vs RHP', r: vsR, hot: tonightArm === 'R' },
+      risp && { label: 'RISP', r: risp, hot: false },
+    ].filter(Boolean)
+    if (!tiles.length) return null
+    return (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        {tiles.map(({ label, r, hot }) => (
+          <div key={label}
+            title={`${label}: ${r.pa} PA · ${r.avg.toFixed(3)}/${r.obp.toFixed(3)}/${r.slg.toFixed(3)} · ${r.hr} HR${hot ? ` — tonight's starter throws ${tonightArm}, this is the side he'll see` : ''}`}
+            style={{
+              flex: '1 1 150px', minWidth: 0,
+              background: hot ? 'rgba(249,115,22,.10)' : C.bg2,
+              border: `1px solid ${hot ? `${C.orange}66` : C.border}`,
+              borderRadius: 10, padding: '7px 12px',
+              boxShadow: hot ? '0 0 14px -4px rgba(249,115,22,.4)' : 'none',
+              opacity: !hot && (label === 'vs LHP' || label === 'vs RHP') && (tonightArm === 'L' || tonightArm === 'R') ? 0.7 : 1,
+            }}>
+            <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: hot ? C.orange : C.text3 }}>
+              {label}{hot ? " · tonight's side ⌖" : ''}
+            </div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: hot ? C.orange : C.text }}>
+              {r.ops.toFixed(3)} <span style={{ fontSize: 9, fontWeight: 700, color: C.text3 }}>OPS</span>
+            </div>
+            <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+              {r.avg.toFixed(3)} AVG · {r.hr} HR · ISO {r.iso.toFixed(3)} · {r.pa} PA
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  })()
+
   return (
     <div>
+      {lrTiles}
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.6, maxWidth: 760 }}>
         {clean(data?.name, '')} · {n(data?.games_logged, 0)} games logged · {clean(data?.season, '')} season.
         {' '}Every column is shaded against its own range <b style={{ color: C.text2 }}>within each table</b>,

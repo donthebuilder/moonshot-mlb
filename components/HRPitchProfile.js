@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj, arr } from '../lib/player'
 import { detailUrl } from '../lib/dataSource'
-import { rampColor, inkFor } from './Heatmap'
-import DenseTable from './DenseTable'
 
 // What this hitter homers off — and whether tonight's starter throws it.
 //
@@ -110,7 +108,6 @@ export default function HRPitchProfile({ player, slateMode }) {
   const overlap = rows.filter((r) => r.tonight > 0)
   const totalHR = rows.reduce((a, r) => a + r.hrs, 0)
   const covered = overlap.reduce((a, r) => a + r.hrs, 0)
-  const maxHR = Math.max(...rows.map((r) => r.hrs), 1)
 
   // Average HR distance, weighted by how often tonight's starter throws each
   // pitch. This is the "avg distance vs his mix" number — not a straight
@@ -136,8 +133,13 @@ export default function HRPitchProfile({ player, slateMode }) {
 
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>
-        Home runs by pitch type
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.07em', textTransform: 'uppercase' }}>
+          Home runs by pitch type
+        </span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          {totalHR} HR in his tracked window · {rows.length} pitch type{rows.length === 1 ? '' : 's'}
+        </span>
       </div>
 
       <div style={{
@@ -193,33 +195,10 @@ export default function HRPitchProfile({ player, slateMode }) {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {rows.map((r) => {
-          const bg = rampColor(r.hrs, 0, maxHR)
-          return (
-            <div key={r.code} style={{
-              border: `1px solid ${r.tonight > 0 ? C.orange : C.border}`,
-              borderRadius: 10, padding: '6px 10px', minWidth: 92,
-              background: C.bg2,
-            }}>
-              <div style={{ fontSize: 9.5, color: C.text3, fontWeight: 700 }}>
-                {r.pitch}
-                {r.tonight > 0 && (
-                  <span style={{ color: C.orange, marginLeft: 4 }}>{r.tonight.toFixed(0)}%</span>
-                )}
-              </div>
-              <div style={{
-                display: 'inline-block', marginTop: 3, padding: '1px 8px', borderRadius: 5,
-                background: bg, color: inkFor(bg), fontFamily: NUM_FONT,
-                fontSize: 14, fontWeight: 800,
-              }}>{r.hrs}</div>
-              <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
-                {r.avgDist ? `${r.avgDist.toFixed(0)} ft avg` : '—'}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      {/* The chip row that used to sit here (one tile per pitch with an HR
+          count) said the same thing the bar chart below says, louder and
+          worse — three renditions of one dataset was the "lazy" read. The
+          headline box answers the question, the bars carry the evidence. */}
 
       {/* BAR CHART v2 (2026-08-08, "use a different type of chart"): the
           ten-column heat table buried the one comparison that matters —
