@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { arr, obj, n, clean } from '../../lib/player'
+import { arr, obj, n, clean, hitScore, prodScore, tbScore } from '../../lib/player'
 import Heatmap, { ORANGE_RAMP, rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
 
@@ -25,6 +25,17 @@ const PICK_META = {
   CONTACT:  ['⚾', 'Contact Picks'],
 }
 const meta = (k) => PICK_META[String(k).toUpperCase()] || ['•', clean(k, '—')]
+
+// The lib/player score getters all fall back to 0 when every alias is missing,
+// which is exactly the failure this page has been burned by before: a field the
+// bot never wrote printing as a confident 0.0. Anything that isn't a positive
+// score comes back null instead, and DenseTable renders null as an em dash.
+// A dash means "not published on this row", not "the model scored him zero".
+const optScore = (row, getter) => {
+  if (!row) return null
+  const v = getter(row)
+  return Number.isFinite(v) && v > 0 ? v : null
+}
 
 function Tile({ label, value, sub, tone = 'flat' }) {
   const col = tone === 'up' ? '#4ade80' : tone === 'accent' ? C.orange : C.text3
@@ -291,6 +302,10 @@ export default function ResultsDepth({ results, onPlayerClick }) {
             { key: 'n',      label: 'N',       heat: false, w: 34, mono: true, dim: true },
             { key: 'did',    label: 'Did job', w: 50 },
             { key: 'didPct', label: 'Rate %',  w: 52, dp: 1 },
+            // HR count lives here now. It used to be its own "HRs by pick type"
+            // bar chart at the bottom of the page, which drew the same six
+            // numbers a second time; one column is the whole chart.
+            { key: 'hr',     label: 'HR',      w: 36 },
             { key: 'hrPct',  label: 'HR %',    w: 48, dp: 1 },
             { key: 'hitPct', label: '1+ Hit %', w: 54, dp: 1 },
             { key: 'xbhPct', label: 'XBH %',   w: 50, dp: 1 },
@@ -299,12 +314,12 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           maxHeight={280}
           caption=""
         />
-        <div style={{ marginTop: 12 }}>
-          <Bars
-            rows={tiers.map((t) => ({ label: `${t.icon} ${t.label}`, value: t.didPct, display: `${t.didPct.toFixed(0)}%` }))}
-            max={100}
-          />
-        </div>
+        {/* DEDUPED 2026-08-09 (owner: "too many charts, some are repeats").
+            A bar row per tier used to sit here drawing didPct — the exact
+            values already in the Rate % column one line above — and a second
+            "HRs by pick type" chart at the bottom of the page drew the HR
+            counts. Both were the table again in a different shape. One
+            representation of each fact: the table. */}
         <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
           Top Picks are relative — picked as the best play in their game, so one only counts if it
           out-produced our other picks from that same game. We only see our own picks, so that means
@@ -337,7 +352,7 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           alone can be flattered by a wide board -- rank is what makes it real. */}
       <Section
         title="Home runs vs the model"
-        sub="Every homer tonight, matched to whether it was one of our picks and where the board had it ranked."
+        sub="Every homer tonight, matched to whether it was one of our picks, where the board had it ranked, and — added 2026-08-09 — what the board thought of him in EVERY lane, not just HR. A homer off a man the model rated 41 for HR but 68 for hit shape is a different story than one it liked nowhere."
       >
         {(() => {
           const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z]/g, '')
@@ -363,6 +378,15 @@ export default function ResultsDepth({ results, onPlayerClick }) {
               pick: sl ? `${icon} ${label}` : 'not picked',
               rank: sl ? n(sl.rank, null) : null,
               score: sl ? n(sl.hr_score, 0) : 0,
+              // The other three lanes the board scores every hitter in. Null,
+              // not 0, when the graded row doesn't carry them.
+              hitSc: optScore(sl, hitScore),
+              hrrSc: optScore(sl, prodScore),
+              tbSc: optScore(sl, tbScore),
+              // Did the homer-hitter also get on base with a plain hit? A homer
+              // IS a hit, so this is always >= 1 for a picked homer — the
+              // interesting number is 2+, the guy who did it twice.
+              hits: sl ? n(sl.actual_hits, null) : null,
               ft: n(h?.longest_ft, 0),
               ev: n(h?.max_ev_mph, 0),
               la: n(h?.launch_angle, 0),
@@ -375,6 +399,20 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           const medRank = ranked.length
             ? [...ranked].sort((a, b) => a.rank - b.rank)[Math.floor(ranked.length / 2)].rank
             : null
+
+          // How many of the OTHER lanes had something to say about tonight's
+          // homer-hitters. If this is 0 the three new columns will be all
+          // dashes, and the note below says so rather than leaving you to
+          // wonder whether the model scored everyone zero.
+          const laneCovered = onSheet.filter((r) => r.hitSc != null || r.hrrSc != null || r.tbSc != null).length
+
+          // BASE HITS BY OUR PICKS — slate-wide, every graded pick, not just
+          // the ones who went deep. Only picks that actually recorded an at-bat
+          // are in the denominator; a scratched or benched pick isn't a miss.
+          const judged = slots.filter((s) => n(s?.actual_ab, 0) > 0)
+          const totalHits = judged.reduce((a, s) => a + n(s?.actual_hits, 0), 0)
+          const withHit = judged.filter((s) => n(s?.actual_hits, 0) >= 1).length
+          const multiHit = judged.filter((s) => n(s?.actual_hits, 0) >= 2).length
 
           return (
             <>
@@ -397,6 +435,46 @@ export default function ResultsDepth({ results, onPlayerClick }) {
                 />
               </div>
 
+              {/* BASE HITS BY OUR PICKS (2026-08-09). The page graded the
+                  night on homers and on designed outcomes, and never once
+                  said the plainest thing: how often our picks simply got a
+                  hit. Slate-wide, across every graded pick — not only the
+                  ones in the homer table above it. */}
+              {judged.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, margin: '4px 0 7px' }}>
+                    Base hits by our picks
+                    <span style={{ color: C.text3, fontWeight: 500 }}>
+                      {' '}— every graded pick tonight, not just the homers
+                    </span>
+                  </div>
+                  <div style={{
+                    display: 'grid', gap: 8, marginBottom: 12,
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                  }}>
+                    <Tile label="Total hits" value={totalHits} sub={`across ${judged.length} picks with an AB`} tone="up" />
+                    <Tile
+                      label="Picks with 1+ hit"
+                      value={`${withHit}/${judged.length}`}
+                      sub={`${((100 * withHit) / judged.length).toFixed(0)}%`}
+                      tone="accent"
+                    />
+                    <Tile label="Multi-hit picks" value={multiHit} sub="2 or more" />
+                    <Tile
+                      label="Hits per pick"
+                      value={(totalHits / judged.length).toFixed(2)}
+                      sub="mean, ABs only"
+                    />
+                  </div>
+                  <div style={{ fontSize: 9.5, color: C.text3, margin: '-6px 0 14px', lineHeight: 1.55 }}>
+                    Denominator is picks that recorded an at-bat ({judged.length} of {slots.length} graded
+                    slots). A pick who was scratched or never came up isn&apos;t a miss, so he isn&apos;t
+                    counted either way — which is also why this percentage runs a little higher than one
+                    taken over every slot.
+                  </div>
+                </>
+              )}
+
               <DenseTable
                 rows={rows}
                 columns={[
@@ -406,7 +484,16 @@ export default function ResultsDepth({ results, onPlayerClick }) {
                   { key: 'pick',    label: 'Pick type', heat: false, w: 124, dim: true },
                   { key: 'rank',    label: 'Board rank', heat: false, w: 62, mono: true, dim: true,
                     fmt: (v) => (v == null ? '—' : `#${v}`) },
-                  { key: 'score',   label: 'HR score', w: 56, dp: 1 },
+                  { key: 'score',   label: 'HR score', w: 56, dp: 1,
+                    title: 'The home-run lane — what the board thought of his chance to go deep.' },
+                  { key: 'hitSc',   label: 'Hit', w: 46, dp: 1,
+                    title: 'Hit-shape score — the board’s read on him getting a base hit, independent of power. A dash means the graded row doesn’t carry it.' },
+                  { key: 'hrrSc',   label: 'HRR', w: 46, dp: 1,
+                    title: 'Production score — hits + runs + RBI. A dash means the graded row doesn’t carry it.' },
+                  { key: 'tbSc',    label: 'TB', w: 44, dp: 1,
+                    title: 'Contact / total-base score — extra-base shape. A dash means the graded row doesn’t carry it.' },
+                  { key: 'hits',    label: 'H', w: 34, dp: 0,
+                    title: 'Actual hits tonight. A homer is a hit, so a picked homer is always at least 1 — the number worth seeing is 2+.' },
                   { key: 'ft',      label: 'Distance', w: 56, dp: 0 },
                   { key: 'ev',      label: 'EV',     w: 48, dp: 1 },
                   { key: 'la',      label: 'LA',     w: 42, dp: 1 },
@@ -414,19 +501,17 @@ export default function ResultsDepth({ results, onPlayerClick }) {
                 onRowClick={onPlayerClick}
                 initialSort="ft"
                 maxHeight={360}
-                caption="Sorted with our picks first, then by board rank. A homer with no rank was on the sheet in some tier but outside the ranked board; 'not picked' means we missed him entirely."
+                caption={
+                  `Sorted with our picks first, then by board rank. A homer with no rank was on the sheet in some tier but outside the ranked board; 'not picked' means we missed him entirely. `
+                  + `Hit / HRR / TB are the board's other three lanes for the same man — ${laneCovered} of ${onSheet.length} picked homer-hitters carry at least one of them in the graded file`
+                  + (laneCovered === 0
+                    ? '; tonight none do, so those three columns are all dashes rather than zeros.'
+                    : '. A dash is a field the grader did not write, not a score of zero.')
+                }
               />
             </>
           )
         })()}
-      </Section>
-
-      <Section title="HRs by pick type">
-        <Bars
-          rows={tiers.filter((t) => t.hr > 0).map((t) => ({
-            label: `${t.icon} ${t.label}`, value: t.hr, display: String(t.hr),
-          }))}
-        />
       </Section>
 
       <Section title="Every pick">
