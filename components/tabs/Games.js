@@ -188,6 +188,19 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
         }
       />
 
+      {/* ONE PLAIN LINE PER MODE (2026-08-09 spoon-feed pass). The three mode
+          buttons above changed the whole page and the sub-line described them
+          in shorthand ("heat-sized game cards"); this says which decision each
+          mode is for, in words, and it changes when you switch. */}
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700 }}>
+        <b style={{ color: C.text2 }}>What this answers:</b>{' '}
+        {mode === 'lineups'
+          ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
+          : mode === 'botview'
+          ? 'which hitter the bot designated in each game, and in which market — the five category bars show whether it likes him for power or for contact.'
+          : 'which game to spend your attention on. Bigger, brighter cards are the matchups where the board stacks highest; tap one to open the full deep-dive in place.'}
+      </div>
+
       {/* Lineups keeps the strip as its sticky jump bar; Default and Bot
           Output render the card grid as the page itself, below. */}
       {mode === 'lineups' && (

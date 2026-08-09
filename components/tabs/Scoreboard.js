@@ -85,12 +85,21 @@ const buildColumns = (onWatch) => [
 // Two trackers above the grid, ported from Streamlit. Both answer questions
 // the 268-row table can't: who has ALREADY gone deep tonight, and which arms
 // have soft spots the lineup can reach. Neither is derivable by sorting.
-function Tracker({ title, count, children, note }) {
+// `answers` is not optional in practice — the 2026-08-09 spoon-feed pass:
+// every panel says in one plain sentence what decision it helps with, and it
+// has to sit inside the panel rather than in the fold label, because in live
+// mode these render open with no label at all.
+function Tracker({ title, count, children, note, answers }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: answers ? 2 : 6 }}>
         {title} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontWeight: 600 }}>({count})</span>
       </div>
+      {answers && (
+        <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55, marginBottom: 7 }}>
+          <b style={{ color: C.text2 }}>What this answers:</b> {answers}
+        </div>
+      )}
       {children}
       {note && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5 }}>{note}</div>}
     </div>
@@ -214,6 +223,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
     <Tracker
       title="💥 Gone yard"
       count={goneYard.length}
+      answers="is the model seeing tonight coming? Every homer already hit, next to where this board had that hitter ranked."
       note={`${goneYard.filter((r) => r.rank && r.rank <= 15).length} of ${goneYard.length} came from the top 15 of the board.`}
     >
       <DenseTable
@@ -246,6 +256,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       <Tracker
         title="★ Weak spots"
         count={weakSpots.length}
+        answers="which starters have a soft lineup slot tonight, and which hitters are standing in it."
         note="Damage is how hard that pitcher gets hit in those spots. Sorted hardest first."
       >
         <DenseTable
@@ -305,6 +316,14 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       />
 
       {order}
+
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '4px 0 8px', maxWidth: 720 }}>
+        <b style={{ color: C.text2 }}>What this answers:</b> who to look at first tonight. It&apos;s
+        every hitter on the slate, sorted by home-run score — <b style={{ color: C.text2 }}>you can
+        use the order without reading a single column</b>. Sort by any other header to ask a
+        different question (Hit for contact plays, Park for launch pads, K risk for the ones likely
+        to strike out), and click any row to open that hitter.
+      </div>
 
       <DenseTable
         rows={rows}

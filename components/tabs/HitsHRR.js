@@ -181,10 +181,24 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
         padding: 10,
         marginBottom: 14,
       }}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 900 }}>Boards</div>
-          <div style={{ fontSize: 10, color: C.text3, marginTop: 2 }}>
-            Every ranked board in one place — each with its record stated, not implied.
+          {/* 2026-08-09 spoon-feed pass. The proof banner below every board
+              says why to trust it; this says which bet it is FOR — eight
+              buttons that all look like rankings needed one line naming the
+              market each one belongs to. */}
+          <div style={{ fontSize: 10.5, color: C.text3, marginTop: 2, lineHeight: 1.55, maxWidth: 460 }}>
+            <b style={{ color: C.text2 }}>What this answers:</b>{' '}
+            {{
+              top: 'if you were making one play per game, who would it be.',
+              hr: 'who to back to hit a home run tonight.',
+              hit: 'who to back for a 1+ hit prop — the site’s most reliable market.',
+              hrr: 'who to back for 2+ hits+runs+RBI.',
+              contact: 'who to back for 2+ total bases.',
+              weakspot: 'which hitters are standing in a slot tonight’s starter has already been beaten in.',
+              aligned: 'which hitters have every flag that grades out firing at once.',
+              matchupedge: 'which hitters get to face the exact pitches they punish.',
+            }[view] || 'every ranked board in one place, each with its record stated, not implied.'}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

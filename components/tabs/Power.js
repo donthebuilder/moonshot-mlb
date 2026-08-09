@@ -32,13 +32,22 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
       {/* 🧱 fence riders — pulled wall-scrapers vs tonight's actual wall */}
       <FenceBoard players={players} onPlayerClick={onPlayerClick} />
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
         <button onClick={() => setView('longest')} style={btnStyle(C.orange, view === 'longest')}>
           🚀 Longest — who hits it farthest
         </button>
         <button onClick={() => setView('due')} style={btnStyle(C.purple, view === 'due')}>
           ⏳ Due — who&apos;s sitting on one
         </button>
+      </div>
+      {/* 2026-08-09 spoon-feed pass: the two buttons name the boards, this
+          names the decision each one is for — and warns about the way Due is
+          most often misread. */}
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, marginBottom: 12, maxWidth: 700 }}>
+        <b style={{ color: C.text2 }}>What this answers:</b>{' '}
+        {view === 'longest'
+          ? 'who hits the ball the farthest tonight — a distance board, not a probability board. It disagrees with the HR board regularly, and that is the point: use it for longest-homer markets and for spotting warning-track power that a friendly park turns into a homer.'
+          : 'who is overdue for one. Read the HR/PA column, not the drought — a long gap with no power behind it is just a hitter who does not homer, and that is the single most common way to misread this board.'}
       </div>
       {view === 'longest'
         ? <LongestBoard players={players} results={results} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} venueFilter={venueFilter} onClearVenue={() => setVenueFilter('')} />
