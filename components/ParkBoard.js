@@ -186,6 +186,18 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
           edge, and flex's default align-stretch keeps card heights even
           within each row. The featured #1 park earns extra width through a
           bigger basis instead of a grid span. */}
+      {/* Top-3 breathe (2026-08-09). Same inline-keyframes trick LiveWire uses
+          for wirePulse. The glow is an overlay rather than an animated
+          box-shadow because the colour is per-band and keyframes can't take a
+          runtime value — the overlay carries the band colour and only its
+          opacity animates. Durations are staggered per rank so the three
+          don't pulse in lockstep, which reads as a UI bug rather than as
+          emphasis. Anyone who has asked their OS for less motion gets a
+          static glow. */}
+      <style>{
+        '@keyframes parkGlow{0%,100%{opacity:.28}50%{opacity:1}}'
+        + '@media (prefers-reduced-motion: reduce){.park-glow{animation:none!important;opacity:.6!important}}'
+      }</style>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {parks.map((g, i2) => {
           const band = bandOf(g.edge)
@@ -208,6 +220,17 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 boxShadow: isActive ? `0 0 18px ${band.col}44` : isTop ? `0 0 12px ${band.col}22` : 'none',
               }}
             >
+              {isTop && (
+                <div
+                  className="park-glow"
+                  style={{
+                    position: 'absolute', inset: 0, borderRadius: 12, pointerEvents: 'none',
+                    boxShadow: `0 0 16px ${band.col}55, inset 0 0 26px ${band.col}1c`,
+                    animation: `parkGlow ${(3.2 + i2 * 0.45).toFixed(2)}s ease-in-out infinite`,
+                  }}
+                />
+              )}
+
               {/* rank badge — the old oversized watermark, cleaned up into a
                   quiet corner chip (refresh 2026-08-08) */}
               <div style={{
@@ -238,9 +261,53 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                     {out ? '↗' : wIn ? '↙' : '→'}{Math.round(g.wind)}
                   </span>
                 )}
-                {g.parkHR > 0 && <span>×{g.parkHR.toFixed(2)}</span>}
                 {roofNote && <span>🏠 {roofNote}</span>}
               </div>
+
+              {/* 🏟 PARK FACTOR, MADE VISIBLE (2026-08-09).
+                  It used to be a bare "×1.07" buried in the weather run, at
+                  9px, between a temperature and a roof note — the single most
+                  important structural number on the card, styled like a
+                  footnote. It's a pill now, coloured by which side of 1.00 it
+                  sits on, with a track showing where it lands in the league's
+                  range and a tick at neutral. The range is a fixed display
+                  scale (0.80–1.25 covers every park the bot publishes), not a
+                  percentile, and the tooltip says so. */}
+              {g.parkHR > 0 && (() => {
+                const above = g.parkHR >= 1
+                const col = above ? '#fb923c' : '#38bdf8'
+                const LO = 0.80, HI = 1.25
+                const pos = Math.max(0, Math.min(1, (g.parkHR - LO) / (HI - LO)))
+                const neutral = (1 - LO) / (HI - LO)
+                const pctTxt = `${above ? '+' : '−'}${Math.abs((g.parkHR - 1) * 100).toFixed(0)}%`
+                return (
+                  <div
+                    title={`Park HR factor ×${g.parkHR.toFixed(2)} — this building ${above ? 'adds' : 'removes'} about ${pctTxt.replace(/[+−]/, '')} of home-run rate versus a neutral park, before any weather. The bot's own park number. Track runs ${LO}–${HI} (a fixed display range covering every park published, not a percentile); the pale tick is neutral 1.00.`}
+                    style={{ marginTop: 4, cursor: 'help' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.05em',
+                        color: col, border: `1px solid ${col}55`, background: `${col}14`,
+                        borderRadius: 999, padding: '1px 7px', whiteSpace: 'nowrap',
+                      }}>PARK ×{g.parkHR.toFixed(2)}</span>
+                      <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>{pctTxt} vs neutral</span>
+                    </div>
+                    <div style={{ position: 'relative', height: 4, borderRadius: 3, background: 'rgba(255,255,255,.07)', marginTop: 3, overflow: 'hidden' }}>
+                      <div style={{
+                        position: 'absolute', top: 0, bottom: 0, borderRadius: 3, background: col,
+                        left: `${(Math.min(pos, neutral) * 100).toFixed(1)}%`,
+                        width: `${(Math.abs(pos - neutral) * 100).toFixed(1)}%`,
+                        minWidth: 2,
+                      }} />
+                      <div style={{
+                        position: 'absolute', left: `${(neutral * 100).toFixed(1)}%`, top: -1, bottom: -1,
+                        width: 1.5, background: 'rgba(255,255,255,.5)',
+                      }} />
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* the weather-desk line: live status beats schedule beats nothing */}
               {(() => {
@@ -290,16 +357,33 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                         >{tier.icon} {tm} {tier.word}</span>
                       )
                     })}
-                    {/* 😴 rest & travel — schedule facts, not vibes: day-after-
-                        night, doubleheaders, overnight park changes, 3-in-3. */}
-                    {restByAbbr && !final && teams.map((tm) => (
-                      (restByAbbr[tm] || []).map((f) => (
-                        <span key={`rt-${tm}-${f.label}`} title={`${tm}: ${f.title}`}
-                          style={{ color: '#a1a1aa', fontWeight: 800, cursor: 'help' }}>
-                          {f.icon} {tm} {f.label}
+                    {/* 😴 REST & TRAVEL — ONE CHIP (2026-08-09).
+                        This used to print a separate chip per team per flag,
+                        so a doubleheader between two tired clubs could put
+                        four cryptic pills on one small card — and the owner
+                        didn't know what "3-in-3" meant, which was fair,
+                        because nothing on the card said. Now it's a single
+                        count with every flag spelled out in the tooltip, and
+                        restTravel.js states each one in plain words. */}
+                    {restByAbbr && !final && (() => {
+                      const list = []
+                      teams.forEach((tm) => (restByAbbr[tm] || []).forEach((f) => list.push({ tm, ...f })))
+                      if (!list.length) return null
+                      const tip = 'REST & TRAVEL — schedule facts for tonight. Context only; none of this touches a score.\n\n'
+                        + list.map((f) => `${f.icon} ${f.tm} · ${f.label}\n${f.title}`).join('\n\n')
+                      return (
+                        <span
+                          title={tip}
+                          style={{
+                            color: '#a1a1aa', fontWeight: 800, cursor: 'help',
+                            border: '1px solid rgba(255,255,255,.13)', borderRadius: 999,
+                            padding: '0px 6px', background: 'rgba(255,255,255,.04)',
+                          }}
+                        >
+                          😴 {list.length} rest flag{list.length === 1 ? '' : 's'}
                         </span>
-                      ))
-                    ))}
+                      )
+                    })()}
                     {/* 🌇 twilight cooling — directional physics, no invented
                         forecast: external weather APIs failed verification, so
                         this says WHICH WAY the air moves, not a made-up number. */}
