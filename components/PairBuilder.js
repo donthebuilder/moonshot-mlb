@@ -178,7 +178,30 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
     return prev.length ? [...prev, k] : [k]
   })
 
+  // HISTORY-ONLY FILTER (2026-08-09 — see the partners memo below for why the
+  // pool stopped being history-gated). `null` means "no opinion yet", which
+  // resolves to ON for the HR market (the old behaviour, and the only market
+  // where the co-HR history IS the market) and OFF everywhere else. Once the
+  // user clicks it, the click wins on every market.
+  const [histOverride, setHistOverride] = useState(null)
+  const histOnly = histOverride == null ? marketKey === 'hr' : histOverride
+
   // partnerKey -> { today, per: [{ anchorKey, anchorName, fit, sameGame, ... }] }
+  //
+  // THE PARTNER POOL IS TONIGHT'S SLATE, NOT THE HISTORY FILE (fixed
+  // 2026-08-09). This used to be built by walking `top_pairs` and keeping
+  // whoever was also playing, which meant a hitter with no co-HR history had
+  // literally zero partners on EVERY market. On the HR market that was at
+  // least defensible. On 1+ hit / HRR / 2+ bases it was just broken: the
+  // market switch re-sorts the anchor chips by hit/prod/tb score, so the
+  // default anchor (anchors[0]) becomes a different hitter — usually a
+  // contact bat with no homer history at all — and the panel went blank. The
+  // owner read that as "only Home run works", and he was right.
+  //
+  // pair_history_summary is HR-only by construction, so it can never be a
+  // requirement for a non-HR market. Now every hitter on the slate is a
+  // candidate, ranked by tonight's score in the market you picked, and the
+  // co-HR history is a BONUS inside Fit (and a badge) rather than a gate.
   const partners = useMemo(() => {
     if (!active.length) return []
     const acc = new Map()
@@ -247,6 +270,27 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
       })
     })
 
+    // EVERYONE ELSE ON THE SLATE. Same row shape, empty `per` — no history,
+    // so every history column reads 0 / "never" and Fit is 55% of tonight's
+    // market score and nothing else. Nothing is invented: an absent pair
+    // history is shown as an absent pair history.
+    players.forEach((today) => {
+      const k = refKey(today)
+      if (!k || acc.has(k) || activeKeys.has(k)) return
+      acc.set(k, {
+        _key: k,
+        _raw: today,
+        name: nameOf(today),
+        team: teamOf(today),
+        opp: oppOf(today),
+        pitcher: clean(today?.pitcher_name, 'TBD'),
+        hr: mScore(today),
+        weak: today?.weak_spot_flag ? 1 : 0,
+        hr9: n(today?.pitcher_hr9, 0),
+        per: [],
+      })
+    })
+
     const total = active.length
     const rows = [...acc.values()].map((r) => {
       const matched = new Set(r.per.map((x) => x.anchorKey)).size
@@ -255,11 +299,14 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
       return {
         ...r,
         matched,
-        all: matched === total,
+        hist: r.per.length ? 1 : 0,
+        all: matched > 0 && matched === total,
         with: r.per.map((x) => x.anchorName.split(' ').slice(-1)[0]).join(', '),
         // Mean fit, not sum — a sum would just rank by how many anchors matched,
-        // which `matched` already carries as its own column.
-        fit: sum((x) => x.fit) / Math.max(1, r.per.length),
+        // which `matched` already carries as its own column. With no history at
+        // all the same formula degenerates to the tonight term on its own
+        // (0.55 × market score), which is exactly what it should be.
+        fit: r.per.length ? sum((x) => x.fit) / r.per.length : r.hr * 0.55,
         sameGame: sum((x) => x.sameGame),
         days: sum((x) => x.days),
         since: sinces.length ? Math.min(...sinces) : null,
@@ -268,36 +315,51 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
       }
     })
 
-    const filtered = requireAll && total > 1 ? rows.filter((r) => r.all) : rows
+    // "Shared history only" never empties the panel: if the filter would
+    // return nothing (the anchor has no co-HR history, which is the normal
+    // case for 88 of tonight's 143 bats) it is ignored and the caller is told
+    // so. A blank panel is not an answer.
+    let filtered = rows
+    if (histOnly && rows.some((r) => r.hist)) filtered = filtered.filter((r) => r.hist)
+    // requireAll stays strict — it's an explicit click, and its empty state
+    // below says exactly why it's empty.
+    if (requireAll && total > 1) filtered = filtered.filter((r) => r.all)
     return filtered.sort((a, b) => (b.matched - a.matched) || (b.fit - a.fit))
-  }, [active, activeKeys, pairs, slate, requireAll, mScore, marketKey])
+  }, [active, activeKeys, players, pairs, slate, requireAll, histOnly, mScore, marketKey])
 
   const shown = useMemo(() => {
     const q = query.toLowerCase().trim()
     return q ? anchors.filter((a) => a.name.toLowerCase().includes(q)) : anchors
   }, [anchors, query])
 
-  if (!pairs.length) return null
+  // A missing pair-history file is survivable now that the pool is the slate:
+  // the builder degrades into a market-score partner finder and the 🤝 column
+  // simply never lights. An empty SLATE is not survivable, and says so.
   if (!anchors.length) {
     return (
       <div style={{ fontSize: 11.5, color: C.text3, padding: '10px 0' }}>
-        Nobody in the pair history is on tonight&apos;s slate, so there&apos;s nothing to build from.
+        No hitters published for this slate yet, so there&apos;s nothing to build from.
       </div>
     )
   }
 
   const multi = active.length > 1
   const sharedByAll = partners.filter((p) => p.all).length
+  const withHistory = partners.filter((p) => p.hist).length
+  // The "shared history only" filter was asked for but had nothing to keep.
+  const histIgnored = histOnly && partners.length > 0 && withHistory === 0
 
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>Pair Builder</div>
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 9, lineHeight: 1.55, maxWidth: 660 }}>
-        Click hitters to add them — <b style={{ color: C.text2 }}>you can select several</b>. Partners
-        are everyone your selection has homered with who is also playing tonight, ranked on a fit
-        that is <b style={{ color: C.text2 }}>weighted toward tonight</b> — history per pair is a
-        handful of days across a whole season, which is not enough to lead with. Click a selected
-        hitter again to drop him.
+        <b style={{ color: C.text2 }}>What this answers:</b> who to put next to a hitter you already
+        like, for the market you&apos;re actually betting. Click hitters to add them —{' '}
+        <b style={{ color: C.text2 }}>you can select several</b>; click a selected hitter again to
+        drop him. Partners are <b style={{ color: C.text2 }}>every hitter on tonight&apos;s slate</b>,
+        ranked on a fit weighted toward tonight&apos;s score in the market below. Shared homer
+        history is a <b style={{ color: C.text2 }}>bonus, not a requirement</b> — per pair it&apos;s a
+        handful of days across a whole season, which is not enough to gate a list on.
       </div>
 
       {/* THE MARKET — promoted to the top of the panel and given its own card
@@ -344,7 +406,8 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
           <b style={{ color: C.text }}>55% of Fit</b> — so the ranking reshuffles.
           {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
           counting co-<i>homer</i> days, because co-HR days are the only pair history the bot
-          publishes. On the {mkt.label} market that history is a proxy, not the market itself.
+          publishes. On the {mkt.label} market that history is a proxy, not the market itself —
+          which is why it only ever adds to a partner&apos;s fit and never decides who appears.
         </div>
       </div>
 
@@ -391,7 +454,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
                 {mScore(a.today).toFixed(0)}
               </span>
               {!a.hasHistory && (
-                <span title="No co-HR history on file — selectable, but he contributes no partners"
+                <span title="No co-HR history on file — his partners are ranked on tonight's market score alone"
                   style={{ color: C.text3, marginLeft: 4, fontSize: 9 }}>·</span>
               )}
             </button>
@@ -416,15 +479,30 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         </span>
       </div>
 
-      {anchorKeys.length > 0 && (
+      {(
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+          {anchorKeys.length > 0 && (
+            <button
+              onClick={() => setAnchorKeys([])}
+              style={{
+                padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, fontFamily: NUM_FONT,
+              }}
+            >Clear selection</button>
+          )}
           <button
-            onClick={() => setAnchorKeys([])}
+            onClick={() => setHistOverride(!histOnly)}
+            title={histOnly
+              ? 'Showing only partners with a shared co-HOMER history. Turn off to rank the whole slate on tonight’s market score.'
+              : 'Showing every hitter on tonight’s slate. Turn on to keep only partners with a shared co-HOMER history.'}
             style={{
               padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
-              border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, fontFamily: NUM_FONT,
+              fontFamily: NUM_FONT,
+              border: `1px solid ${histOnly ? C.orange : C.border}`,
+              background: histOnly ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: histOnly ? C.orange : C.text3,
             }}
-          >Clear selection</button>
+          >{histOnly ? '✓ Shared homer history only' : 'Shared homer history only'}</button>
           {multi && (
             <button
               onClick={() => setRequireAll((v) => !v)}
@@ -460,15 +538,24 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT, marginTop: 4 }}>
           {partners.length} partner{partners.length === 1 ? '' : 's'} playing tonight
           {multi && <> · <b style={{ color: sharedByAll ? C.orange : C.text3 }}>{sharedByAll}</b> shared by all {active.length}</>}
-          {' '}· {partners.filter((p) => p.sameGame > 0).length} with same-game history
+          {' '}· <b style={{ color: withHistory ? C.orange : C.text3 }}>{withHistory}</b> with shared homer history
+          {' '}· {partners.filter((p) => p.sameGame > 0).length} same-game
         </div>
+        {histIgnored && (
+          <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
+            &ldquo;Shared homer history only&rdquo; is on, but{' '}
+            {multi ? 'none of your anchors have' : `${active[0].name} has`} a co-HR partner playing
+            tonight — so it&apos;s being ignored and the list is ranked on tonight&apos;s{' '}
+            {mkt.label} score alone.
+          </div>
+        )}
       </div>
 
       {!partners.length ? (
         <div style={{ fontSize: 11.5, color: C.text3 }}>
           {multi && requireAll
-            ? `No single hitter on tonight's slate shares history with all ${active.length} of them. Turn off "shared by all" to see partial matches.`
-            : `None of ${active.map((a) => a.name).join(' / ')}'s historical partners are on tonight's slate.`}
+            ? `No single hitter on tonight's slate shares homer history with all ${active.length} of them. Turn off "shared by all ${active.length}" to see partial matches.`
+            : 'Nobody else is on tonight’s slate to pair with.'}
         </div>
       ) : (
         <>
@@ -614,6 +701,10 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
                 title: 'One of the bot’s designated picks tonight' },
               { key: 'weak',     label: '★',       flag: true, mark: '★', w: 30,
                 title: 'Weak lineup spot against tonight’s starter' },
+              ...(histOnly ? [] : [
+                { key: 'hist', label: '🤝', flag: true, mark: '●', w: 30,
+                  title: 'These two have homered on the same day at least once this season. A bonus inside Fit — not a requirement for being on this list.' },
+              ]),
               { key: 'fit',      label: 'Fit',     w: 46, dp: 1,
                 title: `55% tonight's ${mkt.label} score · 25% same-game history · 10% shared days · 10% recency` },
               { key: 'hr',       label: mkt.short, w: 44, dp: 1,
@@ -636,7 +727,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
             onRowClick={onPlayerClick}
             initialSort={multi ? 'matched' : 'fit'}
             maxHeight={400}
-            caption={`"Last together" is how long since these two last homered on the same day — "12d ago" is a live pairing, "60d ago" is a memory; it's inverted so recent reads bright. Same gm beats Same day: only the same-game version means they were actually in one ballpark. Boost and the bot's raw pair score came off the board — both were inputs to Fit wearing their own columns.${mkt.key !== 'hr' ? ` On the ${mkt.label} market, tonight's score is on your market but the history columns still count co-HOMER days — that's the only pair history the bot publishes.` : ''}${multi ? ' With multiple anchors, Same gm / Same day sum across matched anchors and Last together is the most recent.' : ''}`}
+            caption={`${histOnly ? '' : 'Every hitter on tonight’s slate is listed — 🤝 marks the ones who share a co-homer history with your selection, and that history only adds to Fit. '}"Last together" is how long since these two last homered on the same day — "12d ago" is a live pairing, "60d ago" is a memory; it's inverted so recent reads bright. Same gm beats Same day: only the same-game version means they were actually in one ballpark. Boost and the bot's raw pair score came off the board — both were inputs to Fit wearing their own columns.${mkt.key !== 'hr' ? ` On the ${mkt.label} market, tonight's score is on your market but the history columns still count co-HOMER days — that's the only pair history the bot publishes.` : ''}${multi ? ' With multiple anchors, Same gm / Same day sum across matched anchors and Last together is the most recent.' : ''}`}
           />
         </>
       )}
