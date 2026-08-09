@@ -204,7 +204,10 @@ export default function ThresholdGrid({ playerId }) {
       }}>
         {/* ══ THE MATRIX ══ */}
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '3px 3px', fontFamily: NUM_FONT }}>
+          {/* Tightened 2026-08-08: spacing and padding trimmed so the whole
+              matrix sits above the fold in the modal — the grid's value is
+              seeing every market at once, which a scroll defeats. */}
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '2px 2px', fontFamily: NUM_FONT }}>
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px' }}>Market</th>
@@ -229,23 +232,23 @@ export default function ThresholdGrid({ playerId }) {
                     style={{ cursor: 'pointer' }}>
                     <td style={{
                       fontSize: 11, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
-                      color: on ? C.orange : C.text, padding: '5px 6px',
+                      color: on ? C.orange : C.text, padding: '3px 6px',
                       borderLeft: `3px solid ${on ? C.orange : 'transparent'}`, borderRadius: 4,
                     }}>{row.label}</td>
                     {row.cells.map((c, ci) => (
-                      <td key={ci} title={c ? `${c.ok}/${c.n}` : ''} style={{
-                        textAlign: 'center', fontSize: 12, fontWeight: 800, padding: '5px 4px',
+                      <td key={ci} title={c ? `cleared ${c.ok} of ${c.n}` : 'no games in this window'} style={{
+                        textAlign: 'center', fontSize: 12, fontWeight: 800, padding: '3px 4px',
                         borderRadius: 6, background: cellBg(c?.pct),
                         color: c ? rateCol(c.pct) : C.text3,
                         outline: on ? '1px solid rgba(249,115,22,.25)' : 'none',
                       }}>{c ? `${c.pct.toFixed(0)}` : '—'}</td>
                     ))}
                     <td title={row.lsCell ? `${row.lsCell.ok}/${row.lsCell.n} last season` : ''} style={{
-                      textAlign: 'center', fontSize: 11, fontWeight: 700, padding: '5px 4px',
+                      textAlign: 'center', fontSize: 11, fontWeight: 700, padding: '3px 4px',
                       borderRadius: 6, color: row.lsCell ? rateCol(row.lsCell.pct) : C.text3, opacity: 0.75,
                     }}>{row.lsCell ? row.lsCell.pct.toFixed(0) : '—'}</td>
                     <td style={{
-                      textAlign: 'center', fontSize: 11, fontWeight: 900, padding: '5px 4px',
+                      textAlign: 'center', fontSize: 11, fontWeight: 900, padding: '3px 4px',
                       color: row.stk > 0 ? '#4ade80' : row.stk < 0 ? '#f87171' : C.text3,
                     }}>{row.stk > 0 ? `W${row.stk}` : row.stk < 0 ? `L${-row.stk}` : '—'}</td>
                   </tr>
@@ -254,8 +257,19 @@ export default function ThresholdGrid({ playerId }) {
             </tbody>
           </table>
         </div>
-        <div style={{ fontSize: 8.5, color: C.text3, margin: '4px 6px 0', fontFamily: NUM_FONT }}>
-          numbers are % of games cleared · hover for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak
+        {/* Legend with the actual thresholds (2026-08-08): the four tiers
+            existed only as unexplained colors — now the cut-offs are stated
+            in the colors they produce, so the grid teaches its own key. */}
+        <div style={{
+          display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline',
+          fontSize: 8.5, color: C.text3, margin: '5px 6px 0', fontFamily: NUM_FONT,
+        }}>
+          <span>% of games cleared:</span>
+          <b style={{ color: '#4ade80' }}>60%+</b>
+          <b style={{ color: '#FCD34D' }}>40–59</b>
+          <b style={{ color: C.orange }}>25–39</b>
+          <b style={{ color: '#f87171' }}>under 25</b>
+          <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>
         </div>
 
         {/* ══ PATTERNS ══ */}
