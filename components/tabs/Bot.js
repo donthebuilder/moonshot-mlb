@@ -178,23 +178,40 @@ function Board({ players, onPlayerClick }) {
         <span>👻 hidden value</span>
         <span>⚠️ trap flag</span>
       </div>
-      {/* 🥇 podium — the bot's own three favorites tonight, unadjusted */}
+      {/* 🥇 THE PODIUM (2026-08-08 redesign) — an actual podium, not three
+          chips in a row. Silver-gold-bronze steps, the champion elevated in
+          the middle, each with the score on its own scale and the arm he
+          faces — the briefing's cold open. */}
       {sorted.length >= 3 && pickTab === 'all' && (
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 10 }}>
-          {sorted.slice(0, 3).map((p, i) => (
-            <button key={p.player_id || i} onClick={() => onPlayerClick?.(p)} style={{
-              display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
-              background: i === 0 ? 'linear-gradient(155deg, rgba(252,211,77,.14), rgba(252,211,77,.03))' : C.bg2,
-              border: `1px solid ${i === 0 ? 'rgba(252,211,77,.5)' : C.border}`,
-              borderRadius: 9, padding: '5px 12px',
-            }}>
-              <span style={{ fontSize: 13 }}>{['🥇', '🥈', '🥉'][i]}</span>
-              <span style={{ fontSize: 11.5, fontWeight: 800 }}>{p.name}</span>
-              <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange }}>
-                {(p.top_board_score_v2 || 0).toFixed(1)}
-              </span>
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, maxWidth: 640 }}>
+          {[1, 0, 2].map((idx) => {
+            const p = sorted[idx]
+            const first = idx === 0
+            const col = first ? '#FCD34D' : idx === 1 ? '#d4d4d8' : '#d97706'
+            return (
+              <button key={p.player_id || idx} onClick={() => onPlayerClick?.(p)} style={{
+                flex: first ? '1.25 1 0' : '1 1 0', minWidth: 0, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                background: `linear-gradient(175deg, ${col}${first ? '22' : '12'}, ${C.bg2} 75%)`,
+                border: `1px solid ${col}${first ? '77' : '40'}`,
+                borderRadius: '11px 11px 6px 6px',
+                padding: first ? '14px 10px 10px' : '9px 8px 8px',
+                boxShadow: first ? `0 0 20px ${col}1f` : 'none',
+              }}>
+                <span style={{ fontSize: first ? 19 : 15 }}>{['🥇', '🥈', '🥉'][idx]}</span>
+                <span style={{
+                  fontSize: first ? 13 : 11.5, fontWeight: 900, maxWidth: '100%',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>{p.name}</span>
+                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {p.team} · vs {String(p.pitcher_name || 'TBD').split(' ').slice(-1)[0]}
+                </span>
+                <span style={{ fontSize: first ? 18 : 14, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>
+                  {(p.top_board_score_v2 || 0).toFixed(1)}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
       {rows.length === 0
@@ -253,6 +270,24 @@ function SheetViewer({ url, label }) {
 
   const sections = useMemo(() => (text ? parseSections(text) : []), [text])
 
+  // The masthead numbers — parsed from the bot's own sheet, same loose
+  // patterns the header pill uses. Anything that doesn't parse just doesn't
+  // print; the sheet below is always the source of truth.
+  const brief = useMemo(() => {
+    if (!text) return null
+    const range = text.match(/projected\s+HRs?\s*[:\s]\s*(\d+)\s*[–—-]\s*(\d+)/i)
+    const grade = text.match(/power\s+grade\s*[:\s]\s*([A-Za-z ]+)/i)
+    const profiles = text.match(/top\s+HR\s+profiles\s*[:\s]\s*(\d+)/i)
+    const weak = text.match(/weak\s+pitcher\s+spots\s*[:\s]\s*(\d+)/i)
+    return {
+      lo: range ? Number(range[1]) : null,
+      hi: range ? Number(range[2]) : null,
+      grade: grade ? grade[1].trim() : '',
+      profiles: profiles ? Number(profiles[1]) : null,
+      weak: weak ? Number(weak[1]) : null,
+    }
+  }, [text])
+
   // Search: which sections contain the filter, and force them open.
   const f = filter.trim().toLowerCase()
   const matching = useMemo(() => {
@@ -278,6 +313,49 @@ function SheetViewer({ url, label }) {
 
   return (
     <div>
+      {/* ── THE MASTHEAD (2026-08-08) — the sheet arrives as a briefing, not
+          a text dump: dateline, the bot's own headline numbers, then its
+          sections in its own words below. */}
+      <div style={{
+        background: `linear-gradient(150deg, ${C.bg2}, rgba(249,115,22,.07))`,
+        border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`,
+        borderRadius: 13, padding: '13px 16px', marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 14 }}>🤖</span>
+          <span style={{ fontSize: 12.5, fontWeight: 900, letterSpacing: '.12em', fontFamily: NUM_FONT }}>THE BOT&apos;S DAILY BRIEFING</span>
+          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{label}</span>
+        </div>
+        {(brief?.lo != null || brief?.grade || brief?.profiles != null || brief?.weak != null) && (
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 8 }}>
+            {brief.lo != null && (
+              <span style={{ border: '1px solid rgba(249,115,22,.5)', background: 'rgba(249,115,22,.1)', color: C.orange, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                💣 {brief.lo}–{brief.hi} HR projected
+              </span>
+            )}
+            {brief.grade && (
+              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                power grade {brief.grade}
+              </span>
+            )}
+            {brief.profiles != null && (
+              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                {brief.profiles} top HR profiles
+              </span>
+            )}
+            {brief.weak != null && (
+              <span style={{ border: '1px solid rgba(252,211,77,.45)', color: '#FCD34D', borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                ★ {brief.weak} weak pitcher spots
+              </span>
+            )}
+          </div>
+        )}
+        <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
+          The numbers above are parsed from the sheet itself; everything below is the bot&apos;s own
+          words, split into its own sections. Search opens whatever it finds.
+        </div>
+      </div>
+
       {/* toolbar: search + section chips */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         <input
@@ -326,7 +404,9 @@ function SheetViewer({ url, label }) {
               key={i}
               ref={(el) => { refs.current[i] = el }}
               style={{
-                background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
+                background: C.bg2, border: `1px solid ${C.border}`,
+                borderLeft: `3px solid ${open ? 'rgba(249,115,22,.55)' : C.border}`,
+                borderRadius: 11,
                 overflow: 'hidden', scrollMarginTop: 130,
               }}
             >
