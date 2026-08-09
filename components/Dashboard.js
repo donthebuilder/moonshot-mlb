@@ -16,6 +16,7 @@ import MobileCSS from './MobileCSS'
 import Home from './tabs/Home'
 import Guide from './tabs/Guide'
 import Games from './tabs/Games'
+import AtThePlate from './tabs/AtThePlate'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
 import SprayBoard from './tabs/SprayBoard'
@@ -238,6 +239,7 @@ export default function Dashboard() {
             {tab === 'home'        && <Home players={allPlayers} results={results} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'games'       && <Games players={players} slateDate={slateDate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
             {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}

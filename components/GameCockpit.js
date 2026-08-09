@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
+import ZoneMap from './ZoneMap'
+import SprayField from './SprayField'
 
 // 🎥 GAME COCKPIT — per-at-bat depth for the ONE game you're locked into.
 //
@@ -162,6 +164,40 @@ export default function GameCockpit({ game, onPlayerClick }) {
           )}
         </span>
       </div>
+
+      {/* 🎯 THE BATTER'S CHARTS (2026-08-09, Donovan: "add the spray chart
+          and the zone map to the live at-bats"). Folded shut by default —
+          the cockpit's job is the count and the last few PAs; the charts are
+          for when you want to stare. The dedicated At the Plate tab shows
+          them open across every live game. */}
+      {(() => {
+        const bid = ls?.offense?.batter?.id
+        const row = bid ? roleOf[Number(bid)]?.p : null
+        if (!bid) return null
+        return (
+          <details style={{ marginBottom: 8 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 10.5, fontWeight: 700, color: C.text2 }}>
+              🎯 Zone map &amp; spray for {clean(ls.offense.batter.fullName, 'the batter')}
+            </summary>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+              <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                <ZoneMap playerId={Number(bid)} bats={String(row?.bats || '').toUpperCase().slice(0, 1)} />
+              </div>
+              {row && (
+                <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                  <SprayField player={row} height={300} />
+                </div>
+              )}
+            </div>
+            {!row && (
+              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6 }}>
+                He isn&apos;t on tonight&apos;s published slate, so there&apos;s no spray file — the zone
+                map above still pulls live.
+              </div>
+            )}
+          </details>
+        )
+      })()}
 
       {/* the last plate appearances, ball-off-the-bat included */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
