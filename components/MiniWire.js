@@ -27,7 +27,14 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
   // TOMORROW MODE (2026-08-08): the wire is a TONIGHT instrument. Grading
   // tomorrow's picks against tonight's boxscores by shared player_id would
   // be silent nonsense — dark is the honest state.
-  if (mode === 'tomorrow') return null
+  //
+  // MOVED BELOW THE HOOKS (2026-08-09): this early return sat ABOVE every
+  // useState/useEffect in the file — a Rules of Hooks violation that makes
+  // React throw "rendered fewer hooks than expected" the moment you flip
+  // Today↔Tomorrow with the wire mounted. The guard now lives at the render
+  // boundary, where it's just a display decision. `isTomorrow` also gates
+  // the polling effect so tomorrow mode still does no work.
+  const isTomorrow = mode === 'tomorrow'
   const [snap, setSnap] = useState(null)
   const [toasts, setToasts] = useState([])
   // Browser notifications (2026-08-06): opt-in via the bell. When the tab is
@@ -123,6 +130,7 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
   useEffect(() => {
     let alive = true
     let timer = null
+    if (isTomorrow) return () => { alive = false }
     const pull = async () => {
       const s = await fetchLiveSlate()
       if (!alive || !s) return
@@ -232,6 +240,7 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, watchIds])
 
+  if (isTomorrow) return null   // render boundary — hooks above all ran
   const live = snap?.games?.filter((g) => g.state === 'Live') || []
 
   // strip numbers
