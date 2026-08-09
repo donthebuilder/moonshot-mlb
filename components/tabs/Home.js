@@ -432,6 +432,84 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
         )
       })()}
 
+      {/* ── WEAKEST ARMS TONIGHT (2026-08-08, Donovan: "top weakest pitchers
+          or weak-trending pitchers on the home page") — the attack map. Two
+          reads from published fields only: season HR/9 (who always leaks)
+          and 📉 last-3-starts HR/9 vs season / the bot's own trend direction
+          (who's leaking RIGHT NOW). */}
+      {(() => {
+        const arms = new Map()
+        players.forEach((p) => {
+          const nm = clean(p?.pitcher_name, '')
+          if (!nm || nm === 'TBD') return
+          if (!arms.has(nm)) {
+            arms.set(nm, {
+              nm, hr9: n(p?.pitcher_hr9, 0), whip: n(p?.pitcher_whip, 0),
+              l3hr9: n(p?.pitcher_l3_hr9, null), trend: clean(p?.pitcher_trend_direction, ''),
+              vs: teamOf(p), weak: 0, sample: p,
+            })
+          }
+          if (p?.weak_spot_flag) arms.get(nm).weak += 1
+        })
+        const all = [...arms.values()].filter((a) => a.hr9 > 0)
+        const weakest = [...all].sort((a, b) => b.hr9 - a.hr9).slice(0, 5)
+        const trending = all
+          .filter((a) => a.trend === 'worsening' || (a.l3hr9 != null && a.hr9 > 0 && a.l3hr9 >= a.hr9 + 0.4))
+          .sort((a, b) => (b.l3hr9 ?? b.hr9) - (a.l3hr9 ?? a.hr9)).slice(0, 4)
+        if (!weakest.length) return null
+        const Arm = ({ a, i, showTrend }) => (
+          <div onClick={() => onNavigate?.('pitchers')} style={{
+            display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
+            padding: '2px 5px', borderRadius: 6, minWidth: 0,
+          }} title={`${a.nm} vs ${a.vs}: ${a.hr9.toFixed(2)} HR/9 season${a.l3hr9 != null ? `, ${a.l3hr9.toFixed(2)} over his last 3 starts` : ''}${a.weak ? ` · ${a.weak} weak lineup spots against him` : ''} — tap for the Pitchers workbench`}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, color: i === 0 ? '#f87171' : C.text3, width: 14, flexShrink: 0 }}>{i + 1}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+              {a.nm}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>vs {a.vs}</span>
+            </span>
+            {showTrend && a.l3hr9 != null && (
+              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: '#f87171', flexShrink: 0 }}>L3 {a.l3hr9.toFixed(2)}</span>
+            )}
+            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: a.hr9 >= 1.6 ? '#f87171' : '#FB923C', flexShrink: 0 }}>
+              {a.hr9.toFixed(2)}
+            </span>
+            {a.weak > 0 && <span style={{ fontSize: 8.5, flexShrink: 0 }} title={`${a.weak} weak spots in the lineup he faces`}>★{a.weak}</span>}
+          </div>
+        )
+        return (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+            <div style={{
+              flex: '1 1 300px', minWidth: 0,
+              background: `linear-gradient(155deg, ${C.bg2}, rgba(248,113,113,.05))`,
+              border: '1px solid rgba(248,113,113,.28)', borderRadius: 12, padding: '10px 13px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 900 }}>🩹 Weakest arms tonight</span>
+                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>season HR/9 · ★N weak spots vs him</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {weakest.map((a, i) => <Arm key={a.nm} a={a} i={i} />)}
+              </div>
+            </div>
+            {trending.length > 0 && (
+              <div style={{
+                flex: '1 1 300px', minWidth: 0,
+                background: `linear-gradient(155deg, ${C.bg2}, rgba(252,211,77,.05))`,
+                border: '1px solid rgba(252,211,77,.28)', borderRadius: 12, padding: '10px 13px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 900 }}>📉 Trending weak</span>
+                  <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>last 3 starts leaking harder than his season</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {trending.map((a, i) => <Arm key={a.nm} a={a} i={i} showTrend />)}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* ── TONIGHT'S TOP 10s (2026-08-08, Donovan: "top 10 hits and hr for
           the home page, awesome but digestible") — two clean boards, ranked
           by the site's own scores, with the ARM each bat gets to attack:
