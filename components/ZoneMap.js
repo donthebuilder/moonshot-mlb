@@ -152,7 +152,7 @@ function livePos(f) {
   }
 }
 
-const pos_pinned = (f) => f.fx < FX_LO || f.fx > FX_HI || f.fz < FZ_LO || f.fz > FZ_HI
+const isOffFrame = (f) => f.fx < FX_LO || f.fx > FX_HI || f.fz < FZ_LO || f.fz > FZ_HI
 
 // Shape says WHAT HAPPENED, colour says WHAT WAS THROWN. Six outcomes, drawn
 // as plain elements so they inherit the card's typography rather than
@@ -550,7 +550,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches 
                 <L dim>{pitchInZone(p, lbox) ? 'in the zone' : 'out of the zone'} · {ZONE_NAME[zoneCell(p, lbox)]}</L>
                 {p.batterName && <L dim>{p.batterName} vs {p.pitcherName || '—'}</L>}
                 {p.inning != null && <L dim>{String(p.half || '').slice(0, 3)} {p.inning}</L>}
-                {pos_pinned(f) && <L dim>drawn at the frame — it missed further than this map goes</L>}
+                {isOffFrame(f) && <L dim>drawn at the frame — it missed further than this map goes</L>}
               </div>
             )
           })()}
