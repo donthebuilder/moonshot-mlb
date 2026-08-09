@@ -1,9 +1,12 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { logUrl } from '../../lib/dataSource'
-import { nameOf, teamOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
+import { logUrl, dataUrl } from '../../lib/dataSource'
+import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
 import { groupGames } from '../../lib/data'
+import { fetchPenFatigue, penTier } from '../../lib/bullpen'
+import { teamAbbrs } from '../../lib/gamelogs'
+import Storylines from '../Storylines'
 
 // HOME — the front porch.
 //
@@ -102,6 +105,65 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
     })
     return best
   }, [games])
+
+  // ── STORYLINES, cherry-picked (2026-08-08, "turn it up, maybe some
+  // storyline"). Three hero lines, each from a source that already exists:
+  //   🔁 back-to-back watch — pure slate field (games_since_last_hr === 0)
+  //   🧱 tonight's fence rider — current/fence_board.json, slate-filtered
+  //   🚪 pen door — yesterday's reliever workload (lib/bullpen)
+  // Lines that can't be computed don't render; nothing here is invented.
+  const b2b = useMemo(() => players
+    .filter((p) => Number(p?.games_since_last_hr) === 0)
+    .sort((a, b) => hrScore(b) - hrScore(a)), [players])
+
+  const [fence, setFence] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetch(`${dataUrl('current/fence_board.json')}?t=${Date.now()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) setFence(j) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+  const fenceRider = useMemo(() => {
+    if (!fence?.rows?.length || !players.length) return null
+    const byId = new Map(players.map((p) => [String(p?.player_id ?? p?.id), p]))
+    // Same base fit the Fence Riders board leads with (contact vs the wall),
+    // minus the per-park wall pull — this is one hero line, not the board.
+    const scored = fence.rows
+      .filter((r) => byId.has(String(r.player_id)))
+      .map((r) => ({
+        r, p: byId.get(String(r.player_id)),
+        fit: (r.deep_pull_ct || 0) * 3 + (r.fence_ct || 0) * 1.5 + (r.over_ct || 0) + (r.robbed_ct || 0) * 1.5,
+      }))
+      .sort((a, b) => b.fit - a.fit)
+    return scored[0] || null
+  }, [fence, players])
+
+  // Gassed / worked pens among TONIGHT's teams. Yesterday's workload only
+  // means anything for today's slate, so tomorrow mode skips the fetch.
+  const [pens, setPens] = useState([])
+  const penApplies = !slateDate || slateDate <= new Date().toLocaleDateString('en-CA')
+  useEffect(() => {
+    if (!penApplies || !players.length) { setPens([]); return undefined }
+    let alive = true
+    Promise.all([fetchPenFatigue(), teamAbbrs()]).then(([pen, abbrs]) => {
+      if (!alive) return
+      const tonight = new Set()
+      players.forEach((p) => { [teamOf(p), oppOf(p)].forEach((t) => t && tonight.add(String(t).toUpperCase())) })
+      const out = []
+      Object.entries(pen || {}).forEach(([tid, t]) => {
+        const ab = String(abbrs?.[tid] || '').toUpperCase()
+        if (!ab || !tonight.has(ab)) return
+        const tier = penTier(t)
+        if (tier) out.push({ ab, t, tier })
+      })
+      out.sort((a, b) =>
+        ((a.tier.key === 'gassed' ? 0 : 1) - (b.tier.key === 'gassed' ? 0 : 1)) || b.t.pitches - a.t.pitches)
+      setPens(out)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [penApplies, players.length])
 
   // Bot record from the graded backtest file — the number he can quote.
   const record = useMemo(() => {
@@ -247,6 +309,81 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           </div>
         </div>
       )}
+
+      {/* ── TONIGHT'S STORYLINES — hero lines, not tables ────────────── */}
+      {(b2b.length > 0 || fenceRider || pens.length > 0) && (
+        <div style={{
+          background: `linear-gradient(155deg, rgba(252,211,77,.06), ${C.bg2} 60%)`,
+          border: '1px solid rgba(252,211,77,.25)', borderRadius: 14,
+          padding: '13px 16px', marginBottom: 14,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            <span style={{ fontSize: 9.5, fontWeight: 900, color: C.yellow, letterSpacing: '.1em', fontFamily: NUM_FONT }}>📖 TONIGHT&apos;S STORYLINES</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>the lines you say out loud — every one from tonight&apos;s own data</span>
+          </div>
+
+          {b2b.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+              <span style={{ flexShrink: 0 }}>🔁</span>
+              <span style={{ minWidth: 0 }}>
+                <b style={{ color: C.text }}>Back-to-back watch</b> —{' '}
+                {b2b.slice(0, 3).map((p, i) => (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    <button onClick={() => onPlayerClick?.(p)} style={{
+                      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                      fontSize: 12, fontWeight: 800, color: '#f87171', textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
+                    }}>{nameOf(p)}</button>
+                    <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}</span>
+                  </span>
+                ))}
+                {b2b.length > 3 && <span style={{ color: C.text3 }}> and {b2b.length - 3} more</span>}
+                {' '}went deep last game — tonight is the encore try.
+              </span>
+            </div>
+          )}
+
+          {fenceRider && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+              <span style={{ flexShrink: 0 }}>🧱</span>
+              <span style={{ minWidth: 0 }}>
+                <b style={{ color: C.text }}>Tonight&apos;s fence rider</b> —{' '}
+                <button onClick={() => onPlayerClick?.(fenceRider.p)} style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 800, color: C.orange, textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
+                }}>{fenceRider.r.name}</button>
+                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {fenceRider.r.team}</span>
+                {' '}has <b style={{ fontFamily: NUM_FONT, color: '#4ade80' }}>{fenceRider.r.over_ct}</b> balls over 375ft
+                and <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{fenceRider.r.fence_ct}</b> pulled into the wall-scraper zone
+                in his last <span style={{ fontFamily: NUM_FONT }}>{fenceRider.r.games}</span> games — measured landing data, all wall, no feel.
+              </span>
+            </div>
+          )}
+
+          {pens.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+              <span style={{ flexShrink: 0 }}>🚪</span>
+              <span style={{ minWidth: 0 }}>
+                <b style={{ color: C.text }}>Pen door</b> —{' '}
+                {pens.slice(0, 3).map((x, i) => (
+                  <span key={x.ab}>
+                    {i > 0 && ', '}
+                    <b style={{ color: x.tier.col }}>{x.ab}</b>
+                    <span title={`${x.ab} bullpen yesterday: ${x.t.used} relievers, ${x.t.pitches} pitches — ${(x.t.names || []).map((r2) => `${String(r2.name).split(' ').slice(-1)[0]} ${r2.pitches}p`).join(', ')}`}
+                      style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3 }}> {x.tier.icon} {x.t.used} arms / {x.t.pitches}p yesterday</span>
+                  </span>
+                ))}
+                {' '}— tired relief gives up homers; the late innings are the window.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* The full storyline engine — milestones, duels, revenge games,
+          birthdays, giveaways. Same panel the Scoreboard carries; collapsed
+          by default, the header counts tell you if it's worth opening. */}
+      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
 
       {/* ── THREE DOORS ──────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
