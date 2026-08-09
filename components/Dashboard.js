@@ -13,6 +13,7 @@ import Slip from './Slip'
 import PlayerModal from './PlayerModal'
 import MobileCSS from './MobileCSS'
 
+import Home from './tabs/Home'
 import Guide from './tabs/Guide'
 import Games from './tabs/Games'
 import RankedBoard from './tabs/RankedBoard'
@@ -37,7 +38,9 @@ const WATCH_KEY = 'mlb_watchlist_v1'
 
 export default function Dashboard() {
   const [mode, setMode] = useState('today')
-  const [tab, setTabRaw] = useState('scoreboard')
+  // Home is the front door now (2026-08-08) — deep links below still land
+  // wherever their hash says.
+  const [tab, setTabRaw] = useState('home')
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
     setTabRaw(next)
@@ -153,7 +156,7 @@ export default function Dashboard() {
   }, [allPlayers])
   useEffect(() => {
     const h = new URLSearchParams()
-    if (tab !== 'scoreboard') h.set('tab', tab)
+    if (tab !== 'home') h.set('tab', tab)
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
     if (pid2) h.set('p', pid2)
     const next = h.toString()
@@ -206,7 +209,7 @@ export default function Dashboard() {
   const resultsForSlate =
     (!slateDate || !clean(results?.date, '') || results.date === slateDate) ? results : null
   // These render from their own payloads, so an empty slate must not blank them.
-  const tabsWithoutPlayers = ['pairs', 'bot', 'results', 'guide', 'watch', 'pairhist']
+  const tabsWithoutPlayers = ['home', 'pairs', 'bot', 'results', 'guide', 'watch', 'pairhist']
   const showEmpty = !loading && !players.length && !tabsWithoutPlayers.includes(tab)
 
   return (
@@ -232,6 +235,7 @@ export default function Dashboard() {
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
           <div key={tab} className="tab-fade">
+            {tab === 'home'        && <Home players={allPlayers} results={results} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'games'       && <Games players={players} slateDate={slateDate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
