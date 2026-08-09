@@ -431,11 +431,20 @@ export default function SprayField({ player, height = 340, slateMode }) {
     () => pitches.filter((p) => p.tonight > 0).map((p) => p.k),
     [pitches],
   )
+  // THE "ALL" BUTTON BUG (2026-08-08, "the All button is glitchy"): this
+  // effect used to re-apply the starter's mix whenever picked was null —
+  // which is exactly what the All chip sets. Click All, the effect snapped
+  // the selection straight back to the mix, so the button looked dead and
+  // the chart flickered. The default now applies ONCE per player; after
+  // that, null means all and stays meaning all.
+  const mixApplied = useRef(null)
   useEffect(() => {
-    if (state === 'done' && picked === null && matchable.length) {
+    if (state !== 'done' || mixApplied.current === pid) return
+    if (matchable.length) {
       setPicked(new Set(matchable))
+      mixApplied.current = pid
     }
-  }, [state, matchable, picked])
+  }, [state, matchable, pid])
 
   // Result classes. The old version called every non-XBH ball an "Out", which
   // labelled 4,311 singles across the slate as outs. Group on `event`.
