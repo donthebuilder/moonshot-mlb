@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState, useEffect } from 'react'
-import { C } from '../lib/theme'
+import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, oppOf, hrScore, hitScore, n, clean } from '../lib/player'
 import Heatmap from './Heatmap'
 import { penStatsFor } from '../lib/bullpen'
@@ -105,31 +105,75 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       }, 0)
 
       return { label, values, _count: pool.length }
-    }).sort((a, b) => b.values['Proj HR'] - a.values['Proj HR'])
+    })
+      .sort((a, b) => b.values['Proj HR'] - a.values['Proj HR'])
+      // RANK IN THE LABEL (2026-08-08, "turn that up some more"): the table
+      // is sorted by Proj HR but nothing SAID so — a rank number makes the
+      // ordering legible and gives the rows something to be quoted by.
+      .map((r, i) => ({ ...r, label: `${i + 1}.  ${r.label}` }))
   }, [games, players, by, pens])
 
   if (!rows.length) return null
 
   const total = rows.reduce((a, r) => a + r.values['Proj HR'], 0)
+  // The podium: tonight's three loudest slates by projected homers, worn as
+  // tiles above the grid so the answer to "where's the power tonight" doesn't
+  // require reading a heatmap at all.
+  const podium = rows.slice(0, 3)
 
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        {['game', 'team'].map((k) => (
-          <button
-            key={k}
-            onClick={() => setBy(k)}
+    <div style={{
+      marginBottom: 20, background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.03))`,
+      border: `1px solid ${C.border}`, borderRadius: 13, padding: '12px 14px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📈 Projected output</span>
+        <span style={{ fontSize: 9.5, color: C.text3 }}>expected COUNT, not a score — a claim that can be wrong</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          {['game', 'team'].map((k) => (
+            <button
+              key={k}
+              onClick={() => setBy(k)}
+              style={{
+                padding: '3px 10px', fontSize: 10.5, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+                border: `1px solid ${by === k ? C.orange : C.border}`,
+                background: by === k ? 'rgba(249,115,22,.12)' : 'transparent',
+                color: by === k ? C.orange : C.text3,
+              }}
+            >By {k}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 10 }}>
+        {podium.map((r, i) => (
+          <div key={r.label} title={`${r._count} tracked hitters · Proj hits ${r.values['Proj hits'].toFixed(1)} · Proj XBH ${r.values['Proj XBH'].toFixed(1)}`}
             style={{
-              padding: '3px 10px', fontSize: 10.5, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
-              border: `1px solid ${by === k ? C.orange : C.border}`,
-              background: by === k ? 'rgba(249,115,22,.12)' : 'transparent',
-              color: by === k ? C.orange : C.text3,
-            }}
-          >By {k}</button>
+              flex: '1 1 150px', minWidth: 0,
+              background: i === 0 ? 'rgba(249,115,22,.10)' : 'rgba(255,255,255,.025)',
+              border: `1px solid ${i === 0 ? `${C.orange}55` : C.border}`,
+              borderRadius: 10, padding: '6px 11px',
+            }}>
+            <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+              #{i + 1} by proj HR
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {r.label.replace(/^\d+\.\s+/, '')}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: i === 0 ? C.orange : C.text2, fontFamily: NUM_FONT }}>
+              {r.values['Proj HR'].toFixed(1)} HR
+              {Number.isFinite(r.values['Adj HR']) && (
+                <span style={{ fontSize: 9.5, color: C.text3, fontWeight: 700 }}> · adj {r.values['Adj HR'].toFixed(1)}</span>
+              )}
+            </div>
+          </div>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3 }}>
-          slate projects {total.toFixed(1)} HR across {rows.length} {by === 'game' ? 'games' : 'teams'}
-        </span>
+        <div style={{
+          flex: '0 1 auto', alignSelf: 'center', fontSize: 9.5, color: C.text3, padding: '0 6px',
+        }}>
+          slate projects <b style={{ color: C.text2 }}>{total.toFixed(1)} HR</b><br />
+          across {rows.length} {by === 'game' ? 'games' : 'teams'}
+        </div>
       </div>
 
       <Heatmap
