@@ -43,11 +43,23 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
       for (const r of board.rows.slice(0, 40)) {
         if (slateIds.size && !slateIds.has(String(r.player_id))) continue
         const w = await pullWallFor(r.bats, r.venue)
-        // fit: fence-line contact weighted by how short tonight's pull wall is
         const shortPorch = w?.linePct != null && w.linePct <= 25
+        // 🌬 WIND LANE (stack-on): the slate's own wind label vs HIS pull
+        // side. "Out To RF" for a lefty's pull = the air is carrying his
+        // exact ball flight. CF counts half. From the bot's published
+        // weather field — no forecast invented here.
+        const sp = rowFor.get(String(r.player_id))
+        const windLbl = String(sp?.wind_direction_label || '').toLowerCase()
+        const pullSide = r.bats === 'L' ? 'rf' : r.bats === 'R' ? 'lf' : (w?.side || '').toLowerCase()
+        const windTail = /out/.test(windLbl) && windLbl.includes(pullSide)
+        const windHalf = !windTail && /out/.test(windLbl) && windLbl.includes('cf')
+        // fit: fence contact × tonight's wall, wind lane on top, robbed
+        // counts extra (those were HRs somewhere), oppo power a nudge
         const fit = r.deep_pull_ct * 3 + r.fence_ct * 1.5 + r.over_ct
+          + (r.robbed_ct || 0) * 1.5 + (r.oppo_over_ct || 0) * 0.5
           + (shortPorch ? (r.deep_pull_ct + r.fence_ct) * 1.5 : 0)
-        out.push({ ...r, w, shortPorch, fit })
+          + (windTail ? (r.deep_pull_ct + r.fence_ct) * 1.0 : windHalf ? (r.deep_pull_ct + r.fence_ct) * 0.4 : 0)
+        out.push({ ...r, w, shortPorch, windTail, windHalf, windLbl: sp?.wind_direction_label || '', fit })
       }
       if (alive) setRows(out.sort((a, b) => b.fit - a.fit).slice(0, 10))
     })()
@@ -92,7 +104,15 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
                   <b style={{ color: '#4ade80' }}>{r.over_ct}</b> over ·{' '}
                   <b style={{ color: C.orange }}>{r.fence_ct}</b> at the wall ·{' '}
                   <b style={{ color: '#22d3ee' }}>{r.deep_pull_ct}</b> deep pull
+                  {(r.robbed_ct || 0) > 0 && <> · <b style={{ color: '#f87171' }}>{r.robbed_ct}</b> robbed</>}
+                  {(r.oppo_over_ct || 0) > 0 && <> · <b style={{ color: '#a78bfa' }}>{r.oppo_over_ct}</b> oppo</>}
                 </span>
+                {(r.windTail || r.windHalf) && (
+                  <span title={`Tonight's wind: ${r.windLbl} — ${r.windTail ? 'blowing out to HIS pull side; the air carries his exact ball flight' : 'blowing out to center; half a tailwind for his shape'}. From the bot's published weather field.`}
+                    style={{ fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: r.windTail ? '#4ade80' : '#a3e635' }}>
+                    🌬 {r.windTail ? 'TAIL' : 'CF out'}
+                  </span>
+                )}
                 {r.w && (
                   <span style={{ marginLeft: 'auto', fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800, color: r.shortPorch ? C.orange : C.text3 }}
                     title={`His pull side tonight: ${r.w.side} ${r.w.line}ft line${r.w.gap ? ` / ${r.w.gap}ft gap` : ''} — ${r.w.linePct}% of parks are shorter. ${r.shortPorch ? 'SHORT PORCH: his wall-scrapers clear this one.' : ''}`}>
@@ -104,10 +124,13 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
           </div>
           <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
             Distances are Statcast landing measurements, pull is Savant&apos;s own pull-air flag, wall
-            dimensions are the league&apos;s fieldInfo. &quot;At the wall&quot; = pulled 320–374 ft — outs in
-            most parks, homers over a short porch. 🎯 marks a hitter whose pull side tonight is a
-            bottom-25% wall. Window: his last 15 game dates. <b style={{ color: C.text2 }}>Stats and
-            analysis only — not financial or betting advice.</b>
+            dimensions are the league&apos;s fieldInfo, wind is the bot&apos;s published label. &quot;At the
+            wall&quot; = pulled 320–374 ft — outs in most parks, homers over a short porch.
+            <b style={{ color: '#f87171' }}> Robbed</b> = those wall balls recorded as OUTS (homers
+            somewhere else). <b style={{ color: '#a78bfa' }}>Oppo</b> = 375+ the other way — all-fields
+            power. 🎯 = bottom-25% pull wall tonight · 🌬 TAIL = wind out to his pull side.
+            Window: last 15 game dates. <b style={{ color: C.text2 }}>Stats and analysis only — not
+            financial or betting advice.</b>
           </div>
         </>
       )}
