@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { arr, obj, n, clean, hitScore, prodScore, tbScore } from '../../lib/player'
-import Heatmap, { ORANGE_RAMP, rampColor, inkFor } from '../Heatmap'
+import { rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
 
 // Results depth — the grading half of the Streamlit Results tab.
@@ -98,10 +98,17 @@ function Bars({ rows, unit = '', max: forcedMax, min: forcedMin = 0, limit }) {
   )
 }
 
-function Section({ title, sub, children }) {
+// Every section leads with the question it answers, in one plain sentence.
+// `sub` is the caveat under it, and is optional — the purpose line is not.
+function Section({ title, answers, sub, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, marginBottom: sub ? 2 : 7 }}>{title}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>{title}</div>
+      {answers && (
+        <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
+          <b style={{ color: C.text2 }}>What this answers:</b> {answers}
+        </div>
+      )}
       {sub && <div style={{ fontSize: 10, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>{sub}</div>}
       {children}
     </div>
@@ -201,97 +208,28 @@ export default function ResultsDepth({ results, onPlayerClick }) {
     return <div style={{ fontSize: 11.5, color: C.text3 }}>No graded picks published yet.</div>
   }
 
-  const didTotal = slots.filter((s) => s?.designed_hit).length
-  const hrTotal = slots.filter((s) => s?.got_hr).length
-  const longest = [...homers]
-    .map((h) => ({ label: clean(h?.name, '—'), value: n(h?.longest_ft, 0) }))
-    .filter((h) => h.value > 0)
-    .sort((a, b) => b.value - a.value)
-  const topLongest = longest[0]
-  const maxEV = Math.max(...homers.map((h) => n(h?.max_ev_mph, 0)), 0)
+  // CUT 2026-08-09, owner: "everything from Bettable results down is too much,
+  // even for me." Two whole sections came off the top of this file, and both
+  // were the page above it repeated in tiles:
+  //
+  //   · "Bettable results" — five tiles. "Designed outcome hit" and "If graded
+  //     on HR only" are, number for number, the Overview's "Did its job" and
+  //     "If graded HR-only" tiles; the three tier tiles are the first three
+  //     rows of the tier table twenty pixels further down.
+  //   · "HR capture" — six tiles plus a longest-HR bar chart. The capture
+  //     numbers are the Overview tile, the takeaway sentence AND the folded
+  //     CaptureBanner; the longest bars are the Distance column of the
+  //     "Home runs vs the model" table, which is sorted by distance already.
+  //
+  // Nothing here was unique to this file. `report` is still read, above, to
+  // find the homer list the "Home runs vs the model" table is built from.
 
   return (
     <div>
-      <Section title="Bettable results">
-        <div style={{
-          display: 'grid', gap: 8,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        }}>
-          {tiers.slice(0, 3).map((t) => (
-            <Tile
-              key={t._key}
-              label={`${t.icon} ${t.label}`}
-              value={`${t.did}/${t.n}`}
-              sub={`${t.didPct.toFixed(1)}% did its job`}
-              tone="accent"
-            />
-          ))}
-          <Tile
-            label="Designed outcome hit"
-            value={`${didTotal}/${slots.length}`}
-            sub={`${((100 * didTotal) / slots.length).toFixed(1)}%`}
-            tone="up"
-          />
-          <Tile
-            label="If graded on HR only"
-            value={`${hrTotal}/${slots.length}`}
-            sub={`${((100 * hrTotal) / slots.length).toFixed(1)}%`}
-          />
-        </div>
-      </Section>
-
-      {homers.length > 0 && (
-        <Section title="HR capture">
-          <div style={{
-            display: 'grid', gap: 8, marginBottom: 14,
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          }}>
-            <Tile label="Slate HRs" value={n(report.total_hrs_on_slate, homers.length)} />
-            <Tile label="On the sheet" value={n(report.caught_hrs_on_sheet, 0)} tone="up" />
-            <Tile
-              label="Capture rate"
-              value={`${n(report.hr_capture_pct, 0).toFixed(1)}%`}
-              tone="up"
-            />
-            <Tile label="Missed entirely" value={n(report.missed_hrs_not_on_sheet, 0)} />
-            {topLongest && (
-              <Tile label="Longest" value={`${topLongest.value.toFixed(0)} ft`} sub={topLongest.label} tone="accent" />
-            )}
-            {maxEV > 0 && <Tile label="Max EV" value={`${maxEV.toFixed(1)} mph`} />}
-          </div>
-
-          {longest.length > 0 && (
-            <>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 6 }}>
-                Longest HRs tonight (ft)
-                {longest.length > 5 && (
-                  <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT }}>
-                    {' '}· top 5 of {longest.length}
-                  </span>
-                )}
-              </div>
-              <Bars
-                rows={longest.slice(0, 5)}
-                limit={5}
-                min={Math.max(0, Math.min(...longest.slice(0, 5).map((x) => x.value)) - 15)}
-                max={Math.max(...longest.slice(0, 5).map((x) => x.value)) + 5}
-              />
-              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-                Top 5 only — a full list of thirty homers pushed everything else on this page off
-                screen, and past the top handful the distances stop being interesting.
-                {' '}The axis starts near the shortest of the five rather than at zero: every ball
-                here cleared a fence, so a zero-based scale would draw five identical full-width
-                bars. That makes the spread readable but also exaggerates it — the gap across these
-                five is usually 30 to 60 feet, not the full width of the chart.
-              </div>
-            </>
-          )}
-        </Section>
-      )}
-
       <Section
         title="Did each pick do its job?"
-        sub="Each tier is graded on the outcome it was picked FOR, not on home runs. A Hit pick that produced a single did its job; grading it on HR would call that a failure."
+        answers="which kind of pick is actually working tonight — each tier scored against the outcome it was picked for."
+        sub="A Hit pick that produced a single did its job; grading it on HR would call that a failure."
       >
         <DenseTable
           rows={tiers}
@@ -330,7 +268,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
       {bands.length > 1 && (
         <Section
           title="HR hit rate by model score band"
-          sub="The one chart that says whether the score means anything. If the model is working, these climb left to right."
+          answers="does a higher HR score actually mean a higher chance of a homer? If the model is working, these bars climb left to right."
+          sub="The one chart on this page that grades the score itself rather than the picks."
         >
           <Bars
             rows={bands.map((b) => ({
@@ -352,7 +291,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           alone can be flattered by a wide board -- rank is what makes it real. */}
       <Section
         title="Home runs vs the model"
-        sub="Every homer tonight, matched to whether it was one of our picks, where the board had it ranked, and — added 2026-08-09 — what the board thought of him in EVERY lane, not just HR. A homer off a man the model rated 41 for HR but 68 for hit shape is a different story than one it liked nowhere."
+        answers="when someone went deep tonight, did we have him — and how high did the board have him?"
+        sub="Every homer, matched to whether it was one of our picks, where the board ranked it, and what the board thought of him in every lane, not just HR. A homer off a man the model rated 41 for HR but 68 for hit shape is a different story than one it liked nowhere."
       >
         {(() => {
           const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z]/g, '')
@@ -406,13 +346,12 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           // wonder whether the model scored everyone zero.
           const laneCovered = onSheet.filter((r) => r.hitSc != null || r.hrrSc != null || r.tbSc != null).length
 
-          // BASE HITS BY OUR PICKS — slate-wide, every graded pick, not just
-          // the ones who went deep. Only picks that actually recorded an at-bat
-          // are in the denominator; a scratched or benched pick isn't a miss.
-          const judged = slots.filter((s) => n(s?.actual_ab, 0) > 0)
-          const totalHits = judged.reduce((a, s) => a + n(s?.actual_hits, 0), 0)
-          const withHit = judged.filter((s) => n(s?.actual_hits, 0) >= 1).length
-          const multiHit = judged.filter((s) => n(s?.actual_hits, 0) >= 2).length
+          // The "Base hits by our picks" tile block came off here 2026-08-09.
+          // Four tiles: total hits, picks with 1+ hit, multi-hit picks, hits
+          // per pick. The Overview's "Base hit" tile and its multi-hit tile
+          // already carry the first three off the same slots array, and this
+          // section is about HOMERS versus the board — the base-hit rate was
+          // sitting inside it for no reason other than that it fitted.
 
           return (
             <>
@@ -434,46 +373,6 @@ export default function ResultsDepth({ results, onPlayerClick }) {
                   sub="lower is the model being right"
                 />
               </div>
-
-              {/* BASE HITS BY OUR PICKS (2026-08-09). The page graded the
-                  night on homers and on designed outcomes, and never once
-                  said the plainest thing: how often our picks simply got a
-                  hit. Slate-wide, across every graded pick — not only the
-                  ones in the homer table above it. */}
-              {judged.length > 0 && (
-                <>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, margin: '4px 0 7px' }}>
-                    Base hits by our picks
-                    <span style={{ color: C.text3, fontWeight: 500 }}>
-                      {' '}— every graded pick tonight, not just the homers
-                    </span>
-                  </div>
-                  <div style={{
-                    display: 'grid', gap: 8, marginBottom: 12,
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                  }}>
-                    <Tile label="Total hits" value={totalHits} sub={`across ${judged.length} picks with an AB`} tone="up" />
-                    <Tile
-                      label="Picks with 1+ hit"
-                      value={`${withHit}/${judged.length}`}
-                      sub={`${((100 * withHit) / judged.length).toFixed(0)}%`}
-                      tone="accent"
-                    />
-                    <Tile label="Multi-hit picks" value={multiHit} sub="2 or more" />
-                    <Tile
-                      label="Hits per pick"
-                      value={(totalHits / judged.length).toFixed(2)}
-                      sub="mean, ABs only"
-                    />
-                  </div>
-                  <div style={{ fontSize: 9.5, color: C.text3, margin: '-6px 0 14px', lineHeight: 1.55 }}>
-                    Denominator is picks that recorded an at-bat ({judged.length} of {slots.length} graded
-                    slots). A pick who was scratched or never came up isn&apos;t a miss, so he isn&apos;t
-                    counted either way — which is also why this percentage runs a little higher than one
-                    taken over every slot.
-                  </div>
-                </>
-              )}
 
               <DenseTable
                 rows={rows}
@@ -514,7 +413,10 @@ export default function ResultsDepth({ results, onPlayerClick }) {
         })()}
       </Section>
 
-      <Section title="Every pick">
+      <Section
+        title="Every pick"
+        answers="what happened to one specific player you were watching — the searchable, sortable list of all of them."
+      >
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           {[['all', 'All'], ['hr', 'Hit a HR'], ['did', 'Did its job'], ['miss', 'Missed']].map(([k, label]) => (
             <button

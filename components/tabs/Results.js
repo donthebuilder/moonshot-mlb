@@ -6,43 +6,36 @@ import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
 import ResultsDepth from './ResultsDepth'
-import HRPitchProfile from '../HRPitchProfile'
 import SignalAudit from '../SignalAudit'
 import PickScorecard, { pickJob } from '../PickScorecard'
-import { pillMeta } from '../../lib/pills'
 import ScoreAudit from '../ScoreAudit'
 import ReportCard from '../ReportCard'
 import PlayerPickRecord from '../PlayerPickRecord'
 import PLSimulator from '../PLSimulator'
 
+// SIMPLIFICATION PASS, 2026-08-09 (owner: "everything from Bettable results
+// down is too much, even for me" / "I don't know what I'm looking at").
+//
+// What came out, and why — every cut is a fact that was already on the page in
+// another shape, never a fact that was only here:
+//
+//   · ResultsDepth and Backtest used to render under EVERY sub-tab. Opening
+//     the Report card gave you the season card AND the whole night's grading
+//     AND the archive, stacked. They're now scoped: the night's depth belongs
+//     to Overview, the archive belongs to the Report card.
+//   · The "📋 Picks" sub-tab is gone. Its three views were duplicates — HR
+//     Scorers repeated "Who delivered", Top Board repeated the Board rank
+//     column, All repeated ResultsDepth's "Every pick" table. Its one unique
+//     view, "Did its job", moved into Overview as a fold.
+//   · The "🎯 HR by pitch" sub-tab is gone. It led with a paragraph saying it
+//     is NOT the pitch tonight's homer was hit off and runs a day behind —
+//     the same per-hitter breakdown is one click away inside a player's card,
+//     where it isn't pretending to be a result.
+//   · "Category Performance" bars came out: pick-type rates are already the
+//     lane chips in Overview §4 and the tier table in ResultsDepth.
+//   · The day picker became an archive browser instead of a tenth filter.
+
 // ── helpers ────────────────────────────────────────────────────────────────
-
-const ROLE_EMOJI_COLORS = {
-  '🧨': C.orange,
-  '🔥': '#f97316',
-  '🏁': '#22d3ee',
-  '💠': '#38bdf8',
-  '👀': '#a78bfa',
-  '⚾': '#4ade80',
-}
-
-function roleColor(role) {
-  const s = String(role || '')
-  for (const [emoji, col] of Object.entries(ROLE_EMOJI_COLORS)) {
-    if (s.includes(emoji)) return col
-  }
-  return C.text2
-}
-
-function roleEmoji(role) {
-  const m = String(role || '').match(/^(\S+)/)
-  return m ? m[1] : '—'
-}
-
-function pickLabel(pick) {
-  const m = { TOP: '🏆 Top', HR: '🧨 HR', HRR: '🏁 HRR', HIT: '💠 Hit', CONTACT: '⚾ Contact', TOP15: '🏆 Top15' }
-  return m[String(pick || '')] || pick || '—'
-}
 
 const TAG_COLORS = {
   '🏆': '#f97316', '🧨': '#f97316', '🔥': '#f97316',
@@ -111,6 +104,17 @@ function SectionHeader({ title, color = C.text3, right }) {
           {right}
         </span>
       )}
+    </div>
+  )
+}
+
+// ONE LINE, PLAIN ENGLISH, AT THE TOP OF EVERY SECTION. The rule from the
+// 2026-08-09 pass: if a panel can't say in one sentence what question it
+// answers, it comes off the page rather than getting a longer caption.
+function Purpose({ children }) {
+  return (
+    <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55, margin: '0 0 8px' }}>
+      <b style={{ color: C.text2 }}>What this answers:</b> {children}
     </div>
   )
 }
@@ -314,46 +318,6 @@ function HRHits({ homers }) {
               <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{h.team}</span>
               {multiHR && <span style={{ fontSize: 10, color: C.yellow, fontWeight: 800, fontFamily: NUM_FONT }}>{si(base.actual_hr)}HR</span>}
               {tags.slice(1).map((t, ti) => <span key={ti} style={{ fontSize: 11 }}>{t}</span>)}
-            </div>
-          )
-        })}
-      </div>
-    </Card>
-  )
-}
-
-// ── Category performance bar ─────────────────────────────────────────────────
-
-function CategoryBar({ slots }) {
-  const cats = [
-    { key: 'TOP15', label: '🏆 Top15', color: C.orange },
-    { key: 'TOP',   label: '🔥 Top',   color: '#f97316' },
-    { key: 'HR',    label: '🧨 HR',    color: C.orange },
-    { key: 'HRR',   label: '🏁 HRR',   color: C.cyan },
-    { key: 'HIT',   label: '💠 Hit',   color: '#38bdf8' },
-    { key: 'CONTACT', label: '⚾ Con', color: '#4ade80' },
-  ]
-  if (!slots?.length) return null
-
-  return (
-    <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
-      <SectionHeader title="Category Performance" color={C.text3} />
-      <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {cats.map(({ key, label, color }) => {
-          const group = slots.filter(r => r.pick_type === key)
-          if (!group.length) return null
-          const hrCount = group.filter(r => si(r.got_hr) || si(r.actual_hr) > 0).length
-          const hitCount = group.filter(r => si(r.actual_hits) >= 1).length
-          const hrPct = (hrCount / group.length) * 100
-          return (
-            <div key={key}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                <span style={{ fontSize: 11, color: color, fontWeight: 700, minWidth: 68 }}>{label}</span>
-                <MiniBar value={hrPct} color={color} />
-                <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text2, minWidth: 50, textAlign: 'right' }}>
-                  {hrCount}/{group.length} HR · {hitCount}H
-                </span>
-              </div>
             </div>
           )
         })}
@@ -719,239 +683,28 @@ function MultiHitCluster({ slots }) {
   )
 }
 
-// ── Pick row ─────────────────────────────────────────────────────────────────
-
-function PickRow({ r, i, onPlayerClick }) {
-  const gotHR = r.got_hr === 1 || (r.actual_hr || 0) > 0
-  const gotHit = (r.actual_hits || 0) >= 1
-  const multiHit = (r.actual_hits || 0) >= 2
-  const rank = r.rank
-  const role = r.final_hr_role || ''
-  const col = roleColor(role)
-  const pick = r.game_pick_role || r.pick_type || ''
-  const job = pickJob(r)
-  const spot = r.weak_spot_flag
-  const aligned = (r.top_board_tags || []).some(t => String(t).includes('🧩'))
-  const pills = (Array.isArray(r.signal_pills) ? r.signal_pills : []).slice(0, 2)
-  const isFinal = r.is_final === 1
-
-  return (
-    <div
-      onClick={() => onPlayerClick && onPlayerClick(r)}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '28px 1fr auto auto',
-        gap: 8,
-        alignItems: 'center',
-        padding: '9px 12px',
-        borderTop: i ? `1px solid ${C.border}` : 'none',
-        background: gotHR ? `${C.green}0d` : multiHit ? `${C.yellow}08` : 'transparent',
-        cursor: onPlayerClick ? 'pointer' : 'default',
-      }}
-    >
-      <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
-        {rank
-          ? <span style={{ fontSize: 10, color: gotHR ? C.green : C.text3, fontWeight: gotHR ? 800 : 400, fontFamily: NUM_FONT }}>#{rank}</span>
-          : null}
-        {gotHR
-          ? <div style={{ fontSize: 12 }}>💥</div>
-          : multiHit
-          ? <div style={{ fontSize: 11 }}>⭐</div>
-          : !rank ? <span style={{ fontSize: 11, color: C.border }}>·</span> : null}
-      </div>
-
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>{r.name}</span>
-          {spot && <span title="Weak pitcher spot" style={{ fontSize: 11 }}>⭐</span>}
-          {aligned && <span title="Aligned signals" style={{ fontSize: 11 }}>🧩</span>}
-          <span style={{ fontSize: 10, color: C.text3 }}>{r.team}</span>
-          {r.pitcher_name && <span style={{ fontSize: 10, color: C.text3 }}>vs {r.pitcher_name}</span>}
-        </div>
-        <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ color: col }}>{roleEmoji(role)} {role.replace(/^\S+\s*/, '')}</span>
-          {pills.map((p, pi) => <span key={pi} title={pillMeta(p).title} style={{ color: pillMeta(p).color }}>{p}</span>)}
-          {gotHR && (r.actual_hr || 0) > 0 && (
-            <span style={{ color: C.green, fontWeight: 700 }}>
-              {r.actual_hr > 1 ? `${r.actual_hr} HR` : 'HR ✓'}
-            </span>
-          )}
-          {!gotHR && gotHit && (
-            <span style={{ color: C.yellow, fontWeight: 700 }}>
-              {r.actual_hits > 1 ? `${r.actual_hits}H 🔥` : '1H'}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* The pick chip, and next to it whether he did THAT pick's job — not
-          whether he homered. A HIT pick that singled gets a ✓ here even though
-          the row has no green HR highlight, which is the whole point. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{
-          fontSize: 9, padding: '2px 6px', borderRadius: 5,
-          background: `${col}22`, color: col,
-          fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-          fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-        }}>{pickLabel(pick)}</span>
-        {job && isFinal && (
-          <span
-            title={job.did
-              ? `Did its job — a ${job.label} pick needed ${job.job}, and he got it.`
-              : `Missed — a ${job.label} pick needed ${job.job}.`}
-            style={{
-              fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT,
-              color: job.did ? job.color : C.border,
-            }}
-          >{job.did ? '✓' : '·'}</span>
-        )}
-      </div>
-
-      <div style={{ textAlign: 'right', minWidth: 56 }}>
-        {isFinal ? (
-          <div style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
-            {(r.actual_hits || 0) > 0
-              ? <div style={{ color: C.text2 }}>{r.actual_hits}H {r.actual_tb}TB</div>
-              : null}
-            {((r.actual_runs || 0) > 0 || (r.actual_rbi || 0) > 0)
-              ? <div>{r.actual_runs}R {r.actual_rbi}RBI</div>
-              : null}
-            {!(r.actual_hits > 0) && !(r.actual_runs > 0) && !gotHR
-              ? <div style={{ color: C.border }}>{(r.actual_ab || 0) > 0 ? `0-${r.actual_ab}` : 'no AB'}</div>
-              : null}
-          </div>
-        ) : (
-          <span style={{ fontSize: 10, color: C.cyan }}>Live</span>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-// ── HR by pitch type ──────────────────────────────────────────────────────────
-//
-// A caveat that has to lead, because the obvious reading of this tab is wrong:
-// THIS IS NOT THE PITCH TONIGHT'S HOMER WAS HIT OFF. That isn't published.
-// Searching results_live.json for "pitch_type" returns zero hits — a homer
-// entry carries longest_ft, distances_ft, max_ev_mph and launch_angle, and
-// nothing about what was thrown. graded_slots has pitcher_throws and
-// pitcher_fb_rate, which are pre-game scouting fields, not the pitch.
-//
-// What this shows is each of tonight's HR hitters against his own HR-by-pitch
-// history, from the spray_chart in his detail file. That file runs a day or two
-// behind the live slate, so tonight's homer isn't in it yet either — it appears
-// retroactively once the detail files rebuild.
-//
-// It's still the right thing to look at after a slate: "he went deep tonight,
-// and he has four this season off the fastball" is the question this answers.
-// It just isn't "he hit a slider tonight", and the panel says so out loud.
-function HRByPitch({ homers = [], captureReport, players = [], pick, setPick }) {
-  const entries = useMemo(() => {
-    const list = arr(captureReport?.all_homer_entries).length
-      ? arr(captureReport.all_homer_entries)
-      : homers
-    const byId = new Map()
-    for (const p of players) {
-      const id = p?.player_id ?? p?.id
-      if (id != null) byId.set(String(id), p)
-    }
-    return list.map((h) => ({
-      id: h?.player_id ?? null,
-      name: clean(h?.name, '—'),
-      team: clean(h?.team, ''),
-      hr: si(h?.hr) || 1,
-      ft: si(h?.longest_ft),
-      ev: sf(h?.max_ev_mph),
-      la: sf(h?.launch_angle),
-      slate: h?.player_id != null ? byId.get(String(h.player_id)) : null,
-    })).sort((a, b) => b.ft - a.ft)
-  }, [homers, captureReport, players])
-
-  const selected = useMemo(
-    () => entries.find((e) => String(e.id) === String(pick)) || entries[0] || null,
-    [entries, pick],
-  )
-
-  if (!entries.length) return <Empty text="No home runs on tonight's slate yet." />
-
-  return (
-    <div>
-      <Card style={{ padding: '10px 14px', marginBottom: 10 }}>
-        <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6 }}>
-          <b style={{ color: C.orange }}>This is not the pitch tonight&apos;s homer was hit off.</b>{' '}
-          The results feed doesn&apos;t record that — a homer entry carries distance, exit velocity and
-          launch angle, and nothing about what was thrown. What&apos;s below is each hitter&apos;s{' '}
-          <b style={{ color: C.text }}>season</b> home-run breakdown by pitch type, from his batted-ball
-          file, which runs a day or two behind. Tonight&apos;s homer will show up in it once the detail
-          files rebuild.
-        </div>
-      </Card>
-
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
-        {entries.map((e) => {
-          const on = selected && String(selected.id) === String(e.id)
-          return (
-            <button
-              key={e.id ?? e.name}
-              onClick={() => setPick(e.id)}
-              title={`${e.ft} ft · ${e.ev.toFixed(1)} mph · ${e.la.toFixed(0)}°`}
-              style={{
-                padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
-                fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT,
-                border: `1px solid ${on ? C.orange : C.border}`,
-                background: on ? 'rgba(249,115,22,.12)' : 'transparent',
-                color: on ? C.orange : C.text3,
-              }}
-            >
-              {e.name.split(' ').slice(-1)[0]}
-              <span style={{ opacity: .7 }}> {e.ft}ft</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {selected && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ fontSize: 15, fontWeight: 800 }}>{selected.name}</span>
-            <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
-              {selected.team} · tonight: {selected.hr} HR · {selected.ft} ft ·{' '}
-              {selected.ev.toFixed(1)} mph · {selected.la.toFixed(0)}°
-            </span>
-          </div>
-          {selected.slate
-            ? <HRPitchProfile player={selected.slate} />
-            : (
-              <div style={{ fontSize: 11, color: C.text3, padding: '8px 0', lineHeight: 1.6 }}>
-                {selected.name} isn&apos;t on the currently loaded slate, so his batted-ball file
-                isn&apos;t available to break down. This happens when Results is showing a different
-                day than the Games board.
-              </div>
-            )}
-        </>
-      )}
-    </div>
-  )
-}
-
 export default function Results({ results, backtest, players = [], onPlayerClick }) {
-  const [tab, setTab] = useState('hr')
-  // Receipts-first (2026-08-06): the Report card IS the product — it opens
-  // the tab. Overview and the rest are one click away.
-  const [subTab, setSubTab] = useState('card')
-  const [pitchPick, setPitchPick] = useState(null)
+  // OPENS ON OVERVIEW (2026-08-09, owner: "open up results at Overview").
+  // It used to open on the season Report card, which meant the first thing you
+  // saw after a slate was a season average rather than last night. Overview is
+  // last night; the card is one click away and hasn't moved.
+  const [subTab, setSubTab] = useState('overview')
+  const [archiveOpen, setArchiveOpen] = useState(false)
 
-  // DAY PICKER.
+  // THE ARCHIVE BROWSER (was: the day picker).
   //
   // live_results_tracker writes graded_results_<date>.json every night and
-  // publish_data.sh keeps the last 150 on the branch — nine are there today.
-  // Nothing read them, so Results could only ever show the current day and
-  // last night's card was gone by morning.
+  // publish_data.sh keeps the last 150 on the branch. The date list comes from
+  // backtest_summary.per_day rather than by probing for files, so it only ever
+  // offers days that actually graded.
   //
-  // The date list comes from backtest_summary.per_day rather than by probing
-  // for files, so the picker only ever offers days that actually graded.
+  // It used to render as a flat row of date pills sitting in a stack of other
+  // pill rows, so it read as one more filter and the default day was easy to
+  // lose track of. Now the default view is stated ("Tonight — live"), and the
+  // history is behind one "past nights" button that opens a dated list. When
+  // you're in the archive the page wears a bar saying so with one click back.
   const [day, setDay] = useState('live')
   const [dayData, setDayData] = useState(null)
   const [dayState, setDayState] = useState('idle')
@@ -998,7 +751,6 @@ export default function Results({ results, backtest, players = [], onPlayerClick
     return slots.filter(r => r.rank != null).sort((a, b) => a.rank - b.rank)
       .filter(r => { const k = String(r.player_id); if (seen.has(k)) return false; seen.add(k); return true })
   }, [slots])
-  const hrRows = useMemo(() => slots.filter(r => r.got_hr === 1 || (r.actual_hr || 0) > 0), [slots])
   const allRows = useMemo(() => {
     const seen = new Set()
     return [...slots]
@@ -1008,22 +760,99 @@ export default function Results({ results, backtest, players = [], onPlayerClick
 
   const topHit = topBoard.filter(r => r.got_hr === 1 || (r.actual_hr || 0) > 0).length
 
-  const pickRows = tab === 'board' ? topBoard : tab === 'hr' ? hrRows : allRows
+  const prettyDay = (d) => {
+    try {
+      return new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    } catch { return d }
+  }
 
-  const DayPicker = () => (
-<div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-      <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Day</span>
-      <TabBtn active={day === 'live'} onClick={() => setDay('live')}>Live / today</TabBtn>
-      {gradedDays.map((d) => (
-        <TabBtn key={d} active={day === d} onClick={() => setDay(d)}>{d.slice(5)}</TabBtn>
-      ))}
-      {dayState === 'loading' && (
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>loading…</span>
+  // Rendered as an element, not a nested component, so the open/closed state
+  // above survives every re-render of the page.
+  const archiveBar = (
+    <div style={{ marginBottom: 12 }}>
+      {day === 'live' ? (
+        <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 900, color: C.text }}>
+            🌙 Tonight — live
+          </span>
+          <span style={{ fontSize: 10, color: C.text3 }}>
+            grading updates as games finish
+          </span>
+          {gradedDays.length > 0 && (
+            <button
+              onClick={() => setArchiveOpen((v) => !v)}
+              style={{
+                marginLeft: 'auto', padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
+                fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
+                border: `1px solid ${archiveOpen ? C.orange : C.border}`,
+                background: archiveOpen ? `${C.orange}18` : 'transparent',
+                color: archiveOpen ? C.orange : C.text2,
+              }}
+            >📅 {archiveOpen ? 'Close' : 'Browse'} past nights ({gradedDays.length})</button>
+          )}
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap',
+          background: `${C.orange}14`, border: `1px solid ${C.orange}55`,
+          borderRadius: 11, padding: '9px 13px',
+        }}>
+          <span style={{ fontSize: 9, color: C.orange, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
+            📅 ARCHIVE
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 900, color: C.text }}>{prettyDay(day)}</span>
+          <span style={{ fontSize: 10, color: C.text3 }}>
+            graded and final — only this tab moved, everything else is still on tonight
+          </span>
+          <button
+            onClick={() => { setDay('live'); setArchiveOpen(false) }}
+            style={{
+              marginLeft: 'auto', padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
+              fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
+              border: `1px solid ${C.orange}`, background: `${C.orange}22`, color: C.orange,
+            }}
+          >← Back to tonight</button>
+          <button
+            onClick={() => setArchiveOpen((v) => !v)}
+            style={{
+              padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
+              fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
+              border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
+            }}
+          >📅 Pick another night</button>
+        </div>
       )}
-      {day !== 'live' && (
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          graded final · picks and slate shown are that day&apos;s
-        </span>
+
+      {archiveOpen && gradedDays.length > 0 && (
+        <div style={{
+          marginTop: 8, background: C.bg2, border: `1px solid ${C.border}`,
+          borderRadius: 11, padding: '10px 13px',
+        }}>
+          <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55, marginBottom: 8 }}>
+            <b style={{ color: C.text2 }}>What this answers:</b> what a previous night actually
+            graded out to. Picking one moves <b style={{ color: C.text2 }}>only this tab</b> — the
+            Games board and every other page stay on tonight&apos;s slate.
+          </div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', maxHeight: 190, overflowY: 'auto' }}>
+            {gradedDays.map((d) => (
+              <button
+                key={d}
+                onClick={() => { setDay(d); setArchiveOpen(false) }}
+                style={{
+                  padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
+                  fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+                  border: `1px solid ${day === d ? C.orange : C.border}`,
+                  background: day === d ? `${C.orange}18` : C.bg3,
+                  color: day === d ? C.orange : C.text2,
+                }}
+              >{prettyDay(d)}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {dayState === 'loading' && (
+        <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 6 }}>loading that night…</div>
       )}
     </div>
   )
@@ -1032,7 +861,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
     return (
       <div>
         <PanelTitle title="Results" sub="Nightly grading" />
-        <DayPicker />
+        {archiveBar}
         <Empty text={
           dayState === 'loading' ? 'Loading that day…'
             : day !== 'live' ? `No graded file published for ${day}.`
@@ -1055,67 +884,45 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         }
       />
 
-      <DayPicker />
+      {archiveBar}
 
-      {day !== 'live' && (
-        <Card style={{ padding: '8px 13px', marginBottom: 10 }}>
-          <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55 }}>
-            Showing <b style={{ color: C.text2 }}>{date}</b>, graded and final. The Games board and
-            every other tab are still on tonight&apos;s slate — only this tab moved. Anything here
-            that needs a slate row (the Pitchers tab, HR by pitch) will match fewer players on an
-            older day, and says so where it happens.
-          </div>
-        </Card>
-      )}
-
-      {/* sub-nav */}
-      <details style={{ marginBottom: 10, background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10 }}>
-        <summary style={{ padding: '8px 13px', fontSize: 11, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>
-          📖 How to read Results <span style={{ fontSize: 9, color: C.text3, fontWeight: 400 }}>— 60-second walkthrough</span>
-        </summary>
-        <div style={{ padding: '2px 14px 12px', fontSize: 11, color: C.text2, lineHeight: 1.75 }}>
-          <b style={{ color: C.orange }}>Start with the Report Card</b> — the headline strip is the whole story:
-          the season record on every pick, and the <b>since-the-lock</b> record beside it, which is the honest one
-          (those picks froze at first pitch and could never be edited). Letter grades compare each night to the
-          bot&apos;s OWN baselines — a 20% HR night is an A while a 55% HIT night is a D, because the bars differ.
-          <br /><b style={{ color: '#38bdf8' }}>Pitchers</b> answers &quot;did the arms we targeted give it up&quot; —
-          🎯 called it, 💥 burned us unflagged (the model&apos;s real misses), 🧱 flag didn&apos;t cash.
-          <br /><b style={{ color: '#a78bfa' }}>Picks</b> grades every pick against its own bar — a HIT pick that
-          singled counts even without a homer; grading everything on homers is the classic mistake this page avoids.
-          <br /><b style={{ color: '#4ade80' }}>Track record</b> ignores the day picker entirely: it&apos;s every
-          player the bot has ever designated, per category, with rates only shown at 3+ picks.
-          <br /><span style={{ color: C.text3 }}>The day picker up top moves ONLY this tab. A ≈ next to old records
-          means reconstructed from rate×pool — the older file format didn&apos;t store counts. And everywhere on this
-          site: the ❓ pill under the tabs explains the page you&apos;re on.</span>
+      {/* SUB-NAV, in two labelled groups (2026-08-09). Nine equal-looking
+          pills hid the single most confusing thing about this tab: three of
+          them followed the day picker and four ignored it. The split says it
+          once, up front, instead of nine times in nine captions. */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 8.5, color: C.text3, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
+          THIS NIGHT
+        </span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <TabBtn active={subTab === 'overview'} onClick={() => setSubTab('overview')}>📊 Overview</TabBtn>
+          <TabBtn active={subTab === 'pitcher'} onClick={() => setSubTab('pitcher')}>⚾ Pitchers</TabBtn>
+          <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
         </div>
-      </details>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-        <TabBtn active={subTab === 'overview'} onClick={() => setSubTab('overview')}>📊 Overview</TabBtn>
-        <TabBtn active={subTab === 'card'} onClick={() => setSubTab('card')}>🧾 Report card</TabBtn>
-        <TabBtn active={subTab === 'pitcher'} onClick={() => setSubTab('pitcher')}>⚾ Pitchers</TabBtn>
-        <TabBtn active={subTab === 'pitchtype'} onClick={() => setSubTab('pitchtype')}>🎯 HR by pitch</TabBtn>
-        <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
-        <TabBtn active={subTab === 'picks'} onClick={() => setSubTab('picks')}>📋 Picks</TabBtn>
-        <TabBtn active={subTab === 'signals'} onClick={() => setSubTab('signals')}>🔬 Signals</TabBtn>
-        <TabBtn active={subTab === 'record'} onClick={() => setSubTab('record')}>👤 Track record</TabBtn>
-        <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>🌙 P/L</TabBtn>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 8.5, color: C.text3, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
+          ALL SEASON
+        </span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <TabBtn active={subTab === 'card'} onClick={() => setSubTab('card')}>🧾 Report card</TabBtn>
+          <TabBtn active={subTab === 'record'} onClick={() => setSubTab('record')}>👤 Track record</TabBtn>
+          <TabBtn active={subTab === 'signals'} onClick={() => setSubTab('signals')}>🔬 Signals</TabBtn>
+          <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>🌙 P/L</TabBtn>
+        </div>
       </div>
 
-      {/* ONE LINE OF ORIENTATION under the sub-nav — this tab grew seven
-          views and "great but confusing" was fair. Each view's one-line job,
-          keyed to whatever is selected, so you always know what you're
-          looking at and what the picker above does or doesn't affect. */}
-      <div style={{ fontSize: 10, color: C.text3, margin: '-2px 0 10px', lineHeight: 1.5, fontFamily: NUM_FONT }}>
+      {/* One plain-English line for whatever is selected. */}
+      <div style={{ fontSize: 10.5, color: C.text3, margin: '-2px 0 12px', lineHeight: 1.55 }}>
+        <b style={{ color: C.text2 }}>What this answers:</b>{' '}
         {{
-          overview: '📊 Tonight graded as it happens: capture rate, multi-hit days, score audit. Follows the day picker.',
-          card: '🧾 The season report card — letter grades, records, trust curves. Season-wide by design: the day picker does NOT move this view (last complete night is always shown).',
-          signals: '🔬 Every displayed flag graded against the whole archive. IGNORES the day picker — it spans everything.',
-          pitcher: '⚾ Which arms gave it up tonight, joined to the slate. Follows the day picker.',
-          pitchtype: '🎯 Each HR hitter against his own HR-by-pitch history — NOT the pitch it was hit off (unpublished). Follows the day picker.',
-          pairs: '🔗 How the bot’s pairs and pools graded tonight. Follows the day picker.',
-          picks: '📋 Every pick with its result — and “Did its job” grades each against its own category. Follows the day picker.',
-          record: '👤 Every player the bot has ever picked, per category, across all 39 archived days. IGNORES the day picker — it spans everything.',
-          pl: '🌙 The whole archive replayed at flat stakes, scored in moons (1 moon = 1 unit, never dollars). IGNORES the day picker — it spans everything.',
+          overview: 'how the night went — did the picks do the jobs they were picked for, who delivered, and what got away.',
+          pitcher: 'did the arms we called weak actually give it up — and which arm burned us without a flag.',
+          pairs: 'how the bot’s pairs and pools graded out.',
+          card: 'is the model any good, all season — letter grades, records and trust curves. Always the last complete night; the archive browser does not move it.',
+          record: 'which players the bot has been right about over every graded day. Spans the whole archive.',
+          signals: 'is each badge on this site worth anything — every flag graded against the archive.',
+          pl: 'what the archive would have returned at flat stakes, in moons (1 moon = 1 unit, never dollars).',
         }[subTab]}
       </div>
 
@@ -1304,8 +1111,12 @@ export default function Results({ results, backtest, players = [], onPlayerClick
               ))}
             </div>
           )}
-          <Fold label="📊 Lane bars — the same rates drawn against HR and hit counts">
-            <CategoryBar slots={slots} />
+          {/* The "Lane bars" fold came off here (2026-08-09): CategoryBar drew
+              the same per-category rates the chips above already carry, and
+              ResultsDepth's tier table carries them a third time with more
+              columns. One fact, one shape. */}
+          <Fold label="🎯 Pick by pick — every pick against its own bar">
+            <PickScorecard slots={slots} backtest={backtest} onPlayerClick={onPlayerClick} />
           </Fold>
 
           {/* 5 · MODEL CHECKS — all receipts, all folded */}
@@ -1339,6 +1150,16 @@ export default function Results({ results, backtest, players = [], onPlayerClick
               Nothing got away{capTotal > 0 ? ' — every slate homer was on the sheet somewhere' : ' yet'}.
             </div>
           )}
+
+          {/* 7 · THE FULL GRADING TABLES. These used to render under EVERY
+              sub-tab, so the season Report card came with the whole night's
+              grading bolted to the bottom of it. They belong to the night, so
+              they live inside the night's view — and behind a fold, because
+              they are the deep version of everything above. */}
+          <Flow num="7" title="The full tables" note="the same night at full depth — score calibration, every homer vs the board, every pick" />
+          <Fold label="📋 Open the full grading tables">
+            <ResultsDepth results={view} onPlayerClick={onPlayerClick} />
+          </Fold>
         </>
         )
       })()}
@@ -1348,14 +1169,11 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         <PitcherWeaknessDigest slots={slots} players={players} />
       )}
 
-      {/* HR BY PITCH TYPE */}
-      {subTab === 'pitchtype' && (
-        <HRByPitch homers={homers} captureReport={captureReport} players={players} pick={pitchPick} setPick={setPitchPick} />
-      )}
-
       {/* PAIRS & POOLS */}
       {subTab === 'pairs' && (
-        <PairsResults pairPoolResults={pairPoolResults} />
+        pairPoolResults
+          ? <PairsResults pairPoolResults={pairPoolResults} />
+          : <Empty text="No pairs or pools were graded for this night." />
       )}
 
       {/* PER-PLAYER TRACK RECORD — spans every graded day, so it ignores the
@@ -1372,51 +1190,21 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           day picker like Track record does. */}
       {subTab === 'pl' && <PLSimulator />}
 
-      {subTab === 'card' && <ReportCard backtest={backtest} />}
-
-      {/* PICKS */}
-      {subTab === 'picks' && (
+      {/* THE SEASON CARD, and under it the archive it's a summary of. Backtest
+          used to render under every sub-tab; it belongs with the report card,
+          which is the only other season-wide view of the same thing. */}
+      {subTab === 'card' && (
         <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-            <TabBtn active={tab === 'hr'} onClick={() => setTab('hr')}>✅ HR Scorers ({hrRows.length})</TabBtn>
-            <TabBtn active={tab === 'board'} onClick={() => setTab('board')}>🏆 Top Board ({topBoard.length})</TabBtn>
-            <TabBtn active={tab === 'all'} onClick={() => setTab('all')}>📋 All ({allRows.length})</TabBtn>
-            <TabBtn active={tab === 'job'} onClick={() => setTab('job')}>🎯 Did its job</TabBtn>
-          </div>
-
-          {tab === 'job' && (
-            <PickScorecard slots={slots} backtest={backtest} onPlayerClick={onPlayerClick} />
-          )}
-
-          {tab !== 'job' && (pickRows.length === 0
-            ? <Empty text={tab === 'hr' ? 'No HR scorers in this pick set.' : 'No picks in this view.'} />
-            : (
-              <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
-                {pickRows.map((r, i) => (
-                  <PickRow key={r.player_id || i} r={r} i={i} onPlayerClick={onPlayerClick} />
-                ))}
-              </div>
-            )
+          <ReportCard backtest={backtest} />
+          {backtest && (
+            <div style={{ marginTop: 26, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
+              <Purpose>
+                the same season, night by night — whether the record above is a trend or one good week.
+              </Purpose>
+              <Backtest backtest={backtest} />
+            </div>
           )}
         </>
-      )}
-
-      {/* Every pick against the outcome it was picked FOR, not against home
-          runs. Reads `view`, NOT `results` — it was hardwired to tonight's
-          file, so the day picker up top changed every section except this
-          one, which kept showing live zeros under an archived day's header.
-          The whole tab follows the picker now, this block included. */}
-      <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
-        <ResultsDepth results={view} onPlayerClick={onPlayerClick} />
-      </div>
-
-      {/* The archive. Everything above is one slate; this is whether any of
-          it has worked over the graded days -- the only screen on the site
-          that scores the model instead of the players. */}
-      {backtest && (
-        <div style={{ marginTop: 26, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
-          <Backtest backtest={backtest} />
-        </div>
       )}
     </div>
   )
