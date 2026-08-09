@@ -164,12 +164,12 @@ export default function Guide() {
         <GlossaryRow icon="📋" term="Scoreboard is the first tab" def="Every hitter, every column, sortable. Start wide and narrow down. Games moved further along — it's a per-game read, which is where you go once you already know who you're interested in." />
         <GlossaryRow icon="↕️" term="Shift-click to multi-sort" def="Click a header to sort. SHIFT-click another to add it as a tiebreaker under the first — the small number in the header shows the order. Third shift-click drops it. Works on every table on the site." />
         <GlossaryRow icon="⭐" term="Watchlist from the boards" def="The ☆ column on Scoreboard, Due and Longest adds a hitter to your watchlist without opening him. The player card has it too, plus buttons to add him straight to the slip." />
-        <GlossaryRow icon="🥎" term="Player card now has seven tabs" def="Overview, Pitcher, Pitch, Spray, EV Log, Splits, Hot Zones. Pitch and Spray used to share one cramped tab, and the opposing starter had no home at all — now he has his own, with his arsenal matched to the side you bat from." />
+        <GlossaryRow icon="🥎" term="Player card tabs" def="Overview, Splits, EV Log, Pitch, Spray, Pitcher. The old Hot Zones tab retired — everything it knew (matchup zones, kill zones, per-pitch data) now lives inside the EV Log's strike-zone map, one map with hover popouts instead of two." />
         <GlossaryRow icon="🗺" term="Spray charts were plotting the wrong number" def="They used the ball's projected carry, which for a ground ball is about 30 feet — so roughly 43% of every hitter's chart was piled on top of home plate. They now plot where the ball was actually fielded. If you looked at this before and it seemed broken, that's why." />
         <GlossaryRow icon="🎯" term="Pitch chips pre-select tonight's arsenal" def="On the Spray tab the pitch filters come up already set to what tonight's starter throws, matched to your platoon side. So the first thing you see is only the balls he put in play against pitches he'll actually see." />
         <GlossaryRow icon="🧩" term="Pairs are grouped by the bot's own lanes" def="TOP 30, Core, Statcast, Flex, Value Power. Scores are NOT comparable between lanes — TOP 30 runs around 100 and the lettered lanes around 12–16, different formulas — so each lane is ranked against itself only." />
         <GlossaryRow icon="📅" term="Results has a day picker" def="Nine graded days are kept, so last night's card doesn't vanish in the morning. Only the Results tab moves when you switch days; everything else stays on tonight's slate." />
-        <GlossaryRow icon="🔥" term="Hot Zones is empty, and it's not your fault" def="The zone data has never been published. The bot that computes it runs daily and succeeds, but its output is thrown away before it reaches the site. Until that's fixed the tab stays honestly empty rather than showing invented numbers." />
+        <GlossaryRow icon="🔥" term="Zone data publishes nightly now" def="The old plumbing bug that threw zone profiles away is fixed — the bot publishes them every day, and the EV Log's strike-zone map shows the matchup view (his zones vs the starter's traffic), zone matches for HR/BA/GB/FLY, and hover popouts with the full per-zone line." />
         <GlossaryRow icon="📉" term="Backtest 'Pooled' only has an HR column" def="The bot writes pooled_metrics as an empty object, so the other columns can't be pooled from what's published. HR is recomputed from total home runs over total pool size, which is a real pooled rate. Blank cells mean unmeasured — NOT zero. Day average has all six columns." />
       </Section>
 
@@ -292,17 +292,19 @@ export default function Guide() {
         <StatRow stat="Whiff %" def="How often batters swing and miss against this pitcher. Lower = easier to make contact against." />
       </Section>
 
-      {/* ── 7. Hot Zones tab ── */}
-      <Section title="Understanding the Hot Zones tab" emoji="🔥">
+      {/* ── 7. the strike-zone map (Hot Zones absorbed into EV Log 2026-08-08) ── */}
+      <Section title="Understanding the strike-zone map (EV Log)" emoji="🔥">
         <Note>
-          <b>Now pulls live.</b> When the bot&apos;s own zone file is missing for a player, the tab
-          fetches zone stats straight from the league API instead of sitting empty — including a
-          single ⚔ Matchup view that overlays where the hitter does damage against where
-          tonight&apos;s starter actually throws, with a one-line verdict.
+          <b>One map now.</b> The Hot Zones tab retired — its whole toolkit lives inside the EV
+          Log&apos;s strike-zone map: the ⚔ Matchup view (his damage zones vs where tonight&apos;s
+          starter actually throws, with a verdict line and collision count), zone-match pills for
+          HR/BA/GB/FLY that say &quot;no match&quot; out loud when nothing lines up, per-pitch chips,
+          and hover popouts carrying the full per-zone line. Players missing from the bot&apos;s
+          cache fall back to a live league pull automatically.
         </Note>
         <P>
-          When it is running: open any player&apos;s profile and tap &quot;Hot Zones&quot; to see
-          exactly where in the strike zone this matchup favours the batter.
+          Open any player&apos;s card, tap &quot;EV Log&quot;, and the map is at the top —
+          hover (or tap) any cell for everything known about that spot.
         </P>
         <GlossaryRow icon="🟥🟧⬜🟦" term="Zone map colors" def="Each of the 9 boxes is a location in the strike zone (imagine looking at the zone from the catcher's view). Red = the batter performs great there. Orange = decent. Gray = average. Blue = the batter struggles there." />
         <GlossaryRow icon="🔥" term="'KILL' zone badge" def="A zone marked KILL means three things line up at once: the pitcher often throws the ball there, the pitcher gets hit hard there, AND this batter is dangerous there. These are the best spots to watch for a home run." />
