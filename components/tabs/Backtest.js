@@ -58,27 +58,50 @@ function Toggle({ options, value, onChange }) {
   )
 }
 
-function Sparkline({ points, height = 44 }) {
-  if (points.length < 2) return null
+// Sparkline over the FULL graded-day axis.
+//
+// `span` is the number of graded days in the archive; every point carries `i`,
+// its index on that axis. Two consequences, both deliberate:
+//   · a day the tier didn't run leaves a real horizontal gap instead of being
+//     collapsed away, so a tier that only appeared twice looks like two dots,
+//     not like a smooth two-week trend;
+//   · the line only connects CONSECUTIVE graded days. It never bridges a gap,
+//     because a straight segment across four missing nights is an invented
+//     trend — the exact thing this chart exists to disprove.
+function Sparkline({ points, span, height = 44 }) {
+  if (!points.length) return null
   const vals = points.map((p) => p.v)
   const lo = Math.min(...vals, 0)
   const hi = Math.max(...vals, 1)
   const w = 100
-  const d = points.map((p, i) => {
-    const x = (i / (points.length - 1)) * w
-    const y = height - ((p.v - lo) / Math.max(1e-9, hi - lo)) * height
-    return `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`
-  }).join(' ')
+  const denom = Math.max(1, (span || points.length) - 1)
+  const px = (p) => (p.i / denom) * w
+  const py = (p) => height - ((p.v - lo) / Math.max(1e-9, hi - lo)) * height
+
+  // contiguous runs of adjacent graded days
+  const segs = []
+  points.forEach((p, k) => {
+    const prev = points[k - 1]
+    if (prev && p.i === prev.i + 1) segs[segs.length - 1].push(p)
+    else segs.push([p])
+  })
+
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length
   const my = height - ((mean - lo) / Math.max(1e-9, hi - lo)) * height
   return (
     <svg viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" style={{ width: '100%', height, display: 'block' }}>
       <line x1="0" y1={my} x2={w} y2={my} stroke={C.border2} strokeWidth="0.5" strokeDasharray="2 2" />
-      <path d={d} fill="none" stroke={C.orange} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      {points.map((p, i) => (
-        <circle key={i} cx={(i / (points.length - 1)) * w}
-          cy={height - ((p.v - lo) / Math.max(1e-9, hi - lo)) * height}
-          r="1.6" fill={C.orange} vectorEffect="non-scaling-stroke" />
+      {segs.map((seg, si) => seg.length > 1 && (
+        <path
+          key={`s${si}`}
+          d={seg.map((p, k) => `${k ? 'L' : 'M'}${px(p).toFixed(2)},${py(p).toFixed(2)}`).join(' ')}
+          fill="none" stroke={C.orange} strokeWidth="1.5" vectorEffect="non-scaling-stroke"
+        />
+      ))}
+      {points.map((p) => (
+        <circle key={p.d} cx={px(p)} cy={py(p)} r="1.6" fill={C.orange} vectorEffect="non-scaling-stroke">
+          <title>{p.d}: {p.v.toFixed(1)}%{p.pool ? ` (${p.pool} picks)` : ''}</title>
+        </circle>
       ))}
     </svg>
   )
@@ -143,13 +166,43 @@ export default function Backtest({ backtest }) {
 
   const dayKeys = useMemo(() => Object.keys(perDay).sort(), [perDay])
 
+  // FIXED 2026-08-09 — the sparklines said "2 days" on a two-week archive.
+  //
+  // They read ONLY `tiers[t].hr_rate_from_detail`. That key belongs to the old
+  // backtest_report.py output; the format the bot writes now (every day from
+  // the pick-lock rewrite onward) drops it and publishes the same number as
+  // `metrics.HR` alongside `metric_counts`. So as the archive rolled over to
+  // the new format, this chart silently lost day after day until only the
+  // handful of legacy days were left — five tiers each drawing a straight line
+  // between two dots, which reads as "the model has two nights of history".
+  // Worse, it wasn't even honest about it: the footer said "2 days" while the
+  // Report Card, three sections down, graded the same tiers on every night.
+  //
+  // ReportCard reads `t.metrics[bar]` and falls back to pool_size for n. This
+  // now uses the same accessor, plus hr_count/pool_size as a last resort, so
+  // every graded night lands on the chart in either file format.
+  const hrRateOf = (t) => {
+    const m = obj(t.metrics)
+    const fromMetrics = n(m.HR, null)
+    if (Number.isFinite(fromMetrics)) return fromMetrics
+    const legacy = n(t.hr_rate_from_detail, null)
+    if (Number.isFinite(legacy)) return legacy
+    const pool = n(t.pool_size, 0)
+    const hrs = n(t.hr_count, null)
+    if (pool > 0 && Number.isFinite(hrs)) return (100 * hrs) / pool
+    return null
+  }
+
   const trend = useMemo(() => tiers.map((t) => ({
     key: t,
     label: label(t),
     points: dayKeys
-      .map((d) => ({ d, v: n(obj(obj(obj(perDay[d]).tiers)[t]).hr_rate_from_detail, null) }))
+      .map((d, i) => {
+        const tier = obj(obj(obj(perDay[d]).tiers)[t])
+        return { d, i, v: hrRateOf(tier), pool: n(tier.pool_size, 0) }
+      })
       .filter((p) => Number.isFinite(p.v)),
-  })).filter((x) => x.points.length > 1), [tiers, dayKeys, perDay])
+  })).filter((x) => x.points.length > 0), [tiers, dayKeys, perDay])
 
   if (!tiers.length) {
     return <Empty text="No backtest published yet — backtest_summary.json hasn't been written." />
@@ -263,20 +316,35 @@ export default function Backtest({ backtest }) {
               const vals = t.points.map((p) => p.v)
               const mean = vals.reduce((a, b) => a + b, 0) / vals.length
               const last = vals[vals.length - 1]
+              // Honest day count: how many of the archive's graded days this
+              // tier actually appears on. "9 of 12 graded days" says something
+              // true; a bare "9 days" hid that three nights were missing.
+              const covered = t.points.length
+              const missing = dayKeys.length - covered
               return (
                 <div key={t.key} style={{
                   background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 11px',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5, gap: 6 }}>
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2 }}>{t.label}</span>
                     <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
                       mean {mean.toFixed(0)}% · last {last.toFixed(0)}%
                     </span>
                   </div>
-                  <Sparkline points={t.points} />
-                  <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}>
-                    {t.points[0].d} → {t.points[t.points.length - 1].d} · {t.points.length} days
+                  <Sparkline points={t.points} span={dayKeys.length} />
+                  <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}>
+                    {dayKeys[0]} → {dayKeys[dayKeys.length - 1]} · {covered} of {dayKeys.length} graded day{dayKeys.length === 1 ? '' : 's'}
+                    {missing > 0 && (
+                      <span title="Nights this tier published no graded pool. The line breaks there rather than drawing through them.">
+                        {' '}· {missing} night{missing === 1 ? '' : 's'} with no picks
+                      </span>
+                    )}
                   </div>
+                  {covered < 2 && (
+                    <div style={{ fontSize: 9, color: C.orange, fontFamily: NUM_FONT, marginTop: 2 }}>
+                      one graded night — nothing to trend yet
+                    </div>
+                  )}
                 </div>
               )
             })}
