@@ -453,6 +453,14 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                                   {s.hr9.toFixed(2)} HR/9
                                 </span>
                               )}
+                              {/* Bot Output speaks in bars (owner feedback
+                                  2026-08-08): the duel's HR/9 gets one too,
+                                  scaled 0–2.00 like the pen board reads. */}
+                              {mode === 'botview' && s.hr9 != null && (
+                                <span style={{ width: 44, height: 5, background: 'rgba(255,255,255,.07)', borderRadius: 3, overflow: 'hidden', alignSelf: 'center' }}>
+                                  <span style={{ display: 'block', width: `${Math.min(100, (s.hr9 / 2) * 100)}%`, height: '100%', background: s.hr9 >= 1.3 ? '#f87171' : s.hr9 >= 1.05 ? '#22d3ee' : '#4ade80' }} />
+                                </span>
+                              )}
                               {s.stars > 0 && (
                                 <span title={`${s.stars} weak lineup spot${s.stars > 1 ? 's' : ''} this order can reach`} style={{ color: '#FCD34D', fontWeight: 800 }}>★{s.stars}</span>
                               )}
@@ -582,6 +590,33 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                           </div>
                         )
                       })}
+                      {/* MORE BARS (owner feedback 2026-08-08): Bot Output is
+                          the graph view — the card's remaining numbers join
+                          the bar language instead of sitting as text. Same
+                          row grammar as the five categories, dimmer voice.
+                          ARM is the opposing starter's HR/9 on a 0–2.00 bar
+                          (higher = the arm bleeds homers, good for the bat). */}
+                      {(() => {
+                        const extras = [
+                          { l: 'HRW', v: Number(p?.hrw_score) || 0, max: 100, c2: '#f472b6', txt: (Number(p?.hrw_score) || 0).toFixed(0), tip: 'HR Watch score' },
+                          { l: 'DMG', v: Number(p?.damage_conversion_score) || 0, max: 100, c2: '#34d399', txt: (Number(p?.damage_conversion_score) || 0).toFixed(0), tip: 'Damage conversion score' },
+                          { l: 'ARM', v: Number(p?.pitcher_hr9) || 0, max: 2, c2: '#f87171', txt: (Number(p?.pitcher_hr9) || 0).toFixed(2), tip: 'Opposing starter HR/9 — bar runs 0 to 2.00, higher favors the bat' },
+                        ].filter((e) => e.v > 0)
+                        if (!extras.length) return null
+                        return (
+                          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 5 }}>
+                            {extras.map((e) => (
+                              <div key={e.l} title={e.tip} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: 0.85 }}>
+                                <span style={{ width: 26, fontSize: 9, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{e.l}</span>
+                                <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 3 }}>
+                                  <div style={{ width: `${Math.min(100, (e.v / e.max) * 100)}%`, height: '100%', background: e.c2, borderRadius: 3 }} />
+                                </div>
+                                <span style={{ width: 30, fontSize: 10, color: 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{e.txt}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
                       {pills.length > 0 && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
                           {pills.map((pill, i) => (
