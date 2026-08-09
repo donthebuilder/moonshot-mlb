@@ -39,10 +39,22 @@ function sortPitchers(pitchers, sortKey) {
 // tonight's slate leak homers (season reliever-only HR/9, sitCodes=rp, the
 // verified split behind penStatsFor) and which ones come in already tired
 // (yesterday's workload). Both live-API context lanes; nothing here scores.
-function BullpenBoard({ pitchers }) {
+//
+// USABILITY PASS 2026-08-09 ("make it more usable"): the board was a ranked
+// bar and a fatigue tag, with no answer to "whose pen is this playing
+// against tonight", no way to reorder it, and no way to get from a row to
+// the game it belongs to. All three are here now.
+//
+// NOT here, deliberately: the pen's team RECORD. Nothing in the slate payload
+// carries team wins/losses — the closest fields are per-pitcher season lines —
+// and a record is exactly the kind of number that would be trivial to
+// approximate and wrong. The caption says the pen's real workload numbers
+// instead, which are measured.
+function BullpenBoard({ pitchers, onTeamClick }) {
   const [pen, setPen] = useState(null)          // ABBR → {hr9, hr, ip}
   const [fatByAbbr, setFatByAbbr] = useState(null)
   const [open, setOpen] = useState(false)
+  const [sortKey, setSortKey] = useState('hr9') // hr9 | fatigue
 
   useEffect(() => {
     penStatsFor().then((m) => setPen(m)).catch(() => {})
@@ -56,58 +68,138 @@ function BullpenBoard({ pitchers }) {
     }).catch(() => {})
   }, [])
 
+  // WHO THEY FACE. Every grouped starter carries his own team and his
+  // opponent, so both directions of each matchup are already on the page —
+  // the pen board just never used them. opp[TEAM] = the club its relievers
+  // will be pitching to tonight; arm[TEAM] = that club's own starter, which
+  // is the row's click target.
+  const { oppOfTeam, starterOfTeam } = useMemo(() => {
+    const oppMap = {}
+    const armMap = {}
+    pitchers.forEach((p) => {
+      const t = String(p.team || '').toUpperCase()
+      const o = String(p.opponent_team || '').toUpperCase()
+      if (t && o) { oppMap[t] = o; oppMap[o] = t }
+      if (t) armMap[t] = p
+    })
+    return { oppOfTeam: oppMap, starterOfTeam: armMap }
+  }, [pitchers])
+
   const rows = useMemo(() => {
     if (!pen) return []
     const tonight = new Set()
     pitchers.forEach((p) => {
       [p.team, p.opponent_team].forEach((t) => t && tonight.add(String(t).toUpperCase()))
     })
-    return [...tonight]
+    const built = [...tonight]
       .map((ab) => ({ ab, st: pen.get(ab), tier: penTier(fatByAbbr?.[ab]), fat: fatByAbbr?.[ab] }))
       .filter((r) => r.st?.hr9 != null)
-      .sort((a, b) => b.st.hr9 - a.st.hr9)
-  }, [pen, fatByAbbr, pitchers])
+    if (sortKey === 'fatigue') {
+      // Heaviest yesterday first; pens with no workload logged sink, because
+      // "no data" and "fresh" are not the same claim and shouldn't share a slot.
+      return built.sort((a, b) =>
+        (b.fat?.pitches ?? -1) - (a.fat?.pitches ?? -1)
+        || (b.fat?.used ?? -1) - (a.fat?.used ?? -1)
+        || b.st.hr9 - a.st.hr9)
+    }
+    return built.sort((a, b) => b.st.hr9 - a.st.hr9)
+  }, [pen, fatByAbbr, pitchers, sortKey])
 
   if (!rows.length) return null
   const shown = open ? rows : rows.slice(0, 8)
-  const worst = rows[0]?.st?.hr9 || 1
+  const worst = Math.max(...rows.map((r) => r.st.hr9), 0.01)
+  const anyFatigue = rows.some((r) => r.fat)
 
   return (
     <div style={{
       background: `linear-gradient(155deg, ${C.bg2}, rgba(248,113,113,.04))`,
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 13px', marginBottom: 12,
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
         <span style={{ fontSize: 11.5, fontWeight: 900 }}>🚪 Bullpen board</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>
-          the other six innings — tonight&apos;s pens ranked by season reliever-only HR/9, with yesterday&apos;s workload beside it
+        <span style={{ fontSize: 9.5, color: C.text3, flex: '1 1 220px', minWidth: 0 }}>
+          the other six innings — whose pen, who they face, and how hard they worked yesterday
         </span>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Sort</span>
+          {[['hr9', 'HR/9'], ['fatigue', 'Fatigue']].map(([k, label]) => (
+            <button key={k} onClick={() => setSortKey(k)}
+              disabled={k === 'fatigue' && !anyFatigue}
+              title={k === 'fatigue'
+                ? (anyFatigue ? "Heaviest reliever workload yesterday first. Pens with nothing logged sink — no data isn't the same claim as fresh."
+                  : 'No reliever workload logged for yesterday, so there is nothing to sort by')
+                : 'Season reliever-only HR/9, leakiest first'}
+              style={{
+                padding: '2px 9px', borderRadius: 6, fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
+                cursor: k === 'fatigue' && !anyFatigue ? 'not-allowed' : 'pointer',
+                border: `1px solid ${sortKey === k ? C.orange : C.border}`,
+                background: sortKey === k ? 'rgba(249,115,22,.14)' : 'transparent',
+                color: k === 'fatigue' && !anyFatigue ? C.text3 : sortKey === k ? C.orange : C.text2,
+                opacity: k === 'fatigue' && !anyFatigue ? 0.45 : 1,
+              }}>{label}</button>
+          ))}
+        </div>
       </div>
       {/* SINGLE-COLUMN, RANKED (owner feedback 2026-08-08): the two-column
           grid read as noise — one pen per row, top to bottom, is the list. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {shown.map((r, i) => (
-          <div key={r.ab} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16 }}>{i + 1}</span>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, width: 34 }}>{r.ab}</span>
-            <div style={{ flex: '1 1 90px', maxWidth: 210, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}
-              title={`${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}`}>
-              <div style={{
-                width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
-                background: r.st.hr9 >= 1.3 ? '#f87171' : r.st.hr9 >= 1.05 ? C.orange : '#4ade80',
-              }} />
-            </div>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 40, color: r.st.hr9 >= 1.3 ? '#f87171' : C.text2 }}>
-              {r.st.hr9.toFixed(2)}
-            </span>
-            {r.tier && (
-              <span title={`${r.ab} bullpen yesterday: ${r.fat.used} relievers, ${r.fat.pitches} pitches`}
-                style={{ fontSize: 9, fontWeight: 900, color: r.tier.col }}>
-                {r.tier.icon} {r.tier.word}
+        {shown.map((r, i) => {
+          const opp = oppOfTeam[r.ab] || ''
+          const arm = starterOfTeam[r.ab] || null
+          const clickable = !!(arm && onTeamClick)
+          return (
+            <div key={r.ab}
+              onClick={clickable ? () => onTeamClick(arm) : undefined}
+              title={clickable
+                ? `${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP (HR/9 ${r.st.hr9.toFixed(2)})${opp ? ` — they pitch to ${opp} tonight` : ''}. Click to open ${arm.pitcher_name}, ${r.ab}'s starter in this game.`
+                : `${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '2px 5px', borderRadius: 6,
+                cursor: clickable ? 'pointer' : 'default',
+                background: clickable ? 'transparent' : 'transparent',
+              }}
+              onMouseEnter={(e) => { if (clickable) e.currentTarget.style.background = 'rgba(255,255,255,.05)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16, flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, width: 34, flexShrink: 0 }}>{r.ab}</span>
+              {/* WHO THEY FACE — the question the board couldn't answer. */}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 46, flexShrink: 0 }}>
+                {opp ? `vs ${opp}` : '—'}
               </span>
-            )}
-          </div>
-        ))}
+              <div style={{ flex: '1 1 80px', maxWidth: 190, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
+                  background: r.st.hr9 >= 1.3 ? '#f87171' : r.st.hr9 >= 1.05 ? C.orange : '#4ade80',
+                }} />
+              </div>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 38, flexShrink: 0, color: r.st.hr9 >= 1.3 ? '#f87171' : C.text2 }}>
+                {r.st.hr9.toFixed(2)}
+              </span>
+              {/* The raw counts the bar is built from, on the row instead of
+                  hidden in a tooltip — a 1.40 on 180 IP and a 1.40 on 40 IP
+                  are not the same statement. */}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, width: 82, flexShrink: 0 }}>
+                {r.st.hr} HR / {r.st.ip} IP
+              </span>
+              {r.tier ? (
+                <span title={`${r.ab} bullpen yesterday: ${r.fat.used} relievers, ${r.fat.pitches} pitches`}
+                  style={{ fontSize: 9, fontWeight: 900, color: r.tier.col, flexShrink: 0 }}>
+                  {r.tier.icon} {r.tier.word}
+                </span>
+              ) : r.fat ? (
+                <span title={`${r.ab} bullpen yesterday: ${r.fat.used} relievers, ${r.fat.pitches} pitches — under both fatigue thresholds`}
+                  style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                  {r.fat.used}a / {r.fat.pitches}p
+                </span>
+              ) : (
+                <span title="No reliever workload logged for this club yesterday — an off day, or the boxscore hasn't landed" style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                  no log
+                </span>
+              )}
+            </div>
+          )
+        })}
       </div>
       {rows.length > 8 && (
         <button onClick={() => setOpen(!open)} style={{
@@ -117,7 +209,14 @@ function BullpenBoard({ pitchers }) {
       )}
       <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         Red bar = a pen surrendering 1.30+ HR/9 — the late innings there are a live power window,
-        doubly so with a 🥵 tag (they threw heavy yesterday). Context lane: this ranks nothing else on the site.
+        doubly so with a 🥵 tag (they threw heavy yesterday). <b style={{ color: C.text2 }}>vs</b> is who
+        those relievers pitch to tonight; click a row to open that club&apos;s own starter.
+        {' '}HR/9 is season reliever-only (sitCode rp) and the HR / IP beside it is what the rate is
+        built from. <b style={{ color: C.text2 }}>&ldquo;no log&rdquo;</b> means nothing was recorded for
+        them yesterday — an off day or a boxscore that hasn&apos;t landed — which is not the same as
+        rested, so it is never sorted as if it were. Team records aren&apos;t shown because the slate
+        payload doesn&apos;t publish them; everything here is measured. Context lane: this ranks nothing
+        else on the site.
       </div>
     </div>
   )
@@ -388,7 +487,17 @@ export default function Pitchers({ players, onPlayerClick }) {
         </div>
       )}
 
-      <BullpenBoard pitchers={pitchers} />
+      <BullpenBoard
+        pitchers={pitchers}
+        onTeamClick={(p) => {
+          // A pen row is a team; the way into that team's game from here is
+          // its own starter's card, which carries the matchup, the lineup and
+          // the arsenal. Scroll the table into view behind the modal so
+          // closing it leaves you somewhere sensible rather than back at the top.
+          tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          setModalPitcher(p)
+        }}
+      />
 
       {/* Column groups — the other half of the usability fix. Thirty columns
           at once was a wall; each group is one question. */}
