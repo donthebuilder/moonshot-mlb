@@ -85,7 +85,7 @@ function Spark({ days, cat, lockX }) {
   const lockIdx = days.findIndex((d) => d.date >= LOCK_DATE)
   const lx = lockIdx >= 0 ? pts[lockIdx]?.x : null
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+    <svg className="rc-spark" width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
       <line x1={PAD} x2={W - PAD} y1={H - PAD - (H - 2 * PAD) * 0.5} y2={H - PAD - (H - 2 * PAD) * 0.5}
         stroke="rgba(255,255,255,.07)" strokeWidth="1" />
       {lx != null && (

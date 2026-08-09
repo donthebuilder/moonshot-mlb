@@ -128,15 +128,23 @@ const P_COLORS = { FF: '#f87171', SI: '#fb923c', FC: '#fbbf24', SL: '#22d3ee', S
 // inside the grid that was already here: same cells, same colours, same hover
 // popout, one extra layer of real dots on top.
 //
-// GEOMETRY. The grid container is 290px tall and the 3x3 strike zone sits at
-// inset 44 with 3px of padding and a 1px border, so the zone's interior spans
-// 48px in from every edge. A pitch at fraction (fx, fz) of the zone therefore
-// lands at
-//     x = 48px + fx * (width - 96px)      y = 48px + fz * 194px
+// GEOMETRY. The 3x3 strike zone sits at inset 44 with 3px of padding and a 1px
+// border, so the zone's interior spans 48px in from every edge of the grid
+// container. A pitch at fraction (fx, fz) of the zone therefore lands at
+//     x = 48px + fx * (width  - 96px)     y = 48px + fz * (height - 96px)
 // and anything outside 0..1 lands in the shadow ring, which is exactly what
 // the four corner cells are for. The ring is 48px deep, so a pitch further out
 // than that is pinned to the frame and drawn hollow-dim rather than dropped —
 // the map never silently loses a pitch.
+//
+// BOTH AXES ARE EXPRESSED AS calc(% − px), NOT AS ABSOLUTE PIXELS (2026-08-09).
+// The vertical used to be computed against a hard-coded 290px container
+// height, which quietly welded the dots to one exact container size: the
+// moment a phone rule made the grid shorter, every pitch would have been drawn
+// in the wrong place with nothing failing loudly. calc(48px + fz*100% −
+// fz*96px) is algebraically identical at 290px and correct at every other
+// height, so the map can now be sized by CSS. `h` is kept only as the
+// documented desktop height.
 const ZG = { pad: 48, h: 290 }
 const FX_LO = -0.26, FX_HI = 1.26
 const FZ_LO = -0.21, FZ_HI = 1.21
@@ -147,7 +155,7 @@ function livePos(f) {
   const fz = clampf(f.fz, FZ_LO, FZ_HI)
   return {
     left: `calc(${ZG.pad}px + ${(fx * 100).toFixed(2)}% - ${(fx * ZG.pad * 2).toFixed(2)}px)`,
-    top: `${(ZG.pad + fz * (ZG.h - ZG.pad * 2)).toFixed(1)}px`,
+    top: `calc(${ZG.pad}px + ${(fz * 100).toFixed(2)}% - ${(fz * ZG.pad * 2).toFixed(2)}px)`,
     pinned: fx !== f.fx || fz !== f.fz,
   }
 }
@@ -471,9 +479,12 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, livePitches 
         </div>
       )}
 
-      <div style={{ maxWidth: 250, margin: '0 auto' }}>
-        <div style={{
-          position: 'relative', height: 290,
+      {/* .zone-wrap / .zone-grid are phone hooks only — MobileCSS widens the
+          wrap to the full card and shrinks the grid to a viewport-relative
+          square. On a desktop these classes carry nothing. */}
+      <div className="zone-wrap" style={{ maxWidth: 250, margin: '0 auto' }}>
+        <div className="zone-grid" style={{
+          position: 'relative', height: ZG.h,
           display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 3,
         }}>
           <Cell {...cells['11']} align={['top', 'left']} onHover={setHover} hoverKey="11" />

@@ -293,6 +293,58 @@ export default function MobileCSS() {
         .modal-content { padding-bottom: 40px !important; }
       }
 
+      /* ══════════════════════════════════════════════════════════════════
+         PORTRAIT CHARTS (2026-08-09) — "the charts are too big for portrait
+         on the phone — on desktop everything is good."
+
+         Every big visual on this site was sized for a desktop card and then
+         left to fend for itself on a phone. Three distinct failures, not one,
+         and they need three different fixes:
+
+           TOO TALL FOR ITS WIDTH — the zone map (250px wide, 290px tall) and
+             the spray field (a 440×312 picture pinned to a 340px height while
+             its width collapses to ~340). Both end up as a narrow column of
+             chart with dead space beside or under it.
+           NO CEILING AT ALL — the heatmap grows with its row count, so a
+             15-game slate is a 400px+ block that pushes the page it explains
+             below the fold.
+           TOO SHORT — rolling form is a 720×190 wide-format chart; scaled to
+             a phone it is 92px tall with five lanes in it.
+
+         The cap for anything that isn't a table: nothing over 48vh. A chart
+         taller than half the screen means you can never see it and the number
+         it belongs to at the same time, which is the whole point of a chart.
+         ══════════════════════════════════════════════════════════════════ */
+      @media (max-width: 560px) {
+        /* Strike-zone map: take the card's full width (it was capped at 250px
+           for a two-up desktop layout) and become a square instead of a tall
+           box. min() keeps it under the 48vh ceiling on a short screen and
+           under the desktop height on a big phone. The live pitch dots follow
+           this automatically — their positions are calc(% - px), not px. */
+        .zone-wrap { max-width: 100% !important; }
+        .zone-grid { height: min(84vw, 290px, 46vh) !important; }
+
+        /* Spray field: drop the fixed pixel height so the SVG takes its own
+           aspect ratio from the viewBox, then cap it. */
+        .spray-svg { height: auto !important; max-height: 46vh !important; }
+
+        /* Heatmap: give it the ceiling it never had. It is already a scroll
+           container, so nothing is hidden — it just stops being the page. */
+        .heat-scroll { max-height: 52vh !important; }
+
+        /* Rolling form: a floor, not a cap. preserveAspectRatio letterboxes
+           rather than distorting, so the lanes stay honest. */
+        .rf-chart { min-height: 148px; }
+
+        /* Report-card sparklines: 260×64 each, one per category. Small enough
+           already — this only stops a wide phone stretching them. */
+        .rc-spark { max-height: 84px; }
+
+        /* Two charts side by side (At the Plate) stack outright. */
+        .chart-cols { flex-direction: column !important; }
+        .chart-cols > div { flex: 1 1 auto !important; width: 100% !important; }
+      }
+
       /* ══ COSMETICS PASS (2026-08-06) — small touches, compounding ══ */
 
       /* Tabular numerals everywhere: every score column, every record, every

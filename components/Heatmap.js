@@ -139,7 +139,11 @@ export default function Heatmap({
         }}>{title}</div>
       )}
 
-      <div className="dense-scroll" style={{
+      {/* heat-scroll: a heatmap with 15 slate rows is ~400px tall and, unlike
+          a DenseTable, it is usually handed no maxHeight — so on a phone it
+          runs past the fold and takes the page with it. The phone rule caps it
+          and lets it scroll inside itself, which it is already set up to do. */}
+      <div className="dense-scroll heat-scroll" style={{
         border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'auto',
         maxHeight: maxHeight || undefined, background: C.bg2,
         WebkitOverflowScrolling: 'touch',

@@ -760,7 +760,13 @@ export default function SprayField({
         display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
       }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 460, height, flexShrink: 0 }}>
+        {/* .spray-svg is a phone hook. The inline `height` is a fixed pixel
+            number, and an inline style beats the blanket `svg { height: auto }`
+            in MobileCSS — so on a narrow screen the field kept its full desktop
+            height while its width collapsed, letterboxing a short wide picture
+            inside a tall box and eating most of a portrait screen for nothing.
+            The class lets the phone rule reclaim the height. */}
+        <svg className="spray-svg" viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 460, height, flexShrink: 0 }}>
           {/* THE FIELD IS A SOLID SURFACE.
               Every previous version drew it as white at 2-8% opacity on a
               near-black page, which is a difference of about 1.3:1 — the eye

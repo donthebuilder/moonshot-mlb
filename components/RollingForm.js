@@ -160,7 +160,11 @@ export default function RollingForm() {
         background: `linear-gradient(180deg, #0d0d10, ${C.bg2})`,
         border: `1px solid ${C.border}`, borderRadius: 12, padding: '6px 4px 0',
       }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
+        {/* rf-chart: this one has the opposite phone problem to the others —
+            a 720×190 viewBox scaled to a 350px screen is 92px tall, and five
+            lanes plus their end labels inside 92px is a smear. The phone rule
+            gives it a floor instead of a cap. */}
+        <svg className="rf-chart" viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
           <defs>
             {CATS.map((c) => (
               <linearGradient key={c} id={`rf-fill-${c}`} x1="0" y1="0" x2="0" y2="1">

@@ -322,7 +322,12 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+      {/* .chart-cols: the two charts sit side by side from ~700px up. Their
+          320px flex basis already wraps them on a phone, but only because the
+          basis happens to exceed the viewport — an implicit stack that a wider
+          phone or a landscape turn would silently undo, putting two dense
+          charts in 180px columns. The class makes the stack explicit. */}
+      <div className="chart-cols" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <ZoneMap
             playerId={Number(selectedId)}
