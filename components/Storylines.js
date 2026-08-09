@@ -373,7 +373,6 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     // the leader going deep tonight is that storyline landing, same as any
     // other row — cashedIds is a Set of ids, so a player already counted
     // elsewhere doesn't get counted twice
-    ;[seasonKing, careerKing].forEach((k) => k && k.list.forEach((p) => mark(p, hrToday(p))))
     b2b.forEach((p) => mark(p, b2bVerified && hrToday(p)))
     miles.forEach((m) => mark(m.p, /homer/i.test(m.word) && hrToday(m.p)))
     duels.forEach((d) => mark(d.p, d.own ? hrToday(d.p) : (lineOf(d.p)?.hits || 0) > 0))
@@ -384,7 +383,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // they do NOT count for the per-game skin: "most homers in this game" is
   // true of every game ever played, so letting it count would retire the
   // honest "no storylines in this one — just baseball" line entirely.
-  const hasLeaders = !compact && Boolean(seasonKing || careerKing)
+  const hasLeaders = false   // slate HR leaders retired 2026-08-09
   const empty = !hasLeaders && !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
   if (empty && !compact) return null
   if (empty && compact) {
@@ -436,41 +435,12 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       {/* HERO LINES — the two biggest bats in the building, stated plainly.
           These lead because they're the only storylines that are true every
           single night, and they're the ones a viewer can hold onto. */}
-      {(seasonKing || careerKing) && (
-        <div style={{
-          borderLeft: `2px solid ${C.orange}`, paddingLeft: 9, marginBottom: 5,
-        }}>
-          {seasonKing && (() => {
-            const lead = seasonKing.list[0]
-            const tied = seasonKing.list.length - 1
-            return (
-              <Row icon="👑" p={lead}>
-                Most homers {compact ? 'in this game' : 'on the slate'}:{' '}
-                <b style={{ color: C.text }}>{nameOf(lead)}</b>
-                {tied > 0 && <span style={{ color: C.text3 }}> (+{tied} tied)</span>}
-                {' — '}<b style={{ fontFamily: NUM_FONT, color: C.orange }}>{seasonKing.hr}</b> this season
-                {hrToday(lead) && <Cashed>ADDED ONE TODAY</Cashed>}
-              </Row>
-            )
-          })()}
-          {careerKing && (() => {
-            const lead = careerKing.list[0]
-            const tied = careerKing.list.length - 1
-            return (
-              <Row icon="🏛" p={lead}>
-                Most career homers:{' '}
-                <b style={{ color: C.text }}>{nameOf(lead)}</b>
-                {tied > 0 && <span style={{ color: C.text3 }}> (+{tied} tied)</span>}
-                {' — '}<b style={{ fontFamily: NUM_FONT, color: '#FCD34D' }}>{careerKing.hr.toLocaleString()}</b> lifetime
-                {/* no arithmetic on the career total here — the API's career
-                    line updates during the day, so adding tonight's homer to
-                    it would sometimes double-count and print a number that
-                    was never real. "Went deep" is the part we can defend. */}
-                {hrToday(lead) && <Cashed>WENT DEEP TODAY</Cashed>}
-              </Row>
-            )
-          })()}
-        </div>
+      {false && (
+        {/* 👑/🏛 slate HR leaders REMOVED (2026-08-09, Donovan: "most
+            hr on the slate and most career hrs is not what I'm looking
+            for"). They were true and useless — the leaderboard says the
+            same thing, and neither line was about TONIGHT'S matchup,
+            which is what a storyline has to be. */}
       )}
 
       {b2b.slice(0, 6).map((x, i) => (

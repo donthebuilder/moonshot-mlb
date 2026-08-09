@@ -104,11 +104,46 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
     const spotMax = Math.max(...spots.slice(1), 1)
     const placed = spots.slice(1).reduce((a, b) => a + b, 0)
     const topSpot = spots.indexOf(Math.max(...spots.slice(1)))
-    return { cards, spots, spotMax, total, placed, topSpot }
+
+    // ── THE REPEATS (2026-08-09, Donovan: "if 8 people hit their 17th, does
+    // that make sense") — the whole point of the ledger. Two lenses:
+    //
+    //   SAME NUMBER  three hitters all notching their 17th tonight is the
+    //                pattern he's watching for, stated plainly with the names.
+    //   DIGIT ROOT   standard numerology: sum the digits until one remains
+    //                (17 → 1+7 = 8). The bot already speaks this language —
+    //                numerology_score ships on every slate row — so the
+    //                ledger reads the night the same way.
+    //
+    // Both are PATTERN SPOTTING, not evidence, and the strip says so. A
+    // slate is ~25 homers over numbers 1–50; clusters happen by arithmetic
+    // alone. It's here because it's fun to watch and Donovan wanted the
+    // trend visible, not because it predicts anything.
+    const numbered = cards.filter((c) => c.nth != null)
+    const byNumber = new Map()
+    const byRoot = new Map()
+    const digitRoot = (v) => (v > 0 ? 1 + ((v - 1) % 9) : 0)
+    numbered.forEach((c) => {
+      if (!byNumber.has(c.nth)) byNumber.set(c.nth, [])
+      byNumber.get(c.nth).push(c)
+      const r = digitRoot(c.nth)
+      if (!byRoot.has(r)) byRoot.set(r, [])
+      byRoot.get(r).push(c)
+    })
+    const repeats = [...byNumber.entries()]
+      .filter(([, list]) => list.length >= 2)
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([num, list]) => ({ num, list }))
+    const roots = [...byRoot.entries()]
+      .map(([root, list]) => ({ root, list }))
+      .sort((a, b) => b.list.length - a.list.length)
+    const topRoot = roots[0] && roots[0].list.length >= 3 ? roots[0] : null
+
+    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered }
   }, [rows, players])
 
   if (isTmrw || !model || !model.total) return null
-  const { cards, spots, spotMax, total, placed, topSpot } = model
+  const { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered } = model
   const milestones = cards.filter((c) => c.milestone)
 
   return (
@@ -139,6 +174,46 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
               </b>{' '}<span style={{ fontFamily: NUM_FONT }}>{ord(c.nth)}</span>
             </span>
           ))}
+        </div>
+      )}
+
+      {/* 🔢 THE REPEATS — the number pattern, which is the whole reason this
+          panel exists. Same-number clusters first, then the digit root. */}
+      {(repeats.length > 0 || topRoot) && (
+        <div style={{
+          background: 'rgba(167,139,250,.07)', border: '1px solid rgba(167,139,250,.3)',
+          borderRadius: 10, padding: '7px 11px', marginBottom: 9,
+        }}>
+          <div style={{ fontSize: 10.5, fontWeight: 900, color: '#a78bfa', marginBottom: 3 }}>
+            🔢 The number pattern
+          </div>
+          {repeats.map(({ num, list }) => (
+            <div key={num} style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6 }}>
+              <b style={{ color: '#a78bfa', fontFamily: NUM_FONT }}>{list.length} hitters</b> notched their{' '}
+              <b style={{ color: C.text, fontFamily: NUM_FONT }}>{ord(num)}</b> tonight —{' '}
+              {list.map((c, i) => (
+                <span key={c.pid}>
+                  {i > 0 ? ', ' : ''}
+                  <span onClick={() => c.p && onPlayerClick?.(c.p)} style={{ cursor: c.p ? 'pointer' : 'default', color: C.text }}>{c.name}</span>
+                </span>
+              ))}
+            </div>
+          ))}
+          {topRoot && (
+            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: repeats.length ? 3 : 0 }}
+              title={`Digit root: add the digits of the homer number until one digit is left (17 → 1+7 = 8). ${topRoot.list.length} of tonight's ${numbered.length} numbered homers land on ${topRoot.root}.`}>
+              <b style={{ color: '#a78bfa', fontFamily: NUM_FONT }}>{topRoot.list.length}</b> of tonight&apos;s{' '}
+              {numbered.length} numbered homers reduce to{' '}
+              <b style={{ color: C.text, fontFamily: NUM_FONT }}>{topRoot.root}</b>{' '}
+              <span style={{ color: C.text3 }}>
+                ({topRoot.list.slice(0, 5).map((c) => c.nth).join(', ')}{topRoot.list.length > 5 ? '…' : ''})
+              </span>
+            </div>
+          )}
+          <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
+            Pattern watching, not evidence — ~25 homers spread over numbers 1–50 cluster by arithmetic
+            alone. Digit root = add the digits until one is left (17 → 8). Fun to track, never a reason to bet.
+          </div>
         </div>
       )}
 
