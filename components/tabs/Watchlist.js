@@ -506,6 +506,121 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
         )
       })()}
 
+      {/* OFF THE SLATE TONIGHT (2026-08-08, on request) — the saved names the
+          bot never scored tonight: not playing, not published, or saved from
+          an older slate. They'd otherwise sit in the cards below wearing
+          STALE numbers with nothing saying so. Click still opens the modal,
+          which pulls his season live when there's no bot row. */}
+      {(() => {
+        const slateIds = new Set(players.map((p) => String(playerId(p))))
+        const off = items.filter((p) => !slateIds.has(String(playerId(p))))
+        if (!off.length) return null
+        return (
+          <div style={{
+            display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
+            background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
+            padding: '7px 12px', marginBottom: 12,
+          }}>
+            <span style={{ fontSize: 10.5, fontWeight: 800, color: C.text2 }}>🌙 Not on tonight&apos;s slate</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>
+              saved but the bot didn&apos;t score them tonight — click for the live-season read
+            </span>
+            {off.map((p) => (
+              <button key={playerId(p)} onClick={() => onPlayerClick?.(p)}
+                title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.`}
+                style={{
+                  fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
+                  border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',
+                  borderRadius: 7, padding: '3px 9px',
+                }}>
+                {nameOf(p)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>{teamOf(p)}</span>
+              </button>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* THE LIST AS A TABLE (2026-08-08, on request) — the same dense-table
+          read the boards get, over just your saved names. Cards are for one
+          player at a time; this is where the list gets COMPARED. Off-slate
+          saves are excluded — their numbers would be stale — they live in the
+          strip above instead. */}
+      {(() => {
+        const slateIds = new Set(players.map((p) => String(playerId(p))))
+        const on = items.filter((p) => slateIds.has(String(playerId(p))))
+        if (!on.length) return null
+        return (
+          <div style={{ marginBottom: 14 }}>
+            <DenseTable
+              rows={on.map((p) => ({
+                _key: String(playerId(p)),
+                _raw: p,
+                watched: 1,
+                name: nameOf(p),
+                team: teamOf(p),
+                opp: oppOf(p),
+                spot: p?.lineup_spot ?? null,
+                facing: clean(p?.pitcher_name, 'TBD'),
+                isPick: botPickOf(p) ? 1 : 0,
+                botpick: botPickOf(p) || '—',
+                weak: p?.weak_spot_flag ? 1 : 0,
+                l5: `${n(p?.last5_hits, 0)}H/${n(p?.last5_hr, 0)}HR/${n(p?.last5_xbh, 0)}X`,
+                hr: hrScore(p),
+                hrw: nn(p?.hrw_score),
+                dc: nn(p?.damage_conversion_score),
+                iso: nn(p?.season_iso) * 100,
+                brl: barrelRate(p) * 100,
+                ev: avgEV(p),
+                pmix: pitchMixScore(p),
+                hrr: prodScore(p),
+                hitS: hitScore(p),
+                hr9: n(p?.pitcher_hr9, null),
+              }))}
+              columns={[
+                ...(onWatch ? [{
+                  key: 'watched', label: '★', action: true, w: 30, mark: '★', markOff: '☆',
+                  titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
+                  onAction: (row) => row?._raw && onWatch(row._raw, false),
+                }] : []),
+                { key: 'name',  label: 'Player', heat: false, w: 148, bold: true, sticky: true },
+                { key: 'team',  label: 'Tm',   heat: false, w: 34, mono: true, dim: true },
+                { key: 'opp',   label: 'Opp',  heat: false, w: 34, mono: true, dim: true },
+                { key: 'spot',  label: '#',    heat: false, w: 26, mono: true, dim: true,
+                  title: 'Lineup spot' },
+                { key: 'facing', label: 'Facing', heat: false, w: 118, dim: true },
+                { key: 'isPick', label: '🤖',  flag: true, mark: '●', w: 32,
+                  title: 'The bot designated this hitter as one of tonight’s picks' },
+                { key: 'botpick', label: 'Pick', heat: false, w: 58, mono: true,
+                  title: 'Which category the bot picked him for — HR, TOP, HIT, HRR, CONTACT. Dash = on the slate but not designated.' },
+                { key: 'weak',  label: '⭐',    flag: true, mark: '★', w: 30,
+                  title: 'Weak lineup spot against tonight’s starter' },
+                { key: 'l5',    label: 'L5',   heat: false, w: 76, mono: true, dim: true,
+                  title: 'Last five games — hits / homers / extra-base hits' },
+                { key: 'hr',    label: 'HR',   w: 44, dp: 1, title: 'HR score' },
+                { key: 'hrw',   label: 'HRW',  w: 46, dp: 0,
+                  title: 'HR Watch — the bot’s heat/recency read, 0–100' },
+                { key: 'dc',    label: 'DC',   w: 42, dp: 0,
+                  title: 'Damage conversion — how often his hard contact becomes damage' },
+                { key: 'iso',   label: 'ISO',  w: 44, dp: 0,
+                  title: 'Season ISO ×100. The strongest HR predictor in the graded archive.' },
+                { key: 'brl',   label: 'Brl%', w: 46, dp: 1, title: 'Recent barrel rate' },
+                { key: 'ev',    label: 'EV',   w: 46, dp: 1, title: 'Average exit velocity' },
+                { key: 'pmix',  label: 'PMix', w: 46, dp: 0,
+                  title: 'Pitch-mix fit vs tonight’s starter' },
+                { key: 'hrr',   label: 'HRR',  w: 44, dp: 1 },
+                { key: 'hitS',  label: 'Hit',  w: 44, dp: 1 },
+                { key: 'hr9',   label: 'P HR/9', w: 50, dp: 2,
+                  title: 'The starter he faces — homers allowed per nine' },
+              ]}
+              onRowClick={(r) => r && onPlayerClick?.(r)}
+              initialSort="hr"
+              maxHeight={380}
+              caption="Your saved hitters, side by side — every column heats against THIS LIST only, so bright means best of your saves, not best of the slate. ★ un-saves without leaving the table."
+            />
+          </div>
+        )
+      })()}
+
       <HitterHeat
         players={items}
         type="hr"
