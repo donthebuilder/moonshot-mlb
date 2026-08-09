@@ -120,7 +120,11 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
     <div>
       <PanelTitle
         title="Games"
-        sub={`${games.length} games · ${slots.length} time slots`}
+        sub={`${games.length} games · ${slots.length} time slots · ${
+          mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
+          : mode === 'botview' ? "the picks with the bot's five category bars per card"
+          : 'pick a game up top; it gets the full deep-dive below'
+        }`}
         right={
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
@@ -358,14 +362,15 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
             ref={el => { gameRefs.current[g.game_pk] = el }}
             style={{ marginBottom: isActive ? 28 : 4, scrollMarginTop: 160 }}
           >
-            {/* game header — click toggles which game is expanded */}
+            {/* game header. The dead onClick + pointer cursor are gone
+                (2026-08-08) — a header that LOOKS clickable and does nothing
+                reads as broken; the strip above is the selector. */}
             <div
-              onClick={() => {}}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 marginBottom: isActive ? 10 : 0, padding: isActive ? '0 0 8px' : '8px 4px',
                 borderBottom: `2px solid ${isActive ? C.orange : C.border}`,
-                cursor: 'pointer', transition: 'border-color .15s, padding .15s',
+                transition: 'border-color .15s, padding .15s',
                 background: isActive ? 'transparent' : 'rgba(255,255,255,0.015)',
                 borderRadius: isActive ? 0 : 8,
               }}
