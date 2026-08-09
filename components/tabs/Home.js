@@ -7,6 +7,7 @@ import { groupGames } from '../../lib/data'
 import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
+import { useSetupHomers, backToBack } from '../../lib/b2b'
 
 // HOME — the front porch.
 //
@@ -124,9 +125,21 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
   //   🧱 tonight's fence rider — current/fence_board.json, slate-filtered
   //   🚪 pen door — yesterday's reliever workload (lib/bullpen)
   // Lines that can't be computed don't render; nothing here is invented.
-  const b2b = useMemo(() => players
-    .filter((p) => Number(p?.games_since_last_hr) === 0)
-    .sort((a, b) => hrScore(b) - hrScore(a)), [players])
+  // BACK-TO-BACK, VERIFIED (2026-08-09). This line was reading
+  // `games_since_last_hr === 0` raw — the exact bug that was reported and
+  // fixed in the Storylines panel, still live on the front page, still telling
+  // people a hitter who homered THIS AFTERNOON was chasing an encore. The rule
+  // and the proof fetch now live in lib/b2b.js so the two surfaces cannot
+  // drift apart again: the setup homer must be proven from a graded file, and
+  // without proof the line does not render at all.
+  // Fall back to today rather than passing '' — an empty slateDate would make
+  // the proof fetch bail and silently hide the line on a normal night.
+  const b2bDateKey = slateDate || new Date().toLocaleDateString('en-CA')
+  const isTmrwSlate = b2bDateKey > new Date().toLocaleDateString('en-CA')
+  const setupHr = useSetupHomers(b2bDateKey)
+  const { list: b2b, verified: b2bVerified } = useMemo(
+    () => backToBack(players, setupHr, hrScore), [players, setupHr],
+  )
 
   const [fence, setFence] = useState(null)
   useEffect(() => {
@@ -428,10 +441,13 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
 
           {!b2b.length && !fenceRider && !pens.length && (
             <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, padding: '2px 0' }}>
-              None of the three fired tonight: nobody on the slate homered in his last game, the fence
-              board hasn&apos;t published for this date, and no bullpen crossed a workload threshold
-              yesterday. Empty because the checks came back empty, not because the panel is broken —
-              the full storyline ledger is right below.
+              None of the three fired tonight:{' '}
+              {b2bVerified
+                ? 'nobody on the slate homered in his last game'
+                : 'the graded file that proves who went deep last night hasn’t published yet, so the back-to-back watch is being withheld rather than guessed'}
+              , the fence board hasn&apos;t published for this date, and no bullpen crossed a workload
+              threshold yesterday. Empty because the checks came back empty, not because the panel is
+              broken — the full storyline ledger is right below.
             </div>
           )}
 
@@ -451,7 +467,11 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
                   </span>
                 ))}
                 {b2b.length > 3 && <span style={{ color: C.text3 }}> and {b2b.length - 3} more</span>}
-                {' '}went deep last game — tonight is the encore try.
+                {/* Names the actual day. "last game" was the ambiguity the bug
+                    hid behind — on a rebuilt slate his last game is today. */}
+                {' '}went deep {isTmrwSlate ? 'today' : 'last night'} — {isTmrwSlate ? 'tomorrow' : 'tonight'} is the encore try.
+                <span title="Every name here is checked against the graded results for that night, by player id. If that file hasn't published, this line doesn't render at all."
+                  style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'help' }}>✓ verified</span>
               </span>
             </div>
           )}

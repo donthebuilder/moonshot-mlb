@@ -46,7 +46,11 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
   if (!snap) return null
   const live = snap.games.filter((g) => g.state === 'Live')
   const finals = snap.games.filter((g) => g.state === 'Final')
-  if (!live.length && !finals.length) return null   // pregame: the wire waits
+  // Pregame: the wire waits. But a rain delay BEFORE first pitch leaves the
+  // game in Preview forever, so a slate that's entirely delayed would have
+  // shown nothing at all — the one night you most want to be told.
+  const anyStopped = snap.games.some((g) => g.delayed || g.postponed || g.suspended)
+  if (!live.length && !finals.length && !anyStopped) return null
 
   const abbrFor = (p) => teamOf(p)
   // designated picks with live lines
@@ -60,14 +64,19 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     // ROUND 3 ordering: the HUNT leads. Still-working live picks are the
     // actionable rows; cleared ✓ follow as receipts; dead ✗ finals sink.
     .sort((a, b) => {
-      const rank = (x) => !x.line ? 3
-        : x.cleared === false && x.line.state === 'Live' ? 0
+      const rank = (x) => !x.line ? 4
+        : x.cleared === false && !x.line.settled ? 0
         : x.cleared === true ? 1
-        : 2
+        // A stopped game outranks a finished one: it's still a live ticket.
+        : x.line.delayed || x.line.suspended || x.line.postponed ? 2
+        : 3
       return rank(a) - rank(b)
     })
   const graded = picks.filter((x) => x.line)
   const clearedCount = graded.filter((x) => x.cleared === true).length
+  // Games the weather stopped. Kept separate from `live` and `finals` because
+  // they belong to neither: nothing is happening, and nothing is decided.
+  const stopped = snap.games.filter((g) => g.delayed || g.postponed || g.suspended)
 
   // every homer tonight, model-tagged
   const slateIds = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
@@ -110,9 +119,24 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
       alerts.push({ pri: 1, icon: '🎟', text: `${pl.label} is ${hit}/${tot} — one swing from cashing (${missing.join(', ')})` })
     }
   })
+  // ⏸ WEATHER FIRST. A stopped game changes what every other row on this
+  // board means, so it outranks a cashed pair — top priority, always shown.
+  stopped.forEach((g) => {
+    const away = abbrs?.[g.awayId] || '?'; const home = abbrs?.[g.homeId] || '?'
+    const mine = graded.filter((x) => x.line?.pk === g.pk && x.cleared !== true).length
+    const tail = g.postponed
+      ? 'no at-bats will be played — those picks are void, not losses'
+      : g.suspended
+        ? 'it resumes later, so nothing is decided yet'
+        : 'picks stay open until it resumes or is called'
+    alerts.push({
+      pri: 0, icon: g.postponed ? '🚫' : '⏸',
+      text: `${away} @ ${home} — ${g.detail || 'delayed'}${mine ? ` (${mine} pick${mine > 1 ? 's' : ''} waiting)` : ''} — ${tail}`,
+    })
+  })
   graded.forEach(({ p, role, line, cleared }) => {
     if (cleared !== false && cleared !== null) return
-    if (line.state !== 'Live') return
+    if (line.state !== 'Live' || line.delayed) return   // don't nag during a stoppage
     const g = gameOf(line)
     if (!g?.inning || g.inning < 7) return
     const need = role === 'HR' || role === 'TOP' ? 'a homer'
@@ -158,7 +182,29 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     if (role === 'CONTACT') return line.tb >= 2 ? null : `needs ${2 - line.tb} more TB`
     return 'needs a homer'
   }
-  const stillWorking = graded.filter((x) => x.cleared === false && x.line.state === 'Live')
+  const stillWorking = graded.filter((x) => x.cleared === false && !x.line.settled)
+
+  // ── WHAT A ROW IS ALLOWED TO SAY (2026-08-09) ─────────────────────────────
+  // The old rule was one line: final game → ✗. It was wrong twice.
+  //
+  //   1. A POSTPONED game reports abstractGameState "Final". Every pick in it
+  //      was being marked a loss the instant the league posted the rainout,
+  //      before those hitters had taken a swing. See lib/liveSlate.js.
+  //   2. A hitter with 0 AB in a completed game was also marked ✗ — scratched,
+  //      or a bench bat who never came up. He didn't miss; he was never asked.
+  //      The bot's own tracker already voids these legs. The board was
+  //      counting them against the model when the archive doesn't.
+  //
+  // Five states now, and only ONE of them is a loss.
+  const rowState = (cleared, line) => {
+    if (cleared === true) return { mark: '✓', color: '#4ade80', why: 'Cleared its own bar.' }
+    if (line.postponed) return { mark: '⊘', color: '#a1a1aa', why: `Game postponed (${line.detail}) — void, not a loss. No at-bats will be played.` }
+    if (line.suspended) return { mark: '⏸', color: '#60A5FA', why: `Game suspended (${line.detail}) — it resumes later, so this pick is still open.` }
+    if (line.delayed) return { mark: '⏸', color: '#60A5FA', why: `Game delayed (${line.detail}) — play is stopped, nothing is decided.` }
+    if (!line.settled) return { mark: '…', color: C.text3, why: 'Still working — his game is live.' }
+    if (line.ab === 0) return { mark: '⊘', color: '#a1a1aa', why: 'Never got an at-bat — scratched or never came up. Void, not a miss: the archive doesn’t count these either.' }
+    return { mark: '✗', color: 'rgba(248,113,113,.85)', why: 'Game over without clearing its bar. This one counts against the model.' }
+  }
 
   // 🎤 AT THE PLATE — every slate name up or on deck RIGHT NOW, across all
   // live games. Tap opens his card (zones + spray + EV log live there).
@@ -274,27 +320,36 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
           )}
 
           {/* the spine: every game, score and inning, live first */}
-          {abbrs && (live.length + finals.length) > 0 && (
+          {abbrs && (live.length + finals.length + stopped.length) > 0 && (
             <>
             <SecLbl>🏟 The slate</SecLbl>
+            {/* Stopped games lead. They used to sit in the Final pile at 55%
+                opacity wearing an "F" — the single most misleading chip on the
+                page, since nothing about a rainout is final. */}
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {[...live, ...finals].map((g) => {
-                const isLive = g.state === 'Live'
+              {[...stopped, ...live.filter((g) => !g.delayed), ...finals.filter((g) => g.settled)].map((g) => {
+                const isStopped = g.delayed || g.postponed || g.suspended
+                const isLive = !isStopped && g.state === 'Live'
                 const half = /top/i.test(g.half) ? '▲' : /bot/i.test(g.half) ? '▼' : ''
+                const sCol = g.postponed ? '#a1a1aa' : isStopped ? '#60A5FA' : isLive ? '#4ade80' : C.text3
                 return (
-                  <div key={g.pk} title={isLive ? `${g.detail} — ${g.half} ${g.inning}` : g.detail} style={{
-                    display: 'flex', gap: 5, alignItems: 'baseline', fontFamily: NUM_FONT,
-                    border: `1px solid ${isLive ? 'rgba(74,222,128,.35)' : C.border}`,
-                    background: isLive ? 'rgba(74,222,128,.05)' : 'transparent',
-                    borderRadius: 6, padding: '2px 8px', opacity: isLive ? 1 : 0.55,
-                  }}>
+                  <div key={g.pk}
+                    title={isStopped
+                      ? `${g.detail}${g.inning ? ` — stopped in the ${g.inning}` : ''}. ${g.postponed ? 'No at-bats will be played; picks in it are void, not losses.' : 'Nothing is decided — picks stay open.'}`
+                      : isLive ? `${g.detail} — ${g.half} ${g.inning}` : g.detail}
+                    style={{
+                      display: 'flex', gap: 5, alignItems: 'baseline', fontFamily: NUM_FONT,
+                      border: `1px solid ${isStopped ? `${sCol}66` : isLive ? 'rgba(74,222,128,.35)' : C.border}`,
+                      background: isStopped ? `${sCol}12` : isLive ? 'rgba(74,222,128,.05)' : 'transparent',
+                      borderRadius: 6, padding: '2px 8px', opacity: isLive || isStopped ? 1 : 0.55,
+                    }}>
                     <span style={{ fontSize: 9.5, fontWeight: 800, color: C.text2 }}>
                       {abbrs[g.awayId] || '?'} <b style={{ color: C.text }}>{g.awayScore ?? '-'}</b>
                       {'–'}
                       <b style={{ color: C.text }}>{g.homeScore ?? '-'}</b> {abbrs[g.homeId] || '?'}
                     </span>
-                    <span style={{ fontSize: 8.5, fontWeight: 900, color: isLive ? '#4ade80' : C.text3 }}>
-                      {isLive ? `${half}${g.inning ?? ''}` : 'F'}
+                    <span style={{ fontSize: 8.5, fontWeight: 900, color: sCol }}>
+                      {isStopped ? `${g.postponed ? '🚫' : '⏸'} ${g.statusLabel}` : isLive ? `${half}${g.inning ?? ''}` : 'F'}
                     </span>
                   </div>
                 )
@@ -331,12 +386,16 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
           {graded.length > 0 && (
             <>
             <SecLbl>🤖 The picks — live vs their own bars</SecLbl>
-            <div style={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+            {/* 230px columns meant five of them on a desktop and names cut to
+                "Nathaniel L…" — a board of initials. 300px gives the name room
+                at every width, and .wire-picks drops to one column on a phone
+                with a thumb-sized row. */}
+            <div className="wire-picks" style={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
               {graded.map(({ p, role, line, cleared }) => {
                 const col = ROLE_COLOR[role] || C.text3
-                const done = line.state === 'Final'
-                const status = cleared === true ? '✓' : done ? '✗' : '…'
-                const sCol = cleared === true ? '#4ade80' : done ? 'rgba(248,113,113,.8)' : C.text3
+                const st = rowState(cleared, line)
+                const status = st.mark
+                const sCol = st.color
                 // Round 2 (2026-08-07): the counting markets show live progress
                 // toward their own bar, and a pick literally at the plate says so.
                 const g = gameOf(line)
@@ -350,21 +409,30 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                   : (role === 'CONTACT' || role === 'TB') ? `${Math.min(line.tb, 2)}/2`
                   : null
                 return (
-                  <div key={pidOf(p)} onClick={() => onPlayerClick?.(p)} style={{
-                    display: 'flex', gap: 6, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
-                    padding: '2px 6px', borderRadius: 6,
-                    background: cleared === true ? 'rgba(74,222,128,.06)' : 'transparent',
+                  <div key={pidOf(p)} onClick={() => onPlayerClick?.(p)} title={st.why} className="tap-row" style={{
+                    display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer', minWidth: 0,
+                    padding: '3px 6px', borderRadius: 6,
+                    background: cleared === true ? 'rgba(74,222,128,.06)'
+                      : (line.delayed || line.suspended) ? 'rgba(96,165,250,.07)' : 'transparent',
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 900, color: sCol, width: 12, flexShrink: 0 }}>{status}</span>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: sCol, width: 13, flexShrink: 0, textAlign: 'center' }}>{status}</span>
                     {/* CONTACT is 7 chars — 30px jammed it into the name */}
                     <span style={{ fontSize: 8, fontWeight: 900, color: col, fontFamily: NUM_FONT, width: 44, flexShrink: 0, letterSpacing: 0 }}>{role}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                       {nameOf(p)}
                     </span>
                     {due && <span title={due === '🎤' ? 'At the plate RIGHT NOW' : 'On deck'} style={{ fontSize: 10, flexShrink: 0 }}>{due}</span>}
+                    {/* A stopped game says so on the row itself — the reason a
+                        pick isn't moving belongs beside the pick, not only in
+                        the alert strip above it. */}
+                    {(line.delayed || line.suspended || line.postponed) && (
+                      <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: line.postponed ? '#a1a1aa' : '#60A5FA', flexShrink: 0 }}>
+                        {line.postponed ? 'PPD' : line.suspended ? 'SUSP' : 'DELAY'}
+                      </span>
+                    )}
                     {/* ROUND 3: uncleared + live = say WHAT he still needs,
                         colored by how late it's getting */}
-                    {cleared === false && line.state === 'Live' && needOf(role, line) && (
+                    {cleared === false && line.state === 'Live' && !line.delayed && needOf(role, line) && (
                       <span title={`${needOf(role, line)} — ${g?.inning ? `${g.inning}th inning` : 'game live'}`} style={{
                         fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, flexShrink: 0,
                         color: (g?.inning ?? 0) >= 7 ? '#f87171' : (g?.inning ?? 0) >= 5 ? '#FCD34D' : C.text3,
@@ -383,7 +451,12 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
 
           <div style={{ fontSize: 8.5, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
             The model grading itself in public: each pick against ITS OWN bar (HR homers, HIT a hit,
-            HRR 2+ H+R+RBI, CONTACT 2+ TB) — ✓ cleared, … still working, ✗ final without it. 💥 chips
+            HRR 2+ H+R+RBI, CONTACT 2+ TB). <b style={{ color: '#4ade80' }}>✓</b> cleared ·{' '}
+            <b style={{ color: C.text3 }}>…</b> still working ·{' '}
+            <b style={{ color: '#60A5FA' }}>⏸</b> his game is stopped, nothing decided ·{' '}
+            <b style={{ color: '#a1a1aa' }}>⊘</b> void — postponed, or he never got an at-bat ·{' '}
+            <b style={{ color: 'rgba(248,113,113,.85)' }}>✗</b> game over without it, and this one counts
+            against the model. A pick is only ✗ once his game is genuinely done. 💥 chips
             are every slate homer tonight, orange when the bot had him. Boxscore truth, refreshed when
             you ask{auto ? ' (auto every 60s while visible)' : ''} — no background polling.
           </div>

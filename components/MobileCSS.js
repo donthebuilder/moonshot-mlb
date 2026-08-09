@@ -380,6 +380,12 @@ export default function MobileCSS() {
               are already the shortest honest words for these stats, so the
               phone gets a smaller label rather than a truncated one, and the
               number — the thing being read — keeps its size. */
+        /* LIVE WIRE PICKS. Two 300px columns don't fit 346px, so the grid was
+              already collapsing — but to a row height built for a mouse. One
+              column, a real tap target, and the name gets the width back. */
+        .wire-picks { grid-template-columns: 1fr !important; gap: 1px !important; }
+        .wire-picks > div { min-height: 30px; }
+
         .stat-strip { gap: 4px !important; }
         .stat-strip > div > div:first-child { font-size: 7px !important; letter-spacing: 0 !important; }
 

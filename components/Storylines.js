@@ -7,6 +7,7 @@ import { dataUrl } from '../lib/dataSource'
 import { matchupStories } from '../lib/matchupStory'
 import { funFacts } from '../lib/funFacts'
 import { dedupeGraded } from '../lib/graded'
+import { useSetupHomers, backToBack } from '../lib/b2b'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -294,50 +295,13 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // WITHOUT PROOF THE SECTION DOES NOT RENDER. A back-to-back watch nobody
   // can stand behind is worse than no back-to-back watch — this panel's whole
   // value is that its claims are checkable.
-  const [setupHr, setSetupHr] = useState(undefined) // Set = verified, null = no proof
-  useEffect(() => {
-    let alive = true
-    setSetupHr(undefined)
-    const collect = (j) => {
-      const s2 = new Set()
-      dedupeGraded(j?.graded_slots || j?.results || []).forEach((r2) => {
-        const pid = Number(r2?.player_id)
-        if (pid && Number(r2?.actual_hr) > 0) s2.add(pid)
-      })
-      return s2
-    }
-    const bust2 = (u) => `${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`
-    const today = new Date().toLocaleDateString('en-CA')
-    if (isTmrw) {
-      // tomorrow's slate: "back-to-back" means he goes deep TODAY and again
-      // tomorrow, so today's live results are the setup proof.
-      fetch(bust2(dataUrl('current/results_live.json')))
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => {
-          if (!alive) return
-          // the live file holds the last graded slate until a new one starts
-          if (!j || String(j.date || '') !== today) { setSetupHr(null); return }
-          setSetupHr(collect(j))
-        })
-        .catch(() => { if (alive) setSetupHr(null) })
-    } else {
-      const d = new Date(new Date(`${dateKey}T12:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10)
-      fetch(bust2(dataUrl(`current/graded_results_${d}.json`)))
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => {
-          if (!alive) return
-          setSetupHr(j ? collect(j) : null)
-        })
-        .catch(() => { if (alive) setSetupHr(null) })
-    }
-    return () => { alive = false }
-  }, [isTmrw, dateKey])
-
-  const b2bVerified = setupHr instanceof Set
-  const b2b = !b2bVerified ? [] : players
-    .filter((p) => Number(p?.games_since_last_hr) === 0)
-    // the setup homer must appear in the proof file — no proof, no row
-    .filter((p) => setupHr.has(Number(p?.player_id ?? p?.id)))
+  // LIFTED TO lib/b2b.js (2026-08-09). This exact rule had to exist on the
+  // Home tab's "Tonight's angles" too, and when it was written here only, the
+  // front page kept publishing the unverified version of the same claim for
+  // days. One implementation, two callers, no drift.
+  const setupHr = useSetupHomers(dateKey)
+  const { list: b2bAll, verified: b2bVerified } = backToBack(players, setupHr)
+  const b2b = b2bAll
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
 
   // The matchup lines are their own pull, so they must survive a failed
