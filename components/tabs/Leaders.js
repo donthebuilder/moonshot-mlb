@@ -1,9 +1,10 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
+import { leagueLeaders, LEADER_CATS } from '../../lib/leaders'
 
 // League Leaders — SEASON STATS ONLY.
 //
@@ -130,10 +131,71 @@ function LeaderTile({ label, rows, fmt, color, onPlayerClick }) {
   )
 }
 
+// LEAGUE-WIDE BOARDS (2026-08-08): the slate payload has no stolen-base field
+// at all — speed simply had no surface here. These three cards are the actual
+// MLB top-10s, live from the StatsAPI (see lib/leaders.js for the verified
+// call), NOT filtered to tonight — that's the point. 🤖 marks the ones who ARE
+// on tonight's slate, matched by MLB person id, and those rows open the card.
+function LeagueLeadersCard({ cat, rows, slateById, onPlayerClick }) {
+  if (!rows?.length) return null
+  return (
+    <div style={{
+      background: C.bg2, border: `1px solid ${C.border}`,
+      borderRadius: 11, padding: '8px 12px', minWidth: 0,
+    }}>
+      <div style={{
+        fontSize: 9, color: C.text3, textTransform: 'uppercase',
+        letterSpacing: '.09em', fontWeight: 800, marginBottom: 5,
+      }}>{cat.icon} {cat.label} — MLB top 10</div>
+      {rows.map((r, i) => {
+        const onSlate = slateById.get(Number(r.id))
+        return (
+          <div key={r.id}
+            onClick={onSlate && onPlayerClick ? () => onPlayerClick(onSlate) : undefined}
+            title={`${r.name} — ${r.team} · ${r.value} ${cat.unit}${onSlate ? ' · on tonight’s slate — click to open his card' : ''}`}
+            style={{
+              display: 'flex', alignItems: 'baseline', gap: 6, padding: '1.5px 0',
+              cursor: onSlate && onPlayerClick ? 'pointer' : 'default',
+            }}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 14, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+            <span style={{
+              fontSize: 10.5, fontWeight: onSlate ? 800 : 600,
+              color: onSlate ? C.text : C.text2,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+            }}>{r.name}{onSlate ? ' 🤖' : ''}</span>
+            <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: onSlate ? C.orange : C.text2, flexShrink: 0 }}>
+              {r.value}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Leaders({ players = [], onPlayerClick }) {
   const [minPA, setMinPA] = useState(100)
   const [hand, setHand] = useState('all')
   const [query, setQuery] = useState('')
+
+  // League leader boards — undefined while loading, null if the live call
+  // failed (the section says so instead of showing nothing silently).
+  const [league, setLeague] = useState(undefined)
+  useEffect(() => {
+    let alive = true
+    leagueLeaders().then((d) => { if (alive) setLeague(d) })
+    return () => { alive = false }
+  }, [])
+
+  // MLB person id → slate row, for the 🤖 on-slate marker.
+  const slateById = useMemo(() => {
+    const m = new Map()
+    players.forEach((p) => {
+      const id = Number(p?.player_id)
+      if (Number.isFinite(id) && id > 0 && !m.has(id)) m.set(id, p)
+    })
+    return m
+  }, [players])
 
   const all = useMemo(() => players.map((p, i) => {
     const slg = n(p?.season_slg, 0)
@@ -239,6 +301,41 @@ export default function Leaders({ players = [], onPlayerClick }) {
         <LeaderTile label="RBI" rows={top3('rbi')} fmt={(r) => r.rbi} color="#22d3ee" onPlayerClick={onPlayerClick} />
         <LeaderTile label="ISO" rows={top3('iso')} fmt={(r) => r.iso.toFixed(3)} color="#4ade80" onPlayerClick={onPlayerClick} />
         <LeaderTile label="PA per HR · min 5 HR" rows={eff3} fmt={(r) => r.paHR.toFixed(1)} color="#FCD34D" onPlayerClick={onPlayerClick} />
+      </div>
+
+      {/* League-wide boards, live. The slate payload publishes no stolen-base
+          field, so SB (and league R/RBI for context) come straight from the
+          MLB StatsAPI leaders endpoint — whole league, not tonight's hitters.
+          🤖 = that leader IS on tonight's slate (matched by MLB person id). */}
+      <div style={{
+        background: `linear-gradient(155deg, ${C.bg2}, rgba(74,222,128,.04))`,
+        border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px', marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 900 }}>🏃 League-wide top 10s — speed &amp; run production</span>
+          <span style={{ fontSize: 9.5, color: C.text3 }}>
+            whole league, live from the MLB StatsAPI — the slate publishes no stolen bases, so this
+            board is the only speed read here. 🤖 = on tonight&apos;s slate (click to open his card).
+          </span>
+        </div>
+        {league === undefined ? (
+          <div style={{ fontSize: 10, color: C.text3, padding: '4px 0' }}>Fetching live league leaders…</div>
+        ) : league === null ? (
+          <div style={{ fontSize: 10, color: C.text3, padding: '4px 0' }}>
+            The live MLB StatsAPI leaders call didn&apos;t come back — nothing cached, so no numbers
+            rather than stale ones. Reload to retry.
+          </div>
+        ) : (
+          <div className="bot-picks-grid" style={{
+            display: 'grid', gap: 8,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          }}>
+            {LEADER_CATS.map((cat) => (
+              <LeagueLeadersCard key={cat.cat} cat={cat} rows={league[cat.cat]}
+                slateById={slateById} onPlayerClick={onPlayerClick} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* The actionable cut: season power crossing a homer-prone arm tonight.
