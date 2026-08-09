@@ -46,6 +46,34 @@ const MARKETS = [
 
 const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '')
 
+// WHY THIS PARTNER — the sentence the table made you assemble yourself
+// (2026-08-09). Nothing new is computed: every clause below is a column that
+// was already on the row, said in words and ordered by how much it actually
+// argues for the pair. Same-game history leads because it's the only version
+// that implies correlation; a soft opposing arm and a strong board score are
+// tonight's evidence; recency is a nudge and is written as one. If a partner
+// has nothing but his own score, the sentence says exactly that rather than
+// dressing up an absence.
+function whyPartner(p, mkt, anchorLabel) {
+  const parts = []
+  if (p.sameGame > 0) {
+    parts.push(`they've gone deep in the same game ${p.sameGame}×`)
+  } else if (p.days > 0) {
+    parts.push(`${p.days} shared homer day${p.days === 1 ? '' : 's'}, none in the same game`)
+  }
+  if (p.hr >= 60) parts.push(`he's a ${p.hr.toFixed(0)} on tonight's ${mkt.label} board`)
+  if (p.hr9 >= 1.4) parts.push(`the arm he faces gives up ${p.hr9.toFixed(2)} HR/9`)
+  if (p.weak) parts.push('he sits in a weak spot against that starter')
+  if (p.since != null && p.since <= 21) {
+    parts.push(p.since === 0 ? 'they did it today' : `last together only ${p.since}d ago`)
+  }
+  if (!parts.length) {
+    return `No shared history worth the word and no standout matchup — he's here on his ${mkt.label} score alone (${p.hr.toFixed(0)}).`
+  }
+  const s = parts.join('; ')
+  return `With ${anchorLabel}: ${s.charAt(0).toUpperCase()}${s.slice(1)}.`
+}
+
 // id when we have one, normalised name only as a fallback.
 function refKey(o) {
   const id = o?.player_id ?? o?.id
@@ -272,26 +300,52 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         hitter again to drop him.
       </div>
 
-      {/* The market — which outcome this pair is FOR. Changes the score that
-          ranks everything; each leg needs {mkt.needs}. */}
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9, alignItems: 'center' }}>
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Market</span>
-        {MARKETS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setMarketKey(x.key)}
-            style={{
-              padding: '4px 11px', borderRadius: 7, cursor: 'pointer',
-              fontSize: 10.5, fontWeight: 700,
-              border: `1px solid ${marketKey === x.key ? C.orange : C.border}`,
-              background: marketKey === x.key ? 'rgba(249,115,22,.12)' : 'transparent',
-              color: marketKey === x.key ? C.orange : C.text3,
-            }}
-          >{x.label}</button>
-        ))}
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          each leg needs {mkt.needs}
-        </span>
+      {/* THE MARKET — promoted to the top of the panel and given its own card
+          (2026-08-09). It was a row of four small pills that looked like a tag
+          filter, so nobody switched it, and the one line explaining it said
+          only "each leg needs 1+ HR". It is the most consequential control on
+          this page: it changes the score that ranks the anchor chips, the
+          partner table's Fit, and the score column itself. The card now says
+          exactly what moves and — just as important — what doesn't. */}
+      <div style={{
+        background: `linear-gradient(155deg, rgba(249,115,22,.07), ${C.bg2} 65%)`,
+        border: `1px solid ${C.orange}3d`, borderRadius: 12,
+        padding: '10px 14px', marginBottom: 11,
+      }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 9.5, color: C.text2, textTransform: 'uppercase', letterSpacing: '.09em', fontWeight: 900, fontFamily: NUM_FONT }}>
+            Building for
+          </span>
+          {MARKETS.map((x) => {
+            const on = marketKey === x.key
+            return (
+              <button
+                key={x.key}
+                onClick={() => setMarketKey(x.key)}
+                title={`Rank every anchor and partner on tonight's ${x.label} score. Each leg needs ${x.needs}.`}
+                style={{
+                  padding: '6px 14px', borderRadius: 9, cursor: 'pointer', textAlign: 'left',
+                  border: `1px solid ${on ? C.orange : C.border}`,
+                  background: on ? 'rgba(249,115,22,.16)' : C.bg3,
+                  boxShadow: on ? '0 0 12px rgba(249,115,22,.16)' : 'none',
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 900, color: on ? C.orange : C.text2, lineHeight: 1.2 }}>{x.label}</div>
+                <div style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3, letterSpacing: '.04em' }}>{x.needs}</div>
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginTop: 8 }}>
+          <b style={{ color: C.orange }}>{mkt.label}</b> is selected, so every leg has to deliver{' '}
+          <b style={{ color: C.text }}>{mkt.needs}</b>. Switching this changes{' '}
+          <b style={{ color: C.text }}>three things</b>: the score on the hitter chips below, the{' '}
+          <b style={{ color: C.text }}>{mkt.short}</b> column in the partner table, and{' '}
+          <b style={{ color: C.text }}>55% of Fit</b> — so the ranking reshuffles.
+          {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
+          counting co-<i>homer</i> days, because co-HR days are the only pair history the bot
+          publishes. On the {mkt.label} market that history is a proxy, not the market itself.
+        </div>
       </div>
 
       <input
@@ -305,8 +359,17 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         }}
       />
 
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
-        {shown.slice(0, showAllChips ? 200 : 24).map((a) => {
+      {/* CHIP ROW, capped in HEIGHT rather than in count (2026-08-09 — it was
+          wrapping to four lines and pushing the actual answer below the fold).
+          Two rows tall by default, scrolls inside itself, expands to a taller
+          scroll box on request. Nothing is removed from the list; it just
+          stops being the tallest thing on the panel. */}
+      <div style={{
+        display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8, alignItems: 'flex-start',
+        maxHeight: showAllChips ? 190 : 62, overflowY: 'auto',
+        paddingRight: 2,
+      }}>
+        {shown.slice(0, 200).map((a) => {
           const on = activeKeys.has(a.key)
           const implicit = on && !anchorKeys.length
           return (
@@ -315,8 +378,8 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
               onClick={() => toggleAnchor(a.key)}
               title={implicit ? 'Shown by default — click another hitter to choose your own' : (on ? 'Click to remove' : 'Click to add')}
               style={{
-                padding: '4px 10px', borderRadius: 7, cursor: 'pointer',
-                fontSize: 11, fontWeight: 700,
+                padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
+                fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap',
                 border: `1px solid ${on ? C.orange : C.border}`,
                 background: on ? 'rgba(249,115,22,.12)' : C.bg2,
                 color: on ? C.orange : C.text2,
@@ -324,7 +387,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
               }}
             >
               {on && !implicit ? '✓ ' : ''}{a.name}
-              <span style={{ color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, fontSize: 10 }}>
+              <span style={{ color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, fontSize: 9.5 }}>
                 {mScore(a.today).toFixed(0)}
               </span>
               {!a.hasHistory && (
@@ -337,7 +400,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 8 }}>
-        {shown.length > 24 && (
+        {shown.length > 18 && (
           <button
             onClick={() => setShowAllChips((v) => !v)}
             style={{
@@ -345,7 +408,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
               fontWeight: 700, fontFamily: NUM_FONT,
               border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
             }}
-          >{showAllChips ? 'Show fewer' : `Show all ${shown.length} hitters`}</button>
+          >{showAllChips ? '▴ Collapse the list' : `▾ Taller list (${shown.length} hitters, scrolls)`}</button>
         )}
         <span style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>
           Sorted by tonight&apos;s {mkt.label} score. A <b style={{ color: C.text2 }}>·</b> means no
@@ -415,32 +478,116 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
               columns in chart form; the callout + table is the cleaner pair. */}
           {(() => {
             const top = partners[0]
-            const anchorName = active.length === 1 ? active[0].name : `${active.length} anchors`
+            const single = active.length === 1
+            const anchorName = single ? active[0].name : `${active.length} anchors`
+            const anchorScore = active.reduce((s, a) => s + mScore(a.today), 0) / Math.max(1, active.length)
+            const anchorSub = single
+              ? `${teamOf(active[0].today)} vs ${oppOf(active[0].today)} · ${clean(active[0].today?.pitcher_name, 'TBD')}`
+              : active.map((a) => a.name.split(' ').slice(-1)[0]).join(', ')
+            const Side = ({ label, name, score, sub, onClick }) => (
+              <div
+                onClick={onClick}
+                style={{ flex: '1 1 190px', minWidth: 0, cursor: onClick ? 'pointer' : 'default' }}
+              >
+                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT }}>
+                  {label}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+                  <span style={{ fontSize: 15, fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: C.orange, flexShrink: 0 }}>
+                    {score.toFixed(0)}
+                  </span>
+                  <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{mkt.short}</span>
+                </div>
+                <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
+              </div>
+            )
             return (
+              /* BEST RIGHT NOW, as a hero card (2026-08-09). It was one line of
+                 small text that read like a caption for the table under it, so
+                 the page's own answer looked like a footnote. Now it's the two
+                 hitters side by side with their scores, the fit between them as
+                 the headline number, and the one-line reason underneath. */
               <div style={{
-                background: 'linear-gradient(155deg, rgba(249,115,22,.12), rgba(249,115,22,.04))',
-                border: `1px solid ${C.orange}55`, borderRadius: 11,
-                padding: '9px 13px', marginBottom: 10,
+                background: 'linear-gradient(155deg, rgba(249,115,22,.16), rgba(249,115,22,.04) 65%)',
+                border: `1px solid ${C.orange}77`, borderRadius: 14,
+                padding: '12px 16px', marginBottom: 12,
+                boxShadow: '0 0 22px rgba(249,115,22,.12)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>
-                    Best right now
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
+                  <span style={{ fontSize: 9.5, color: C.orange, textTransform: 'uppercase', letterSpacing: '.1em', fontWeight: 900, fontFamily: NUM_FONT }}>
+                    ⚡ Best right now
                   </span>
-                  <span
-                    onClick={() => onPlayerClick?.(top._raw)}
-                    style={{ fontSize: 13, fontWeight: 800, cursor: onPlayerClick ? 'pointer' : 'default' }}
-                  >{anchorName} + {top.name}</span>
-                  <span style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT }}>
-                    fit {top.fit.toFixed(0)}
-                    {top.sameGame > 0 && <b style={{ color: '#FCD34D' }}> · {top.sameGame}× same game</b>}
-                    {' '}· {top.days}× same day
-                    {top.since != null && ` · last together ${top.since}d ago`}
-                    {' '}· vs {top.pitcher}
+                  <span style={{ fontSize: 9, color: C.text3 }}>
+                    top of the table on the {mkt.label} market — {mkt.needs} from each side
                   </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Side
+                    label={single ? 'Anchor' : `Anchors (${active.length}, avg)`}
+                    name={anchorName}
+                    score={anchorScore}
+                    sub={anchorSub}
+                    onClick={single && onPlayerClick ? () => onPlayerClick(active[0].today) : null}
+                  />
+                  <span style={{ fontSize: 20, color: C.text3, fontWeight: 300, flexShrink: 0 }}>+</span>
+                  <Side
+                    label="Partner"
+                    name={top.name}
+                    score={top.hr}
+                    sub={`${top.team} vs ${top.opp} · ${top.pitcher}${top.hr9 ? ` · ${top.hr9.toFixed(2)} HR/9` : ''}`}
+                    onClick={onPlayerClick ? () => onPlayerClick(top._raw) : null}
+                  />
+                  <div style={{
+                    flexShrink: 0, textAlign: 'center', paddingLeft: 14,
+                    borderLeft: `1px solid ${C.orange}44`, minWidth: 78,
+                  }}>
+                    <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT }}>Fit</div>
+                    <div style={{ fontFamily: NUM_FONT, fontSize: 28, fontWeight: 900, color: C.orange, lineHeight: 1.1 }}>
+                      {top.fit.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, marginTop: 8, paddingTop: 7, borderTop: `1px solid ${C.orange}33` }}>
+                  {whyPartner(top, mkt, single ? active[0].name.split(' ').slice(-1)[0] : `your ${active.length}`)}
                 </div>
               </div>
             )
           })()}
+
+          {/* WHY THESE THREE — the same sentence for the runners-up, so the
+              top of the table explains itself before you start reading
+              columns. Reasons only; the numbers behind them are the columns. */}
+          {partners.length > 1 && (
+            <div style={{
+              background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
+              padding: '9px 14px', marginBottom: 11,
+            }}>
+              <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 5 }}>
+                Why the top {Math.min(3, partners.length)}
+              </div>
+              {partners.slice(0, 3).map((p, i) => (
+                <div key={p._key} style={{
+                  display: 'flex', gap: 9, alignItems: 'baseline', flexWrap: 'wrap',
+                  padding: '4px 0', borderTop: i ? `1px solid ${C.border}` : 'none',
+                }}>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, color: i === 0 ? C.orange : C.text3, width: 14, flexShrink: 0 }}>{i + 1}</span>
+                  <span
+                    onClick={() => onPlayerClick?.(p._raw)}
+                    style={{ fontSize: 12, fontWeight: 800, cursor: onPlayerClick ? 'pointer' : 'default', flexShrink: 0 }}
+                  >{p.name}</span>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, flexShrink: 0 }}>
+                    fit {p.fit.toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.55, flex: '1 1 240px', minWidth: 0 }}>
+                    {whyPartner(p, mkt, multi ? `your ${active.length}` : active[0].name.split(' ').slice(-1)[0])}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <DenseTable
             rows={partners.map((p) => ({
