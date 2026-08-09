@@ -52,7 +52,7 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
       // demo toast fires instantly, and the same event hits the OS so you
       // see both channels the moment you opt in.
       addToasts([{ key: `test:${Date.now()}`, icon: '🔔', pri: 0, p: null,
-        text: 'Armed — homers, due-ups, bar clears and K-alerts pop here, and reach your desktop when this tab is hidden.' }])
+        text: 'Armed — 💥 homers and 🎤 "your pick is batting NOW" reach you even while you\'re looking at the site. Bar clears, on-deck and K-alerts wait until the tab is hidden.' }])
     }
   }
   const prevRef = useRef(null)     // previous lines, for the diff
@@ -105,8 +105,14 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
     // and everything else still waits for the tab to be in the background.
     if (notifRef.current === 'on' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       const hidden = typeof document !== 'undefined' && document.hidden
-      items.filter((t) => t.pri === 0 || (hidden && t.pri <= 2)).slice(0, 3).forEach((t) => {
-        try { new Notification(`${t.icon} Moonshot`, { body: t.text, tag: t.key, silent: t.pri > 0 }) } catch {}
+      // AT THE PLATE NOTIFIES ALWAYS (2026-08-09, Donovan: "if a pick is at
+      // the plate I need a noti"). pri 0.5 is the 🎤 up-now event; it used to
+      // require a hidden tab, which meant the one alert with a SHELF LIFE —
+      // he can only act on it during the at-bat — was the one most likely to
+      // be withheld. Homers (0) and up-now (0.5) now always reach the OS;
+      // everything else still waits for the tab to be in the background.
+      items.filter((t) => t.pri <= 0.5 || (hidden && t.pri <= 2)).slice(0, 3).forEach((t) => {
+        try { new Notification(`${t.icon} Moonshot`, { body: t.text, tag: t.key, silent: t.pri > 0.5 }) } catch {}
       })
     }
     items.forEach((t) => setTimeout(() => {
@@ -190,7 +196,16 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
           const slot = `${g.inning}${g.half}`
           if (g.upBatter === id) {
             const key = `${id}:up:${slot}`
-            if (!firedRef.current.has(key)) { firedRef.current.add(key); out.push({ key, icon: '🎤', text: `UP NOW — ${nameOf(p)} (${who}) at the plate`, p, pri: 0.5 }) }
+            if (!firedRef.current.has(key)) {
+              firedRef.current.add(key)
+              // name the arm and the count-of-outs context so the alert is
+              // actionable on a phone lock screen without opening the site
+              const arm = String(p?.pitcher_name || '').split(' ').slice(-1)[0]
+              out.push({
+                key, icon: '🎤', p, pri: 0.5,
+                text: `UP NOW — ${nameOf(p)} (${who}) batting${arm ? ` vs ${arm}` : ''} · ${g.half}${g.inning}`,
+              })
+            }
           } else if (g.onDeck === id) {
             const key = `${id}:od:${slot}`
             if (!firedRef.current.has(key)) { firedRef.current.add(key); out.push({ key, icon: '⏳', text: `${nameOf(p)} (${who}) is on deck`, p, pri: 1.5 }) }
@@ -202,9 +217,14 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
       prevRef.current = s.lines
       setSnap(s)
 
+      // CADENCE (2026-08-09): 90s was fine for homers — they stay true — but
+      // an at-bat lasts ~3-4 minutes, so a 90s poll could surface "UP NOW"
+      // after he'd already swung. 35s while anything is live keeps the
+      // at-the-plate alert inside the window it's actionable in. Still only
+      // polls a visible tab; still one call for the whole slate.
       const anyLive = s.games?.some((g) => g.state === 'Live')
       clearInterval(timer)
-      if (anyLive) timer = setInterval(() => { if (!document.hidden) pull() }, 90000)
+      if (anyLive) timer = setInterval(() => { if (!document.hidden) pull() }, 35000)
     }
     pull()
     return () => { alive = false; clearInterval(timer) }
