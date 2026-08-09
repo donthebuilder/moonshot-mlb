@@ -13,6 +13,7 @@ import { kRiskScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
+import HomerLedger from '../HomerLedger'
 import LiveWire from '../LiveWire'
 import Storylines from '../Storylines'
 import { groupPitchers } from '../../lib/data'
@@ -214,6 +215,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
   const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
   const secPicks = <BotPicksStrip key="picks" players={players} onPlayerClick={onPlayerClick} />
+  // 🧾 the ledger builds through the night — lives with the live layer
+  const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
   const secStories = (
     <Fold key="stories" label="📰 Storylines — tonight's angles, written from the slate">
       <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
@@ -278,9 +281,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   const order = liveNow
     // broadcast order: the wire, the homers, then tonight's picks, then context
-    ? [secWire, secGone, secPicks, secPulse, secStories, secWeak, secStart]
+    ? [secWire, secGone, secLedger, secPicks, secPulse, secStories, secWeak, secStart]
     // plan order: orientation, the picks, the (quiet) wire, the pulse, context
-    : [secStart, secPicks, secWire, secPulse, secStories, secGone, secWeak]
+    : [secStart, secPicks, secWire, secLedger, secPulse, secStories, secGone, secWeak]
 
   return (
     <div>
