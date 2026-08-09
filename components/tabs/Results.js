@@ -1119,10 +1119,11 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         }[subTab]}
       </div>
 
-      {/* OVERVIEW — a story, not a pile (2026-08-08). Order: the night's
-          headline numbers → who delivered → how each lane did → the model
-          checks → what got away. Numbered flow headers keep the reader
-          located; every section is the same component it was, re-homed. */}
+      {/* OVERVIEW — takeaways first (2026-08-08, "less charts, more things
+          to understand and take from"). The page now leads with computed
+          SENTENCES — what tonight actually said, in words a bettor can act
+          on — and demotes the heavier panels behind honest toggles. The
+          numbered flow stays, but every number opens with its sentence. */}
       {subTab === 'overview' && (() => {
         const judge = slots.filter((r) => (r.actual_ab || 0) > 0)
         const withJob = judge.filter((r) => pickJob(r))
@@ -1130,7 +1131,111 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         const baseHit = judge.filter((r) => (r.actual_hits || 0) >= 1).length
         const hrOnly = judge.filter((r) => r.got_hr === 1 || (r.actual_hr || 0) > 0).length
         const multi = judge.filter((r) => (r.actual_hits || 0) >= 2 || (r.actual_hr || 0) >= 2).length
+        const stillLive = slots.filter((r) => r.is_final !== 1).length
         const capPct = Number(captureReport?.hr_capture_pct || 0)
+        const capCaught = si(captureReport?.caught_hrs_on_sheet)
+        const capTotal = si(captureReport?.total_hrs_on_slate)
+        const missedList = arr(captureReport?.missed_homer_entries)
+
+        // ── the lanes, each against its own bar ──
+        const lanes = {}
+        withJob.forEach((r) => {
+          const j = pickJob(r)
+          if (!lanes[j.role]) lanes[j.role] = { role: j.role, label: j.label, job: j.job, color: j.color, n: 0, did: 0 }
+          lanes[j.role].n += 1
+          if (j.did) lanes[j.role].did += 1
+        })
+        const laneList = Object.values(lanes).sort((a, b) => b.did / b.n - a.did / a.n)
+        const bigLanes = laneList.filter((l) => l.n >= 3)
+        const bestLane = bigLanes[0] || null
+        const worstLane = bigLanes.length > 1 ? bigLanes[bigLanes.length - 1] : null
+
+        // ── hot or cold vs the season's own base ──
+        const seasonBase = Number(backtest?.overall_base_hit_accuracy) || null
+        const tonightBase = judge.length ? (100 * baseHit) / judge.length : null
+        const runDiff = seasonBase != null && tonightBase != null && judge.length >= 5 ? tonightBase - seasonBase : null
+
+        const B = ({ children, col = C.text }) => <b style={{ color: col, fontFamily: NUM_FONT }}>{children}</b>
+        const Take = ({ col, children }) => (
+          <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: col, flexShrink: 0, position: 'relative', top: -1 }} />
+            <span style={{ fontSize: 12, color: C.text2, lineHeight: 1.65, minWidth: 0 }}>{children}</span>
+          </div>
+        )
+        // The takeaway sentences — each only renders when its data exists.
+        const takes = []
+        if (!judge.length) {
+          takes.push(
+            <Take key="none" col={C.text3}>
+              Nothing to grade yet — no pick has recorded an at-bat. Sentences appear here as the night fills in.
+            </Take>,
+          )
+        } else {
+          if (withJob.length) {
+            const p = (100 * didJob) / withJob.length
+            takes.push(
+              <Take key="job" col="#4ade80">
+                The picks cleared <B col="#4ade80">{didJob} of {withJob.length}</B> of their own bars
+                (<B col="#4ade80">{p.toFixed(0)}%</B>) — a HIT pick needed a hit, an HRR pick 2+ H+R+RBI;
+                nobody here is graded on homers he wasn&apos;t picked for.
+              </Take>,
+            )
+          }
+          if (runDiff != null) {
+            const hot = runDiff >= 5, cold = runDiff <= -5
+            takes.push(
+              <Take key="run" col={hot ? C.orange : cold ? '#60A5FA' : C.text2}>
+                The model ran <B col={hot ? C.orange : cold ? '#60A5FA' : C.text}>{hot ? 'hot' : cold ? 'cold' : 'right on'}</B>{' '}
+                {hot || cold ? 'against' : ''} its season base — <B>{tonightBase.toFixed(0)}%</B> of picks got a base hit
+                vs <B>{seasonBase.toFixed(1)}%</B> lifetime.
+                {cold ? ' One night, not a verdict — the base is the number to trust.' : ''}
+              </Take>,
+            )
+          }
+          if (bestLane) {
+            const p = (100 * bestLane.did) / bestLane.n
+            takes.push(
+              <Take key="best" col={bestLane.color}>
+                <B col={bestLane.color}>{bestLane.label}</B> picks cleared <B col={bestLane.color}>{bestLane.did} of {bestLane.n}</B>{' '}
+                ({p.toFixed(0)}%) — {p >= 65 ? 'the reliable lane again' : 'the night’s strongest lane'}.
+              </Take>,
+            )
+          }
+          if (worstLane && (100 * worstLane.did) / worstLane.n < 50 && worstLane.role !== bestLane?.role) {
+            takes.push(
+              <Take key="worst" col={C.text3}>
+                <B col={worstLane.color}>{worstLane.label}</B> went <B>{worstLane.did} of {worstLane.n}</B> — the lane to be
+                patient with tonight; its bar is {worstLane.job}.
+              </Take>,
+            )
+          }
+          if (capTotal > 0) {
+            takes.push(
+              <Take key="cap" col="#38bdf8">
+                <B col="#38bdf8">{capCaught}</B> of the slate&apos;s <B>{capTotal}</B> home runs were somewhere on the sheet
+                (<B col="#38bdf8">{capPct.toFixed(0)}%</B>) — {capPct >= 70 ? 'a wide net on a night it mattered' : capPct >= 50 ? 'a decent net' : 'a leaky night for the net'}
+                {missedList.length ? <> ; the other <B col="#f87171">{missedList.length}</B> never made it (list below)</> : ''}.
+              </Take>,
+            )
+          }
+          if (multi > 0) {
+            takes.push(
+              <Take key="multi" col="#FCD34D">
+                <B col="#FCD34D">{multi}</B> pick{multi > 1 ? 's' : ''} put up a multi-hit or multi-HR line — the loudest
+                individual night{multi > 1 ? 's' : ''} on the sheet.
+              </Take>,
+            )
+          }
+          if (day === 'live' && stillLive > 0) {
+            takes.push(
+              <Take key="live" col={C.cyan}>
+                <B col={C.cyan}>{stillLive}</B> slot{stillLive > 1 ? 's are' : ' is'} still live — every sentence above
+                moves until the last out.
+              </Take>,
+            )
+          }
+        }
+
         const Flow = ({ num, title, note }) => (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '20px 0 8px', paddingBottom: 5, borderBottom: `1px solid ${C.border}` }}>
             <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 999, padding: '1px 8px' }}>{num}</span>
@@ -1145,31 +1250,95 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
           </div>
         )
+        // A demoted panel: closed by default, honest label about what's inside.
+        const Fold = ({ label, children }) => (
+          <details style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 8 }}>
+            <summary style={{ padding: '8px 13px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
+            <div style={{ padding: '4px 10px 10px' }}>{children}</div>
+          </details>
+        )
+
         return (
         <>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+          {/* 1 · THE TAKEAWAYS — sentences before any chart */}
+          <Flow num="1" title="The takeaways" note="tonight in sentences — every claim computed from the graded slots, nothing editorial" />
+          <div style={{
+            background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
+            border: `1px solid ${C.border}`, borderRadius: 13,
+            padding: '12px 15px', display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 4,
+          }}>
+            {takes}
+          </div>
+
+          {/* 2 · THE NIGHT IN NUMBERS — the tiles, capture detail folded */}
+          <Flow num="2" title="The night in numbers" note="the same story as the sentences, as tiles" />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
             <Tile label="Did its job" value={withJob.length ? `${((100 * didJob) / withJob.length).toFixed(0)}%` : '—'} sub={`${didJob}/${withJob.length} picks, own bars`} col="#4ade80" />
             <Tile label="Base hit" value={judge.length ? `${((100 * baseHit) / judge.length).toFixed(0)}%` : '—'} sub={`${baseHit}/${judge.length} of every pick`} col="#60A5FA" />
             <Tile label="If graded HR-only" value={judge.length ? `${((100 * hrOnly) / judge.length).toFixed(0)}%` : '—'} sub={`${hrOnly}/${judge.length} — the unfair yardstick`} col={C.orange} />
             <Tile label="Multi-hit / multi-HR" value={multi} sub="big individual nights" col="#FCD34D" />
             <Tile label="HR capture" value={`${capPct.toFixed(0)}%`} sub="slate homers on the sheet" col="#38bdf8" />
           </div>
-          <CaptureBanner report={captureReport} uniqueReport={uniqueReport} />
+          <Fold label="📡 Capture detail — the full net, caught vs missed">
+            <CaptureBanner report={captureReport} uniqueReport={uniqueReport} />
+          </Fold>
 
-          <Flow num="2" title="Who delivered" note="homers first, then the multi-hit nights" />
+          {/* 3 · WHO DELIVERED — names stay visible; names are the takeaway */}
+          <Flow num="3" title="Who delivered" note="homers first, then the multi-hit nights" />
           <HRHits homers={homers} />
           <MultiHitCluster slots={slots} />
 
-          <Flow num="3" title="How each lane did" note="every category against its own bar" />
-          <CategoryBar slots={slots} />
+          {/* 4 · THE LANES — sentence-sized lines, bars folded */}
+          <Flow num="4" title="How each lane did" note="every category against its own bar, smallest samples included" />
+          {laneList.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              {laneList.map((l) => (
+                <span key={l.role} title={`A ${l.label} pick's job is ${l.job}.`} style={{
+                  display: 'inline-flex', alignItems: 'baseline', gap: 6,
+                  border: `1px solid ${l.color}44`, background: `${l.color}10`, borderRadius: 9, padding: '4px 11px',
+                }}>
+                  <span style={{ fontSize: 10, fontWeight: 900, color: l.color, fontFamily: NUM_FONT }}>{l.label}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text, fontFamily: NUM_FONT }}>{l.did}/{l.n}</span>
+                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{((100 * l.did) / l.n).toFixed(0)}%</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <Fold label="📊 Lane bars — the same rates drawn against HR and hit counts">
+            <CategoryBar slots={slots} />
+          </Fold>
 
-          <Flow num="4" title="Model checks" note="what's being tracked, the slate summary, and whether the scores meant anything tonight" />
-          <TrackingLegend slots={slots} />
-          <ExpandedStats slots={slots} players={players} />
-          <ScoreAudit slots={slots} players={players} />
+          {/* 5 · MODEL CHECKS — all receipts, all folded */}
+          <Flow num="5" title="Model checks" note="the receipts — open when you want to audit, skip when you just want the read" />
+          <Fold label="🔬 Flags, slate summary and score audit — did the numbers mean anything tonight">
+            <TrackingLegend slots={slots} />
+            <ExpandedStats slots={slots} players={players} />
+            <ScoreAudit slots={slots} players={players} />
+          </Fold>
 
-          <Flow num="5" title="What got away" note="homers the sheet never had" />
-          <MissedHRs report={captureReport} />
+          {/* 6 · WHAT GOT AWAY — the sentence up top already counted them */}
+          <Flow num="6" title="What got away" note="homers the sheet never had — the model's real misses" />
+          {missedList.length > 0 ? (
+            <>
+              <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6, marginBottom: 8 }}>
+                {missedList.slice(0, 3).map((h, i) => (
+                  <span key={i}>
+                    <b style={{ color: C.text }}>{clean(h?.name, '—')}</b>
+                    <span style={{ color: C.text3, fontFamily: NUM_FONT }}> {clean(h?.team, '')}</span>
+                    {i < Math.min(3, missedList.length) - 1 ? ', ' : ''}
+                  </span>
+                ))}
+                {missedList.length > 3 ? ` and ${missedList.length - 3} more` : ''} homered from off the sheet.
+              </div>
+              <Fold label={`❌ The full missed list (${missedList.length})`}>
+                <MissedHRs report={captureReport} />
+              </Fold>
+            </>
+          ) : (
+            <div style={{ fontSize: 11, color: C.text3, marginBottom: 8 }}>
+              Nothing got away{capTotal > 0 ? ' — every slate homer was on the sheet somewhere' : ' yet'}.
+            </div>
+          )}
         </>
         )
       })()}
