@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { dataUrl } from '../lib/dataSource'
-import { nameOf, teamOf, playerId, n, clean } from '../lib/player'
+import { nameOf, teamOf, n } from '../lib/player'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
 // home run people are hitting — like if you notice more people getting their
@@ -53,13 +53,18 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
           // date gate — the live file keeps the last graded slate until the
           // next one starts grading, so an ungated read shows a stale night
           if (String(j.date || '') !== String(dateKey)) { setRows(null); return }
-          const out = []
+          // DEDUPE BY PLAYER (2026-08-09). A hitter designated in two
+          // categories (TOP *and* HR, say) gets a graded slot per category,
+          // each carrying the same actual_hr — walking the slots naively
+          // counted his homer twice and inflated the night's total. One
+          // entry per player, keeping the max.
+          const byPid = new Map()
           ;(j.graded_slots || j.results || []).forEach((s) => {
             const hr = n(s?.actual_hr, 0)
             const pid = Number(s?.player_id)
-            if (hr > 0 && pid) out.push({ pid, hr })
+            if (hr > 0 && pid) byPid.set(pid, Math.max(byPid.get(pid) || 0, hr))
           })
-          setRows(out)
+          setRows([...byPid.entries()].map(([pid, hr]) => ({ pid, hr })))
         })
         .catch(() => {})
     }
@@ -70,7 +75,12 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
 
   const model = useMemo(() => {
     if (!rows?.length) return null
-    const byId = new Map(players.map((p) => [Number(playerId(p)), p]))
+    // THE BUG THAT BLANKED EVERY NUMBER (2026-08-09): this keyed the map with
+    // playerId(), which returns a COMPOSITE "id-gamePk" string — Number() of
+    // that is NaN, so every lookup missed, every season count fell back to
+    // "—" and every lineup spot vanished. The graded rows publish the plain
+    // numeric player_id; the slate rows carry the same one. Join on it.
+    const byId = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
     const spots = Array(10).fill(0)          // index 1..9
     const cards = []
     let total = 0
