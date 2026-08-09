@@ -102,6 +102,37 @@ function VenueHrRow({ pid, venueName, gamePk }) {
   )
 }
 
+// 🧤 opponent team defense (2026-08-08): BABIP-against + league percentile,
+// live from season totals. Matters most for HIT/TB picks — a leaky defense
+// turns his ground balls into knocks. Context row; scores untouched until
+// the archive validates it (two-lane rule).
+function OppDefenseRow({ opp }) {
+  const [d, setD] = useState(undefined)
+  useEffect(() => {
+    let alive = true
+    setD(undefined)
+    if (!opp) { setD(null); return undefined }
+    import('../lib/defense').then(({ teamDefense }) =>
+      teamDefense().then((m) => { if (alive) setD(m?.get(String(opp).toUpperCase()) || null) }))
+      .catch(() => { if (alive) setD(null) })
+    return () => { alive = false }
+  }, [opp])
+  if (d === undefined) return <Row label="Opp defense" value="…" />
+  if (!d) return null
+  const col = d.pct >= 80 ? C.orange : d.pct <= 20 ? '#38bdf8' : C.text
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}
+        title={`${opp}'s BABIP-against: how often a ball in play against them becomes a hit, from the league's season totals. Percentile vs all 30 teams — high = leaky defense, good news for HIT/TB props. Context only; not folded into any score.`}>
+        Opp defense
+      </span>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col }}>
+        .{String(Math.round(d.babip * 1000)).padStart(3, '0')} BABIP · {d.word}
+      </span>
+    </div>
+  )
+}
+
 function Row({ label, value, mono = true }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
@@ -409,6 +440,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="TB Score"  value={tbScore(p).toFixed(1)} />
                   <Row label="Pitch Mix" value={pitchMixScore(p).toFixed(1)} />
                   <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} gamePk={p?.game_pk} />
+                  <OppDefenseRow opp={clean(p?.opponent || p?.opp, '')} />
                   <PullWallRow bats={clean(p?.bats || p?.handedness, '')} venueName={clean(p?.venue_name, '')} />
                 </div>
                 <div>
