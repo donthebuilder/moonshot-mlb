@@ -65,6 +65,53 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
       />
 
+      {/* 🕘 THE WIRE (2026-08-08, "more alive yet still a library"): the
+          freshest co-HR connections as a scrolling ticker strip — days-ago
+          leading, today's pulse glowing. The archive below is untouched;
+          this is just the library's new-arrivals shelf by the door. */}
+      {(() => {
+        const fresh = pairs
+          .filter((p) => n(p?.days_since_last_hit, null) != null)
+          .sort((a, b) => n(a?.days_since_last_hit, 999) - n(b?.days_since_last_hit, 999)
+            || n(b?.repeat_count, 0) - n(a?.repeat_count, 0))
+          .slice(0, 12)
+        if (!fresh.length) return null
+        return (
+          <div style={{
+            display: 'flex', gap: 6, overflowX: 'auto', padding: '7px 2px', marginBottom: 10,
+            borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
+            alignItems: 'center', WebkitOverflowScrolling: 'touch',
+          }}>
+            <span style={{
+              fontSize: 8.5, fontWeight: 900, color: C.orange, letterSpacing: '.09em',
+              textTransform: 'uppercase', flexShrink: 0, fontFamily: NUM_FONT,
+            }}>Latest connections →</span>
+            {fresh.map((pr, i) => {
+              const since = n(pr?.days_since_last_hit, null)
+              const today = since === 0
+              const col = today ? '#4ade80' : since != null && since <= 3 ? C.orange : C.text3
+              return (
+                <span key={i}
+                  title={`${clean(pr?.player_1, '?')} + ${clean(pr?.player_2, '?')} — ${n(pr?.repeat_count, 0)} co-HR days this season, last ${clean(pr?.last_hit_date ?? pr?.last_same_day_hr, '—')}${pr?.same_game_flag ? ' · has same-game history' : ''}`}
+                  style={{
+                    flexShrink: 0, display: 'inline-flex', gap: 6, alignItems: 'baseline',
+                    fontSize: 10, fontWeight: 700, fontFamily: NUM_FONT,
+                    border: `1px solid ${col}44`, borderRadius: 999, padding: '3px 10px',
+                    background: today ? 'rgba(74,222,128,.10)' : 'transparent',
+                    boxShadow: today ? '0 0 10px rgba(74,222,128,.25)' : 'none',
+                    color: C.text2, cursor: 'help', whiteSpace: 'nowrap',
+                  }}>
+                  <b style={{ color: col }}>{today ? 'TODAY' : `${since}d`}</b>
+                  {clean(pr?.player_1, '?').split(' ').slice(-1)[0]} + {clean(pr?.player_2, '?').split(' ').slice(-1)[0]}
+                  <span style={{ color: C.text3 }}>×{n(pr?.repeat_count, 0)}</span>
+                  {pr?.same_game_flag ? <span>🎯</span> : null}
+                </span>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       <div style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 720,
