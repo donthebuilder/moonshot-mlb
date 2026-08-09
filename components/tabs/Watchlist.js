@@ -7,7 +7,6 @@ import {
 import { tierRole, isAligned } from '../../lib/scoring'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
-import HitterHeat from '../HitterHeat'
 import DenseTable from '../DenseTable'
 import PlayerCard from '../PlayerCard'
 import { downloadShareCard } from '../shareCard'
@@ -396,15 +395,10 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
           </div>
         }
       />
-      {/* A watchlist is a set you assembled by hand, so the useful question
-          isn't the ranking -- it's whether the names you saved actually have
-          anything in common, or whether you've collected six different bets. */}
-      <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
-
       {/* VITALS STRIP — the list as one glance: size, bot overlap, power,
           matchup edges. Each tile is the answer to a question you'd otherwise
           scan twelve cards for. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
         {(() => {
           const bots = items.filter((p) => botPickOf(p)).length
           const avgHr = items.reduce((s2, p) => s2 + hrScore(p), 0) / Math.max(1, items.length)
@@ -444,7 +438,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
         const chips = items.map((p) => ({ p, g: nightOf.get(String(playerId(p))) })).filter((x) => x.g)
         if (!chips.length) return null
         return (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
             {chips.map(({ p, g }) => {
               const hr = Number(g.actual_hr) > 0
               const hits = Number(g.actual_hits) || 0
@@ -471,86 +465,17 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
         )
       })()}
 
-      {/* BOT AGREEMENT. The first question about a hand-built list: which of
-          my saves does the bot also like tonight, and for what. One chip per
-          watched player who carries a game_pick_role. */}
-      {(() => {
-        const agreed = items.filter((p) => botPickOf(p))
-        if (!agreed.length) return null
-        return (
-          <div style={{ margin: '2px 0 12px' }}>
-            <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6 }}>
-              <b style={{ color: C.orange }}>{agreed.length}</b> of your {items.length} saved are
-              also bot picks tonight:
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {agreed.map((p) => (
-                <button
-                  key={playerId(p)}
-                  onClick={() => onPlayerClick?.(p)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-                    background: 'rgba(249,115,22,.10)', border: `1px solid ${C.orange}55`,
-                    borderRadius: 8, padding: '4px 10px',
-                  }}
-                >
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>{nameOf(p)}</span>
-                  <span style={{
-                    fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT,
-                    color: C.orange, letterSpacing: '.05em',
-                  }}>🤖 {botPickOf(p)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* OFF THE SLATE TONIGHT (2026-08-08, on request) — the saved names the
-          bot never scored tonight: not playing, not published, or saved from
-          an older slate. They'd otherwise sit in the cards below wearing
-          STALE numbers with nothing saying so. Click still opens the modal,
-          which pulls his season live when there's no bot row. */}
-      {(() => {
-        const slateIds = new Set(players.map((p) => String(playerId(p))))
-        const off = items.filter((p) => !slateIds.has(String(playerId(p))))
-        if (!off.length) return null
-        return (
-          <div style={{
-            display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
-            background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
-            padding: '7px 12px', marginBottom: 12,
-          }}>
-            <span style={{ fontSize: 10.5, fontWeight: 800, color: C.text2 }}>🌙 Not on tonight&apos;s slate</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>
-              saved but the bot didn&apos;t score them tonight — click for the live-season read
-            </span>
-            {off.map((p) => (
-              <button key={playerId(p)} onClick={() => onPlayerClick?.(p)}
-                title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.`}
-                style={{
-                  fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
-                  border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',
-                  borderRadius: 7, padding: '3px 9px',
-                }}>
-                {nameOf(p)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>{teamOf(p)}</span>
-              </button>
-            ))}
-          </div>
-        )
-      })()}
-
       {/* THE LIST AS A TABLE (2026-08-08, on request) — the same dense-table
           read the boards get, over just your saved names. Cards are for one
           player at a time; this is where the list gets COMPARED. Off-slate
           saves are excluded — their numbers would be stale — they live in the
-          strip above instead. */}
+          off-slate strip below instead. */}
       {(() => {
         const slateIds = new Set(players.map((p) => String(playerId(p))))
         const on = items.filter((p) => slateIds.has(String(playerId(p))))
         if (!on.length) return null
         return (
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 12 }}>
             <DenseTable
               rows={on.map((p) => ({
                 _key: String(playerId(p)),
@@ -621,28 +546,102 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
         )
       })()}
 
-      <HitterHeat
-        players={items}
-        type="hr"
-        title="Your watchlist"
-        topN={items.length}
-        showTable={false}
-        onPlayerClick={onPlayerClick}
-      />
+      {/* BOT AGREEMENT. The first question about a hand-built list: which of
+          my saves does the bot also like tonight, and for what. One chip per
+          watched player who carries a game_pick_role. */}
+      {(() => {
+        const agreed = items.filter((p) => botPickOf(p))
+        if (!agreed.length) return null
+        return (
+          <div style={{ margin: '2px 0 10px' }}>
+            <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6 }}>
+              <b style={{ color: C.orange }}>{agreed.length}</b> of your {items.length} saved are
+              also bot picks tonight:
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {agreed.map((p) => (
+                <button
+                  key={playerId(p)}
+                  onClick={() => onPlayerClick?.(p)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                    background: 'rgba(249,115,22,.10)', border: `1px solid ${C.orange}55`,
+                    borderRadius: 8, padding: '4px 10px',
+                  }}
+                >
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>{nameOf(p)}</span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT,
+                    color: C.orange, letterSpacing: '.05em',
+                  }}>🤖 {botPickOf(p)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
-      <Grid>
-        {items.map((p) => (
-          <PlayerCard
-            key={playerId(p)}
-            p={p}
-            type="hr"
-            onAdd={onAdd}
-            onWatch={onWatch}
-            watched={true}
-            onClick={() => onPlayerClick?.(p)}
-          />
-        ))}
-      </Grid>
+      {/* OFF THE SLATE TONIGHT (2026-08-08, on request) — the saved names the
+          bot never scored tonight: not playing, not published, or saved from
+          an older slate. They'd otherwise sit in the cards below wearing
+          STALE numbers with nothing saying so. Click still opens the modal,
+          which pulls his season live when there's no bot row. */}
+      {(() => {
+        const slateIds = new Set(players.map((p) => String(playerId(p))))
+        const off = items.filter((p) => !slateIds.has(String(playerId(p))))
+        if (!off.length) return null
+        return (
+          <div style={{
+            display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
+            background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
+            padding: '7px 12px', marginBottom: 10,
+          }}>
+            <span style={{ fontSize: 10.5, fontWeight: 800, color: C.text2 }}>🌙 Not on tonight&apos;s slate</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>
+              saved but the bot didn&apos;t score them tonight — click for the live-season read
+            </span>
+            {off.map((p) => (
+              <button key={playerId(p)} onClick={() => onPlayerClick?.(p)}
+                title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.`}
+                style={{
+                  fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
+                  border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',
+                  borderRadius: 7, padding: '3px 9px',
+                }}>
+                {nameOf(p)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>{teamOf(p)}</span>
+              </button>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* CARD VIEW, demoted (2026-08-08, on request) — the table above is the
+          star now; the one-card-per-player grid still exists for anyone who
+          wants the full card read, but collapsed so it stops pushing the
+          pairs and power tools off the screen. */}
+      <details style={{
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+        padding: '8px 14px', marginBottom: 10,
+      }}>
+        <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.text2 }}>
+          🃏 Card view — one full card per saved hitter ({items.length})
+        </summary>
+        <div style={{ marginTop: 10 }}>
+          <Grid>
+            {items.map((p) => (
+              <PlayerCard
+                key={playerId(p)}
+                p={p}
+                type="hr"
+                onAdd={onAdd}
+                onWatch={onWatch}
+                watched={true}
+                onClick={() => onPlayerClick?.(p)}
+              />
+            ))}
+          </Grid>
+        </div>
+      </details>
 
       {/* PAIRS WITHIN THE LIST. The first version here pre-anchored the full
           pair builder to the watchlist — which, by the builder's own rules,
@@ -656,6 +655,13 @@ export default function Watchlist({ items, players = [], pairSummary, results, o
       {items.length >= 2 && (
         <WatchlistPairs items={items} pairSummary={pairSummary} onPlayerClick={onPlayerClick} />
       )}
+
+      {/* CROSS-REFERENCE, moved to the bottom (2026-08-08, on request) — it's
+          a power tool, not the landing element. Paste any list, match it to
+          the slate, bulk-star the keepers. */}
+      <div style={{ marginTop: 14 }}>
+        <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
+      </div>
     </div>
   )
 }
@@ -710,7 +716,7 @@ function WatchlistPairs({ items, pairSummary, onPlayerClick }) {
   const withHist = rows.filter((r) => r.hasHist).length
 
   return (
-    <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
         <span style={{ fontSize: 12.5, fontWeight: 800 }}>🔗 Pairs within your list</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
