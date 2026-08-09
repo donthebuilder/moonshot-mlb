@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, oppOf, hrScore, hitScore, n, clean } from '../lib/player'
 import Heatmap from './Heatmap'
 import { penStatsFor } from '../lib/bullpen'
+import { xpaFor } from '../lib/xpa'
 
 // Projected output by game — expected COUNT, not a score.
 //
@@ -24,6 +25,34 @@ const CALIB = {
   'Proj bases': ['contact', { 0: 37.8, 40: 37.5, 55: 41.6, 70: 34.3, 85: 45.5 }],
 }
 const COLUMNS = Object.keys(CALIB)
+
+// MODEL V2 (2026-08-08 audit, bot-ship/docs/AUDIT_FINDINGS_2026-08-08.md).
+// The 38-day archive audit (3,629 player-days, 519 HR) measured that season
+// ISO predicts homers better than the board's own hr_score (AUC 0.620 vs
+// 0.540), and that recent form carries real signal (last5_hr 0 → 9.0% HR
+// rate, 3+ → 23.0%). So the HR probability is no longer score-band alone:
+//
+//   base   50/50 blend of the score-band rate (CALIB above, unchanged) and
+//          the measured season-ISO band rate below. ISO missing → score only.
+//   form   +10% relative per HR in his last 5 games, capped at +30%.
+//   xPA    × (expected PA from lineup slot ÷ 4.2 league average) — the
+//          leadoff man's extra trip is real; unknown slot → ×1, and
+//          unconfirmed lineups are dampened ×0.9 rather than dropped.
+//
+// These band rates are OBSERVED, like CALIB — do not tune by hand.
+const ISO_HR_BANDS = { 0: 8.2, 0.130: 11.0, 0.170: 15.5, 0.230: 22.2 }
+
+function hrProbV2(p) {
+  const scoreRate = bandRate(scoreOf(p, 'hr'), CALIB['Proj HR'][1])
+  const iso = n(p?.season_iso, NaN)
+  const base = Number.isFinite(iso)
+    ? 0.5 * scoreRate + 0.5 * bandRate(iso, ISO_HR_BANDS)
+    : scoreRate
+  const form = 1 + Math.min(0.30, 0.10 * Math.max(0, n(p?.last5_hr, 0)))
+  const xpa = xpaFor(p?.lineup_spot)
+  const paMult = (xpa ? xpa / 4.2 : 1) * (p?.lineup_confirmed === false ? 0.9 : 1)
+  return base * form * paMult
+}
 
 const contactScore = (p) => n(p?.contact_score_v2 ?? p?.contact_score, 0)
 const scoreOf = (p, kind) =>
@@ -74,7 +103,9 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       const values = {}
       COLUMNS.forEach((col) => {
         const [kind, bands] = CALIB[col]
-        values[col] = pool.reduce((sum, p) => sum + bandRate(scoreOf(p, kind), bands), 0)
+        values[col] = col === 'Proj HR'
+          ? pool.reduce((sum, p) => sum + hrProbV2(p), 0) // v2: ISO-blended, xPA-weighted
+          : pool.reduce((sum, p) => sum + bandRate(scoreOf(p, kind), bands), 0)
       })
 
       // ADJ HR — the calibrated projection with the environment and the pen
@@ -93,7 +124,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       // The base Proj HR column stays untouched — it's calibrated, this is
       // calibrated × modeled, and the caption keeps them distinct.
       values['Adj HR'] = pool.reduce((sum, p) => {
-        const base = bandRate(scoreOf(p, 'hr'), CALIB['Proj HR'][1])
+        const base = hrProbV2(p) // v2 base; the environment/pen layer is unchanged
         const park = n(p?.park_hr_factor, n(p?.park_dist_factor, 1)) || 1
         const temp = n(p?.weather_temp_f, n(p?.temp_f, 70)) || 70
         const air = Math.max(0.94, Math.min(1.06, 1 + (temp - 70) / 1000))
@@ -145,6 +176,14 @@ export default function ProjectedOutput({ games = [], players = [] }) {
         </div>
       </div>
 
+      <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, margin: '0 0 8px' }}>
+        <b style={{ color: C.text2 }}>model v2</b> — each hitter&apos;s HR probability blends his
+        score-band rate 50/50 with his measured season-ISO band rate (8.2% under .130 → 22.2% at
+        .230+, from the graded archive), weighted by expected PA from his lineup slot (÷4.2 avg,
+        ×0.9 if the lineup is unconfirmed), with a +10% form bump per last-5 HR capped at +30%
+        (measured: 0 recent HR → 9.0%, 3+ → 23.0%).
+      </div>
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 10 }}>
         {podium.map((r, i) => (
           <div key={r.label} title={`${r._count} tracked hitters · Proj hits ${r.values['Proj hits'].toFixed(1)} · Proj XBH ${r.values['Proj XBH'].toFixed(1)}`}
@@ -182,7 +221,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
         title="Projected output — expected count, not a score"
         labelWidth={150}
         fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-        caption="Each hitter's board score is converted to the rate that band actually produced over 34 graded days, then summed across the lineup. Adj HR layers the environment and the OPPOSING BULLPEN onto that base: park factor, air temperature, park-relative wind, and the pen's live HR/9 (from the MLB StatsAPI, weighted at the ~38% of innings pens cover) — because homers don't stop when the starter leaves, and the base projection never priced the 7th–9th. Proj HR is calibrated; Adj HR is calibrated × modeled — when they disagree, the gap is the environment and the pen. XBH and bases bands are non-monotone in the archive; treat those two as rough."
+        caption="Proj HR is model v2: each hitter's score-band rate (what his band actually produced over the graded archive) blended 50/50 with his season-ISO band rate — the audit's strongest single HR predictor — then scaled by expected PA from his lineup slot and his last-5 form, summed across the lineup. The other three columns are still score-band rates alone. Adj HR layers the environment and the OPPOSING BULLPEN onto that base: park factor, air temperature, park-relative wind, and the pen's live HR/9 (from the MLB StatsAPI, weighted at the ~38% of innings pens cover) — because homers don't stop when the starter leaves, and the base projection never priced the 7th–9th. Proj HR is calibrated; Adj HR is calibrated × modeled — when they disagree, the gap is the environment and the pen. XBH and bases bands are non-monotone in the archive; treat those two as rough."
       />
     </div>
   )
