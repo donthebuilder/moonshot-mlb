@@ -71,8 +71,17 @@ export const GLOSSARY = {
   'hrr score': 'Ranks him on scoring a run or driving one in, not just homers. Higher ranks better.',
   'hit': 'Ranks him on getting at least one base hit tonight. Higher ranks better.',
   'hit score': 'Ranks him on getting at least one base hit tonight. Higher ranks better.',
-  'tb': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better.',
-  'tb score': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better.',
+  // 2026-08-09: this one gets an honest health warning rather than a
+  // description. Backtested for the first time over 37 graded nights, the
+  // shipped contact score put 2+ total bases on the board 41.5% of the time
+  // against 41.1% for twenty names picked at random off the same slate. The
+  // formula was rebuilt from what actually separates the outcome, and the new
+  // one beat the old in 8 of 9 held-out tests — but it still has not been
+  // shown to beat a shuffle. Saying so is the whole point of the site.
+  'tb': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better. Trust this one least: across 37 graded nights the old version of this score finished level with picking names at random, so it was rebuilt on 2026-08-09 around recent extra-base form, the arm’s contact allowed and the park’s hit factor. The new one grades better but has not yet proven it beats a coin flip.',
+  'tb score': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better. Trust this one least: across 37 graded nights the old version finished level with picking names at random. Rebuilt 2026-08-09 and still under watch.',
+  'contact': 'The total-bases market — doubles, triples and homers, not just whether he got a hit. The weakest of the four scores by a distance; see TB score.',
+  'contact score': 'The total-bases market. Rebuilt 2026-08-09 after it graded out level with a random shuffle. Now built on recent extra-base form, the opposing arm’s contact allowed, and how many hits the park gives up. Better, not yet proven.',
   'hrw': 'HR Watch — the bot’s separate “he looks due to go deep” read, ranked. Higher ranks better.',
   'due': 'How long it has been since his last home run, scored. High means overdue — which is a story, not a reason.',
   'long': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',
