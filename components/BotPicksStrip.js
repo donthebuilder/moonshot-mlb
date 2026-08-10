@@ -2,7 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
-  n, clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
+  clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
 } from '../lib/player'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
@@ -35,6 +35,90 @@ import {
 // sticky bar eating a third of the viewport stops being navigation. This also
 // doesn't change minute to minute — it's fixed when the slate builds — so it
 // has no reason to follow you down the page.
+
+// ── the stat line, per category ──────────────────────────────────────────────
+// 2026-08-09, Donovan: "make sure the stats are relevant to each category."
+//
+// He was right, and the screenshot made it obvious: all four cards printed the
+// SAME line — `L5 9H/2HR/2XBH`. A card headed "Runs + RBI" was showing you
+// homers, and a card headed "Total bases" was showing you singles. The line
+// was describing the hitter in general instead of describing the reason he is
+// in THIS bucket, which is the one job it has.
+//
+// So each category now reads its own evidence, form first and a season anchor
+// behind it, because five games is a small window and the reader deserves to
+// know whether the hot line is a blip or the player:
+//
+//   HR       L5 3HR · 8.3% barrel · .245 ISO     did he hit them, can he hit them
+//   HIT      L5 9H · .310 · .274 szn             hits, and whether that's normal
+//   HRR      L5 4R/6RBI · 61R/74RBI szn          the actual scoring counters
+//   CONTACT  L5 9H/2XBH · .488 SLG               bases, not just hit-or-not
+//
+// FIELD VERIFICATION (verify-first). Every key was read out of the live
+// today_slim.json before this was written: last5_hits, last5_hr, last5_xbh,
+// last5_runs, last5_rbi, last5_avg, season_avg, season_slg, season_iso,
+// season_runs, season_rbi and l20pa_barrel_rate all ship on every hitter row.
+//
+// There is deliberately NO total-bases number on the CONTACT card even though
+// that is the market's name. The payload publishes hits and XBH but not
+// doubles/triples separately, so TB cannot be computed exactly — only guessed.
+// H and XBH are the two real numbers the guess would have been made from, so
+// they're what gets printed. Slugging carries the season side.
+//
+// Anything missing renders nothing. No zero-filler, no em-dashes.
+const iso3 = (v) => (v == null ? null : v.toFixed(3).replace(/^0/, ''))
+const numOrNull = (v) => (Number.isFinite(Number(v)) ? Number(v) : null)
+
+function statLine(p, role) {
+  const g = (k) => numOrNull(p?.[k])
+  const parts = []
+  const push = (t) => { if (t) parts.push(t) }
+
+  if (role === 'HR') {
+    const hr = g('last5_hr')
+    if (hr != null) push(`L5 ${hr}HR`)
+    const bar = g('l20pa_barrel_rate') ?? g('recent_barrel_rate')
+    if (bar != null) push(`${(bar * 100).toFixed(1)}% barrel`)
+    push(iso3(g('season_iso')) && `${iso3(g('season_iso'))} ISO`)
+  } else if (role === 'HIT') {
+    const h = g('last5_hits')
+    if (h != null) push(`L5 ${h}H`)
+    push(iso3(g('last5_avg')))
+    push(iso3(g('season_avg')) && `${iso3(g('season_avg'))} szn`)
+  } else if (role === 'HRR') {
+    const r = g('last5_runs')
+    const rbi = g('last5_rbi')
+    if (r != null || rbi != null) push(`L5 ${r ?? 0}R/${rbi ?? 0}RBI`)
+    const sr = g('season_runs')
+    const srbi = g('season_rbi')
+    if (sr != null && srbi != null) push(`${sr}R/${srbi}RBI szn`)
+  } else {
+    const h = g('last5_hits')
+    const x = g('last5_xbh')
+    if (h != null || x != null) push(`L5 ${h ?? 0}H/${x ?? 0}XBH`)
+    push(iso3(g('season_slg')) && `${iso3(g('season_slg'))} SLG`)
+  }
+  return parts.join(' · ')
+}
+
+// One number for the #2 and #3 rows — the same evidence, squeezed. These rows
+// only had a name and a score, which made them look like filler rather than
+// the two hitters the card says are nearly as good as the first one.
+function microStat(p, role) {
+  const g = (k) => numOrNull(p?.[k])
+  if (role === 'HR') {
+    const hr = g('last5_hr')
+    return hr != null ? `${hr}HR` : null
+  }
+  if (role === 'HIT') return iso3(g('last5_avg'))
+  if (role === 'HRR') {
+    const r = g('last5_runs')
+    const rbi = g('last5_rbi')
+    return r != null || rbi != null ? `${(r ?? 0) + (rbi ?? 0)} R+RBI` : null
+  }
+  const x = g('last5_xbh')
+  return x != null ? `${x}XBH` : null
+}
 
 const CATEGORIES = [
   // The bot's own score, and as of 2026-08-09 that is what the whole site
@@ -124,9 +208,14 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
                         fontWeight: 900, color: f.color,
                       }}>{f.score(lead).toFixed(1)}</span>
                     </div>
-                    <div style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT, marginTop: 2 }}>
-                      L5 {n(lead?.last5_hits, 0)}H/{n(lead?.last5_hr, 0)}HR/{n(lead?.last5_xbh, 0)}XBH
-                    </div>
+                    {statLine(lead, f.role) && (
+                      <div style={{
+                        fontSize: 10, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
+                        {statLine(lead, f.role)}
+                      </div>
+                    )}
                     <div style={{
                       fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -165,8 +254,19 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
                           <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
                             {teamOf(p)}
                           </span>
+                          {microStat(p, f.role) && (
+                            <span style={{
+                              marginLeft: 'auto', fontSize: 9, color: C.text3,
+                              fontFamily: NUM_FONT, flexShrink: 0,
+                            }}>{microStat(p, f.role)}</span>
+                          )}
+                          {/* The micro-stat above owns the `auto` margin, so the
+                              score gets a fixed gap. Two `auto` margins in one
+                              flex row split the free space between them and the
+                              score would drift to the middle of the row. */}
                           <span style={{
-                            marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11,
+                            marginLeft: microStat(p, f.role) ? 6 : 'auto',
+                            fontFamily: NUM_FONT, fontSize: 11,
                             fontWeight: 800, color: f.color, flexShrink: 0,
                           }}>{f.score(p).toFixed(1)}</span>
                         </div>
@@ -183,8 +283,11 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
       <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         The category is the bot&apos;s own <code>game_pick_role</code>; ranking inside it is by the top
         score <b style={{ color: C.text2 }}>on that category&apos;s scale</b> — HR score for HR, hit
-        score for HIT, and so on. Three deep because the archive says #1 vs #2 is close to a coin
-        flip, and one name per bucket dies with a scratch.
+        score for HIT, and so on. The line under each name is{' '}
+        <b style={{ color: C.text2 }}>that category&apos;s own evidence</b>: homers and barrels for HR,
+        hits and average for HIT, runs and RBI for HRR, extra-base hits and slugging for CONTACT —
+        recent form first, season behind it. Three deep because the archive says #1 vs #2 is close
+        to a coin flip, and one name per bucket dies with a scratch.
         {' '}⭐ marks a weak lineup spot against tonight&apos;s starter. Click any name to open the hitter.
       </div>
     </div>
