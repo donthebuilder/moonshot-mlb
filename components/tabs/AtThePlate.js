@@ -10,6 +10,7 @@ import {
 } from '../../lib/livePitches'
 import { Empty, Band } from '../ui'
 import LiveAtBats from '../LiveAtBats'
+import JustNow from '../JustNow'
 import ZoneMap from '../ZoneMap'
 import SprayField from '../SprayField'
 
@@ -377,6 +378,13 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         watchIds={watchIds}
         onGo={(pk) => setPinnedGame(pk)}
       />
+
+      {/* ── 0b · AND HOW THE LAST ONES ENDED ──────────────────────────────
+          The strip above is who is up; this is how it finished, for the names
+          you have skin on. Scoped to picks + watchlist on purpose — see
+          fetchSkinEvents() for the cost reasoning. Renders nothing when
+          nothing of yours has completed a plate appearance. */}
+      <JustNow players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
 
       {/* ── 1 · WHICH GAME ─────────────────────────────────────────────── */}
       {liveGames.length > 1 && (
