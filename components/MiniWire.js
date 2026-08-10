@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { notify, requestPermission, ensureWorker, installHint, canNotify } from '../lib/notify'
 import { nameOf, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared, fetchHrContext } from '../lib/liveSlate'
 
@@ -50,8 +51,14 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
   useEffect(() => { notifRef.current = notif }, [notif])
   const toggleNotif = async () => {
     if (notif === 'on') { setNotif('off'); try { localStorage.setItem('wire_notif', 'off') } catch {} ; return }
-    if (typeof Notification === 'undefined') return
-    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+    if (!canNotify()) return
+    // iOS grants nothing to a plain tab — say so instead of appearing broken.
+    const hint = installHint()
+    if (hint) {
+      addToasts([{ key: `ios:${Date.now()}`, icon: '📲', pri: 0, p: null, text: hint }])
+      return
+    }
+    const perm = await requestPermission()
     if (perm === 'granted') {
       setNotif('on'); notifRef.current = 'on'
       try { localStorage.setItem('wire_notif', 'on') } catch {}
@@ -62,6 +69,10 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
         text: 'Armed — 💥 homers and 🎤 "your pick is batting NOW" reach you even while you\'re looking at the site. Bar clears, on-deck and K-alerts wait until the tab is hidden.' }])
     }
   }
+  // Register early when permission is already granted, so the first alert of
+  // the night doesn't have to wait on the worker installing.
+  useEffect(() => { if (canNotify() && Notification.permission === 'granted') ensureWorker() }, [])
+
   const prevRef = useRef(null)     // previous lines, for the diff
   const firedRef = useRef(new Set()) // dedupe keys across refreshes
 
@@ -148,8 +159,11 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
       // he can only act on it during the at-bat — was the one most likely to
       // be withheld. Homers (0) and up-now (0.5) now always reach the OS;
       // everything else still waits for the tab to be in the background.
+      // Through the SERVICE WORKER now, not `new Notification` (lib/notify).
+      // The page API is unreliable on Android and dies when the phone freezes
+      // the tab — which is precisely the case these alerts exist for.
       items.filter((t) => t.pri <= 0.5 || (hidden && t.pri <= 2)).slice(0, 3).forEach((t) => {
-        try { new Notification(`${t.icon} Moonshot`, { body: t.text, tag: t.key, silent: t.pri > 0.5 }) } catch {}
+        notify({ title: `${t.icon} Moonshot`, body: t.text, tag: t.key, silent: t.pri > 0.5 })
       })
     }
     // Dwell. Shorter on a phone, and homers still get roughly double
