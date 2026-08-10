@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { C, NUM_FONT, TABS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import SlateTiles from './SlateTiles'
+import PaletteButton from './PaletteButton'
 
 // ── live capture ticker ───────────────────────────────────────────────────────
 
@@ -255,6 +256,11 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
 
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <DateBadge label={dateLabel || 'Loading…'} />
+          {/* PALETTE, GLOBAL (2026-08-10). It used to live in the Guide tab and
+              on the heat map legend only — two clicks away from the board you
+              are squinting at. It is a view setting, so it sits with the other
+              one. */}
+          <PaletteButton />
           <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1px solid ${C.border}` }}>
             <button
               onClick={() => setMode('today')}
