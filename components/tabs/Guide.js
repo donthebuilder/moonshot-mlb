@@ -176,8 +176,10 @@ function ColorKey() {
 
       <P>
         {active === 'ember'
-          ? 'One colour, nine steps: dim is low, bright amber is high. There is no second colour for “bad”, because a low score isn’t bad — it’s just low.'
-          : 'The site’s own colours, lit. Dark red is a weak spot, orange and yellow are middling, deep green is the best thing on the board. The cell stays dark and the NUMBER carries the colour, so a strong stat glows instead of being painted in.'}
+          ? 'One colour, nine steps. The worst cell is BLACK — on this scale the bottom means “none”, not “bad”, so an empty stat reads as empty. Amber climbs out of it as the number grows.'
+          : active === 'verdict'
+            ? 'Three hard tiers. Neon red is avoid, amber is okay, neon green is play. Fastest to skim; it gives you the tier and little else.'
+            : 'Dark cell, lit number. Red is weak, amber is middling, green is strong, and every step between them is visible — the one to use when you are ranking a whole column rather than spotting the extremes.'}
       </P>
       <P>
         <b>Every column is scaled on its own</b> — a strong colour means high <i>for tonight, in that
