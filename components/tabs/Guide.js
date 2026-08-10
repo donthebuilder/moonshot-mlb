@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { ORANGE_RAMP, inkFor } from '../Heatmap'
+import PaletteToggle from '../PaletteToggle'
+import { RAMPS, usePalette } from '../../lib/palette'
 
 // GUIDE — rewritten short, 2026-08-09.
 //
@@ -143,7 +145,13 @@ const STEPS = [
 // attached to it, so it stays — trimmed to the two facts that actually change
 // how you read a board.
 function ColorKey() {
-  const steps = ['lowest', '', '', '', '', '', '', 'highest']
+  // 2026-08-09: this used to hard-code "eight steps, dark is low, bright amber
+  // is high" and a `steps` array indexed 0-7. Both were wrong the moment the
+  // ramps became switchable and nine stops — the eighth label vanished and the
+  // prose described a palette you might not be looking at. Everything now
+  // derives from the active ramp.
+  const active = usePalette()
+  const stops = RAMPS[active]?.stops || []
   return (
     <div style={{
       background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
@@ -151,32 +159,37 @@ function ColorKey() {
     }}>
       <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 3 }}>🎨 Reading the colours</div>
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 9 }}>
-        <b style={{ color: C.text2 }}>What this answers:</b> what a bright cell on any board means.
+        <b style={{ color: C.text2 }}>What this answers:</b> what a coloured cell on any board means.
       </div>
 
       <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', marginBottom: 9 }}>
-        {ORANGE_RAMP.map((c, i) => (
+        {stops.map((c, i) => (
           <div key={c} style={{
             flex: 1, background: c, color: inkFor(c), fontFamily: NUM_FONT,
             fontSize: 8.5, fontWeight: 700, textAlign: 'center', padding: '7px 2px',
             textTransform: 'uppercase', letterSpacing: '.04em',
-          }}>{steps[i]}</div>
+          }}>{i === 0 ? 'lowest' : i === stops.length - 1 ? 'highest' : ''}</div>
         ))}
       </div>
 
+      <div style={{ marginBottom: 10 }}><PaletteToggle /></div>
+
       <P>
-        One colour, eight steps: dark is low, bright amber is high. There is no second colour for
-        &ldquo;bad&rdquo;, because a low score isn&apos;t bad, it&apos;s just low.
+        {active === 'ember'
+          ? 'One colour, nine steps: dim is low, bright amber is high. There is no second colour for “bad”, because a low score isn’t bad — it’s just low.'
+          : active === 'propfinder'
+            ? 'Three bands. Red is a weak spot, yellow is okay, green is a strong one — the way a prop tool reads. Fastest to skim; it tells you the tier and not much else.'
+            : 'Red through amber to green. Red is weak, green is strong, and every step in between is visible, so you can rank a whole column and not just spot the extremes.'}
       </P>
       <P>
-        <b>Every column is scaled on its own</b> — bright means high <i>for tonight, in that column</i>,
-        not big in absolute terms and never comparable across columns. On a quiet slate the best
-        hitter available still lights up.
+        <b>Every column is scaled on its own</b> — a strong colour means high <i>for tonight, in that
+        column</i>, not big in absolute terms and never comparable across columns. On a quiet slate
+        the best hitter available still lights up.
       </P>
       <P>
-        Three columns run <b>backwards</b> on purpose, because bright always means good for the
+        Three columns run <b>backwards</b> on purpose, because the strong end always means good for the
         hitter: <b>K%</b> on the Scoreboard, <b>K/9</b> and <b>SwStr%</b> on Pitchers. A pitcher who
-        misses bats stays dark.
+        misses bats stays at the weak end.
       </P>
     </div>
   )
@@ -193,6 +206,21 @@ export default function Guide({ onNavigate }) {
           itself on it the next morning. You don&apos;t need to know a single advanced stat to use
           it — follow the five steps below in order.
         </P>
+      </div>
+
+      {/* The palette picker lives here rather than buried in a settings menu.
+          Colour is how every board on this site says "high" and "low", so
+          choosing the scale is part of learning to read the site, not an
+          afterthought. */}
+      <div style={{
+        border: `1px solid ${C.border}`, borderRadius: 12,
+        padding: '11px 13px', marginBottom: 18, background: C.bg2,
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 2 }}>🎨 Heat colours</div>
+        <div style={{ fontSize: 10, color: C.text3, marginBottom: 8 }}>
+          How every board shows strong versus weak. Pick the one you read fastest.
+        </div>
+        <PaletteToggle />
       </div>
 
       {/* ── START HERE — the whole reason this page exists ── */}

@@ -1,6 +1,8 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { activeStops, inkOn, subscribe } from '../lib/palette'
+import PaletteToggle from './PaletteToggle'
 
 // Heatmap — the chart the Streamlit build leans on hardest, ported.
 //
@@ -13,106 +15,38 @@ import { C, NUM_FONT } from '../lib/theme'
 // and the first three all failed the same way, by asking BRIGHTNESS to carry
 // the whole signal on a near-black page.
 
-// ══ RAMP v3 — TRAFFIC LIGHT (2026-08-09) ═════════════════════════════════
-// Donovan: "try red green and yellow for the heat map and make it easily
-// readable — the heat map we have right now is not readable."
+// ══ THE RAMP LIVES IN lib/palette.js NOW (2026-08-09) ════════════════════
+// Donovan asked for a toggle: his original ember, the traffic light, and a
+// PropFinder-style three-band red/yellow/green. All three, how they were
+// solved, and why every earlier ramp was hard to read are documented there.
 //
-// WHY v2 WASN'T READABLE, and it is a design fault rather than a taste one.
-// Every version up to now was ONE HUE varying only in BRIGHTNESS, on a
-// near-black page. That has two problems that compound:
-//
-//   1. Brightness is the weakest channel the eye has for comparing things
-//      that are not touching. Two cells four rows apart, both dim orange,
-//      are genuinely hard to rank — you end up reading the number instead,
-//      which is the heatmap failing at its only job.
-//   2. Half the ramp lived at 1.4–3:1 against the background. v2's fix was
-//      to make the low end "quiet" charcoal, which solved the mud and made
-//      the bottom half of every table read as EMPTY rather than as low.
-//
-// v3 gives the work to HUE. Red means weak, amber means middling, green
-// means strong — a mapping nobody has to be taught, and one the eye resolves
-// instantly at any distance and any cell size.
-//
-// BUILT BY CONSTRUCTION, NOT BY EYE. Picking nine nice-looking hexes gives
-// you a ramp with a yellow-green plateau where three steps collapse into one
-// shade. Instead the hue walks 2° to 142° while LUMINANCE is forced to climb
-// a fixed ladder (0.094 → 0.573, strictly increasing). Measured:
-//
-//   stop  hex       vs page  ink     text     lum    Δ prev
-//   0     #a12b26    2.74    white   6.84    0.094    -
-//   1     #b8402a    3.60    white   5.20    0.140    57
-//   2     #c25a22    4.53    dark    4.50    0.189    56
-//   3     #c47617    5.64    dark    5.61    0.248    58
-//   4     #bd9110    6.84    dark    6.81    0.311    56
-//   5     #aeae17    8.40    dark    8.36    0.393    64
-//   6     #86c92c    9.86    dark    9.81    0.470    90
-//   7     #74d45e   10.73    dark   10.67    0.516    87
-//   8     #6fdd97   11.81    dark   11.75    0.573    93
-//
-//   worst text contrast anywhere  4.50:1  (WCAG AA body text is 4.5)
-//   closest two neighbours        Δ56     (~30 already reads as different)
-//   red end vs green end          Δ406
-//
-// v2's worst case was 2.34:1. Every cell on this ramp is now readable.
-//
-// THE COLOUR-BLINDNESS PROBLEM, HANDLED. Red/green is the worst possible
-// pair for deuteranopia — roughly 8% of men — and a naive traffic light is
-// exactly the chart those readers can't use. That is why luminance is forced
-// to rise monotonically across all nine stops: strip the colour out entirely
-// and the ramp is STILL correctly ordered, dark to light. Hue is the fast
-// read; lightness is the fallback that never lies.
-//
-// Same 9-stop array, same API, same exported name — every table, zone map
-// and matchup grid on the site inherits this without a further edit.
-export const ORANGE_RAMP = [
-  '#a12b26', // weak
-  '#b8402a',
-  '#c25a22',
-  '#c47617', // middling
-  '#bd9110',
-  '#aeae17',
-  '#86c92c',
-  '#74d45e',
-  '#6fdd97', // strong
-]
+// This file keeps `ORANGE_RAMP` and `inkFor` exported under their old names
+// so the ~30 call sites across the site keep working untouched — but both now
+// read the ACTIVE ramp rather than a frozen array. Renaming the export would
+// have been tidier and would also have been a thirty-file diff for no gain.
 
-// Ink is near-black from step 2 up. Off-white only survives on the two
-// darkest reds — measured above, not assumed, which is how the previous
-// threshold ended up two steps too high after a ramp change.
-const INK_DARK = '#0a0a0b'
-const INK_LIGHT = '#f8f8f8'
+export { RAMPS, RAMP_IDS, DEFAULT_RAMP, usePalette, setRamp, getRamp, hydrateRamp } from '../lib/palette'
+
+// A live view of the active ramp. Same array object forever, contents swapped
+// in place when the palette changes.
+//
+// The first version of this was a Proxy over `[]`, which looked elegant and is
+// a trap: the target is a real array whose `length` is non-configurable, so
+// `ownKeys`/`getOwnPropertyDescriptor` can violate proxy invariants and throw
+// a TypeError at render. Mutating one array has none of that risk and reads
+// like what it is.
+export const ORANGE_RAMP = [...activeStops()]
+subscribe(() => { ORANGE_RAMP.length = 0; ORANGE_RAMP.push(...activeStops()) })
+
+export const inkFor = inkOn
 
 export function rampColor(v, lo, hi) {
   const f = Number(v)
   if (!Number.isFinite(f)) return null
+  const stops = activeStops()
   const span = hi - lo
   const pos = span <= 0 ? 0 : Math.max(0, Math.min(1, (f - lo) / span))
-  return ORANGE_RAMP[Math.min(ORANGE_RAMP.length - 1, Math.floor(pos * ORANGE_RAMP.length))]
-}
-
-// Where light ink stops winning, computed once from the ramp itself.
-const _lum = (h) => {
-  const p = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
-    .map((s) => (s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4))
-  return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]
-}
-const _ratio = (a, b) => {
-  const [hi, lo] = _lum(a) > _lum(b) ? [_lum(a), _lum(b)] : [_lum(b), _lum(a)]
-  return (hi + 0.05) / (lo + 0.05)
-}
-const INK_CROSSOVER = (() => {
-  const i = ORANGE_RAMP.findIndex((c) => _ratio(c, INK_DARK) > _ratio(c, INK_LIGHT))
-  return i < 0 ? ORANGE_RAMP.length : i
-})()
-
-export const inkFor = (bg) => {
-  // v3: the crossover is step 2, and it is DERIVED rather than typed in — the
-  // last two times this ramp changed, the hard-coded threshold was left behind
-  // and cells silently got harder to read as they got brighter. Computing it
-  // from the ramp means the ink can never disagree with the fill again.
-  const i = ORANGE_RAMP.indexOf(bg)
-  if (i < 0) return INK_LIGHT
-  return i >= INK_CROSSOVER ? INK_DARK : INK_LIGHT
+  return stops[Math.min(stops.length - 1, Math.floor(pos * stops.length))]
 }
 
 /**
@@ -276,10 +210,14 @@ export default function Heatmap({
           ))}
         </span>
         <span>high</span>
-        <span style={{ marginLeft: 4, flex: 1 }}>
-          {caption || 'Each column is scaled on its own, so a bright cell means high for this slate on that input — not comparable across columns.'}
+        <span style={{ marginLeft: 4, flex: 1, minWidth: 180 }}>
+          {caption || 'Each column is scaled on its own, so a strong cell means high for this slate on that input — not comparable across columns.'}
           {' '}Click a column to sort; click it twice more to clear.
         </span>
+        {/* The picker sits ON the legend because that is where someone is
+            already looking when they think "I can't read this". Burying it in
+            a settings menu means the complaint never turns into a fix. */}
+        <span style={{ flexBasis: 220, flexShrink: 0 }}><PaletteToggle compact /></span>
       </div>
     </div>
   )
