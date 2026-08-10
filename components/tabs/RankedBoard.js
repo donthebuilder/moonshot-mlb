@@ -13,7 +13,7 @@ import DenseTable from '../DenseTable'
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
-  hr:  ['HR Board',          'Top home run picks — ranked ISO-adjusted: raw score × measured HR rate of the hitter’s ISO band (8.2% low to 22.2% high, from 3,973 graded picks)'],
+  hr:  ['HR Board',          'Tonight’s home run picks, ranked by the bot’s own HR score — with season ISO beside it, because the archive says power matters more than the score does'],
   hrr: ['HRR Board',         'Top runs + RBI picks'],
   hit: ['Hits Board',        'Top base-hit picks'],
   tb:  ['Total Bases Board', 'Top contact / total-base picks'],
@@ -158,7 +158,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               // whatever board you're reading, the HR context is one glance
               // away — a HIT pick with a live 70 HR score is a different bet
               // than one at 30.
-              ...(type === 'hr' ? { raw: hrScore(p), iso: nn(p?.season_iso) * 100 } : { hrRaw: hrScore(p) }),
+              ...(type === 'hr' ? { iso: nn(p?.season_iso) * 100 } : { hrRaw: hrScore(p) }),
               rec: rec ? (rec[1] >= 3 ? `${(100 * rec[0] / rec[1]).toFixed(0)}% (${rec[0]}/${rec[1]})` : `${rec[0]}/${rec[1]}`) : '—',
               recSort: rec && rec[1] >= 3 ? (100 * rec[0]) / rec[1] : null,
               bestOther: `${best[0]} ${best[1].toFixed(0)}`,
@@ -195,18 +195,24 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: ['hr', 'hrr'].includes(type)
                 ? 'Pitch match — his damage pitches overlap tonight\'s arsenal: 18.4% vs 13.6% HR, and it stacks with ★ (23.3% together)'
                 : 'Pitch match — HR-validated (18.4% vs 13.6%). Context on this board, not category proof.' },
-            { key: 'adj',    label: type === 'hr' ? 'Adj' : 'Score', w: 50, dp: 1,
+            // 'Adj' and 'Raw' were two columns showing the same hitter before
+            // and after the site's ISO adjustment. The site ranks on the bot's
+            // raw score now (2026-08-09, see lib/scoring.js), so they'd print
+            // identical numbers side by side — one column, named for what it
+            // is. ISO keeps its own column: the audit's finding is real and
+            // now it's VISIBLE next to the score instead of folded silently
+            // into it.
+            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1,
               title: type === 'hr'
-                ? 'The number this board is ranked by: raw score × his ISO band’s measured HR rate'
+                ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, so a big score on thin power is the board’s most common trap.'
                 : 'The score this board is ranked by' },
             ...(type !== 'hr' ? [
               { key: 'hrRaw', label: 'HR sc', w: 48, dp: 1,
-                title: 'The bot’s raw hr_score, for context on every board — this column never ranks here, but a high number means the power lane is live for him tonight too' },
+                title: 'The bot’s HR score, for context on every board — this column never ranks here, but a high number means the power lane is live for him tonight too' },
             ] : []),
             ...(type === 'hr' ? [
-              { key: 'raw', label: 'Raw', w: 44, dp: 1, title: 'The bot’s unadjusted hr_score' },
               { key: 'iso', label: 'ISO', w: 42, dp: 0,
-                title: 'Season ISO ×100 — sub-13 homered 8.2% across the archive, 23+ homered 22.2%' },
+                title: 'Season ISO ×100 — slugging minus batting average, so it measures extra-base pop with the singles stripped out. Across the graded archive, sub-13 homered 8.2% and 23+ homered 22.2%. Read it WITH the score, not instead of it.' },
             ] : []),
             { key: 'rec',    label: 'When picked', heat: false, w: 82, mono: true,
               title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that. From ${'3,973'} graded picks over 39 days.` },
@@ -220,7 +226,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           onRowClick={onPlayerClick}
           initialSort={type === 'hr' ? 'raw' : null}
           maxHeight={520}
-          caption={`Ranked by ${type === 'hr' ? 'Adj — the ISO-adjusted score, with Raw and ISO beside it so every rank is explainable' : 'the category score'}. "When picked" is the archive speaking: what he actually did the other times the bot designated him here. Click any header to re-sort; the # column always gets you back to the board's own order.`}
+          caption={`Ranked by ${type === 'hr' ? 'the bot’s own HR score, with ISO beside it — the archive says a big score on thin power is the board’s most common trap' : 'the category score'}. "When picked" is the archive speaking: what he actually did the other times the bot designated him here. Click any header to re-sort; the # column always gets you back to the board's own order.`}
         />
       )}
 
@@ -233,16 +239,14 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           label: nameOf(p),
           _raw: p,
           values: {
-            // THE RANKING NUMBER LEADS ON THE HR BOARD. The board sorts by
-            // the ISO-ADJUSTED score, and the first pass of this chart led
-            // with the RAW bot score instead — so a raw-99 bat whose thin ISO
-            // knocked him down sat below a raw-75 bat with a big ISO, and the
-            // chart looked out of order (it was; the sort key just wasn't a
-            // column). Adj is the exact number the sort uses; Raw and ISO
-            // beside it are its two inputs, so each row reads as WHY he's
-            // ranked there: Adj = Raw × his ISO band's measured HR rate.
+            // THE RANKING NUMBER LEADS. The chart's first column has to be the
+            // one the board sorts by, or the rows look out of order — which is
+            // exactly what happened the first time this led with a different
+            // number than the sort key. That number is the bot's HR score;
+            // ISO sits beside it as the thing to read WITH it, not as a
+            // multiplier folded into it.
             ...(type === 'hr'
-              ? { Adj: scoreFor(p, 'hr'), Raw: hrScore(p) }
+              ? { HR: scoreFor(p, 'hr') }
               : { HR: hrScore(p) }),
             // ISO ×100 so .231 reads as 23.
             ISO: nn(p?.season_iso) * 100,
@@ -259,16 +263,16 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           },
         }))}
         columns={[
-          ...(type === 'hr' ? ['Adj', 'Raw'] : ['HR']),
+          'HR',
           'ISO', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9',
         ]}
         title={type === 'hr'
-          ? 'Top 15 — ranked by Adj (raw score × measured ISO-band HR rate)'
+          ? 'Top 15 by HR score — full profile'
           : `Top 15 by ${title.replace(' Board', '')} — full profile`}
         labelWidth={140}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
         caption={type === 'hr'
-          ? 'Sorted by Adj, the first column — not by Raw. A raw 99 with a thin ISO can rank below a raw 75 with a big one, because across 3,973 graded picks the low-ISO band homered 8.2% and the high band 22.2% while the raw score barely separated. Raw and ISO are shown precisely so you can see what moved each name.'
+          ? 'Sorted by HR score, the first column. Read the ISO column with it: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, while the score itself barely separated — so a big score on thin power is the board’s most common trap. Both are shown so you can see it yourself rather than have it applied for you.'
           : undefined}
       />}
 

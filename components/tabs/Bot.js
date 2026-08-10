@@ -21,9 +21,11 @@ import { pillMeta } from '../../lib/pills'
 //     like the document it is.
 //   THE BOARD — the slate ranked by the bot's own top_board_score_v2 with
 //     its native flags (⭐ weak spot, 🎯 pitch match, 👻 hidden value,
-//     ⚠️ trap). This stays because it's the one board on the site showing
-//     the bot's raw opinion with no site-side adjustment — the HR Board is
-//     ISO-adjusted, this is not, and comparing the two is informative.
+//     ⚠️ trap). It ranks on top_board_score_v2, the bot's own overall number,
+//     which is a DIFFERENT question from the HR Board's — overall value
+//     against tonight versus going deep specifically. (Until 2026-08-09 this
+//     was also the only board free of a site-side ISO adjustment; that
+//     adjustment is gone and every board now ranks on the bot's own numbers.)
 //
 // The old "Picks" view is gone: The Four (Scoreboard) and the per-game pick
 // cards (Games) show the same designations with more context.

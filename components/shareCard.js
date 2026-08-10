@@ -76,7 +76,7 @@ export function downloadShareCard(items = []) {
 
   // footer
   g.fillStyle = '#52525b'; g.font = '600 10px ui-monospace, monospace'
-  g.fillText('HR score is the site’s ISO-adjusted ranking · 🤖 = the bot’s designated pick tonight', 24, H - footH / 2)
+  g.fillText('HR score is the bot’s own ranking · 🤖 = the bot’s designated pick tonight', 24, H - footH / 2)
 
   const a = document.createElement('a')
   a.download = `watchlist_${new Date().toLocaleDateString('en-CA')}.png`

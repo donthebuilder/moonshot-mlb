@@ -63,7 +63,7 @@ export const GLOSSARY = {
   // Each one says WHAT IT RANKS ON and which way is good. None of them claims
   // a chance of anything; the banner adds RANK_NOT_PERCENT on top.
   'hr': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better.',
-  'hr score': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better.',
+  'hr score': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better. Read it alongside ISO: across the graded archive, hitters with thin power homered 8.2% and hitters with big power 22.2%, while the score itself barely separated them.',
   'hrr': 'Ranks him on scoring a run or driving one in, not just homers. Higher ranks better.',
   'hrr score': 'Ranks him on scoring a run or driving one in, not just homers. Higher ranks better.',
   'hit': 'Ranks him on getting at least one base hit tonight. Higher ranks better.',
@@ -80,8 +80,6 @@ export const GLOSSARY = {
   'pitch mix': 'How well his swing matches the pitches tonight’s starter actually throws. Higher ranks better.',
   'score': 'The bot’s rating for this board’s question — an ordering of tonight’s hitters. Higher ranks better.',
   'fit': 'How well this hitter fits what the board is looking for tonight. Higher ranks better.',
-  'adj': 'The HR score after the ISO adjustment — the number this board is actually sorted by. Higher ranks better.',
-  'raw': 'The bot’s unadjusted HR score, before the ISO adjustment. Shown so you can see what moved a hitter.',
   'leak': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
   'leak score': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
   'proj hr': 'The one real PREDICTION on the site: expected home runs, from the rate his score band and ISO band actually produced across the graded archive. Not a rank — a count.',

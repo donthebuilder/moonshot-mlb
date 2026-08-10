@@ -37,12 +37,14 @@ import {
 // has no reason to follow you down the page.
 
 const CATEGORIES = [
-  // RAW bot score on purpose (2026-08-04). This strip is branded as THE
-  // BOT'S headline picks, and for a while the HR card ranked ISO-adjusted —
-  // which meant the site's Four and the bot's printed FOUR could name
-  // different hitters, and people noticed. The rule now: this strip mirrors
-  // the bot verbatim; the site's ISO-adjusted opinion lives on the HR Board,
-  // clearly labelled as the site's. One voice per surface.
+  // The bot's own score, and as of 2026-08-09 that is what the whole site
+  // ranks on — so this strip and the HR Board finally name the same hitters.
+  //
+  // HISTORY WORTH KEEPING: from 2026-08-04 the HR Board ranked on a site-side
+  // ISO adjustment while this strip mirrored the bot verbatim, which meant the
+  // site's Four and the bot's printed FOUR could disagree, and people noticed.
+  // The rule then was "one voice per surface". There is one voice everywhere
+  // now; see lib/scoring.js for why the adjustment came out.
   { role: 'HR',      label: 'HR',      icon: '🧨', color: '#f97316',
     blurb: 'Going deep',     score: hrScore },
   { role: 'HIT',     label: 'HIT',     icon: '💠', color: '#a78bfa',
