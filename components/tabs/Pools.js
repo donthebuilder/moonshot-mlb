@@ -38,10 +38,22 @@ function LivePools({ results, players = [], onPlayerClick }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>Live pools</div>
-      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8 }}>
-        The bot&apos;s group tickets for today, graded as games finish. A pool clears only when every
-        member goes deep, so most of these end the night unfinished — that&apos;s the shape of the bet,
-        not a failure of the picks.
+      {/* 2026-08-09. This blurb used to explain that a pool "clears only when
+          every member goes deep" and that most end unfinished. That was true
+          and it was also hiding the number: across 40 graded nights, all-or-
+          nothing cleared 0 times in 320 pools. Not rarely. Never.
+
+          The legs were never the problem — a pool leg homers 17.5% against a
+          14.9% slate baseline, and at least one goes on about half of all
+          nights. The BAR was the problem, so the bot moved it (1+ of a 3- or
+          4-man) and retired the 6-man. This copy now says what the bar is and
+          what the record actually was. */}
+      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
+        The bot&apos;s group tickets, graded as games finish. The bar is{' '}
+        <b style={{ color: C.text2 }}>1+ of 3 or 4</b> — one member going deep is a hit.
+        {' '}Across 40 graded nights that landed about half the time, and two members landed 13%.
+        {' '}<b style={{ color: C.text2 }}>All members homering has happened 0 times in 320 pools</b>,
+        which is why it stopped being the bar and the 6-man was retired.
       </div>
       <div style={{
         display: 'grid', gap: 8,
@@ -50,7 +62,11 @@ function LivePools({ results, players = [], onPlayerClick }) {
         {pools.map((pl, i) => {
           const hit = n(pl.hr_count, 0)
           const tot = Math.max(1, n(pl.total_count, 0))
-          const done = hit >= tot
+          // The bar the bot publishes, with a fallback for older payloads that
+          // predate it: 1+ on a small pool, 2+ on anything bigger.
+          const bar = n(pl.bar, tot <= 4 ? 1 : 2)
+          const done = hit >= bar
+          const perfect = hit >= tot
           const col = done ? '#4ade80' : hit > 0 ? C.orange : C.border
           const homered = new Set((pl.homer_names || []).map((x) => String(x || '').toLowerCase()))
           return (
@@ -65,15 +81,24 @@ function LivePools({ results, players = [], onPlayerClick }) {
               {/* progress bar along the bottom edge — the pool's pulse */}
               <div style={{
                 position: 'absolute', left: 0, bottom: 0, height: 3,
-                width: `${(100 * hit) / tot}%`, background: col,
+                // Progress runs to the BAR, not to every member. A bar that
+                // fills to 1/6 on a hit nobody can reach reads as failure; the
+                // same hit filling to 1/1 reads as what it is.
+                width: `${Math.min(100, (100 * hit) / bar)}%`, background: col,
                 boxShadow: `0 0 8px ${col}`, transition: 'width .3s',
               }} />
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2 }}>{pl.label}</span>
-                <span style={{
+                {done && (
+                  <span title={perfect ? 'Every member went deep' : `Cleared the bar: ${bar}+ of ${tot}`}
+                    style={{ fontSize: 9, fontWeight: 900, color: '#4ade80' }}>
+                    {perfect ? 'PERFECT' : 'HIT'}
+                  </span>
+                )}
+                <span title={`${hit} of ${tot} homered · the bar is ${bar}+`} style={{
                   marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 12,
                   fontWeight: 800, color: col === C.border ? C.text3 : col,
-                }}>{hit}/{tot} HR</span>
+                }}>{hit}/{tot} HR <span style={{ fontSize: 9, color: C.text3, fontWeight: 600 }}>· need {bar}</span></span>
               </div>
               {/* GRID, not flow (2026-08-06): inline-wrapped names broke mid-
                   list and left orphans hanging off the line. Two even columns,
@@ -119,7 +144,11 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick }) {
   const all = [
     ...arr(pairBuilder?.recommended_3mans).map((p) => ({ ...p, kind: '3-man' })),
     ...arr(pairBuilder?.pools_4man).map((p) => ({ ...p, kind: '4-man' })),
-    ...arr(pairBuilder?.pools_6man).map((p) => ({ ...p, kind: '6-man' })),
+    // 6-man retired 2026-08-09 (0 for 320 all-or-nothing); the bot now
+    // publishes two 3-mans in its place. Older payloads still carry
+    // pools_6man, so it is read and relabelled rather than dropped.
+    ...arr(pairBuilder?.pools_3man).map((p) => ({ ...p, kind: '3-man' })),
+    ...arr(pairBuilder?.pools_6man).map((p) => ({ ...p, kind: '6-man (retired)' })),
   ]
   if (!all.length) return null
 
