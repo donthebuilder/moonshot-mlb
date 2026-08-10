@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, clean, n, hrScore } from '../../lib/player'
 import { fetchLiveSlate } from '../../lib/liveSlate'
+import { teamAbbrs } from '../../lib/gamelogs'
 import {
   fetchLiveGame, parseLiveGame, atBatOf, priorPAs, timesFacing, arsenalTonight,
   pitchColor, PITCH_NAMES, KIND_WORD,
@@ -178,6 +179,10 @@ const LABEL = {
 
 export default function AtThePlate({ players = [], watchIds, mode = 'today', slateMode, onPlayerClick }) {
   const [snap, setSnap] = useState(null)
+  // Team abbreviations for the box score header. One cached /teams call,
+  // shared with the timeline that already uses it.
+  const [abbrs, setAbbrs] = useState(null)
+  useEffect(() => { let a = true; teamAbbrs().then((m) => { if (a && m) setAbbrs(m) }).catch(() => {}); return () => { a = false } }, [])
   const [pinnedGame, setPinnedGame] = useState(null)   // gamePk the user locked onto
   const [pinnedHitter, setPinnedHitter] = useState(null)   // mlb id driving the charts
   const [auto, setAuto] = useState(true)
@@ -549,6 +554,19 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         onOpen={(p) => onPlayerClick?.(p)}
       />
 
+      {/* ── 3b · BOX SCORE ─────────────────────────────────────────────
+          Everything this needs was already in the snapshot; the page just
+          never showed it. See BoxScore below. */}
+      <BoxScore
+        g={a.g}
+        lines={snap?.lines}
+        byId={byId}
+        watchIds={watchIds}
+        abbrs={abbrs}
+        selectedId={Number(selectedId)}
+        onPick={(id) => setPinnedHitter(Number(id))}
+      />
+
       {/* ── 4 · THE CHARTS ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{
@@ -765,6 +783,127 @@ function ComingUp({ game, lineup, selectedId, onPick, onOpen }) {
         on deck and in the hole are the linescore&apos;s. The number on the right is his board score
         tonight — a dash means he isn&apos;t on the published slate, and tapping his name still points
         the charts at him. The middle column is his line so far tonight.
+      </div>
+    </div>
+  )
+}
+
+// 📋 BOX SCORE — the whole game, not just the man in the box.
+//
+// 2026-08-10, Donovan: "any way to add boxscores to the at the plate page."
+//
+// NOTHING NEW IS FETCHED. lib/liveSlate.js already pulls one boxscore per
+// started game and keeps every batter's line in `snap.lines`, plus both
+// batting orders in `g.lineup` and the two starters' pitch counts in
+// `g.starters`. The Coming-up list above shows ONE side of that, filtered to
+// who bats next. This is the same data, both dugouts, in the shape you'd
+// glance at to answer "what has actually happened in this game" — which the
+// page could not answer at all before, despite holding every number needed.
+//
+// Sorted by the order, not by production: a box score's job is to be scannable
+// in the same shape every time. Bot picks and watchlist keep their marks so
+// your side of the game is findable without reading names.
+function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
+  if (!g?.lineup) return null
+  // liveSlate carries team IDs, not abbreviations — the schedule endpoint does
+  // not return `abbreviation` on its team object (checked: it comes back as
+  // {"id":121} and nothing else). teamAbbrs() is the existing cached /teams
+  // lookup the timeline already uses; until it resolves the header shows the
+  // side rather than an id-shaped placeholder.
+  const sides = [['away', g.awayId, abbrs?.[g.awayId] || 'Away'], ['home', g.homeId, abbrs?.[g.homeId] || 'Home']]
+  if (!sides.some(([sd]) => (g.lineup[sd] || []).length)) return null
+
+  const H = ({ children, w = 22 }) => (
+    <span style={{ width: w, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>{children}</span>
+  )
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <Band note="every batter in this game, tonight's line">Box score</Band>
+      <div className="lineup-cols" style={{ display: 'flex', gap: 0, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
+        {sides.map(([side, teamId, abbr], si) => {
+          const rows = g.lineup[side] || []
+          const starter = (g.starters || []).find((x) => x.side !== side) || null
+          const runs = side === 'away' ? g.awayScore : g.homeScore
+          // Team totals are SUMMED FROM THE ROWS shown, not taken from
+          // anywhere else, so the column and its total can never disagree.
+          const tot = rows.reduce((a, r) => {
+            const l = lines?.[Number(r.id)]
+            if (l) { a.ab += l.ab; a.h += l.h; a.hr += l.hr; a.rbi += l.rbi; a.k += l.k }
+            return a
+          }, { ab: 0, h: 0, hr: 0, rbi: 0, k: 0 })
+          return (
+            <div key={side} className="lineup-col" style={{
+              flex: 1, minWidth: 0, padding: '8px 11px',
+              borderLeft: si ? `1px solid ${C.border}` : 'none',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 5 }}>
+                <span style={{ fontSize: 12, fontWeight: 900, fontFamily: NUM_FONT }}>{abbr || side}</span>
+                <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: C.text }}>{runs ?? 0}</span>
+                {starter && (
+                  <span title={`${starter.name} has thrown ${starter.pitches} pitches — the bullpen door`}
+                    style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+                    vs {String(starter.name).split(' ').slice(-1)[0]} · {starter.pitches}p
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ width: 11, flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>BATTER</span>
+                <H>AB</H><H>H</H><H>HR</H><H>RBI</H><H>K</H>
+              </div>
+              {rows.map((r) => {
+                const l = lines?.[Number(r.id)] || null
+                const p = byId?.get(Number(r.id)) || null
+                const on = Number(r.id) === Number(selectedId)
+                const up = Number(r.id) === Number(g.upBatter)
+                return (
+                  <div key={r.id} onClick={() => onPick?.(r.id)} className="tap-row" style={{
+                    display: 'flex', gap: 5, alignItems: 'center', padding: '2.5px 0',
+                    cursor: 'pointer', minWidth: 0,
+                    borderLeft: `2px solid ${up ? '#4ade80' : on ? C.orange : 'transparent'}`,
+                    paddingLeft: 4, marginLeft: -6,
+                  }}>
+                    <span style={{ width: 11, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>{r.slot}</span>
+                    <span style={{
+                      flex: 1, minWidth: 0, fontSize: 11, fontWeight: on || up ? 800 : 600,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      color: up ? '#4ade80' : C.text2,
+                    }}>
+                      {p ? nameOf(p) : clean(r.name, `#${r.id}`)}
+                      {r.sub && <span title="Substitute — he replaced the man in this slot" style={{ fontSize: 8, color: C.text3, marginLeft: 3 }}>sub</span>}
+                      {p && String(p?.game_pick_role || '').trim() ? <span style={{ fontSize: 8.5, marginLeft: 3 }}>🤖</span> : null}
+                      {/* watchIds is keyed \`playerId-gamePk\`, not by bare id —
+                          the same composite the live-games list above builds.
+                          Testing the raw id here would have silently starred
+                          nobody, forever. */}
+                      {p && watchIds?.has(`${clean(p?.player_id || p?.id, '')}-${clean(p?.game_pk || p?.team, '')}`)
+                        ? <span style={{ fontSize: 8.5, marginLeft: 2 }}>★</span> : null}
+                    </span>
+                    {/* A man with no line has not batted yet. That is a blank,
+                        not a row of zeros — zeros read as "0 for 3". */}
+                    <H>{l ? l.ab : '·'}</H>
+                    <H>{l ? l.h : '·'}</H>
+                    <H>{l?.hr ? <b style={{ color: C.orange }}>{l.hr}</b> : l ? 0 : '·'}</H>
+                    <H>{l ? l.rbi : '·'}</H>
+                    <H>{l ? l.k : '·'}</H>
+                  </div>
+                )
+              })}
+              <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingTop: 3, marginTop: 2, borderTop: `1px solid ${C.border}` }}>
+                <span style={{ width: 11, flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '.05em' }}>Team</span>
+                <H>{tot.ab}</H><H>{tot.h}</H><H>{tot.hr}</H><H>{tot.rbi}</H><H>{tot.k}</H>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+        Straight off the league&apos;s boxscore for this game — the same pull the rest of this page
+        runs on, so it costs no extra request. A dot means he hasn&apos;t batted yet; the green name is
+        the man at the plate. Team rows are summed from the lines above them, so the column and its
+        total can&apos;t disagree.
       </div>
     </div>
   )

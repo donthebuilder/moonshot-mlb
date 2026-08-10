@@ -168,12 +168,26 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
   // so the actual card is available here. Two minutes is the right cadence: a
   // lineup posts once and then barely moves, and the module-level 15s cache
   // means a tab with the wire above it shares the same fetch anyway.
+  //
+  // TWO CADENCES, because this snapshot now feeds two different things. A
+  // lineup card posts once and barely moves — two minutes is generous. A SCORE
+  // moves every half inning, and a card showing 3-1 in the 6th when it is
+  // actually 6-1 in the 8th is worse than showing nothing. So the interval
+  // follows the slate: 30s while anything is live, 2 minutes otherwise. The
+  // module-level 15s cache means a tab with the wire above it still shares one
+  // fetch rather than doubling the requests.
   const [live, setLive] = useState(null)
   useEffect(() => {
     let alive = true
-    const pull = () => fetchLiveSlate().then((s) => { if (alive && s) setLive(s) }).catch(() => {})
+    let t = null
+    const pull = () => fetchLiveSlate().then((s) => {
+      if (!alive || !s) return
+      setLive(s)
+      const anyLive = s.games?.some((x) => x.state === 'Live')
+      clearInterval(t)
+      t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 30000 : 120000)
+    }).catch(() => {})
     pull()
-    const t = setInterval(() => { if (!document.hidden) pull() }, 120000)
     return () => { alive = false; clearInterval(t) }
   }, [])
   // 🔗 build a pair straight off the grid (2026-08-09). Two legs max; tapping
@@ -474,6 +488,32 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                   padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
+                  {/* ── THE SCORE, WHILE IT IS HAPPENING (2026-08-10) ──────
+                      liveSlate has carried homeScore/awayScore/inning/half
+                      since the wire was built; this card just never asked for
+                      them, so a lineup you were reading at 8pm gave no hint
+                      that the game was in the 6th and 5-1. Everything needed
+                      is already in the snapshot the card watch above fetched
+                      — this is display cost only, no extra request. */}
+                  {liveG && (liveG.state === 'Live' || liveG.state === 'Final') && (
+                    <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, fontFamily: NUM_FONT }}>
+                      <span style={{
+                        fontSize: 13, fontWeight: 900,
+                        color: liveG.state === 'Live' ? C.text : C.text2,
+                      }}>{liveG.awayScore ?? 0}–{liveG.homeScore ?? 0}</span>
+                      {liveG.state === 'Live' ? (
+                        <span title={liveG.delayed ? liveG.detail : `${liveG.half} ${liveG.inning}`}
+                          style={{ fontSize: 10, fontWeight: 800, color: liveG.delayed ? C.yellow : '#4ade80' }}>
+                          {liveG.delayed ? liveG.statusLabel
+                            : `${/^top/i.test(liveG.half) ? '▲' : /^bot/i.test(liveG.half) ? '▼' : '·'}${liveG.inning ?? ''}`}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 10, fontWeight: 800, color: C.text3 }}>
+                          {liveG.statusLabel || 'F'}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   {/* THE BADGE NOW ASKS THE LEAGUE (2026-08-10). It used to
                       read the bot's own lineup_confirmed flag, which is only
                       as fresh as the last cron run — so it could say
