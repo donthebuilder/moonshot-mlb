@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, playerId, clean, n } from '../../lib/player'
-import { scoreFor, gradeFor, tierRole, tierColor } from '../../lib/scoring'
-import { Empty, inputStyle, PanelTitle } from '../ui'
+import { scoreFor, tierRole } from '../../lib/scoring'
+import { Empty, inputStyle } from '../ui'
 import PlayerModal from '../PlayerModal'
 import { rampColor, inkFor } from '../Heatmap'
 
@@ -243,29 +243,26 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
           </button>
         )}
         {selected ? (
-          <>
-            <PanelTitle
-              title={nameOf(selected)}
-              sub={`${teamOf(selected)} vs ${oppOf(selected)} · ${clean(selected?.pitcher_name, 'TBD')} · grade ${gradeFor(selected, 'hr')}`}
-              right={
-                <span style={{ display: 'flex', gap: 6 }}>
-                  {onWatch && (
-                    <button
-                      onClick={() => onWatch(selected)}
-                      style={{
-                        ...inputStyle(), cursor: 'pointer', fontSize: 11, padding: '5px 10px',
-                        color: watchIds?.has(playerId(selected)) ? '#06281a' : C.text2,
-                        background: watchIds?.has(playerId(selected)) ? C.green : C.bg2,
-                      }}
-                    >{watchIds?.has(playerId(selected)) ? 'Watching' : 'Watch'}</button>
-                  )}
-                </span>
-              }
-            />
-            <div style={{ marginTop: 10 }}>
-              <PlayerModal player={selected} inline />
-            </div>
-          </>
+          // ONE HEADER, NOT TWO (2026-08-10, phone pass). This used to render a
+          // PanelTitle — name, matchup, grade — directly above a card whose own
+          // header says the name and the matchup again, with more in it (lineup
+          // spot, handedness, the arm's throwing hand). On a desktop that was
+          // redundant. On a phone it was two headers and a full-width Watch bar
+          // before a single number, because .panel-title turns its right slot
+          // into a stretched scrolling row and a lone button fills it.
+          //
+          // The card's header is the better of the two, so it is the one that
+          // stays. Watch moves into the card's own action row beside Add to
+          // slip, where the same button already lives when a modal opens from
+          // any other board — so the tab now behaves like every other surface
+          // rather than growing a second copy of the control.
+          <PlayerModal
+            player={selected}
+            inline
+            onAdd={onAdd}
+            onWatch={onWatch}
+            watched={!!watchIds?.has(playerId(selected))}
+          />
         ) : (
           <Empty text={phone ? 'Pick a hitter above.' : 'Pick a hitter on the left.'} />
         )}

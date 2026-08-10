@@ -151,6 +151,17 @@ export default function MobileCSS() {
       @media (max-width: 700px) {
         .playerboard { grid-template-columns: 1fr !important; }
         .playerboard-side { position: static !important; }
+        /* min-width: 0 IS NOT DECORATION (2026-08-10). One-fr is shorthand
+           for minmax(auto, 1fr), and auto there is the item's MIN-CONTENT — so
+           a single child that refuses to shrink stretches the track past the
+           viewport and takes the whole page with it, which is what a phone
+           shows as everything clipped at the same right edge. The player card
+           holds the widest things on the site (a seven-column props matrix, a
+           six-box stat strip, a row of tab pills), so this column is the one
+           most likely to be dragged wide by one of them. Pinning both items to
+           zero min-width means the tracks obey the screen and the wide child
+           scrolls inside its own box, which is what its overflow-x is for. */
+        .playerboard > * { min-width: 0 !important; }
         /* The list now owns the whole screen when it's showing (the detail
               pane is hidden entirely — see tabs/PlayerBoard.js), so it gets
               real height instead of a 34vh sliver you had to scroll inside
@@ -398,8 +409,22 @@ export default function MobileCSS() {
 
               Two columns instead. Each box gets ~160px, the labels keep the
               10px the rest of the site guarantees them, and the strip becomes
-              two rows — which costs nothing in a card that scrolls anyway. */
-        .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 4px !important; }
+              two rows — which costs nothing in a card that scrolls anyway.
+
+              THREE, NOT TWO (2026-08-10). Two was right when the strip was
+              four boxes. The player card runs it at SIX, so two columns meant
+              three tall rows — a third of a phone screen spent on six numbers,
+              before the card had said anything. And HitRateBoxes wears the
+              same class with exactly three boxes, so two columns split L5/L10
+              from SEASON and made the odd one out look like a different kind
+              of thing.
+
+              Three columns is 113px a box on a 358px card. Measured against
+              the widest label the strip publishes — EXIT VELO, 9 characters
+              at 8px in the mono face, about 47px — that is twice the room it
+              needs, so nothing shrinks and no label ellipsises. Six boxes
+              become two rows, three become one. */
+        .stat-strip { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 4px !important; }
 
         /* AT THE PLATE — the pitch sequence (2026-08-09). Six 54px pills plus
               gaps is 354px, which is four pixels past a 350px card. Rather
