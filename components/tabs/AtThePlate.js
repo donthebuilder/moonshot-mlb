@@ -164,6 +164,24 @@ function Arsenal({ rows, pitcherName }) {
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
 const LIVE = '#4ade80'
 
+// One header treatment for every band on the page. Before this each section
+// wrote its own label row, so the type sizes and spacings drifted and nothing
+// read as belonging to the same page. A rule to the right does the work a box
+// used to do, without another border.
+function Band({ children, note, right }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8, marginTop: 2 }}>
+      <span style={{
+        fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
+        color: C.text2, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+      }}>{children}</span>
+      {note && <span style={{ fontSize: 9.5, color: C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{note}</span>}
+      <span style={{ flex: 1, height: 1, background: C.border, minWidth: 12 }} />
+      {right}
+    </div>
+  )
+}
+
 const CARD = {
   background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.025))`,
   border: `1px solid ${C.border}`,
@@ -360,8 +378,8 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
 
       {/* ── 1 · WHICH GAME ─────────────────────────────────────────────── */}
       {liveGames.length > 1 && (
-        <div style={{ ...CARD, padding: '11px 13px' }}>
-          <div style={{ ...LABEL, marginBottom: 7 }}>Live at-bats · {liveGames.length} games</div>
+        <div style={{ marginBottom: 12 }}>
+          <Band note={`${liveGames.length} games have someone at the plate — your picks first`}>Pick a game</Band>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             {liveGames.map((x) => {
               const on = x.pk === a.pk
@@ -395,43 +413,103 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         border: '1px solid rgba(74,222,128,.28)',
         marginBottom: 12,
       }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-          <span style={{ ...LABEL, color: LIVE }}>● Now batting</span>
-          <span style={{ marginLeft: 'auto', fontSize: 10, fontFamily: NUM_FONT, color: LIVE, fontWeight: 800 }}>
-            {a.g.half} {a.g.inning}
+        {/* ── THE LOWER THIRD ────────────────────────────────────────────
+            Read like a broadcast: the situation on one line, then the name
+            at a size you can see from across the room, then the count as a
+            scoreboard tile on the right where a scoreboard tile belongs.
+            Everything else is one quiet line of context underneath. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%', background: LIVE,
+            boxShadow: `0 0 9px ${LIVE}`, animation: 'atpPulse 1.8s ease-in-out infinite',
+          }} />
+          <style>{'@keyframes atpPulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
+          <span style={{ ...LABEL, color: LIVE }}>Now batting</span>
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'baseline', fontFamily: NUM_FONT }}>
+            <span style={{ fontSize: 11, fontWeight: 900, color: LIVE }}>
+              {String(a.g.half || '').slice(0, 3)} {a.g.inning}
+            </span>
             {a.g.awayScore != null && a.g.homeScore != null && (
-              <span style={{ color: C.text3, fontWeight: 600 }}> · {a.g.awayScore}–{a.g.homeScore}</span>
+              <span style={{ fontSize: 11, color: C.text2, fontWeight: 700 }}>
+                {a.g.awayScore}<span style={{ color: C.text3 }}>–</span>{a.g.homeScore}
+              </span>
             )}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <span
-            onClick={() => a.p && onPlayerClick?.(a.p)}
-            style={{ fontSize: 21, fontWeight: 900, letterSpacing: '-.01em', cursor: a.p ? 'pointer' : 'default' }}
-          >{a.name}</span>
-          {a.role && (
-            <span style={{
-              fontSize: 9.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[a.role],
-              border: `1px solid ${ROLE_COLOR[a.role]}55`, background: `${ROLE_COLOR[a.role]}14`,
-              borderRadius: 999, padding: '2px 9px',
-            }}>🤖 {a.role} PICK</span>
+
+        <div className="atplate-hero" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* the name block */}
+          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            <div
+              onClick={() => a.p && onPlayerClick?.(a.p)}
+              className={a.p ? 'tap-row' : undefined}
+              style={{
+                fontSize: a.name.length > 18 ? 22 : 27, fontWeight: 900, letterSpacing: '-.025em',
+                lineHeight: 1.05, cursor: a.p ? 'pointer' : 'default',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}
+            >{a.name}</div>
+
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+              {a.role && (
+                <span style={{
+                  fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.06em',
+                  color: '#0b0b0d', background: ROLE_COLOR[a.role],
+                  borderRadius: 5, padding: '2px 8px',
+                }}>{a.role} PICK</span>
+              )}
+              {a.p && (
+                <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}>
+                  {teamOf(a.p)} · #{clean(a.p?.lineup_spot, '?')} · {String(a.p?.bats || '?').toUpperCase().slice(0, 1)}HB
+                </span>
+              )}
+              {a.p && (
+                <span title="The bot's HR score for him tonight" style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, cursor: 'help' }}>
+                  board <b style={{ color: C.orange }}>{hrScore(a.p).toFixed(0)}</b>
+                </span>
+              )}
+            </div>
+
+            {/* one quiet line: the arm, and his night so far */}
+            <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 5, lineHeight: 1.6 }}>
+              {a.p ? <>vs <b style={{ color: C.text2 }}>{clean(a.p?.pitcher_name, 'TBD')}</b>
+                {a.p?.pitcher_throws ? ` (${a.p.pitcher_throws})` : ''}
+                {n(a.p?.pitcher_hr9, 0) > 0 && <span style={{ color: n(a.p.pitcher_hr9, 0) >= 1.4 ? '#f87171' : C.text3 }}> · {n(a.p.pitcher_hr9, 0).toFixed(2)} HR/9</span>}
+              </> : 'Not on tonight’s published slate — no board card for him.'}
+              {snap.lines?.[a.pid]
+                ? <> · tonight <b style={{ color: C.text2 }}>{snap.lines[a.pid].h}-{snap.lines[a.pid].ab}</b>
+                  {snap.lines[a.pid].hr ? <b style={{ color: C.orange }}> {snap.lines[a.pid].hr} HR</b> : ''}
+                  {snap.lines[a.pid].k ? ` · ${snap.lines[a.pid].k} K` : ''}</>
+                : <> · first trip tonight</>}
+            </div>
+          </div>
+
+          {/* THE COUNT, as its own tile. It's the number your eye should find
+              first on a live page, so it gets a box, a border and real size
+              instead of sitting inline with everything else. */}
+          {atBat && (
+            <div style={{
+              flexShrink: 0, borderRadius: 12, padding: '8px 14px 9px',
+              border: `1px solid ${COUNT_COL(atBat.balls, atBat.strikes)}44`,
+              background: `${COUNT_COL(atBat.balls, atBat.strikes)}0e`,
+              textAlign: 'center', minWidth: 118,
+            }}>
+              <div style={{ ...LABEL, fontSize: 7.5, marginBottom: 3 }}>
+                {atBat.live ? 'The count' : 'Final count'}
+              </div>
+              <CountDots balls={atBat.balls} strikes={atBat.strikes} />
+              {facing > 0 && (
+                <div
+                  title={`Plate appearance number ${facing} against this arm tonight. Hitters historically do better the third time through — the pitcher has shown them everything by then.`}
+                  style={{
+                    fontSize: 8.5, fontFamily: NUM_FONT, marginTop: 5, cursor: 'help',
+                    color: facing >= 3 ? C.orange : C.text3, fontWeight: facing >= 3 ? 800 : 400,
+                  }}>
+                  {facing === 1 ? '1st look at him' : facing === 2 ? '2nd look' : `${facing}${facing === 3 ? 'rd' : 'th'} time through`}
+                </div>
+              )}
+            </div>
           )}
-        </div>
-        <div style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, marginTop: 5, lineHeight: 1.7 }}>
-          {a.p ? <>
-            {teamOf(a.p)} vs {oppOf(a.p)} · {String(a.p?.bats || '?').toUpperCase().slice(0, 1)}HB · vs{' '}
-            {clean(a.p?.pitcher_name, 'TBD')}
-            {n(a.p?.pitcher_hr9, 0) > 0 && <> · <b style={{ color: n(a.p.pitcher_hr9, 0) >= 1.4 ? '#f87171' : C.text3 }}>{n(a.p.pitcher_hr9, 0).toFixed(2)} HR/9</b></>}
-            {' · '}board <b style={{ color: C.orange }}>{hrScore(a.p).toFixed(0)}</b>
-          </> : <span style={{ color: C.text3 }}>Not on tonight&apos;s published slate — no board card for him.</span>}
-        </div>
-        <div style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, marginTop: 2 }}>
-          {snap.lines?.[a.pid]
-            ? <>Tonight: <b style={{ color: C.text }}>{snap.lines[a.pid].h}-{snap.lines[a.pid].ab}</b>
-              {snap.lines[a.pid].hr ? ` · ${snap.lines[a.pid].hr} HR` : ''}
-              {snap.lines[a.pid].tb > 1 ? ` · ${snap.lines[a.pid].tb} TB` : ''}
-              {snap.lines[a.pid].k ? ` · ${snap.lines[a.pid].k} K` : ''}</>
-            : 'First plate appearance tonight.'}
         </div>
 
         {/* ── THE AT-BAT ITSELF ──────────────────────────────────────────
@@ -439,10 +517,12 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             thing on the page you can still act on, so it gets the space. */}
         {atBat && (
           <div style={{
-            marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}`,
+            marginTop: 11, paddingTop: 10, borderTop: `1px solid ${C.border}`,
           }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 7 }}>
-              <CountDots balls={atBat.balls} strikes={atBat.strikes} />
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 7 }}>
+              <span style={{ ...LABEL, fontSize: 7.5 }}>
+                {atBat.live ? 'Pitch by pitch' : 'How it ended'}
+              </span>
               {!atBat.live && atBat.event && (
                 <span style={{
                   fontSize: 9.5, fontWeight: 900, fontFamily: NUM_FONT,
@@ -450,18 +530,6 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                   border: `1px solid ${/home run/i.test(atBat.event) ? C.orange : C.border2}`,
                   borderRadius: 999, padding: '2px 9px',
                 }}>{atBat.event.toUpperCase()}</span>
-              )}
-              {atBat.live && (
-                <span style={{ fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, color: LIVE }}>
-                  ● at bat now
-                </span>
-              )}
-              {facing > 0 && (
-                <span
-                  title={`This is plate appearance number ${facing} against this pitcher tonight. Hitters historically do better the third time through an order — the arm has shown them everything by then.`}
-                  style={{ fontSize: 9, color: facing >= 3 ? C.orange : C.text3, fontFamily: NUM_FONT, cursor: 'help' }}>
-                  {facing === 1 ? '1st look' : facing === 2 ? '2nd look' : `${facing}${facing === 3 ? 'rd' : 'th'} time through`}
-                </span>
               )}
               {prior.length > 0 && (
                 <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}
@@ -501,8 +569,11 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
 
       {/* ── 4 · THE CHARTS ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span style={LABEL}>Zone &amp; spray</span>
-        <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{selName || '—'}</span>
+        <span style={{
+          fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
+          color: C.text2, fontFamily: NUM_FONT,
+        }}>Zone &amp; spray</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{selName || '—'}</span>
         {watchingSomeoneElse && (
           <button onClick={() => setPinnedHitter(null)} style={{
             fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 999,
@@ -626,13 +697,8 @@ function ComingUp({ game, lineup, selectedId, onPick, onOpen }) {
   }
 
   return (
-    <div style={{ ...CARD, padding: '12px 14px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 9 }}>
-        <span style={LABEL}>Coming up</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>
-          tap anyone to point the charts at him
-        </span>
-      </div>
+    <div style={{ marginBottom: 14 }}>
+      <Band note="tap anyone to point the charts at him">Coming up</Band>
 
       {/* The two that matter most, given their own row.
           .atplate-deck is a phone hook: these two cards are minWidth 168, so at

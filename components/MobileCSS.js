@@ -403,6 +403,13 @@ export default function MobileCSS() {
               scrolls sideways: a sequence reads as a SEQUENCE, and breaking
               it across rows loses the one thing it's for. Momentum scrolling
               so it feels like the dense tables. */
+        /* AT THE PLATE — the hero (2026-08-09). The name and the count tile
+              sit side by side from ~700px up; on a phone the tile drops under
+              the name and goes full width, because a scoreboard reads better
+              wide than squeezed into a 118px column beside a 22px name. */
+        .atplate-hero { flex-direction: column !important; gap: 10px !important; }
+        .atplate-hero > div:last-child { width: 100%; }
+
         .atplate-seq {
           flex-wrap: nowrap !important;
           overflow-x: auto;
