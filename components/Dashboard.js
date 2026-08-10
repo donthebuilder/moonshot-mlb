@@ -308,6 +308,12 @@ export default function Dashboard() {
         onAdd={addSlip}
         onWatch={toggleWatch}
         watched={modalPlayer ? watchIds.has(playerId(modalPlayer)) : false}
+        // ‹ › inside the modal walk THE LIST ON SCREEN, in its order — the
+        // filtered/searched slate, not the raw payload — so the arrows follow
+        // whatever you were actually reading. The search inside the modal
+        // reaches the same list.
+        peers={players}
+        onNavigate={setModalPlayer}
       />
     </SlateScaleProvider>
   )

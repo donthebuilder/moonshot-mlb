@@ -12,7 +12,7 @@ import {
 import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/scoring'
 import { Chip } from './ui'
 import Explain from './Explain'
-import StatStrip, { HitRateBoxes } from './StatStrip'
+import StatStrip, { HitRateBoxes, SlashLine } from './StatStrip'
 import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
 import HRPitchProfile from './HRPitchProfile'
@@ -239,7 +239,100 @@ function Shell({ inline, onClose, width, children }) {
 // here is indistinguishable from one added from a card.
 const BETS = ['HR', 'Hit', 'HRR', 'TB']
 
-export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false }) {
+// ── 👥 THE NAVIGATOR (2026-08-09, Donovan: "in the player modal we should be
+// able to change players if need to, or at least access other players") ──────
+//
+// Opening a card used to be a dead end: to compare two hitters you closed the
+// modal, found the board you came from, scrolled back to where you were and
+// opened the next one. Three of those four steps are the site's fault.
+//
+// Two ways through, because there are two different intentions:
+//   ‹ › walks the list you CAME FROM, in its order. If you opened Murakami
+//       from the HR board at #3, › is #4 on that board — the ranking is the
+//       thing you were reading, so it's the thing the arrows follow.
+//   🔍  jumps to anyone on the slate by name, for when you already know who
+//       you want and the list you're in doesn't contain him.
+//
+// Arrow keys drive the same thing, and are deliberately ignored while a text
+// field has focus so typing "Judge" in the search box doesn't skip you two
+// hitters sideways on the 'e'.
+function Navigator({ peers, cur, onNavigate }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const curId = Number(cur?.player_id ?? cur?.id)
+  const idx = peers.findIndex((x) => Number(x?.player_id ?? x?.id) === curId)
+  const go = (d) => {
+    if (idx < 0) return
+    const next = peers[idx + d]
+    if (next) onNavigate(next)
+  }
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      const t = e.target
+      // A hitter's name is not a keyboard shortcut.
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      go(e.key === 'ArrowRight' ? 1 : -1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const hits = q.trim().length < 2 ? [] : peers.filter((x) => {
+    const nm = nameOf(x).toLowerCase()
+    return nm.includes(q.trim().toLowerCase())
+  }).slice(0, 8)
+
+  const btn = (enabled) => ({
+    background: 'transparent', border: `1px solid ${enabled ? C.border2 : C.border}`,
+    color: enabled ? C.text2 : C.text3, borderRadius: 7, padding: '3px 9px',
+    fontSize: 13, lineHeight: 1, cursor: enabled ? 'pointer' : 'default',
+    opacity: enabled ? 1 : 0.4, minWidth: 30, minHeight: 26,
+  })
+
+  return (
+    <div style={{ position: 'relative', display: 'flex', gap: 5, alignItems: 'center' }}>
+      <button onClick={() => go(-1)} disabled={idx <= 0} title="Previous hitter in this list (←)" style={btn(idx > 0)}>‹</button>
+      <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, minWidth: 44, textAlign: 'center' }}>
+        {idx >= 0 ? `${idx + 1} / ${peers.length}` : 'off list'}
+      </span>
+      <button onClick={() => go(1)} disabled={idx < 0 || idx >= peers.length - 1} title="Next hitter in this list (→)" style={btn(idx >= 0 && idx < peers.length - 1)}>›</button>
+      <button onClick={() => setOpen((v) => !v)} title="Jump to any hitter on the slate" style={{ ...btn(true), fontSize: 11 }}>🔍</button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '110%', right: 0, zIndex: 5, width: 230,
+          background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 10,
+          padding: 7, boxShadow: '0 10px 30px rgba(0,0,0,.5)',
+        }}>
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Jump to a hitter…"
+            style={{
+              width: '100%', background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 7,
+              padding: '5px 9px', fontSize: 11, color: C.text, outline: 'none', fontFamily: NUM_FONT,
+            }} />
+          {hits.map((x) => (
+            <button key={String(x?.player_id ?? x?.id)}
+              onClick={() => { onNavigate(x); setOpen(false); setQ('') }}
+              className="tap-row"
+              style={{
+                display: 'block', width: '100%', textAlign: 'left', background: 'transparent',
+                border: 'none', color: C.text2, fontSize: 11, padding: '5px 6px',
+                cursor: 'pointer', borderRadius: 6,
+              }}>
+              {nameOf(x)} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>{teamOf(x)}</span>
+            </button>
+          ))}
+          {q.trim().length >= 2 && !hits.length && (
+            <div style={{ fontSize: 10, color: C.text3, padding: '6px 6px 2px' }}>Nobody on this slate by that name.</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null }) {
   const [tab, setTab] = useState('overview')
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
@@ -356,6 +449,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             {/* the ✕ was a bare 22px glyph — about a 22px square to hit with a
                 thumb on a modal that now covers the whole phone screen. The
                 padding makes it a real target without moving it a pixel. */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+              {onNavigate && peers.length > 1 && (
+                <Navigator peers={peers} cur={player} onNavigate={onNavigate} />
+              )}
             {!inline && (
               <button onClick={onClose} aria-label="Close" style={{
                 background: 'transparent', border: 'none', color: C.text3, fontSize: 22,
@@ -363,6 +460,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                 minWidth: 40, flexShrink: 0,
               }}>✕</button>
             )}
+            </div>
           </div>
 
           {/* STAT-FIRST HEADER (2026-08-09). The card used to open on chips,
@@ -373,6 +471,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               verdict belongs. The homer boxes keep their denominators visible
               because L5/L10 count GAMES and season counts PLATE APPEARANCES;
               stacking those as bare percentages compares two different units. */}
+          <SlashLine p={p} style={{ marginBottom: 9 }} />
           <StatStrip p={p} type="hr" count={6} style={{ marginBottom: 8 }} />
           <HitRateBoxes p={p} style={{ marginBottom: 10, maxWidth: 320 }} />
 

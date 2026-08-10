@@ -1,12 +1,9 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
-import {
-  nameOf, teamOf, oppOf, n, clean, pct, sc,
-  babipVal, pitcherBabipVal,
-} from '../lib/player'
+import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { Chip, Card } from './ui'
-import StatStrip from './StatStrip'
+import StatStrip, { SlashLine } from './StatStrip'
 
 // 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
 // double-booked with the old Power Watch role emoji (now 🔭).
@@ -76,8 +73,6 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   const risk      = riskPill(p, C, type)
   const pills     = signalPills(p, C, type)
   const bet       = bestBet(p, type)
-  const b         = babipVal(p)
-  const pb        = pitcherBabipVal(p)
 
   const isHardAvoid = p?.true_avoid_hr === true
   const isSoftCaution = !isHardAvoid && (
@@ -223,12 +218,10 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
           against tonight's slate. The old line survives underneath as the
           fine print it always was. */}
       <StatStrip p={p} type={type} count={4} style={{ marginBottom: 7 }} />
-      <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8, lineHeight: 1.5 }}>
-        BA {clean(p?.season_avg, '—')} · HR {clean(p?.season_hr, '—')} · K {pct(p?.season_k_rate)}
-        {b > 0 ? ` · BABIP ${b.toFixed(3)}` : ''}
-        {pb >= 0.33 ? ` · P-BABIP ${pb.toFixed(3)}` : ''}
-        {n(p?.pitcher_hr9) ? ` · HR/9 ${sc(p?.pitcher_hr9)}` : ''}
-      </div>
+      {/* The old row was five unrelated numbers in grey — and two of them
+          (BABIP, the opposing arm's HR/9) weren't even about his season. It's
+          the slash line now, plus the counting stats it never had room for. */}
+      <SlashLine p={p} style={{ marginBottom: 8 }} />
 
       {/* buttons */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

@@ -63,6 +63,78 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
 }
 
 /**
+ * ⚾ THE SLASH LINE (2026-08-09, Donovan: "BA 0.242 · HR 22 · K 24% · BABIP
+ * 0.267 · HR/9 1.3 — that row can be cooler. also add like rbi, milestones,
+ * runs, bases.")
+ *
+ * It was five unrelated numbers in grey, separated by dots, in the colour this
+ * site uses for things that don't matter — and two of them (BABIP, the arm's
+ * HR/9) aren't even about the hitter's season.
+ *
+ * Baseball already has the right answer and has had it for a century: the
+ * SLASH LINE. .242 / .312 / .460 is three numbers in a fixed order that
+ * anybody who watches ball reads without stopping, and anybody who doesn't can
+ * learn once from the three labels under it. Then his counting stats — homers,
+ * RBI, runs, extra-base hits — which is what "add RBI, runs, bases" is asking
+ * for and what the old row never had room to say.
+ *
+ * FIELDS: season_avg / season_obp / season_slg are on every slate row. The
+ * counting stats are NOT published season-wide in the slim payload — only
+ * season_hr is — so R, RBI and XBH come from the last-5 window that IS
+ * published (last5_runs / last5_rbi / last5_xbh) and the row LABELS ITSELF as
+ * such. Mixing a season HR total into a row of five-game counts without saying
+ * so is exactly the kind of quiet unit-mixing worth avoiding.
+ */
+export function SlashLine({ p, style }) {
+  const val = (k) => {
+    const v = Number(p?.[k])
+    return Number.isFinite(v) ? v : null
+  }
+  const avg = val('season_avg'); const obp = val('season_obp'); const slg = val('season_slg')
+  const three = [['AVG', avg], ['OBP', obp], ['SLG', slg]].filter(([, v]) => v != null)
+  const fmt = (v) => v.toFixed(3).replace(/^0/, '')
+
+  const hr = val('season_hr')
+  const counts = [
+    ['HR', hr, 'Home runs this season.'],
+    ['RBI', val('last5_rbi'), 'Runs batted in over his last 5 games.'],
+    ['R', val('last5_runs'), 'Runs scored over his last 5 games.'],
+    ['XBH', val('last5_xbh'), 'Extra-base hits — doubles, triples and homers — over his last 5 games.'],
+  ].filter(([, v]) => v != null)
+
+  if (!three.length && !counts.length) return null
+
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', ...style }}>
+      {three.length === 3 && (
+        <div title="His season slash line: batting average / on-base percentage / slugging percentage.">
+          <div style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-.01em', lineHeight: 1.15 }}>
+            {fmt(avg)}<span style={{ color: C.text3, fontWeight: 400 }}>/</span>{fmt(obp)}<span style={{ color: C.text3, fontWeight: 400 }}>/</span>{fmt(slg)}
+          </div>
+          <div style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3, letterSpacing: '.06em', display: 'flex', justifyContent: 'space-between' }}>
+            <span>AVG</span><span>OBP</span><span>SLG</span>
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
+        {counts.map(([lab, v, tip], i) => (
+          <span key={lab} title={tip} style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text2, cursor: 'help', whiteSpace: 'nowrap' }}>
+            <b style={{ color: i === 0 ? C.orange : C.text, fontWeight: 800 }}>{v}</b>
+            <span style={{ color: C.text3, fontSize: 8.5 }}> {lab}</span>
+          </span>
+        ))}
+        {counts.length > 1 && (
+          <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}
+            title="Home runs are the season total. RBI, runs and extra-base hits are his last 5 games — the slate publishes those as a five-game window, not a season count.">
+            L5 ⓘ
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
  * HR rate over the published windows.
  *
  * The competitors' most-copied element, built honestly: L5 and L10 are per

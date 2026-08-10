@@ -86,6 +86,12 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
           wxEff: n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null)),
           roof: clean(p?.roof, ''),
           rain: n(p?.weather_precip_chance, n(p?.precip_chance, 0)) * 100,
+          // 2026-08-09, Donovan: "parks should be more focused on the weather
+          // and park conditions, emphasize that." These three were already in
+          // the payload and the board never read them.
+          humidity: n(p?.weather_humidity, null),
+          feels: n(p?.weather_feels_like_f, null),
+          windBoost: n(p?.weather_wind_boost, null),
           time: p?.game_time || null,
           matchup: `${teamOf(p) || '?'} vs ${oppOf(p) || '?'}`,
           bats: [],
@@ -187,9 +193,13 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
     <MobileFold title="🏟 Tonight's parks" summary={foldSummary} count={parks.length}>
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>🏟 Tonight&apos;s parks</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          🌋 launch pads → 🧊 ice boxes · live status, first pitch, rain risk, lineup checks · tap to filter the board
+        <span style={{ fontSize: 12.5, fontWeight: 900 }}>🏟 Tonight&apos;s conditions</span>
+        {/* Was a four-clause inventory of the card's contents. The cards say
+            what they contain; the header only has to say the sort order and
+            the one interaction that isn't obvious. */}
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}
+          title="Ranked by park factor plus tonight's weather. Every card carries live game status, first pitch, rain risk and per-team lineup confirmation.">
+          🌋 launch pads → 🧊 ice boxes · tap to filter
         </span>
       </div>
       {/* EVEN ROWS (2026-08-08, Donovan): auto-fill grid stranded ragged
@@ -217,7 +227,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
           const isTop = i2 < 3 && g.edge > 0
           const out = /out/i.test(g.windLabel)
           const wIn = /in\b/i.test(g.windLabel)
-          const roofNote = g.roof && !/open/i.test(g.roof) ? g.roof : ''
+          // roofNote retired 2026-08-09 — the roof now has its own conditions cell
           return (
             <div
               key={g.pk}
@@ -267,14 +277,90 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
               </div>
               <div style={{ display: 'flex', gap: 7, alignItems: 'baseline', marginTop: 2, fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
                 <span style={{ fontWeight: 800, color: C.text2 }}>{g.matchup}</span>
-                {g.temp > 0 && <span style={{ color: g.temp >= 82 ? '#fb923c' : g.temp <= 58 ? '#38bdf8' : C.text3 }}>{Math.round(g.temp)}°</span>}
-                {g.wind > 0 && (
-                  <span title={g.windLabel} style={{ color: out ? '#fb923c' : wIn ? '#38bdf8' : C.text3, fontWeight: 800 }}>
-                    {out ? '↗' : wIn ? '↙' : '→'}{Math.round(g.wind)}
-                  </span>
-                )}
-                {roofNote && <span>🏠 {roofNote}</span>}
               </div>
+
+              {/* ── 🌦 CONDITIONS (2026-08-09) ────────────────────────────────
+                  Donovan: "parks should be more focused on the weather and
+                  park conditions — emphasize that."
+                  Temperature, wind, air and sky used to be four values at 9px
+                  in C.text3 sharing one line with the matchup, i.e. styled as
+                  the least important thing on a card whose entire subject is
+                  the weather. Four labelled cells now, coloured by whether
+                  each one helps the ball leave, with the reasoning in every
+                  tooltip. Values that aren't published simply don't render —
+                  no zeroes standing in for a missing reading.
+
+                  AIR is derived, and says so: warm air is less dense than
+                  cold, and humid air is slightly less dense than dry (water
+                  vapour is lighter than the nitrogen it displaces), so both
+                  push the same direction. Temperature does nearly all the
+                  work; humidity is a nudge, and is only allowed to move the
+                  verdict at the margins. */}
+              {(() => {
+                const closed = /dome|closed/i.test(g.roof)
+                const cells = []
+
+                if (g.temp > 0) {
+                  const warm = g.temp >= 82; const cold = g.temp <= 58
+                  cells.push({
+                    k: 'temp', label: 'Temp',
+                    val: `${Math.round(g.temp)}°`,
+                    col: warm ? '#fb923c' : cold ? '#38bdf8' : C.text2,
+                    tip: `${Math.round(g.temp)}°F at first pitch${g.feels != null && Math.abs(g.feels - g.temp) >= 3 ? `, feels like ${Math.round(g.feels)}°` : ''}. Warm air is thinner, so the ball carries further; cold air is dense and holds it up.`,
+                  })
+                }
+
+                if (g.wind > 0) {
+                  cells.push({
+                    k: 'wind', label: 'Wind',
+                    val: `${out ? '↗' : wIn ? '↙' : '→'} ${Math.round(g.wind)}`,
+                    col: closed ? C.text3 : out ? '#fb923c' : wIn ? '#38bdf8' : C.text2,
+                    tip: closed
+                      ? `${Math.round(g.wind)} mph ${g.windLabel || 'outside'} — but the roof is ${g.roof.toLowerCase()}, so it doesn't reach the field.`
+                      : `${Math.round(g.wind)} mph, ${g.windLabel || 'direction not published'}.${out ? ' Blowing out — the biggest single weather factor there is for home runs.' : wIn ? ' Blowing in — knocks down balls that would otherwise carry.' : ' Crosswind: it pushes balls sideways more than it helps or hurts distance.'}${g.windBoost != null ? ` The bot scores this wind at ${g.windBoost > 0 ? '+' : ''}${(g.windBoost * 100).toFixed(0)}%.` : ''}`,
+                  })
+                }
+
+                if (g.temp > 0) {
+                  // Temperature leads; humidity nudges the boundary by a few
+                  // degrees rather than getting a verdict of its own.
+                  const humid = g.humidity != null && g.humidity > 0.65
+                  const dry = g.humidity != null && g.humidity < 0.35
+                  const eff = g.temp + (humid ? 3 : dry ? -3 : 0)
+                  const read = eff >= 80 ? { w: 'thin', c: '#fb923c' } : eff <= 62 ? { w: 'heavy', c: '#38bdf8' } : { w: 'average', c: C.text2 }
+                  cells.push({
+                    k: 'air', label: 'Air',
+                    val: read.w,
+                    col: read.c,
+                    tip: `Air density, read from temperature${g.humidity != null ? ` (${Math.round(g.humidity * 100)}% humidity)` : ''}. Warm air is thinner and the ball carries; cold air is dense and it doesn't. Humid air is very slightly thinner than dry air — water vapour weighs less than the air it replaces — so it nudges the same way. Derived here, not a published number.`,
+                  })
+                }
+
+                cells.push(closed
+                  ? { k: 'sky', label: 'Roof', val: 'closed', col: '#a78bfa', tip: `${g.roof} — no wind, no rain, no sun. Conditions in this building are the same every night.` }
+                  : g.rain >= 20
+                    ? { k: 'sky', label: 'Rain', val: `${Math.round(g.rain)}%`, col: g.rain >= 50 ? '#f87171' : '#7dd3fc', tip: `${Math.round(g.rain)}% chance of precipitation around first pitch, from the bot's weather pull. A delay-risk read, not a promise of one.` }
+                    : { k: 'sky', label: 'Sky', val: g.roof ? 'open' : 'clear', col: C.text2, tip: g.roof ? `${g.roof} — open tonight, so the weather above plays.` : 'No meaningful rain chance published for first pitch.' })
+
+                return (
+                  <div className="stat-strip" style={{
+                    display: 'grid', gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))`,
+                    gap: 4, marginTop: 5,
+                  }}>
+                    {cells.map((c) => (
+                      <div key={c.k} title={c.tip} style={{
+                        minWidth: 0, textAlign: 'center', cursor: 'help',
+                        background: c.col === C.text2 || c.col === C.text3 ? 'rgba(255,255,255,.03)' : `${c.col}12`,
+                        border: `1px solid ${c.col === C.text2 || c.col === C.text3 ? C.border : `${c.col}40`}`,
+                        borderRadius: 7, padding: '3px 2px 4px',
+                      }}>
+                        <div style={{ fontSize: 8, letterSpacing: '.05em', textTransform: 'uppercase', color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.3 }}>{c.label}</div>
+                        <div style={{ fontSize: 11.5, fontWeight: 800, color: c.col, fontFamily: NUM_FONT, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.val}</div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {/* 🏟 PARK FACTOR, MADE VISIBLE (2026-08-09).
                   It used to be a bare "×1.07" buried in the weather run, at

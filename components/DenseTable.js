@@ -57,6 +57,8 @@ export default function DenseTable({
   // room to grow a sentence, and the header's own click is already spoken for
   // by sorting (the dot stops propagation so the two never collide).
   const [explain, setExplain] = useState(null)
+  // Caption fold — collapsed by default; see the caption block below for why.
+  const [capOpen, setCapOpen] = useState(false)
 
   const heatCols = useMemo(() => columns.filter((c) => c.heat !== false && !c.flag && !c.action), [columns])
 
@@ -292,15 +294,52 @@ export default function DenseTable({
       <div className="dense-swipe" aria-hidden="true">
         swipe the table sideways for the rest of the columns → <span>(the name column stays put)</span>
       </div>
+      {/* ── THE CAPTION FOLD (2026-08-09) ───────────────────────────────────
+          Donovan: "I think it's a little too much written words."
+          He's right, and this component is where most of them are. Sixteen
+          boards carry captions of 45+ words and one runs to 223 — call it
+          1,300 words of grey fine print under the tables, every one of them
+          explaining a real caveat somebody eventually needs.
+          Deleting them would trade a wordiness problem for an honesty problem.
+          So: the FIRST SENTENCE stays, always — that's the part that says what
+          the table is — and everything after it folds behind "why ▸". Nothing
+          is lost, the default page is short, and one change here shortens all
+          sixteen boards at once instead of sixteen hand-edits that drift.
+          The shift-click hint moves inside the fold too: it's a power-user
+          affordance printed under every table on the site, which is the
+          definition of something that doesn't need to be on screen by default. */}
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         {truncated > 0 && (
           <span style={{ color: C.orange }}>
             Showing the top {view.length} of {sorted.length} — sort a column to bring others up.{' '}
           </span>
         )}
-        {caption || 'Every column is colored against its own range. Click a header to sort, a row to open the hitter.'}
-        {' '}<b style={{ color: C.text2 }}>Shift-click a header</b> to add it as a tiebreaker under the
-        current sort — shift-click again to flip it, a third time to drop it.
+        {(() => {
+          const full = caption || 'Every column is colored against its own range. Click a header to sort, a row to open the hitter.'
+          // Split on the first sentence end that's followed by a space and a
+          // capital — so "1.5 runs" and "e.g." don't get treated as the end.
+          const m = String(full).match(/^([\s\S]*?[.!?])\s+(?=[A-Z“"])/)
+          const head = m ? m[1] : full
+          const rest = m ? String(full).slice(m[0].length) : ''
+          if (!rest) return full
+          return (
+            <>
+              {head}{' '}
+              <button onClick={() => setCapOpen((v) => !v)} style={{
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted rgba(255,255,255,.25)',
+                textUnderlineOffset: 3, fontFamily: 'inherit',
+              }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
+              {capOpen && <> {rest}</>}
+            </>
+          )
+        })()}
+        {capOpen && (
+          <>
+            {' '}<b style={{ color: C.text2 }}>Shift-click a header</b> to add it as a tiebreaker under the
+            current sort — shift-click again to flip it, a third time to drop it.
+          </>
+        )}
         {sort.length > 1 && (
           <>
             {' '}Sorting by{' '}
