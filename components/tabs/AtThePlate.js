@@ -9,6 +9,7 @@ import {
   pitchColor, PITCH_NAMES, KIND_WORD,
 } from '../../lib/livePitches'
 import { Empty, Band } from '../ui'
+import LiveAtBats from '../LiveAtBats'
 import ZoneMap from '../ZoneMap'
 import SprayField from '../SprayField'
 
@@ -362,6 +363,20 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   return (
     <div>
       <Header auto={auto} setAuto={setAuto} refresh={refresh} count={liveGames.length} />
+
+      {/* ── 0 · THE WHOLE SLATE, BEFORE THE ROOM ──────────────────────────
+          This page is a ROOM: one batter, deep. That is right for the man you
+          care about and wrong for "what is happening right now", which is
+          about all eight games and none of them in particular — and which you
+          had to answer by picking a game first, which is exactly what you
+          cannot do when you don't yet know where to look. The strip answers it
+          in one glance and then hands you the room. No extra request; every
+          field is already in the snapshot this page polls. */}
+      <LiveAtBats
+        players={players}
+        watchIds={watchIds}
+        onGo={(pk) => setPinnedGame(pk)}
+      />
 
       {/* ── 1 · WHICH GAME ─────────────────────────────────────────────── */}
       {liveGames.length > 1 && (

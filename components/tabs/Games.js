@@ -11,6 +11,7 @@ import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
+import LiveAtBats from '../LiveAtBats'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import LineupSlotMatchup from '../LineupSlotMatchup'
@@ -338,6 +339,15 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
           accent={C.green}
           defaultOpen={!!lineupFocus}
         >
+        {/* Compact and capped at six on this tab, deliberately. Donovan:
+            "make sure it doesn't take up the full page or throw it off for the
+            live at-bats on the games tab." Games is a grid of cards and this is
+            a header for it, not the content — narrower tiles, a shorter cap,
+            and it scrolls sideways rather than wrapping into a second row that
+            would push the first game card below the fold. */}
+        <LiveAtBats players={players} watchIds={watchIds} compact max={6}
+          onGo={(pk) => setLineupFocus(pk)} />
+
         {/* ── CARD WATCH (2026-08-10) ────────────────────────────────────
             Donovan: "what would be the best way to incorporate that so we can
             see the lineups."
