@@ -54,6 +54,29 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
     [ranked, matches, selectedId],
   )
 
+  // ⚠️ RULES OF HOOKS (moved up 2026-08-09, repo bug scan). The phone flag
+  // used to be declared BELOW the `if (!ranked.length) return` on the next
+  // line. React identifies hooks by call order, so on the render where the
+  // slate goes from empty to loaded — which is every single page load, since
+  // the payload arrives after the first paint — this component went from 3
+  // hooks to 5 and React throws "Rendered more hooks than during the previous
+  // render". A white screen on the Players tab, every time, on the exact
+  // render where the data shows up.
+  //
+  // Nothing else can go between here and the early return.
+  //
+  // The flag is set in an effect rather than read during render, so the server
+  // and the first client render agree — reading matchMedia during render is a
+  // hydration mismatch.
+  const [phone, setPhone] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 560px)')
+    const sync = () => setPhone(mq.matches)
+    sync()
+    mq.addEventListener?.('change', sync)
+    return () => mq.removeEventListener?.('change', sync)
+  }, [])
+
   if (!ranked.length) return <Empty text="No players on this slate yet." />
 
   // Ramp bounds come from what's on screen, not the whole slate -- otherwise a
@@ -78,14 +101,6 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   // The flag is set in an effect rather than read during render, so the server
   // and the first client render agree — reading matchMedia during render is a
   // hydration mismatch.
-  const [phone, setPhone] = useState(false)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 560px)')
-    const sync = () => setPhone(mq.matches)
-    sync()
-    mq.addEventListener?.('change', sync)
-    return () => mq.removeEventListener?.('change', sync)
-  }, [])
   const showList = !phone || !selected
   const showDetail = !phone || !!selected
 

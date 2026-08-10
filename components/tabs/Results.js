@@ -527,8 +527,22 @@ function PairsResults({ pairPoolResults }) {
   if (!pairs.length && !pools.length) return null
 
   const clearedPairs = pairs.filter(p => p.cleared)
+  // ⚠️ REGRESSION CAUGHT IN THE REPO SCAN (2026-08-09). The bot retired the
+  // 6-man pool today and publishes two 3-mans in its place. This filter only
+  // knew about 4-MAN and 6-MAN, so from tonight onwards the Results tab would
+  // have rendered an EMPTY "6-MAN POOLS" heading and dropped every 3-man pool
+  // on the floor — no error, no warning, just a section of the results page
+  // quietly missing half its content.
+  //
+  // Worth naming the class: a label-matching filter is a contract between two
+  // repos, and nothing enforces it. Both spellings are matched now, and the
+  // heading is derived from what actually came back rather than hard-coded.
   const pool4 = pools.filter(p => (p.label || '').startsWith('4-MAN'))
+  const poolSmall = pools.filter(p => (p.label || '').startsWith('3-MAN'))
   const pool6 = pools.filter(p => (p.label || '').startsWith('6-MAN'))
+  // Anything the bot starts publishing under a label nobody anticipated still
+  // renders, rather than vanishing.
+  const poolOther = pools.filter(p => !/^(3|4|6)-MAN/.test(p.label || ''))
 
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
@@ -561,15 +575,27 @@ function PairsResults({ pairPoolResults }) {
       </div>
 
       {/* pool summary */}
-      {[{ label: '4-MAN POOLS', list: pool4 }, { label: '6-MAN POOLS', list: pool6 }].map(({ label, list }) => (
+      {[
+        { label: '3-MAN POOLS', list: poolSmall },
+        { label: '4-MAN POOLS', list: pool4 },
+        { label: '6-MAN POOLS (retired)', list: pool6 },
+        { label: 'OTHER POOLS', list: poolOther },
+      ].map(({ label, list }) => (
         list.length > 0 && (
           <div key={label} style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 11, color: C.text3, marginBottom: 6 }}>{label}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {list.map((pool, i) => {
-                const hitRatio = si(pool.hr_count) / Math.max(1, si(pool.total_count))
-                const col = hitRatio >= 1 ? C.green : hitRatio >= 0.5 ? C.yellow : C.text3
-                const letter = (pool.label || '').replace('4-MAN HR POOL ', '').replace('6-MAN HR POOL ', '')
+                // Colour and bar run to the BAR the pool is actually graded
+                // on, not to "every member homered" — that outcome happened 0
+                // times in 320 archived pools, so scoring against it painted
+                // every real hit as a near-miss.
+                const size = Math.max(1, si(pool.total_count))
+                const bar = si(pool.bar) || (size <= 4 ? 1 : 2)
+                const hits = si(pool.hr_count)
+                const hitRatio = hits / bar
+                const col = hits >= bar ? C.green : hits > 0 ? C.yellow : C.text3
+                const letter = (pool.label || '').replace(/^[346]-MAN HR POOL /, '')
                 const homered = new Set((pool.homer_names || []).map((x) => String(x || '').toLowerCase()))
                 const members = Array.isArray(pool.players) ? pool.players : []
                 return (
@@ -580,9 +606,9 @@ function PairsResults({ pairPoolResults }) {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 10, fontWeight: 800, color: col, minWidth: 14 }}>{letter}</span>
-                      <MiniBar value={hitRatio * 100} color={col} />
+                      <MiniBar value={Math.min(100, hitRatio * 100)} color={col} />
                       <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: col, minWidth: 44 }}>
-                        {si(pool.hr_count)}/{si(pool.total_count)} HR
+                        {hits}/{size} HR · need {bar}
                       </span>
                     </div>
                     {/* Who is actually in the pool. Without this a pool is just

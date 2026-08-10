@@ -41,12 +41,24 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
   // Browser notifications (2026-08-06): opt-in via the bell. When the tab is
   // hidden and permission is granted, toasts also fire as real OS
   // notifications — the Notification API is pure client-side, no server.
-  const [notif, setNotif] = useState(() => {
+  // ⚠️ HYDRATION (fixed 2026-08-09, repo bug scan). This was a lazy useState
+  // initializer that read Notification.permission and localStorage. Both of
+  // those run on the SERVER during SSR, where neither exists — the try/catch
+  // stopped the crash but not the real problem: the server rendered 'off' and
+  // the client rendered 'on', so React hydrated a tree that didn't match the
+  // HTML and silently discarded it.
+  //
+  // Every other per-device flag on this site already does it the right way and
+  // says so in a comment ("set in an effect rather than read during render, so
+  // the server and the first client render agree"). This one didn't. Same
+  // pattern now: start 'off', correct it after mount.
+  const [notif, setNotif] = useState('off')
+  useEffect(() => {
     try {
-      return typeof Notification !== 'undefined' && Notification.permission === 'granted'
-        && localStorage.getItem('wire_notif') === 'on' ? 'on' : 'off'
-    } catch { return 'off' }
-  })
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted'
+          && localStorage.getItem('wire_notif') === 'on') setNotif('on')
+    } catch { /* private mode, or no Notification API */ }
+  }, [])
   const notifRef = useRef(notif)
   useEffect(() => { notifRef.current = notif }, [notif])
   const toggleNotif = async () => {
