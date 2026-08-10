@@ -283,7 +283,12 @@ function PitchMatrix({ pitches, matchNote }) {
   const pct=v=>v!=null?`${Math.round(v*100)}%`:'—'
   return (
     <div>
-      <div className="rail" style={{overflowX:'auto'}}>
+      {/* dense-scroll, not bare rail (2026-08-10 player-tab phone pass): this
+          400px-wide pitch table sits inside the player card, so on a 390px
+          phone it is always scrolling sideways. dense-scroll is the treatment
+          every other wide table here already wears — momentum scrolling,
+          tighter cell padding, no stock scrollbar. */}
+      <div className="dense-scroll rail" style={{overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
           <thead>
             <tr>

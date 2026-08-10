@@ -49,9 +49,12 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
       .slice(0, 40)
   }, [ranked, query, ask])
 
-  const selected = useMemo(
-    () => ranked.find((p) => playerId(p) === selectedId) || matches[0] || null,
-    [ranked, matches, selectedId],
+  // WHO HAS ACTUALLY BEEN TAPPED — no fallback. The fallback used to live in
+  // here (`|| matches[0]`) and it is what broke the phone layout completely;
+  // see the note above showList below.
+  const picked = useMemo(
+    () => ranked.find((p) => playerId(p) === selectedId) || null,
+    [ranked, selectedId],
   )
 
   // ⚠️ RULES OF HOOKS (moved up 2026-08-09, repo bug scan). The phone flag
@@ -68,14 +71,30 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   // The flag is set in an effect rather than read during render, so the server
   // and the first client render agree — reading matchMedia during render is a
   // hydration mismatch.
+  //
+  // 700px, NOT 560 (fixed 2026-08-10). This flag decides whether the tab is
+  // master-detail or two columns, and MobileCSS collapses .playerboard to one
+  // column at 700. They disagreed, so every viewport between 561 and 700 —
+  // phones in landscape, small tablets, a narrow desktop window — got the
+  // stacked grid with BOTH panes rendered: the full 40-row list, then the
+  // detail card 40 rows below it. Two rules describing the same layout have to
+  // read the same number.
   const [phone, setPhone] = useState(false)
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 560px)')
+    const mq = window.matchMedia('(max-width: 700px)')
     const sync = () => setPhone(mq.matches)
     sync()
     mq.addEventListener?.('change', sync)
     return () => mq.removeEventListener?.('change', sync)
   }, [])
+
+  // Tapping a hitter on a phone swaps the list out for his card IN PLACE. If
+  // you were twenty rows down the list when you tapped, the card opens twenty
+  // rows down the page — on his splits, or on nothing at all. Land at the top
+  // of what you just opened.
+  useEffect(() => {
+    if (phone && selectedId) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [phone, selectedId])
 
   if (!ranked.length) return <Empty text="No players on this slate yet." />
 
@@ -98,6 +117,23 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   // and the list gets out of the way; one tap on ← brings it back with your
   // search and filters intact. Desktop is untouched.
   //
+  // THE PHONE LIST WAS UNREACHABLE (fixed 2026-08-10). Donovan: "the player
+  // tab on mobile is not optimized correctly." It wasn't a layout problem —
+  // the master-detail above never worked at all, and the reason is one line.
+  //
+  // `selected` used to be `find(picked) || matches[0] || null`, so it was
+  // truthy from the very first render. `showList = !phone || !selected` was
+  // therefore FALSE on a phone before you touched anything: the tab opened
+  // straight into the top hitter's card with no list, no search box and no
+  // filter chips. Worse, "← All hitters" cleared selectedId and the fallback
+  // immediately re-selected matches[0], so the button did nothing. On a phone
+  // there was no way to reach any hitter but the highest-scored one.
+  //
+  // The fix is to keep "what has been tapped" and "what to show" as two
+  // different questions. The desktop fallback — open on the top hitter so the
+  // right pane is never empty — belongs to the two-column layout only.
+  const selected = phone ? picked : (picked || matches[0] || null)
+
   // The flag is set in an effect rather than read during render, so the server
   // and the first client render agree — reading matchMedia during render is a
   // hydration mismatch.
