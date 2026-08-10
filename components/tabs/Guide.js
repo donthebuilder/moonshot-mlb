@@ -176,9 +176,9 @@ function ColorKey() {
 
       <P>
         {active === 'ember'
-          ? 'One colour, nine steps. The worst cell is BLACK — on this scale the bottom means “none”, not “bad”, so an empty stat reads as empty. Amber warms and brightens as the number grows.'
+          ? 'One colour, eight steps: dark is low, bright amber is high. There is no second colour for “bad”, because a low score isn’t bad — it’s just low.'
           : active === 'verdict'
-            ? 'Dark red is avoid, grey is nothing to say, bright green is play. No yellow — the middle drains its colour instead, because a middling number is not a recommendation.'
+            ? 'Two colours and nothing else. Red is avoid, green is play, and the middle goes grey rather than yellow — a middling number is not a recommendation, so it gets out of the way.'
             : 'Dark is bad, bright is good. Red through amber to green, with every step in between visible — the one to use when ranking a whole column rather than spotting the extremes.'}
       </P>
       <P>
