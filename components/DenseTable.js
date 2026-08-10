@@ -218,8 +218,14 @@ export default function DenseTable({
                           title={lit ? (c.titleOn || 'Remove') : (c.titleOff || 'Add')}
                           style={{
                             width: '100%', padding: pad, border: 'none', cursor: 'pointer',
-                            background: lit ? ORANGE_RAMP[5] : 'transparent',
-                            color: lit ? '#1a0d02' : C.text3,
+                            // A UI accent, NOT a data colour. This used to be
+                            // ORANGE_RAMP[5] — borrowing a step off the heat
+                            // scale — so when the ramp went red-to-green on
+                            // 2026-08-09 the watchlist star turned olive. A
+                            // control that means "on" should never move
+                            // because the meaning of a data colour changed.
+                            background: lit ? C.orange : 'transparent',
+                            color: lit ? '#0a0a0b' : C.text3,
                             fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, lineHeight: 1,
                           }}
                         >{lit ? (c.mark || '★') : (c.markOff || '☆')}</button>
@@ -232,8 +238,11 @@ export default function DenseTable({
                     return (
                       <td key={c.key} style={{
                         textAlign: 'center', padding: pad,
-                        background: lit ? ORANGE_RAMP[5] : C.bg3,
-                        color: lit ? '#1a0d02' : C.text3,
+                        // Same reasoning as the star above: a flag is on or
+                        // off, not high or low, so it takes the site accent
+                        // rather than a step off the heat ramp.
+                        background: lit ? C.orange : C.bg3,
+                        color: lit ? '#0a0a0b' : C.text3,
                         fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800,
                         borderRight: `1px solid ${C.bg}`, borderBottom: `1px solid ${C.bg}`,
                       }}>{lit ? (c.mark || '●') : '·'}</td>

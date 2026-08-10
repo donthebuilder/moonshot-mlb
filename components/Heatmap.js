@@ -4,45 +4,83 @@ import { C, NUM_FONT } from '../lib/theme'
 
 // Heatmap — the chart the Streamlit build leans on hardest, ported.
 //
-// Palette note: Streamlit used a green ramp because green was that site's
-// magnitude colour. Here the accent is orange, so the ramp runs dark ember to
-// bright amber. One hue on purpose -- the eye reads brightness as magnitude
-// without having to decode a rainbow. A diverging scale would say "bad" in a
-// second colour, but on these boards a low score isn't bad, it's just low.
+// Every column is scaled independently against its own min/max, so a strong
+// cell means "high for this slate on that input" — not "high compared to the
+// column beside it". Scaling columns together lets one wide-ranged column
+// flatten every other one into a single shade.
 //
-// Labels are near-black on the top two shades. Off-white vanishes on bright
-// amber, which is the single most common way a heatmap ends up unreadable.
+// The palette history is below and worth keeping: this is the fourth attempt,
+// and the first three all failed the same way, by asking BRIGHTNESS to carry
+// the whole signal on a near-black page.
 
-// Ramp v5 — the bottom third was unreadable.
+// ══ RAMP v3 — TRAFFIC LIGHT (2026-08-09) ═════════════════════════════════
+// Donovan: "try red green and yellow for the heat map and make it easily
+// readable — the heat map we have right now is not readable."
 //
-// v4's floor was #33200a on a #09090b page: about 1.4:1 against the background,
-// and off-white text on it came out at roughly 3:1. On a dense board that meant
-// the bottom third of every column was a dark smear where you could see there
-// was a number but not read it without leaning in. The Due board showed it
-// worst — half those cells are low by construction, so half the table was mud.
+// WHY v2 WASN'T READABLE, and it is a design fault rather than a taste one.
+// Every version up to now was ONE HUE varying only in BRIGHTNESS, on a
+// near-black page. That has two problems that compound:
 //
-// The floor is lifted and the low steps warmed so each one separates from both
-// the page and its neighbour. The hue shift is unchanged: dark red-brown
-// through orange to light gold, because eight steps of one hue collapse into a
-// smear on a dense grid no matter how bright they are.
-// RAMP v2 (2026-08-08, "honestly the color looks nasty"): the old ramp's
-// bottom half was brown mud, which made whole tables read as dirt. Low
-// values now recede into cool charcoal/slate — visually QUIET — and heat
-// is earned: warmth only begins above the midpoint, saturating to ember.
-// Same 8 stops, same API, every table on the site inherits the fix.
+//   1. Brightness is the weakest channel the eye has for comparing things
+//      that are not touching. Two cells four rows apart, both dim orange,
+//      are genuinely hard to rank — you end up reading the number instead,
+//      which is the heatmap failing at its only job.
+//   2. Half the ramp lived at 1.4–3:1 against the background. v2's fix was
+//      to make the low end "quiet" charcoal, which solved the mud and made
+//      the bottom half of every table read as EMPTY rather than as low.
+//
+// v3 gives the work to HUE. Red means weak, amber means middling, green
+// means strong — a mapping nobody has to be taught, and one the eye resolves
+// instantly at any distance and any cell size.
+//
+// BUILT BY CONSTRUCTION, NOT BY EYE. Picking nine nice-looking hexes gives
+// you a ramp with a yellow-green plateau where three steps collapse into one
+// shade. Instead the hue walks 2° to 142° while LUMINANCE is forced to climb
+// a fixed ladder (0.094 → 0.573, strictly increasing). Measured:
+//
+//   stop  hex       vs page  ink     text     lum    Δ prev
+//   0     #a12b26    2.74    white   6.84    0.094    -
+//   1     #b8402a    3.60    white   5.20    0.140    57
+//   2     #c25a22    4.53    dark    4.50    0.189    56
+//   3     #c47617    5.64    dark    5.61    0.248    58
+//   4     #bd9110    6.84    dark    6.81    0.311    56
+//   5     #aeae17    8.40    dark    8.36    0.393    64
+//   6     #86c92c    9.86    dark    9.81    0.470    90
+//   7     #74d45e   10.73    dark   10.67    0.516    87
+//   8     #6fdd97   11.81    dark   11.75    0.573    93
+//
+//   worst text contrast anywhere  4.50:1  (WCAG AA body text is 4.5)
+//   closest two neighbours        Δ56     (~30 already reads as different)
+//   red end vs green end          Δ406
+//
+// v2's worst case was 2.34:1. Every cell on this ramp is now readable.
+//
+// THE COLOUR-BLINDNESS PROBLEM, HANDLED. Red/green is the worst possible
+// pair for deuteranopia — roughly 8% of men — and a naive traffic light is
+// exactly the chart those readers can't use. That is why luminance is forced
+// to rise monotonically across all nine stops: strip the colour out entirely
+// and the ramp is STILL correctly ordered, dark to light. Hue is the fast
+// read; lightness is the fallback that never lies.
+//
+// Same 9-stop array, same API, same exported name — every table, zone map
+// and matchup grid on the site inherits this without a further edit.
 export const ORANGE_RAMP = [
-  '#17171b', // floor: near-invisible, low means quiet
-  '#1f2027',
-  '#2b2c35', // cool slate — still "cold"
-  '#4b3a2a', // first hint of warmth
-  '#7a5220',
-  '#b06a18',
-  '#e08616', // hot
-  '#fca63a', // ember top
+  '#a12b26', // weak
+  '#b8402a',
+  '#c25a22',
+  '#c47617', // middling
+  '#bd9110',
+  '#aeae17',
+  '#86c92c',
+  '#74d45e',
+  '#6fdd97', // strong
 ]
 
-const INK_DARK = '#1a0d02'
-const INK_LIGHT = '#f4f4f5'
+// Ink is near-black from step 2 up. Off-white only survives on the two
+// darkest reds — measured above, not assumed, which is how the previous
+// threshold ended up two steps too high after a ramp change.
+const INK_DARK = '#0a0a0b'
+const INK_LIGHT = '#f8f8f8'
 
 export function rampColor(v, lo, hi) {
   const f = Number(v)
@@ -52,29 +90,29 @@ export function rampColor(v, lo, hi) {
   return ORANGE_RAMP[Math.min(ORANGE_RAMP.length - 1, Math.floor(pos * ORANGE_RAMP.length))]
 }
 
-// The ramp moves in hue as well as lightness -- deep red-brown, through
-// orange, to light gold. Eight steps of one lightness ramp collapse into a
-// smear on a dense grid; shifting the hue keeps adjacent steps apart.
-//
-// INK SWITCHES AT STEP 4, NOT STEP 6.
-//
-// Measured, not guessed. With the v5 ramp, off-white text sits at 2.34:1 on
-// step 5 and 3.12:1 on step 4 — both below readable. Dark ink on those same
-// two is 7.39:1 and 5.56:1. Moving the switch down two steps takes the
-// worst-case text contrast anywhere on the ramp from 2.34 to 4.32, and every
-// other step improves or holds:
-//
-//   step   0     1     2     3     4     5     6     7
-//   ratio  11.2  8.3   6.0   4.3   5.6   7.4   9.4   11.8
-//
-// The old threshold was inherited from the darker v4 ramp, where steps 4 and 5
-// really were dim enough for light text. Lifting the ramp broke that
-// assumption without anything failing loudly — the cells just got harder to
-// read as they got brighter.
+// Where light ink stops winning, computed once from the ramp itself.
+const _lum = (h) => {
+  const p = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map((s) => (s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]
+}
+const _ratio = (a, b) => {
+  const [hi, lo] = _lum(a) > _lum(b) ? [_lum(a), _lum(b)] : [_lum(b), _lum(a)]
+  return (hi + 0.05) / (lo + 0.05)
+}
+const INK_CROSSOVER = (() => {
+  const i = ORANGE_RAMP.findIndex((c) => _ratio(c, INK_DARK) > _ratio(c, INK_LIGHT))
+  return i < 0 ? ORANGE_RAMP.length : i
+})()
+
 export const inkFor = (bg) => {
-  // ramp v2: only the top two stops are bright enough for dark ink
+  // v3: the crossover is step 2, and it is DERIVED rather than typed in — the
+  // last two times this ramp changed, the hard-coded threshold was left behind
+  // and cells silently got harder to read as they got brighter. Computing it
+  // from the ramp means the ink can never disagree with the fill again.
   const i = ORANGE_RAMP.indexOf(bg)
-  return i >= 6 ? INK_DARK : INK_LIGHT
+  if (i < 0) return INK_LIGHT
+  return i >= INK_CROSSOVER ? INK_DARK : INK_LIGHT
 }
 
 /**

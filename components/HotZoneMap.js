@@ -146,7 +146,12 @@ function Grid9({ zones, metricKey, metricFmt, killZones=[] }) {
 function Legend() {
   return (
     <div style={{display:'flex', gap:10, flexWrap:'wrap', marginTop:8}}>
-      {[[ORANGE_RAMP[7],'Hot'],[ORANGE_RAMP[5],'Warm'],[ORANGE_RAMP[2],'Neutral'],[ORANGE_RAMP[0],'Cold']].map(([c,l])=>(
+      {/* Relabelled with the traffic-light ramp (2026-08-09). "Hot/Cold" was
+          the old orange scale's language and it now reads backwards to
+          anyone who sees green and thinks "good". The colours mean the same
+          thing they mean everywhere else on this site: green is good FOR THE
+          HITTER, red is not. The words just say so out loud now. */}
+      {[[ORANGE_RAMP[8],'He crushes it'],[ORANGE_RAMP[6],'Good'],[ORANGE_RAMP[4],'Middling'],[ORANGE_RAMP[1],'Weak']].map(([c,l])=>(
         <span key={l} style={{display:'flex',alignItems:'center',gap:3,fontSize:10,color:C.text3}}>
           <span style={{width:8,height:8,borderRadius:2,background:c}}/>
           {l}
