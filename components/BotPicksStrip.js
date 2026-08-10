@@ -120,7 +120,11 @@ function microStat(p, role) {
   return x != null ? `${x}XBH` : null
 }
 
-const CATEGORIES = [
+// EXPORTED (2026-08-10) so the dedicated picks page ranks the exact same way.
+// Two surfaces naming different hitters as "the bot's pick" is the failure
+// this file's own history section is about; the fix is one definition, not two
+// copies that agree today.
+export const CATEGORIES = [
   // The bot's own score, and as of 2026-08-09 that is what the whole site
   // ranks on — so this strip and the HR Board finally name the same hitters.
   //
@@ -139,14 +143,18 @@ const CATEGORIES = [
     blurb: 'Total bases',    score: tbScore },
 ]
 
-export default function BotPicksStrip({ players = [], onPlayerClick }) {
-  const four = useMemo(() => CATEGORIES.map((cat) => {
+/** The buckets, three deep, ranked on each category's own scale. */
+export function pickBuckets(players = []) {
+  return CATEGORIES.map((cat) => {
     const pool = players.filter(
       (p) => String(p?.game_pick_role || '').split('/')[0].trim() === cat.role,
     )
-    const picks = [...pool].sort((a, b) => cat.score(b) - cat.score(a)).slice(0, 3)
-    return { ...cat, picks, poolSize: pool.length }
-  }), [players])
+    return { ...cat, picks: [...pool].sort((a, b) => cat.score(b) - cat.score(a)).slice(0, 3), poolSize: pool.length }
+  })
+}
+
+export default function BotPicksStrip({ players = [], onPlayerClick }) {
+  const four = useMemo(() => pickBuckets(players), [players])
 
   if (!four.some((f) => f.picks.length)) return null
 

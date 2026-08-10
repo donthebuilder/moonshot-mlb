@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Empty, btnStyle } from '../ui'
+import PickBoard from '../PickBoard'
 import { logUrl } from '../../lib/dataSource'
 import { pillMeta } from '../../lib/pills'
 
@@ -455,20 +456,30 @@ function SheetViewer({ url, label }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
+// ORDER IS THE FIX (2026-08-10). Donovan: "there's no dedicated page to just
+// showing the bot picks... the bot page is kinda just unusable — it does
+// nothing." It wasn't missing a feature, it was landing on the wrong thing:
+// `view` defaulted to 'sheet', a raw dump of mlb_breakdown_today.txt, and the
+// picks sat behind a second click under a 40-row table. A tab called The Bot
+// that opens on a wall of monospace does nothing, exactly as described.
+//
+// Picks first and by default. The sheet is still here, unedited, because it is
+// the receipt — it just stopped being the front door.
 const VIEWS = [
+  { key: 'picks',    label: '🎯 Tonight’s Picks' },
   { key: 'sheet',    label: '📄 Today’s Sheet' },
   { key: 'tomorrow', label: '📄 Tomorrow' },
   { key: 'board',    label: '🏆 Raw Board' },
 ]
 
 export default function Bot({ players = [], onPlayerClick }) {
-  const [view, setView] = useState('sheet')
+  const [view, setView] = useState('picks')
 
   return (
     <div>
       <PanelTitle
         title="The Bot"
-        sub="Its sheet, in its own sections · its board, unadjusted"
+        sub="Tonight's picks and how they're doing · its sheet, in its own sections · its board, unadjusted"
         right={
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {VIEWS.map((v) => (
@@ -480,6 +491,7 @@ export default function Bot({ players = [], onPlayerClick }) {
         }
       />
 
+      {view === 'picks'    && <PickBoard players={players} onPlayerClick={onPlayerClick} />}
       {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
       {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
       {view === 'board'    && <Board players={players} onPlayerClick={onPlayerClick} />}
