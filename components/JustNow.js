@@ -107,31 +107,47 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
                 onClick={() => p && onPlayerClick?.(p)}
                 title={`${r.name} — ${r.event}${r.pitcher ? ` off ${r.pitcher}` : ''} · ${r.half} ${r.inning}${r.ev ? ` · ${Math.round(r.ev)}mph off the bat` : ''}`}
                 style={{
-                  flex: '0 0 auto', width: 168, textAlign: 'left',
+                  flex: '0 0 auto', width: 176, textAlign: 'left',
                   cursor: p ? 'pointer' : 'default',
-                  background: r.tone === 'hr' ? `${col}14` : C.bg2,
-                  border: `1px solid ${r.tone === 'hr' || r.tone === 'hot' ? `${col}66` : C.border}`,
-                  borderRadius: 10, padding: '6px 9px 7px', minWidth: 0,
+                  // color HAS to be set here. A <button> does not inherit text
+                  // colour — it resets to the UA's `buttontext`, which is
+                  // near-black, which on this page is invisible. Every name in
+                  // this rail rendered as a dark smudge on the first night it
+                  // was live. LiveAtBats set a colour on its name and survived;
+                  // this one leaned on inheritance and did not.
+                  color: C.text,
+                  background: r.tone === 'hr' ? `${col}1a` : C.bg3,
+                  border: `1px solid ${r.tone === 'hr' || r.tone === 'hot' ? `${col}77` : C.border2}`,
+                  borderRadius: 10, padding: '7px 10px 8px', minWidth: 0,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, fontFamily: NUM_FONT }}>
                   <span style={{ fontSize: 10 }}>{r.icon}</span>
-                  <span style={{ fontSize: 8.5, color: C.text3 }}>
+                  <span style={{ fontSize: 9, color: C.text2, fontWeight: 700 }}>
                     {/^top/i.test(r.half) ? '▲' : '▼'}{r.inning}
                   </span>
                   {r.ev ? (
-                    <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 800, color: r.ev >= 100 ? '#fb7185' : C.text3 }}>
-                      {Math.round(r.ev)}
+                    <span title={`${Math.round(r.ev)} mph off the bat`}
+                      style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
+                        color: r.ev >= 100 ? '#fb7185' : C.text2 }}>
+                      {Math.round(r.ev)}<span style={{ fontSize: 7.5, color: C.text3 }}> mph</span>
                     </span>
                   ) : null}
                 </div>
+                {/* NAME FIRST AND BIGGEST. You scan this rail for a name and
+                    then read what happened to him — never the other way round.
+                    The first version had them nearly the same size, with the
+                    verb in the loud colour and the name in none at all. */}
                 <div style={{
-                  fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap',
-                  overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1,
+                  fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap',
+                  overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2,
+                  color: C.text, letterSpacing: '-.01em',
                 }}>{r.name}</div>
                 <div style={{
-                  fontSize: 9, fontWeight: r.tone === 'hr' ? 900 : 700, color: col,
+                  fontSize: 9.5, fontWeight: r.tone === 'hr' ? 900 : 700, color: col,
                   fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  textTransform: r.tone === 'hr' ? 'none' : 'uppercase', letterSpacing: '.02em',
+                  marginTop: 1,
                 }}>{SHORT(r.event)}</div>
               </button>
             )
