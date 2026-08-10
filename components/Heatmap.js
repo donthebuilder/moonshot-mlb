@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { activeStops, inkOn, edgeOn, subscribe } from '../lib/palette'
+import { activeStops, activeChips, inkOn, edgeOn, subscribe } from '../lib/palette'
 import PaletteToggle from './PaletteToggle'
 
 // Heatmap — the chart the Streamlit build leans on hardest, ported.
@@ -36,10 +36,36 @@ export { RAMPS, RAMP_IDS, DEFAULT_RAMP, usePalette, setRamp, getRamp, hydrateRam
 // a TypeError at render. Mutating one array has none of that risk and reads
 // like what it is.
 export const ORANGE_RAMP = [...activeStops()]
-subscribe(() => { ORANGE_RAMP.length = 0; ORANGE_RAMP.push(...activeStops()) })
+
+// The same live view, but for LEGEND CHIPS — swatches with no text on them.
+// Signal's fills are near-black by construction, which is correct behind a
+// number and invisible as a bare dot. See activeChips().
+export const RAMP_CHIPS = [...activeChips()]
+
+subscribe(() => {
+  ORANGE_RAMP.length = 0
+  ORANGE_RAMP.push(...activeStops())
+  RAMP_CHIPS.length = 0
+  RAMP_CHIPS.push(...activeChips())
+})
 
 export const inkFor = inkOn
 export { edgeOn }
+
+/**
+ * rampColor for things with NO TEXT ON THEM — bars, wedges, dots.
+ *
+ * Same scale, chip colours. A lit ramp's fills are near-black on purpose and a
+ * bar drawn in one is a bar you cannot see; there is no number sitting on top
+ * of it to carry the colour. Added 2026-08-10 with Signal's rebuild.
+ */
+export function chipColor(v, lo, hi) {
+  const f = Number(v)
+  if (!Number.isFinite(f)) return null
+  const span = hi - lo
+  const pos = span <= 0 ? 0 : Math.max(0, Math.min(1, (f - lo) / span))
+  return RAMP_CHIPS[Math.min(RAMP_CHIPS.length - 1, Math.floor(pos * RAMP_CHIPS.length))]
+}
 
 export function rampColor(v, lo, hi) {
   const f = Number(v)

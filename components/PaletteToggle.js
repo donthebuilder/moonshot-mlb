@@ -54,17 +54,24 @@ export default function PaletteToggle({ compact = false }) {
               {/* the ramp itself, at every stop — no gaps, so it reads as one
                   scale rather than nine chips */}
               <div style={{ display: 'flex', borderRadius: 4, overflow: 'hidden', marginBottom: 5 }}>
-                {r.stops.map((c, i) => (
-                  <span key={c} style={{
-                    flex: 1, height: compact ? 12 : 16, background: c,
-                    // The middle stop carries a sample glyph so you can see
-                    // that text survives on the fill, which is the whole
-                    // reason the earlier ramps were unusable.
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 8, fontWeight: 800, fontFamily: NUM_FONT,
-                    color: i === 4 ? inkOn(c) : 'transparent',
-                  }}>{i === 4 ? '50' : ''}</span>
-                ))}
+                {r.stops.map((c, i) => {
+                  const mid = Math.floor(r.stops.length / 2)
+                  // A ramp that ships its own inks is previewed with them.
+                  // inkOn() answers for the ACTIVE ramp, so asking it about a
+                  // ramp you are only looking at gives the wrong ink.
+                  const ink = r.inks ? r.inks[i] : inkOn(c)
+                  return (
+                    <span key={c} style={{
+                      flex: 1, height: compact ? 12 : 16, background: c,
+                      // The middle stop carries a sample glyph so you can see
+                      // that text survives on the fill, which is the whole
+                      // reason the earlier ramps were unusable.
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 8, fontWeight: 800, fontFamily: NUM_FONT,
+                      color: i === mid ? ink : 'transparent',
+                    }}>{i === mid ? '50' : ''}</span>
+                  )
+                })}
               </div>
               <div style={{
                 fontSize: compact ? 9.5 : 10.5, fontWeight: 800,

@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import {
   RAMPS, getKnobs, setKnobs, resetKnobs, setRamp, usePalette, hydrateRamp, inkOn,
 } from '../lib/palette'
-import { auditRamp, solveRamp } from '../lib/rampSolver'
+import { auditRamp, solveScale } from '../lib/rampSolver'
 
 // 🎛️ PALETTE STUDIO — build your own heat scale, live.
 //
@@ -76,8 +76,8 @@ export default function PaletteStudio({ compact = false }) {
   // The preview is solved from the LOCAL knobs, not from the store, so the
   // swatch under the sliders is always what the sliders currently say — even
   // in the one case where the store refused the value.
-  const preview = solveRamp(knobs)
-  const audit = auditRamp(preview)
+  const { stops: preview, inks: previewInks } = solveScale(knobs)
+  const audit = auditRamp(preview, previewInks || undefined)
 
   const set = (patch) => {
     const next = { ...knobs, ...patch }
@@ -96,7 +96,10 @@ export default function PaletteStudio({ compact = false }) {
           <span key={c + i} style={{
             flex: 1, height: compact ? 22 : 28, background: c,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, color: inkOn(c),
+            fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800,
+            // The preview reads its own solve, not the store — so it is right
+            // even in the one case where the store refused the value.
+            color: previewInks ? previewInks[i] : inkOn(c),
           }}>{Math.round((i / (preview.length - 1)) * 99)}</span>
         ))}
       </div>
@@ -124,21 +127,59 @@ export default function PaletteStudio({ compact = false }) {
         <Slider
           label="Brightness" value={knobs.brightness} min={0.2} max={1} step={0.01}
           fmt={(v) => v.toFixed(2)} onChange={(v) => set({ brightness: v })}
-          note="How far up the good end reaches."
+          note={knobs.litNumbers
+            ? 'How lit the numbers get. The cells stay dark — that is the style.'
+            : 'How far up the good end reaches.'}
         />
         <Slider
-          label="Steps" value={knobs.stops} min={6} max={11} step={1}
+          label="Steps" value={Math.min(knobs.stops, knobs.litNumbers ? 9 : 11)}
+          min={6} max={knobs.litNumbers ? 9 : 11} step={1}
           onChange={(v) => set({ stops: v })}
-          note="Fewer steps = blunter, easier to read at a glance."
+          note={knobs.litNumbers
+            ? 'Lit mode tops out at nine — past that the dark cells stop separating.'
+            : 'Fewer steps = blunter, easier to read at a glance.'}
         />
-        <Slider
-          label="Grey floor" value={knobs.greyBottom} min={0} max={4} step={1}
-          onChange={(v) => set({ greyBottom: v })}
-          note="Bottom cells go near-grey — says none rather than bad."
-        />
+        {/* The grey floor is an Ember idea and needs a bright cell to read as
+            grey rather than as black. In lit mode it took the plateau check
+            down almost every time it was used, so the knob is not offered
+            rather than offered and refused. */}
+        {!knobs.litNumbers && (
+          <Slider
+            label="Grey floor" value={knobs.greyBottom} min={0} max={4} step={1}
+            onChange={(v) => set({ greyBottom: v })}
+            note="Bottom cells go near-grey — says none rather than bad."
+          />
+        )}
       </div>
 
       <div>
+        <div style={{
+          fontSize: 9.5, fontWeight: 800, color: C.text2, letterSpacing: '.04em',
+          textTransform: 'uppercase', marginBottom: 4,
+        }}>Numbers</div>
+        <div style={{ display: 'flex', gap: 5, marginBottom: 9 }}>
+          {[
+            [false, 'On the cell', 'Bright cell, black or white number. The cell carries the signal — Ember and Verdict.'],
+            [true, 'Lit', 'Deep tinted cell, coloured number. The number carries the signal — Signal, and the props sheet it came from.'],
+          ].map(([v, label, why]) => {
+            const on = !!knobs.litNumbers === v
+            return (
+              <button
+                key={label}
+                type="button"
+                title={why}
+                onClick={() => set({ litNumbers: v })}
+                style={{
+                  flex: 1, padding: '5px 4px', borderRadius: 7, cursor: 'pointer',
+                  fontSize: 9.5, fontWeight: 800,
+                  background: on ? C.bg3 : 'transparent',
+                  border: `1px solid ${on ? C.orange : C.border}`,
+                  color: on ? C.text : C.text3,
+                }}
+              >{label}</button>
+            )
+          })}
+        </div>
         <div style={{
           fontSize: 9.5, fontWeight: 800, color: C.text2, letterSpacing: '.04em',
           textTransform: 'uppercase', marginBottom: 4,
@@ -176,6 +217,7 @@ export default function PaletteStudio({ compact = false }) {
         <span>step Δ{audit.closest.toFixed(0)}</span>
         <span>{audit.monotonic ? 'greyscale-safe' : 'greyscale BROKEN'}</span>
         <span>{audit.inDeadZone ? `${audit.inDeadZone} unreadable` : 'no dead stops'}</span>
+        {previewInks && <span>lit numbers</span>}
       </div>
 
       {rejected && (
@@ -205,9 +247,9 @@ export default function PaletteStudio({ compact = false }) {
               // below are the parameters each shipped ramp was solved against
               // — near enough that the first drag is an adjustment.
               const seed = {
-                ember: { hueFrom: 240, hueTo: 33, sat: 0.62, brightness: 0.62, satShape: 'rise', stops: 8, greyBottom: 3 },
-                traffic: { hueFrom: 2, hueTo: 142, sat: 0.62, brightness: 0.48, satShape: 'arch', stops: 9, greyBottom: 0 },
-                verdict: { hueFrom: 354, hueTo: 141, sat: 0.62, brightness: 0.38, satShape: 'dip', stops: 9, greyBottom: 0 },
+                ember: { hueFrom: 240, hueTo: 33, sat: 0.62, brightness: 0.62, satShape: 'rise', stops: 8, greyBottom: 3, litNumbers: false },
+                traffic: { hueFrom: 0, hueTo: 142, sat: 0.62, brightness: 0.80, satShape: 'arch', stops: 8, greyBottom: 0, litNumbers: true },
+                verdict: { hueFrom: 354, hueTo: 141, sat: 0.62, brightness: 0.38, satShape: 'dip', stops: 9, greyBottom: 0, litNumbers: false },
               }[id]
               const took = setKnobs(seed)
               setRejected(!took)

@@ -3,7 +3,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean } from '../lib/player'
 import { pitcherDetailUrl } from '../lib/dataSource'
-import Heatmap, { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
+import Heatmap, { RAMP_CHIPS } from './Heatmap'
 
 // Command / swing profile, platoon splits and arsenal — ported from Streamlit.
 //
@@ -70,7 +70,7 @@ function Arsenal({ usage }) {
     ].join(' ')
     // Colour by usage rank on the site ramp, so the pitch he throws most is
     // the brightest wedge -- one hue, same rule as every other chart here.
-    return { d, name, v, color: ORANGE_RAMP[Math.max(1, ORANGE_RAMP.length - 1 - i)] }
+    return { d, name, v, color: RAMP_CHIPS[Math.max(1, RAMP_CHIPS.length - 1 - i)] }
   })
 
   return (

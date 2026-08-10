@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { ORANGE_RAMP } from './Heatmap'
+import { RAMP_CHIPS } from './Heatmap'
 
 // START HERE — the visual answer to "what am I looking at".
 //
@@ -132,7 +132,7 @@ export default function StartHere({ onNavigate }) {
       }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ display: 'flex', borderRadius: 3, overflow: 'hidden' }}>
-            {ORANGE_RAMP.map((c) => (
+            {RAMP_CHIPS.map((c) => (
               <span key={c} style={{ width: 9, height: 11, background: c }} />
             ))}
           </span>

@@ -15,7 +15,7 @@
 import { detailUrl, zonesUrl } from '../lib/dataSource'
 import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
+import { ORANGE_RAMP, RAMP_CHIPS, rampColor, inkFor } from './Heatmap'
 import { hotColdZones } from '../lib/situational'
 import ZoneMap from './ZoneMap'
 
@@ -151,7 +151,13 @@ function Legend() {
           anyone who sees green and thinks "good". The colours mean the same
           thing they mean everywhere else on this site: green is good FOR THE
           HITTER, red is not. The words just say so out loud now. */}
-      {[[ORANGE_RAMP[8],'He crushes it'],[ORANGE_RAMP[6],'Good'],[ORANGE_RAMP[4],'Middling'],[ORANGE_RAMP[1],'Weak']].map(([c,l])=>(
+      {/* INDEXED OFF THE END, not off 8 (2026-08-10). These were fixed indices
+          from when every ramp had nine stops; Ember has had eight for a day and
+          Signal now does too, so ORANGE_RAMP[8] was undefined and the top
+          swatch rendered with no background at all. Chips, not fills — a lit
+          ramp's fills are near-black. */}
+      {(() => { const R = RAMP_CHIPS; const n = R.length
+        return [[R[n-1],'He crushes it'],[R[n-3],'Good'],[R[Math.floor(n/2)],'Middling'],[R[1],'Weak']] })().map(([c,l])=>(
         <span key={l} style={{display:'flex',alignItems:'center',gap:3,fontSize:10,color:C.text3}}>
           <span style={{width:8,height:8,borderRadius:2,background:c}}/>
           {l}

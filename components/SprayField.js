@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj, arr } from '../lib/player'
 import { detailUrl } from '../lib/dataSource'
-import { rampColor } from './Heatmap'
+import { chipColor } from './Heatmap'
 // Pitch colours shared with ZoneMap and the live feed parser, so a sinker is
 // the same orange on the spray chips as it is on the strike-zone dots.
 import { pitchColor } from '../lib/livePitches'
@@ -1224,7 +1224,7 @@ export default function SprayField({
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {laneCounts.map((l) => {
               const pctv = hits.length ? (100 * l.n) / hits.length : 0
-              const bg = rampColor(pctv, 0, 45)
+              const bg = chipColor(pctv, 0, 45)
               return (
                 <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
                   <span style={{ width: 26, color: C.text3, fontFamily: NUM_FONT }}>{l.key}</span>

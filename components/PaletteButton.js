@@ -41,7 +41,11 @@ export default function PaletteButton() {
     }
   }, [open])
 
-  const stops = (RAMPS[active] || {}).stops || []
+  // The mini swatch shows a LIT ramp by its inks. Signal's fills are
+  // deliberately near-black — correct on a table where the number sits on top,
+  // and invisible as a 30x12 chip in the header.
+  const r = RAMPS[active] || {}
+  const stops = r.inks || r.stops || []
 
   return (
     <div ref={wrap} style={{ position: 'relative' }}>
