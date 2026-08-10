@@ -27,26 +27,114 @@ import { C, NUM_FONT } from '../lib/theme'
 //   · no jargon inside the definition of the jargon
 //   · never claim a number is predictive; say what it measures
 
+// ── A SCORE IS A RANK, NOT A PERCENTAGE (2026-08-09) ────────────────────────
+//
+// Every board score on this site is an ORDERING. A 78 means "ahead of the 62",
+// and nothing more. It is not a 78% chance of anything, and the archive is
+// blunt about the real numbers: the headline picks homer about 29% of the time
+// — good, and still wrong two nights in three.
+//
+// The definitions below used to open with "how LIKELY this hitter is to hit a
+// home run", which reads as a probability to anybody who isn't already inside
+// the model. That wording sat in the dictionary feeding EVERY ⓘ, every table
+// header hover and the explain banner, so one loose sentence was making the
+// same false promise on a dozen surfaces at once.
+//
+// The only genuine predictions on the site are the Proj HR / Adj HR columns in
+// ProjectedOutput, which are expected COUNTS built from measured band rates.
+// Those say so themselves. Everything else ranks.
+//
+// RANK_NOT_PERCENT is appended by the explain banner to any score term, so the
+// caveat travels with the definition instead of relying on whoever writes the
+// next component to remember it.
+export const RANK_NOT_PERCENT =
+  'This is a ranking, not a percentage — a 78 sits above a 62, it is not a 78% chance. '
+  + 'The bot’s headline picks homer about 29% of the time.'
+
+// Terms that get RANK_NOT_PERCENT attached automatically.
+export const SCORE_TERMS = new Set([
+  'hr', 'hr score', 'hrr', 'hrr score', 'hit', 'hit score', 'tb', 'tb score',
+  'hrw', 'due', 'long', 'longest', 'damage', 'pmatch', 'pmix', 'pitch mix',
+  'score', 'fit', 'adj', 'raw', 'ovr', 'overall', 'leak', 'leak score',
+])
+
 export const GLOSSARY = {
   // ── the board scores ──────────────────────────────────────────────────
-  'hr': 'The bot’s 0–100 rating of how likely this hitter is to hit a home run tonight. Higher is better.',
-  'hr score': 'The bot’s 0–100 rating of how likely this hitter is to hit a home run tonight. Higher is better.',
-  'hrr': 'A 0–100 rating for scoring a run or driving one in — not just homers. Higher is better.',
-  'hrr score': 'A 0–100 rating for scoring a run or driving one in — not just homers. Higher is better.',
-  'hit': 'A 0–100 rating of how likely he is to get at least one base hit. Higher is better.',
-  'hit score': 'A 0–100 rating of how likely he is to get at least one base hit. Higher is better.',
-  'tb': 'Total bases — a 0–100 rating for piling up bases (a double is 2, a homer is 4). Higher is better.',
-  'tb score': 'Total bases — a 0–100 rating for piling up bases (a double is 2, a homer is 4). Higher is better.',
-  'hrw': 'HR Watch — the bot’s separate “he looks due to go deep” read. Higher is better.',
-  'due': 'How long it has been since his last home run, scored. High means he is overdue — which is a story, not a guarantee.',
-  'long': 'How likely he is to hit the LONGEST ball of the night, not just any homer. Higher is better.',
-  'longest': 'How likely he is to hit the LONGEST ball of the night, not just any homer. Higher is better.',
-  'damage': 'When he does hit the ball hard, how often that turns into real damage instead of an out. Higher is better.',
-  'pmatch': 'How well his swing matches the exact pitches tonight’s starter throws. Higher is better.',
-  'pmix': 'Same idea as PMatch, scored across the starter’s whole pitch mix. Higher is better.',
-  'pitch mix': 'How well his swing matches the pitches tonight’s starter actually throws. Higher is better.',
-  'score': 'The bot’s 0–100 rating for this board’s question. Higher is better.',
-  'fit': 'How well this hitter fits what the board is looking for tonight. Higher is better.',
+  // Each one says WHAT IT RANKS ON and which way is good. None of them claims
+  // a chance of anything; the banner adds RANK_NOT_PERCENT on top.
+  'hr': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better.',
+  'hr score': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better.',
+  'hrr': 'Ranks him on scoring a run or driving one in, not just homers. Higher ranks better.',
+  'hrr score': 'Ranks him on scoring a run or driving one in, not just homers. Higher ranks better.',
+  'hit': 'Ranks him on getting at least one base hit tonight. Higher ranks better.',
+  'hit score': 'Ranks him on getting at least one base hit tonight. Higher ranks better.',
+  'tb': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better.',
+  'tb score': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better.',
+  'hrw': 'HR Watch — the bot’s separate “he looks due to go deep” read, ranked. Higher ranks better.',
+  'due': 'How long it has been since his last home run, scored. High means overdue — which is a story, not a reason.',
+  'long': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',
+  'longest': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',
+  'damage': 'When he does hit the ball hard, how often that turns into real damage instead of an out. Higher ranks better.',
+  'pmatch': 'How well his swing matches the exact pitches tonight’s starter throws. Higher ranks better.',
+  'pmix': 'Same idea as PMatch, scored across the starter’s whole pitch mix. Higher ranks better.',
+  'pitch mix': 'How well his swing matches the pitches tonight’s starter actually throws. Higher ranks better.',
+  'score': 'The bot’s rating for this board’s question — an ordering of tonight’s hitters. Higher ranks better.',
+  'fit': 'How well this hitter fits what the board is looking for tonight. Higher ranks better.',
+  'adj': 'The HR score after the ISO adjustment — the number this board is actually sorted by. Higher ranks better.',
+  'raw': 'The bot’s unadjusted HR score, before the ISO adjustment. Shown so you can see what moved a hitter.',
+  'leak': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
+  'leak score': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
+  'proj hr': 'The one real PREDICTION on the site: expected home runs, from the rate his score band and ISO band actually produced across the graded archive. Not a rank — a count.',
+
+
+  // ── THE COVERAGE GAP (2026-08-09 survey) ──────────────────────────────
+  // A sweep of every DenseTable column found 214 of 699 resolving to an entry
+  // here — so two thirds of the numbers on this site had no explanation a
+  // thumb could reach. These are the labels that came back most often, in the
+  // order they came back. Same rules as everything above: one sentence, no
+  // jargon inside the definition of the jargon, say which way is good.
+  'tm': 'Team — his club’s three-letter code.',
+  'team': 'Team — his club’s three-letter code.',
+  'opp': 'Opponent — the club he is facing tonight.',
+  'facing': 'The starting pitcher he is up against tonight.',
+  'pitcher': 'The starting pitcher he is up against tonight.',
+  'batter': 'The hitter this row is about.',
+  'player': 'The hitter this row is about.',
+  'pair': 'The two hitters in this combination. Both have to deliver for the pair to pay.',
+  'ev': 'Exit velocity — how fast the ball leaves his bat, in mph. About 88 is average, 92+ is strong. Higher is better.',
+  'iso': 'Isolated power — slugging minus batting average. What is left when you take the singles out, so it measures extra-base pop and nothing else. Roughly .140 is average, .230+ is real power. Higher is better.',
+  'hh%': 'Hard-hit rate — the share of his batted balls leaving the bat at 95 mph or more. Higher is better.',
+  'hh': 'Hard-hit rate — the share of his batted balls leaving the bat at 95 mph or more. Higher is better.',
+  'brl%': 'Barrel rate — how often he hits the ball at the speed AND angle that produce home runs. Higher is better.',
+  'brl': 'Barrel rate — how often he hits the ball at the speed AND angle that produce home runs. Higher is better.',
+  'slg': 'Slugging percentage — total bases per at-bat. Around .400 is average, .500+ is strong. Higher is better.',
+  'ba': 'Batting average — hits per at-bat. Higher is better.',
+  'obp': 'On-base percentage — how often he reaches base at all, walks included. Higher is better.',
+  'bbe': 'Batted-ball events — how many balls he has actually put in play. This is the SAMPLE behind the rates beside it; a small number means treat those rates lightly.',
+  'dc': 'Damage conversion — when he does square one up, how often it becomes real damage instead of an out. Higher is better.',
+  'rbi': 'Runs batted in — runners who scored because of his at-bat.',
+  'l5': 'His last 5 games.',
+  'l10': 'His last 10 games.',
+  'l20': 'His last 20 games.',
+  'last': 'His most recent game.',
+  'ab': 'At-bats — plate appearances not counting walks and hit-by-pitches.',
+  'b': 'Which side he bats from: R right-handed, L left-handed, S both.',
+  'bb%': 'Walk rate — how often he takes a walk.',
+  'gb%': 'Ground-ball rate. A ball on the ground cannot leave the yard, so lower is better for power.',
+  'fb%': 'Fly-ball rate — the share of his contact hit in the air. Air is where homers come from. Higher is better for power.',
+  'ld%': 'Line-drive rate — the batted-ball type that falls for hits most often. Higher is better.',
+  'pull%': 'Pull rate — how often he hits it to his own side of the field, where the fence is usually shortest. Higher is better for power.',
+  'era': 'Earned run average — runs the pitcher allows per nine innings. For your hitter, higher is better.',
+  'k/9': 'Strikeouts the pitcher gets per nine innings. High means he misses bats, which is bad for your hitter.',
+  // NOT 'whiff%' — that key already means the HITTER's swing-and-miss rate
+  // further down, and a silent duplicate would have let the last one
+  // written win on a pitcher table. The arm gets its own key.
+  'p whiff%': 'How often hitters swing and miss against this pitcher. High is bad for your hitter.',
+  'xhr': 'Expected home runs from the contact he has actually allowed — what the balls hit off him should have produced. Compare it with his real total to see who has been lucky.',
+  'xwoba': 'Expected wOBA — what his contact quality alone says he should be producing, before luck and defense. Higher is better.',
+  'woba': 'Weighted on-base average — one number for total offensive value, weighting a homer above a single. Higher is better.',
+  'n': 'Sample size — how many events this rate is built on. A rate on fewer than about 20 is a hint, not a finding.',
+  'when picked': 'His record the other times the bot designated him in this category. A rate at 3 or more picks; a raw fraction under that.',
 
   // ── contact quality ───────────────────────────────────────────────────
   'barrel %': 'How often he hits the ball at the perfect speed AND angle — the combination that turns into homers. Higher is better.',
@@ -190,6 +278,12 @@ export default function Explain({ label, term, text, color, style }) {
  */
 export function ExplainBanner({ label, text, onClose }) {
   if (!text) return null
+  // THE CAVEAT TRAVELS WITH THE TERM. Attaching RANK_NOT_PERCENT here rather
+  // than writing it into each definition means a score explained anywhere on
+  // the site carries it — including from a component nobody has written yet.
+  // Relying on the next author to remember is how the old "how likely" wording
+  // survived on a dozen surfaces at once.
+  const isScore = SCORE_TERMS.has(String(label || '').toLowerCase().trim())
   return (
     <div style={{
       display: 'flex', gap: 8, alignItems: 'flex-start',
@@ -199,7 +293,12 @@ export function ExplainBanner({ label, text, onClose }) {
       <span style={{ fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange, flexShrink: 0, letterSpacing: '.04em' }}>
         {label}
       </span>
-      <span style={{ fontSize: 11, lineHeight: 1.5, color: C.text2, minWidth: 0 }}>{text}</span>
+      <span style={{ fontSize: 11, lineHeight: 1.5, color: C.text2, minWidth: 0 }}>
+        {text}
+        {isScore && (
+          <span style={{ display: 'block', marginTop: 3, color: C.text3 }}>{RANK_NOT_PERCENT}</span>
+        )}
+      </span>
       <span
         onClick={onClose}
         style={{ marginLeft: 'auto', cursor: 'pointer', color: C.text3, fontSize: 13, lineHeight: 1, flexShrink: 0, padding: '0 2px' }}
