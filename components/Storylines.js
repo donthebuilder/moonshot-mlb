@@ -24,15 +24,30 @@ import { useSetupHomers, backToBack } from '../lib/b2b'
 // Narrative on purpose — these are the lines you say out loud on stream.
 
 // 'xbh' is computed (2B+3B+HR); everything else reads straight off the stat.
+// 2026-08-09, Donovan: "I want those RBI and total bases for the milestone
+// watches." They were already here — and that's exactly why it looked like
+// they weren't. Season RBI had ONE rung (100) with a 3-deep window, and runs
+// the same, so an RBI milestone could only ever fire for a hitter sitting on
+// 97, 98 or 99. That's a handful of players a season for about three days
+// each; in practice the line never appeared and the category looked missing.
+//
+// More rungs, on the numbers people actually mark: RBI and runs every 25 from
+// 50 up, total bases every 50 from 200. The counting stats also get slightly
+// deeper windows than homers do — nobody says "two homers from 40" and "two
+// RBI from 100" with the same voice, because RBI move in bunches.
+//
+// Clutter is handled by the sort, not by keeping the list short: rows are
+// ranked by proximity as a FRACTION of their window, so "1 homer from 40"
+// still outranks "7 total bases from 300", and the panel only prints ten.
 const S_MILES = [
-  { key: 'hits', targets: [200], within: 3, word: 'hits' },
-  { key: 'homeRuns', targets: [30, 40, 50, 60], within: 2, word: 'homers' },
-  { key: 'rbi', targets: [100], within: 3, word: 'RBI' },
-  { key: 'runs', targets: [100], within: 3, word: 'runs' },
-  { key: 'stolenBases', targets: [30, 40, 50], within: 2, word: 'steals' },
+  { key: 'hits', targets: [100, 150, 200], within: 3, word: 'hits' },
+  { key: 'homeRuns', targets: [20, 30, 40, 50, 60], within: 2, word: 'homers' },
+  { key: 'rbi', targets: [50, 75, 100, 125, 150], within: 4, word: 'RBI' },
+  { key: 'runs', targets: [50, 75, 100, 125], within: 4, word: 'runs' },
+  { key: 'stolenBases', targets: [20, 30, 40, 50], within: 2, word: 'steals' },
   { key: 'doubles', targets: [30, 40, 50], within: 2, word: 'doubles' },
   { key: 'triples', targets: [10, 15], within: 1, word: 'triples' },
-  { key: 'totalBases', targets: [300, 350, 400], within: 8, word: 'total bases' },
+  { key: 'totalBases', targets: [200, 250, 300, 350, 400], within: 8, word: 'total bases' },
   { key: 'xbh', targets: [50, 60, 70, 80], within: 2, word: 'extra-base hits' },
 ]
 const C_MILES = [
