@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { notify, requestPermission, ensureWorker, installHint, canNotify } from '../lib/notify'
 import { nameOf, playerId as pidOf } from '../lib/player'
-import { fetchLiveSlate, pickCleared, fetchHrContext } from '../lib/liveSlate'
+import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../lib/liveSlate'
 
 // 📡 MINI WIRE + TOASTS — the live layer that follows you (2026-08-06).
 //
@@ -279,6 +279,42 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
             if (!firedRef.current.has(key)) { firedRef.current.add(key); out.push({ key, icon: '⏳', text: `${nameOf(p)} (${who}) is on deck`, p, pri: 1.5 }) }
           }
         })
+        // ── LINEUP CARD POSTED (2026-08-10) ──────────────────────────
+        //
+        // Donovan: "make sure the live wire and games can update the lineups."
+        // This is the alert with the shortest shelf life on the site — a
+        // scratch is only useful BEFORE you bet, and it lands two or three
+        // hours before first pitch, which is exactly when the wire used to be
+        // asleep (see the cadence note below).
+        //
+        // Fires at most once per player per slot, so a card that gets entered
+        // in pieces doesn't toast nine times. Scratches outrank everything
+        // except a homer, because they are the one event you can still act on.
+        relevant.forEach((p) => {
+          const id = Number(p?.player_id ?? p?.id)
+          const role = primaryRole(p)
+          const who = role ? `${role} pick` : 'watchlist'
+          const lu = lineupStatus(s, id, p?.game_pk, p?.lineup_spot)
+          if (!lu.posted) return
+          if (lu.scratched) {
+            const key = `${id}:scratched`
+            if (firedRef.current.has(key)) return
+            firedRef.current.add(key)
+            out.push({
+              key, icon: '🚫', p, pri: 0.2,
+              text: `${nameOf(p)} (${who}) is NOT in tonight's lineup — the bot had him at #${p?.lineup_spot ?? '?'}`,
+            })
+          } else if (lu.moved) {
+            const key = `${id}:slot:${lu.slot}`
+            if (firedRef.current.has(key)) return
+            firedRef.current.add(key)
+            out.push({
+              key, icon: '↕', p, pri: 1.4,
+              text: `${nameOf(p)} (${who}) is batting #${lu.slot} tonight — the bot had #${p?.lineup_spot}`,
+            })
+          }
+        })
+
         out.sort((a, b) => a.pri - b.pri)
         addToasts(out.slice(0, 4))
       }
@@ -290,9 +326,19 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
       // after he'd already swung. 35s while anything is live keeps the
       // at-the-plate alert inside the window it's actionable in. Still only
       // polls a visible tab; still one call for the whole slate.
+      //
+      // AND IT ONLY POLLED WHEN SOMETHING WAS LIVE (fixed 2026-08-10). Before
+      // first pitch this pulled exactly once, on mount, and then stopped — so
+      // the whole pre-game window, which is when lineup cards post and when a
+      // scratch is still worth knowing, had no cadence at all. Games in
+      // Preview now poll every three minutes: slow enough that it costs
+      // almost nothing (the pre-game boxscores are cached for four minutes on
+      // their own clock), fast enough to catch a card going up.
       const anyLive = s.games?.some((g) => g.state === 'Live')
+      const anyPregame = s.games?.some((g) => g.state === 'Preview' && !g.postponed)
       clearInterval(timer)
       if (anyLive) timer = setInterval(() => { if (!document.hidden) pull() }, 35000)
+      else if (anyPregame) timer = setInterval(() => { if (!document.hidden) pull() }, 180000)
     }
     pull()
     return () => { alive = false; clearInterval(timer) }

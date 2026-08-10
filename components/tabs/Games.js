@@ -10,6 +10,7 @@ import GameLineup from '../GameLineup'
 import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
+import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import LineupSlotMatchup from '../LineupSlotMatchup'
@@ -153,6 +154,28 @@ function sidesOf(g) {
 }
 
 export default function Games({ players, slateDate = '', pairHistorySummary, onAdd, onWatch, watchIds, onPlayerClick }) {
+  // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
+  //
+  // Donovan: "make sure the live wire and games can update the lineups — does
+  // that work?" It didn't. Every row on this tab was ordered by the slate's
+  // `lineup_spot`, which is whatever the bot last wrote — so between cron runs
+  // a posted card could move a hitter three slots or scratch him entirely and
+  // this tab would keep showing the old order with a green "✓ confirmed"
+  // badge next to it.
+  //
+  // fetchLiveSlate now reads pre-game boxscores as well as in-game ones (see
+  // lib/liveSlate.js — verified against a Preview game before building this),
+  // so the actual card is available here. Two minutes is the right cadence: a
+  // lineup posts once and then barely moves, and the module-level 15s cache
+  // means a tab with the wire above it shares the same fetch anyway.
+  const [live, setLive] = useState(null)
+  useEffect(() => {
+    let alive = true
+    const pull = () => fetchLiveSlate().then((s) => { if (alive && s) setLive(s) }).catch(() => {})
+    pull()
+    const t = setInterval(() => { if (!document.hidden) pull() }, 120000)
+    return () => { alive = false; clearInterval(t) }
+  }, [])
   // 🔗 build a pair straight off the grid (2026-08-09). Two legs max; tapping
   // a third rolls the oldest off so it always reads as "these two".
   const [pairLegs, setPairLegs] = useState([])
@@ -336,9 +359,25 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                   padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
-                  <span style={{ fontSize: 10, color: g.lineup_confirmed ? '#4ade80' : C.text3, fontFamily: NUM_FONT, fontWeight: 700 }}>
-                    {g.lineup_confirmed ? '✓ confirmed' : '◻ projected'}
-                  </span>
+                  {/* THE BADGE NOW ASKS THE LEAGUE (2026-08-10). It used to
+                      read the bot's own lineup_confirmed flag, which is only
+                      as fresh as the last cron run — so it could say
+                      "✓ confirmed" over an order the card had already
+                      changed. Live posting wins; the bot's flag is the
+                      fallback for before the card is up. */}
+                  {(() => {
+                    const anyPk = (g.players || []).find((x) => x?.game_pk)?.game_pk
+                    const posted = !!live?.games?.find((x) => Number(x.pk) === Number(anyPk))?.lineupPosted
+                    const col = posted ? '#4ade80' : g.lineup_confirmed ? '#FCD34D' : C.text3
+                    return (
+                      <span title={posted ? 'The league has posted tonight’s card — these are the real nine.'
+                        : g.lineup_confirmed ? 'The bot saw a confirmed lineup on its last run; the league hasn’t posted an update since.'
+                        : 'No card posted yet — this order is the bot’s projection.'}
+                        style={{ fontSize: 10, color: col, fontFamily: NUM_FONT, fontWeight: 700 }}>
+                        {posted ? '✓ lineup posted' : g.lineup_confirmed ? '✓ confirmed (bot)' : '◻ projected'}
+                      </span>
+                    )
+                  })()}
                   <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
                   <span style={{ marginLeft: 'auto', display: 'flex', gap: 9, fontSize: 10, fontFamily: NUM_FONT }}>
                     {temp > 0 && <span style={{ color: temp >= 82 ? C.orange : C.text2 }}>{Math.round(temp)}°</span>}
@@ -362,12 +401,27 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                       </div>
                       {lineup.slice(0, 9).map((p) => {
                         const hs = hrScore(p)
+                        // What the league says about him RIGHT NOW. Silent
+                        // until the card is actually posted — "not in the
+                        // lineup" against a hitter whose team hasn't posted
+                        // yet is the same false alarm in the other direction.
+                        const lu = lineupStatus(live, playerId(p), p?.game_pk, p?.lineup_spot)
                         return (
                           <div key={playerId(p)} onClick={() => onPlayerClick?.(p)}
-                            style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2.5px 0', cursor: 'pointer', minWidth: 0 }}>
-                            <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 11, flexShrink: 0 }}>{p?.lineup_spot ?? '·'}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+                            title={lu.scratched ? 'Not in tonight’s posted lineup'
+                              : lu.moved ? `Batting ${lu.slot} tonight — the bot had him at ${p?.lineup_spot}`
+                              : undefined}
+                            style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2.5px 0', cursor: 'pointer', minWidth: 0,
+                              opacity: lu.scratched ? 0.45 : 1 }}>
+                            <span style={{ fontFamily: NUM_FONT, fontSize: 10, width: 11, flexShrink: 0,
+                              color: lu.moved ? C.orange : C.text3, fontWeight: lu.moved ? 800 : 400 }}>
+                              {lu.posted && lu.slot ? lu.slot : (p?.lineup_spot ?? '·')}
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1,
+                              textDecoration: lu.scratched ? 'line-through' : 'none' }}>
                               {p?.name}
+                              {lu.scratched && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: '#f87171', marginLeft: 4 }}>OUT</span>}
+                              {lu.moved && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.orange, marginLeft: 4 }}>was #{p?.lineup_spot}</span>}
                               <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>{p?.bats}</span>
                               {String(p?.game_pick_role || '').trim() && <span style={{ fontSize: 9, marginLeft: 3 }}>🤖</span>}
                               {p?.weak_spot_flag && <span style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
