@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { dataUrl } from '../lib/dataSource'
 import { nameOf, teamOf, n } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
+import { pickSplit } from '../lib/seasonSplit'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
 // home run people are hitting — like if you notice more people getting their
@@ -119,12 +120,15 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
         const url = 'https://statsapi.mlb.com/api/v1/people?personIds='
           + ids.slice(i, i + 100).join(',')
           + '&hydrate=stats(group=[hitting],type=[season])'
-          + '&fields=people,id,stats,type,displayName,splits,stat,homeRuns'
+          + '&fields=people,id,stats,type,displayName,splits,team,gameType,stat,homeRuns,gamesPlayed'
         try {
           const j = await fetch(url).then((r) => (r.ok ? r.json() : null))
           ;(j?.people || []).forEach((person) => {
+            // pickSplit, not splits[0]: a hitter traded mid-season has one
+            // row per club and splits[0] is the OLD one, so his Nth-homer
+            // number would be short by everything he did after the trade.
             const blk = (person.stats || []).find((s) => s?.type?.displayName === 'season')
-            const hr = Number(blk?.splits?.[0]?.stat?.homeRuns)
+            const hr = Number(pickSplit(blk)?.homeRuns)
             if (Number.isFinite(hr)) out.set(Number(person.id), hr)
           })
         } catch { /* fall back to slate arithmetic */ }

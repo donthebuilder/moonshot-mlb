@@ -8,6 +8,7 @@ import { matchupStories } from '../lib/matchupStory'
 import { funFacts } from '../lib/funFacts'
 import { dedupeGraded } from '../lib/graded'
 import { useSetupHomers, backToBack } from '../lib/b2b'
+import { pickSplit, HITTING_FIELDS } from '../lib/seasonSplit'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -109,7 +110,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         const ids = [...new Set(pullFrom.map((p) => Number(p?.player_id ?? p?.id)).filter(Boolean))]
         const people = []
         for (let i = 0; i < ids.length; i += 100) {
-          const j = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${ids.slice(i, i + 100).join(',')}&hydrate=stats(group=[hitting],type=[career,season])`)
+          const j = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${ids.slice(i, i + 100).join(',')}&hydrate=stats(group=[hitting],type=[career,season])&fields=people,id,fullName,birthDate,currentAge,stats,type,displayName,splits,team,gameType,stat,${HITTING_FIELDS}`)
             .then((r) => (r.ok ? r.json() : null)).catch(() => null)
           people.push(...(j?.people || []))
         }
@@ -328,7 +329,10 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   const byId = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
   const statOf = (person, type) => {
     const block = (person.stats || []).find((s) => s?.type?.displayName === type)
-    return block?.splits?.[0]?.stat || null
+    // pickSplit, not splits[0] — see lib/seasonSplit.js. For a hitter traded
+    // mid-season splits[0] is his OLD CLUB'S partial line, so his milestones
+    // were computed off half a season and could never fire.
+    return pickSplit(block)
   }
 
   // 👑 SLATE HR LEADERS: REMOVED, INCLUDING THE WORK (2026-08-09 audit).
