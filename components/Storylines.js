@@ -331,33 +331,12 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     return block?.splits?.[0]?.stat || null
   }
 
-  // ── 👑 BEST HOMER BATS (2026-08-09) ──
-  //
-  // The milestone tracker only fires when someone is within two of a round
-  // number, so on most nights the panel never said the simplest true thing
-  // about the slate: who hits the most homers. The people call already pulls
-  // career + season hitting for every hitter on the board, so both leaders are
-  // free — no new fetch, no new field, no estimate.
-  //
-  // Ties are named as ties. "Judge — 41 this season" when three men are on 41
-  // is a lie of omission, and this is the one line people repeat out loud.
-  // Anyone the people call didn't return, or who has zero homers, simply isn't
-  // a candidate; if nobody qualifies the row doesn't render.
-  const homerLeaders = (type) => {
-    let bestHr = 0
-    let list = []
-    ;(data?.people || []).forEach((person) => {
-      const p = byId.get(person.id)
-      if (!p) return
-      const hr = readStat(statOf(person, type), 'homeRuns')
-      if (!Number.isFinite(hr) || hr <= 0) return
-      if (hr > bestHr) { bestHr = hr; list = [p] }
-      else if (hr === bestHr) list.push(p)
-    })
-    return list.length ? { hr: bestHr, list } : null
-  }
-  const seasonKing = homerLeaders('season')
-  const careerKing = homerLeaders('career')
+  // 👑 SLATE HR LEADERS: REMOVED, INCLUDING THE WORK (2026-08-09 audit).
+  // Donovan cut these lines a while back ("most HR on the slate and most
+  // career HRs is not what I'm looking for") but only the RENDER was removed —
+  // it was left as `{false && (…)}` while homerLeaders() still walked every
+  // hitter twice on every render to compute two values nothing read. Dead
+  // code that still costs something is worse than dead code.
 
   // ── milestones ──
   const miles = []
@@ -383,7 +362,23 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       })
     })
   })
+  // ONE ROW PER PLAYER (2026-08-09 audit). Widening the rungs made it
+  // genuinely possible for one hitter to be near a homer number AND an RBI
+  // number AND a total-bases number, and the ten-row panel could fill up with
+  // three men. Sort by closeness first, then keep each player's nearest.
   miles.sort((a, b) => a.prox - b.prox)
+  {
+    const seen = new Set()
+    const one = []
+    miles.forEach((m) => {
+      const pid = Number(m.p?.player_id ?? m.p?.id)
+      if (!pid || seen.has(pid)) return
+      seen.add(pid)
+      one.push(m)
+    })
+    miles.length = 0
+    miles.push(...one)
+  }
 
   // ── BvP duels — free, straight off the slate's bvp_* fields ──
   const duels = []
@@ -406,10 +401,17 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
     players.forEach((p) => {
       const hist = data.history[Number(p?.player_id ?? p?.id)] || []
       const opp = oppOf(p), own = teamOf(p)
-      const yrs = hist.filter((x) => data.abbrs[x.teamId] === opp && opp !== own).map((x) => x.season)
-      if (yrs.length) {
-        const span = yrs.length > 1 ? `${Math.min(...yrs)}–${String(Math.max(...yrs)).slice(2)}` : yrs[0]
-        revenge.push({ p, opp, span, last: Math.max(...yrs) })
+      const yrs = hist.filter((x) => data.abbrs[x.teamId] === opp && opp !== own).map((x) => Number(x.season))
+      // RECENCY GATE (2026-08-09 audit). Any appearance for that organisation
+      // counted, so a cup of coffee eight years ago rendered as tonight's
+      // "revenge game". Nobody in the park remembers that, which makes it the
+      // opposite of a storyline. Four seasons is the window where the crowd,
+      // the clubhouse and the broadcast still treat it as a homecoming.
+      const thisYear = Number(String(dateKey).slice(0, 4)) || new Date().getFullYear()
+      const recent = yrs.filter((y) => y >= thisYear - 4)
+      if (recent.length) {
+        const span = recent.length > 1 ? `${Math.min(...recent)}–${String(Math.max(...recent)).slice(2)}` : recent[0]
+        revenge.push({ p, opp, span, last: Math.max(...recent) })
       }
     })
     revenge.sort((a, b) => b.last - a.last)
@@ -425,24 +427,59 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
   // ── birthdays ──
   const mmdd = dateKey.slice(5)
+  // AGE FROM THE BIRTHDATE, NOT currentAge (2026-08-09 audit). currentAge is
+  // "how old he is right now", which on a TOMORROW slate is still his old age —
+  // so the tomorrow panel said "turns 29 tomorrow" for a man turning 30. The
+  // birth year and the slate year answer it exactly, on either slate.
   const bdays = (data?.people || [])
     .filter((person) => String(person.birthDate || '').slice(5) === mmdd && byId.has(person.id))
-    .map((person) => ({ p: byId.get(person.id), age: person.currentAge }))
+    .map((person) => {
+      const born = Number(String(person.birthDate || '').slice(0, 4))
+      const yr = Number(String(dateKey).slice(0, 4))
+      const age = Number.isFinite(born) && Number.isFinite(yr) ? yr - born : person.currentAge
+      return { p: byId.get(person.id), age }
+    })
+    .filter((b) => Number.isFinite(b.age))
 
   // ── giveaways ──
-  const lastNames = new Map(players.map((p) => [String(nameOf(p)).split(' ').slice(-1)[0].toLowerCase(), p]))
+  // SURNAME MATCHING, SCOPED TO THE RIGHT CLUBHOUSE (2026-08-09 audit).
+  //
+  // Two faults in one line. The Map was keyed by bare surname, so two Martes
+  // on the slate silently collapsed into whichever was iterated last — and the
+  // match then ran against EVERY hitter on the slate, so a "Marte Bobblehead"
+  // in Arizona could be credited to a Mets outfielder. A giveaway is thrown by
+  // one club for one of its own players, so the candidate pool is that game's
+  // home roster and nothing else.
+  //
+  // Ambiguity inside one clubhouse is left unresolved rather than guessed: if
+  // two home hitters share the surname in the promo, no star is attached and
+  // the giveaway still renders as a giveaway.
+  const byTeamSurname = new Map()
+  players.forEach((p) => {
+    const tm = String(teamOf(p) || '').toUpperCase()
+    const ln = String(nameOf(p)).split(' ').slice(-1)[0].toLowerCase()
+    if (!tm || ln.length <= 3) return
+    const k = `${tm}|${ln}`
+    if (byTeamSurname.has(k)) byTeamSurname.set(k, null)   // collision: unresolvable
+    else byTeamSurname.set(k, p)
+  })
   const giveaways = []
   ;(data?.promos?.dates?.[0]?.games || [])
     .filter((g) => !gamePk || Number(g?.gamePk) === Number(gamePk))
     .forEach((g) => {
     const home = g?.teams?.home?.team?.name || ''
+    const homeAbbr = String(data?.abbrs?.[g?.teams?.home?.team?.id] || '').toUpperCase()
     ;(g.promotions || []).forEach((pr) => {
       const nm = String(pr.name || '')
       const isBobble = /bobble/i.test(nm)
       if (pr.offerType !== 'Giveaway' && !isBobble) return
       let star = null
-      for (const [ln, p] of lastNames) {
-        if (ln.length > 3 && nm.toLowerCase().includes(ln)) { star = p; break }
+      if (homeAbbr) {
+        const low = nm.toLowerCase()
+        for (const [k, p] of byTeamSurname) {
+          if (!p || !k.startsWith(`${homeAbbr}|`)) continue
+          if (low.includes(k.slice(homeAbbr.length + 1))) { star = p; break }
+        }
       }
       giveaways.push({ home, nm, isBobble, star, dist: pr.distribution || '' })
     })
@@ -575,14 +612,6 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       {/* HERO LINES — the two biggest bats in the building, stated plainly.
           These lead because they're the only storylines that are true every
           single night, and they're the ones a viewer can hold onto. */}
-      {false && (
-        {/* 👑/🏛 slate HR leaders REMOVED (2026-08-09, Donovan: "most
-            hr on the slate and most career hrs is not what I'm looking
-            for"). They were true and useless — the leaderboard says the
-            same thing, and neither line was about TONIGHT'S matchup,
-            which is what a storyline has to be. The ⚾ block below is
-            what replaced them. */}
-      )}
 
       {/* ⚾ THE MATCHUP LINES — one clean sentence per hitter, this park,
           this arm. Name bold, every counted number in the mono font, whole
@@ -712,6 +741,30 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           {g.star && <b style={{ color: C.orange }}> — {nameOf(g.star)}&apos;s own night, the folklore game</b>}
         </Row>
       ))}
+
+      {/* AN OPEN PANEL WITH NOTHING IN IT (2026-08-09 audit).
+          Every section here renders conditionally, so when the league call
+          fails — or the slate is empty — opening the panel showed a header and
+          a blank space. That reads as a broken component, and the difference
+          between "no stories tonight" and "we couldn't load them" is exactly
+          the kind of thing this panel is supposed to be careful about. Both
+          are now said out loud, and they say different things. */}
+      {!mlines.length && !ffacts.length && !b2b.length && !miles.length && !duels.length
+        && !revenge.length && !rivalries.length && !bdays.length && !majorGiveaways.length && (
+        <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, padding: '4px 0' }}>
+          {!data ? (
+            <>Still reading the league&apos;s player files for this slate — milestones, birthdays and
+            giveaways all come from that one call, so they appear together when it lands. If it never
+            does, nothing here gets invented to fill the space.</>
+          ) : !players.length ? (
+            <>No hitters on this slate to tell stories about yet.</>
+          ) : (
+            <>Nothing tonight: nobody on the slate is near a round number, nobody has a birthday, no
+            player-oriented giveaways, and no matchup carried a big enough sample to be worth a
+            sentence. Empty because the checks came back empty.</>
+          )}
+        </div>
+      )}
       </>)}
     </div>
   )

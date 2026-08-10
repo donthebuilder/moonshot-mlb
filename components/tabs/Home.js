@@ -151,8 +151,19 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
       .catch(() => {})
     return () => { alive = false }
   }, [])
+  // DATE GATE (2026-08-09 audit). The fence board publishes `slate_date`
+  // (bots/spray_cache.py writes it) and this line never looked at it. So on a
+  // tomorrow slate, or any night the spray-cache job didn't run, the rider was
+  // taken from whatever board happened to be on the branch — and it looked
+  // legitimate, because the only filter was "is he on tonight's slate", which
+  // a hitter from yesterday's board usually still is.
+  //
+  // Same rule the park board already applies to the context pack: the file has
+  // to be FOR the slate on screen, or the line doesn't render. A stale rider
+  // quietly presented as tonight's is worse than no rider.
+  const fenceApplies = !!fence?.slate_date && String(fence.slate_date) === String(b2bDateKey)
   const fenceRider = useMemo(() => {
-    if (!fence?.rows?.length || !players.length) return null
+    if (!fenceApplies || !fence?.rows?.length || !players.length) return null
     const byId = new Map(players.map((p) => [String(p?.player_id ?? p?.id), p]))
     // Same base fit the Fence Riders board leads with (contact vs the wall),
     // minus the per-park wall pull — this is one hero line, not the board.
@@ -164,7 +175,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
       }))
       .sort((a, b) => b.fit - a.fit)
     return scored[0] || null
-  }, [fence, players])
+  }, [fence, players, fenceApplies])
 
   // Gassed / worked pens among TONIGHT's teams. Yesterday's workload only
   // means anything for today's slate, so tomorrow mode skips the fetch.
@@ -446,7 +457,9 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
               {b2bVerified
                 ? 'nobody on the slate homered in his last game'
                 : 'the graded file that proves who went deep last night hasn’t published yet, so the back-to-back watch is being withheld rather than guessed'}
-              , the fence board hasn&apos;t published for this date, and no bullpen crossed a workload
+              , {fence?.slate_date && String(fence.slate_date) !== String(b2bDateKey)
+                ? `the fence board on the branch is for ${fence.slate_date}, not this slate, so it's being ignored rather than shown`
+                : 'the fence board hasn’t published for this date'}, and no bullpen crossed a workload
               threshold yesterday. Empty because the checks came back empty, not because the panel is
               broken — the full storyline ledger is right below.
             </div>

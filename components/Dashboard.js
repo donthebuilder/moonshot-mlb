@@ -269,7 +269,14 @@ export default function Dashboard() {
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
           <div key={tab} className="tab-fade">
-            {tab === 'home'        && <Home players={allPlayers} results={results} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
+            {/* resultsForSlate, NOT results (2026-08-09 audit). Home's pulse line
+                counts "balls already left a yard tonight" straight out of the
+                results payload, and results_live.json holds the LAST graded
+                slate until a new one starts — it was serving July 26 today.
+                Ungated, the front page would announce a fortnight-old homer
+                count as tonight's. Every other consumer already uses the
+                date-gated copy. */}
+            {tab === 'home'        && <Home players={allPlayers} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'games'       && <Games players={players} slateDate={slateDate} pairHistorySummary={pairSummary} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}

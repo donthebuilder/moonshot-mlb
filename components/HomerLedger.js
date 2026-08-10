@@ -15,16 +15,23 @@ import { dedupeGraded } from '../lib/graded'
 // coming from — a picture that fills in through the evening instead of a
 // verdict handed down at the end.
 //
-// SOURCES, both already published, nothing invented:
+// SOURCES, nothing invented:
 //   results_live.json   actual_hr per graded player, tonight only (date-gated
 //                       the same way the storyline tracker is — the file
 //                       holds the last graded slate until a new one starts)
-//   the slate row       season_hr BEFORE tonight, and lineup_spot
+//   MLB people/stats    the AUTHORITATIVE season homer total, which already
+//                       includes tonight — so his latest homer simply IS that
+//                       number, with no arithmetic to get wrong
+//   the slate row       lineup_spot, and season_hr as a marked fallback only
 //
-// THE NUMBER: season_hr is the bot's pregame count, so his Nth homer tonight
-// is season_hr + (his homers so far tonight). When the slate carries no
-// season_hr for him the ledger says "—" rather than guessing a number; a
-// wrong "his 30th" is worse than an honest blank.
+// THE NUMBER (rewritten 2026-08-09 — see the audit note above the fetch).
+// It used to be slate.season_hr + tonight's homers, which double-counted any
+// hitter whose slate row had already been rebuilt after he went deep, and
+// which could only test the LAST number for a milestone so multi-homer nights
+// skipped round numbers. Both were confidently-stated wrong numbers, which is
+// the worst thing a panel like this can do. It asks the league now.
+// A hitter with no total from either source shows "—"; an approximate one is
+// marked with ≈ and says why in its tooltip.
 //
 // THE SPOT BARS: nine buckets, one per lineup slot, counting tonight's
 // homers. Sample sizes are tiny by nature — a full slate is ~25 homers across
@@ -72,6 +79,61 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
     return () => { alive = false; clearInterval(t) }
   }, [isTmrw, dateKey])
 
+  // ── THE NUMBER HAS TO BE RIGHT, OR THE PANEL IS WORSE THAN NOTHING ───────
+  //
+  // AUDIT 2026-08-09. `nth` was computed as slate.season_hr + tonight's homers,
+  // and that arithmetic is wrong in two ways that both produce a confidently
+  // stated false number — the worst failure mode for a panel whose entire job
+  // is to print a number.
+  //
+  //   1. season_hr IS NOT ALWAYS PREGAME. The slate republishes thirteen times
+  //      a day. A hitter who goes deep in the 1:05 window gets a rebuilt slate
+  //      row at 4pm whose season_hr ALREADY counts that homer — so pre + hr
+  //      counts it twice and the ledger says "his 31st" for his 30th. Nothing
+  //      in the payload distinguishes a pregame count from a refreshed one.
+  //
+  //   2. MULTI-HOMER GAMES SKIPPED ROUND NUMBERS. Only the final number was
+  //      tested for a milestone, so a hitter sitting on 14 who hit two tonight
+  //      reached 15 and 16 — and 16 isn't round, so his 15th went unmarked.
+  //
+  // Both disappear if we stop doing arithmetic and ask the league. One batched
+  // people/stats call returns the AUTHORITATIVE season total, already including
+  // tonight, so his latest homer IS that number and the ones he hit tonight
+  // are the range below it. Same endpoint Storylines already uses.
+  //
+  // The slate arithmetic survives only as the fallback when the call fails,
+  // and rows sourced that way are marked approximate in their tooltip rather
+  // than presented with the same confidence.
+  const [seasonHr, setSeasonHr] = useState(null)   // pid -> authoritative total
+  const hrIds = useMemo(
+    () => (rows || []).map((r) => r.pid).filter(Boolean).sort().join(','),
+    [rows],
+  )
+  useEffect(() => {
+    if (!hrIds) { setSeasonHr(null); return undefined }
+    let alive = true
+    const ids = hrIds.split(',')
+    ;(async () => {
+      const out = new Map()
+      for (let i = 0; i < ids.length; i += 100) {
+        const url = 'https://statsapi.mlb.com/api/v1/people?personIds='
+          + ids.slice(i, i + 100).join(',')
+          + '&hydrate=stats(group=[hitting],type=[season])'
+          + '&fields=people,id,stats,type,displayName,splits,stat,homeRuns'
+        try {
+          const j = await fetch(url).then((r) => (r.ok ? r.json() : null))
+          ;(j?.people || []).forEach((person) => {
+            const blk = (person.stats || []).find((s) => s?.type?.displayName === 'season')
+            const hr = Number(blk?.splits?.[0]?.stat?.homeRuns)
+            if (Number.isFinite(hr)) out.set(Number(person.id), hr)
+          })
+        } catch { /* fall back to slate arithmetic */ }
+      }
+      if (alive) setSeasonHr(out.size ? out : null)
+    })()
+    return () => { alive = false }
+  }, [hrIds])
+
   const model = useMemo(() => {
     if (!rows?.length) return null
     // THE BUG THAT BLANKED EVERY NUMBER (2026-08-09): this keyed the map with
@@ -88,15 +150,24 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
       total += hr
       const spot = Number(p?.lineup_spot)
       if (spot >= 1 && spot <= 9) spots[spot] += hr
+      // Authoritative first; slate arithmetic only as a marked fallback.
+      const exact = seasonHr?.get(pid)
       const pre = p?.season_hr == null ? null : n(p.season_hr, 0)
+      const nth = Number.isFinite(exact) ? exact : (pre == null ? null : pre + hr)
+      // EVERY number he reached tonight, not just the last one — a two-homer
+      // night from 14 covers 15 AND 16, and 15 is the one worth saying.
+      const tonightNums = nth == null ? [] : Array.from({ length: hr }, (_, i) => nth - i).filter((v) => v > 0)
+      const round = tonightNums.filter((v) => v % 5 === 0)
       cards.push({
         pid, p, hr,
         name: p ? nameOf(p) : `#${pid}`,
         team: p ? teamOf(p) : '',
         spot: spot >= 1 && spot <= 9 ? spot : null,
-        // his Nth of the season, counting tonight
-        nth: pre == null ? null : pre + hr,
-        milestone: pre != null && [5, 10, 15, 20, 25, 30, 35, 40, 45, 50].includes(pre + hr),
+        nth,
+        exact: Number.isFinite(exact),
+        tonightNums,
+        milestone: round.length > 0,
+        roundNum: round[0] ?? null,
       })
     })
     cards.sort((a, b) => (b.nth ?? -1) - (a.nth ?? -1))
@@ -139,7 +210,7 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
     const topRoot = roots[0] && roots[0].list.length >= 3 ? roots[0] : null
 
     return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered }
-  }, [rows, players])
+  }, [rows, players, seasonHr])
 
   if (isTmrw || !model || !model.total) return null
   const { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered } = model
@@ -170,7 +241,7 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
               {i > 0 ? ' · ' : ''}
               <b onClick={() => c.p && onPlayerClick?.(c.p)} style={{ color: C.text, cursor: c.p ? 'pointer' : 'default' }}>
                 {c.name}
-              </b>{' '}<span style={{ fontFamily: NUM_FONT }}>{ord(c.nth)}</span>
+              </b>{' '}<span style={{ fontFamily: NUM_FONT }}>{ord(c.roundNum ?? c.nth)}</span>
             </span>
           ))}
         </div>
@@ -220,7 +291,13 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
         {cards.map((c) => (
           <button key={c.pid} onClick={() => c.p && onPlayerClick?.(c.p)}
-            title={`${c.name}${c.team ? ` (${c.team})` : ''}${c.spot ? ` · batting ${ord(c.spot)}` : ''}${c.nth != null ? ` — his ${ord(c.nth)} homer of the season, counting tonight's ${c.hr}` : ' — the slate carries no season HR count for him, so the number is left blank rather than guessed'}`}
+            title={`${c.name}${c.team ? ` (${c.team})` : ''}${c.spot ? ` · batting ${ord(c.spot)}` : ''}${
+              c.nth == null
+                ? ' — no season HR count available for him, so the number is left blank rather than guessed'
+                : ` — his ${ord(c.nth)} homer of the season${c.hr > 1 ? ` (${c.tonightNums.slice().reverse().map(ord).join(' and ')} tonight)` : ''}. ${
+                    c.exact
+                      ? 'Season total read straight from the league, so it already includes tonight.'
+                      : 'APPROXIMATE — the league total could not be read, so this is the slate’s pregame count plus tonight’s homers, which can run one high if the slate was rebuilt after he went deep.'}`}`}
             style={{
               display: 'flex', gap: 6, alignItems: 'baseline', cursor: c.p ? 'pointer' : 'default',
               border: `1px solid ${c.milestone ? 'rgba(249,115,22,.6)' : C.border}`,
@@ -231,7 +308,7 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
             <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{c.name}</span>
             {c.hr > 1 && <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.orange, fontWeight: 900 }}>×{c.hr}</span>}
             <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: c.milestone ? C.orange : C.text3, fontWeight: c.milestone ? 900 : 600 }}>
-              {c.nth != null ? ord(c.nth) : '—'}
+              {c.nth != null ? `${ord(c.nth)}${c.exact ? '' : '≈'}` : '—'}
             </span>
             {c.spot && <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>#{c.spot}</span>}
           </button>
