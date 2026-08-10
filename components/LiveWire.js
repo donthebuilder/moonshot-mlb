@@ -5,6 +5,7 @@ import { nameOf, teamOf, clean, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
+import { leagueRates, tonightTotals } from '../lib/leagueRates'
 
 // 📡 LIVE WIRE — the site's live feed, and deliberately NOT a highlight
 // ticker (ESPN owns that). This is the model grading itself in public:
@@ -29,6 +30,11 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
   useEffect(() => { teamAbbrs().then(setAbbrs).catch(() => {}) }, [])
   const [pen, setPen] = useState(null)
   useEffect(() => { fetchPenFatigue().then(setPen).catch(() => {}) }, [])
+  // League hits-per-game, so tonight's total has something to be measured
+  // against. Cached for six hours in lib/leagueRates — a season rate does not
+  // move between innings.
+  const [rates, setRates] = useState(null)
+  useEffect(() => { leagueRates().then(setRates).catch(() => {}) }, [])
 
   // The button means "now" — it bypasses the shared 15s snapshot cache in
   // lib/liveSlate.js. The auto timer does not: that's exactly the caller the
@@ -259,6 +265,37 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
           {stillWorking.length > 0 && <> · <b style={{ color: '#FCD34D' }}>{stillWorking.length}</b> still hunting</>}
           {homers.length > 0 && <> · {homers.reduce((a, h) => a + h.l.hr, 0)} HR</>}
         </span>
+        {/* 🥎 THE NIGHT'S BATS, with a yardstick. A raw hit total is a number;
+            the same total against what a slate this size usually produces is a
+            read. Scaled by GAMES UNDER WAY, not by the calendar — see
+            lib/leagueRates for why "per day" is the wrong unit. */}
+        {(() => {
+          const t = tonightTotals(snap)
+          if (!t.started || !t.hits) return null
+          const exp = rates ? rates.hitsPerGame * t.started : null
+          const done = t.final === t.started
+          const pct = exp ? (100 * t.hits) / exp : null
+          const col = pct == null ? C.text3 : pct >= 112 ? C.orange : pct <= 88 ? '#60a5fa' : C.text2
+          return (
+            <span
+              title={rates
+                ? `${t.hits} base hits across ${t.started} game${t.started === 1 ? '' : 's'} under way. `
+                  + `The league has averaged ${rates.hitsPerGame.toFixed(2)} hits per game across `
+                  + `${rates.games.toLocaleString()} games this season, so a ${t.started}-game slate `
+                  + `typically produces about ${Math.round(exp)}. `
+                  + `${done ? 'All those games are final.' : 'Games are still in progress, so the count is still climbing.'}`
+                : `${t.hits} base hits across ${t.started} game${t.started === 1 ? '' : 's'} under way. Loading the league average to compare against.`}
+              style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3, cursor: 'help' }}>
+              🥎 <b style={{ color: col }}>{t.hits}</b> hits
+              {exp != null && (
+                <span style={{ color: C.text3 }}>
+                  {' '}vs <b style={{ color: C.text3 }}>~{Math.round(exp)}</b> typical
+                  {done ? '' : ' (still going)'}
+                </span>
+              )}
+            </span>
+          )
+        })()}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setAuto((v) => !v)} title="Re-pull every 60s while this tab is visible" style={{
             fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',

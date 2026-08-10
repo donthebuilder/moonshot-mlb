@@ -63,7 +63,10 @@ export const GLOSSARY = {
   // Each one says WHAT IT RANKS ON and which way is good. None of them claims
   // a chance of anything; the banner adds RANK_NOT_PERCENT on top.
   'hr': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better.',
-  'hr score': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better. Read it alongside ISO: across the graded archive, hitters with thin power homered 8.2% and hitters with big power 22.2%, while the score itself barely separated them.',
+  'hr score': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better. Measured against 14 graded nights: the top 20 of this board homered 24.6% against 16.8% for a random 20 off the same slate, so the ordering is doing real work. Sorting by raw power alone did worse (21.8%).',
+  'hits': 'Every base hit by every hitter on tonight’s slate, added up as the games go.',
+  'vs typical': 'The league averages 16.4 hits per game this season, so the yardstick is that number times the games actually under way. It scales with the slate — a nine-game Thursday is not supposed to look like a fifteen-game Sunday.',
+  'hits vs typical': 'Tonight’s hits against what a slate this size usually produces. The league averages 16.4 hits per game, so the yardstick grows as more games start. Orange means the bats are loud, blue means quiet.',
   'hrr': 'Ranks him on scoring a run or driving one in, not just homers. Higher ranks better.',
   'hrr score': 'Ranks him on scoring a run or driving one in, not just homers. Higher ranks better.',
   'hit': 'Ranks him on getting at least one base hit tonight. Higher ranks better.',
