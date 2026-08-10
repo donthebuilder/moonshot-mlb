@@ -16,6 +16,7 @@ import SlatePulse from '../SlatePulse'
 import HomerLedger from '../HomerLedger'
 import LiveWire from '../LiveWire'
 import Storylines from '../Storylines'
+import SlateStrength from '../SlateStrength'
 import { groupPitchers } from '../../lib/data'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
@@ -215,6 +216,15 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
   const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
   const secPicks = <BotPicksStrip key="picks" players={players} onPlayerClick={onPlayerClick} />
+  // 📐 What an average score is worth tonight. Folded rather than always-open:
+  // it is the reference you check once at the start of a night, not something
+  // you re-read between innings — and the first screen of this tab is already
+  // the busiest on the site.
+  const secStrength = (
+    <Fold key="strength" label="📐 Tonight's board — what an average score is worth">
+      <SlateStrength players={players} onGameClick={() => onNavigate?.('games')} />
+    </Fold>
+  )
   // 🧾 the ledger builds through the night — lives with the live layer
   const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
   const secStories = (
@@ -284,9 +294,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   const order = liveNow
     // broadcast order: the wire, the homers, then tonight's picks, then context
-    ? [secWire, secGone, secLedger, secPicks, secPulse, secStories, secWeak, secStart]
+    ? [secWire, secGone, secLedger, secPicks, secPulse, secStrength, secStories, secWeak, secStart]
     // plan order: orientation, the picks, the (quiet) wire, the pulse, context
-    : [secStart, secPicks, secWire, secLedger, secPulse, secStories, secGone, secWeak]
+    : [secStart, secPicks, secStrength, secWire, secLedger, secPulse, secStories, secGone, secWeak]
 
   return (
     <div>
