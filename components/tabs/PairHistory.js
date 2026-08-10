@@ -5,6 +5,7 @@ import { arr, obj, n, clean, nameOf } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle, selectStyle } from '../ui'
 import DenseTable from '../DenseTable'
 
+
 // Pair History — which two hitters have gone deep on the same day, all season.
 //
 // This board didn't exist in the Next.js build; it came in on the Streamlit
@@ -77,7 +78,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
           .slice(0, 12)
         if (!fresh.length) return null
         return (
-          <div style={{
+          <div className="rail" style={{
             display: 'flex', gap: 6, overflowX: 'auto', padding: '7px 2px', marginBottom: 10,
             borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
             alignItems: 'center', WebkitOverflowScrolling: 'touch',

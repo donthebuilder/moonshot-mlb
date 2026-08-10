@@ -6,6 +6,7 @@ import {
   hrScore, barrelRate, maxEV, avgEV, launchAngle, playerId,
 } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle } from '../ui'
+import Rail from '../Rail'
 import DenseTable from '../DenseTable'
 
 // Longest — who hits the FARTHEST ball tonight.
@@ -244,7 +245,10 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
             <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, marginBottom: 5 }}>
               🚀 Longest tonight <span style={{ fontSize: 9, color: C.text3, fontWeight: 400 }}>— measured feet · 🎯#N = where THIS board ranked him pregame</span>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
+            {/* On a Rail — see components/Rail.js. A mouse has no horizontal
+                axis, so this strip used to be unreachable past the third card
+                unless you owned a trackpad. */}
+            <Rail gap={6} label="longest tonight">
               {entries.map((h, i) => {
                 const rk = rankById.get(String(h?.player_id))
                 return (
@@ -265,7 +269,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
                   </div>
                 )
               })}
-            </div>
+            </Rail>
           </div>
         )
       })()}

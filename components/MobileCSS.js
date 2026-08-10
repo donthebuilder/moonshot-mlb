@@ -507,6 +507,47 @@ export default function MobileCSS() {
       /* The live dot actually pulses. */
       .live-pulse { animation: livePulse 2s ease-in-out infinite; display: inline-block; }
       @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+      /* ══ THE RAIL ══ (2026-08-09, "make it easier to scroll right to left on
+         the desktop for the columns things, and tell me what to call it")
+
+         A Rail is any horizontal track of columns wider than the screen. The
+         behaviour — wheel-to-scroll, ‹ › nubs, drag, arrow keys — lives in
+         components/Rail.js. This is the part that has to reach every wide
+         surface at once, including the ones that are still plain divs: a
+         VISIBLE scrollbar.
+
+         WebKit hides overlay scrollbars until you are already scrolling, which
+         is a circular problem — the affordance that tells you the strip moves
+         only appears once you have discovered that it moves. On a phone that
+         is fine, because a thumb tries the swipe anyway. On a desktop it means
+         a lot of people simply never learn there are more columns.
+
+         So Rails get a permanent, quiet scrollbar. 8px is thick enough to
+         grab with a mouse and thin enough not to shout. */
+      .rail::-webkit-scrollbar { height: 8px; }
+      .rail::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 99px; }
+      .rail::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.16); border-radius: 99px;
+      }
+      .rail::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.30); }
+      .rail { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.16) transparent; }
+
+      /* Dragging a Rail should not paint a text selection across every card
+         it passes over. */
+      .rail:active { user-select: none; -webkit-user-select: none; }
+
+      /* Focus ring only for keyboard users — a Rail is focusable so arrow keys
+         work, and a mouse click should not leave a box around the whole strip. */
+      .rail:focus { outline: none; }
+      .rail:focus-visible { outline: 1px solid rgba(255,255,255,0.25); outline-offset: 2px; }
+
+      /* The nubs are a desktop fix for a desktop problem. A touch device
+         already scrolls this perfectly with a thumb, and native momentum beats
+         anything reimplemented in JS, so they get out of the way. */
+      @media (max-width: 700px), (hover: none) {
+        .rail-nubs { display: none !important; }
+      }
     `}</style>
   )
 }

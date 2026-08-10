@@ -279,7 +279,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
         </div>
       </div>
 
-      <div style={{
+      <div className="rail" style={{
         maxWidth:1300, margin:'0 auto', padding:'0 16px',
         overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
       }}>

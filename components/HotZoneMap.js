@@ -272,7 +272,7 @@ function PitchMatrix({ pitches, matchNote }) {
   const pct=v=>v!=null?`${Math.round(v*100)}%`:'—'
   return (
     <div>
-      <div style={{overflowX:'auto'}}>
+      <div className="rail" style={{overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
           <thead>
             <tr>
