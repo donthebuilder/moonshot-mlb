@@ -65,12 +65,21 @@ function Note({ children, color = C.orange }) {
 // One line per term. The old version carried an optional example line under
 // every row; it doubled the height of the glossary and the examples were
 // mostly restatements, so the definition has to do the whole job now.
-function Term({ icon, term, def }) {
+function Term({ icon, term, def, tab, go }) {
+  const clickable = !!(tab && go)
   return (
-    <div style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+    <div
+      onClick={clickable ? () => go(tab) : undefined}
+      className={clickable ? 'tap-row' : undefined}
+      title={clickable ? `Open the ${term} tab` : undefined}
+      style={{
+        display: 'flex', gap: 10, padding: '7px 0', borderBottom: `1px solid ${C.border}`,
+        cursor: clickable ? 'pointer' : 'default',
+      }}>
       <div style={{ width: 24, flexShrink: 0, fontSize: 14, textAlign: 'center', lineHeight: '18px' }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{term}</span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: clickable ? C.orange : C.text }}>{term}</span>
+        {clickable && <span style={{ color: C.orange, fontSize: 11, fontWeight: 900 }}> →</span>}
         <span style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.55 }}> — {def}</span>
       </div>
     </div>
@@ -91,6 +100,14 @@ function Stat({ stat, def, good }) {
 
 // THE FIVE STEPS. First, second, third — in order, with the tab named and the
 // one thing to read on it. This is the whole point of the page.
+// ── EVERY STEP AND EVERY TAB ROW GOES SOMEWHERE (2026-08-09) ────────────────
+// Donovan: "make sure when you click on certain things they happen and the
+// right things happen."
+//
+// They didn't. Guide was mounted as `<Guide />` with NO PROPS, so every tab it
+// named — "go to Scoreboard", "open Results" — was dead text telling you to go
+// somewhere by hand. A guide whose instructions you have to follow manually is
+// a pamphlet. Each step and each tab row is now a real button onto that tab.
 const STEPS = [
   {
     n: 1,
@@ -99,11 +116,13 @@ const STEPS = [
   },
   {
     n: 2,
+    tab: 'scoreboard',
     title: 'Go to Scoreboard and look at the top of the list',
     body: 'Every hitter on the slate, ranked. The brightest names at the top are the ones the model likes most tonight. You do not have to understand a single column to use the order.',
   },
   {
     n: 3,
+    tab: 'board',
     title: 'Tap a name to open his card',
     body: 'The card says why he is up there: the arm he faces, his recent contact, where he does damage in the zone. Every number on it has a tooltip — hover anything you don’t recognise instead of coming back here.',
   },
@@ -114,6 +133,7 @@ const STEPS = [
   },
   {
     n: 5,
+    tab: 'results',
     title: 'The next morning, open Results',
     body: 'Every pick graded against the job it was picked for, wins and losses alike. That is the tab that tells you how much to trust everything above it. Nothing on this site is worth anything without it.',
   },
@@ -162,7 +182,7 @@ function ColorKey() {
   )
 }
 
-export default function Guide() {
+export default function Guide({ onNavigate }) {
   return (
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
@@ -189,7 +209,16 @@ export default function Guide() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
           {STEPS.map((s) => (
-            <div key={s.n} style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+            <div key={s.n}
+              onClick={s.tab && onNavigate ? () => onNavigate(s.tab) : undefined}
+              className={s.tab && onNavigate ? 'tap-row' : undefined}
+              title={s.tab && onNavigate ? 'Take me there' : undefined}
+              style={{
+                display: 'flex', gap: 11, alignItems: 'flex-start',
+                cursor: s.tab && onNavigate ? 'pointer' : 'default',
+                borderRadius: 9, padding: s.tab && onNavigate ? '3px 5px' : 0,
+                margin: s.tab && onNavigate ? '-3px -5px' : 0,
+              }}>
               <span style={{
                 flexShrink: 0, width: 24, height: 24, borderRadius: '50%',
                 border: `1px solid ${C.orange}77`, background: `${C.orange}18`,
@@ -197,7 +226,10 @@ export default function Guide() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>{s.n}</span>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.4 }}>{s.title}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.4 }}>
+                  {s.title}
+                  {s.tab && onNavigate && <span style={{ color: C.orange, fontWeight: 900 }}> →</span>}
+                </div>
                 <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>{s.body}</div>
               </div>
             </div>
@@ -260,21 +292,22 @@ export default function Guide() {
 
       {/* ── TAB MAP ── one line each ── */}
       <Section title="What each tab is for" emoji="🧭">
-        <Term icon="🏠" term="Home" def="tonight in four numbers, the headline game, and the way in." />
-        <Term icon="📊" term="Scoreboard" def="every hitter, every column, sortable. The wide view — start here." />
-        <Term icon="⚾" term="Games" def="one matchup at a time: the arm, the park, the lineup." />
-        <Term icon="🏆" term="HR Board" def="ranked purely by home-run score." />
-        <Term icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
-        <Term icon="💣" term="Due" def="hitters overdue for one. Read the HR/PA column, not the drought — a long gap with no power behind it is just a hitter who doesn't homer." />
-        <Term icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
-        <Term icon="🔗" term="Pairs / 🏊 Pools" def="two-man and four-to-six-man combinations, plus the Pair Builder for making your own." />
-        <Term icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />
-        <Term icon="🗺️" term="Spray" def="where a hitter's batted balls actually land." />
-        <Term icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />
-        <Term icon="🏅" term="Leaders" def="season-long league leaders." />
-        <Term icon="✅" term="Results" def="the receipts — last night graded, and the season record behind it." />
-        <Term icon="⭐" term="Watchlist" def="names you starred, followed across every tab." />
-        <Term icon="🤖" term="Bot" def="the raw model output and its own text logs, unfiltered." />
+        <Term tab="home" go={onNavigate} icon="🏠" term="Home" def="tonight in four numbers, the headline game, and the way in." />
+        <Term tab="scoreboard" go={onNavigate} icon="📊" term="Scoreboard" def="every hitter, every column, sortable. The wide view — start here." />
+        <Term tab="atplate" go={onNavigate} icon="🎤" term="At the Plate" def="the hitter batting right now — the count, every pitch of the at-bat, and where his contact is going. Only alive during games." />
+        <Term tab="games" go={onNavigate} icon="⚾" term="Games" def="one matchup at a time: the arm, the park, the lineup." />
+        <Term tab="board" go={onNavigate} icon="🏆" term="HR Board" def="ranked purely by home-run score." />
+        <Term tab="longest" go={onNavigate} icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
+        <Term tab="due" go={onNavigate} icon="💣" term="Due" def="hitters overdue for one. Read the HR/PA column, not the drought — a long gap with no power behind it is just a hitter who doesn't homer." />
+        <Term tab="board" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
+        <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs / 🏊 Pools" def="two-man and four-to-six-man combinations, plus the Pair Builder for making your own." />
+        <Term tab="pairhist" go={onNavigate} icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />
+        <Term tab="spray" go={onNavigate} icon="🗺️" term="Spray" def="where a hitter's batted balls actually land." />
+        <Term tab="pitchers" go={onNavigate} icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />
+        <Term tab="leaders" go={onNavigate} icon="🏅" term="Leaders" def="season-long league leaders." />
+        <Term tab="results" go={onNavigate} icon="✅" term="Results" def="the receipts — last night graded, and the season record behind it." />
+        <Term tab="watch" go={onNavigate} icon="⭐" term="Watchlist" def="names you starred, followed across every tab." />
+        <Term tab="bot" go={onNavigate} icon="🤖" term="Bot" def="the raw model output and its own text logs, unfiltered." />
       </Section>
 
       <Note>

@@ -297,7 +297,7 @@ export default function Dashboard() {
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
-            {tab === 'guide'       && <Guide />}
+            {tab === 'guide'       && <Guide onNavigate={setTab} />}
           </div>
         )}
         {/* THE DISCLAIMER (2026-08-08, Donovan: "make sure we know it's all

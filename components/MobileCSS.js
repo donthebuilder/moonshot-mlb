@@ -151,7 +151,11 @@ export default function MobileCSS() {
       @media (max-width: 700px) {
         .playerboard { grid-template-columns: 1fr !important; }
         .playerboard-side { position: static !important; }
-        .playerboard-list { max-height: 34vh !important; }
+        /* The list now owns the whole screen when it's showing (the detail
+              pane is hidden entirely — see tabs/PlayerBoard.js), so it gets
+              real height instead of a 34vh sliver you had to scroll inside
+              while the page scrolled underneath it. */
+        .playerboard-list { max-height: none !important; }
       }
 
       /* Lineups (2026-08-06): two batting orders side-by-side means 9-char

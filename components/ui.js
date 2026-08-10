@@ -139,3 +139,28 @@ export function Card({ children, color = C.border, onClick, style }) {
     </div>
   )
 }
+
+// ── SECTION BAND (2026-08-09) ───────────────────────────────────────────────
+// One header treatment for every band on every page. Before this each tab
+// hand-rolled its own label row — Pitchers had five, Home five, At the Plate
+// three — at 8.5px / 9px / 11px with three different letter-spacings, so
+// nothing read as belonging to the same site. A rule running to the edge does
+// the work a box used to do without adding another border.
+export function Band({ children, note, right, style }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8, marginTop: 2, ...style }}>
+      <span style={{
+        fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
+        color: C.text2, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+      }}>{children}</span>
+      {note && (
+        <span style={{
+          fontSize: 9.5, color: C.text3, minWidth: 0,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{note}</span>
+      )}
+      <span style={{ flex: 1, height: 1, background: C.border, minWidth: 12 }} />
+      {right}
+    </div>
+  )
+}

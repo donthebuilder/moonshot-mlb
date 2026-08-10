@@ -213,11 +213,43 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
       .sort((a, b) => b.list.length - a.list.length)
     const topRoot = roots[0] && roots[0].list.length >= 3 ? roots[0] : null
 
-    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered }
+    // ── 🧲 WHO IS ALIGNING WITH THE NIGHT (2026-08-09) ────────────────────
+    //
+    // Donovan: "the ledger is supposed to show people who are aligning with
+    // what's going on."
+    //
+    // The panel had all the raw material — the shared numbers, the hot lineup
+    // spot, the digit root — but it printed each as its own separate strip and
+    // left you to cross-reference them yourself. The question it should answer
+    // in one look is the other way round: WHICH HITTERS TONIGHT SIT INSIDE
+    // MORE THAN ONE OF THOSE PATTERNS.
+    //
+    // Three tags, all computed from what's already here:
+    //   #N     his homer number is one several hitters reached tonight
+    //   SPOT   he hit from the lineup spot leading the night (3+ homers)
+    //   ROOT   his number reduces to the digit root the night keeps landing on
+    //
+    // Ranked by how many he carries. This is PATTERN SPOTTING and the strip
+    // says so — a slate is ~25 homers over numbers 1–50 and nine lineup spots,
+    // so overlaps happen by arithmetic alone. It's here because Donovan wants
+    // the trend visible while it forms, not because it predicts anything.
+    const repeatNums = new Set(repeats.map((r) => r.num))
+    const hotSpot = spots[topSpot] >= 3 ? topSpot : null
+    const rootNum = topRoot ? topRoot.root : null
+    cards.forEach((c) => {
+      const tags = []
+      if (c.nth != null && repeatNums.has(c.nth)) tags.push({ k: 'num', label: `${ord(c.nth)} club`, why: `${byNumber.get(c.nth).length} hitters reached their ${ord(c.nth)} tonight.` })
+      if (hotSpot && c.spot === hotSpot) tags.push({ k: 'spot', label: `${ord(hotSpot)} spot`, why: `The ${ord(hotSpot)} spot leads the night with ${spots[hotSpot]} homers.` })
+      if (rootNum && c.nth != null && digitRoot(c.nth) === rootNum) tags.push({ k: 'root', label: `root ${rootNum}`, why: `${topRoot.list.length} of tonight's numbered homers reduce to ${rootNum}.` })
+      c.tags = tags
+    })
+    const aligned = cards.filter((c) => c.tags.length >= 2).sort((a, b) => b.tags.length - a.tags.length)
+
+    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot }
   }, [rows, players, seasonHr])
 
   if (isTmrw || !model || !model.total) return null
-  const { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered } = model
+  const { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned } = model
   const milestones = cards.filter((c) => c.milestone)
 
   return (
@@ -248,6 +280,46 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
               </b>{' '}<span style={{ fontFamily: NUM_FONT }}>{ord(c.roundNum ?? c.nth)}</span>
             </span>
           ))}
+        </div>
+      )}
+
+      {/* 🧲 ALIGNING WITH THE NIGHT — the lead, because it's the question.
+          Everything below this is the raw material; this is the answer. */}
+      {aligned.length > 0 && (
+        <div style={{
+          background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.32)',
+          borderRadius: 10, padding: '8px 11px', marginBottom: 9,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 900, color: C.orange }}>🧲 Aligning with tonight</span>
+            <span style={{ fontSize: 9, color: C.text3 }}>
+              {aligned.length} homer{aligned.length === 1 ? '' : 's'} sitting inside more than one of tonight&apos;s patterns
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {aligned.map((c) => (
+              <button key={`al${c.pid}`} onClick={() => c.p && onPlayerClick?.(c.p)}
+                title={c.tags.map((t) => t.why).join(' ')}
+                style={{
+                  display: 'flex', gap: 6, alignItems: 'baseline', cursor: c.p ? 'pointer' : 'default',
+                  border: '1px solid rgba(249,115,22,.45)', background: 'rgba(249,115,22,.10)',
+                  borderRadius: 8, padding: '4px 10px',
+                }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{c.name}</span>
+                {c.tags.map((t) => (
+                  <span key={t.k} style={{
+                    fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, color: C.orange,
+                    border: '1px solid rgba(249,115,22,.4)', borderRadius: 999, padding: '0 6px',
+                  }}>{t.label}</span>
+                ))}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
+            Overlap, not evidence. ~25 homers spread over fifty numbers and nine lineup spots will
+            line up by arithmetic alone — this is the trend made visible while it forms, never a
+            reason to chase one.
+          </div>
         </div>
       )}
 
@@ -315,6 +387,11 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
               {c.nth != null ? `${ord(c.nth)}${c.exact ? '' : '≈'}` : '—'}
             </span>
             {c.spot && <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>#{c.spot}</span>}
+            {c.tags?.length > 0 && (
+              <span title={c.tags.map((t) => t.why).join(' ')} style={{ fontSize: 8.5, color: C.orange }}>
+                🧲{c.tags.length > 1 ? c.tags.length : ''}
+              </span>
+            )}
           </button>
         ))}
       </div>

@@ -448,7 +448,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
             <span style={{ fontSize: 9.5, fontWeight: 900, color: C.yellow, letterSpacing: '.1em', fontFamily: NUM_FONT }}>📖 TONIGHT&apos;S ANGLES</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>the lines you say out loud — every one from tonight&apos;s own data</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>every line from tonight&apos;s own data</span>
           </div>
 
           {!b2b.length && !fenceRider && !pens.length && (

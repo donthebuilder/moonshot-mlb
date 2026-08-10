@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, playerId, clean, n } from '../../lib/player'
 import { scoreFor, gradeFor, tierRole, tierColor } from '../../lib/scoring'
@@ -62,11 +62,39 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
   const sLo = Math.min(...shownScores, 0)
   const sHi = Math.max(...shownScores, 1)
 
+  // ── PORTRAIT IS A DIFFERENT PAGE (2026-08-09, Donovan: "the players tab is
+  // not optimized for the phone in portrait mode") ─────────────────────────
+  //
+  // The old phone treatment stacked the two columns and capped the list at
+  // 34vh. That is technically responsive and practically unusable: you scroll
+  // a cramped list, tap a hitter, and his card renders BELOW the list — so
+  // every single selection means scrolling past the list again to see what you
+  // just picked, and then back up to change your mind.
+  //
+  // A phone wants master-DETAIL, not master-and-detail. Pick from the list,
+  // and the list gets out of the way; one tap on ← brings it back with your
+  // search and filters intact. Desktop is untouched.
+  //
+  // The flag is set in an effect rather than read during render, so the server
+  // and the first client render agree — reading matchMedia during render is a
+  // hydration mismatch.
+  const [phone, setPhone] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 560px)')
+    const sync = () => setPhone(mq.matches)
+    sync()
+    mq.addEventListener?.('change', sync)
+    return () => mq.removeEventListener?.('change', sync)
+  }, [])
+  const showList = !phone || !selected
+  const showDetail = !phone || !!selected
+
   // Mobile (2026-08-06): the side-by-side grid squeezed the detail pane into
   // a sliver on phones — MobileCSS stacks these and shortens the list so
   // picking a player doesn't mean scrolling past 200 rows.
   return (
     <div className="playerboard" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 14, alignItems: 'start' }}>
+      {showList && (
       <div className="playerboard-side" style={{ position: 'sticky', top: 12 }}>
         <input
           style={{ ...inputStyle(), width: '100%', marginBottom: 6 }}
@@ -147,8 +175,22 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
           )}
         </div>
       </div>
+      )}
 
+      {showDetail && (
       <div>
+        {phone && selected && (
+          <button onClick={() => setSelectedId(null)} className="tap-row" style={{
+            display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10,
+            border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.04)',
+            color: C.text2, borderRadius: 9, padding: '7px 12px', fontSize: 11.5,
+            fontWeight: 700, cursor: 'pointer', width: '100%',
+          }}>← <span>All hitters</span>
+            <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              {matches.length} in the list
+            </span>
+          </button>
+        )}
         {selected ? (
           <>
             <PanelTitle
@@ -174,9 +216,10 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
             </div>
           </>
         ) : (
-          <Empty text="Pick a hitter on the left." />
+          <Empty text={phone ? 'Pick a hitter above.' : 'Pick a hitter on the left.'} />
         )}
       </div>
+      )}
     </div>
   )
 }

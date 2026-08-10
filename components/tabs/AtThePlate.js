@@ -7,7 +7,7 @@ import {
   fetchLiveGame, parseLiveGame, atBatOf, priorPAs, timesFacing, arsenalTonight,
   pitchColor, PITCH_NAMES, KIND_WORD,
 } from '../../lib/livePitches'
-import { Empty } from '../ui'
+import { Empty, Band } from '../ui'
 import ZoneMap from '../ZoneMap'
 import SprayField from '../SprayField'
 
@@ -163,24 +163,6 @@ function Arsenal({ rows, pitcherName }) {
 }
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
 const LIVE = '#4ade80'
-
-// One header treatment for every band on the page. Before this each section
-// wrote its own label row, so the type sizes and spacings drifted and nothing
-// read as belonging to the same page. A rule to the right does the work a box
-// used to do, without another border.
-function Band({ children, note, right }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8, marginTop: 2 }}>
-      <span style={{
-        fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
-        color: C.text2, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-      }}>{children}</span>
-      {note && <span style={{ fontSize: 9.5, color: C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{note}</span>}
-      <span style={{ flex: 1, height: 1, background: C.border, minWidth: 12 }} />
-      {right}
-    </div>
-  )
-}
 
 const CARD = {
   background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.025))`,
