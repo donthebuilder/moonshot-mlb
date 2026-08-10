@@ -324,6 +324,84 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
           accent={C.green}
           defaultOpen={!!lineupFocus}
         >
+        {/* ── CARD WATCH (2026-08-10) ────────────────────────────────────
+            Donovan: "what would be the best way to incorporate that so we can
+            see the lineups."
+
+            Per-game annotation answers "is THIS order real" once you are
+            already looking at a game. It does not answer the question you
+            actually open the site with at 4pm, which is "has anything changed
+            since the bot ran." That is a slate-wide question and it gets a
+            slate-wide answer: how many cards are up, and the names — yours
+            first — that the card disagrees with the bot about.
+
+            It renders nothing at all when there is nothing to say. A strip
+            that says "0 changes" every night trains you to stop reading it. */}
+        {(() => {
+          if (!live?.games?.length) return null
+          const inPlay = live.games.filter((x) => !x.postponed)
+          const postedN = inPlay.filter((x) => x.lineupPosted).length
+          const moved = []
+          const out = []
+          ;(players || []).forEach((p) => {
+            const st = lineupStatus(live, playerId(p), p?.game_pk, p?.lineup_spot)
+            if (st.scratched) out.push(p)
+            else if (st.moved) moved.push({ p, slot: st.slot })
+          })
+          if (!postedN) return null
+          // Picks and watchlist first — those are the ones with money or
+          // attention on them; the rest are context.
+          const mine = (p) => (String(p?.game_pick_role || '').trim() ? 0 : watchIds?.has(playerId(p)) ? 1 : 2)
+          out.sort((a, b) => mine(a) - mine(b))
+          moved.sort((a, b) => mine(a.p) - mine(b.p))
+          return (
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
+              padding: '8px 12px', marginBottom: 12, borderRadius: 11,
+              border: `1px solid ${out.length ? 'rgba(248,113,113,.4)' : C.border}`,
+              background: out.length ? 'rgba(248,113,113,.06)' : C.bg2,
+            }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: C.text3 }}>
+                Lineup cards
+              </span>
+              <span title="Games where the league has posted all nine on both sides."
+                style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: postedN === inPlay.length ? '#4ade80' : C.text2 }}>
+                {postedN}/{inPlay.length} posted
+              </span>
+              {!out.length && !moved.length && (
+                <span style={{ fontSize: 10, color: C.text3 }}>every posted card matches the bot&apos;s order</span>
+              )}
+              {out.slice(0, 6).map(({ ...p }) => (
+                <button key={`o${playerId(p)}`} onClick={() => { setLineupFocus(p?.game_pk || null); onPlayerClick?.(p) }}
+                  title={`Not in tonight's posted lineup — the bot had him at #${p?.lineup_spot ?? '?'}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                    padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    border: '1px solid rgba(248,113,113,.5)', background: 'rgba(248,113,113,.12)', color: '#f87171',
+                  }}>
+                  🚫 {String(p?.name || '').split(' ').slice(-1)[0]} out
+                </button>
+              ))}
+              {moved.slice(0, 6).map(({ p, slot }) => (
+                <button key={`m${playerId(p)}`} onClick={() => { setLineupFocus(p?.game_pk || null); onPlayerClick?.(p) }}
+                  title={`Batting ${slot} tonight — the bot had him at #${p?.lineup_spot}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                    padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    border: `1px solid ${C.orange}66`, background: 'rgba(249,115,22,.12)', color: C.orange,
+                  }}>
+                  ↕ {String(p?.name || '').split(' ').slice(-1)[0]} #{p?.lineup_spot}→{slot}
+                </button>
+              ))}
+              {(out.length > 6 || moved.length > 6) && (
+                <span style={{ fontSize: 9.5, color: C.text3 }}>
+                  +{Math.max(0, out.length - 6) + Math.max(0, moved.length - 6)} more
+                </span>
+              )}
+            </div>
+          )
+        })()}
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           {lineupFocus && (
             <button onClick={() => setLineupFocus(null)} style={{
@@ -339,6 +417,43 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
               ;(byTeam[t] = byTeam[t] || []).push(p)
             })
             Object.values(byTeam).forEach((l) => l.sort((a, b) => (Number(a?.lineup_spot) || 99) - (Number(b?.lineup_spot) || 99)))
+
+            // ── THE POSTED CARD REPLACES THE BOT'S NINE (2026-08-10) ────────
+            //
+            // Once the league posts, this stops being the bot's guess at an
+            // order and becomes the order. Three things change:
+            //
+            //   · rows sort by the REAL slot, not lineup_spot
+            //   · hitters in the card the bot never scored are shown anyway,
+            //     dimmed, with no number — the alternative is a lineup card
+            //     that is missing a man, which is how "the bot didn't have
+            //     them at all" happens
+            //   · slate hitters who are NOT on the card fall to the bottom,
+            //     struck through, instead of quietly vanishing
+            //
+            // Before it posts, nothing here changes: the bot's projection is
+            // still the best available answer and it is labelled as one.
+            const liveG = live?.games?.find((x) => Number(x.pk) === Number(g.game_pk))
+            const cardPosted = !!liveG?.lineupPosted
+            if (cardPosted) {
+              Object.keys(byTeam).forEach((t) => {
+                const side = t === g.away ? 'away' : 'home'
+                const card = liveG.lineup?.[side] || []
+                if (card.length < 9) return
+                const byId = new Map(byTeam[t].map((p) => [Number(playerId(p)), p]))
+                const ordered = card.map((r) => {
+                  const hit = byId.get(Number(r.id))
+                  if (hit) { byId.delete(Number(r.id)); return hit }
+                  return {
+                    name: r.name, player_id: r.id, team: t,
+                    game_pk: g.game_pk, lineup_spot: r.slot, off_slate: true,
+                  }
+                })
+                // Whoever is left was on the slate and is not on the card.
+                byTeam[t] = [...ordered, ...byId.values()]
+              })
+            }
+
             const any = (g.players || [])[0] || {}
             const temp = Number(any.weather_temp_f) || 0
             const wind = Number(any.weather_wind_mph) || 0
@@ -399,7 +514,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                           {lineup[0]?.pitcher_hr9 ? ` · ${Number(lineup[0].pitcher_hr9).toFixed(2)} HR/9` : ''}
                         </span>
                       </div>
-                      {lineup.slice(0, 9).map((p) => {
+                      {lineup.slice(0, cardPosted ? 14 : 9).map((p) => {
                         const hs = hrScore(p)
                         // What the league says about him RIGHT NOW. Silent
                         // until the card is actually posted — "not in the
@@ -407,7 +522,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                         // yet is the same false alarm in the other direction.
                         const lu = lineupStatus(live, playerId(p), p?.game_pk, p?.lineup_spot)
                         return (
-                          <div key={playerId(p)} onClick={() => onPlayerClick?.(p)}
+                          <div key={playerId(p)} onClick={() => { if (!p?.off_slate) onPlayerClick?.(p) }}
                             title={lu.scratched ? 'Not in tonight’s posted lineup'
                               : lu.moved ? `Batting ${lu.slot} tonight — the bot had him at ${p?.lineup_spot}`
                               : undefined}
@@ -427,12 +542,19 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                               {p?.weak_spot_flag && <span style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
                               {Number(p?.last5_hits) >= 6 && <span style={{ fontSize: 9, marginLeft: 2 }}>🧨</span>}
                             </span>
+                            {/* A man in the card the bot never scored gets a
+                                blank where his number would be, not a zero.
+                                A zero is a verdict; this is an absence. */}
                             <div style={{ flex: '0 0 46px', height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
-                              <div style={{ width: `${Math.min(100, hs)}%`, height: '100%', borderRadius: 3,
-                                background: hs >= 60 ? '#f97316' : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
+                              {!p?.off_slate && (
+                                <div style={{ width: `${Math.min(100, hs)}%`, height: '100%', borderRadius: 3,
+                                  background: hs >= 60 ? '#f97316' : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
+                              )}
                             </div>
-                            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
-                              color: hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>{hs.toFixed(0)}</span>
+                            <span title={p?.off_slate ? 'In the lineup, but not on the bot’s slate — no model score for him tonight.' : undefined}
+                              style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
+                                color: p?.off_slate ? C.text3 : hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>
+                              {p?.off_slate ? '–' : hs.toFixed(0)}</span>
                           </div>
                         )
                       })}
