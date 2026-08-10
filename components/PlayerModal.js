@@ -390,6 +390,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
 
   if (!player) return null
   const p = detail ? { ...player, ...detail } : player
+  // Which market's counting stats the slash line should lead with. A hitter
+  // the bot designated as an HRR pick is graded on hits + runs + RBI, so those
+  // are the numbers his card owes you — not season homers.
+  const primaryType = (String(player?.game_pick_role || '').split('/')[0].trim() || 'hr').toLowerCase()
 
   // API-ONLY PLAYERS (2026-08-06): anyone found through the league-wide
   // search who isn't on the bot's slate. Every live-pull panel works for them
@@ -471,7 +475,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               verdict belongs. The homer boxes keep their denominators visible
               because L5/L10 count GAMES and season counts PLATE APPEARANCES;
               stacking those as bare percentages compares two different units. */}
-          <SlashLine p={p} style={{ marginBottom: 9 }} />
+          <SlashLine p={p} type={primaryType} style={{ marginBottom: 9 }} />
           <StatStrip p={p} type="hr" count={6} style={{ marginBottom: 8 }} />
           <HitRateBoxes p={p} style={{ marginBottom: 10, maxWidth: 320 }} />
 

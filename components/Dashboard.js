@@ -12,6 +12,7 @@ import Controls from './Controls'
 import Slip from './Slip'
 import PlayerModal from './PlayerModal'
 import MobileCSS from './MobileCSS'
+import StaleBanner from './StaleBanner'
 
 import Home from './tabs/Home'
 import Guide from './tabs/Guide'
@@ -243,6 +244,9 @@ export default function Dashboard() {
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
+        {/* Loudest thing on the page when it fires, and silent otherwise:
+            "you are looking at a slate that already happened". */}
+        <StaleBanner slateDate={slateDate} mode={mode} loading={loading} />
         <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice

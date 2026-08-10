@@ -1,6 +1,6 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
-import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../lib/statline'
+import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR, marketKey } from '../lib/statline'
 
 // 📊 The stat row that now leads every card. See lib/statline.js for why.
 //
@@ -85,7 +85,25 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
  * such. Mixing a season HR total into a row of five-game counts without saying
  * so is exactly the kind of quiet unit-mixing worth avoiding.
  */
-export function SlashLine({ p, style }) {
+// WHICH COUNTS A MARKET CARES ABOUT (2026-08-09, Donovan: "on the four it
+// needs to be for the HRR pick last with runs and RBI — so last 5 hits, runs,
+// RBI").
+//
+// The first version printed the same four counts on every card, led by season
+// homers. That's right for an HR pick and wrong for the others: an HRR pick is
+// graded on hits + runs + RBI, so those three ARE the pick, and showing him
+// season homers instead is showing the wrong market's evidence on his card.
+// Each market now leads with the counts it is actually graded on.
+const COUNTS = {
+  hr:      ['hrSeason', 'rbi', 'runs', 'xbh'],
+  top:     ['hrSeason', 'rbi', 'runs', 'xbh'],
+  // graded on 2+ of (hits + runs + RBI) — so those three, in that order
+  hrr:     ['hits', 'runs', 'rbi'],
+  hit:     ['hits', 'xbh', 'runs'],
+  contact: ['xbh', 'hits', 'rbi'],
+}
+
+export function SlashLine({ p, type = 'hr', style }) {
   const val = (k) => {
     const v = Number(p?.[k])
     return Number.isFinite(v) ? v : null
@@ -94,13 +112,18 @@ export function SlashLine({ p, style }) {
   const three = [['AVG', avg], ['OBP', obp], ['SLG', slg]].filter(([, v]) => v != null)
   const fmt = (v) => v.toFixed(3).replace(/^0/, '')
 
-  const hr = val('season_hr')
-  const counts = [
-    ['HR', hr, 'Home runs this season.'],
-    ['RBI', val('last5_rbi'), 'Runs batted in over his last 5 games.'],
-    ['R', val('last5_runs'), 'Runs scored over his last 5 games.'],
-    ['XBH', val('last5_xbh'), 'Extra-base hits — doubles, triples and homers — over his last 5 games.'],
-  ].filter(([, v]) => v != null)
+  const POOL = {
+    hrSeason: ['HR', val('season_hr'), 'Home runs this season.', true],
+    hits: ['H', val('last5_hits'), 'Hits over his last 5 games.', false],
+    runs: ['R', val('last5_runs'), 'Runs scored over his last 5 games.', false],
+    rbi: ['RBI', val('last5_rbi'), 'Runs batted in over his last 5 games.', false],
+    xbh: ['XBH', val('last5_xbh'), 'Extra-base hits — doubles, triples and homers — over his last 5 games.', false],
+  }
+  const order = COUNTS[marketKey(type)] || COUNTS.hr
+  const counts = order.map((k) => POOL[k]).filter(([, v]) => v != null)
+  // The L5 marker only earns its place when a five-game count is on screen —
+  // an HR-only row is a season number and shouldn't wear a window label.
+  const anyWindowed = counts.some(([, , , season]) => !season)
 
   if (!three.length && !counts.length) return null
 
@@ -123,9 +146,9 @@ export function SlashLine({ p, style }) {
             <span style={{ color: C.text3, fontSize: 8.5 }}> {lab}</span>
           </span>
         ))}
-        {counts.length > 1 && (
+        {anyWindowed && (
           <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}
-            title="Home runs are the season total. RBI, runs and extra-base hits are his last 5 games — the slate publishes those as a five-game window, not a season count.">
+            title="Hits, runs, RBI and extra-base hits are his LAST 5 GAMES — the slate publishes those as a five-game window, not a season count. Home runs, where shown, are the season total.">
             L5 ⓘ
           </span>
         )}

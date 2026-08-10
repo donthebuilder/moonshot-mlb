@@ -221,7 +221,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
       {/* The old row was five unrelated numbers in grey — and two of them
           (BABIP, the opposing arm's HR/9) weren't even about his season. It's
           the slash line now, plus the counting stats it never had room for. */}
-      <SlashLine p={p} style={{ marginBottom: 8 }} />
+      <SlashLine p={p} type={type} style={{ marginBottom: 8 }} />
 
       {/* buttons */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

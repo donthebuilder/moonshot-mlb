@@ -8,6 +8,7 @@ import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
+import { rankArms } from '../../lib/armLeak'
 
 // HOME — the front porch.
 //
@@ -616,7 +617,18 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           if (p?.weak_spot_flag) arms.get(nm).weak += 1
         })
         const all = [...arms.values()].filter((a) => a.hr9 > 0)
-        const weakest = [...all].sort((a, b) => b.hr9 - a.hr9).slice(0, 5)
+        // RANKED ON MORE THAN ONE NUMBER (2026-08-09). This panel sorted by
+        // season HR/9 alone — the right headline and a poor ranking: it moves
+        // slowly, it's blind to contact quality, and it can't tell a fly-ball
+        // arm in a bandbox from the same HR/9 in a pitcher's park. lib/armLeak
+        // blends eight published fields, ranked against tonight's other
+        // starters, and hands back the two terms driving each one. HR/9 stays
+        // on the row, so nothing that was readable before got hidden.
+        const ranked = rankArms(players)
+        const leakBy = new Map(ranked.map((a) => [a.name, a]))
+        const weakest = ranked.length
+          ? ranked.slice(0, 5).map((a) => ({ ...(arms.get(a.name) || {}), ...a }))
+          : [...all].sort((a, b) => b.hr9 - a.hr9).slice(0, 5)
         const trending = all
           .filter((a) => a.trend === 'worsening' || (a.l3hr9 != null && a.hr9 > 0 && a.l3hr9 >= a.hr9 + 0.4))
           .sort((a, b) => (b.l3hr9 ?? b.hr9) - (a.l3hr9 ?? a.hr9)).slice(0, 4)
@@ -651,6 +663,24 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
             <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: a.hr9 >= 1.6 ? '#f87171' : '#FB923C', flexShrink: 0 }}>
               {a.hr9.toFixed(2)}
             </span>
+            {/* The blended rank, plus the one term carrying it — so a row that
+                outranks a bigger HR/9 explains itself on the row. */}
+            {leakBy.get(a.nm)?.leak != null && (
+              <span
+                title={`Leak score ${leakBy.get(a.nm).leak}/100 — ranked against tonight's ${ranked.length} starters only, not the league. Built from ${leakBy.get(a.nm).scoredOn} published fields: ${leakBy.get(a.nm).terms.map((t) => `${t.label} ${t.text}`).join(' · ')}.${leakBy.get(a.nm).thin ? ' Small Statcast sample — the contact-quality terms are thin.' : ''} Display ranking only; it never touches a pick.`}
+                style={{
+                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, flexShrink: 0, cursor: 'help',
+                  color: '#f87171', border: '1px solid rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)',
+                  borderRadius: 999, padding: '0 6px',
+                }}>
+                {leakBy.get(a.nm).leak}{leakBy.get(a.nm).thin ? '·' : ''}
+              </span>
+            )}
+            {leakBy.get(a.nm)?.drivers?.[0] && (
+              <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                {leakBy.get(a.nm).drivers[0].label} {leakBy.get(a.nm).drivers[0].text}
+              </span>
+            )}
             {a.weak > 0 && <span style={{ fontSize: 8.5, flexShrink: 0 }} title={`${a.weak} weak spots in the lineup he faces`}>★{a.weak}</span>}
           </div>
         )
@@ -663,7 +693,10 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
             }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 900 }}>🩹 Weakest arms tonight</span>
-                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>season HR/9 · ★N weak spots vs him</span>
+                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}
+                  title="Ranked by a blend of eight published fields — season HR/9, last three starts, barrels and hard contact allowed, fly-ball rate, meatball rate, tonight's park and fastball velocity against his own baseline — each ranked against tonight's other starters, not the league. Hover any arm's red number for its full breakdown. Display ranking only; nothing here feeds a pick.">
+                  leak score · HR/9 · ★N weak spots vs him
+                </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {weakest.map((a, i) => <Arm key={a.nm} a={a} i={i} />)}
