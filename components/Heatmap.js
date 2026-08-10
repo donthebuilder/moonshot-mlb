@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { activeStops, inkOn, subscribe } from '../lib/palette'
+import { activeStops, inkOn, edgeOn, subscribe } from '../lib/palette'
 import PaletteToggle from './PaletteToggle'
 
 // Heatmap — the chart the Streamlit build leans on hardest, ported.
@@ -39,6 +39,7 @@ export const ORANGE_RAMP = [...activeStops()]
 subscribe(() => { ORANGE_RAMP.length = 0; ORANGE_RAMP.push(...activeStops()) })
 
 export const inkFor = inkOn
+export { edgeOn }
 
 export function rampColor(v, lo, hi) {
   const f = Number(v)
@@ -225,6 +226,7 @@ export default function Heatmap({
                       style={{
                         background: bg || C.bg3,
                         color: bg ? inkFor(bg) : C.text3,
+                        boxShadow: (bg && edgeOn(bg)) ? `inset 0 0 0 1px ${edgeOn(bg)}` : undefined,
                         fontFamily: NUM_FONT, fontSize: 11, fontWeight: 700,
                         textAlign: 'center', padding: '7px 5px',
                         borderRight: `1px solid ${C.bg}`,

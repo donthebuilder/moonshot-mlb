@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
+import { edgeOn } from '../lib/palette'
 import { explainFor, InfoDot, ExplainBanner } from './Explain'
 
 // DenseTable — the PropFinder table pattern.
@@ -283,6 +284,12 @@ export default function DenseTable({
                       background: bg || C.bg3, color: bg ? inkFor(bg) : C.text3,
                       fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700,
                       textAlign: 'center', padding: pad,
+                      // A ramp may light its own edge (neon does). The inset
+                      // ring sits INSIDE the cell so it can't change the
+                      // table's metrics — a 1px outer border on 25 columns
+                      // would reflow the whole grid the moment you switched
+                      // palette.
+                      boxShadow: (bg && edgeOn(bg)) ? `inset 0 0 0 1px ${edgeOn(bg)}` : undefined,
                       borderRight: `1px solid ${C.bg}`, borderBottom: `1px solid ${C.bg}`,
                       minWidth: c.w || 40,
                     }}>{c.fmt ? c.fmt(v, r) : (Number.isFinite(num) ? num.toFixed(c.dp ?? 0) : '—')}</td>

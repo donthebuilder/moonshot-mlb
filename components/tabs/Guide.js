@@ -177,9 +177,7 @@ function ColorKey() {
       <P>
         {active === 'ember'
           ? 'One colour, nine steps: dim is low, bright amber is high. There is no second colour for “bad”, because a low score isn’t bad — it’s just low.'
-          : active === 'propfinder'
-            ? 'Three bands. Red is a weak spot, yellow is okay, green is a strong one — the way a prop tool reads. Fastest to skim; it tells you the tier and not much else.'
-            : 'Red through amber to green. Red is weak, green is strong, and every step in between is visible, so you can rank a whole column and not just spot the extremes.'}
+          : 'The site’s own colours, lit. Dark red is a weak spot, orange and yellow are middling, deep green is the best thing on the board. The cell stays dark and the NUMBER carries the colour, so a strong stat glows instead of being painted in.'}
       </P>
       <P>
         <b>Every column is scaled on its own</b> — a strong colour means high <i>for tonight, in that
