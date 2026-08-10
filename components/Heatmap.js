@@ -69,9 +69,15 @@ export default function Heatmap({
   maxHeight = null,
 }) {
   const [hover, setHover] = useState(null)
-  // Sorting. A heatmap you can't re-sort only answers the question its default
-  // order was built to answer; click a column and it answers that column's.
-  const [sort, setSort] = useState(null)
+  // ── MULTI-SORT (2026-08-09) ────────────────────────────────────────────
+  // Donovan: "make sure the multi-sorts work."
+  //
+  // DenseTable has had a real sort STACK for a while — plain click sets the
+  // key, shift-click adds a tiebreaker, a third shift-click drops it. This
+  // chart had a single key and a different mental model, so the same gesture
+  // did different things on two tables that look alike. Same behaviour now,
+  // same shape of state, so there is one thing to learn.
+  const [sort, setSort] = useState([])
 
   const ranges = useMemo(() => {
     const out = {}
@@ -82,23 +88,50 @@ export default function Heatmap({
     return out
   }, [rows, columns])
 
-  const view = sort
+  // Blanks sink to the bottom whichever way the column points — flipping to
+  // ascending on a sparse column should not fill the top with empty cells.
+  // `Number(null)` is 0, not NaN — so a missing cell used to sort as a REAL
+  // ZERO and float to the top of any ascending sort. Caught by test, and the
+  // original single-key version had the same bug: it checked Number.isFinite
+  // on the converted value, which nulls pass. The raw value has to be checked
+  // before the conversion. DenseTable already did this; now both agree.
+  const blank = (v) => v === null || v === undefined || v === '' || v === '—'
+  const cmpOne = (a, b, { key, dir }) => {
+    const raw = a.values?.[key]
+    const rawB = b.values?.[key]
+    const av = Number(raw)
+    const bv = Number(rawB)
+    const ab = blank(raw) || !Number.isFinite(av)
+    const bb = blank(rawB) || !Number.isFinite(bv)
+    if (ab && bb) return 0
+    if (ab) return 1
+    if (bb) return -1
+    return (av - bv) * (dir === 'desc' ? -1 : 1)
+  }
+
+  const view = sort.length
     ? [...rows].sort((a, b) => {
-        const av = Number(a.values?.[sort.key])
-        const bv = Number(b.values?.[sort.key])
-        const mul = sort.dir === 'desc' ? -1 : 1
-        if (!Number.isFinite(av) && !Number.isFinite(bv)) return 0
-        if (!Number.isFinite(av)) return 1
-        if (!Number.isFinite(bv)) return -1
-        return (av - bv) * mul
+        for (const s of sort) {
+          const r = cmpOne(a, b, s)
+          if (r !== 0) return r
+        }
+        return 0
       })
     : rows
 
-  const toggle = (key) => setSort((s) => (
-    s && s.key === key
-      ? (s.dir === 'desc' ? { key, dir: 'asc' } : null)  // third click clears
-      : { key, dir: 'desc' }
-  ))
+  const toggle = (key, additive) => setSort((s) => {
+    const i = s.findIndex((x) => x.key === key)
+    if (!additive) {
+      // Plain click: this key alone, flipping if it was already the only one.
+      if (i === 0 && s.length === 1) return [{ key, dir: s[0].dir === 'desc' ? 'asc' : 'desc' }]
+      return [{ key, dir: 'desc' }]
+    }
+    if (i < 0) return [...s, { key, dir: 'desc' }]
+    const next = [...s]
+    if (next[i].dir === 'desc') { next[i] = { key, dir: 'asc' }; return next }
+    next.splice(i, 1)                       // third shift-click removes it
+    return next
+  })
 
   if (!rows.length || !columns.length) return null
 
@@ -129,12 +162,13 @@ export default function Heatmap({
                 borderBottom: `1px solid ${C.border}`,
               }} />
               {columns.map((c) => {
-                const on = sort?.key === c
+                const si = sort.findIndex((x) => x.key === c)
+                const on = si >= 0
                 return (
                   <th
                     key={c}
-                    onClick={() => toggle(c)}
-                    title={`Sort by ${c}`}
+                    onClick={(e) => toggle(c, e.shiftKey)}
+                    title={`${c}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
                     style={{
                       fontSize: 9, letterSpacing: '.07em', textTransform: 'uppercase',
                       color: on || hover?.col === c ? C.orange : C.text3,
@@ -143,7 +177,16 @@ export default function Heatmap({
                       background: C.bg2, cursor: 'pointer', userSelect: 'none',
                       transition: 'color .1s',
                     }}
-                  >{c}{on ? (sort.dir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
+                  >
+                    {c}
+                    {on ? (sort[si].dir === 'desc' ? ' ▾' : ' ▴') : ''}
+                    {/* The ordinal makes precedence visible. A sort stack you
+                        cannot see is worse than none, because you cannot tell
+                        why the rows moved. */}
+                    {on && sort.length > 1 && (
+                      <sup style={{ fontSize: 7, marginLeft: 1, opacity: 0.85 }}>{si + 1}</sup>
+                    )}
+                  </th>
                 )
               })}
             </tr>
