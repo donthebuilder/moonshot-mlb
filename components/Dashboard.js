@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
-import { fetchJSON, normalizeData, groupGames } from '../lib/data'
+import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows } from '../lib/data'
 import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { Empty } from './ui'
@@ -99,7 +99,10 @@ export default function Dashboard() {
     // lib/data.js), so re-running this effect always hits the network for
     // fresh data rather than a stale browser/CDN cache.
     Promise.allSettled([
-      fetchJSON(paths).then((j) => { if (alive) setData(j) }),
+      // The slate is the one payload with a validity test: a 200 carrying six
+      // rows from a game two weeks ago must not beat the real slate sitting
+      // behind it in the fallback list. See lib/data.js.
+      fetchJSON(paths, slateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
       fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
       fetchJSON(pairSummaryPaths()).then((j) => { if (alive) setPairSummary(j) }),
@@ -222,7 +225,13 @@ export default function Dashboard() {
   // under today's header as if it were tonight. Pools and Pairs only get the
   // results object when its date matches the slate being viewed; the Results
   // tab keeps the ungated object because its day picker owns its own dates.
-  const slateDate = clean(obj(data).date || obj(data).slate_date, '')
+  // A payload with no `date` at all is exactly what a broken publish looks
+  // like, and the staleness check was reading only that field — so the one
+  // failure it exists to catch would have slipped past it silently. Falling
+  // back to the newest game_time means the banner can still tell you which
+  // night you're actually looking at.
+  const slateDate = clean(obj(data).date || obj(data).slate_date, '') || slateDateFromRows(data)
+  const slateIsReal = !data || slateLooksReal(data)
   const resultsForSlate =
     (!slateDate || !clean(results?.date, '') || results.date === slateDate) ? results : null
   // These render from their own payloads, so an empty slate must not blank them.
@@ -246,7 +255,7 @@ export default function Dashboard() {
             has the full panel) — live info dies when it needs visiting. */}
         {/* Loudest thing on the page when it fires, and silent otherwise:
             "you are looking at a slate that already happened". */}
-        <StaleBanner slateDate={slateDate} mode={mode} loading={loading} />
+        <StaleBanner slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} />
         <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice

@@ -47,7 +47,7 @@ const daysBetween = (a, b) => Math.round(
   (new Date(`${a}T12:00:00Z`).getTime() - new Date(`${b}T12:00:00Z`).getTime()) / 864e5,
 )
 
-export default function StaleBanner({ slateDate = '', mode = 'today', loading = false }) {
+export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0 }) {
   // Re-check on a slow timer so a tab left open overnight notices the rollover
   // rather than sitting on the assumption it made when it was opened.
   const [now, setNow] = useState(null)
@@ -60,6 +60,40 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
   // Rendered only once we know the ET clock — computing it during render would
   // make the server and the client disagree.
   if (!now || loading) return null
+
+  // A TRUNCATED PAYLOAD IS ITS OWN ALARM (2026-08-09 incident).
+  //
+  // The publish replaced current/today_slim.json with a bare six-row array
+  // from one July 26 game. It had no `date` field at all — so the check below,
+  // which reads only the date, returned null and said nothing. The one outage
+  // this component exists for walked straight past it.
+  //
+  // Payload shape is now checked before payload date, because a slate that is
+  // the wrong SIZE is broken whatever day it claims to be.
+  if (truncated) {
+    return (
+      <div style={{
+        background: 'linear-gradient(155deg, rgba(248,113,113,.14), rgba(248,113,113,.05))',
+        border: '1px solid rgba(248,113,113,.55)', borderRadius: 12,
+        padding: '10px 14px', marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13 }}>⚠️</span>
+          <span style={{ fontSize: 12, fontWeight: 900, color: '#f87171' }}>The published slate is incomplete</span>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+            {games} game{games === 1 ? '' : 's'}{slateDate ? ` · dated ${slateDate}` : ' · no date published'}
+          </span>
+        </div>
+        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
+          The bot published a slate file too small to be a real night of baseball, so most hitters are
+          missing from every board. <b>Anything that says the model had no opinion on a player is wrong —
+          it means he isn&apos;t in the file, not that he wasn&apos;t picked.</b> The site is read-only and
+          can&apos;t rebuild it; the next successful bot run replaces it.
+        </div>
+      </div>
+    )
+  }
+
   if (!slateDate) return null
 
   const expected = mode === 'tomorrow' ? addDays(now.date, 1) : now.date
