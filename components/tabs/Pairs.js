@@ -997,7 +997,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
               { key:'sameDay',  label:'Same-day', w:56,
                 title:'Times these two homered on the same date this season — different parks counts' },
               { key:'sameGame', label:'Same-gm', w:52,
-                title:'Times they homered in the same game. The only correlated version.' },
+                title:'Times they homered in the same game. NOT more correlated than any other pair — measured 2026-08-09 across 58 graded nights, same-game pairs cleared 1.05x the independence expectation, which is 1.00 to within noise.' },
               { key:'boost',    label:'Boost', w:46 },
               { key:'since',    label:'Days ago', w:52, invert:true, fmt:(v)=> v==null?'—':String(v) },
               { key:'last',     label:'Last', heat:false, w:82, mono:true, dim:true },
@@ -1305,7 +1305,7 @@ function HistorySection({ data, q, players=[] }) {
             { key:'sameDay',  label:'Same-day',  w:60,
               title:'Days this season both homered — different ballparks included' },
             { key:'sameGame', label:'Same-gm',   w:56,
-              title:'Days both homered in the SAME game. The only correlated version.' },
+              title:'Days both homered in the SAME game. Measured 2026-08-09: same-game pairs are no more correlated than any other pair (1.05x the independence expectation). Interesting history, not an edge.' },
             { key:'boost',    label:'Boost',     w:48 },
             { key:'pairScore', label:'Pair',     w:48 },
             { key:'since',    label:'Days ago',  w:56, invert:true, fmt:(v)=> v==null?'—':String(v) },
@@ -1315,7 +1315,7 @@ function HistorySection({ data, q, players=[] }) {
           ]}
           initialSort="sameDay"
           maxHeight={520}
-          caption="Capped at 200 rendered rows — this table used to lock the browser tab at 350. Days ago is inverted so a recent pairing reads bright. Same-day is the loose count: two hitters going deep on the same date in different parks are two independent events, and most of these pairs cluster at 4–9 across a whole season, which is small. Same-game is the column that actually implies correlation."
+          caption="Capped at 200 rendered rows — this table used to lock the browser tab at 350. Days ago is inverted so a recent pairing reads bright. CORRECTION 2026-08-09: this caption used to say same-game was the column that implies correlation. It isn't. Across 58 graded nights, same-game pairs cleared together 1.05x the independence expectation and same-team 1.04x — no correlation at all. Two big-ISO bats landed together 4.8% of the time and two TOP picks 5.3%, against 2.2% for a random same-night pair. Build on the bats, not the ballpark."
         />
       )}
     </div>
@@ -1327,6 +1327,9 @@ function HistorySection({ data, q, players=[] }) {
 import PairMe from '../PairMe'
 import PartnerWatch from '../PartnerWatch'
 import PairBoard from '../PairBoard'
+import Rail from '../Rail'
+import { buildPairs, PAIR_BASELINE } from '../../lib/pairEvidence'
+import { nameOf, teamOf, n } from '../../lib/player'
 
 // SLIMMED TO TWO VIEWS (2026-08-04). Build a Pair moved to the Pools tab —
 // the two builders were on different tabs doing sibling jobs, and one home
@@ -1346,8 +1349,68 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
     return dedupePlayers(raw)
   }, [results])
 
+  // 🔗 EVIDENCE PAIRS — see lib/pairEvidence.js. Ranked on the only thing that
+  // measured: both halves being good bats. No same-game term, because same
+  // game landed at 1.05× the independence expectation across 58 nights, which
+  // is to say it landed at chance.
+  const evPairs = useMemo(() => buildPairs(players, { limit: 6 }), [players])
+
   return (
     <div>
+      {evPairs.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+            <span style={{ fontSize: 13, fontWeight: 900 }}>🔗 By the record</span>
+            <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+              pairs ranked on what actually landed across 58 graded nights
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6, maxWidth: 760 }}>
+            Every percentage here is a <b style={{ color: C.text2 }}>measured</b> both-homer rate, not a
+            model output. A random pair off the same slate lands{' '}
+            <b style={{ color: C.text2 }}>{PAIR_BASELINE}%</b> of the time — that is the number to beat.
+            {' '}Same game and same team are <i>not</i> on this list: they measured 1.05× and 1.04× the
+            independence expectation, which is chance. Two good bats is the whole edge.
+          </div>
+          <Rail gap={8} label="pairs by measured rate">
+            {evPairs.map((p, i) => (
+              <div key={i} style={{
+                flexShrink: 0, width: 218,
+                background: `linear-gradient(155deg, ${C.orange}14, ${C.orange}04)`,
+                border: `1px solid ${C.orange}3d`, borderRadius: 11, padding: '9px 12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <span style={{
+                    fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, color: C.orange,
+                  }}>{p.rate.toFixed(1)}%</span>
+                  <span style={{ fontSize: 9, color: C.text3 }}>
+                    {p.lift > 0 ? `${p.lift.toFixed(1)} over random` : 'no rule fired'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 9, color: C.text3, marginTop: 1 }}>
+                  {p.rule ? p.rule.label : 'neither half clears a measured bar'}
+                </div>
+                {[p.a, p.b].map((pl, k) => (
+                  <div key={k}
+                    onClick={() => onPlayerClick?.(pl)}
+                    title={p.rule ? p.rule.why : undefined}
+                    style={{
+                      fontSize: 11.5, fontWeight: 700, marginTop: 4, cursor: 'pointer',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      color: C.text2,
+                    }}>
+                    {nameOf(pl)}{' '}
+                    <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, fontWeight: 500 }}>
+                      {teamOf(pl)} · {n(pl?.hr_score, 0).toFixed(0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </Rail>
+        </div>
+      )}
+
       <PartnerWatch players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />
       <PairMe players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />
       <PanelTitle

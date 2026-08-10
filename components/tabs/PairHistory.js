@@ -117,12 +117,27 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 720,
       }}>
-        <b style={{ color: C.text2 }}>Read the same-game share before anything else on this page.</b>{' '}
-        Two hitters homering on the same <i>date</i> in different ballparks is two independent
-        events — the board counts it anyway, because that&apos;s how the pair score is built. Only the
-        same-game subset is genuinely correlated, and it&apos;s a small fraction of the total. Use{' '}
-        <b style={{ color: C.text2 }}>Same game only</b> to see just that subset, and{' '}
-        <b style={{ color: C.text2 }}>Playable tonight</b> to drop the pairs where one half isn&apos;t
+        {/* 2026-08-09 — CORRECTION. This paragraph used to say the same-game
+            subset is "genuinely correlated" and everything else is two
+            independent events. Half of that was right. Sampling 186,000
+            same-night pairs across 58 graded nights and dividing what happened
+            by the independence expectation (p1 x p2 on each night's own HR
+            rate) gives a correlation ratio of 1.05 for same game and 1.04 for
+            same team. That is 1.00 to within noise. Same-game pairs are ALSO
+            two independent events.
+
+            The site does not get to keep a confident claim the archive
+            disagrees with, so the paragraph now says what actually predicts a
+            pair landing: two individually good bats, nothing about where they
+            play. */}
+        <b style={{ color: C.text2 }}>A pair is two independent events — including in the same game.</b>{' '}
+        We checked: across 58 graded nights, two picks in the same ballpark cleared together
+        1.05× as often as pure chance, and two on the same team 1.04×. That is no correlation at
+        all. What does move the number is both halves being good bats —
+        two <b style={{ color: C.text2 }}>TOP</b> picks landed together 5.3% of the time
+        and two big-ISO bats 4.8%, against 2.2% for a random pair off the same slate.
+        So build a pair on the two names you like most, not on the ballpark. Use{' '}
+        <b style={{ color: C.text2 }}>Playable tonight</b> to drop pairs where one half isn&apos;t
         even in a lineup.
       </div>
 
