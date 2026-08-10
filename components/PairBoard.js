@@ -79,8 +79,72 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
 
   const sameGame = rows.filter((r) => r.sameGame).length
 
+  // ── 🧱 THE STURDIEST PAIR (2026-08-09) ──────────────────────────────────
+  //
+  // The page already tells you the right thing in its caption — "both hitters
+  // have to land, so the pair is never better than its worse half" — and then
+  // sorts by pair score anyway and leaves you to find the sturdy one yourself.
+  //
+  // A pair is a two-leg bet. Its ceiling is the WEAKER side, full stop: a
+  // 92 + 44 is a 44 wearing a big number. So the lead is the pair with the
+  // best weaker half, and when that isn't the highest-scored pair the card
+  // shows both and names the trade, because that comparison is the whole
+  // lesson and it takes two lines to teach.
+  const sturdiest = [...rows].sort((a, b) => b.weaker - a.weaker)[0]
+  const topScore = [...rows].sort((a, b) => b.score - a.score)[0]
+  const differ = sturdiest && topScore && sturdiest._key !== topScore._key
+
+  const Side = ({ name, score, weak }) => (
+    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, minWidth: 0 }}>
+      <b style={{ fontSize: 13, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</b>
+      <span style={{
+        fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900,
+        color: weak ? (score >= 60 ? C.orange : '#f87171') : C.text3,
+      }}>{score.toFixed(0)}</span>
+    </span>
+  )
+
   return (
     <div style={{ marginBottom: 18 }}>
+      {/* ── THE LEAD: the pair whose WORSE half is best ─────────────────── */}
+      {sturdiest && (
+        <div
+          onClick={() => onPlayerClick?.(sturdiest._raw)}
+          className="tap-row"
+          style={{
+            background: 'linear-gradient(155deg, rgba(249,115,22,.10), rgba(249,115,22,.02) 60%)',
+            border: '1px solid rgba(249,115,22,.42)', borderRadius: 13,
+            padding: '11px 14px', marginBottom: 12, cursor: 'pointer',
+          }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
+            <span style={{ fontSize: 9, fontWeight: 900, color: C.orange, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
+              🧱 STURDIEST PAIR TONIGHT
+            </span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>the one whose weaker half is strongest</span>
+            <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              {sturdiest.lane} · {sturdiest.risk} risk
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <Side name={sturdiest.aName} score={sturdiest.stronger} />
+            <span style={{ color: C.text3, fontSize: 13 }}>+</span>
+            <Side name={sturdiest.bName} score={sturdiest.weaker} weak />
+            <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              gap {sturdiest.gap.toFixed(0)}
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginTop: 5 }}>
+            Both have to land, so the pair is worth its <b style={{ color: C.orange }}>weaker half — {sturdiest.weaker.toFixed(0)}</b>,
+            not its headline.
+            {differ && (
+              <> The highest-SCORED pair is <b style={{ color: C.text }}>{topScore.pair}</b> at {topScore.score.toFixed(1)},
+              but its weak side is only <b style={{ color: topScore.weaker >= 60 ? C.orange : '#f87171' }}>{topScore.weaker.toFixed(0)}</b> —
+              that&apos;s the trade.</>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>Recommended pairs</span>
         <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>

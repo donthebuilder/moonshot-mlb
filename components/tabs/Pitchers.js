@@ -6,7 +6,8 @@ import { teamAbbrs } from '../../lib/gamelogs'
 import { groupPitchers } from '../../lib/data'
 import { n, clean } from '../../lib/player'
 import { pitcherOverall } from '../../lib/scoring_additions'
-import { PanelTitle, Empty, Chip, btnStyle } from '../ui'
+import { PanelTitle, Empty, Chip, btnStyle, Band } from '../ui'
+import { rankArms } from '../../lib/armLeak'
 import DenseTable from '../DenseTable'
 import PitcherSpots from '../PitcherSpots'
 import PitcherProfile from '../PitcherProfile'
@@ -378,10 +379,34 @@ export default function Pitchers({ players, onPlayerClick }) {
   // full opposing lineup, so each attack card now answers the page's real
   // question in one glance: this arm, his leak numbers, and the three bats
   // best equipped to punish him tonight — clickable, straight to the hitter.
+  // ── ONE NUMBER FOR "HOW ATTACKABLE IS THIS ARM" (2026-08-09) ────────────
+  //
+  // The site was carrying two, and they disagreed. Home ranked the weakest
+  // arms with lib/armLeak (eight published fields, ranked against tonight's
+  // other starters); this page ranked them with pitcherOverall (a 70/30
+  // season-and-recent blend of a narrower set). Same question, two answers,
+  // no explanation of the difference anywhere — which is the kind of thing
+  // that quietly costs trust on a site whose whole pitch is that the numbers
+  // are explainable.
+  //
+  // armLeak wins the headline because it is the better answer to THIS
+  // question: it carries the park the man is pitching in, tonight's contact
+  // quality against him, and his velocity against his own baseline, and it
+  // names the two terms driving each ranking. pitcherOverall survives as the
+  // table's Overall column, where it's labelled as what it is — a season and
+  // recent-form blend, a different lens rather than a rival verdict.
+  const leaks = rankArms(players)
+  const leakBy = new Map(leaks.map((a) => [a.name, a]))
   const byOverall = [...pitchers]
-    .map((p) => ({ p, ov: pitcherOverall(p.lineup?.[0]?.raw || {}) }))
-    .filter((x) => x.ov > 0)
-    .sort((a, b) => b.ov - a.ov)
+    .map((p) => ({
+      p,
+      ov: pitcherOverall(p.lineup?.[0]?.raw || {}),
+      leak: leakBy.get(p.pitcher_name) || null,
+    }))
+    .filter((x) => x.ov > 0 || x.leak)
+    // Leak score leads; the old blend only breaks ties for arms the leak
+    // ranker couldn't score (too few published fields on a thin slate).
+    .sort((a, b) => (b.leak?.leak ?? -1) - (a.leak?.leak ?? -1) || b.ov - a.ov)
   const targets = byOverall.slice(0, 3)
   const avoids = byOverall.slice(-3).reverse()
   const topBats = (p, k = 3) => [...(p.lineup || [])].sort((a, b) => b.hr_score - a.hr_score).slice(0, k)
@@ -390,7 +415,7 @@ export default function Pitchers({ players, onPlayerClick }) {
     <div>
       <PanelTitle
         title="Pitchers"
-        sub={`${pitchers.length} starters · who to attack, with which bats — every arm one click deep`}
+        sub={`${pitchers.length} starters ranked by leak score — who to attack, with which bats`}
         right={
           <button
             onClick={() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -401,7 +426,7 @@ export default function Pitchers({ players, onPlayerClick }) {
 
       {/* ── ATTACK CARDS — the arm, his leaks, and the bats to do it with ── */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-        {targets.map(({ p, ov }, i) => (
+        {targets.map(({ p, ov, leak }, i) => (
           <div key={p.pitcher_id ?? p.pitcher_name} style={{
             flex: '1 1 280px', minWidth: 0,
             background: `linear-gradient(160deg, rgba(249,115,22,${i === 0 ? '.14' : '.09'}), ${C.bg2} 60%)`,
@@ -413,7 +438,13 @@ export default function Pitchers({ players, onPlayerClick }) {
               <span style={{ fontSize: 9, fontWeight: 900, color: C.orange, letterSpacing: '.09em', fontFamily: NUM_FONT, flexShrink: 0 }}>
                 🎯 ATTACK #{i + 1}
               </span>
-              <span title="Blended attackability score — see the table's Overall column" style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, flexShrink: 0 }}>{ov.toFixed(0)}</span>
+              <span
+                title={leak
+                  ? `Leak score ${leak.leak}/100 — ranked against tonight's ${leaks.length} starters only, not the league. Built from ${leak.scoredOn} published fields: ${leak.terms.map((t) => `${t.label} ${t.text}`).join(' · ')}.${leak.thin ? ' Small Statcast sample behind the contact-quality terms.' : ''} The same number the Home page ranks arms with.`
+                  : "Season and recent-form blend — this arm didn't carry enough published fields for the leak score."}
+                style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'help' }}>
+                {leak ? leak.leak : ov.toFixed(0)}{leak?.thin ? '·' : ''}
+              </span>
             </div>
             <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', marginTop: 3 }}>
               <span style={{ fontSize: 14.5, fontWeight: 800 }}>{p.pitcher_name}</span>
@@ -426,6 +457,12 @@ export default function Pitchers({ players, onPlayerClick }) {
               {p.weak_spot_count > 0 && <span title="Weak lineup spots the opposing order fills tonight" style={{ color: '#FCD34D', fontWeight: 800 }}>★{p.weak_spot_count} weak spot{p.weak_spot_count > 1 ? 's' : ''}</span>}
               {!p.lineup_confirmed && <span style={{ color: C.text3 }}>◻ proj. lineup</span>}
             </div>
+            {leak?.drivers?.length > 0 && (
+              <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}
+                title="The two terms carrying his leak score tonight — hover the number above for the full breakdown.">
+                worst on: {leak.drivers.map((d) => `${d.label} ${d.text}`).join(' · ')}
+              </div>
+            )}
             {/* the point of the card: attack WITH these bats */}
             <div style={{ marginTop: 7, paddingTop: 6, borderTop: '1px solid rgba(249,115,22,.2)' }}>
               <div style={{ fontSize: 8.5, fontWeight: 800, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>Attack with</div>
@@ -456,7 +493,7 @@ export default function Pitchers({ players, onPlayerClick }) {
         <div style={{
           display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 12,
         }}>
-          {avoids.map(({ p, ov }) => {
+          {avoids.map(({ p, ov, leak }) => {
             const best = topBats(p, 1)[0]
             return (
               <div key={p.pitcher_id ?? p.pitcher_name} style={{
@@ -466,7 +503,11 @@ export default function Pitchers({ players, onPlayerClick }) {
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
                   <span style={{ fontSize: 8.5, fontWeight: 900, color: '#60a5fa', letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT }}>{ov.toFixed(0)}</span>
+                  <span
+                    title={leak ? `Leak score ${leak.leak}/100 against tonight's starters — the same scale the attack cards use.` : 'Season and recent-form blend.'}
+                    style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT, cursor: 'help' }}>
+                    {leak ? leak.leak : ov.toFixed(0)}
+                  </span>
                 </div>
                 <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', marginTop: 2, minWidth: 0 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 800 }}>{p.pitcher_name}</span>
@@ -667,7 +708,7 @@ export default function Pitchers({ players, onPlayerClick }) {
             title: 'Lineup confirmed' },
           // ── numbers from here down, uninterrupted ──
           { key: 'overall', label: 'Overall', w: 58, dp: 0,
-            title: 'Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%. Unvalidated — none of these inputs reach the graded archive.' },
+            title: 'A SECOND LENS, not the headline. Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%, weighted 70% season / 30% recent form. The cards above rank on the LEAK SCORE instead (lib/armLeak) — eight published fields ranked against tonight\'s other starters, including the park and tonight\'s contact quality, which this column has no view of. Both unvalidated: none of these inputs has reached the graded archive.' },
           { key: 'hr9',    label: 'HR/9', w: 46, dp: 2 },
           { key: 'xallowed', label: 'xHR', w: 48, dp: 1,
             title: 'Expected homers allowed from the contact he\'s actually given up — the bot\'s league (EV, LA) table, no park or weather. Compare with his real HR total.' },
