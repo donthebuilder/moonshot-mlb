@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, clean, n, hrScore } from '../../lib/player'
 import { fetchLiveSlate } from '../../lib/liveSlate'
-import { fetchLiveGame, parseLiveGame } from '../../lib/livePitches'
+import {
+  fetchLiveGame, parseLiveGame, atBatOf, priorPAs, timesFacing, arsenalTonight,
+  pitchColor, PITCH_NAMES, KIND_WORD,
+} from '../../lib/livePitches'
 import { Empty } from '../ui'
 import ZoneMap from '../ZoneMap'
 import SprayField from '../SprayField'
@@ -30,11 +33,134 @@ import SprayField from '../SprayField'
 //      without leaving the page.
 //   3. LAYOUT. Labelled sections, one card treatment, room to breathe.
 //
+// 2026-08-09 — THE AT-BAT ITSELF (Donovan: "build this into the best thing
+// smoking"). The page knew WHO was up and could draw where his night's contact
+// went. It could not tell you what was happening in the at-bat you were
+// watching: no count, no pitch sequence, no idea whether he was ahead 3-1 or
+// buried 0-2. That is the only information here with a shelf life measured in
+// seconds, and it was the piece that was missing.
+//
+// Now the hero card carries the live count, every pitch of the at-bat in order
+// with its type / velocity / outcome, how many times he has faced this arm
+// tonight, what he did in his earlier trips, and the arm's ACTUAL mix this
+// game. All of it derived in lib/livePitches from the feed already verified
+// for the dots — the count is walked from the pitch sequence rather than read
+// off a separate object, so it cannot disagree with the pitches beside it.
+//
 // Only possible since 2026-08-09: the schedule `fields` whitelist had been
 // stripping `offense.batter` out of every response, so "who's up" was null
 // league-wide.
 
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+
+// ── 🎬 THE AT-BAT (2026-08-09) ───────────────────────────────────────────────
+//
+// Donovan: "build the At the Plate page into the best thing smoking."
+//
+// The page could already tell you WHO was up and draw where his night's
+// contact went. It could not tell you what was happening in the at-bat you
+// were watching — no count, no pitch sequence, no idea whether he was ahead
+// 3-1 or down 0-2. That is the only information on this page with a shelf
+// life measured in seconds, and it was the one piece missing.
+//
+// Everything here is derived in lib/livePitches from the same verified feed
+// the dots come from. The count especially: it is WALKED from the pitch
+// sequence rather than read off a separate `count` object, so it can never
+// disagree with the pitches drawn beside it.
+
+const COUNT_COL = (b, s) => (b > s ? '#4ade80' : s > b ? '#f87171' : C.text2)
+
+function CountDots({ balls, strikes }) {
+  const dot = (on, col) => ({
+    width: 9, height: 9, borderRadius: '50%',
+    background: on ? col : 'transparent',
+    border: `1.5px solid ${on ? col : 'rgba(255,255,255,.22)'}`,
+    boxShadow: on ? `0 0 7px ${col}80` : 'none',
+  })
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}
+      title={`The count, walked from tonight's pitch sequence: ${balls} ball${balls === 1 ? '' : 's'}, ${strikes} strike${strikes === 1 ? '' : 's'}.`}>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ fontSize: 7.5, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>B</span>
+        {[0, 1, 2].map((i) => <span key={i} style={dot(i < balls, '#4ade80')} />)}
+      </div>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ fontSize: 7.5, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>S</span>
+        {[0, 1].map((i) => <span key={i} style={dot(i < strikes, '#f87171')} />)}
+      </div>
+      <span style={{
+        fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, letterSpacing: '-.02em',
+        color: COUNT_COL(balls, strikes), marginLeft: 2,
+      }}>{balls}–{strikes}</span>
+    </div>
+  )
+}
+
+/**
+ * The pitch sequence, in order, as pills. Colour is the pitch type (the same
+ * map the zone map and spray chart use, so a slider is the same cyan
+ * everywhere); the ring says what the pitch DID.
+ */
+function Sequence({ pitches }) {
+  if (!pitches?.length) return null
+  return (
+    <div className="atplate-seq" style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'stretch' }}>
+      {pitches.map((p, i) => {
+        const col = pitchColor(p.type)
+        const missed = p.kind === 'whiff'
+        const took = p.kind === 'ball'
+        return (
+          <div key={i}
+            title={`Pitch ${p.seq} of the at-bat, on ${p.cnt}. ${PITCH_NAMES[p.type] || p.typeName || p.type || 'pitch'}${p.velo != null ? ` at ${p.velo.toFixed(1)} mph` : ''} — ${p.call || KIND_WORD[p.kind] || p.kind}.`}
+            style={{
+              minWidth: 54, cursor: 'help',
+              border: `1px solid ${missed ? '#f87171' : took ? 'rgba(255,255,255,.14)' : `${col}66`}`,
+              background: missed ? 'rgba(248,113,113,.12)' : `${col}12`,
+              borderRadius: 9, padding: '4px 8px 5px', textAlign: 'center',
+            }}>
+            <div style={{ fontSize: 7.5, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.2 }}>
+              {p.seq} · {p.cnt}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 900, color: col, fontFamily: NUM_FONT, lineHeight: 1.25 }}>
+              {p.type || '—'}
+            </div>
+            <div style={{ fontSize: 8.5, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.25 }}>
+              {p.velo != null ? p.velo.toFixed(0) : '·'}
+            </div>
+            <div style={{
+              fontSize: 7.5, lineHeight: 1.25, whiteSpace: 'nowrap',
+              color: missed ? '#f87171' : took ? '#4ade80' : C.text3,
+            }}>{KIND_WORD[p.kind] === 'swing & miss' ? 'whiff' : KIND_WORD[p.kind] || p.kind}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** What this arm has actually thrown tonight — live, not a season table. */
+function Arsenal({ rows, pitcherName }) {
+  if (!rows?.length) return null
+  return (
+    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+      <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.07em', textTransform: 'uppercase' }}>
+        Tonight&apos;s mix
+      </span>
+      {rows.slice(0, 6).map((r) => (
+        <span key={r.code}
+          title={`${pitcherName || 'He'} has thrown ${r.n} ${PITCH_NAMES[r.code] || r.code}${r.n === 1 ? '' : 's'} tonight — ${r.pct.toFixed(0)}% of his pitches${r.velo != null ? `, averaging ${r.velo.toFixed(1)} mph` : ''}${r.swings ? `. ${r.whiffs} whiff${r.whiffs === 1 ? '' : 's'} on ${r.swings} swing${r.swings === 1 ? '' : 's'}` : ''}. Counted from this game only.`}
+          style={{
+            fontSize: 9, fontFamily: NUM_FONT, cursor: 'help', whiteSpace: 'nowrap',
+            color: pitchColor(r.code), border: `1px solid ${pitchColor(r.code)}44`,
+            background: `${pitchColor(r.code)}10`, borderRadius: 999, padding: '1px 8px',
+          }}>
+          {PITCH_NAMES[r.code] || r.code} <b>{r.pct.toFixed(0)}%</b>
+          {r.velo != null && <span style={{ color: C.text3 }}> {r.velo.toFixed(0)}</span>}
+        </span>
+      ))}
+    </div>
+  )
+}
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
 const LIVE = '#4ade80'
 
@@ -127,7 +253,13 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     if (!gamePk) return undefined
     pullFeed(gamePk)
     clearInterval(feedTimer.current)
-    if (auto) feedTimer.current = setInterval(() => { if (!document.hidden) pullFeed(gamePk) }, 25000)
+    // 15s, not 25 (2026-08-09). A pitch is thrown roughly every twenty
+    // seconds, so a 25-second poll could miss one entirely and show a count
+    // that jumped two — which on a live sequence reads as a broken panel.
+    // This is ONE game's feed, not the whole slate, so the cost is one
+    // request; the slate poll above stays at 25s and shares its snapshot with
+    // MiniWire through the cache in lib/liveSlate.
+    if (auto) feedTimer.current = setInterval(() => { if (!document.hidden) pullFeed(gamePk) }, 15000)
     return () => clearInterval(feedTimer.current)
   }, [gamePk, auto])
 
@@ -178,6 +310,23 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   const selP = selected?.p || (Number(selectedId) === active?.pid ? active?.p : null) || null
   const selName = selected?.name || active?.name || ''
   const selLine = snap?.lines?.[Number(selectedId)] || null
+
+  // The plate appearance on screen — the count, the sequence, who's throwing.
+  // Derived for whoever is SELECTED, so tapping a man in the on-deck circle
+  // shows his last at-bat rather than blanking the panel.
+  const atBat = useMemo(() => atBatOf(feed, selectedId), [feed, selectedId])
+  const prior = useMemo(
+    () => priorPAs(feed, selectedId, atBat?.pi ?? Infinity),
+    [feed, selectedId, atBat],
+  )
+  const facing = useMemo(
+    () => timesFacing(feed, selectedId, atBat?.pitcherId),
+    [feed, selectedId, atBat],
+  )
+  const arsenal = useMemo(
+    () => arsenalTonight(feed, atBat?.pitcherId),
+    [feed, atBat],
+  )
 
   const livePitchesFor = useMemo(
     () => (feed?.pitches || []).filter((p) => Number(p.batterId) === Number(selectedId)),
@@ -284,6 +433,61 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               {snap.lines[a.pid].k ? ` · ${snap.lines[a.pid].k} K` : ''}</>
             : 'First plate appearance tonight.'}
         </div>
+
+        {/* ── THE AT-BAT ITSELF ──────────────────────────────────────────
+            The count, then every pitch of it in order. This is the only
+            thing on the page you can still act on, so it gets the space. */}
+        {atBat && (
+          <div style={{
+            marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}`,
+          }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 7 }}>
+              <CountDots balls={atBat.balls} strikes={atBat.strikes} />
+              {!atBat.live && atBat.event && (
+                <span style={{
+                  fontSize: 9.5, fontWeight: 900, fontFamily: NUM_FONT,
+                  color: /home run/i.test(atBat.event) ? C.orange : C.text3,
+                  border: `1px solid ${/home run/i.test(atBat.event) ? C.orange : C.border2}`,
+                  borderRadius: 999, padding: '2px 9px',
+                }}>{atBat.event.toUpperCase()}</span>
+              )}
+              {atBat.live && (
+                <span style={{ fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, color: LIVE }}>
+                  ● at bat now
+                </span>
+              )}
+              {facing > 0 && (
+                <span
+                  title={`This is plate appearance number ${facing} against this pitcher tonight. Hitters historically do better the third time through an order — the arm has shown them everything by then.`}
+                  style={{ fontSize: 9, color: facing >= 3 ? C.orange : C.text3, fontFamily: NUM_FONT, cursor: 'help' }}>
+                  {facing === 1 ? '1st look' : facing === 2 ? '2nd look' : `${facing}${facing === 3 ? 'rd' : 'th'} time through`}
+                </span>
+              )}
+              {prior.length > 0 && (
+                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}
+                  title={prior.map((x) => `${x.inning ? `inning ${x.inning}: ` : ''}${x.event}`).join(' · ')}>
+                  earlier: {prior.map((x) => x.event).join(' · ')}
+                </span>
+              )}
+            </div>
+
+            <Sequence pitches={atBat.pitches} />
+
+            {arsenal.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <Arsenal rows={arsenal} pitcherName={atBat.pitcherName} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* No pitches yet is a real state on this page — he steps in before
+            the first one is thrown. Say so rather than showing an empty box. */}
+        {feed && !atBat && (
+          <div style={{ marginTop: 9, fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
+            He hasn&apos;t seen a pitch yet — the count and the sequence fill in from the first one.
+          </div>
+        )}
       </div>
 
       {/* ── 3 · COMING UP ──────────────────────────────────────────────── */}

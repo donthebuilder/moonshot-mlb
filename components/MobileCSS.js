@@ -397,6 +397,22 @@ export default function MobileCSS() {
               two rows — which costs nothing in a card that scrolls anyway. */
         .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 4px !important; }
 
+        /* AT THE PLATE — the pitch sequence (2026-08-09). Six 54px pills plus
+              gaps is 354px, which is four pixels past a 350px card. Rather
+              than let the sixth pitch wrap alone onto its own line, the strip
+              scrolls sideways: a sequence reads as a SEQUENCE, and breaking
+              it across rows loses the one thing it's for. Momentum scrolling
+              so it feels like the dense tables. */
+        .atplate-seq {
+          flex-wrap: nowrap !important;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 3px;
+          scrollbar-width: none;
+        }
+        .atplate-seq::-webkit-scrollbar { display: none; }
+        .atplate-seq > div { flex: 0 0 auto; }
+
         /* 2. AT THE PLATE — the ON DECK / IN THE HOLE cards are minWidth 168
               each, so two of them plus the 9px gap is 345px inside 346px of
               card. They "fit" by one pixel and their contents don't. A row
