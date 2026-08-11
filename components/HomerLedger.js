@@ -5,6 +5,7 @@ import { dataUrl } from '../lib/dataSource'
 import { nameOf, teamOf, n } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 import { pickSplit } from '../lib/seasonSplit'
+import { hrShapeMeta, hrLine } from '../lib/hrShape'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
 // home run people are hitting — like if you notice more people getting their
@@ -69,7 +70,12 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
           // now lives in lib/graded.js because it had bitten three components;
           // this call site kept its own copy of it until then.
           setRows(dedupeGraded(j.graded_slots || j.results || [])
-            .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0) }))
+            // hr_events rides along from 2026-08-11: the grader now records
+            // each homer's launch speed, angle and distance, so the ledger can
+            // say WHAT KIND of homer it was and not just that one happened.
+            // Older nights have no hr_events and simply show no band — an
+            // untracked homer and a wall-scraper are different claims.
+            .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0), events: s?.hr_events || [] }))
             .filter((x) => x.pid && x.hr > 0))
         })
         .catch(() => {})
@@ -149,7 +155,7 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
     const spots = Array(10).fill(0)          // index 1..9
     const cards = []
     let total = 0
-    rows.forEach(({ pid, hr }) => {
+    rows.forEach(({ pid, hr, events }) => {
       const p = byId.get(pid)
       total += hr
       const spot = Number(p?.lineup_spot)
@@ -163,7 +169,7 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
       const tonightNums = nth == null ? [] : Array.from({ length: hr }, (_, i) => nth - i).filter((v) => v > 0)
       const round = tonightNums.filter((v) => v % 5 === 0)
       cards.push({
-        pid, p, hr,
+        pid, p, hr, events: events || [],
         name: p ? nameOf(p) : `#${pid}`,
         team: p ? teamOf(p) : '',
         spot: spot >= 1 && spot <= 9 ? spot : null,
@@ -387,6 +393,23 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
               {c.nth != null ? `${ord(c.nth)}${c.exact ? '' : '≈'}` : '—'}
             </span>
             {c.spot && <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>#{c.spot}</span>}
+            {/* WHAT KIND of homer (2026-08-11). Only renders when the ball was
+                actually tracked — hr_events is absent on every night graded
+                before the backfill, and an untracked homer is not a
+                wall-scraper. The band is a PERCENTILE slice, not physics; the
+                tooltip carries the real numbers so the label is never the only
+                thing on offer. See lib/hrShape.js. */}
+            {(c.events || []).map((e, i) => {
+              const m = hrShapeMeta(e)
+              if (!m) return null
+              return (
+                <span key={i} title={`${m.label} — ${hrLine(e)}. ${m.blurb}`}
+                  style={{
+                    fontSize: 8, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.04em',
+                    color: m.color, border: `1px solid ${m.color}55`, borderRadius: 4, padding: '1px 4px',
+                  }}>{m.short}</span>
+              )
+            })}
             {c.tags?.length > 0 && (
               <span title={c.tags.map((t) => t.why).join(' ')} style={{ fontSize: 8.5, color: C.orange }}>
                 🧲{c.tags.length > 1 ? c.tags.length : ''}
