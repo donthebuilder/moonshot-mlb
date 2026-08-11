@@ -48,7 +48,28 @@ function hrProbV2(p) {
   const base = Number.isFinite(iso)
     ? 0.5 * scoreRate + 0.5 * bandRate(iso, ISO_HR_BANDS)
     : scoreRate
-  const form = 1 + Math.min(0.30, 0.10 * Math.max(0, n(p?.last5_hr, 0)))
+  // FORM WAS ONE-SIDED, AND THE COMMENT ABOVE SAYS SO (2026-08-11, Donovan:
+  // "the projected output logic needs to be more harsh esp the projected hr").
+  //
+  // This read `1 + min(0.30, 0.10 * last5_hr)`, which is >= 1.0 ALWAYS. A cold
+  // hitter got no discount while a hot one got up to +30% — so every projection
+  // could only be revised upward, and the slate total was biased high by
+  // construction. It bit hardest because MOST hitters sit at last5_hr = 0: a
+  // hitter homers ~13% of games, so five games leaves the majority on zero, all
+  // of them multiplied by exactly 1.0.
+  //
+  // The audit quoted 20 lines up already measured the missing half —
+  // "last5_hr 0 -> 9.0% HR rate, 3+ -> 23.0%" — against an ISO-band base near
+  // 15.5%. That is 0.58x cold and 1.48x hot. The old cap of +0.30 against a
+  // measured +0.48 is a 62.5% shrink toward 1.0, applied to the top end only.
+  //
+  // So: same measured line, same 62.5% shrink, no longer clipped at 1.0.
+  //   measured(l5) = 0.58 + 0.30*l5     (linear through both measured points)
+  //   shrunk(l5)   = 1 + 0.625*(measured - 1) = 0.7375 + 0.1875*l5
+  // At l5 = 3 that lands on 1.30 — EXACTLY the cap already shipping, so the hot
+  // end is unchanged and only the cold end is new. Nothing was hand-tuned.
+  const l5 = Math.max(0, n(p?.last5_hr, 0))
+  const form = Math.min(1.30, 0.7375 + 0.1875 * l5)
   const xpa = xpaFor(p?.lineup_spot)
   const paMult = (xpa ? xpa / 4.2 : 1) * (p?.lineup_confirmed === false ? 0.9 : 1)
   return base * form * paMult
