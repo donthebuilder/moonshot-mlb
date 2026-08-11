@@ -229,8 +229,8 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
           },
           hr: {
             color: C.orange,
-            head: 'Ranked by the site, not the bot — and here’s why',
-            body: 'Adj = the bot’s raw hr_score × the measured HR rate of the hitter’s ISO band, because across 3,973 graded picks ISO bands ran 8.2%→22.2% while raw-score quartiles managed +4.7 points. Raw and ISO sit beside Adj so every rank is explainable. The bot’s untouched ranking lives on The Bot tab; the gap between the two boards IS the adjustment.',
+            head: 'Ranked on the bot’s own HR score — and here’s why',
+            body: 'This board ranks on the bot’s raw hr_score, untouched. It used to multiply that by the measured HR rate of the hitter’s ISO band — real research, across 3,973 graded picks ISO bands ran 8.2% to 22.2% while raw-score quartiles managed +4.7 points — but that multiplier was removed on 2026-08-09 for two checkable reasons: hr_score ALREADY carries ISO through season_power, so the band counted it twice, and it corrupted the projection bands, which were measured against the raw score. The ISO column still sits beside the score so you can see it, and The Read applies the band as an explicit second opinion rather than folding it back in.',
           },
           hit: {
             color: C.purple,
