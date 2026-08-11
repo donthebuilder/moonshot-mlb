@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Empty, btnStyle } from '../ui'
-import PickBoard from '../PickBoard'
+import TheRead from '../TheRead'
 import { logUrl } from '../../lib/dataSource'
 import { pillMeta } from '../../lib/pills'
 
@@ -463,23 +463,28 @@ function SheetViewer({ url, label }) {
 // picks sat behind a second click under a 40-row table. A tab called The Bot
 // that opens on a wall of monospace does nothing, exactly as described.
 //
-// Picks first and by default. The sheet is still here, unedited, because it is
-// the receipt — it just stopped being the front door.
+// THE READ first and by default (2026-08-11). Tonight's Picks and the Raw
+// Board both came out: the picks view was four short columns and then half a
+// screen of nothing, and the Raw Board's only real idea — "where the two
+// boards disagree, the gap IS the site's adjustment" — was a caption it never
+// actually showed you, since it rendered one of the two rankings and not the
+// difference. Section 3 of The Read shows that gap directly, so nothing was
+// lost by dropping it. The sheets stay, unedited, because they are the
+// receipt.
 const VIEWS = [
-  { key: 'picks',    label: '🎯 Tonight’s Picks' },
+  { key: 'read',     label: '📝 The Read' },
   { key: 'sheet',    label: '📄 Today’s Sheet' },
   { key: 'tomorrow', label: '📄 Tomorrow' },
-  { key: 'board',    label: '🏆 Raw Board' },
 ]
 
 export default function Bot({ players = [], onPlayerClick, onGoPairs }) {
-  const [view, setView] = useState('picks')
+  const [view, setView] = useState('read')
 
   return (
     <div>
       <PanelTitle
         title="The Bot"
-        sub="Tonight's picks and how they're doing · its sheet, in its own sections · its board, unadjusted"
+        sub="Tonight read back in sentences · its sheet, in its own sections"
         right={
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {VIEWS.map((v) => (
@@ -491,10 +496,9 @@ export default function Bot({ players = [], onPlayerClick, onGoPairs }) {
         }
       />
 
-      {view === 'picks'    && <PickBoard players={players} onPlayerClick={onPlayerClick} onGoPairs={onGoPairs} />}
+      {view === 'read'     && <TheRead players={players} onPlayerClick={onPlayerClick} />}
       {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
       {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
-      {view === 'board'    && <Board players={players} onPlayerClick={onPlayerClick} />}
     </div>
   )
 }
