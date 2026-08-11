@@ -114,6 +114,50 @@ function FormLine({ p }) {
   )
 }
 
+// ── WHY HE IS ON THE BOARD (2026-08-11) ──────────────────────────────────
+//
+// Donovan: "turn up the tonight picks page more, make useful and resourceful
+// other than the other part of the site."
+//
+// The page ranked and graded picks but never said WHY any of them was a pick.
+// That reasoning already exists on every row of the slate and was going
+// entirely unread on this page: simple_reason_1/2/3 are plain English on
+// 178/178 rows, and risk_reason / trap_reason carry the other side of it.
+//
+// A picks page that only argues FOR its picks is a worse resource than one
+// that also says what would sink them, so the risk is shown next to the case,
+// not buried. Both are the BOT's words, not new prose generated here.
+//
+// Only the lead pick in each category spends vertical space on it — that is
+// the one being recommended. Everyone else carries the same reasoning in the
+// row's tooltip, so nothing is hidden, it just isn't shouted.
+const reasonsOf = (p) => [p?.simple_reason_1, p?.simple_reason_2, p?.simple_reason_3]
+  .map((x) => clean(x, '')).filter(Boolean)
+const riskOf = (p) => clean(p?.risk_reason, '') || clean(p?.trap_reason, '')
+
+function Why({ p, cat }) {
+  const why = reasonsOf(p)[0]
+  const risk = riskOf(p)
+  const weak = clean(p?.weak_spot_reason, '')
+  if (!why && !risk && !weak) return null
+  const row = (icon, text, color, title) => (
+    <div title={title} style={{
+      display: 'flex', gap: 5, alignItems: 'flex-start', marginTop: 3,
+      fontSize: 9.5, lineHeight: 1.45, color, minWidth: 0,
+    }}>
+      <span style={{ flexShrink: 0 }}>{icon}</span>
+      <span style={{ minWidth: 0 }}>{text}</span>
+    </div>
+  )
+  return (
+    <div style={{ marginTop: 4, paddingTop: 4, borderTop: `1px dashed ${C.border}` }}>
+      {why && row('✓', why, C.text2, 'The bot\u2019s own stated case for this pick.')}
+      {weak && row('\u2b50', weak, C.orange, 'A measured hole in this arm at this lineup spot.')}
+      {risk && row('\u26a0', risk, C.text3, 'What the bot itself flags against this pick. Shown so the page argues both sides.')}
+    </div>
+  )
+}
+
 function PickRow({ p, cat, lead, snap, onPlayerClick, onGoPairs }) {
   // mlbId, not Number(playerId) — see lib/player.js. This was NaN on the
   // first build, so every pick showed a blank status all night.
@@ -136,8 +180,9 @@ function PickRow({ p, cat, lead, snap, onPlayerClick, onGoPairs }) {
     <div
       onClick={() => onPlayerClick?.(p)}
       className="tap-row"
+      title={[...reasonsOf(p), riskOf(p) && `Risk: ${riskOf(p)}`].filter(Boolean).join('\n') || undefined}
       style={{
-        display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, cursor: 'pointer',
+        display: 'flex', alignItems: lead ? 'flex-start' : 'center', gap: 8, minWidth: 0, cursor: 'pointer',
         padding: lead ? '7px 0 6px' : '4px 0',
         borderTop: lead ? 'none' : `1px solid ${C.border}`,
         opacity: state === 'out' ? 0.55 : 1,
@@ -174,6 +219,7 @@ function PickRow({ p, cat, lead, snap, onPlayerClick, onGoPairs }) {
           ) : null}
         </div>
         <FormLine p={p} />
+        {lead && <Why p={p} cat={cat} />}
       </div>
       {onGoPairs && (
         <button
