@@ -338,7 +338,13 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
       const anyPregame = s.games?.some((g) => g.state === 'Preview' && !g.postponed)
       clearInterval(timer)
       if (anyLive) timer = setInterval(() => { if (!document.hidden) pull() }, 35000)
-      else if (anyPregame) timer = setInterval(() => { if (!document.hidden) pull() }, 180000)
+      // 60s, not 180s (2026-08-11). A scratch is the alert with the shortest
+      // shelf life on the site and it was the slowest to arrive. NOTE the
+      // coupling the 180s version missed: the pre-game boxscores this reads
+      // are cached on their OWN clock in liveSlate (PREGAME_TTL), so polling
+      // faster than that TTL buys nothing — both had to come down together,
+      // and they did. Costs one schedule call a minute on a visible tab.
+      else if (anyPregame) timer = setInterval(() => { if (!document.hidden) pull() }, 60000)
     }
     pull()
     return () => { alive = false; clearInterval(timer) }
