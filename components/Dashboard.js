@@ -4,6 +4,7 @@ import { C } from '../lib/theme'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows } from '../lib/data'
 import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
+import { fetchLiveSlate } from '../lib/liveSlate'
 import { Empty } from './ui'
 import Header from './Header'
 import MiniWire from './MiniWire'
@@ -221,24 +222,54 @@ export default function Dashboard() {
   // GUARDED on a non-empty slate. players is [] on first paint and on any
   // failed fetch, and pruning against an empty board would silently erase the
   // whole watchlist — a destructive, unrecoverable answer to a network blip.
+  // DELAYED KEEPS ITS STAR, POSTPONED LOSES IT (2026-08-11, Donovan:
+  // "delayed is good, postponed of not going to play remove").
+  //
+  // The two look identical to the slate — a postponed game stays on the
+  // published board all night, because the board was built before the rain —
+  // so "is his game still listed" cannot tell them apart. It has to come off
+  // the league's own status, which liveSlate already separates: `delayed` is
+  // a game that WILL be played (its picks are still live and the star is still
+  // worth having), `postponed`/`suspended` are not finishing tonight.
+  //
+  // fetchLiveSlate is the module-level cached snapshot MiniWire already polls,
+  // so this joins that cache rather than adding a request.
   useEffect(() => {
     if (!allPlayers?.length || !watch.length) return
-    const live = new Set(allPlayers.map((p) => clean(p?.game_pk, '')).filter(Boolean))
-    if (!live.size) return
-    const kept = watch.filter((p) => live.has(clean(p?.game_pk, '')))
-    if (kept.length === watch.length) return
-    setWatch(kept)
-    try { localStorage.setItem(WATCH_KEY, JSON.stringify(kept)) } catch { /* ignore */ }
+    let alive = true
+    fetchLiveSlate().then((snap) => {
+      if (!alive) return
+      const onSlate = new Set(allPlayers.map((p) => clean(p?.game_pk, '')).filter(Boolean))
+      if (!onSlate.size) return
+      // Only games the league says are wiped for tonight. A snapshot that
+      // failed to load leaves this empty, which degrades to "prune by slate
+      // only" rather than to a wrongly-emptied list.
+      const dead = new Set((snap?.games || [])
+        .filter((g) => g.postponed || g.suspended)
+        .map((g) => String(g.pk)))
+      const kept = watch.filter((p) => {
+        const pk = clean(p?.game_pk, '')
+        return onSlate.has(pk) && !dead.has(String(pk))
+      })
+      if (kept.length === watch.length) return
+      setWatch(kept)
+      try { localStorage.setItem(WATCH_KEY, JSON.stringify(kept)) } catch { /* ignore */ }
+    }).catch(() => { /* a failed snapshot must never clear the list */ })
+    return () => { alive = false }
   }, [allPlayers, watch])
 
   const watchIds = useMemo(() => new Set(watch.map(playerId)), [watch])
 
   const addSlip = (p, bet) => setSlip((s) => [...s, { p, bet }])
 
-  // Bot picks jump straight to the Pairs tab, focused on the clicked player,
-  // instead of opening PlayerModal -- per request, the click itself should
-  // navigate rather than pop up the modal.
-  const handleBotPlayerClick = (p) => {
+  // Jump to Pairs focused on a player. This USED TO BE what every click on
+  // the Bot tab did, including on the Picks board — 2026-08-11, Donovan:
+  // "when i click on a player in there it take me to pairs". On a picks page
+  // the click means "tell me about this hitter", and every other tab on the
+  // site answers that by opening the card. Being the one exception made it
+  // read as a misfire rather than a shortcut. Kept as its own handler so the
+  // Pairs jump stays available where it IS the point.
+  const goToPairsFor = (p) => {
     setFocusPlayerId(playerId(p))
     setTab('pairs')
   }
@@ -326,7 +357,7 @@ export default function Dashboard() {
             {tab === 'pools'       && <Pools players={players} results={resultsForSlate} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
-            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
+            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}

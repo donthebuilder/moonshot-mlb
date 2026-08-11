@@ -472,7 +472,7 @@ const VIEWS = [
   { key: 'board',    label: '🏆 Raw Board' },
 ]
 
-export default function Bot({ players = [], onPlayerClick }) {
+export default function Bot({ players = [], onPlayerClick, onGoPairs }) {
   const [view, setView] = useState('picks')
 
   return (
@@ -491,7 +491,7 @@ export default function Bot({ players = [], onPlayerClick }) {
         }
       />
 
-      {view === 'picks'    && <PickBoard players={players} onPlayerClick={onPlayerClick} />}
+      {view === 'picks'    && <PickBoard players={players} onPlayerClick={onPlayerClick} onGoPairs={onGoPairs} />}
       {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
       {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
       {view === 'board'    && <Board players={players} onPlayerClick={onPlayerClick} />}

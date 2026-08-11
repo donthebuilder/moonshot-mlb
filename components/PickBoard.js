@@ -65,7 +65,56 @@ function StatusPill({ state, label, title }) {
   )
 }
 
-function PickRow({ p, cat, lead, snap, onPlayerClick }) {
+// ── LAST 5, THE FORM LINE (2026-08-11) ───────────────────────────────────
+//
+// Donovan: "last 5 production by the way h/r/rbi/xbh/hr/ks to help with
+// projected output scoring ... turn up the tonight picks page more, make
+// useful and resourceful other than the other part of the site."
+//
+// Every row already said who he is playing and what he has done TONIGHT. What
+// it could not answer is the question you actually ask before backing someone
+// — is he swinging it right now — and answering that meant leaving the page
+// for the card. So the last five games ride the row.
+//
+// Ks ARE NOT HERE, and that is a data fact rather than a choice: the slate
+// publishes last5_hits / runs / rbi / xbh / hr (178/178 rows) and no last-5
+// strikeout field at all. Season K% is the only strikeout number available,
+// so it is shown as season-to-date and LABELLED that way rather than being
+// passed off as recent form.
+const L5 = (p) => {
+  const g = (k) => Math.max(0, n(p?.[k], 0))
+  return { h: g('last5_hits'), r: g('last5_runs'), rbi: g('last5_rbi'), xbh: g('last5_xbh'), hr: g('last5_hr') }
+}
+
+function FormLine({ p }) {
+  const l5 = L5(p)
+  const any = l5.h || l5.r || l5.rbi || l5.xbh || l5.hr
+  const kpct = n(p?.season_k_rate, NaN)
+  const cold = n(p?.games_since_last_hr, NaN)
+  const bits = [['H', l5.h], ['R', l5.r], ['RBI', l5.rbi], ['XBH', l5.xbh], ['HR', l5.hr]]
+  return (
+    <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>
+      <span title="His production over his last five games — the form question the row could not answer without opening the card.">L5</span>{' '}
+      {any ? bits.map(([k, v], i) => (
+        <span key={k} style={{ color: v > 0 ? C.text2 : C.text3 }}>
+          {i ? ' ' : ''}<b style={{ color: v > 0 && (k === 'HR' || k === 'XBH') ? C.orange : undefined }}>{v}</b>{k}
+        </span>
+      )) : <span>no production in his last five</span>}
+      {Number.isFinite(cold) && cold > 0 && (
+        <span title="Games since his last home run." style={{ color: cold >= 15 ? '#f87171' : C.text3 }}>
+          {' · '}{cold}g since HR
+        </span>
+      )}
+      {Number.isFinite(kpct) && kpct > 0 && (
+        <span title="Strikeout rate, SEASON to date — the slate publishes no last-5 strikeout number, so this is not a form stat.">
+          {' · '}{(kpct * 100).toFixed(0)}% K szn
+        </span>
+      )}
+    </div>
+  )
+}
+
+function PickRow({ p, cat, lead, snap, onPlayerClick, onGoPairs }) {
   // mlbId, not Number(playerId) — see lib/player.js. This was NaN on the
   // first build, so every pick showed a blank status all night.
   const id = mlbId(p)
@@ -124,7 +173,19 @@ function PickRow({ p, cat, lead, snap, onPlayerClick }) {
             </>
           ) : null}
         </div>
+        <FormLine p={p} />
       </div>
+      {onGoPairs && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onGoPairs(p) }}
+          title="Open the Pairs tab focused on him — the click on the row itself opens his card."
+          style={{
+            flexShrink: 0, fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800,
+            color: C.text3, background: 'transparent', border: `1px solid ${C.border}`,
+            borderRadius: 6, padding: '2px 6px', cursor: 'pointer',
+          }}
+        >pairs →</button>
+      )}
       <span title={`${cat.label} score — ranked on this category's own scale, not on HR score`}
         style={{
           fontFamily: NUM_FONT, fontSize: lead ? 16 : 12, fontWeight: 900,
@@ -134,7 +195,7 @@ function PickRow({ p, cat, lead, snap, onPlayerClick }) {
   )
 }
 
-export default function PickBoard({ players = [], onPlayerClick }) {
+export default function PickBoard({ players = [], onPlayerClick, onGoPairs }) {
   const [snap, setSnap] = useState(null)
 
   // Same shared 15s cache every other live surface uses; the cadence follows
@@ -229,7 +290,7 @@ export default function PickBoard({ players = [], onPlayerClick }) {
               <span style={{ color: C.text3 }}> · {f.poolSize} tagged</span>
             </div>
             {f.picks.map((p, i) => (
-              <PickRow key={playerId(p)} p={p} cat={f} lead={i === 0} snap={snap} onPlayerClick={onPlayerClick} />
+              <PickRow key={playerId(p)} p={p} cat={f} lead={i === 0} snap={snap} onPlayerClick={onPlayerClick} onGoPairs={onGoPairs} />
             ))}
           </div>
         ))}

@@ -49,7 +49,44 @@ const ISO_HR_BANDS = { 0: 8.2, 0.130: 11.0, 0.170: 15.5, 0.230: 22.2 }
 // a measured +0.48. At l5 = 3 it lands on 1.30, exactly that cap. Not tuned.
 const formOf = (p) => Math.min(1.30, 0.7375 + 0.1875 * Math.max(0, n(p?.last5_hr, 0)))
 
-function hrProbV2(p, formNorm = 1) {
+// ── RECENT PRODUCTION, beyond the homers (2026-08-11) ────────────────────
+//
+// Donovan: "last 5 production by the way h/r/rbi/xbh/hr/ks to help with
+// projected output scoring."
+//
+// formOf above reads last5_hr and nothing else, so a hitter squaring
+// everything up without one clearing the fence looked identical to a hitter
+// making no contact at all. This adds the rest of the line.
+//
+// THREE HONEST CONSTRAINTS, stated because they bound what this is worth:
+//
+//  1. last5_hr is deliberately NOT in here. It is the whole of formOf, and
+//     counting it twice would quietly square the one term already carrying
+//     the most weight.
+//  2. There is no last-5 strikeout field on the slate — only season_k_rate.
+//     So the K input is season-to-date, not form. It enters POSITIVELY, which
+//     looks wrong and is not: the archive scan found season_k_rate at +7.6pp
+//     within fixed hr_score bands (see bot-ship/docs/JOB3-scan-followups.md),
+//     the three-true-outcomes profile, and the blend weights it at only 0.04.
+//  3. THE WEIGHTS BELOW ARE NOT MEASURED. Nothing has fitted xbh against
+//     h+r+rbi against K% for next-day HR. They are a reasonable ordering, not
+//     a result, and they are the second thing to calibrate after the pitcher
+//     trend once the hr_events backfill lands.
+//
+// Which is exactly why this is NORMALISED and CAPPED like formOf: the term is
+// divided by the slate mean, so whatever these weights are, they cannot move
+// the projected total by even a tenth of a homer. They can only reorder
+// hitters against each other. An unmeasured weight that cannot shift the level
+// is a ranking opinion; one that can is a calibration bug.
+const unit = (v, lo, hi) => Math.max(0, Math.min(1, (n(v, lo) - lo) / (hi - lo)))
+const prodOf = (p) => {
+  const xbh = unit(p?.last5_xbh, 0, 4)
+  const hrr = unit(n(p?.last5_hits, 0) + n(p?.last5_runs, 0) + n(p?.last5_rbi, 0), 0, 12)
+  const k = unit(p?.season_k_rate, 0.14, 0.32)
+  return 0.88 + 0.24 * (0.45 * xbh + 0.35 * hrr + 0.20 * k)   // 0.88 .. 1.12
+}
+
+function hrProbV2(p, formNorm = 1, prodNorm = 1) {
   const scoreRate = bandRate(scoreOf(p, 'hr'), CALIB['Proj HR'][1])
   const iso = n(p?.season_iso, NaN)
   const base = Number.isFinite(iso)
@@ -93,9 +130,10 @@ function hrProbV2(p, formNorm = 1) {
   // typical slate sits at last5_hr = 0, which is why this one term moved the
   // whole board.
   const form = formOf(p) / (formNorm || 1)
+  const prod = prodOf(p) / (prodNorm || 1)
   const xpa = xpaFor(p?.lineup_spot)
   const paMult = (xpa ? xpa / 4.2 : 1) * (p?.lineup_confirmed === false ? 0.9 : 1)
-  return base * form * paMult
+  return base * form * prod * paMult
 }
 
 const contactScore = (p) => n(p?.contact_score_v2 ?? p?.contact_score, 0)
@@ -133,6 +171,14 @@ export default function ProjectedOutput({ games = [], players = [] }) {
     return fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 1
   }, [players])
 
+  // Same guarantee for the production term — see prodOf. Divided by the slate
+  // mean, so its unmeasured weights can reorder hitters but cannot move the
+  // total.
+  const prodNorm = useMemo(() => {
+    const ps = (players || []).map(prodOf).filter((x) => Number.isFinite(x) && x > 0)
+    return ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : 1
+  }, [players])
+
   const rows = useMemo(() => {
     const groups = new Map()
 
@@ -156,7 +202,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       COLUMNS.forEach((col) => {
         const [kind, bands] = CALIB[col]
         values[col] = col === 'Proj HR'
-          ? pool.reduce((sum, p) => sum + hrProbV2(p, formNorm), 0) // v2: ISO-blended, xPA-weighted, form-normalised
+          ? pool.reduce((sum, p) => sum + hrProbV2(p, formNorm, prodNorm), 0) // v2: ISO-blended, xPA-weighted, form + production normalised
           : pool.reduce((sum, p) => sum + bandRate(scoreOf(p, kind), bands), 0)
       })
 
@@ -176,7 +222,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       // The base Proj HR column stays untouched — it's calibrated, this is
       // calibrated × modeled, and the caption keeps them distinct.
       values['Adj HR'] = pool.reduce((sum, p) => {
-        const base = hrProbV2(p, formNorm)
+        const base = hrProbV2(p, formNorm, prodNorm)
         const park = n(p?.park_hr_factor, n(p?.park_dist_factor, 1)) || 1
 
         // WEATHER — the bot's OWN published number, not a re-derivation
@@ -228,7 +274,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       // is sorted by Proj HR but nothing SAID so — a rank number makes the
       // ordering legible and gives the rows something to be quoted by.
       .map((r, i) => ({ ...r, label: `${i + 1}.  ${r.label}` }))
-  }, [games, players, by, pens, formNorm])
+  }, [games, players, by, pens, formNorm, prodNorm])
 
   if (!rows.length) return null
 
