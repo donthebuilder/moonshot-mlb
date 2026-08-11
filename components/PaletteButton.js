@@ -71,9 +71,22 @@ export default function PaletteButton() {
 
       {open && (
         <div
+          className="palette-pop"
           style={{
-            position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 90,
-            width: 'min(92vw, 380px)', maxHeight: '70vh', overflowY: 'auto',
+            // ANCHORED TO THE VIEWPORT, NOT THE BUTTON, ON A PHONE
+            // (2026-08-10). `right: 0` anchors the panel to the button, and the
+            // button lives in a header that scrolls sideways — so on a phone
+            // the panel hung off the left edge of the screen with its sliders
+            // cut in half. A 380px panel simply cannot be positioned relative
+            // to a control that sits 300px into a 390px viewport.
+            //
+            // Below 560px it stops being a popover and becomes a sheet: pinned
+            // to both edges with a margin, its own width, nothing to overflow.
+            // Above that the anchored popover is correct and unchanged.
+            position: 'fixed', zIndex: 90,
+            top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
+            left: 8, right: 8, width: 'auto',
+            maxHeight: '72vh', overflowY: 'auto',
             background: 'rgba(17,17,19,0.98)', backdropFilter: 'blur(14px)',
             border: `1px solid ${C.border2}`, borderRadius: 12,
             boxShadow: '0 18px 44px rgba(0,0,0,0.55)',

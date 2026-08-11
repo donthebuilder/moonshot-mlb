@@ -148,6 +148,20 @@ export default function MobileCSS() {
          phones. Stack them — search + a SHORT scrollable list on top, the
          full detail below it, nothing sticky (sticky sidebars fight thumb
          scrolling). */
+      /* The palette panel is a viewport sheet on a phone and an anchored
+         popover on a desktop — see components/PaletteButton.js. The component
+         ships the phone geometry inline (so it is right during streaming) and
+         this rule restores the desktop one, which is the only place the
+         anchored version actually fits. */
+      @media (min-width: 561px) {
+        .palette-pop {
+          position: absolute !important;
+          top: calc(100% + 8px) !important;
+          left: auto !important; right: 0 !important;
+          width: min(92vw, 380px) !important;
+        }
+      }
+
       @media (max-width: 700px) {
         .playerboard { grid-template-columns: 1fr !important; }
         .playerboard-side { position: static !important; }
