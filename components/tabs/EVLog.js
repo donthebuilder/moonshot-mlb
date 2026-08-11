@@ -358,8 +358,31 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center',
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
       }}>
+        {/* MEASURED, not guessed (2026-08-11, at a real 386px viewport).
+            Donovan: "the explanatory paragraph is clipped on the LEFT edge and
+            the BBE window chips run off the right."
+
+            That is ONE bug wearing two faces. `cluster` is display:flex with no
+            flexWrap, so Window + Games/Batted-balls + 15/25/50/100BBE is a
+            single unbreakable 450px row. Nothing between it and .modal-box has
+            overflow-x, so the row could not scroll itself -- it made THE WHOLE
+            MODAL 88px wider than the phone (measured: .modal-content
+            scrollWidth 474 vs clientWidth 386, and 450-362 = the same 88).
+
+            So swiping right to reach the 100BBE chip drags the entire modal
+            left, and the paragraph above -- a sibling inside that modal -- has
+            its left edge carried off screen. Fixing the right-hand overflow is
+            what fixes the left-hand clipping; they were never two problems.
+
+            .chip-row is the treatment this codebase already uses for exactly
+            this shape (MobileCSS ~700px: nowrap + overflow-x auto + hidden
+            scrollbar), and PlayerModal:542 already wears it for its six tab
+            pills -- which is why the tab pills were fine and this row was not.
+
+            Verified in the browser before committing: with the row scrolling
+            itself, .modal-content scrollWidth 474 -> 386, overflow 88px -> 0. */}
         {bbeRangeProp == null && (
-          <div style={cluster}>
+          <div style={cluster} className="chip-row">
             <span style={clusterLbl}>Window</span>
             <div style={groupBox}>
               <button style={seg(mode === 'games')} onClick={() => setMode('games')}>Games</button>
