@@ -197,6 +197,40 @@ export default function Dashboard() {
   // disagree about the game count or which game is best.
   const headerGames = useMemo(() => groupGames(allPlayers), [allPlayers])
 
+  // ⭐ LAST NIGHT'S WATCHLIST DOESN'T SURVIVE THE NIGHT (2026-08-11, Donovan:
+  // "the watchlist doesn't clear over at night, it shows the people you had on
+  // there last night").
+  //
+  // WATCH_KEY stores whole player OBJECTS, and playerId is the COMPOSITE
+  // `${player_id}-${game_pk}` (lib/player.js:72) — man PLUS game. So a name
+  // starred last night is stored against last night's game_pk, and that breaks
+  // twice over:
+  //
+  //   1. it renders, carrying last night's opponent, starter and line — which
+  //      is the symptom Donovan saw, a finished game presented as tonight's;
+  //   2. worse and silently, its key can never match tonight's row for the
+  //      same hitter, so re-starring him looks like a no-op and the ★ never
+  //      appears where it should.
+  //
+  // Pruned against the SLATE rather than against a clock: an entry survives
+  // only while its game is still on the published board. That needs no date
+  // stamp, so it also fixes entries already saved by older builds, and it
+  // rolls over correctly at midnight without caring what the local date did —
+  // the same reason liveSlate now spans yesterday..today.
+  //
+  // GUARDED on a non-empty slate. players is [] on first paint and on any
+  // failed fetch, and pruning against an empty board would silently erase the
+  // whole watchlist — a destructive, unrecoverable answer to a network blip.
+  useEffect(() => {
+    if (!allPlayers?.length || !watch.length) return
+    const live = new Set(allPlayers.map((p) => clean(p?.game_pk, '')).filter(Boolean))
+    if (!live.size) return
+    const kept = watch.filter((p) => live.has(clean(p?.game_pk, '')))
+    if (kept.length === watch.length) return
+    setWatch(kept)
+    try { localStorage.setItem(WATCH_KEY, JSON.stringify(kept)) } catch { /* ignore */ }
+  }, [allPlayers, watch])
+
   const watchIds = useMemo(() => new Set(watch.map(playerId)), [watch])
 
   const addSlip = (p, bet) => setSlip((s) => [...s, { p, bet }])

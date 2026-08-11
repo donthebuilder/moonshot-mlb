@@ -42,7 +42,14 @@ const COLUMNS = Object.keys(CALIB)
 // These band rates are OBSERVED, like CALIB — do not tune by hand.
 const ISO_HR_BANDS = { 0: 8.2, 0.130: 11.0, 0.170: 15.5, 0.230: 22.2 }
 
-function hrProbV2(p) {
+// The measured form line, BEFORE normalisation. Anchored on the two rates the
+// 2026-08-08 audit published — last5_hr 0 -> 9.0%, 3+ -> 23.0%, against an
+// ISO-band base near 15.5%, i.e. 0.58x and 1.48x — then shrunk 62.5% toward
+// 1.0, which is the same shrink the shipped +0.30 cap already implied against
+// a measured +0.48. At l5 = 3 it lands on 1.30, exactly that cap. Not tuned.
+const formOf = (p) => Math.min(1.30, 0.7375 + 0.1875 * Math.max(0, n(p?.last5_hr, 0)))
+
+function hrProbV2(p, formNorm = 1) {
   const scoreRate = bandRate(scoreOf(p, 'hr'), CALIB['Proj HR'][1])
   const iso = n(p?.season_iso, NaN)
   const base = Number.isFinite(iso)
@@ -68,8 +75,24 @@ function hrProbV2(p) {
   //   shrunk(l5)   = 1 + 0.625*(measured - 1) = 0.7375 + 0.1875*l5
   // At l5 = 3 that lands on 1.30 — EXACTLY the cap already shipping, so the hot
   // end is unchanged and only the cold end is new. Nothing was hand-tuned.
-  const l5 = Math.max(0, n(p?.last5_hr, 0))
-  const form = Math.min(1.30, 0.7375 + 0.1875 * l5)
+  // NORMALISED, so this redistributes without moving the level (2026-08-11,
+  // second pass. Donovan: "fix the bug").
+  //
+  // CALIB's band rates were measured across ALL graded hitters, cold ones
+  // included, so the base ALREADY prices the average slump. That makes the
+  // mean of this multiplier the thing that has to be 1.0 — anything else
+  // silently rescales the whole column. Measured on a real 178-hitter slate:
+  // the old one-sided version averaged 1.051 (every projection inflated ~5%,
+  // which is the bug Donovan felt), and the raw two-sided line averaged 0.832
+  // (deflated ~17%, an improvement in direction but a thumb on the scale in
+  // magnitude, and not one the archive asked for).
+  //
+  // Dividing by the slate's own mean gives a term that averages EXACTLY 1.0:
+  // hot hitters gain, cold hitters lose, the total stays calibrated, and the
+  // only change to the level is the removal of the proven inflation. 61% of a
+  // typical slate sits at last5_hr = 0, which is why this one term moved the
+  // whole board.
+  const form = formOf(p) / (formNorm || 1)
   const xpa = xpaFor(p?.lineup_spot)
   const paMult = (xpa ? xpa / 4.2 : 1) * (p?.lineup_confirmed === false ? 0.9 : 1)
   return base * form * paMult
@@ -102,6 +125,14 @@ export default function ProjectedOutput({ games = [], players = [] }) {
     return () => { alive = false }
   }, [players])
 
+  // The divisor above. Taken over the WHOLE slate rather than per group, so a
+  // team's number does not shift depending on how the table happens to be
+  // grouped. Empty slate -> 1, which is a no-op rather than a divide by zero.
+  const formNorm = useMemo(() => {
+    const fs = (players || []).map(formOf).filter((x) => Number.isFinite(x) && x > 0)
+    return fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 1
+  }, [players])
+
   const rows = useMemo(() => {
     const groups = new Map()
 
@@ -125,7 +156,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       COLUMNS.forEach((col) => {
         const [kind, bands] = CALIB[col]
         values[col] = col === 'Proj HR'
-          ? pool.reduce((sum, p) => sum + hrProbV2(p), 0) // v2: ISO-blended, xPA-weighted
+          ? pool.reduce((sum, p) => sum + hrProbV2(p, formNorm), 0) // v2: ISO-blended, xPA-weighted, form-normalised
           : pool.reduce((sum, p) => sum + bandRate(scoreOf(p, kind), bands), 0)
       })
 
@@ -145,15 +176,49 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       // The base Proj HR column stays untouched — it's calibrated, this is
       // calibrated × modeled, and the caption keeps them distinct.
       values['Adj HR'] = pool.reduce((sum, p) => {
-        const base = hrProbV2(p) // v2 base; the environment/pen layer is unchanged
+        const base = hrProbV2(p, formNorm)
         const park = n(p?.park_hr_factor, n(p?.park_dist_factor, 1)) || 1
-        const temp = n(p?.weather_temp_f, n(p?.temp_f, 70)) || 70
-        const air = Math.max(0.94, Math.min(1.06, 1 + (temp - 70) / 1000))
-        const wl = clean(p?.wind_direction_label ?? p?.weather_wind_direction_label, '')
-        const wind = /out/i.test(wl) ? 1.05 : /^in\b|in from/i.test(wl) ? 0.95 : 1
+
+        // WEATHER — the bot's OWN published number, not a re-derivation
+        // (2026-08-11, Donovan: "weather and park factors all that").
+        //
+        // This used to hand-roll it here: ~1% per 10 degrees off 70, plus ±5%
+        // on a wind LABEL matched by regex. That is precisely the hand-tuning
+        // this file warns against twice in capitals, and it threw away better
+        // data — the slate already publishes weather_hr_effect_pct (verified
+        // present and non-null on 178/178 rows tonight, range -2% to +8%),
+        // computed upstream from temperature, wind vector relative to the
+        // park's own orientation, humidity and air density together. A regex
+        // on "out to left" cannot see any of that.
+        //
+        // weather_has_data gates it, and the old hand-rolled pair stays as the
+        // fallback for a row the weather service never answered for.
+        const wpct = n(p?.weather_hr_effect_pct, NaN)
+        let weather
+        if (p?.weather_has_data && Number.isFinite(wpct)) {
+          weather = 1 + wpct / 100
+        } else {
+          const temp = n(p?.weather_temp_f, n(p?.temp_f, 70)) || 70
+          const air = Math.max(0.94, Math.min(1.06, 1 + (temp - 70) / 1000))
+          const wl = clean(p?.wind_direction_label ?? p?.weather_wind_direction_label, '')
+          weather = air * (/out/i.test(wl) ? 1.05 : /^in\b|in from/i.test(wl) ? 0.95 : 1)
+        }
+
+        // PITCHER TREND — direction is published, magnitude is not.
+        //
+        // pitcher_trend_direction is on every row ('stable' on 169 of 178
+        // tonight, 'improving' on 9). An arm that is IMPROVING is worse to
+        // face, so it lowers the number; declining raises it. The DIRECTION is
+        // the bot's, but nothing has measured what it is WORTH, so this is a
+        // deliberately small ±4% nudge rather than a fitted weight — and it is
+        // the first thing to calibrate once the hr_events backfill makes
+        // "what did picks actually do against improving arms" answerable.
+        const trend = String(p?.pitcher_trend_direction || '').toLowerCase()
+        const trendMult = trend === 'improving' ? 0.96 : trend === 'declining' ? 1.04 : 1
+
         const pen = pens?.get(String(oppOf(p) || '').toUpperCase())
         const penMult = pen?.hr9 ? (0.62 + 0.38 * (pen.hr9 / 1.05)) : 1
-        return sum + base * park * air * wind * penMult
+        return sum + base * park * weather * trendMult * penMult
       }, 0)
 
       return { label, values, _count: pool.length }
@@ -163,7 +228,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       // is sorted by Proj HR but nothing SAID so — a rank number makes the
       // ordering legible and gives the rows something to be quoted by.
       .map((r, i) => ({ ...r, label: `${i + 1}.  ${r.label}` }))
-  }, [games, players, by, pens])
+  }, [games, players, by, pens, formNorm])
 
   if (!rows.length) return null
 
