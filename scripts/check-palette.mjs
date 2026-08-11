@@ -11,6 +11,12 @@ const blk = src.slice(src.indexOf('export const RAMPS = {'),
 const ids = [...blk.matchAll(/^  ([a-z]+): \{/gm)].map((m) => m[1])
 const sect = (id) => { const a = blk.indexOf(`  ${id}: {`); return blk.slice(a, blk.indexOf('\n  },', a)) }
 const arr = (id) => sect(id).match(/stops:\s*\[([^\]]*)\]/)[1].match(/#[0-9a-f]{6}/g)
+// A ramp may ship its OWN inks — a lit number on a deep tinted cell, which is
+// how Signal reproduces the props sheet. When it does, the dead-zone and
+// single-neutral-ink checks below do not apply (both are facts about white and
+// near-black) and are REPLACED by a stricter one: every fill measured against
+// its own ink.
+const inks = (id) => { const m = sect(id).match(/inks:\s*\[([^\]]*)\]/); return m ? m[1].match(/#[0-9a-f]{6}/g) : null }
 const spec = (id, tag) => {
   const m = sect(id).match(new RegExp(`@${tag}\\s+([\\d. ]+?)\\s{2,}`))
   return m ? m[1].trim().split(/\s+/).map(Number) : null
@@ -26,17 +32,33 @@ let bad = 0
 const chk = (n, ok) => { if (!ok) { console.log('MISS ' + n); bad++ } }
 for (const id of ids) {
   const st = arr(id)
-  const ink = st.map((c) => (ratio(c, D) > ratio(c, L) ? D : L))
+  const own = inks(id)
+  const ink = own || st.map((c) => (ratio(c, D) > ratio(c, L) ? D : L))
   chk(`${id}: every cell readable`, Math.min(...st.map((c, i) => ratio(c, ink[i]))) >= 4.5)
-  chk(`${id}: no stop in the 0.170-0.189 dead zone`, !st.some((c) => lum(c) > 0.170 && lum(c) < 0.189))
   chk(`${id}: luminance rises the whole way`, st.every((c, i) => i === 0 || lum(c) > lum(st[i - 1])))
-  chk(`${id}: ink switches exactly once`, ink.filter((v, i) => i > 0 && v !== ink[i - 1]).length === 1)
+  if (own) {
+    chk(`${id}: an ink for every stop`, own.length === st.length)
+    // The ink is what the eye actually reads on this construction, so it gets
+    // the same two guarantees the fills get: ordered in greyscale, and no two
+    // neighbours collapsing into one shade.
+    chk(`${id}: ink luminance rises too`, own.every((c, i) => i === 0 || lum(c) > lum(own[i - 1])))
+    let isep = 999; for (let i = 1; i < own.length; i++) isep = Math.min(isep, dist(own[i], own[i - 1]))
+    chk(`${id}: inks don't plateau (closest Δ${isep.toFixed(0)})`, isep >= 22)
+    // And the number has to be findable against the PAGE, not just its cell —
+    // a dark ink on a dark fill can clear 4.5:1 between them and still vanish.
+    chk(`${id}: every ink readable on the page`, Math.min(...own.map((c) => ratio(c, '#111113'))) >= 4.5)
+  } else {
+    chk(`${id}: no stop in the 0.170-0.189 dead zone`, !st.some((c) => lum(c) > 0.170 && lum(c) < 0.189))
+    chk(`${id}: ink switches exactly once`, ink.filter((v, i) => i > 0 && v !== ink[i - 1]).length === 1)
+  }
   let sep = 999; for (let i = 1; i < st.length; i++) sep = Math.min(sep, dist(st[i], st[i - 1]))
   chk(`${id}: no plateau (closest Δ${sep.toFixed(0)})`, sep >= 22)
-  for (const [tag, fn, tol] of [['lum', lum, 0.006], ['sat', sat, 0.02], ['hue', hue, 2]]) {
+  const tags = [['lum', lum, 0.006, st], ['sat', sat, 0.02, st], ['hue', hue, 2, st]]
+  if (own) tags.push(['ilum', lum, 0.006, own], ['isat', sat, 0.02, own], ['ihue', hue, 2, own])
+  for (const [tag, fn, tol, target] of tags) {
     const d = spec(id, tag)
-    chk(`${id}: @${tag} spec matches its stops`, d && d.length === st.length
-      && d.every((v, i) => { let x = Math.abs(v - fn(st[i])); if (tag === 'hue' && x > 180) x = 360 - x; return x <= tol }))
+    chk(`${id}: @${tag} spec matches its stops`, d && d.length === target.length
+      && d.every((v, i) => { let x = Math.abs(v - fn(target[i])); if (tag === 'hue' && x > 180) x = 360 - x; return x <= tol }))
   }
 }
 // The toggle has to mean something: three different saturation SHAPES.

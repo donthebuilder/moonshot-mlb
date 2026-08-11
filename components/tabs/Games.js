@@ -2,7 +2,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { groupGames } from '../../lib/data'
-import { dateText, playerId, hrScore } from '../../lib/player'
+import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
@@ -368,7 +368,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
           const moved = []
           const out = []
           ;(players || []).forEach((p) => {
-            const st = lineupStatus(live, playerId(p), p?.game_pk, p?.lineup_spot)
+            const st = lineupStatus(live, mlbId(p), p?.game_pk, p?.lineup_spot)
             if (st.scratched) out.push(p)
             else if (st.moved) moved.push({ p, slot: st.slot })
           })
@@ -464,7 +464,10 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                 const side = t === g.away ? 'away' : 'home'
                 const card = liveG.lineup?.[side] || []
                 if (card.length < 9) return
-                const byId = new Map(byTeam[t].map((p) => [Number(playerId(p)), p]))
+                // mlbId, NOT Number(playerId) — playerId is the composite row
+                // key "id-gamePk" and Number() of it is NaN, which collapses
+                // every slate row into one Map entry. See lib/player.js.
+                const byId = new Map(byTeam[t].map((p) => [mlbId(p), p]))
                 const ordered = card.map((r) => {
                   const hit = byId.get(Number(r.id))
                   if (hit) { byId.delete(Number(r.id)); return hit }
@@ -570,7 +573,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                         // until the card is actually posted — "not in the
                         // lineup" against a hitter whose team hasn't posted
                         // yet is the same false alarm in the other direction.
-                        const lu = lineupStatus(live, playerId(p), p?.game_pk, p?.lineup_spot)
+                        const lu = lineupStatus(live, mlbId(p), p?.game_pk, p?.lineup_spot)
                         return (
                           <div key={playerId(p)} onClick={() => { if (!p?.off_slate) onPlayerClick?.(p) }}
                             title={lu.scratched ? 'Not in tonight’s posted lineup'

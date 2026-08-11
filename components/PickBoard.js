@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
+import { nameOf, teamOf, oppOf, clean, n, playerId, mlbId } from '../lib/player'
 import { pickBuckets } from './BotPicksStrip'
 import { fetchLiveSlate, pickCleared, lineupStatus } from '../lib/liveSlate'
 import { Empty } from './ui'
@@ -66,7 +66,9 @@ function StatusPill({ state, label, title }) {
 }
 
 function PickRow({ p, cat, lead, snap, onPlayerClick }) {
-  const id = Number(playerId(p))
+  // mlbId, not Number(playerId) — see lib/player.js. This was NaN on the
+  // first build, so every pick showed a blank status all night.
+  const id = mlbId(p)
   const line = snap?.lines?.[id] || null
   const lu = lineupStatus(snap, id, p?.game_pk, p?.lineup_spot)
   const cleared = pickCleared(cat.role, line)
@@ -162,7 +164,7 @@ export default function PickBoard({ players = [], onPlayerClick }) {
     four.forEach((f) => {
       const p = f.picks[0]
       if (!p) return
-      const id = Number(playerId(p))
+      const id = mlbId(p)
       const line = snap?.lines?.[id] || null
       const lu = lineupStatus(snap, id, p?.game_pk, p?.lineup_spot)
       const c = pickCleared(f.role, line)
