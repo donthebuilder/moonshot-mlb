@@ -562,8 +562,14 @@ export default function MatchupPitcher({ player, slateMode }) {
                 title: 'Share of his pitches. Not good or bad — just how often you see it.' },
               { key: 'seen',   label: 'Thrown', w: 50 },
               { key: 'bbe',    label: 'BBE',    w: 42, title: 'Balls in play against this pitch — the denominator' },
-              { key: 'hr',     label: 'HR',     w: 38 },
-              { key: 'hrRate', label: 'HR/BBE%', w: 58, dp: 1 },
+              // 2026-08-12: bare "HR" here was matching the GLOSSARY's HR
+              // SCORE entry (a 0-100 ranking) plus its ranking/percentage
+              // banner — this is a home-run COUNT, same fix as PlayerModal's
+              // Season block already made for the same collision.
+              { key: 'hr',     label: 'HR',     w: 38,
+                explain: 'Home runs allowed on this specific pitch.' },
+              { key: 'hrRate', label: 'HR/BBE%', w: 58, dp: 1,
+                explain: 'Home runs allowed on this pitch, as a share of batted balls against it — not of every pitch thrown.' },
               { key: 'ev',     label: 'EV alw', w: 52, dp: 1, title: 'Average exit velocity allowed on this pitch' },
               { key: 'hard',   label: 'HH%',    w: 46, dp: 0 },
               { key: 'barrel', label: 'Barrel%', w: 54, dp: 1 },
@@ -592,8 +598,15 @@ export default function MatchupPitcher({ player, slateMode }) {
                   { key: 'pa',     label: 'PA',     w: 40 },
                   { key: 'slg',    label: 'SLG',    w: 50, dp: 3 },
                   { key: 'iso',    label: 'ISO',    w: 50, dp: 3 },
-                  { key: 'hr',     label: 'HR',     w: 34 },
-                  { key: 'hrRate', label: 'HR%',    w: 44, dp: 1 },
+                  // 2026-08-12: bare "HR"/"HR%" both matched the GLOSSARY's
+                  // HR SCORE entry (a 0-100 ranking, not a count or a real
+                  // rate) plus its ranking/percentage banner. This table's
+                  // HR% is share of PLATE APPEARANCES, a different base than
+                  // the pitch-arsenal table's HR/BBE% above.
+                  { key: 'hr',     label: 'HR',     w: 34,
+                    explain: 'Home runs he has allowed to hitters in this third of the order.' },
+                  { key: 'hrRate', label: 'HR%',    w: 44, dp: 1,
+                    explain: 'Home runs as a share of plate appearances against hitters in this third of the order.' },
                   { key: 'hard',   label: 'HH%',    w: 44, dp: 1 },
                   { key: 'barrel', label: 'Brl%',   w: 44, dp: 1 },
                   { key: 'damage', label: 'Dmg',    w: 44, dp: 0 },
@@ -620,8 +633,12 @@ export default function MatchupPitcher({ player, slateMode }) {
                   { key: 'pa',     label: 'PA',     w: 40 },
                   { key: 'slg',    label: 'SLG',    w: 50, dp: 3 },
                   { key: 'iso',    label: 'ISO',    w: 50, dp: 3 },
-                  { key: 'hr',     label: 'HR',     w: 34 },
-                  { key: 'hrRate', label: 'HR%',    w: 44, dp: 1 },
+                  // 2026-08-12: same GLOSSARY['hr'] score-collision fix as
+                  // the order-third table above, for the same reason.
+                  { key: 'hr',     label: 'HR',     w: 34,
+                    explain: 'Home runs he has allowed to hitters in this lineup spot.' },
+                  { key: 'hrRate', label: 'HR%',    w: 44, dp: 1,
+                    explain: 'Home runs as a share of plate appearances against hitters in this lineup spot.' },
                   { key: 'hard',   label: 'HH%',    w: 44, dp: 1 },
                   { key: 'ev',     label: 'EV',     w: 44, dp: 1 },
                   { key: 'damage', label: 'Dmg',    w: 44, dp: 0 },

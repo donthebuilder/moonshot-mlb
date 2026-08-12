@@ -927,7 +927,12 @@ function WatchlistPairs({ items, pairSummary, onPlayerClick }) {
           { key: 'sameGm',  label: 'Same gm', flag: true, mark: '⚡', w: 52,
             title: 'Both hitters are in the SAME GAME tonight — correlated, higher variance' },
           { key: 'fit',     label: 'Fit', w: 46, dp: 0,
-            title: 'Weaker side + same-game history (12/ea, cap 30) + same-day (2/ea, cap 12) + recency nudge' },
+            title: 'Weaker side + same-game history (12/ea, cap 30) + same-day (2/ea, cap 12) + recency nudge',
+            // 2026-08-12: same GLOSSARY['fit'] collision as PairBuilder's Fit
+            // column — different formula (this one starts from the WEAKER
+            // side, PairBuilder's starts from tonight's market score), so it
+            // needs its own explanation rather than sharing PairBuilder's.
+            explain: 'Starts from the weaker of the two hitters\' scores — since both have to land — then adds credit for same-game and same-day history together, plus a small recent-form nudge. Higher fits better.' },
           { key: 'weaker',  label: 'Weaker', w: 52, dp: 1,
             title: 'The lower HR score of the two — both have to land, so this side decides' },
           { key: 'stronger', label: 'Stronger', w: 56, dp: 1 },

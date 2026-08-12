@@ -706,7 +706,13 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
                   title: 'These two have homered on the same day at least once this season. A bonus inside Fit — not a requirement for being on this list.' },
               ]),
               { key: 'fit',      label: 'Fit',     w: 46, dp: 1,
-                title: `55% tonight's ${mkt.label} score · 25% same-game history · 10% shared days · 10% recency` },
+                title: `55% tonight's ${mkt.label} score · 25% same-game history · 10% shared days · 10% recency`,
+                // 2026-08-12: 'Fit' collided with the single-player GLOSSARY
+                // entry ("how well this hitter fits what the board is
+                // looking for") plus its ranking/percentage caveat, both
+                // written for a different, one-hitter score. This is a
+                // two-hitter pairing score — own explanation now.
+                explain: 'How well he pairs with your anchor — mostly tonight\'s own score for this market, plus whether the two have gone deep the same day before and how active both have been lately. Higher fits better.' },
               { key: 'hr',       label: mkt.short, w: 44, dp: 1,
                 title: `Tonight's ${mkt.label} score — the market you picked above` },
               { key: 'l5',       label: 'L5',      heat: false, w: 58, mono: true, dim: true,

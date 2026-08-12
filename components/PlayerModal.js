@@ -671,7 +671,8 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="Name"   value={clean(p?.pitcher_name, '—')} mono={false} />
                   <Row label="Throws" value={clean(p?.pitcher_throws, '—')} />
                   <Row label="HR/9"   value={sc(p?.pitcher_hr9)} />
-                  <Row label="BB/9"   value={sc(p?.pitcher_bb9)} />
+                  <Row label="BB/9"   value={sc(p?.pitcher_bb9)}
+                    explain="Walks this pitcher allows per nine innings, season-long — not specific to tonight's matchup. Higher is better for the hitter." />
                   <Row label="WHIP"   value={sc(p?.pitcher_whip)} />
                   <Row label="BB%"    value={pct(p?.pitcher_bb_pct)}
                     explain="His walk rate against every batter he's faced this season — not specific to tonight's matchup." />

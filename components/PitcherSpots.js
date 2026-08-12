@@ -56,13 +56,20 @@ const COLUMNS = [
     fmt: (v, r) => v,
   },
   { key: 'weak',    label: '★',      flag: true, mark: '★', w: 30 },
-  { key: 'damage',  label: 'Damage', w: 52, dp: 1 },
+  // 2026-08-12: "Damage" here was matching the GLOSSARY entry written for a
+  // HITTER's own damage-conversion rate ("when HE hits it hard..."). This is
+  // the opposite side of the ball — how much damage HITTERS have done TO
+  // THIS PITCHER in this lineup spot.
+  { key: 'damage',  label: 'Damage', w: 52, dp: 1,
+    explain: 'How much damage hitters have done against this pitcher specifically in this lineup spot — his vulnerability here, not a hitter\'s own damage-conversion rate.' },
   { key: 'vsOwn',   label: 'vs own', w: 52, dp: 1,
     title: 'Damage in this spot minus the median across his other eight' },
   { key: 'pa',      label: 'PA',     w: 40 },
   { key: 'slg',     label: 'SLG ag', w: 50, dp: 3 },
   { key: 'iso',     label: 'ISO ag', w: 50, dp: 3 },
-  { key: 'hrRate',  label: 'HR%',    w: 44, dp: 1 },
+  // Same GLOSSARY['hr'] score-collision fix as MatchupPitcher.js's tables.
+  { key: 'hrRate',  label: 'HR%',    w: 44, dp: 1,
+    explain: 'Home runs as a share of plate appearances against hitters in this lineup spot.' },
   { key: 'xbhRate', label: 'XBH%',   w: 46, dp: 1 },
   { key: 'hh',      label: 'HH%',    w: 44, dp: 1 },
   { key: 'zone',    label: 'Zone',   w: 44, dp: 1 },

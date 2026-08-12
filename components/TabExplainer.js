@@ -40,7 +40,13 @@ const TEXTS = {
     what: 'Group tickets: 3, 4, or 6 hitters where EVERY member must homer to cash. During games each pool grades live — 💥 marks who’s already gone deep. Most pools die unfinished on purpose; the payoff shape is lottery-like. The pair builder below lets you construct your own two-man around any anchor.',
   },
   bot: {
-    what: 'The bot’s raw output, untouched — the same sheet it publishes every day, before the site adjusts anything. Compare this against the Boards tab to see exactly where the site’s calibration (measured on thousands of graded picks) disagrees with the bot’s raw scores.',
+    // 2026-08-12: this used to invite a comparison against the Boards tab
+    // to spot a "site calibration" — that ISO adjustment was retired
+    // 2026-08-09 (see Bot.js's own header comment and TheRead.js, which
+    // found and fixed the same stale claim on the Boards tab itself).
+    // Every board ranks on the bot's raw numbers now; there's no gap left
+    // to see between them.
+    what: 'The bot’s raw output, untouched — the same sheet it publishes every day, plus a board ranked on its own overall score. Every board on the site ranks on the bot’s own numbers now, so this isn’t a different calibration to compare — it’s the bot’s own words, unformatted, and its own overall ranking instead of the HR-specific one.',
   },
   leaders: {
     what: 'Plain season stats for tonight’s hitters — batting average, homers, OPS, the real baseball card numbers. Nothing here is modeled or scored; it’s the one page where the site has no opinion. Use it to sanity-check a pick against what a player has actually done all year.',

@@ -692,7 +692,11 @@ export default function Pitchers({ players, onPlayerClick }) {
           { key: 'tm',     label: 'Tm',  heat: false, w: 32, mono: true, dim: true },
           { key: 'vs',     label: 'vs',  heat: false, w: 32, mono: true, dim: true },
           { key: 'weakSide', label: 'Weak', heat: false, w: 44, mono: true, dim: true,
-            title: 'The side this pitcher struggles against' },
+            title: 'The side this pitcher struggles against',
+            // 2026-08-12: 'weak' alone isn't a glossary key, so this column
+            // got no tap-dot at all on mobile despite having a title. Its
+            // neighbor wsScore had the opposite problem — see that column.
+            explain: 'The side (L or R) this pitcher struggles against. If it matches how this hitter bats, that’s a point in his favor.' },
           { key: 'trend',  label: 'Trend', heat: false, w: 58, dim: true },
           // Flags, as dots. The attack tag used to print "🧊 GB/TRAP" and
           // "⚠️ HARD CONTACT" as words in a 104px column — three values wearing
@@ -729,7 +733,12 @@ export default function Pitchers({ players, onPlayerClick }) {
           { key: 'attack', label: 'Attack', w: 52, dp: 0,
             title: 'The bot’s attack score. Range on tonight’s slate is 0–54, median 19 — so 30+ is genuinely high, not middling.' },
           { key: 'wsScore', label: 'Weak side', w: 58, dp: 0,
-            title: 'How exploitable his platoon split is. 0–90 on tonight’s slate.' },
+            title: 'How exploitable his platoon split is. 0–90 on tonight’s slate.',
+            // 2026-08-12: label collided with the GLOSSARY's 'weak side' entry
+            // (written for the categorical L/R column, weakSide above) — the
+            // tap-dot was showing "which side he's weak against" on what is
+            // actually a 0-90 exploitability SCORE. Own explain now.
+            explain: 'How exploitable his platoon split is — a 0–90 score, not which side he’s weak against. Higher is easier to attack.' },
           { key: 'zoneDmg', label: 'Zone dmg', w: 58, dp: 0,
             title: 'Damage he allows by order third — pooled, so sturdier than the per-spot number' },
           { key: 'spotDmg', label: 'Spot dmg', w: 56, dp: 0,
