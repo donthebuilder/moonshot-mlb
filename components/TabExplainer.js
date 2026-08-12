@@ -12,6 +12,9 @@ import { C } from '../lib/theme'
 // beginner-first — the dense stuff stays untouched underneath.
 
 const TEXTS = {
+  home: {
+    what: 'The front porch. A greeting, tonight in four numbers (games on the slate, the bot’s own projected HR range, first pitch, and its graded base-hit record), then a rotating line of real facts about tonight, the best air and weakest arms, and top-10 HR/hit boards. Nothing here is a new number — it’s the same data as every other tab, gathered up front. Pick a door below, or just start scrolling.',
+  },
   scoreboard: {
     what: 'This is tonight at a glance. The Four are the bot’s headline picks — one hitter per bet type (going deep, getting a hit, runs+RBI, total bases). During games the green Live wire at the top grades those picks in real time. Start here, click any name to open their full page.',
   },
@@ -23,6 +26,9 @@ const TEXTS = {
   },
   games: {
     what: 'Tonight’s slate, game by game. The cards up top are heat-sized — the bigger and warmer a card, the more dangerous that game’s lineups. Click one to open it in depth. The Lineups button shows every batting order at once with the bot’s pick chips underneath; click a game there and you get slot-by-slot — what the pitcher gives up to each lineup spot vs what the hitter standing there does.',
+  },
+  atplate: {
+    what: 'Whoever is at the plate, right now, live. The count and every pitch of the at-bat build from tonight’s feed as it happens, with the batter’s zone map and spray chart switching to tonight-only dots — no season data mixed in. Tap anyone in the lineup or box score below to point the charts at them without leaving the page. Only live during games; it wakes up at first pitch.',
   },
   pitchers: {
     what: 'Tonight’s starting pitchers from the hitter’s point of view. High HR/9 means he gives up homers; the HR luck column flags arms who’ve allowed loud contact without paying for it yet — regression says target them. ★ Spots are the lineup positions he historically bleeds against.',
@@ -42,7 +48,7 @@ const TEXTS = {
   player: {
     what: 'Every hitter on tonight’s slate in one sortable table. Click any column header to re-sort, shift-click to add a tiebreaker, and click a row to open that player’s full page with props history, splits, and spray charts.',
   },
-  watchlist: {
+  watch: {
     what: 'Your saved hitters. Star anyone anywhere on the site and they collect here, with live “went deep / got a hit” tiles during games. Paste a list of names into the cross-reference box and the site matches them against tonight’s slate with full stats — built for checking someone else’s card against the bot’s.',
   },
   pairhist: {

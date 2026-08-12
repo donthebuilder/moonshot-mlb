@@ -4,6 +4,9 @@ import { C, NUM_FONT, TABS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import SlateTiles from './SlateTiles'
 import PaletteButton from './PaletteButton'
+import { InfoDot } from './Explain'
+
+const NFL_NOTE = 'MOONSHOT · NFL arrives for Week 1 — its own site, one click from here. TDs, receiving, rushing, passing, kicking. No defensive props.'
 
 // ── live capture ticker ───────────────────────────────────────────────────────
 
@@ -173,6 +176,10 @@ function DateBadge({ label }) {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function Header({ tab, setTab, mode, setMode, dateLabel, results, players = [], games = [] }) {
+  // TAP TARGET (2026-08-12): the NFL "coming soon" pill carried its note in a
+  // bare title= — invisible on a phone, the same gap fixed elsewhere via the
+  // InfoDot pattern (see Explain.js's header comment).
+  const [nflOpen, setNflOpen] = useState(false)
   return (
     <header style={{
       position:'sticky', top:0, zIndex:50,
@@ -220,14 +227,31 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                   const pill = {
                     fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999,
                     border:`1px solid ${C.border2}`, color:C.text3, textDecoration:'none',
-                    cursor: NFL_URL ? 'pointer' : 'help',
+                    cursor: 'pointer',
                   }
                   return NFL_URL
                     ? <a href={NFL_URL} style={pill}>NFL</a>
-                    : <span title="MOONSHOT · NFL arrives for Week 1 — its own site, one click from here. TDs, receiving, rushing, passing, kicking. No defensive props." style={pill}>NFL <span style={{ fontSize:7.5, color:'#4ade80' }}>SEP</span></span>
+                    : (
+                      <span
+                        role="button" tabIndex={0} aria-label="About the NFL site"
+                        onClick={() => setNflOpen((v) => !v)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNflOpen((v) => !v) } }}
+                        style={pill}
+                      >
+                        NFL <span style={{ fontSize:7.5, color:'#4ade80' }}>SEP</span>
+                        <InfoDot on={nflOpen} onClick={() => setNflOpen((v) => !v)} />
+                      </span>
+                    )
                 })()}
               </span>
             </div>
+            {nflOpen && (
+              <div style={{
+                fontSize: 9.5, color: C.text2, lineHeight: 1.5, marginTop: 4, maxWidth: 280,
+                background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
+                borderRadius: 7, padding: '5px 8px',
+              }}>{NFL_NOTE}</div>
+            )}
             <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />
           </div>
         </div>

@@ -96,6 +96,11 @@ export default function Heatmap({
   maxHeight = null,
 }) {
   const [hover, setHover] = useState(null)
+  // Caption fold (2026-08-12), ported from DenseTable — see its header
+  // comment for why: the first sentence stays visible, the rest (plus the
+  // sort hint) folds behind "why ▸" so this chart's fine print matches every
+  // other table's on the site instead of always running in full underneath.
+  const [capOpen, setCapOpen] = useState(false)
   // ── MULTI-SORT (2026-08-09) ────────────────────────────────────────────
   // Donovan: "make sure the multi-sorts work."
   //
@@ -282,8 +287,28 @@ export default function Heatmap({
         </span>
         <span>high</span>
         <span style={{ marginLeft: 4, flex: 1, minWidth: 180 }}>
-          {caption || 'Each column is scaled on its own, so a strong cell means high for this slate on that input — not comparable across columns.'}
-          {' '}Click a column to sort; click it twice more to clear.
+          {(() => {
+            const base = caption || 'Each column is scaled on its own, so a strong cell means high for this slate on that input — not comparable across columns.'
+            const full = `${base} Click a column to sort; click it twice more to clear.`
+            // Split on the first sentence end that's followed by a space and a
+            // capital — same regex as DenseTable, so "1.5 runs" / "e.g." don't
+            // get treated as the end.
+            const m = String(full).match(/^([\s\S]*?[.!?])\s+(?=[A-Z"])/)
+            const head = m ? m[1] : full
+            const rest = m ? String(full).slice(m[0].length) : ''
+            if (!rest) return full
+            return (
+              <>
+                {head}{' '}
+                <button onClick={() => setCapOpen((v) => !v)} style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted rgba(255,255,255,.25)',
+                  textUnderlineOffset: 3, fontFamily: 'inherit',
+                }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
+                {capOpen && <> {rest}</>}
+              </>
+            )
+          })()}
         </span>
         {/* The picker sits ON the legend because that is where someone is
             already looking when they think "I can't read this". Burying it in

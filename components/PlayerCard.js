@@ -1,9 +1,11 @@
 'use client'
+import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { Chip, Card } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
+import { InfoDot } from './Explain'
 
 // 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
 // double-booked with the old Power Watch role emoji (now 🔭).
@@ -66,6 +68,14 @@ function gamePickLabelFor(p) {
 }
 
 export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick }) {
+  // TAP TARGETS (2026-08-12): the emoji stack, weak-spot star and score badge
+  // used to carry their explanations in a bare title= — a hover tooltip,
+  // invisible on phones (see Explain.js's header comment; PlayerCard is the
+  // single most-clicked component on the site). Each now opens the same text
+  // as a small line under the header via the tap-friendly InfoDot pattern.
+  const [openEmoji, setOpenEmoji] = useState(false)
+  const [openWeak, setOpenWeak] = useState(false)
+  const [openScore, setOpenScore] = useState(false)
   const role      = compactRole(p)
   const baseColor = roleColor(role, C)
   const score     = scoreFor(p, type)
@@ -133,18 +143,23 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-            {/* emoji stack — no labels, no border, just emojis */}
+            {/* emoji stack — no labels, no border, just emojis + a tap dot */}
             {emojis.length > 0 && (
-              <span title={emojiTitle} style={{ fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'help' }}>
+              <span
+                onClick={(e) => { e.stopPropagation(); setOpenEmoji((v) => !v) }}
+                style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'pointer' }}
+              >
                 {emojis.join('')}
+                <InfoDot on={openEmoji} onClick={() => setOpenEmoji((v) => !v)} />
               </span>
             )}
             {weakSpotReason && (
               <span
-                title={weakSpotReason}
-                style={{ fontSize: 14, lineHeight: 1, flexShrink: 0, cursor: 'help' }}
+                onClick={(e) => { e.stopPropagation(); setOpenWeak((v) => !v) }}
+                style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, flexShrink: 0, cursor: 'pointer' }}
               >
                 ⭐
+                <InfoDot on={openWeak} onClick={() => setOpenWeak((v) => !v)} />
               </span>
             )}
             {/* NAME FITS (2026-08-08): "Freddie Freem…" is not a name. Long
@@ -167,17 +182,48 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             handle on. It is still here, still the bot's verdict, but it now
             sits as a badge beside the stats that earned it. Nothing was
             removed; the reading order changed. */}
-        <div title={`The bot's ${type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.`}
+        <div
+          onClick={(e) => { e.stopPropagation(); setOpenScore((v) => !v) }}
           style={{
-            textAlign: 'center', flexShrink: 0, cursor: 'help',
+            textAlign: 'center', flexShrink: 0, cursor: 'pointer',
             border: `1px solid ${color}44`, background: `${color}10`,
             borderRadius: 8, padding: '3px 8px 4px',
           }}>
-          <div style={{ fontSize: 7.5, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>BOT</div>
+          <div style={{ fontSize: 7.5, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+            BOT<InfoDot on={openScore} onClick={() => setOpenScore((v) => !v)} />
+          </div>
           <div style={{ fontSize: 15, fontWeight: 900, color, lineHeight: 1.1, fontFamily: NUM_FONT }}>{score.toFixed(0)}</div>
           <div style={{ fontSize: 8, color: C.text3 }}>{grade}</div>
         </div>
       </div>
+
+      {/* tap-opened explanations for the header row above — one shared strip
+          so three dots don't mean three different popovers to hunt for. */}
+      {(openEmoji || openWeak || openScore) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 7, marginTop: -3 }}>
+          {openEmoji && (
+            <div style={{
+              fontSize: 10, lineHeight: 1.5, color: C.text2,
+              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
+              borderRadius: 7, padding: '5px 8px',
+            }}>{emojiTitle}</div>
+          )}
+          {openWeak && (
+            <div style={{
+              fontSize: 10, lineHeight: 1.5, color: C.text2,
+              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
+              borderRadius: 7, padding: '5px 8px',
+            }}>⭐ {weakSpotReason}</div>
+          )}
+          {openScore && (
+            <div style={{
+              fontSize: 10, lineHeight: 1.5, color: C.text2,
+              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
+              borderRadius: 7, padding: '5px 8px',
+            }}>The bot&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</div>
+          )}
+        </div>
+      )}
 
       {/* ONE chip row (2026-08-06). Designated pick cards were wearing every
           chip family at once — role + bet + risk + aligned + pick + recency +
