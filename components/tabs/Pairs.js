@@ -845,6 +845,10 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
     const all = [
       ...(pairBuilder?.recommended_3mans || []),
       ...(pairBuilder?.pools_4man || []),
+      // pools_3man (2026-08-12): the retired 6-man's actual replacement key
+      // -- was arriving under pools_6man until the bot-side fix shipped.
+      // pools_6man kept below for any older cached payload still on it.
+      ...(pairBuilder?.pools_3man || []),
       ...(pairBuilder?.pools_6man || []),
     ]
     return all.map((pool,index) => {

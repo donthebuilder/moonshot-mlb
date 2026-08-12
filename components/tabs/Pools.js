@@ -212,8 +212,8 @@ export default function Pools({ players = [], results, pairBuilder, pairHistoryS
         ? <LivePools results={results} players={players} onPlayerClick={onPlayerClick} />
         : <SlatePools pairBuilder={pairBuilder} players={players} onPlayerClick={onPlayerClick} />}
 
-      {!hasGraded && !arr(pairBuilder?.pools_4man).length && !arr(pairBuilder?.pools_6man).length
-        && !arr(pairBuilder?.recommended_3mans).length && (
+      {!hasGraded && !arr(pairBuilder?.pools_4man).length && !arr(pairBuilder?.pools_3man).length
+        && !arr(pairBuilder?.pools_6man).length && !arr(pairBuilder?.recommended_3mans).length && (
         <Empty text="No pools published for this slate yet." />
       )}
 
