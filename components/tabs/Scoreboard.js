@@ -4,9 +4,9 @@ import { C, NUM_FONT } from '../../lib/theme'
 import {
   nameOf, teamOf, oppOf, n, clean,
   recent375, ihrVal,
-  hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId,
+  hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId, mlbId,
 } from '../../lib/player'
-import { tierRole, shortRole, isAligned } from '../../lib/scoring'
+import { tierRole, shortRole, isAligned, hrRank } from '../../lib/scoring'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore } from '../../lib/scoring_additions'
@@ -156,6 +156,11 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // you nothing about whether the model saw them coming.
   const goneYard = useMemo(() => {
     const homers = results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []
+    // 🔒 THE rank, not a local one (2026-08-11). hrRank in lib/scoring.js is
+    // the single source of the HR ordering — the HR board shows these same
+    // numbers, so a hitter is #4 here and #4 there and nowhere else. Enforced
+    // by scripts/check-rank-lock.mjs; do not reintroduce a local sort.
+    const rankOf = hrRank(players)
     const byRank = [...players].sort((a, b) => hrScore(b) - hrScore(a))
     return homers.map((h, i) => {
       const k = String(h?.name || '').toLowerCase().replace(/[^a-z]/g, '')
@@ -164,7 +169,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       return {
         _key: `${h?.player_id ?? h?.name}-${i}`,
         _raw: p,
-        rank: idx >= 0 ? idx + 1 : null,
+        rank: p ? rankOf.get(mlbId(p)) ?? null : null,
         name: clean(h?.name, '—'),
         team: clean(h?.team, ''),
         hr: n(h?.hr, 1),

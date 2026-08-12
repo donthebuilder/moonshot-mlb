@@ -1,8 +1,8 @@
 'use client'
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { playerId, nameOf, teamOf, clean, nn, hrScore, hitScore, prodScore, tbScore, barrelRate, pitchMixScore } from '../../lib/player'
-import { scoreFor, isAligned } from '../../lib/scoring'
+import { playerId, nameOf, teamOf, clean, nn, hrScore, hitScore, prodScore, tbScore, barrelRate, pitchMixScore, mlbId } from '../../lib/player'
+import { scoreFor, isAligned, hrRank } from '../../lib/scoring'
 import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
 import Heatmap from '../Heatmap'
@@ -72,6 +72,19 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
     () => [...filtered].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, limit),
     [filtered, type, limit],
   )
+
+  // 🔒 SLATE-WIDE RANK for the HR board (2026-08-11, Donovan: "give me the
+  // ranking on the hr board that will show me the order the players are in on
+  // the results page. and don't change it ever again.")
+  //
+  // The # column was i+1 over the FILTERED list, so a team chip or a search
+  // renumbered everyone and never matched Gone Yard, which ranks the whole
+  // slate. For type='hr' the number now comes from hrRank() — the same single
+  // source Gone Yard reads — computed over the FULL players prop before any
+  // filter. Filtering can hide rows; it can no longer renumber them. A
+  // filtered view showing #3, #7, #19 is telling the truth: those are their
+  // real board positions. Enforced by scripts/check-rank-lock.mjs.
+  const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : null), [players, type])
 
   return (
     <div>
@@ -143,7 +156,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             return {
               _key: `${playerId(p)}-${i}`,
               _raw: p,
-              rank: i + 1,
+              rank: slateRank ? (slateRank.get(mlbId(p)) ?? i + 1) : i + 1,
               name: nameOf(p),
               team: teamOf(p),
               facing: clean(p?.pitcher_name, 'TBD'),
