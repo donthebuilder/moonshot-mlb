@@ -38,6 +38,7 @@ const MISSING_COLS = [
   { key: 'iso', label: 'ISO', w: 52, dp: 3 }, { key: 'hr', label: 'HR', w: 40 },
   { key: 'hrPa', label: 'HR/PA%', w: 56, dp: 2 }, { key: 'xbh', label: 'XBH', w: 42 },
   { key: 'rbi', label: 'RBI', w: 42 },
+  { key: 'bb', label: 'BB', w: 38 }, { key: 'bbPct', label: 'BB%', w: 50, dp: 1 },
   { key: 'kPct', label: 'K%', w: 46, dp: 1, invert: true },
 ]
 
@@ -57,7 +58,7 @@ export default function PlayerSplits({ player, slateMode }) {
     let alive = true
     setLr(null)
     const yr = new Date().getFullYear()
-    fetch(`https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=vl,vr,risp&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi`)
+    fetch(`https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=vl,vr,risp&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi,baseOnBalls`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!alive) return
@@ -73,11 +74,13 @@ export default function PlayerSplits({ player, slateMode }) {
             h: n(st.hits, 0), hr,
             xbh: n(st.doubles, 0) + n(st.triples, 0) + hr,
             rbi: n(st.rbi, 0),
+            bb: n(st.baseOnBalls, 0),
             avg: parseFloat(st.avg) || 0, obp: parseFloat(st.obp) || 0,
             slg: parseFloat(st.slg) || 0, ops: parseFloat(st.ops) || 0,
             iso: (parseFloat(st.slg) || 0) - (parseFloat(st.avg) || 0),
             hrPa: pa ? (100 * hr) / pa : 0,
             kPct: pa ? (100 * n(st.strikeOuts, 0)) / pa : 0,
+            bbPct: pa ? (100 * n(st.baseOnBalls, 0)) / pa : 0,
           }
         })
         if (rows.length) setLr(rows)
@@ -118,6 +121,11 @@ export default function PlayerSplits({ player, slateMode }) {
           hr: n(s.HR, 0),
           xbh: n(s.XBH, 0),
           rbi: n(s.RBI, 0),
+          // BB/BB% (2026-08-12): player_splits.py already writes "BB" (raw
+          // count, same block as HR/XBH above) -- BB% is computed here off
+          // that count and PA rather than assumed as its own bot-side key,
+          // same as every other rate column on this table.
+          bb: n(s.BB, 0),
           avg: n(s.AVG, 0),
           obp: n(s.OBP, 0),
           slg: n(s.SLG, 0),
@@ -125,6 +133,7 @@ export default function PlayerSplits({ player, slateMode }) {
           iso: n(s.ISO, 0),
           hrPa: n(s['HR/PA'], 0) * 100,
           kPct: n(s['K%'], 0) * 100,
+          bbPct: n(s.PA, 0) ? (100 * n(s.BB, 0)) / n(s.PA, 0) : 0,
         }
       }),
     }
@@ -165,6 +174,8 @@ export default function PlayerSplits({ player, slateMode }) {
     { key: 'hrPa',  label: 'HR/PA%', w: 56, dp: 2 },
     { key: 'xbh',   label: 'XBH', w: 42 },
     { key: 'rbi',   label: 'RBI', w: 42 },
+    { key: 'bb',    label: 'BB',  w: 38 },
+    { key: 'bbPct', label: 'BB%', w: 50, dp: 1 },
     { key: 'kPct',  label: 'K%',  w: 46, dp: 1, invert: true,
       title: 'Inverted — a low strikeout rate is the good outcome for the hitter.' },
   ]

@@ -654,6 +654,8 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                     <Row label="OPS"  value={clean(liveSeason.ops, '—')} />
                   )}
                   <Row label="K Rate" value={pct(p?.season_k_rate)} />
+                  <Row label="BB Rate" value={pct(p?.season_bb_rate)}
+                    explain="How often a plate appearance ends in a walk, this season." />
                   {b > 0 && <Row label="BABIP" value={b.toFixed(3)} />}
                 </div>
                 <div>
@@ -669,7 +671,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="Name"   value={clean(p?.pitcher_name, '—')} mono={false} />
                   <Row label="Throws" value={clean(p?.pitcher_throws, '—')} />
                   <Row label="HR/9"   value={sc(p?.pitcher_hr9)} />
+                  <Row label="BB/9"   value={sc(p?.pitcher_bb9)} />
                   <Row label="WHIP"   value={sc(p?.pitcher_whip)} />
+                  <Row label="BB%"    value={pct(p?.pitcher_bb_pct)}
+                    explain="His walk rate against every batter he's faced this season — not specific to tonight's matchup." />
                   {weakSide && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
                       <span style={{ fontSize: 11, color: C.text3 }}>Weak Side</span>

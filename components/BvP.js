@@ -105,6 +105,7 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
         <Stat label="HR" value={hr} strong={hr > 0} />
         <Stat label="TB" value={num(t.totalBases)} />
         <Stat label="BB" value={num(t.baseOnBalls)} />
+        {pa > 0 && <Stat label="BB%" value={`${((100 * num(t.baseOnBalls)) / pa).toFixed(1)}%`} />}
         <Stat label="K" value={num(t.strikeOuts)} />
       </div>
 
