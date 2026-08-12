@@ -223,11 +223,9 @@ RankedBoard, GameCockpit, LiveWire, and the rest that just print ONE
 primary tag) were deliberately left alone — showing "TOP" as the
 primary label for a double-up player is correct there, not a bug.
 
-**Reference backtest: the same exclusion-cost test, run on HIT/HRR/CONTACT.**
-Not implemented, not proposed — Donovan asked for these numbers
-alongside the HR change, not a fifth role change. Same method as
-above (naive best-by-that-role's-own-score, no exclusion, vs the
-actual archived badge-holder, on the 2026-07-27 → 2026-08-09 window):
+**Exclusion-cost test run on HIT/HRR/CONTACT, same method as HR.** Naive
+best-by-that-role's-own-score (no exclusion) vs the actual archived
+badge-holder, on the 2026-07-27 → 2026-08-09 window:
 
 | role | substituted games | official hit rate | excluded-true-best rate | gap | χ² |
 |---|---|---|---|---|---|
@@ -236,20 +234,27 @@ actual archived badge-holder, on the 2026-07-27 → 2026-08-09 window):
 | HRR | 106 | 54.7% | 61.3% | +6.6pp | 1.00 (n.s.) |
 | HIT | 64 | 67.2% | 73.4% | +6.2pp | 0.73 (n.s.) |
 
-HR and CONTACT both show a real, statistically significant cost from
+HR and CONTACT both showed a real, statistically significant cost from
 their exclusion (CONTACT's is actually the larger gap — 23.4 points,
 average 15.3 `contact_score` points given up in the swap). HIT and HRR
 don't clear significance at this sample size — both are easier,
 higher-base-rate outcomes (a single hit or 2+ combined H/R/RBI happens
 far more often than a home run or 2+ total bases), so there's less
 room for the exclusion to matter and the gap that exists could be
-noise. Two differences worth flagging before reading CONTACT as "do
-the same fix again": CONTACT's exclusion isn't a clean pairwise
-overlap with one other role the way TOP/HR was — it sits at the end of
-the pipeline, excluded by whichever of TOP/HR/HIT/HRR got there first
-— so "let CONTACT double up" doesn't have an obvious single partner
-role the way HR/TOP did. Worth its own look if it's wanted, not a
-same-day extension of this one.
+noise. Both left untouched.
+
+**CONTACT shipped, same day.** Unlike HR, CONTACT never had one clean
+partner role stealing its candidate — it sits at the end of the
+TOP→HR→HIT→HRR→CONTACT chain, excluded by whichever of the other four
+got there first. So rather than un-excluding one specific role, it now
+excludes none: `anchor = pick_top(hitters, "contact_score", 1)` — ranks
+by raw `contact_score` over the full game pool, same scoring as
+always, just no `used`-set filter. `role_map`'s `"/".join(v)` carries
+whatever combination results — "TOP/CONTACT", "HR/CONTACT", even a
+3-way, all handled by the same generic site-side fix as TOP/HR (none
+of the three site files needed further changes — they were already
+checking every `/`-separated tag, not hardcoded to two). Bot commit
+`e616eb9`.
 
 ---
 
