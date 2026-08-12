@@ -336,7 +336,8 @@ export default function Guide({ onNavigate }) {
         <Term tab="longest" go={onNavigate} icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
         <Term tab="due" go={onNavigate} icon="💣" term="Due" def="hitters overdue for one. Read the HR/PA column, not the drought — a long gap with no power behind it is just a hitter who doesn't homer." />
         <Term tab="board" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
-        <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs / 🏊 Pools" def="two-man and four-to-six-man combinations, plus the Pair Builder for making your own." />
+        <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what the bot recommends." />
+        <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="the bot's three- and four-man group tickets, plus the Pair Builder for making your own pair." />
         <Term tab="pairhist" go={onNavigate} icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />
         <Term tab="spray" go={onNavigate} icon="🗺️" term="Spray" def="where a hitter's batted balls actually land." />
         <Term tab="pitchers" go={onNavigate} icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />

@@ -159,6 +159,22 @@ function dedupePlayers(players=[]) {
   return [...map.values()]
 }
 
+// Bot pair/pool payloads carry lean stubs (name, team, sometimes an id),
+// not full slate rows -- resolve back against the real `players` list so a
+// click opens the full modal instead of a half-empty one. Same fix Pools.js
+// shipped 2026-08-08 for its live pools ("make sure on the live pools I can
+// click the players to see their modal"); the live pairs/pools view here
+// never got it. Resolution is optional by design -- when it fails, the name
+// stays plain, unclickable text rather than opening a broken modal.
+function makeResolver(players=[]) {
+  const byKey = new Map()
+  for (const p of players) {
+    const key = playerKey(p)
+    if (key) byKey.set(key, p)
+  }
+  return (stub) => (stub ? byKey.get(playerKey(stub)) || null : null)
+}
+
 function pairNames(pair) {
   const ps = Array.isArray(pair?.players) ? pair.players : []
   if (ps.length >= 2) return `${ps[0]?.name || '?'} + ${ps[1]?.name || '?'}`
@@ -821,8 +837,9 @@ function findLiveHistoryMatches(homers, pairHistorySummary, todaysPlayers) {
   })
 }
 
-function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
+function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onPlayerClick }) {
   const [scope, setScope] = useState('cross')
+  const resolve = useMemo(() => makeResolver(players), [players])
 
   const homers = useMemo(() => {
     const raw = results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []
@@ -930,10 +947,17 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
     const tags = Array.isArray(h.tags) ? h.tags : []
     const mainTag = tags[0] || '⚾'
     const col = tagColor(mainTag)
+    const row = resolve(h)
     return (
-      <div style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius:7, background:`${col}18`, border:`1px solid ${col}33` }}>
+      <div
+        onClick={row ? () => onPlayerClick?.(row) : undefined}
+        title={row ? 'open his card' : undefined}
+        style={{
+          display:'flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius:7,
+          background:`${col}18`, border:`1px solid ${col}33`, cursor: row ? 'pointer' : 'default',
+        }}>
         <span style={{ fontSize:12 }}>{mainTag}</span>
-        <span style={{ fontSize:12, fontWeight:700 }}>{h.name}</span>
+        <span style={{ fontSize:12, fontWeight:700, textDecoration: row ? 'underline dotted rgba(255,255,255,.18)' : 'none', textUnderlineOffset:3 }}>{h.name}</span>
         <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>{h.team}</span>
         {num(h.hr_score) > 0 && <span style={{ fontSize:9, color:col, fontFamily:NUM_FONT }}>HR {Math.round(num(h.hr_score))}</span>}
       </div>
@@ -946,13 +970,21 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
     const a = pair.a || pair.players?.[0]
     const b = pair.b || pair.players?.[1]
     if (!a || !b) return null
+    const ra = resolve(a)
+    const rb = resolve(b)
     return (
       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderTop:i ? `1px solid ${C.border}` : 'none', flexWrap:'wrap' }}>
         <span style={{ fontSize:9, fontWeight:700, color:col, minWidth:80, fontFamily:NUM_FONT }}>{label}</span>
-        <span style={{ fontSize:13, fontWeight:700 }}>{a.name}</span>
+        <span
+          onClick={ra ? () => onPlayerClick?.(ra) : undefined}
+          title={ra ? 'open his card' : undefined}
+          style={{ fontSize:13, fontWeight:700, cursor: ra ? 'pointer' : 'default', textDecoration: ra ? 'underline dotted rgba(255,255,255,.18)' : 'none', textUnderlineOffset:3 }}>{a.name}</span>
         <span style={{ fontSize:10, color:C.text3 }}>{a.team}</span>
         <span style={{ color:C.border, fontSize:14 }}>+</span>
-        <span style={{ fontSize:13, fontWeight:700 }}>{b.name}</span>
+        <span
+          onClick={rb ? () => onPlayerClick?.(rb) : undefined}
+          title={rb ? 'open his card' : undefined}
+          style={{ fontSize:13, fontWeight:700, cursor: rb ? 'pointer' : 'default', textDecoration: rb ? 'underline dotted rgba(255,255,255,.18)' : 'none', textUnderlineOffset:3 }}>{b.name}</span>
         <span style={{ fontSize:10, color:C.text3 }}>{b.team}</span>
       </div>
     )
@@ -1044,7 +1076,22 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary }) {
                     <span style={{ fontSize:12, fontWeight:800 }}>{pool.name || pool.label || pool.type || 'Pool'}</span>
                     <span style={{ fontSize:10, color:C.green, fontFamily:NUM_FONT }}>{pool.hits.length}/{pool.players.length} HR</span>
                   </div>
-                  <div style={{ fontSize:11, color:C.text2 }}>{pool.hits.map(p => p.name).join(' + ')}</div>
+                  <div style={{ fontSize:11, color:C.text2 }}>
+                    {pool.hits.map((p, j) => {
+                      const row = resolve(p)
+                      return (
+                        <span key={playerKey(p) || j}>
+                          {j > 0 && ' + '}
+                          <span
+                            onClick={row ? () => onPlayerClick?.(row) : undefined}
+                            title={row ? 'open his card' : undefined}
+                            style={{ cursor: row ? 'pointer' : 'default', textDecoration: row ? 'underline dotted rgba(255,255,255,.18)' : 'none', textUnderlineOffset:3 }}>
+                            {p.name}
+                          </span>
+                        </span>
+                      )
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1439,7 +1486,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
       {view === 'today' && (
         <PairBoard pairBuilder={pairBuilder} results={results} onPlayerClick={onPlayerClick} />
       )}
-      {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} />}
+      {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />}
     </div>
   )
 }
