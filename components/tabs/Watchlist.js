@@ -20,6 +20,51 @@ import { downloadShareCard } from '../shareCard'
 // guy also the bot's guy" is the first cross-reference question there is.
 const botPickOf = (p) => String(p?.game_pick_role || '').trim().toUpperCase()
 
+// TRACK RECORD (2026-08-12, on request) — same snapshot RankedBoard's "When
+// picked" column and the Results tab's full Player Pick Record table read:
+// public/pick_matrix.json, the 39-day archive of every pick the bot has ever
+// graded. Fetched once per session and shared by every Watchlist render,
+// same pattern as RankedBoard.js's fetchMatrix (kept as its own module-level
+// copy rather than imported cross-tab, matching how PlayerPickRecord.js also
+// keeps its own separate fetch of the same underlying data).
+//
+// Watchlist shows the OVERALL rate (every category combined), not a single
+// category like RankedBoard does — a saved name isn't tied to one board, and
+// a watchlist is as likely to hold an off-slate player as an on-slate pick.
+// Same threshold rule as everywhere else this archive is read: a rate only
+// at 3+ picks, a raw fraction under that, because 1/1 is not 100%.
+let _wlMatrixPromise = null
+function fetchWlMatrix() {
+  if (!_wlMatrixPromise) {
+    _wlMatrixPromise = fetch('/pick_matrix.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+  }
+  return _wlMatrixPromise
+}
+const MIN_TRACK_PICKS = 3
+function useTrackRecords() {
+  const [matrix, setMatrix] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetchWlMatrix().then((m) => { if (alive) setMatrix(m) })
+    return () => { alive = false }
+  }, [])
+  return useMemo(() => {
+    const m = new Map()
+    arr(matrix?.players).forEach((p) => {
+      const key = String(p?.n || '').toLowerCase().trim()
+      if (key) m.set(key, { picks: n(p.p, 0), did: n(p.d, 0) })
+    })
+    return (name) => m.get(String(name || '').toLowerCase().trim()) || null
+  }, [matrix])
+}
+function trackText(rec) {
+  if (!rec || !rec.picks) return '—'
+  if (rec.picks >= MIN_TRACK_PICKS) return `${Math.round((100 * rec.did) / rec.picks)}% (${rec.did}/${rec.picks})`
+  return `${rec.did}/${rec.picks}`
+}
+
 const EXPORT_COLUMNS = [
   { key: 'name',     label: 'Player',          get: (p) => nameOf(p) },
   { key: 'team',     label: 'Team',            get: (p) => teamOf(p) },
@@ -423,6 +468,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
     [items, slateIds],
   )
   const { filtered: filteredOnSlate, state: filterState } = useBoardFilter(onSlate)
+  const trackOf = useTrackRecords()
 
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -608,30 +654,38 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
               <Empty text="None of your saved hitters clear this filter. Reset it above — the categories are rarer than they look, and a band set for one stat means nothing in another's units." />
             ) : (
             <DenseTable
-              rows={filteredOnSlate.map((p) => ({
-                _key: String(playerId(p)),
-                _raw: p,
-                watched: 1,
-                name: nameOf(p),
-                team: teamOf(p),
-                opp: oppOf(p),
-                spot: p?.lineup_spot ?? null,
-                facing: clean(p?.pitcher_name, 'TBD'),
-                isPick: botPickOf(p) ? 1 : 0,
-                botpick: botPickOf(p) || '—',
-                weak: p?.weak_spot_flag ? 1 : 0,
-                l5: `${n(p?.last5_hits, 0)}H/${n(p?.last5_hr, 0)}HR/${n(p?.last5_xbh, 0)}X`,
-                hr: hrScore(p),
-                hrw: nn(p?.hrw_score),
-                dc: nn(p?.damage_conversion_score),
-                iso: nn(p?.season_iso) * 100,
-                brl: barrelRate(p) * 100,
-                ev: avgEV(p),
-                pmix: pitchMixScore(p),
-                hrr: prodScore(p),
-                hitS: hitScore(p),
-                hr9: n(p?.pitcher_hr9, null),
-              }))}
+              rows={filteredOnSlate.map((p) => {
+                const track = trackOf(nameOf(p))
+                return {
+                  _key: String(playerId(p)),
+                  _raw: p,
+                  watched: 1,
+                  name: nameOf(p),
+                  team: teamOf(p),
+                  opp: oppOf(p),
+                  spot: p?.lineup_spot ?? null,
+                  facing: clean(p?.pitcher_name, 'TBD'),
+                  isPick: botPickOf(p) ? 1 : 0,
+                  botpick: botPickOf(p) || '—',
+                  // Overall did-the-job rate across every category the bot has
+                  // ever picked him for (3+ picks, else a raw fraction) — the
+                  // numeric field drives sort/heat, track_t is the display string.
+                  track: track && track.picks >= MIN_TRACK_PICKS ? (100 * track.did) / track.picks : null,
+                  track_t: trackText(track),
+                  weak: p?.weak_spot_flag ? 1 : 0,
+                  l5: `${n(p?.last5_hits, 0)}H/${n(p?.last5_hr, 0)}HR/${n(p?.last5_xbh, 0)}X`,
+                  hr: hrScore(p),
+                  hrw: nn(p?.hrw_score),
+                  dc: nn(p?.damage_conversion_score),
+                  iso: nn(p?.season_iso) * 100,
+                  brl: barrelRate(p) * 100,
+                  ev: avgEV(p),
+                  pmix: pitchMixScore(p),
+                  hrr: prodScore(p),
+                  hitS: hitScore(p),
+                  hr9: n(p?.pitcher_hr9, null),
+                }
+              })}
               columns={[
                 ...(onWatch ? [{
                   key: 'watched', label: '★', action: true, w: 30, mark: '★', markOff: '☆',
@@ -648,6 +702,9 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                   title: 'The bot designated this hitter as one of tonight’s picks' },
                 { key: 'botpick', label: 'Pick', heat: false, w: 58, mono: true,
                   title: 'Which category the bot picked him for — HR, TOP, HIT, HRR, CONTACT. Dash = on the slate but not designated.' },
+                { key: 'track', label: 'Track record', w: 96, mono: true,
+                  fmt: (v, row) => row.track_t,
+                  title: `His overall did-the-job rate across every category the bot has ever picked him for — HR pick homering, HIT pick getting a hit, and so on, combined. From the same 39-day archive as the Results tab's full pick record. A percentage shows at ${MIN_TRACK_PICKS}+ picks; below that it stays a raw fraction, because 1/1 is not 100%. Dash = never a bot pick.` },
                 { key: 'weak',  label: '⭐',    flag: true, mark: '★', w: 30,
                   title: 'Weak lineup spot against tonight’s starter' },
                 { key: 'l5',    label: 'L5',   heat: false, w: 76, mono: true, dim: true,
@@ -731,17 +788,21 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             <span style={{ fontSize: 9.5, color: C.text3 }}>
               saved but the bot didn&apos;t score them tonight — click for the live-season read
             </span>
-            {off.map((p) => (
-              <button key={playerId(p)} onClick={() => onPlayerClick?.(p)}
-                title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.`}
-                style={{
-                  fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
-                  border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',
-                  borderRadius: 7, padding: '3px 9px',
-                }}>
-                {nameOf(p)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>{teamOf(p)}</span>
-              </button>
-            ))}
+            {off.map((p) => {
+              const track = trackText(trackOf(nameOf(p)))
+              return (
+                <button key={playerId(p)} onClick={() => onPlayerClick?.(p)}
+                  title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.${track !== '—' ? ` Track record: ${track}.` : ''}`}
+                  style={{
+                    fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
+                    border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',
+                    borderRadius: 7, padding: '3px 9px',
+                  }}>
+                  {nameOf(p)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>{teamOf(p)}</span>
+                  {track !== '—' && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>· {track}</span>}
+                </button>
+              )
+            })}
           </div>
         )
       })()}

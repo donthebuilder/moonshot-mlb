@@ -43,6 +43,10 @@ export const BAND_STATS = [
   { key: 'pull',  label: 'Pull%',  min: 0, max: 100, get: (p) => n(p?.recent_pull_rate, 0) * 100 },
   { key: 'hh',    label: 'HH%',    min: 0, max: 100, get: (p) => n(p?.recent_hard_hit_rate, 0) * 100 },
   { key: 'fb',    label: 'FB%',    min: 0, max: 100, get: (p) => n(p?.recent_fb_rate, 0) * 100 },
+  // Added 2026-08-12, on request. Same recent window as fb/pull above --
+  // the bot already computed it for bbe_profile, just never promoted it to
+  // a top-level HitterRecord field until now (mlb_dashboard.py, same date).
+  { key: 'ld',    label: 'LD%',    min: 0, max: 100, get: (p) => n(p?.recent_ld_rate, 0) * 100 },
   { key: 'brl',   label: 'Brl%',   min: 0, max: 40,  get: (p) => n(p?.recent_barrel_rate, 0) * 100 },
   { key: 'sweet', label: 'Sweet%', min: 0, max: 100, get: (p) => n(p?.recent_sweet_spot_rate, 0) * 100 },
   { key: 'iso',   label: 'ISO',    min: 0, max: 400, get: (p) => n(p?.season_iso, 0) * 1000, fmt: (v) => `.${String(v).padStart(3, '0')}` },
