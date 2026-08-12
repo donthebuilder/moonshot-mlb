@@ -45,6 +45,10 @@ const num = (v, d = null) => {
 }
 const first = (...xs) => xs.map((x) => clean(x, '')).find(Boolean) || ''
 const roleOf = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+// A player can now carry more than one role (2026-08-12: TOP allowed to also
+// hold HR, joined "TOP/HR") — use this where matching a SPECIFIC category
+// matters, so a double-up still counts for its non-primary role too.
+const hasRole = (p, role) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).includes(role)
 const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
 
 const CATS = [
@@ -133,7 +137,7 @@ export default function TheRead({ players = [], onPlayerClick }) {
     if (!rows.length) return null
 
     const calls = CATS.map((c) => {
-      const pool = rows.filter((p) => roleOf(p) === c.role)
+      const pool = rows.filter((p) => hasRole(p, c.role))
       if (!pool.length) return null
       const score = (p) => num(p?.[`${c.role.toLowerCase()}_score`], num(p?.hr_score, 0)) || 0
       return { ...c, p: [...pool].sort((a, b) => score(b) - score(a))[0], depth: pool.length }

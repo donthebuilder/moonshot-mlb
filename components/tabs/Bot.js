@@ -51,6 +51,11 @@ function roleColor(role) {
   return C.text2
 }
 
+// game_pick_role can now carry more than one tag on the same player
+// (2026-08-12: TOP is allowed to also hold HR, joined "TOP/HR") — read as
+// a list, not a single value, wherever a category match matters.
+const rolesOf = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
+
 // ── The Board — the bot's raw ranking, unadjusted ────────────────────────────
 
 const PICK_TABS = [
@@ -65,7 +70,9 @@ const PICK_TABS = [
 function BoardRow({ p, i, onPlayerClick }) {
   const role = p.final_hr_role || ''
   const col = roleColor(role)
-  const pick = p.game_pick_role || ''
+  // Primary (first) role only, for the single-badge display — a TOP/HR
+  // double-up shows as TOP here; it still surfaces in the HR tab/count below.
+  const pick = String(p.game_pick_role || '').split('/')[0].trim()
   const pills = Array.isArray(p.signal_pills) ? p.signal_pills.slice(0, 3) : []
   const pickColors = { TOP: '#FCD34D', HR: '#FB923C', HRR: '#22d3ee', HIT: '#38bdf8', CONTACT: '#a78bfa' }
   const pickCol = pickColors[pick] || C.text3
@@ -152,7 +159,7 @@ function Board({ players, onPlayerClick }) {
 
   const tab = PICK_TABS.find((t) => t.key === pickTab) || PICK_TABS[0]
   const rows = tab.roles
-    ? sorted.filter((p) => tab.roles.includes(p.game_pick_role || ''))
+    ? sorted.filter((p) => tab.roles.some((r) => rolesOf(p).includes(r)))
     : sorted.slice(0, 40)
 
   if (!players.length) return <Empty text="No player data loaded." />
@@ -171,7 +178,7 @@ function Board({ players, onPlayerClick }) {
         {PICK_TABS.map((t) => (
           <button key={t.key} onClick={() => setPickTab(t.key)} style={btnStyle(C.orange, pickTab === t.key)}>
             {t.label}
-            {t.roles ? ` (${sorted.filter((p) => t.roles.includes(p.game_pick_role || '')).length})` : ` (${Math.min(sorted.length, 40)})`}
+            {t.roles ? ` (${sorted.filter((p) => t.roles.some((r) => rolesOf(p).includes(r))).length})` : ` (${Math.min(sorted.length, 40)})`}
           </button>
         ))}
       </div>

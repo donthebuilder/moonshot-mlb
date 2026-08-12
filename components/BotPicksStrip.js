@@ -146,8 +146,11 @@ export const CATEGORIES = [
 /** The buckets, three deep, ranked on each category's own scale. */
 export function pickBuckets(players = []) {
   return CATEGORIES.map((cat) => {
+    // A player can now carry more than one role (2026-08-12: TOP allowed to
+    // also hold HR, joined "TOP/HR") — match on any tag, not just the first,
+    // so a TOP/HR double-up still shows up in the HR bucket here.
     const pool = players.filter(
-      (p) => String(p?.game_pick_role || '').split('/')[0].trim() === cat.role,
+      (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim()).includes(cat.role),
     )
     return { ...cat, picks: [...pool].sort((a, b) => cat.score(b) - cat.score(a)).slice(0, 3), poolSize: pool.length }
   })
