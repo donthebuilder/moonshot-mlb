@@ -131,7 +131,7 @@ const STEPS = [
   {
     n: 4,
     title: 'Check the tag, not just the score',
-    body: 'A 🏆 HR Bet and a 💠 Contact are both good picks for different bets. The tag tells you which market he belongs in — betting a contact hitter to homer is the most common way to lose with a right read.',
+    body: 'A 💎 HR Bet and a 🧭 Contact are both good picks for different bets. The tag tells you which market he belongs in — betting a contact hitter to homer is the most common way to lose with a right read.',
   },
   {
     n: 5,
@@ -276,13 +276,12 @@ export default function Guide({ onNavigate }) {
              sections plus an A–Z index that repeated both. ── */}
       <Section title="Symbols you'll see on a player" emoji="🔖" defaultOpen={true}>
         <P><b style={{ color: C.text }}>The role tag — which bet he belongs in</b></P>
-        <Term icon="🏆" term="HR Bet" def="top-confidence home run play: recent power, a favourable matchup and a pitch-type fit all at once." />
-        <Term icon="🔥" term="HR Lean" def="a good home run shot, not quite airtight. Historically the best-performing tag on the site." />
-        <Term icon="🏁" term="HRR / XBH" def="extra-base hits rather than a homer specifically. Good for total-bases bets." />
+        <Term icon="💎" term="HR Bet" def="top-confidence home run play: recent power, a favourable matchup and a pitch-type fit all at once." />
+        <Term icon="📈" term="HR Lean" def="a good home run shot, not quite airtight. Historically the best-performing tag on the site." />
+        <Term icon="🧲" term="HRR / XBH" def="extra-base hits rather than a homer specifically. Good for total-bases bets." />
         <Term icon="🔭" term="Power Watch" def="real raw power, more matchup uncertainty. Monitor, don't lead with him." />
-        <Term icon="💠" term="Contact / Monitor" def="no homer projected. Can still be a fine hits pick — just not a power one." />
+        <Term icon="🧭" term="Contact / Monitor" def="no homer projected. Can still be a fine hits pick — just not a power one." />
         <Term icon="⛔" term="True Avoid HR" def="the model expects no homer and has CAPPED his score. Steer clear for power." />
-        <Term icon="↪️" term="Skip HR / redirect" def="a verdict on the market, never the player: his case is stronger on Hit, HRR or TB, and the tag says which." />
 
         <Note color={C.text3}>
           These describe what a hitter is good for in general. A separate,
