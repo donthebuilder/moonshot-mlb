@@ -284,6 +284,14 @@ export default function Guide({ onNavigate }) {
         <Term icon="⛔" term="True Avoid HR" def="the model expects no homer and has CAPPED his score. Steer clear for power." />
         <Term icon="↪️" term="Skip HR / redirect" def="a verdict on the market, never the player: his case is stronger on Hit, HRR or TB, and the tag says which." />
 
+        <Note color={C.text3}>
+          These describe what a hitter is good for in general. A separate,
+          per-game set of badges — TOP, HR, HIT, HRR, CONTACT, seen on the Bot
+          tab and the pick strips — marks the single best name per market in
+          that specific game, and a player now holds more than one when he's
+          the top choice in two markets at once.
+        </Note>
+
         <div style={{ height: 10 }} />
         <P><b style={{ color: C.text }}>The small pills — why the model likes him</b></P>
         <Term icon="⭐" term="Weak spot" def="this lineup spot has been beaten before against tonight's starter." />
