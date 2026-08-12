@@ -4,6 +4,112 @@ Everything the site currently fakes, derives, or can't validate — and the exac
 bot-side change that would fix it. Nothing here is a site bug. These are all
 fields the dashboard wants and the published payload doesn't carry.
 
+## Live audit, 2026-08-12 — status corrections + three new gaps
+
+Triggered by a real matchup question (Miguel Vargas / Nick Lodolo, tonight's
+slate) that turned into a source check of `mlb_dashboard.py` and
+`live_results_tracker.py`, plus a full field-by-field diff of `HitterRecord`
+against `SLOT_FIELDS`. Documentation only — nothing below has been implemented.
+
+**Stale, mark resolved:**
+
+- **Checklist rows 1–3 / section "## 1." below (`actual_k`/`actual_bb`/
+  `actual_doubles`/`actual_triples`)** — already shipped. `live_results_tracker.py`
+  writes all four at grade time ("actual_k rides every graded slot" comment,
+  ~line 1461); `Results.js` line 385 reads `actual_k` directly. Note for anyone
+  chasing the file reference: this doc calls the tracker `grade_results_tracker.py`
+  in the intro and the checklist table, and `live_results_tracker.py` in section
+  "## 1." — the real file on disk is `live_results_tracker.py`; there is no
+  `grade_results_tracker.py` in the repo.
+- **"Getting the HR pick to actually hit" → "Fix the HR ranking," quick path**
+  (swap the HR slot's sort key from `hr_score` to `overall_score`) — superseded,
+  twice over. `game_pick_type_map()` (mlb_dashboard.py ~9585) got that exact
+  swap on 2026-08-05 (Docket #14/#17, comment on the function). Then
+  `build_game_pick_role_map()` (~9191, "MINI-BOT AUDIT," 2026-08-08) — the
+  function that actually writes the archived `game_pick_role`, confirmed via
+  `live_results_tracker.py:11938` — replaced BOTH hr_score and overall_score as
+  the HR/TOP sort key with a dedicated power rank
+  (`100×season_iso + 10×last5_hr + 0.35×hr_score`) after its own backtest beat
+  both (TOP 22.9%, HR 18.4%, combined 20.6% vs 17.9% shipped, per its own
+  comment). Re-measured on the full archive since (59 nights, 5,766 slots):
+  replaying the real algorithm's structure — TOP excludes first, then the
+  ISO-floor/trap cascade — hr_score and overall_score come out statistically
+  tied as the final tiebreaker (17.2% vs 16.3% HR rate, n=790 games). No case
+  to touch this further.
+- **Items #19/#20 below (max distance, xHR/luck)** — code re-confirmed present
+  in `mlb_dashboard.py` (18 matches across `season_xhr`/`season_hr_luck`/
+  `recent_max_distance`/`season_max_distance`). Push-to-`origin/main` status not
+  re-checked this pass.
+
+**Gap 1 — the pick-eligibility gate can't be audited.** `build_game_pick_role_map()`'s
+`_power_slot()` (mlb_dashboard.py ~9210) requires `season_pa >= 15` before a
+hitter can fill the TOP or HR slot. `season_pa` is not in `SLOT_FIELDS`
+(`live_results_tracker.py` ~1283) — so by construction (`trim_row` drops
+anything not in the whitelist) it is 0% present in every graded file. There is
+currently no way to check, after the fact, whether that eligibility gate ever
+excluded the right hitter — or wrongly excluded someone on a thin early-season
+sample. One-line addition to `SLOT_FIELDS`.
+
+**Gap 2 — weak-side calls can't be audited (the Vargas/Lodolo case).** Tonight's
+pitcher card read "WEAK SIDE — none published" for Nick Lodolo, despite a real
+handedness split (HR/9 vs RHB 1.51, vs LHB 0.60). Traced the field:
+`pitcher_weak_side` itself is NOT broken or unused — it's wired into scoring at
+six-plus call sites (mlb_dashboard.py 6230-6235, 7452, 7541, 9092, 9872,
+9963-10233) and it IS already in `SLOT_FIELDS`. What produces it is
+`side_weakness()` (mlb_dashboard.py ~2831): a 7-stat composite (HR/9 27%, SLG
+22%, ISO 16%, OPS 13%, BABIP 7%, WHIP 5%, BA 10%), confidence-scaled by batters
+faced (`min(1, max(0, (bbe-10)/20))`, so it's near-zero under ~10 BBE and full
+trust only at 30+), and gated at assignment: both sides need 15+ batters faced,
+AND the weaker side's composite score must beat the other by 12%+ **and** clear
+an absolute floor of 45 (~line 2855-2866) — otherwise `weak_side` is set to `""`
+on purpose. So a blank weak-side card is very likely this gate correctly
+declining to call a thin or composite-ambiguous split, not a bug — a 2.5×
+raw HR/9 gap can still fail the 12%/45 bar once diluted across the other six
+stats. The real gap: **none of the fields that would let someone check that call
+are archived.** `pitcher_hr9_vs_lhb`, `pitcher_hr9_vs_rhb`, `pitcher_weak_side_score`,
+`pitcher_weak_side_gap` are all computed, all live on `HitterRecord`
+(mlb_dashboard.py 1052-1053, 1101-1102), and none are in `SLOT_FIELDS`. Add
+those four and every weak-side verdict — including the blank ones — becomes
+independently checkable instead of taken on faith.
+
+**Gap 3 — the user's original ask, corrected.** Requested: stamp `final_hr_role`,
+`beginner_label` and `damage_conversion_score` onto every graded slot, "the
+same way hr_score already is," because that tier is what the whole 💎/📈
+system rests on. Checked against `SLOT_FIELDS`: **`final_hr_role` is already
+there** (line ~1305) — it's the literal field that carries the emoji tier
+(⛔ True Avoid HR / 💎 HR Bet / 🔭 Power Watch / 📈 HR Lean / 🧲 HRR-XBH /
+🧭 Contact-Monitor, set at mlb_dashboard.py ~6097-6142). So the premise that
+this tier is ungraded and is "the single biggest hole in the archive" is stale
+— it isn't, and hasn't been since `final_hr_role` was added to the whitelist.
+`beginner_label` and `damage_conversion_score` genuinely are missing, though,
+confirmed via the field diff below — worth adding for exactly the reason
+given: `damage_conversion_score` alone feeds `hr_score`'s blend (mlb_dashboard.py
+~6752) and several board-tag thresholds (~5601, ~5643, ~7415), so it should be
+backtestable the same way any other scoring input is.
+
+**Broader sweep — 290 of 359 `HitterRecord` fields never reach the archive.**
+Ran a full diff of every scalar field declared on `HitterRecord` against
+`SLOT_FIELDS` (regex-based field scan, not a verified AST parse — treat the
+359/79 counts as approximate). Most of the 290 are correctly excluded on
+purpose — legacy/versioned score variants (`hr_score_legacy`, `hr_score_old`,
+`hr_score_v2`, `hr_score_pure`, `*_delta`), and heavy nested payloads
+(`spray_chart`, `contact_log`, `batted_ball_log`, `pitcher_pitch_mix`) that
+`trim_row`'s own docstring says to drop. Beyond gaps 1-3 above, the cluster
+most worth a look is the **explanation-text fields** — the human-readable
+"why" behind a badge, none of them archived: `trap_reason`, `hidden_value_reason`,
+`risk_reason`, `matchup_reason`, `matchup_label`, `top_pick_reason`,
+`damage_conversion_label`, `damage_conversion_reasons`, `hr_reason`,
+`hit_reason`, `hrr_reason`, `contact_reason`, `simple_reason_1/2/3`,
+`advanced_reason`. These are exactly the strings behind the tap-to-reveal
+explanations on PlayerCard (site-side, fixed 2026-08-12) — right now none of
+that reasoning can be checked against what actually happened after the game.
+Not proposing all 290; flagging this specific cluster because it's the same
+"the site displays it, the archive can't grade it" pattern the 2026-08-11
+SIGNAL AUDIT section below already established, just not yet swept for text
+fields.
+
+---
+
 ## THE CHECKLIST — every missing field, with its exact file point
 
 Verified against the copies of `grade_results_tracker.py` and
