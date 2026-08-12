@@ -108,6 +108,107 @@ Not proposing all 290; flagging this specific cluster because it's the same
 SIGNAL AUDIT section below already established, just not yet swept for text
 fields.
 
+**Shipped, same day:** all seven fields named in Gap 1-3 above
+(`season_pa`, `pitcher_hr9_vs_lhb`, `pitcher_hr9_vs_rhb`,
+`pitcher_weak_side_score`, `pitcher_weak_side_gap`, `beginner_label`,
+`damage_conversion_score`) were added to `SLOT_FIELDS`
+(`live_results_tracker.py` ~1347) the same day this section was written.
+Commit `1904aac` in bot-ship. Not yet pushed to `origin/main` — run
+`git push` from bot-ship to ship it; grading from tonight's slate onward
+will carry all seven.
+
+## Matchup quality: already in hr_score, just not always named on the card
+
+Follow-up to Gap 2. Checked whether "matchup quality" (pitch-mix fit,
+handedness weakness) is actually missing from *scoring* as opposed to
+missing from the *card*. It is not missing from scoring:
+
+- **Pitch-mix fit** (`pitch_type_match_score`) is one of the two strongest
+  single predictors the bot has ever backtested into `hr_score` — 23.9% HR
+  rate when present vs 9.5% when absent (mlb_dashboard.py ~6672-6678,
+  22-day/241-row backtest) — and the "aligned stack"
+  (weak_spot + pitch_match + ISO≥.200) hits 27.4% vs a 14.3% base
+  (~6638-6648, the 2026-08-08 MINI-BOT AUDIT). Both terms are live in
+  `hr_raw` today.
+- **Weak-side handedness** feeds `hr_score` continuously through
+  `pitcher_weak_side_score` / `pitcher_weak_side_gap`
+  (`_wk_side_norm`/`_wk_gap` → `weak_side_bonus`, ~6230-6244) —
+  this runs regardless of whether the categorical `pitcher_weak_side`
+  label clears its display gate. The ONLY thing the gate withholds is a
+  1.25× confirmation multiplier on top of that base bonus (`_is_weak_side`,
+  ~6242-6243) and the on-card text. So Lodolo's "WEAK SIDE — none
+  published" card tonight still had a nonzero weak-side bonus baked into
+  Vargas's `hr_score` from the raw split — the card just couldn't
+  *say* which side, and missed the extra 25%.
+
+Net: no scoring change is indicated here. The real gap was archival
+(fixed above) — with `pitcher_weak_side_score`/`_gap` now landing in
+`SLOT_FIELDS`, the 45-floor/12%-gap gate itself becomes backtestable
+(does the bonus correlate with `got_hr` even below the gate's threshold?
+That was previously unanswerable and now isn't, once a few weeks of
+grading collects under the new fields).
+
+## Pick-slot overlap: TOP excluding HR's true best candidate, quantified
+
+Donovan's question: is forcing five *distinct* players into TOP/HR/HIT/
+HRR/CONTACT costing real HR-pick accuracy, specifically when the game's
+best `hr_score` candidate gets swept into TOP first and HR falls back to
+a weaker second choice? Not implemented — analysis only, per "I want to
+know what you think before changing that."
+
+**Method.** Two independent checks against `graded_results_*.json`
+(60 files, 2026-04-16 → 2026-08-09):
+
+1. *Naive overlap, no exclusion.* For every game, independently took the
+   top-1 hitter by each of today's five role formulas (TOP's
+   `100×season_iso + 10×last5_hr + 0.35×hr_score`, plus raw `hr_score`,
+   `hit_score`, `hrr_score`, `contact_score`) with no cross-role
+   exclusion, over the PA≥15-eligible pool. n=790 games, full archive.
+   Result: 5 distinct winners in only **2.7%** of games. 1 single player
+   is the naive #1 in *all five* categories at once in **7.0%**. The
+   remaining mass splits 4-distinct 17.6%, 3-distinct 44.1%,
+   2-distinct 28.7%. (This runs today's formulas retroactively across
+   the whole archive as a clean counterfactual — it is not a replay of
+   what actually shipped on each historical night.) TOP's pick and the
+   naive best `hr_score` player are the same person **63.9%** of the
+   time (505/790) — expected, since TOP's formula already weights
+   `hr_score` and ISO tracks it closely.
+2. *Real cost of the substitution.* Restricted to games with an actual
+   archived `game_pick_role` (334 games, 2026-06-09 → 2026-08-09; narrows
+   to 168 games on the 2026-07-27 → 2026-08-09 stretch — the
+   continuously-populated recent window). Of those 168, TOP's exclusion
+   forced an HR substitution in **129** of them — notably the same n
+   Donovan cited independently. Comparing the player who actually wore
+   the HR badge that night against the player who would have worn it
+   with no TOP/HR exclusion, on those 129:
+   - Official HR-pick (the forced substitute): **13.2%** actual HR rate.
+   - Excluded true-best-`hr_score` player: **29.5%** actual HR rate.
+   - Raw split on the 41 games where they disagreed: excluded player
+     homered and the badge-holder didn't 31 times; badge-holder homered
+     and the excluded player didn't 10 times. McNemar's χ²≈10.76
+     (p<0.01) — not noise at this sample size.
+   - Average `hr_score` given up in the swap: 10.2 points (median 7.5;
+     42% of substitutions gave up 10+ points, 13% gave up 20+).
+   - Sanity check: in the 111 recent games where no substitution was
+     needed (naive best already was the archived HR pick), hit rate was
+     11.7% — the "needed a substitute" bucket's excluded player (29.5%)
+     outperforms even that, because by construction it's the subset
+     where the best `hr_score` candidate ALSO happened to be the best
+     TOP candidate, i.e. the strongest overlap cases.
+
+**Reproduction note:** analysis scripts are
+`results/_pickslot_analyzer2.py` and `results/_overlap_sim.py` (left in
+the results folder on disk, not committed — scratch tooling, not
+shipped code). `_sim_batch*.jsonl` / `_ps2_*.jsonl` are the raw
+per-game output if this needs to be re-cut with different filters.
+
+**Read:** the data supports doing exactly what Donovan proposed —
+let TOP be the only role that can double as HR (drop the mutual
+exclusion between just those two slots; leave HIT/HRR/CONTACT excluding
+both), rather than either forcing five distinct names or collapsing the
+role count. Not yet implemented — see the same day's chat for the full
+reasoning and the open question of whether to extend this past HR/TOP.
+
 ---
 
 ## THE CHECKLIST — every missing field, with its exact file point
