@@ -207,6 +207,13 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
     })
   }
   const [mode, setMode]         = useState('default')
+  // 2026-08-12, Donovan: "maybe be able to order h/9 or whip and score."
+  // Default stays chronological on purpose — GameStrip's own header comment
+  // is explicit about why ("you read a slate chronologically -- re-ranking
+  // by strength makes you hunt for the 7:05 game you're about to bet"), and
+  // that's still true. This adds sorting as something you turn ON, not a
+  // replacement for the default.
+  const [sortBy, setSortBy]     = useState('time')
   const [activeGame, setActive] = useState(null)
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
   // page to a card buried under ten others — "flies all the way to the
@@ -295,6 +302,25 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
           ? 'which hitter the bot designated in each game, and in which market — the five category bars show whether it likes him for power or for contact.'
           : 'which game to spend your attention on. Bigger, brighter cards are the matchups where the board stacks highest; tap one to open the full deep-dive in place.'}
       </div>
+
+      {/* Sort control (2026-08-12) — Default/Bot Output only. Time is the
+          default and matches first pitch; the other three re-order the same
+          cards by a single number instead of leaving you to eyeball the
+          heat-sizing. Not shown in Lineups mode, where the strip is a jump
+          bar, not the thing you're reading. */}
+      {mode !== 'lineups' && (
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
+          {[['time', 'Time'], ['gs', 'Score'], ['hr9', 'Worst HR/9'], ['whip', 'Worst WHIP']].map(([k, label]) => (
+            <button key={k} onClick={() => setSortBy(k)} style={{
+              padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+              border: `1px solid ${sortBy === k ? C.orange : C.border}`,
+              background: sortBy === k ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: sortBy === k ? C.orange : C.text3,
+            }}>{label}</button>
+          ))}
+        </div>
+      )}
 
       {/* Lineups keeps the strip as its sticky jump bar; Default and Bot
           Output render the card grid as the page itself, below. */}
@@ -699,7 +725,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
           the grid; clicking the card (or its header) again closes it. */}
       {mode !== 'lineups' && (
         <>
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} />
+          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {games.filter((g) => g.game_pk === activeGame).map((g) => {
                 const picks = picksFor(g)

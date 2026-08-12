@@ -44,7 +44,7 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time' }) {
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -117,6 +117,14 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         past: isPast(g.game_time),
         confirmed: !!g.lineup_confirmed,
         gs: med(gp.map(playerScore)),
+        // Worst-arm figures for the sort control (2026-08-12, Donovan: "order
+        // h/9 or whip and score"). Each hitter row already carries
+        // pitcher_hr9/pitcher_whip for the arm THEY personally face, so the
+        // higher of the two starters' numbers found across this game's rows
+        // is "how leaky is the leakier of tonight's two arms" — same idea as
+        // gs, one specific stat instead of the blended board score.
+        worstHr9: gp.length ? Math.max(...gp.map((x) => nn(x?.pitcher_hr9))) : 0,
+        worstWhip: gp.length ? Math.max(...gp.map((x) => nn(x?.pitcher_whip))) : 0,
         hrw: med(gp.map((x) => nn(x?.hrw_score))),
         weak: gp.filter((x) => x?.weak_spot_flag).length,
         venue: head?.venue_name || '',
@@ -130,13 +138,25 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
     const lo = Math.min(...gsAll), hi = Math.max(...gsAll)
     const byGs = [...built].sort((a, b) => b.gs - a.gs)
     const rankOf = new Map(byGs.map((c, i) => [c.pk, i + 1]))
-    return built.map((c) => ({
+    const withRank = built.map((c) => ({
       ...c,
       edge: c.gs >= slateMed ? '▲' : '▽',
       heat: hi > lo ? (c.gs - lo) / (hi - lo) : 0.5,
       gsRank: rankOf.get(c.pk) || 0,
     }))
-  }, [games])
+    // DISPLAY ORDER ONLY (2026-08-12). gsRank/heat/band above still always
+    // mean "vs tonight's GS" — the ghost numeral and the 🌋 MAIN EVENT badge
+    // don't change meaning when a different sort is active, they just may
+    // not read 1,2,3 top-to-bottom anymore. `games` already arrives in
+    // chronological order (groupGames sorts it), so 'time' is a no-op here;
+    // the other three just re-order the same cards by a different number.
+    const SORTERS = {
+      gs: (a, b) => b.gs - a.gs,
+      hr9: (a, b) => b.worstHr9 - a.worstHr9,
+      whip: (a, b) => b.worstWhip - a.worstWhip,
+    }
+    return SORTERS[sortBy] ? [...withRank].sort(SORTERS[sortBy]) : withRank
+  }, [games, sortBy])
 
   if (!cards.length) return null
 
@@ -296,7 +316,10 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       </div>
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 7 }}>
-        First-pitch order, heat-tinted and heat-SIZED — 🌋 marks tonight's MAIN EVENT (highest GS), 🔥 runs hot, 🧊 runs cold; the ghost numeral is the game's GS rank. The warmer a card glows and the wider it
+        {sortBy === 'gs' ? 'Sorted by Game Score, hottest first'
+          : sortBy === 'hr9' ? "Sorted by the leakier starter's HR/9, worst first"
+          : sortBy === 'whip' ? "Sorted by the leakier starter's WHIP, worst first"
+          : 'First-pitch order'}, heat-tinted and heat-SIZED — 🌋 marks tonight's MAIN EVENT (highest GS), 🔥 runs hot, 🧊 runs cold; the ghost numeral is always the game's GS rank, even when sorted by something else. The warmer a card glows and the wider it
         stretches, the higher its{' '}
         <strong style={{ color: C.text2 }}>GS</strong> (Game Score: the median of every hitter&apos;s
         four board scores, then the median across the lineup — &ldquo;is this whole lineup
