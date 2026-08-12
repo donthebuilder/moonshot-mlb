@@ -360,7 +360,8 @@ number rather than a noisy split.
 
 ## #20 — Expected home runs from contact (the "luck" layer)
 
-**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit a946f22, awaiting push):
+**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit a946f22 — confirmed
+pushed and on `origin/main` as of the 2026-08-12 verification pass below):
 league (EV, LA) bucket table accumulated from the per-batter season pulls
 (batter side only — no double counting), persisted per run so spray-chart
 `hr_class` uses the prior run's table. Ships season_xhr / season_hr_luck /
@@ -407,10 +408,12 @@ where statcast tracked them (same trap as docket #19).
 
 ## #19 — Publish max/avg tracked distance per hitter (Longest board gap)
 
-**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit 4465106, awaiting push):
+**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit 4465106 — confirmed
+pushed and on `origin/main` as of the 2026-08-12 verification pass below):
 all four fields below plus a cache-key bump (v5→v6) so cached statcast
-profiles recompute instead of serving zeros. Site columns light up on the
-first slate published after the push.
+profiles recompute instead of serving zeros. Site columns should already be
+live; if they're not, the bug is downstream of this commit, not a missing
+push.
 
 Requested 2026-08-06. The Longest HR board ranks WHO hits the farthest ball
 tonight, but the slate rows never carry how far anyone has actually hit one —
@@ -783,5 +786,164 @@ Two structural notes that matter for reading any of this:
   who walked twice is scored a failure. CONTACT's 38.2% is therefore a floor,
   not an estimate. This is the same gap as §1 and it distorts a real category
   today, not just a hypothetical audit.
+
+---
+
+## Verification pass, 2026-08-12 — THE CHECKLIST against actual current code
+
+Prompted by "search previous threads for comments and concerns and fix them."
+Most of this file's own checklist turned out to be stale in the *good*
+direction — items marked open here had already shipped, just never got the
+line struck through. Went through every numbered item plus the standalone
+audits below it against the live bot-ship tree, not against this doc's
+memory of itself. Confirmed-shipped items aren't touched again; the point of
+this pass was to stop them still reading as open.
+
+**#1–10 (actual_k/bb/doubles/triples, season_tb/ab/doubles/triples/babip,
+hrw_score/pitch_mix_score/top_board_score_v2/recent_375_num,
+pitcher_name/id/throws, weather_temp_f/weather_wind_mph/park_factor onto
+graded slots) — all shipped.** Confirmed by reading `live_results_tracker.py`
+(the file this doc still calls `grade_results_tracker.py` — renamed at some
+point) directly: `grade_slot()` line ~1536 carries `actual_k`/`actual_bb`/
+`actual_doubles`/`actual_triples`; `SLOT_FIELDS` carries `hrw_score`,
+`pitch_mix_score`, `top_board_score_v2`, `recent_375_num`, `pitcher_name`,
+`pitcher_id`, `weather_temp_f`, `weather_wind_mph`, `park_factor` under a
+dated "Docket #8-10 (2026-08-05)" comment block already in the file.
+`season_tb/ab/doubles/triples/babip` are declared on `HitterRecord`, read in
+`flatten_season_hitting()` from `stat["totalBases"]` etc., and wired into
+every row at construction time.
+
+**#11 — `pitcher_gb_rate`/`pitcher_ld_rate`/`pitcher_popup_rate` — was
+genuinely open, fixed today (commit `527b2ed`).** This was real: grepped the
+whole bot for those three names and got zero hits before the fix.
+`Pitchers.js` line 764's caption was telling users, in the product, "the bot
+publishes pitcher_gb_rate and pitcher_ld_rate as zero on all 268 rows."
+`build_pitcher_statcast_profile()`'s `_metrics()` helper was already reading
+`bb_type` off the pitcher's own statcast pull to build `statcast_fb_rate` —
+it just never bucketed `ground_ball`/`line_drive`/`popup` out of the same
+column. Added those three buckets, wired them through `PitcherSummary` →
+`HitterRecord.pitcher_gb_rate/pitcher_ld_rate/pitcher_popup_rate` →
+`SLOT_FIELDS`, bumped the statcast cache key (v6→v7) so it doesn't sit on
+placeholder defaults for a day. Pitchers.js caption corrected to stop
+claiming the flat-0 behavior — it does **not** yet add GB/LD/popup as their
+own table columns, since that's a layout change and wasn't part of this pass.
+
+**#12 — `alt_look_tag` — shipped**, already computed and already in
+`SLOT_FIELDS`. The "Is ALT LOOKS worth tracking?" section above (its own
+answer was "unknown and untrackable, one bot line fixes it") is resolved —
+that line landed at some point after it was written.
+
+**#13 — `pitcher_l5_*` block — still open, small, low priority.** Only
+`pitcher_l3_*` exists (era/whip/hr9/starts_found, ~line 1155). Same query
+window as L3, just n=5 instead of n=3 — mechanical to add. Lower urgency
+than it looks: the Pitchers guide caption already tells users to read L3 "as
+a direction rather than a rate" and to check L3 GS before trusting it, so the
+small-sample problem L5 would partially help with is already being managed
+on the display side.
+
+**#14 — ISO folded into `hr_score` — already substantially done, just not
+via the literal mechanism this doc described.** `hr_score_v2` carries
+`iso_power_boost = 0.65 * norm(season_iso, .12, .32) + 0.35 * recent_power`
+as a direct weighted term, and `overall_score` separately carries
+`_iso_component = norm(season_iso, .08, .32) * 100` at weight 0.06, next to
+a comment reading "ISO now a direct component (confirmed strongest stable
+signal across both May and June)." There's a dated reweighting trail in the
+surrounding comments (iso 0.14→0.16 in one pass). Today's TOP/HR double-up
+also added an explicit ISO≥.180 floor ahead of the ranking step. What the
+"Getting the HR pick to actually hit" section below specifically proposed —
+swap the ranking sort key to `overall_score`, or rebuild `hr_score` around
+ISO and re-test — has **not** happened as a discrete, re-verified swap; ISO's
+weight has grown incrementally instead of that one clean before/after test
+being run. If the quartile-spread gap (overall_score +7.3 vs hr_score +4.7
+on HR outcome) still holds on the current archive, that specific test is
+still worth running. Didn't re-run it this pass — flagging, not re-deciding.
+
+**#15 — pair-history hit/HRR counts — can't verify, found something worth a
+second pair of eyes.** `mlb_dashboard.py` imports
+`load_pair_history_cache`/`attach_pair_history_to_payload`/`player_hr_pa`
+from `pair_history_helper` (falling back to `pair_history_helper_v2`, then a
+stub that sets `pair_history_schema: "missing_helper"` if both imports
+fail). **Neither file exists anywhere in the bot-ship tree** — the only
+pair-history file present is `pair_history_cache.py`, which defines a
+completely different set of functions (`build_pair_record`, `pair_score`,
+`apply_boosts`, `copy_to_site` — reads like a standalone cache-builder script,
+not an import target) and does not define any of the three names the import
+is looking for. Two explanations, and only Donovan can tell which: (a) the
+real helper lives outside this git repo (deployment-only, common enough for
+glue code) and the import resolves fine in production, or (b) the import has
+been silently hitting the stub fallback since whenever the helper was last
+touched, meaning `pair_history_cache_loaded` is `False` and every downstream
+consumer of pair history has been running degraded. Could not settle it from
+here — the live slate JSON that would show `pair_history_schema` in practice
+is published to a separate repo this session can't reach. **Worth a direct
+check before anything else touches pair history**, including the original
+same_day_hit_count/same_game_hit_count/same_day_hrr_count ask.
+
+**#16 — park dimensions (Camden/Daikin/Fenway) — shipped.**
+`PARK_DIMENSIONS` now has Camden at `lf:333, lcf:384` (line was wrong before,
+now correct), Fenway at `rcf:420` (the triangle), and Daikin Park as its own
+keyed entry at `lf:315` (Crawford Boxes) rather than falling through to a
+generic default — same dual-key-alias pattern already used for "Camden
+Yards" / "Oriole Park at Camden Yards".
+
+**#17 — trap_flag self-contradiction on the HR pick — resolved, but by a
+different, evidence-based decision, not the fix this doc proposed.** Found
+the actual call already made, dated 2026-08-08, sitting right next to
+`build_game_pick_role_map()`: a full replay found trap_flag graded 15.5% vs
+15.3% as a pick-selection filter (708/1344) — "pure noise as a selector,"
+explicitly removed from the selection chain and **kept only as an
+independent display caution.** So a player can still show `game_pick_role:
+HR` and `trap_flag: true` together, on purpose — the pick uses the signals
+that measurably predict outcomes (ISO, power rank), and the trap pill is a
+separate, independently-true piece of information, not a vote in the same
+election. Did not add a trap_flag filter to today's `_hr_slot()` — doing so
+would contradict this exact tested finding. One loose thread: `pick_type`'s
+own HR tier (`game_pick_type_map`, not `game_pick_role`) *does* still filter
+on `not trap_flag` in its tiering — inconsistent with the finding above,
+unclear if that's deliberate (pick_type is the narrower, less-consumed
+field) or just never got the same update. Left alone this pass.
+
+**#18 — Bullpen module — confirmed not built.** Zero occurrences anywhere in
+`mlb_dashboard.py` of `opp_pen_hr9`, `opp_pen_fresh_hr9`, `opp_pen_lhp_share`,
+or `batter_vs_relief_ops`. This is a large spec (full per-reliever pull, new
+scoring terms) — not attempted in this pass. Needs a scoping decision, not a
+quick fix.
+
+**#19 / #20 — both confirmed pushed.** `git show a946f22 --stat` and
+`git show 4465106 --stat` both resolve locally, and `git branch --contains`
+for each returns `main` / `origin/main`. The "awaiting push" notes on both
+sections above were stale; corrected in place. If the site still isn't
+showing xHR/luck or max/avg distance, the gap is downstream of these commits
+(the site's own repo, or the publish step), not a missing `git push`.
+
+**Situational splits (RISP / ahead-in-count / two-strikes / fatigue /
+tonight's-venue) — confirmed not built, and not the same thing as
+`player_splits.py`.** `bots/player_splits.py` exists and runs, but it pulls
+day/night, home/away, day-of-week and win/loss splits via MLB's `gameLog`
+endpoint, publishing to `public/data/current/splits/<slate>/<player>.json`
+for the site's on-demand modal context (`lib/situational.js`) — it is not
+imported anywhere in `mlb_dashboard.py` and doesn't touch scoring. The seven
+fields this section actually specified (`pitcher_fatigue_hr9_delta`,
+`pitcher_hr9_tonight_venue`, `pitcher_short_rest_flag`,
+`batter_iso_tonight_venue`, `batter_risp_ops`, `batter_ahead_slg`,
+`batter_two_strike_ops`) use a different API mechanism (`statSplits` +
+`sitCodes`) and don't exist anywhere in the bot. Genuinely open, and
+substantial — seven new per-player API calls plus four new scoring-term
+insertions with weights the section itself says need calibrating against
+graded outcomes before they're trusted. Not attempted blind in this pass.
+
+**Weather/park-factor "unverifiable" complaint (Audit, 2026-08-04) —
+shipped.** `weather_temp_f`, `weather_wind_mph`, `park_factor`,
+`park_hr_factor` are all in `SLOT_FIELDS` already, plus a further round
+added 2026-08-11 (`weather_hr_effect_pct`, `wind_boost`, `park_dist_factor`,
+`weather_label`, etc.) under its own dated comment block.
+
+**Net: of the 17-item checklist plus the four standalone audit sections it
+sits under, one item was genuinely open and got fixed today (#11), one is a
+small mechanical add not worth rushing (#13), one resolves to a documented
+decision rather than a bug (#17), one needs eyes rather than code
+(#15, pair-history helper), and two are real, substantial, unbuilt features
+that need a scoping call, not a quick patch (situational splits, bullpen
+module). Everything else on the list had already shipped.**
 
 This is now on the site under Results → Picks → *Did its job*, not buried here.
