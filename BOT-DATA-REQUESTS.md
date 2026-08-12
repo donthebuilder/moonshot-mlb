@@ -206,8 +206,50 @@ per-game output if this needs to be re-cut with different filters.
 let TOP be the only role that can double as HR (drop the mutual
 exclusion between just those two slots; leave HIT/HRR/CONTACT excluding
 both), rather than either forcing five distinct names or collapsing the
-role count. Not yet implemented — see the same day's chat for the full
-reasoning and the open question of whether to extend this past HR/TOP.
+role count.
+
+**Shipped, same day.** `build_game_pick_role_map()` (mlb_dashboard.py
+~9191) — HR now ranks by raw `hr_score` over TOP's own PA/ISO-eligible
+pool, no longer excluding TOP's player. `role_map`'s existing
+`"/".join(v)` already supported a combined tag; it just never fired
+before. Commit `d734ba9` in bot-ship. Site side: three spots matched
+`game_pick_role` exactly against one category and would have silently
+dropped a double-up player from the HR-specific view —
+`components/tabs/Bot.js` (board tabs + counts), `BotPicksStrip.js`
+(bucket filter), `TheRead.js` (category pool). All three now check
+every `/`-separated tag instead of just the first. Commit `d6c518e` in
+moonshot-push. Single-badge display spots (GameStrip, PlayerCard,
+RankedBoard, GameCockpit, LiveWire, and the rest that just print ONE
+primary tag) were deliberately left alone — showing "TOP" as the
+primary label for a double-up player is correct there, not a bug.
+
+**Reference backtest: the same exclusion-cost test, run on HIT/HRR/CONTACT.**
+Not implemented, not proposed — Donovan asked for these numbers
+alongside the HR change, not a fifth role change. Same method as
+above (naive best-by-that-role's-own-score, no exclusion, vs the
+actual archived badge-holder, on the 2026-07-27 → 2026-08-09 window):
+
+| role | substituted games | official hit rate | excluded-true-best rate | gap | χ² |
+|---|---|---|---|---|---|
+| HR | 129 | 13.2% | 29.5% | +16.3pp | 10.76 (p<0.01) |
+| CONTACT | 98 | 28.6% | 52.0% | +23.4pp | 9.98 (p<0.01) |
+| HRR | 106 | 54.7% | 61.3% | +6.6pp | 1.00 (n.s.) |
+| HIT | 64 | 67.2% | 73.4% | +6.2pp | 0.73 (n.s.) |
+
+HR and CONTACT both show a real, statistically significant cost from
+their exclusion (CONTACT's is actually the larger gap — 23.4 points,
+average 15.3 `contact_score` points given up in the swap). HIT and HRR
+don't clear significance at this sample size — both are easier,
+higher-base-rate outcomes (a single hit or 2+ combined H/R/RBI happens
+far more often than a home run or 2+ total bases), so there's less
+room for the exclusion to matter and the gap that exists could be
+noise. Two differences worth flagging before reading CONTACT as "do
+the same fix again": CONTACT's exclusion isn't a clean pairwise
+overlap with one other role the way TOP/HR was — it sits at the end of
+the pipeline, excluded by whichever of TOP/HR/HIT/HRR got there first
+— so "let CONTACT double up" doesn't have an obvious single partner
+role the way HR/TOP did. Worth its own look if it's wanted, not a
+same-day extension of this one.
 
 ---
 
