@@ -947,3 +947,51 @@ that need a scoping call, not a quick patch (situational splits, bullpen
 module). Everything else on the list had already shipped.**
 
 This is now on the site under Results → Picks → *Did its job*, not buried here.
+
+---
+
+## Pairs/Pools mismatch — found and fixed, 2026-08-12
+
+Donovan: "the pairs on results show up different than the pairs on the pairs
+page and the pools... idk where the pair builder thing came from." Two
+independent, compounding bugs, both fixed same day.
+
+**1. The 6-man retirement's replacement never reached the key the site was
+already reading.** 6-man pools were retired 2026-08-09 (archive: hitting all
+six legs is ~1-in-34,000, zero for 160 tries) and replaced with two 3-man
+pools inside `_build_pair_sections()`. The replacement data was aliased into
+variables still named `pool6_a..d` "so downstream consumers keep working,"
+and shipped in the JSON under the OLD `pools_6man` key. `Pools.js` — updated
+the SAME day — was already reading a `pools_3man` key that never existed
+on the bot side. Real 3-man pools have been arriving under
+`pools_6man` and displaying with a "(retired)" label ever since, on both the
+Pairs tab and Pools tab. Fixed: `pools_3man` now carries the real data;
+`pools_6man` ships genuinely empty. Bot commit `a6945ca`, site commit
+`632c69f` (the site fix also covers two gaps the bot fix would have exposed:
+`Pairs.js` never read `pools_3man` at all, and `Pools.js`'s empty-state check
+didn't either).
+
+**2. Grading fell back to a third, different pair generator more often than
+it needed to.** `load_pair_builder_sections()` (the grader) only checked the
+shared `pair_builder_latest.json`, which the next slate's run overwrites —
+any grading run after a newer slate had already generated found "latest"
+stamped with the wrong date and gave up straight to an internal rebuild
+(`build_pair_pool_sections()`) that uses an entirely different selection
+algorithm, even though a dated archive file (`mlb_pair_builder_{date}.json`)
+sits right next to "latest" the whole time, unused. Fixed: tries the dated
+file before giving up to the internal rebuild. That rebuild's own pools were
+also still sized/labeled 6-man; renamed to 3-man to match, though its
+algorithm still differs from System 2's — it's the emergency fallback, not
+meant to be pixel-identical to what was shown live.
+
+Verified with `bots/smoke_test.py` (full/6-row/empty slate, all clean) plus
+the site's four check scripts.
+
+**`pair_history_helper.py`/`_v2` is unrelated — confirmed dead code, not a
+bug.** Raised in an earlier pass as a concern (imported in `mlb_dashboard.py`
+but the file doesn't exist anywhere in the repo). Turns out the function it
+resolves to, `attach_pair_history_to_payload()`, is imported but **never
+actually called** — so whether the import succeeds or falls back to its stub
+changes nothing. Real pair history is built entirely separately by
+`pair_history_cache.py`. Safe to ignore or delete the dead import whenever
+someone wants to.
