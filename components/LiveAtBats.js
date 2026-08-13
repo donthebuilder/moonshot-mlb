@@ -28,10 +28,22 @@ import { teamAbbrs } from '../lib/gamelogs'
 // ORDERED BY YOUR SKIN, not by game time. A pick at the plate outranks a
 // watchlist name, which outranks a stranger, because the one thing this strip
 // is for is telling you where to look.
+//
+// 2026-08-13, Donovan: "i dont like the design of the page how its like side
+// ways" → confirmed target: this rail's horizontal scroll. WRAPS now instead
+// of scrolling sideways, same ParkBoard idiom (flex-wrap + cap the default
+// count + a "show all" tap) so a heavy night — eight, ten games with someone
+// up — doesn't turn into a wall either. A caller that passes an explicit
+// `max` (a compact widget elsewhere, sized for a fixed slot) keeps its hard
+// cap and no button; only the uncapped case (this page's own usage) gets the
+// expand affordance, since only it can actually grow past a screenful.
+const DEFAULT_SHOWN = 6
+
 export default function LiveAtBats({
   players = [], watchIds, onGo, onPlayerClick, compact = false, max = 0,
 }) {
   const [snap, setSnap] = useState(null)
+  const [showAll, setShowAll] = useState(false)
   // 2026-08-13, Donovan: "difficult to understand the teams or the games
   // going on." The card carried a score and never said whose -- "4-1" means
   // nothing without the two sides. teamAbbrs() is the existing cached
@@ -86,6 +98,12 @@ export default function LiveAtBats({
     return max > 0 ? out.slice(0, max) : out
   }, [snap, byId, watchIds, max])
 
+  // An explicit max is a caller-sized hard cap (no expand button, matches
+  // its old behaviour exactly). Otherwise show DEFAULT_SHOWN and let the
+  // count on the header + this button say how many more there are.
+  const capped = max > 0
+  const visRows = (capped || showAll) ? rows : rows.slice(0, DEFAULT_SHOWN)
+
   if (!rows.length) return null
 
   return (
@@ -97,13 +115,13 @@ export default function LiveAtBats({
         </span>
       </div>
 
-      {/* A RAIL, not a stack. Eight live games as eight full-width rows is most
-          of a phone screen and half a laptop one — and this is a strip that
-          sits ABOVE the thing you came to read, on two different tabs. It
-          scrolls sideways like every other dense row on the site. */}
-      <div className="rail dense-scroll" style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: 7, minWidth: 'max-content', paddingBottom: 2 }}>
-          {rows.map((r) => {
+      {/* WRAPS, not a stack and not a sideways scroll. Eight live games as
+          eight full-width rows is most of a phone screen and half a laptop
+          one — and this is a strip that sits ABOVE the thing you came to
+          read, on two different tabs. Cards wrap into as many rows as it
+          takes and the count past DEFAULT_SHOWN folds behind "Show all". */}
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+        {visRows.map((r) => {
             const { g } = r
             const hot = r.role ? C.orange : r.watched ? '#FCD34D' : C.border
             return (
@@ -143,8 +161,16 @@ export default function LiveAtBats({
               </button>
             )
           })}
-        </div>
       </div>
+
+      {!capped && !showAll && rows.length > DEFAULT_SHOWN && (
+        <button type="button" onClick={() => setShowAll(true)} style={{
+          display: 'block', width: '100%', marginTop: 9, cursor: 'pointer',
+          fontSize: 10, fontWeight: 800, color: C.text2, fontFamily: NUM_FONT,
+          background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
+          padding: '7px 10px', letterSpacing: '.02em',
+        }}>Show all {rows.length} games ▾</button>
+      )}
     </div>
   )
 }

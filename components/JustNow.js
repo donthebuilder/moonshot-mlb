@@ -30,6 +30,14 @@ import { fetchSkinEvents } from '../lib/livePitches'
 // happened to MY guys") and the slate-wide one now has its own dedicated
 // section, BattedBallLog, right above this. See that file for the reasoning
 // on why it's a separate component and not a mode here.
+//
+// 2026-08-13, second pass, Donovan: "i dont like the design of the page how
+// its like side ways" → confirmed target: this rail's horizontal scroll.
+// WRAPS now instead, same ParkBoard cap+expand idiom as LiveAtBats right
+// above it — this list is scoped to picks + watchlist so it's usually short,
+// but a heavy skin night shouldn't turn into a wall either.
+const DEFAULT_SHOWN = 6
+
 const TONE_COL = {
   hr: '#f97316', xbh: '#FCD34D', hot: '#fb7185',
   on: '#4ade80', out: '#8b8b95', k: '#f87171',
@@ -52,6 +60,7 @@ const SHORT = (e) => String(e || '')
 
 export default function JustNow({ players = [], watchIds, onPlayerClick, limit = 10 }) {
   const [rows, setRows] = useState([])
+  const [showAll, setShowAll] = useState(false)
 
   // The ids worth spending a feed call on: designated picks and the
   // watchlist. Recomputed from the slate rather than stored, so a pick that
@@ -96,6 +105,7 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
   }, [ids, limit])
 
   if (!rows.length) return null
+  const visRows = showAll ? rows : rows.slice(0, DEFAULT_SHOWN)
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -106,9 +116,8 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
         </span>
       </div>
 
-      <div className="rail dense-scroll" style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: 7, minWidth: 'max-content', paddingBottom: 2 }}>
-          {rows.map((r) => {
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+        {visRows.map((r) => {
             const col = TONE_COL[r.tone] || C.text3
             const p = byId.get(r.id) || null
             return (
@@ -163,8 +172,16 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
               </button>
             )
           })}
-        </div>
       </div>
+
+      {!showAll && rows.length > DEFAULT_SHOWN && (
+        <button type="button" onClick={() => setShowAll(true)} style={{
+          display: 'block', width: '100%', marginTop: 9, cursor: 'pointer',
+          fontSize: 10, fontWeight: 800, color: C.text2, fontFamily: NUM_FONT,
+          background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
+          padding: '7px 10px', letterSpacing: '.02em',
+        }}>Show all {rows.length} ▾</button>
+      )}
     </div>
   )
 }
