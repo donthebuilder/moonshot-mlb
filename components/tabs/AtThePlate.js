@@ -187,6 +187,12 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   useEffect(() => { let a = true; teamAbbrs().then((m) => { if (a && m) setAbbrs(m) }).catch(() => {}); return () => { a = false } }, [])
   const [pinnedGame, setPinnedGame] = useState(null)   // gamePk the user locked onto
   const [pinnedHitter, setPinnedHitter] = useState(null)   // mlb id driving the charts
+  // 2026-08-13, Donovan: Pick a game "needs to be different... a drop down
+  // type thing." A row of N full buttons scaled badly — eight live games
+  // meant eight buttons competing with the room below for attention.
+  // Collapsed to the current pick + a toggle, same pattern as the Games
+  // page legend: the full list is a tap away, not permanently on screen.
+  const [gamePickerOpen, setGamePickerOpen] = useState(false)
   const [auto, setAuto] = useState(true)
   const [feed, setFeed] = useState(undefined)   // undefined = loading, null = failed
   const timer = useRef(null)
@@ -390,29 +396,48 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
       {liveGames.length > 1 && (
         <div style={{ marginBottom: 12 }}>
           <Band note={`${liveGames.length} games have someone at the plate — your picks first`}>Pick a game</Band>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            {liveGames.map((x) => {
-              const on = x.pk === a.pk
-              const col = ROLE_COLOR[x.role] || (x.watched ? '#a78bfa' : C.border2)
-              return (
-                <button key={x.pk} onClick={() => setPinnedGame(x.pk)} className="tap-row" style={{
-                  display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer', textAlign: 'left',
-                  border: `1px solid ${on ? col : C.border}`,
-                  background: on ? `${col}1c` : 'rgba(255,255,255,.02)',
-                  borderRadius: 10, padding: '6px 12px',
-                  boxShadow: on ? `0 0 14px ${col}30` : 'none',
-                }}>
-                  <span style={{ fontSize: 10 }}>🎤</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: on ? C.text : C.text2 }}>{x.name}</span>
-                  {x.role && <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[x.role] }}>🤖 {x.role}</span>}
-                  {x.watched && <span style={{ fontSize: 9 }}>★</span>}
-                  <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-                    {String(x.g.half || '').slice(0, 3)}{x.g.inning}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+          <button onClick={() => setGamePickerOpen((v) => !v)} className="tap-row" style={{
+            display: 'flex', width: '100%', gap: 8, alignItems: 'center', cursor: 'pointer', textAlign: 'left',
+            border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
+            borderRadius: 10, padding: '7px 12px',
+          }}>
+            <span style={{ fontSize: 11 }}>🎤</span>
+            <span style={{
+              fontSize: 11.5, fontWeight: 800, color: C.text, flex: 1, minWidth: 0,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {a.name}{a.role ? ` · 🤖 ${a.role}` : a.watched ? ' · ★' : ''}
+            </span>
+            <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+              {String(a.g.half || '').slice(0, 3)}{a.g.inning}
+            </span>
+            <span style={{ fontSize: 9, color: C.text3 }}>{gamePickerOpen ? '▴' : `▾ ${liveGames.length} games`}</span>
+          </button>
+          {gamePickerOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 6 }}>
+              {liveGames.map((x) => {
+                const on = x.pk === a.pk
+                const col = ROLE_COLOR[x.role] || (x.watched ? '#a78bfa' : C.border2)
+                return (
+                  <button key={x.pk} onClick={() => { setPinnedGame(x.pk); setGamePickerOpen(false) }} className="tap-row" style={{
+                    display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer', textAlign: 'left',
+                    border: `1px solid ${on ? col : C.border}`,
+                    background: on ? `${col}1c` : 'rgba(255,255,255,.02)',
+                    borderRadius: 10, padding: '6px 12px',
+                    boxShadow: on ? `0 0 14px ${col}30` : 'none',
+                  }}>
+                    <span style={{ fontSize: 10 }}>🎤</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: on ? C.text : C.text2 }}>{x.name}</span>
+                    {x.role && <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[x.role] }}>🤖 {x.role}</span>}
+                    {x.watched && <span style={{ fontSize: 9 }}>★</span>}
+                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
+                      {String(x.g.half || '').slice(0, 3)}{x.g.inning}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
