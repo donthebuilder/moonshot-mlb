@@ -200,6 +200,15 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
           _key: p.n, _raw: { name: p.n, team: p.t },
           name: p.n, team: p.t, picks: p.p, did: p.d,
           rate: p.p >= MIN_RATE ? (100 * p.d) / p.p : null,
+          // 2026-08-13, Donovan: "hr per pick percentage on the track
+          // record." Distinct from the HR category column further right --
+          // that one only counts picks where HR was specifically the job.
+          // This is every pick, any category, asking one question of all of
+          // them: did this man also go deep that night. Same MIN_RATE rule
+          // as every other rate in this table -- a fraction below 3 picks,
+          // never a percentage a single homer could inflate to 100%.
+          hrPickPct: p.p >= MIN_RATE ? (100 * p.hr) / p.p : null,
+          hrPickPct_t: p.p >= MIN_RATE ? `${((100 * p.hr) / p.p).toFixed(0)}% (${p.hr}/${p.p})` : `${p.hr}/${p.p}`,
           hr: p.hr, h: p.h, tb: p.tb,
           avg: p.ab >= 20 ? p.h / p.ab : null,
           last: String(p.last || '').slice(5),
@@ -273,6 +282,9 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
           { key: 'rate', label: 'All %', w: 48, dp: 0,
             fmt: (v) => (v == null ? '—' : Number(v).toFixed(0)),
             title: 'Did-its-job rate across every category combined. Read the category columns first — a player strong in one and dead in another averages into a middle that describes nobody.' },
+          { key: 'hrPickPct', label: 'HR/pick', w: 66, dp: 0,
+            fmt: (v, row) => row.hrPickPct_t,
+            title: `How often ANY pick for him ended in a home run, regardless of which category he was picked for — different from the HR column further right, which only counts picks where HR was specifically the job he was given. Percent shown at ${MIN_RATE}+ total picks; below that it stays a raw fraction.` },
 
           // One column per category, each sortable on its own.
           ...CAT_ORDER.map((c) => ({
@@ -281,7 +293,8 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
             title: `${JOBS[c].label} picks — needed ${JOBS[c].job}. Percent shown at ${MIN_RATE}+ picks in this category; below that it stays a raw fraction, because 1/1 is not 100%. Sorting this column ranks only the players who cleared the threshold.`,
           })),
 
-          { key: 'hr', label: 'HR', w: 38 },
+          { key: 'hr', label: 'HR ct', w: 44,
+            title: 'Total home runs across every pick, any category — a raw count, not a rate. See the HR/pick column near the front for the percentage.' },
           { key: 'h', label: 'H', w: 38 },
           { key: 'tb', label: 'TB', w: 40 },
           { key: 'avg', label: 'AVG', w: 48, dp: 3,
