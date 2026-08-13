@@ -165,31 +165,41 @@ const isOffFrame = (f) => f.fx < FX_LO || f.fx > FX_HI || f.fz < FZ_LO || f.fz >
 // Shape says WHAT HAPPENED, colour says WHAT WAS THROWN. Six outcomes, drawn
 // as plain elements so they inherit the card's typography rather than
 // importing a second chart's visual language.
+//
+// 2026-08-13, Donovan: "make the dots easier to see." Three changes, same
+// shape language: (1) every dot is ~25-30% bigger, (2) the glow used to be
+// hover-only — now it's always on, just fainter, so the picture reads at a
+// glance instead of needing a mouse; (3) the taken-ball ring (the single most
+// common shape on the map, since "ball" is the most common outcome type) was
+// the faintest thing here at 0.55 opacity — bumped up so it stops reading as
+// almost-invisible background texture.
 function LiveDot({ kind, col, on, pinned }) {
-  // static, centred by the 18px hit-area wrapper around it
+  // static, centred by the 20px hit-area wrapper around it
   const base = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     boxSizing: 'border-box', pointerEvents: 'none', flexShrink: 0,
-    opacity: pinned ? 0.4 : on ? 1 : 0.92,
-    filter: on ? `drop-shadow(0 0 6px ${col})` : 'none',
+    opacity: pinned ? 0.45 : on ? 1 : 0.96,
+    filter: `drop-shadow(0 0 ${on ? 8 : 3}px ${col}${on ? '' : 'b3'})`,
   }
   if (kind === 'whiff') {
-    return <span style={{ ...base, width: 14, height: 14, color: col, fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, lineHeight: 1 }}>✕</span>
+    return <span style={{ ...base, width: 18, height: 18, color: col, fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, lineHeight: 1 }}>✕</span>
   }
   if (kind === 'inplay') {
-    return <span style={{ ...base, width: 13, height: 13, borderRadius: '50%', background: col, border: '1.6px solid #fff' }} />
+    return <span style={{ ...base, width: 16, height: 16, borderRadius: '50%', background: col, border: '2px solid #fff' }} />
   }
   if (kind === 'foul') {
-    return <span style={{ ...base, width: 9, height: 9, borderRadius: 1, background: `${col}66`, border: `1.2px solid ${col}` }} />
+    return <span style={{ ...base, width: 12, height: 12, borderRadius: 1, background: `${col}77`, border: `1.6px solid ${col}` }} />
   }
   if (kind === 'hbp') {
-    return <span style={{ ...base, width: 9, height: 9, transform: 'rotate(45deg)', border: `1.6px solid ${col}`, background: 'transparent' }} />
+    return <span style={{ ...base, width: 12, height: 12, transform: 'rotate(45deg)', border: `2px solid ${col}`, background: 'transparent' }} />
   }
   if (kind === 'called') {
-    return <span style={{ ...base, width: 11, height: 11, borderRadius: '50%', background: `${col}3d`, border: `1.6px solid ${col}`, boxShadow: `0 0 0 2px ${col}2e` }} />
+    return <span style={{ ...base, width: 14, height: 14, borderRadius: '50%', background: `${col}4d`, border: `2px solid ${col}`, boxShadow: `0 0 0 2.5px ${col}38` }} />
   }
-  // taken ball — the ones he didn't offer at, kept quiet
-  return <span style={{ ...base, width: 9, height: 9, borderRadius: '50%', border: `1.4px solid ${col}`, background: 'transparent', opacity: pinned ? 0.3 : 0.55 }} />
+  // taken ball — the ones he didn't offer at. Still the quietest shape (it's
+  // the "nothing happened" outcome) but no longer the faintest thing on the
+  // whole map — 0.55 read as barely-there once the others got bigger.
+  return <span style={{ ...base, width: 12, height: 12, borderRadius: '50%', border: `1.8px solid ${col}`, background: 'transparent', opacity: pinned ? 0.45 : 0.75 }} />
 }
 
 const LIVE_KINDS = ['ball', 'called', 'whiff', 'foul', 'inplay']
@@ -590,7 +600,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                     onMouseLeave={() => setHoverP((v) => (v === i ? null : v))}
                     style={{
                       position: 'absolute', left: pos.left, top: pos.top,
-                      width: 18, height: 18, transform: 'translate(-50%,-50%)',
+                      width: 20, height: 20, transform: 'translate(-50%,-50%)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       pointerEvents: 'auto', cursor: 'crosshair', zIndex: on ? 5 : 4,
                     }}
@@ -717,7 +727,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           <span style={{ color: '#4ade80', fontWeight: 900, letterSpacing: '.07em' }}>● TONIGHT</span>
           {LIVE_KINDS.map((k) => (
             <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ display: 'inline-flex', width: 15, height: 15, alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ display: 'inline-flex', width: 17, height: 17, alignItems: 'center', justifyContent: 'center' }}>
                 <LiveDot kind={k} col={C.text2} />
               </span>
               {KIND_LABEL[k]}

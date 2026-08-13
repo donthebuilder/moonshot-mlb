@@ -165,6 +165,47 @@ function Arsenal({ rows, pitcherName }) {
     </div>
   )
 }
+
+/** Every arm that's thrown tonight, in the order each one took the mound —
+ * so "starter" is always first and each new arrival reads left to right in
+ * the order it actually happened. Picking one points the mix line below (and
+ * the zone map's live dots, for whoever's selected) at that specific pitcher
+ * instead of whoever's live right now — the only way to compare a reliever's
+ * stuff to what the starter was throwing two innings ago.
+ * 2026-08-13, Donovan: "pitchers toggle able like strike and szone... so we
+ * can see wherer the pitcher is[,] and if there['s] mult[iple] pitcher[s]...
+ * make able to view those aswell." Hidden entirely on a one-pitcher game —
+ * nothing new to look at yet, so nothing new on screen. */
+function PitcherChips({ pitchers, viewId, onPick }) {
+  if (pitchers.length < 2) return null
+  return (
+    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+      <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.07em', textTransform: 'uppercase' }}>
+        Pitchers tonight
+      </span>
+      {pitchers.map((p) => {
+        const on = viewId ? viewId === p.id : p.live
+        return (
+          <button key={p.id} onClick={() => onPick(viewId === p.id ? null : p.id)}
+            title={`${p.name} — ${p.n} tracked pitch${p.n === 1 ? '' : 'es'} tonight${p.live ? '. Currently on the mound.' : '. No longer in the game — tap to view his night.'}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+              fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800,
+              border: `1px solid ${on ? '#4ade80' : C.border}`,
+              background: on ? 'rgba(74,222,128,.12)' : 'rgba(255,255,255,.02)',
+              color: on ? '#4ade80' : C.text2,
+              borderRadius: 999, padding: '3px 10px',
+            }}>
+            {p.live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 5px #4ade80', flexShrink: 0 }} />}
+            {String(p.name || '?').split(' ').slice(-1)[0]}
+            <span style={{ color: on ? '#4ade80' : C.text3, fontWeight: 700 }}>{p.n}p</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
 const LIVE = '#4ade80'
 
@@ -337,15 +378,49 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     () => timesFacing(feed, selectedId, atBat?.pitcherId),
     [feed, selectedId, atBat],
   )
+
+  // ── EVERY ARM THAT'S THROWN TONIGHT (2026-08-13) ─────────────────────────
+  // Donovan: "pitchers toggle able... so we can see where the pitcher is, and
+  // if there's mult[iple] pitcher[s]... make able to view those as well."
+  // feed.pitches is already every tracked pitch of the game, in game order —
+  // no new fetch, just grouped by who threw it. The LAST pitch in that array
+  // is whoever is live right now (plays arrive in game order), which is a
+  // sturdier answer than the slate's pregame pitcher_name after a change.
+  const pitchersTonight = useMemo(() => {
+    const pitches = feed?.pitches || []
+    if (!pitches.length) return []
+    const order = []
+    const byPid = new Map()
+    pitches.forEach((p) => {
+      const pid = Number(p.pitcherId)
+      if (!pid) return
+      if (!byPid.has(pid)) { byPid.set(pid, { id: pid, name: p.pitcherName, n: 0 }); order.push(pid) }
+      byPid.get(pid).n += 1
+    })
+    const liveId = Number(pitches[pitches.length - 1]?.pitcherId) || null
+    return order.map((pid) => ({ ...byPid.get(pid), live: pid === liveId }))
+  }, [feed])
+  const [viewPitcherId, setViewPitcherId] = useState(null)
+  // a pin from a pitcher who's since left the game, or a switch to a new
+  // game entirely, both fall back to "whoever's actually live" rather than
+  // silently pointing at a stale id
+  useEffect(() => { setViewPitcherId(null) }, [gamePk])
+  const viewPitcher = viewPitcherId && pitchersTonight.some((x) => x.id === viewPitcherId)
+    ? viewPitcherId
+    : null
+
   const arsenal = useMemo(
-    () => arsenalTonight(feed, atBat?.pitcherId),
-    [feed, atBat],
+    () => arsenalTonight(feed, viewPitcher || atBat?.pitcherId),
+    [feed, viewPitcher, atBat],
   )
 
-  const livePitchesFor = useMemo(
-    () => (feed?.pitches || []).filter((p) => Number(p.batterId) === Number(selectedId)),
-    [feed, selectedId],
-  )
+  const livePitchesFor = useMemo(() => {
+    const mine = (feed?.pitches || []).filter((p) => Number(p.batterId) === Number(selectedId))
+    // Default is unchanged — every pitch he's seen tonight, any arm. Only
+    // narrows once a specific pitcher chip is picked, so a pitching change
+    // never quietly shrinks the map for someone who hasn't touched a chip.
+    return viewPitcher ? mine.filter((p) => Number(p.pitcherId) === Number(viewPitcher)) : mine
+  }, [feed, selectedId, viewPitcher])
   // memoized so the spray chart isn't handed a fresh array every render
   const liveBalls = useMemo(() => feed?.balls || [], [feed])
 
@@ -625,9 +700,15 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
 
             <Sequence pitches={atBat.pitches} />
 
-            {arsenal.length > 0 && (
+            {(pitchersTonight.length > 1 || arsenal.length > 0) && (
               <div style={{ marginTop: 8 }}>
-                <Arsenal rows={arsenal} pitcherName={atBat.pitcherName} />
+                <PitcherChips pitchers={pitchersTonight} viewId={viewPitcherId} onPick={setViewPitcherId} />
+                {arsenal.length > 0 && (
+                  <Arsenal
+                    rows={arsenal}
+                    pitcherName={pitchersTonight.find((x) => x.id === (viewPitcher || atBat.pitcherId))?.name || atBat.pitcherName}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -691,9 +772,20 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
 
       {feed && livePitchesFor.length === 0 && (
         <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
-          {selName || 'He'} hasn&apos;t seen a tracked pitch tonight yet, so the zone map below has no dots
-          on it — just the heat and the starter&apos;s usage as background. They appear the moment he
-          steps in.
+          {viewPitcher ? (
+            <>{selName || 'He'} hasn&apos;t faced{' '}
+              <b style={{ color: C.text2 }}>{pitchersTonight.find((x) => x.id === viewPitcher)?.name || 'that pitcher'}</b>{' '}
+              tonight — showing nothing rather than another arm&apos;s pitches under his name.{' '}
+              <button onClick={() => setViewPitcherId(null)} style={{
+                fontSize: 10, fontWeight: 700, color: LIVE, background: 'none', border: 'none',
+                padding: 0, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit',
+              }}>see every pitcher instead</button>.
+            </>
+          ) : (
+            <>{selName || 'He'} hasn&apos;t seen a tracked pitch tonight yet, so the zone map below has no dots
+              on it — just the heat and the starter&apos;s usage as background. They appear the moment he
+              steps in.</>
+          )}
         </div>
       )}
 
@@ -901,6 +993,23 @@ function ComingUp({ game, lineup, selectedId, onPick, onOpen }) {
 // in the same shape every time. Bot picks and watchlist keep their marks so
 // your side of the game is findable without reading names.
 function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
+  // Which slot leads off when a fielding team comes back up. g.onDeck/g.inHole
+  // only exist for whoever is CURRENTLY batting — the linescore has no such
+  // field for the other dugout, so there's no direct way to answer "where are
+  // they in their order." The honest fix is to remember the last man who
+  // batted for each team and take the next slot after him; this just watches
+  // g.upBatter go by and keeps one id per team, updated every poll.
+  // 2026-08-13, Donovan: "i also lose track of where we are on the other
+  // side... a little more to show for them when they're on defense... to
+  // know where their batting order is." Needs no new fetch — g.battingTeamId
+  // and g.upBatter are already in the same snapshot this whole page polls.
+  const lastUpRef = useRef({})
+  useEffect(() => {
+    if (g?.battingTeamId != null && g?.upBatter != null) {
+      lastUpRef.current[Number(g.battingTeamId)] = Number(g.upBatter)
+    }
+  }, [g?.battingTeamId, g?.upBatter])
+
   if (!g?.lineup) return null
   // liveSlate carries team IDs, not abbreviations — the schedule endpoint does
   // not return `abbreviation` on its team object (checked: it comes back as
@@ -929,6 +1038,16 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
             if (l) { a.ab += l.ab; a.h += l.h; a.d2 += l.d2; a.d3 += l.d3; a.hr += l.hr; a.rbi += l.rbi; a.k += l.k }
             return a
           }, { ab: 0, h: 0, d2: 0, d3: 0, hr: 0, rbi: 0, k: 0 })
+          // On defense right now — where their order picks back up. See
+          // lastUpRef above; before they've batted at all this game there's
+          // no history yet, so this only appears once they've had a turn.
+          const isBattingSide = Number(teamId) === Number(g.battingTeamId)
+          let nextUpRow = null
+          if (!isBattingSide && rows.length) {
+            const lastId = lastUpRef.current[Number(teamId)]
+            const idx = lastId != null ? rows.findIndex((r) => Number(r.id) === lastId) : -1
+            if (idx >= 0) nextUpRow = rows[(idx + 1) % rows.length]
+          }
           return (
             <div key={side} className="lineup-col" style={{
               flex: 1, minWidth: 0, padding: '8px 11px',
@@ -944,6 +1063,13 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
                   </span>
                 )}
               </div>
+              {nextUpRow && (
+                <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 4, lineHeight: 1.4 }}>
+                  on defense · leads off next: <b style={{ color: '#FCD34D' }}>
+                    {(() => { const p = byId?.get(Number(nextUpRow.id)) || null; return p ? nameOf(p) : clean(nextUpRow.name, `#${nextUpRow.id}`) })()}
+                  </b>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ width: 11, flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>BATTER</span>
@@ -954,22 +1080,24 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
                 const p = byId?.get(Number(r.id)) || null
                 const on = Number(r.id) === Number(selectedId)
                 const up = Number(r.id) === Number(g.upBatter)
+                const isNext = !!nextUpRow && Number(r.id) === Number(nextUpRow.id)
                 return (
                   <div key={r.id} onClick={() => onPick?.(r.id)} className="tap-row" style={{
                     display: 'flex', gap: 5, alignItems: 'center', padding: '2.5px 0',
                     cursor: 'pointer', minWidth: 0,
-                    borderLeft: `2px solid ${up ? '#4ade80' : on ? C.orange : 'transparent'}`,
+                    borderLeft: `2px solid ${up ? '#4ade80' : on ? C.orange : isNext ? '#FCD34D' : 'transparent'}`,
                     paddingLeft: 4, marginLeft: -6,
                   }}>
                     <span style={{ width: 11, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>{r.slot}</span>
                     <span style={{
                       flex: 1, minWidth: 0, fontSize: 11, fontWeight: on || up ? 800 : 600,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      color: up ? '#4ade80' : C.text2,
+                      color: up ? '#4ade80' : isNext ? '#FCD34D' : C.text2,
                     }}>
                       {p ? nameOf(p) : clean(r.name, `#${r.id}`)}
                       {r.sub && <span title="Substitute — he replaced the man in this slot" style={{ fontSize: 8, color: C.text3, marginLeft: 3 }}>sub</span>}
                       {p && String(p?.game_pick_role || '').trim() ? <span style={{ fontSize: 8.5, marginLeft: 3 }}>🤖</span> : null}
+                      {isNext && <span title="Leads off when this team bats next" style={{ fontSize: 7.5, fontWeight: 900, color: '#FCD34D', marginLeft: 3, letterSpacing: '.04em' }}>NEXT</span>}
                       {/* watchIds is keyed \`playerId-gamePk\`, not by bare id —
                           the same composite the live-games list above builds.
                           Testing the raw id here would have silently starred
@@ -1001,8 +1129,11 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
       <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
         Straight off the league&apos;s boxscore for this game — the same pull the rest of this page
         runs on, so it costs no extra request. A dot means he hasn&apos;t batted yet; the green name is
-        the man at the plate. Team rows are summed from the lines above them, so the column and its
-        total can&apos;t disagree.
+        the man at the plate. The <b style={{ color: '#FCD34D' }}>yellow NEXT</b> tag is the fielding
+        team&apos;s own order — it remembers the last man who batted for them and marks whoever leads
+        off once they&apos;re back up, since the feed only ever names an on-deck hitter for whichever
+        side is currently hitting. Team rows are summed from the lines above them, so the column and
+        its total can&apos;t disagree.
       </div>
     </div>
   )
