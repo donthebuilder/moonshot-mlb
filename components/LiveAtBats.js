@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, clean, playerId } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
+import { teamAbbrs } from '../lib/gamelogs'
 
 // 🎙️ EVERY AT-BAT AT ONCE — the whole slate, one strip.
 //
@@ -31,6 +32,13 @@ export default function LiveAtBats({
   players = [], watchIds, onGo, onPlayerClick, compact = false, max = 0,
 }) {
   const [snap, setSnap] = useState(null)
+  // 2026-08-13, Donovan: "difficult to understand the teams or the games
+  // going on." The card carried a score and never said whose -- "4-1" means
+  // nothing without the two sides. teamAbbrs() is the existing cached
+  // /teams fetch AtThePlate.js already uses for the same reason; calling it
+  // again here costs nothing, the promise is cached by team-id.
+  const [abbrs, setAbbrs] = useState(null)
+  useEffect(() => { let alive = true; teamAbbrs().then((m) => { if (alive && m) setAbbrs(m) }).catch(() => {}); return () => { alive = false } }, [])
 
   useEffect(() => {
     let alive = true
@@ -103,7 +111,7 @@ export default function LiveAtBats({
                 key={g.pk}
                 type="button"
                 onClick={() => (onGo ? onGo(g.pk) : r.p && onPlayerClick?.(r.p))}
-                title={`${r.name} batting · ${g.half} ${g.inning} · ${g.awayScore ?? 0}-${g.homeScore ?? 0}${r.deckName ? ` · on deck ${r.deckName}` : ''}`}
+                title={`${r.name} batting · ${abbrs?.[g.awayId] || 'Away'} @ ${abbrs?.[g.homeId] || 'Home'} · ${g.half} ${g.inning} · ${g.awayScore ?? 0}-${g.homeScore ?? 0}${r.deckName ? ` · on deck ${r.deckName}` : ''}`}
                 style={{
                   flex: '0 0 auto', width: compact ? 152 : 176, textAlign: 'left', cursor: 'pointer',
                   background: r.role ? 'rgba(249,115,22,.08)' : C.bg2,
@@ -116,7 +124,7 @@ export default function LiveAtBats({
                     {/^top/i.test(g.half) ? '▲' : /^bot/i.test(g.half) ? '▼' : '·'}{g.inning ?? ''}
                   </span>
                   <span style={{ fontSize: 10, fontWeight: 800, color: C.text2 }}>
-                    {g.awayScore ?? 0}–{g.homeScore ?? 0}
+                    {abbrs?.[g.awayId] ? `${abbrs[g.awayId]} ` : ''}{g.awayScore ?? 0}–{g.homeScore ?? 0}{abbrs?.[g.homeId] ? ` ${abbrs[g.homeId]}` : ''}
                   </span>
                   {r.role && <span style={{ marginLeft: 'auto', fontSize: 8, fontWeight: 900, color: C.orange }}>{r.role}</span>}
                   {!r.role && r.watched && <span style={{ marginLeft: 'auto', fontSize: 9 }}>★</span>}
