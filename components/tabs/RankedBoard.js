@@ -164,6 +164,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               otherPick: pick && pick !== wantRole ? pick : '',
               b2b: Number(p?.games_since_last_hr) === 0 ? 1 : 0,
               weak: p?.weak_spot_flag ? 1 : 0,
+              multiHit: p?.multi_hit_flag ? 1 : 0,
               aligned: isAligned(p) ? 1 : 0,
               edgeF: nn(p?.pitch_type_match_score) > 0 ? 1 : 0,
               adj: scoreFor(p, type),
@@ -200,6 +201,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: ['hr', 'hrr'].includes(type)
                 ? 'Weak spot — validated on HR outcomes: flagged hitters homered 18.0% vs 13.9%'
                 : 'Weak spot — an HR-validated signal (18.0% vs 13.9% HR). Shown for context on this board; it was not measured on this category\'s outcome.' },
+            { key: 'multiHit', label: '2️⃣', flag: true, mark: '2️⃣', w: 30,
+              title: 'Multi-hit look — real contact skill (average, BABIP, K-rate, recent hit volume), lineup spot for actual at-bat volume, and a pitcher who\'s been hit hard this year (WHIP, AVG/OBP/BABIP allowed). New as of 2026-08-13 — unlike ★ weak spot, this hasn\'t been graded against the archive yet, so read it as a reasoned first cut, not a proven one.' },
             { key: 'aligned', label: '🧩', flag: true, mark: '◆', w: 28,
               title: ['hr', 'hrr'].includes(type)
                 ? 'Aligned — weak spot + pitch match + ISO ≥ .18. The measured stack: 29.2% HR across 154 graded slots'
