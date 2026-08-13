@@ -689,10 +689,19 @@ export default function SprayField({
         </div>
       )}
 
-      {/* Contact-quality cuts + the pitch that produced the ball. Counts ride
-          on every chip so an empty result reads as an answer, not a bug. */}
+      {/* Contact-quality cuts, on their own row — the same one-concept-per-row
+          pattern the season chart already uses below (Games / Result / Pitch
+          / Contact each get their own labelled line). 2026-08-13, Donovan:
+          "needs to be more intuitive like the one on the player modal." The
+          season chart earns that read by never sharing a row between two
+          different filter ideas; this one used to run cuts and pitch chips
+          together on a single line with nothing but a small inline "Pitch"
+          label between them. Counts ride on every chip so an empty result
+          reads as an answer, not a bug. Reset now shows here too — reset()
+          already clears liveCut/livePitch (see below), it just had no button
+          to reach it from in this mode. */}
       {liveOnly && liveN > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 5 }}>
           {liveCuts.map((c) => (
             <button key={c.k} onClick={() => setLiveCut(c.k)} title={c.tip}
               disabled={c.n === 0 && c.k !== 'all'}
@@ -704,22 +713,29 @@ export default function SprayField({
               {c.label} <b style={{ fontFamily: NUM_FONT }}>{c.n}</b>
             </button>
           ))}
-          {livePitchTypes.length > 1 && (
-            <>
-              <span style={{ fontSize: 9, color: C.text3, marginLeft: 4, textTransform: 'uppercase', letterSpacing: '.07em' }}>Pitch</span>
-              {livePitchTypes.map(([code, ct]) => (
-                <button key={code}
-                  onClick={() => setLivePitch((v) => (v === code ? null : code))}
-                  title={`${PITCH_NAMES[code] || code} — ${ct} ball${ct === 1 ? '' : 's'} in play off it tonight. The pitch and the batted ball come off the same play event, so this is the pitch that was actually hit.`}
-                  style={{ ...chipBtn(livePitch === code, pitchColor(code)), padding: '2px 8px', fontSize: 9.5 }}>
-                  {PITCH_NAMES[code] || code} <b style={{ fontFamily: NUM_FONT }}>{ct}</b>
-                </button>
-              ))}
-            </>
-          )}
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
             showing {liveFiltered.length} of {liveN}
           </span>
+          <button onClick={reset} style={{ ...chipBtn(false, C.text3), padding: '2px 8px', fontSize: 9.5 }}>
+            Reset
+          </button>
+        </div>
+      )}
+
+      {/* The pitch that produced the ball — its own row now too, same reason
+          as above. Only appears once there's more than one type to tell
+          apart, same gate as before. */}
+      {liveOnly && liveN > 0 && livePitchTypes.length > 1 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+          <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Pitch</span>
+          {livePitchTypes.map(([code, ct]) => (
+            <button key={code}
+              onClick={() => setLivePitch((v) => (v === code ? null : code))}
+              title={`${PITCH_NAMES[code] || code} — ${ct} ball${ct === 1 ? '' : 's'} in play off it tonight. The pitch and the batted ball come off the same play event, so this is the pitch that was actually hit.`}
+              style={{ ...chipBtn(livePitch === code, pitchColor(code)), padding: '2px 8px', fontSize: 9.5 }}>
+              {PITCH_NAMES[code] || code} <b style={{ fontFamily: NUM_FONT }}>{ct}</b>
+            </button>
+          ))}
         </div>
       )}
 
