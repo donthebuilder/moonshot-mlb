@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { playerId } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
-import { fetchSkinEvents, fetchHardHitLog } from '../lib/livePitches'
+import { fetchSkinEvents } from '../lib/livePitches'
 
 // 📻 JUST NOW — what happened to the names you have skin on.
 //
@@ -22,15 +22,14 @@ import { fetchSkinEvents, fetchHardHitLog } from '../lib/livePitches'
 // a tracked ball, and anything at 100+ gets its own colour even when the
 // result was a failure.
 //
-// 🔥 HARDEST HIT toggle (2026-08-13, Donovan: "add like a rolling ev log of
-// the hard hits of the live games and todays games"). Same rail, same card,
-// a second mode: instead of "what happened to MY guys," it asks "who's
-// squaring the ball up hardest, anywhere on the slate" — every live AND
-// final game today, not just picks/watchlist. See fetchHardHitLog() for why
-// that's fine to pay for here when the identical unscoped cost was rejected
-// for the mode above — "most of it about strangers" was a complaint there
-// and is the entire point here. Off by default, so nobody's page gets
-// busier who doesn't tap it.
+// 2026-08-13 — the slate-wide question ("who's squaring the ball up hardest,
+// anywhere") briefly lived here as a second mode on this same rail. Donovan,
+// a message later: "a whole new reconstruction... i don't like how the top
+// of the page looks." One header silently meaning two different things on a
+// toggle was part of that mess — this rail asks one question again ("what
+// happened to MY guys") and the slate-wide one now has its own dedicated
+// section, BattedBallLog, right above this. See that file for the reasoning
+// on why it's a separate component and not a mode here.
 const TONE_COL = {
   hr: '#f97316', xbh: '#FCD34D', hot: '#fb7185',
   on: '#4ade80', out: '#8b8b95', k: '#f87171',
@@ -52,16 +51,11 @@ const SHORT = (e) => String(e || '')
   .replace(/^home run$/, 'HOME RUN')
 
 export default function JustNow({ players = [], watchIds, onPlayerClick, limit = 10 }) {
-  const [mode, setMode] = useState('skin')
   const [rows, setRows] = useState([])
-  // Whether today's slate has anything live or final yet — separate from
-  // rows.length so the toggle stays reachable even when the CURRENT mode
-  // happens to have zero rows (e.g. nobody's gone 95+ yet tonight).
-  const [hasGames, setHasGames] = useState(false)
 
-  // The ids worth spending a feed call on in skin mode: designated picks and
-  // the watchlist. Recomputed from the slate rather than stored, so a pick
-  // that changes on a bot run is picked up without any bookkeeping here.
+  // The ids worth spending a feed call on: designated picks and the
+  // watchlist. Recomputed from the slate rather than stored, so a pick that
+  // changes on a bot run is picked up without any bookkeeping here.
   const ids = useMemo(() => {
     const s = new Set()
     players.forEach((p) => {
@@ -79,19 +73,15 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
   }, [players])
 
   useEffect(() => {
-    // Skin mode still costs nothing to skip with no picks or watchlist —
-    // no reason to poll for a rail that can never have rows. Hard-hit mode
-    // has no such out: it was never about who YOU have skin on.
-    if (mode === 'skin' && !ids.size) { setRows([]); return undefined }
+    // Nothing to poll for with no picks or watchlist — a rail that can never
+    // have rows costs nothing to skip.
+    if (!ids.size) { setRows([]); return undefined }
     let alive = true
     let t = null
     const pull = async () => {
       const snap = await fetchLiveSlate().catch(() => null)
       if (!alive || !snap) return
-      setHasGames((snap.games || []).some((g) => g.state === 'Live' || g.state === 'Final'))
-      const ev = mode === 'hardhit'
-        ? await fetchHardHitLog(snap, limit).catch(() => [])
-        : await fetchSkinEvents(snap, ids, limit).catch(() => [])
+      const ev = await fetchSkinEvents(snap, ids, limit).catch(() => [])
       if (!alive) return
       setRows(ev)
       const anyLive = snap.games?.some((g) => g.state === 'Live')
@@ -103,42 +93,19 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
     }
     pull()
     return () => { alive = false; clearInterval(t) }
-  }, [mode, ids, limit])
+  }, [ids, limit])
 
-  if (!rows.length && !hasGames) return null
+  if (!rows.length) return null
 
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>
-          {mode === 'hardhit' ? '🔥 Hardest hit' : '📻 Just now'}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📻 Just now</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {mode === 'hardhit'
-            ? '95+ mph off the bat — every live and final game tonight'
-            : 'finished at-bats — your picks and watchlist only'}
+          finished at-bats — your picks and watchlist only
         </span>
-        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-          <button onClick={() => setMode('skin')} style={{
-            fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 999, cursor: 'pointer',
-            border: `1px solid ${mode === 'skin' ? C.orange : C.border2}`,
-            background: mode === 'skin' ? 'rgba(249,115,22,.12)' : 'transparent',
-            color: mode === 'skin' ? C.orange : C.text3,
-          }}>📻 Mine</button>
-          <button onClick={() => setMode('hardhit')} style={{
-            fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 999, cursor: 'pointer',
-            border: `1px solid ${mode === 'hardhit' ? '#fb7185' : C.border2}`,
-            background: mode === 'hardhit' ? 'rgba(251,113,133,.12)' : 'transparent',
-            color: mode === 'hardhit' ? '#fb7185' : C.text3,
-          }}>🔥 Hardest hit</button>
-        </div>
       </div>
 
-      {!rows.length ? (
-        <div style={{ fontSize: 10, color: C.text3, fontStyle: 'italic' }}>
-          {mode === 'hardhit' ? 'Nothing at 95+ yet tonight.' : 'Nothing finished yet for your picks or watchlist.'}
-        </div>
-      ) : (
       <div className="rail dense-scroll" style={{ overflowX: 'auto' }}>
         <div style={{ display: 'flex', gap: 7, minWidth: 'max-content', paddingBottom: 2 }}>
           {rows.map((r) => {
@@ -198,7 +165,6 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
           })}
         </div>
       </div>
-      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@ import {
 } from '../../lib/livePitches'
 import { Empty, Band } from '../ui'
 import LiveAtBats from '../LiveAtBats'
+import BattedBallLog from '../BattedBallLog'
 import JustNow from '../JustNow'
 import ZoneMap from '../ZoneMap'
 import SprayField from '../SprayField'
@@ -378,14 +379,30 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           had to answer by picking a game first, which is exactly what you
           cannot do when you don't yet know where to look. The strip answers it
           in one glance and then hands you the room. No extra request; every
-          field is already in the snapshot this page polls. */}
+          field is already in the snapshot this page polls.
+
+          2026-08-13, Donovan, on this whole stack: "a whole new
+          reconstruction... i don't like how the top of the page looks right
+          before the lineups." The three rails below now each answer exactly
+          ONE question and say so in their own header, instead of one rail
+          quietly switching meaning under a toggle: who's up (this one) → the
+          loudest contact anywhere on the slate (BattedBallLog) → what
+          happened to YOUR guys specifically (JustNow). */}
       <LiveAtBats
         players={players}
         watchIds={watchIds}
         onGo={(pk) => setPinnedGame(pk)}
       />
 
-      {/* ── 0b · AND HOW THE LAST ONES ENDED ──────────────────────────────
+      {/* ── 0b · THE LOUDEST CONTACT, EVERYONE'S ───────────────────────────
+          "i'd like to see hh deep fly out barrels distance and ev... like the
+          live spray the live ev... bbes from the game." Slate-wide on
+          purpose — see fetchBattedBallLog() in lib/livePitches.js for the
+          three gates (hard-hit / barrel / deep fly out) and why this used to
+          be a toggle mode on JustNow and now has its own header instead. */}
+      <BattedBallLog players={players} onPlayerClick={onPlayerClick} />
+
+      {/* ── 0c · AND HOW YOUR OWN GUYS' AT-BATS ENDED ──────────────────────
           The strip above is who is up; this is how it finished, for the names
           you have skin on. Scoped to picks + watchlist on purpose — see
           fetchSkinEvents() for the cost reasoning. Renders nothing when
