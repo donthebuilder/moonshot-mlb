@@ -25,7 +25,9 @@ import { hrShapeMeta, hrLine } from '../lib/hrShape'
 //                       used to be its own fetch and isn't anymore.
 //   MLB people/stats    the AUTHORITATIVE season homer total, which already
 //                       includes tonight — so his latest homer simply IS that
-//                       number, with no arithmetic to get wrong
+//                       number, with no arithmetic to get wrong. Same call
+//                       also carries his jersey number and birthdate
+//                       (2026-08-13, see below) — nothing extra to fetch.
 //   the slate row       lineup_spot, and season_hr as a marked fallback only
 //
 // THE NUMBER (rewritten 2026-08-09 — see the audit note above the fetch).
@@ -42,20 +44,83 @@ import { hrShapeMeta, hrLine } from '../lib/hrShape'
 // nine spots — so the strip states the count and explicitly refuses to call
 // three homers from the 2-hole a trend. It's a picture of tonight, not a
 // finding about baseball.
+//
+// NUMEROLOGY (2026-08-13, Donovan sent gematrinator.com screenshots — jersey
+// numbers, birthdays, "life path" numbers, matched player to player "just
+// like the batting order thing" [LineupSlotMatchup's slot+side braid]).
+// Confirmed scope, from his own answers: lives HERE, inside "Aligning with
+// tonight" — not a new panel, not the bot's pick scoring. Jersey + birthday
+// only for now; the deeper gematria-cipher treatment from the screenshots is
+// a later step if this one earns it. See the longer note above digitRoot()
+// below for why this isn't the first time a jersey/date signal was tried in
+// this codebase, and why that history doesn't disqualify watching it here.
 
 const ord = (v) => {
   const k = v % 10, h = v % 100
   return `${v}${k === 1 && h !== 11 ? 'st' : k === 2 && h !== 12 ? 'nd' : k === 3 && h !== 13 ? 'rd' : 'th'}`
 }
 
-// Season-HR lookup cache (2026-08-13, "load faster" — see below). Keyed by
-// pid, holding the last authoritative total AND how many of his tonight
-// homers had already happened when it was fetched, so a cache hit only
-// counts if it's at least that current — a real second homer always forces
-// a fresh ask instead of quietly serving a total that's now one light.
-// Module-level on purpose: it should survive this component unmounting when
-// you leave the Scoreboard tab, not reset every time you come back to it.
-const seasonHrCache = new Map()   // pid -> { hr, atCount, ts }
+// ── NUMEROLOGY, ONE RULE FOR EVERYTHING (2026-08-13) ────────────────────
+//
+// Donovan sent gematrinator.com screenshots and wants jersey numbers and
+// birthdays tracked "with the numerology," matched against players the same
+// way the ledger already matches season-homer numbers — and he confirmed
+// this belongs INSIDE the ledger's existing "Aligning with tonight" section,
+// not a new panel, and not the bot's pick scoring.
+//
+// Worth knowing before reading further: a jersey/date numerology signal was
+// already tried in the bot (numerology_score, numerology_pair_score, up to
+// 84% of one pairing formula) and pulled in a 2026-06-27 audit — the note
+// says "no statistical basis," and more precisely, nothing downstream ever
+// actually called it. That's a note about orphaned code, not a verdict on
+// whether the patterns are worth watching — this stays exactly where the
+// digit-root strip already lives: pattern spotting, disclosed as such,
+// never fed into a score.
+//
+// digitRoot() below is the SAME reduction the homer-count pattern already
+// uses (17 → 1+7 = 8) — moved up from inside model() so the fetch effect can
+// use it too. One definition of "numerology" for the whole panel: a jersey,
+// a birthday, and a homer count all reduce the same way, so a match across
+// different kinds of number means what it looks like it means.
+const digitRoot = (v) => (v > 0 ? 1 + ((v - 1) % 9) : 0)
+
+// Birthday reductions. "day number" is Donovan's own example — Jan 2 → 2 —
+// which digitRoot already gives you for single-digit days; this just extends
+// it to two-digit days (the 26th → 2+6 → 8) instead of inventing a second
+// rule. Life path is the standard numerology sum of every digit in the full
+// date, reduced the same way. Both read straight off the league's
+// birthDate string (YYYY-MM-DD) — no local birthday database to maintain or
+// get stale.
+const dayRootOf = (birthDate) => {
+  const d = Number(String(birthDate || '').slice(8, 10))
+  return d > 0 ? digitRoot(d) : null
+}
+const lifePathOf = (birthDate) => {
+  const digits = String(birthDate || '').replace(/[^0-9]/g, '')
+  if (digits.length < 8) return null
+  const sum = digits.split('').reduce((a, c) => a + Number(c), 0)
+  return sum > 0 ? digitRoot(sum) : null
+}
+
+// "show players who landed that hit and possible align[ment]" — the why
+// text under each tag names the other hitter(s), not just a count.
+const joinNames = (names) => {
+  if (names.length <= 1) return names[0] || ''
+  if (names.length === 2) return names.join(' and ')
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
+// Season-HR + jersey + birthday lookup cache (2026-08-13, "load faster" —
+// see below). Keyed by pid, holding the last authoritative values AND how
+// many of his tonight homers had already happened when it was fetched, so a
+// cache hit only counts if it's at least that current — a real second homer
+// always forces a fresh ask instead of quietly serving a total that's now
+// one light. Jersey/birthday never change mid-season, so they just ride
+// along in the same cached record rather than needing their own freshness
+// rule. Module-level on purpose: it should survive this component
+// unmounting when you leave the Scoreboard tab, not reset every time you
+// come back to it.
+const seasonHrCache = new Map()   // pid -> { hr, jersey, dayRoot, lifePath, atCount, ts }
 const SEASON_HR_TTL = 10 * 60 * 1000
 
 export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick }) {
@@ -147,15 +212,20 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       // CURRENT tonight tally, so a fresh homer always forces a fresh ask.
       tonightCount.forEach((hr, pid) => {
         const hit = seasonHrCache.get(pid)
-        if (hit && hit.atCount >= hr && now - hit.ts < SEASON_HR_TTL) out.set(pid, hit.hr)
-        else need.push(pid)
+        if (hit && hit.atCount >= hr && now - hit.ts < SEASON_HR_TTL) {
+          out.set(pid, { hr: hit.hr, jersey: hit.jersey, dayRoot: hit.dayRoot, lifePath: hit.lifePath })
+        } else need.push(pid)
       })
       for (let i = 0; i < need.length; i += 100) {
         const batch = need.slice(i, i + 100)
+        // primaryNumber + birthDate (2026-08-13, numerology): both ride the
+        // SAME batched call the season total already makes — nothing new to
+        // fetch, just two more field names in the sparse-fieldset. Both are
+        // base `people` fields (same level as `id`), not nested under stats.
         const url = 'https://statsapi.mlb.com/api/v1/people?personIds='
           + batch.join(',')
           + '&hydrate=stats(group=[hitting],type=[season])'
-          + '&fields=people,id,stats,type,displayName,splits,team,gameType,stat,homeRuns,gamesPlayed'
+          + '&fields=people,id,primaryNumber,birthDate,stats,type,displayName,splits,team,gameType,stat,homeRuns,gamesPlayed'
         try {
           const j = await fetch(url).then((r) => (r.ok ? r.json() : null))
           ;(j?.people || []).forEach((person) => {
@@ -165,9 +235,15 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             const blk = (person.stats || []).find((s) => s?.type?.displayName === 'season')
             const hr = Number(pickSplit(blk)?.homeRuns)
             const pid = Number(person.id)
+            const jerseyNum = Number(person.primaryNumber)
+            // '' !== null but Number('') is 0 — without the empty-string
+            // guard, "no number on file" would silently become "wears #0."
+            const jersey = person.primaryNumber != null && person.primaryNumber !== '' && Number.isFinite(jerseyNum) ? jerseyNum : null
+            const dayRoot = dayRootOf(person.birthDate)
+            const lifePath = lifePathOf(person.birthDate)
             if (Number.isFinite(hr)) {
-              out.set(pid, hr)
-              seasonHrCache.set(pid, { hr, atCount: tonightCount.get(pid) ?? 0, ts: now })
+              out.set(pid, { hr, jersey, dayRoot, lifePath })
+              seasonHrCache.set(pid, { hr, jersey, dayRoot, lifePath, atCount: tonightCount.get(pid) ?? 0, ts: now })
             }
           })
         } catch { /* fall back to slate arithmetic for these ids */ }
@@ -194,13 +270,15 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       const spot = Number(p?.lineup_spot)
       if (spot >= 1 && spot <= 9) spots[spot] += hr
       // Authoritative first; slate arithmetic only as a marked fallback.
-      const exact = seasonHr?.get(pid)
+      const numRec = seasonHr?.get(pid) || null
+      const exact = numRec?.hr
       const pre = p?.season_hr == null ? null : n(p.season_hr, 0)
       const nth = Number.isFinite(exact) ? exact : (pre == null ? null : pre + hr)
       // EVERY number he reached tonight, not just the last one — a two-homer
       // night from 14 covers 15 AND 16, and 15 is the one worth saying.
       const tonightNums = nth == null ? [] : Array.from({ length: hr }, (_, i) => nth - i).filter((v) => v > 0)
       const round = tonightNums.filter((v) => v % 5 === 0)
+      const jersey = numRec?.jersey ?? null
       cards.push({
         pid, p, hr, events: events || [],
         name: p ? nameOf(p) : `#${pid}`,
@@ -211,6 +289,13 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         tonightNums,
         milestone: round.length > 0,
         roundNum: round[0] ?? null,
+        // numerology (2026-08-13) — jersey + birthday, reduced the same way
+        // as the homer-count root above. null when the league has no number
+        // on file for him (rare) rather than guessed.
+        jersey,
+        jerseyRoot: jersey != null ? digitRoot(jersey) : null,
+        dayRoot: numRec?.dayRoot ?? null,
+        lifePath: numRec?.lifePath ?? null,
       })
     })
     cards.sort((a, b) => (b.nth ?? -1) - (a.nth ?? -1))
@@ -235,7 +320,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     const numbered = cards.filter((c) => c.nth != null)
     const byNumber = new Map()
     const byRoot = new Map()
-    const digitRoot = (v) => (v > 0 ? 1 + ((v - 1) % 9) : 0)
+    // digitRoot lives at module scope now (2026-08-13) — the fetch effect
+    // above needs it too, for jersey/birthday reduction.
     numbered.forEach((c) => {
       if (!byNumber.has(c.nth)) byNumber.set(c.nth, [])
       byNumber.get(c.nth).push(c)
@@ -251,6 +337,30 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       .map(([root, list]) => ({ root, list }))
       .sort((a, b) => b.list.length - a.list.length)
     const topRoot = roots[0] && roots[0].list.length >= 3 ? roots[0] : null
+
+    // ── JERSEY + BIRTHDAY CLUSTERS (2026-08-13) ───────────────────────────
+    // Same shape as byNumber/byRoot above, three more lenses: the literal
+    // jersey number, its digit root, and the two birthday reductions. Built
+    // over ALL cards, not just `numbered` — a jersey and a birthday exist
+    // whether or not his season-HR count came back.
+    const byJersey = new Map(), byJerseyRoot = new Map(), byDayRoot = new Map(), byLifePath = new Map()
+    const bucket = (map, key, c) => { if (key == null) return; if (!map.has(key)) map.set(key, []); map.get(key).push(c) }
+    cards.forEach((c) => {
+      bucket(byJersey, c.jersey, c)
+      bucket(byJerseyRoot, c.jerseyRoot, c)
+      bucket(byDayRoot, c.dayRoot, c)
+      bucket(byLifePath, c.lifePath, c)
+    })
+    const topOf = (map, min) => {
+      const best = [...map.entries()].map(([root, list]) => ({ root, list })).sort((a, b) => b.list.length - a.list.length)[0]
+      return best && best.list.length >= min ? best : null
+    }
+    // Same >=3 bar as topRoot for the root-level lenses (nine buckets, small
+    // sample — a real bar to clear before it's "the" root of the night).
+    // Exact jersey number is a much rarer coincidence, so two is enough.
+    const topJerseyRoot = topOf(byJerseyRoot, 3)
+    const topDayRoot = topOf(byDayRoot, 3)
+    const topLifePath = topOf(byLifePath, 3)
 
     // ── 🧲 WHO IS ALIGNING WITH THE NIGHT (2026-08-09) ────────────────────
     //
@@ -275,14 +385,51 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     const repeatNums = new Set(repeats.map((r) => r.num))
     const hotSpot = spots[topSpot] >= 3 ? topSpot : null
     const rootNum = topRoot ? topRoot.root : null
+    const others = (list, self) => list.filter((x) => x.pid !== self.pid).map((x) => x.name)
     cards.forEach((c) => {
       const tags = []
-      if (c.nth != null && repeatNums.has(c.nth)) tags.push({ k: 'num', label: `${ord(c.nth)} club`, why: `${byNumber.get(c.nth).length} hitters reached their ${ord(c.nth)} tonight.` })
+      if (c.nth != null && repeatNums.has(c.nth)) tags.push({ k: 'num', label: `${ord(c.nth)} club`, why: `${joinNames(others(byNumber.get(c.nth), c))} also reached ${ord(c.nth)} tonight.` })
       if (hotSpot && c.spot === hotSpot) tags.push({ k: 'spot', label: `${ord(hotSpot)} spot`, why: `The ${ord(hotSpot)} spot leads the night with ${spots[hotSpot]} homers.` })
       if (rootNum && c.nth != null && digitRoot(c.nth) === rootNum) tags.push({ k: 'root', label: `root ${rootNum}`, why: `${topRoot.list.length} of tonight's numbered homers reduce to ${rootNum}.` })
+
+      // NUMEROLOGY (2026-08-13) — jersey + birthday, same "Aligning" home as
+      // the three above, not a separate section. Two flavors:
+      //
+      //   OWN    self-alignment, no other hitter needed — his own jersey
+      //          number lines up with the homer he just hit. The single
+      //          most "aligning" thing this panel can say, so it alone is
+      //          enough to earn a spot below (see the `aligned` filter).
+      //   jersey/bday   the same cross-hitter clustering as `num`/`root`,
+      //          just two more lenses on top of the homer count.
+      if (c.jersey != null && c.nth != null && (c.jersey === c.nth || (c.jerseyRoot != null && c.jerseyRoot === digitRoot(c.nth)))) {
+        tags.push({
+          k: 'own',
+          label: `own #${c.jersey}`,
+          why: c.jersey === c.nth
+            ? `He wears #${c.jersey} — this was his ${ord(c.nth)} homer of the season.`
+            : `He wears #${c.jersey} (reduces to ${c.jerseyRoot}), the same root as his ${ord(c.nth)} homer tonight.`,
+        })
+      }
+      const jerseyMates = c.jersey != null ? others(byJersey.get(c.jersey) || [c], c) : []
+      if (jerseyMates.length) {
+        tags.push({ k: 'jersey', label: `#${c.jersey} too`, why: `${joinNames(jerseyMates)} also wears #${c.jersey} tonight.` })
+      } else if (topJerseyRoot && c.jerseyRoot === topJerseyRoot.root) {
+        tags.push({ k: 'jroot', label: `#→${topJerseyRoot.root}`, why: `${topJerseyRoot.list.length} jersey numbers tonight reduce to ${topJerseyRoot.root}: ${joinNames(others(topJerseyRoot.list, c))}.` })
+      }
+      if (topDayRoot && c.dayRoot === topDayRoot.root) {
+        tags.push({ k: 'bday', label: `day ${topDayRoot.root}`, why: `${topDayRoot.list.length} birthdays tonight reduce to day-number ${topDayRoot.root}: ${joinNames(others(topDayRoot.list, c))}.` })
+      }
+      if (topLifePath && c.lifePath === topLifePath.root) {
+        tags.push({ k: 'path', label: `path ${topLifePath.root}`, why: `${topLifePath.list.length} life-path numbers tonight land on ${topLifePath.root}: ${joinNames(others(topLifePath.list, c))}.` })
+      }
       c.tags = tags
     })
-    const aligned = cards.filter((c) => c.tags.length >= 2).sort((a, b) => b.tags.length - a.tags.length)
+    // `own` alone qualifies — it doesn't need a second, unrelated tag to be
+    // worth showing (see the comment above). Everything else still needs
+    // two or more to clear the "more than arithmetic" bar.
+    const aligned = cards
+      .filter((c) => c.tags.length >= 2 || c.tags.some((t) => t.k === 'own'))
+      .sort((a, b) => b.tags.length - a.tags.length)
 
     return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot }
   }, [rows, players, seasonHr])
@@ -332,7 +479,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
             <span style={{ fontSize: 10.5, fontWeight: 900, color: C.orange }}>🧲 Aligning with tonight</span>
             <span style={{ fontSize: 9, color: C.text3 }}>
-              {aligned.length} homer{aligned.length === 1 ? '' : 's'} sitting inside more than one of tonight&apos;s patterns
+              {aligned.length} homer{aligned.length === 1 ? '' : 's'} lining up with tonight&apos;s numbers
             </span>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -355,9 +502,9 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             ))}
           </div>
           <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
-            Overlap, not evidence. ~25 homers spread over fifty numbers and nine lineup spots will
-            line up by arithmetic alone — this is the trend made visible while it forms, never a
-            reason to chase one.
+            Overlap, not evidence. ~25 homers spread over fifty numbers, nine lineup spots, jersey
+            numbers and birthdays will line up by arithmetic alone — this is the trend made visible
+            while it forms, never a reason to chase one.
           </div>
         </div>
       )}
