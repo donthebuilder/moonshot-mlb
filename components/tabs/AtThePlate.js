@@ -409,7 +409,23 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           nothing of yours has completed a plate appearance. */}
       <JustNow players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
 
-      {/* ── 1 · WHICH GAME ─────────────────────────────────────────────── */}
+      {/* ── 1 · WHICH GAME ─────────────────────────────────────────────
+          2026-08-13, Donovan: "pick a game like it actually needs the games
+          instead of the players. i should be able to see all the previous ab
+          for the other players as well." Two separate fixes:
+          1. The label. This picked a GAME but named it by whoever happened
+             to be up, so scanning the closed list read as a list of eight
+             hitters, not eight games — you couldn't tell which two teams
+             you'd be looking at until after you picked. Matchup-first now,
+             same abbr+score shape LiveAtBats already uses above; who's up
+             is still here, just demoted to the line under it.
+          2. The other players. This part already existed and didn't need
+             new code — tap any row in Coming up or the box score below and
+             the whole room, prior at-bats included, points at him instead,
+             same game. "Pick a game" only ever picked the GAME; it was never
+             connected to that, so the capability was real but not findable
+             from here. The line under the toggle says so now instead of
+             leaving you to discover it three sections down. */}
       {liveGames.length > 1 && (
         <div style={{ marginBottom: 12 }}>
           <Band note={`${liveGames.length} games have someone at the plate — your picks first`}>Pick a game</Band>
@@ -418,12 +434,19 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
             borderRadius: 10, padding: '7px 12px',
           }}>
-            <span style={{ fontSize: 11 }}>🎤</span>
-            <span style={{
-              fontSize: 11.5, fontWeight: 800, color: C.text, flex: 1, minWidth: 0,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {a.name}{a.role ? ` · 🤖 ${a.role}` : a.watched ? ' · ★' : ''}
+            <span style={{ fontSize: 11 }}>⚾</span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
+              <span style={{
+                fontSize: 12, fontWeight: 900, color: C.text, fontFamily: NUM_FONT,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {abbrs?.[a.g.awayId] || 'Away'} {a.g.awayScore ?? 0}–{a.g.homeScore ?? 0} {abbrs?.[a.g.homeId] || 'Home'}
+              </span>
+              <span style={{
+                fontSize: 9.5, color: C.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                🎤 {a.name}{a.role ? ` · 🤖 ${a.role}` : a.watched ? ' · ★' : ''} at the plate
+              </span>
             </span>
             <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
               {String(a.g.half || '').slice(0, 3)}{a.g.inning}
@@ -437,17 +460,22 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                 const col = ROLE_COLOR[x.role] || (x.watched ? '#a78bfa' : C.border2)
                 return (
                   <button key={x.pk} onClick={() => { setPinnedGame(x.pk); setGamePickerOpen(false) }} className="tap-row" style={{
-                    display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer', textAlign: 'left',
+                    display: 'flex', gap: 7, alignItems: 'center', cursor: 'pointer', textAlign: 'left',
                     border: `1px solid ${on ? col : C.border}`,
                     background: on ? `${col}1c` : 'rgba(255,255,255,.02)',
                     borderRadius: 10, padding: '6px 12px',
                     boxShadow: on ? `0 0 14px ${col}30` : 'none',
                   }}>
-                    <span style={{ fontSize: 10 }}>🎤</span>
-                    <span style={{ fontSize: 11.5, fontWeight: 800, color: on ? C.text : C.text2 }}>{x.name}</span>
-                    {x.role && <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[x.role] }}>🤖 {x.role}</span>}
-                    {x.watched && <span style={{ fontSize: 9 }}>★</span>}
-                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
+                    <span style={{ fontSize: 10 }}>⚾</span>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, color: on ? C.text : C.text2, fontFamily: NUM_FONT }}>
+                        {abbrs?.[x.g.awayId] || 'Away'} {x.g.awayScore ?? 0}–{x.g.homeScore ?? 0} {abbrs?.[x.g.homeId] || 'Home'}
+                      </span>
+                      <span style={{ fontSize: 9, color: C.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        🎤 {x.name}{x.role ? ` · 🤖 ${x.role}` : x.watched ? ' · ★' : ''}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
                       {String(x.g.half || '').slice(0, 3)}{x.g.inning}
                     </span>
                   </button>
@@ -455,6 +483,10 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               })}
             </div>
           )}
+          <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+            This picks the game. Once you&apos;re in it, tap anyone in Coming up or the box score
+            below to see his at-bats — the charts and the log follow him, not just whoever&apos;s up.
+          </div>
         </div>
       )}
 
