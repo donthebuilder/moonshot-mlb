@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { dataUrl } from '../lib/dataSource'
 import { nameOf, teamOf, n } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 import { pickSplit } from '../lib/seasonSplit'
@@ -18,9 +17,12 @@ import { hrShapeMeta, hrLine } from '../lib/hrShape'
 // verdict handed down at the end.
 //
 // SOURCES, nothing invented:
-//   results_live.json   actual_hr per graded player, tonight only (date-gated
+//   results (prop)       actual_hr per graded player, tonight only (date-gated
 //                       the same way the storyline tracker is — the file
-//                       holds the last graded slate until a new one starts)
+//                       holds the last graded slate until a new one starts).
+//                       Handed down from Scoreboard.js, which already has it —
+//                       see the 2026-08-13 note below the imports for why this
+//                       used to be its own fetch and isn't anymore.
 //   MLB people/stats    the AUTHORITATIVE season homer total, which already
 //                       includes tonight — so his latest homer simply IS that
 //                       number, with no arithmetic to get wrong
@@ -41,50 +43,56 @@ import { hrShapeMeta, hrLine } from '../lib/hrShape'
 // three homers from the 2-hole a trend. It's a picture of tonight, not a
 // finding about baseball.
 
-const bust = (u) => `${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`
 const ord = (v) => {
   const k = v % 10, h = v % 100
   return `${v}${k === 1 && h !== 11 ? 'st' : k === 2 && h !== 12 ? 'nd' : k === 3 && h !== 13 ? 'rd' : 'th'}`
 }
 
-export default function HomerLedger({ players = [], slateDate = '', onPlayerClick }) {
+// Season-HR lookup cache (2026-08-13, "load faster" — see below). Keyed by
+// pid, holding the last authoritative total AND how many of his tonight
+// homers had already happened when it was fetched, so a cache hit only
+// counts if it's at least that current — a real second homer always forces
+// a fresh ask instead of quietly serving a total that's now one light.
+// Module-level on purpose: it should survive this component unmounting when
+// you leave the Scoreboard tab, not reset every time you come back to it.
+const seasonHrCache = new Map()   // pid -> { hr, atCount, ts }
+const SEASON_HR_TTL = 10 * 60 * 1000
+
+export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick }) {
   const dateKey = slateDate || new Date().toLocaleDateString('en-CA')
   const isTmrw = slateDate && slateDate > new Date().toLocaleDateString('en-CA')
-  const [rows, setRows] = useState(null)
 
-  useEffect(() => {
-    if (isTmrw) { setRows(null); return undefined }
-    let alive = true
-    const pull = () => {
-      fetch(bust(dataUrl('current/results_live.json')))
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => {
-          if (!alive || !j) return
-          // date gate — the live file keeps the last graded slate until the
-          // next one starts grading, so an ungated read shows a stale night
-          if (String(j.date || '') !== String(dateKey)) { setRows(null); return }
-          // DEDUPE BY PLAYER (2026-08-09). A hitter designated in two
-          // categories (TOP *and* HR, say) gets a graded slot per category,
-          // each carrying the same actual_hr — walking the slots naively
-          // counted his homer twice and inflated the night's total. The rule
-          // now lives in lib/graded.js because it had bitten three components;
-          // this call site kept its own copy of it until then.
-          setRows(dedupeGraded(j.graded_slots || j.results || [])
-            // hr_events rides along from 2026-08-11: the grader now records
-            // each homer's launch speed, angle and distance, so the ledger can
-            // say WHAT KIND of homer it was and not just that one happened.
-            // Older nights have no hr_events and simply show no band — an
-            // untracked homer and a wall-scraper are different claims.
-            .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0), events: s?.hr_events || [] }))
-            .filter((x) => x.pid && x.hr > 0))
-        })
-        .catch(() => {})
-    }
-    pull()
-    // Background tabs don't poll (2026-08-09 scan).
-    const t = setInterval(() => { if (!document.hidden) pull() }, 3 * 60 * 1000)
-    return () => { alive = false; clearInterval(t) }
-  }, [isTmrw, dateKey])
+  // SOURCED FROM THE PROP NOW, NOT ITS OWN FETCH (2026-08-13, Donovan: "it
+  // need to load faster"). Scoreboard.js already holds this exact payload —
+  // Dashboard.js fetches it once and polls it every 45s live / 5min idle,
+  // shared with LiveWire, SlatePulse and the gone-yard tracker on the same
+  // page — and was simply never handing it down here. This component had its
+  // own copy of the same fetch, its own 3-minute timer, and its own
+  // cache-buster, fully duplicating a request the page already makes (and
+  // refreshes faster than this one did on its own, while live). Reusing the
+  // prop deletes a redundant network round-trip on every mount for free —
+  // the shape is identical (fetchJSON in lib/data.js returns the raw parsed
+  // JSON, no transform), so nothing below needed to change to read it.
+  const rows = useMemo(() => {
+    if (isTmrw || !results) return null
+    // date gate — the live file keeps the last graded slate until the next
+    // one starts grading, so an ungated read shows a stale night
+    if (String(results.date || '') !== String(dateKey)) return null
+    // DEDUPE BY PLAYER (2026-08-09). A hitter designated in two categories
+    // (TOP *and* HR, say) gets a graded slot per category, each carrying the
+    // same actual_hr — walking the slots naively counted his homer twice and
+    // inflated the night's total. The rule now lives in lib/graded.js because
+    // it had bitten three components; this call site kept its own copy of it
+    // until then.
+    return dedupeGraded(results.graded_slots || results.results || [])
+      // hr_events rides along from 2026-08-11: the grader now records each
+      // homer's launch speed, angle and distance, so the ledger can say WHAT
+      // KIND of homer it was and not just that one happened. Older nights
+      // have no hr_events and simply show no band — an untracked homer and a
+      // wall-scraper are different claims.
+      .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0), events: s?.hr_events || [] }))
+      .filter((x) => x.pid && x.hr > 0)
+  }, [results, isTmrw, dateKey])
 
   // ── THE NUMBER HAS TO BE RIGHT, OR THE PANEL IS WORSE THAN NOTHING ───────
   //
@@ -112,19 +120,40 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
   // and rows sourced that way are marked approximate in their tooltip rather
   // than presented with the same confidence.
   const [seasonHr, setSeasonHr] = useState(null)   // pid -> authoritative total
-  const hrIds = useMemo(
-    () => (rows || []).map((r) => r.pid).filter(Boolean).sort().join(','),
+  // KEYED ON pid:hr, NOT JUST pid (2026-08-13, same "load faster" pass). The
+  // old key was the pid list alone, so a SECOND homer from someone already on
+  // tonight's list didn't change the key and never re-asked the league — his
+  // season total could sit one light until some other, unrelated player's
+  // homer happened to change the pid set. Encoding tonight's own count per
+  // pid means an actual change to what we need to know is the only thing
+  // that retriggers a check, and it's what the cache below keys against.
+  const hrKey = useMemo(
+    () => (rows || []).map((r) => `${r.pid}:${r.hr}`).sort().join(','),
     [rows],
   )
   useEffect(() => {
-    if (!hrIds) { setSeasonHr(null); return undefined }
+    if (!rows?.length) { setSeasonHr(null); return undefined }
     let alive = true
-    const ids = hrIds.split(',')
+    const tonightCount = new Map(rows.map((r) => [r.pid, r.hr]))
     ;(async () => {
       const out = new Map()
-      for (let i = 0; i < ids.length; i += 100) {
+      const now = Date.now()
+      const need = []
+      // CACHED PER PID (2026-08-13, "load faster"). Switching tabs away from
+      // Scoreboard and back used to re-ask the league for every hitter's
+      // season total from scratch, even seconds later. A season total is
+      // final the moment his homer lands, so it's safe to hold for a few
+      // minutes — only served from cache when we last fetched at or after his
+      // CURRENT tonight tally, so a fresh homer always forces a fresh ask.
+      tonightCount.forEach((hr, pid) => {
+        const hit = seasonHrCache.get(pid)
+        if (hit && hit.atCount >= hr && now - hit.ts < SEASON_HR_TTL) out.set(pid, hit.hr)
+        else need.push(pid)
+      })
+      for (let i = 0; i < need.length; i += 100) {
+        const batch = need.slice(i, i + 100)
         const url = 'https://statsapi.mlb.com/api/v1/people?personIds='
-          + ids.slice(i, i + 100).join(',')
+          + batch.join(',')
           + '&hydrate=stats(group=[hitting],type=[season])'
           + '&fields=people,id,stats,type,displayName,splits,team,gameType,stat,homeRuns,gamesPlayed'
         try {
@@ -135,14 +164,18 @@ export default function HomerLedger({ players = [], slateDate = '', onPlayerClic
             // number would be short by everything he did after the trade.
             const blk = (person.stats || []).find((s) => s?.type?.displayName === 'season')
             const hr = Number(pickSplit(blk)?.homeRuns)
-            if (Number.isFinite(hr)) out.set(Number(person.id), hr)
+            const pid = Number(person.id)
+            if (Number.isFinite(hr)) {
+              out.set(pid, hr)
+              seasonHrCache.set(pid, { hr, atCount: tonightCount.get(pid) ?? 0, ts: now })
+            }
           })
-        } catch { /* fall back to slate arithmetic */ }
+        } catch { /* fall back to slate arithmetic for these ids */ }
       }
       if (alive) setSeasonHr(out.size ? out : null)
     })()
     return () => { alive = false }
-  }, [hrIds])
+  }, [hrKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const model = useMemo(() => {
     if (!rows?.length) return null

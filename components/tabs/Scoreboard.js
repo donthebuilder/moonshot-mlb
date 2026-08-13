@@ -230,8 +230,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       <SlateStrength players={players} onGameClick={() => onNavigate?.('games')} />
     </Fold>
   )
-  // 🧾 the ledger builds through the night — lives with the live layer
-  const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+  // 🧾 the ledger builds through the night — lives with the live layer.
+  // 2026-08-13: passes `results` now instead of HomerLedger fetching its own
+  // copy of the identical payload — see the note in HomerLedger.js.
+  const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
   const secStories = (
     <Fold key="stories" label="📰 Storylines — tonight's angles, written from the slate">
       <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
