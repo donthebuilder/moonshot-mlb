@@ -121,7 +121,14 @@ export default function BattedBallLog({ players = [], onPlayerClick, limit = 12 
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, fontFamily: NUM_FONT }}>
-                    <span style={{ fontSize: 10 }}>{r.icon}</span>
+                    {/* 2026-08-13, "i dont like this format," screenshot showed
+                        this exact case: a 100+ mph out already gets a pink EV
+                        number AND a 🔥 HH badge below — EVENT_TONE's own 🔥
+                        for "hot" (loud) outs was a THIRD flame saying the same
+                        thing. Every other tone (💥 HR, 🎯 XBH, ✅ on-base, ❌ K)
+                        carries information the badge row doesn't, so only
+                        "hot" is suppressed here. */}
+                    {r.tone !== 'hot' && <span style={{ fontSize: 10 }}>{r.icon}</span>}
                     <span style={{ fontSize: 9, color: C.text2, fontWeight: 700 }}>
                       {/^top/i.test(r.half) ? '▲' : '▼'}{r.inning}
                     </span>
