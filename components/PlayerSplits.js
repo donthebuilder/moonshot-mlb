@@ -82,20 +82,133 @@ const LIVE_SIT_CODES = LIVE_SIT_GROUPS.flatMap((g) => g.codes)
 // to him as one idea. This merges them into one pill row and one table:
 // pick ANY split, bot file or live league, see its rows.
 //
-// What this ISN'T: a true cross-filter that intersects two picks into one
-// number (e.g. "Home AND Friday AND RISP" as a single line). Neither source
-// carries that — the bot's file is pre-aggregated one dimension at a time,
-// and the league's sitCodes API returns one split per code, not the
-// Cartesian product of several codes at once. A real combined number would
-// mean pulling this hitter's full play-by-play and intersecting it
-// client-side — a much bigger, separate build. Every dimension he named is
-// filterable here on its own, which is the same "one active cut, not
-// several stacked" idea the BBE log and the live spray/zone filters already
-// use elsewhere on this site.
+// What this ISN'T: a filter that reaches into the LIVE league splits (RISP,
+// outs, count, runners-on, platoon). Those come back one split per sitCode
+// from MLB's statSplits endpoint, not the Cartesian product of several codes
+// at once — combining any of those with anything else would mean pulling
+// this hitter's full play-by-play and intersecting it client-side, still a
+// much bigger, separate build, not attempted here. Every one of these is
+// filterable on its own, same "one active cut, not several stacked" idea
+// the BBE log and the live spray/zone filters use elsewhere on this site.
 const PICKER_GROUPS = [
   ...GROUPS.map((g) => ({ key: g.key, label: g.label, source: 'file' })),
   ...LIVE_SIT_GROUPS.map((g) => ({ key: g.key, label: g.label, source: 'live' })),
 ]
+
+// ── COMBINE FILTERS (2026-08-13) ────────────────────────────────────────────
+// Donovan, right after the picker above shipped: "how a player does on
+// monday splits then at home in a win day game... i can't filter like
+// that." He's right, and the picker above says so in its own comment — but
+// day-of-week, home/away, result and day/night are all GAME-level facts,
+// not PA-level ones. player_splits.py already visits every one of a
+// hitter's games once to build its four tables; it now also keeps one raw
+// row per game (date/dow/home/win/dn + that game's own box score line), at
+// zero extra API cost. That's enough to build any AND-combination of these
+// four client-side — "Monday AND home AND a win AND a day game" is now a
+// real, if often thin, single line. RISP/outs/count/runners-on still can't
+// join in — those live in the league's PA-level splits, not this file.
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function Sel({ value, onChange, options, placeholder }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        fontSize: 10.5, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
+        background: C.bg2, border: `1px solid ${C.border}`,
+        color: value ? C.text : C.text3, cursor: 'pointer',
+      }}>
+      <option value="">{placeholder}</option>
+      {options.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+    </select>
+  )
+}
+
+// One raw row in, one aggregated line out — mirrors player_splits.py's own
+// finish()/add() shape so a combo line reads exactly like every other row
+// on this tab, just computed in the browser instead of the bot.
+function aggregateGames(rows) {
+  if (!rows.length) return { g: 0 }
+  const acc = rows.reduce((a, r) => {
+    a.pa += n(r.pa, 0); a.ab += n(r.ab, 0); a.h += n(r.h, 0); a.hr += n(r.hr, 0)
+    a.xbh += n(r['2b'], 0) + n(r['3b'], 0) + n(r.hr, 0)
+    a.bb += n(r.bb, 0); a.k += n(r.k, 0); a.rbi += n(r.rbi, 0); a.tb += n(r.tb, 0)
+    return a
+  }, { pa: 0, ab: 0, h: 0, hr: 0, xbh: 0, bb: 0, k: 0, rbi: 0, tb: 0 })
+  return {
+    _key: 'combo', split: 'Combo', g: rows.length, pa: acc.pa, hr: acc.hr,
+    xbh: acc.xbh, rbi: acc.rbi, bb: acc.bb,
+    avg: acc.ab ? acc.h / acc.ab : 0,
+    obp: (acc.ab + acc.bb) ? (acc.h + acc.bb) / (acc.ab + acc.bb) : 0,
+    slg: acc.ab ? acc.tb / acc.ab : 0,
+    ops: acc.ab ? (acc.h / acc.ab) + (acc.tb / acc.ab) : 0,
+    iso: acc.ab ? (acc.tb - acc.h) / acc.ab : 0,
+    hrPa: acc.pa ? (100 * acc.hr) / acc.pa : 0,
+    kPct: acc.pa ? (100 * acc.k) / acc.pa : 0,
+    bbPct: acc.pa ? (100 * acc.bb) / acc.pa : 0,
+  }
+}
+
+function ComboFilter({ games, cols }) {
+  const [dow, setDow] = useState('')
+  const [ha, setHa] = useState('')
+  const [res, setRes] = useState('')
+  const [dn, setDn] = useState('')
+
+  const result = useMemo(() => {
+    const matches = games.filter((g) => (
+      (!dow || g.dow === dow) &&
+      (!ha || (ha === 'home' ? g.home === true : g.home === false)) &&
+      (!res || (res === 'win' ? g.win === true : g.win === false)) &&
+      (!dn || g.dn === dn)
+    ))
+    return aggregateGames(matches)
+  }, [games, dow, ha, res, dn])
+
+  const anyOn = dow || ha || res || dn
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+        <Sel value={dow} onChange={setDow} placeholder="Any day"
+          options={DOW.map((d) => ({ v: d, label: d }))} />
+        <Sel value={ha} onChange={setHa} placeholder="Home/Away"
+          options={[{ v: 'home', label: 'Home' }, { v: 'away', label: 'Away' }]} />
+        <Sel value={res} onChange={setRes} placeholder="Win/Loss"
+          options={[{ v: 'win', label: 'Win' }, { v: 'loss', label: 'Loss' }]} />
+        <Sel value={dn} onChange={setDn} placeholder="Day/Night"
+          options={[{ v: 'Day', label: 'Day game' }, { v: 'Night', label: 'Night game' }]} />
+        {anyOn && (
+          <button
+            onClick={() => { setDow(''); setHa(''); setRes(''); setDn('') }}
+            style={{ fontSize: 10, fontWeight: 700, color: C.text3, background: 'none',
+              border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+            clear
+          </button>
+        )}
+      </div>
+
+      {!anyOn ? (
+        <div style={{ fontSize: 10.5, color: C.text3, padding: '4px 0' }}>
+          Pick at least one filter above to see a combined line — mix as many as you want.
+        </div>
+      ) : result.g === 0 ? (
+        <div style={{ fontSize: 10.5, color: C.text3, padding: '4px 0' }}>
+          No games matched that combination this season.
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 9.5, color: result.pa < 20 ? C.orange : C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
+            {result.g} game{result.g === 1 ? '' : 's'} · {result.pa} PA
+            {result.pa < 20 ? ' — very thin, read this as a curiosity, not a signal' : ''}
+          </div>
+          <DenseTable rows={[result]} columns={cols} initialSort={null} maxHeight={90} />
+        </>
+      )}
+    </div>
+  )
+}
 
 // column set shared by the in-body tables and the missing-file branch
 const MISSING_COLS = [
@@ -428,6 +541,30 @@ export default function PlayerSplits({ player, slateMode }) {
           <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>Loading this split…</div>
         )}
       </div>
+
+      {/* ── COMBINE FILTERS (2026-08-13) ─────────────────────────────────
+          Donovan: "how a player does on monday splits then at home in a
+          win day game... i can't filter like that." See the dated comment
+          on ComboFilter above for why day-of-week/home-away/result/day-
+          night specifically CAN be intersected, and RISP/outs/count/
+          runners-on still can't. */}
+      {Array.isArray(data?.games) && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 800 }}>🔀 Combine filters</span>
+            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              day of week + home/away + result + day-night, all at once
+            </span>
+          </div>
+          {!data.games.length ? (
+            <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>
+              This hitter&apos;s file doesn&apos;t carry per-game rows yet — publishes on the next slate this runs for.
+            </div>
+          ) : (
+            <ComboFilter games={data.games} cols={cols} />
+          )}
+        </div>
+      )}
 
       {thin && (
         <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: -4 }}>
