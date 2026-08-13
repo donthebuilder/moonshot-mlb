@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
 import MobileFold from './MobileFold'
@@ -58,6 +58,15 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
   // default read, cyan for Bot Output, green for Lineups — the strip tells
   // you which lens you're in before you read a single card.
   const accent = botView ? '#22d3ee' : mode === 'lineups' ? '#4ade80' : '#f97316'
+  // 2026-08-13, Donovan (screenshot feedback): "packed with too much text" +
+  // "the legend paragraph at the bottom" -- this used to always render as a
+  // 7-sentence paragraph under every grid. Nothing in it was wrong, there
+  // was just always more of it on screen than anyone needed mid-glance.
+  // Collapsed behind a toggle, same pattern as the tab-level "what am I
+  // looking at" pill elsewhere on the site -- one live line stays visible
+  // (the sort state, since that actually changes), the symbol glossary is
+  // one tap away instead of permanent.
+  const [legendOpen, setLegendOpen] = useState(false)
   const cards = useMemo(() => {
     const built = games.map((g) => {
       const gp = g.players || []
@@ -315,24 +324,38 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         })}
       </div>
 
-      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 7 }}>
-        {sortBy === 'gs' ? 'Sorted by Game Score, hottest first'
-          : sortBy === 'hr9' ? "Sorted by the leakier starter's HR/9, worst first"
-          : sortBy === 'whip' ? "Sorted by the leakier starter's WHIP, worst first"
-          : 'First-pitch order'}, heat-tinted and heat-SIZED — 🌋 marks tonight's MAIN EVENT (highest GS), 🔥 runs hot, 🧊 runs cold; the ghost numeral is always the game's GS rank, even when sorted by something else. The warmer a card glows and the wider it
-        stretches, the higher its{' '}
-        <strong style={{ color: C.text2 }}>GS</strong> (Game Score: the median of every hitter&apos;s
-        four board scores, then the median across the lineup — &ldquo;is this whole lineup
-        dangerous&rdquo;, not &ldquo;is there one guy&rdquo;). ▲/▽ = above/below tonight&apos;s median.
-        ⚾ the pitching matchup · 🔝 the game&apos;s top bat and his HR score · ★ weak lineup spots
-        · ✓✓/✓◻ per-team lineup posted or projected. Every card carries the same three chips —
-        <strong style={{ color: '#FCD34D' }}> TOP</strong>,
-        <strong style={{ color: '#FB923C' }}> HR</strong> and
-        <strong style={{ color: '#A78BFA' }}> ALT</strong> (the bot&apos;s secondary HR lane, hover for
-        the reason) — name and score, so the either/or is one glance. A chip only appears when the
-        bot actually published that lane, and never names the same hitter twice on one card.
-        {onPairPick ? ' Tap any chip to add him as a pair leg; 🔗 marks the legs you already have.' : ''}
-        {' '}Click a card to open the full deep-dive below the grid; click it again to close.
+      <div style={{ marginTop: 7 }}>
+        <div style={{ fontSize: 9.5, color: C.text3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span>
+            {sortBy === 'gs' ? 'Sorted by Game Score, hottest first'
+              : sortBy === 'hr9' ? "Sorted by the leakier starter's HR/9, worst first"
+              : sortBy === 'whip' ? "Sorted by the leakier starter's WHIP, worst first"
+              : 'First-pitch order'}, heat-tinted and heat-sized.
+          </span>
+          <button onClick={() => setLegendOpen((v) => !v)} style={{
+            fontSize: 9, fontWeight: 700, color: C.text3, cursor: 'pointer',
+            background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 999,
+            padding: '1px 8px',
+          }}>{legendOpen ? '✕ hide symbols' : '❓ what do the symbols mean'}</button>
+        </div>
+        {legendOpen && (
+          <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5, lineHeight: 1.55 }}>
+            🌋 marks tonight's MAIN EVENT (highest GS), 🔥 runs hot, 🧊 runs cold; the ghost numeral is always the game's GS rank, even when sorted by something else. The warmer a card glows and the wider it
+            stretches, the higher its{' '}
+            <strong style={{ color: C.text2 }}>GS</strong> (Game Score: the median of every hitter&apos;s
+            four board scores, then the median across the lineup — &ldquo;is this whole lineup
+            dangerous&rdquo;, not &ldquo;is there one guy&rdquo;). ▲/▽ = above/below tonight&apos;s median.
+            ⚾ the pitching matchup · 🔝 the game&apos;s top bat and his HR score · ★ weak lineup spots
+            · ✓✓/✓◻ per-team lineup posted or projected. Every card carries the same three chips —
+            <strong style={{ color: '#FCD34D' }}> TOP</strong>,
+            <strong style={{ color: '#FB923C' }}> HR</strong> and
+            <strong style={{ color: '#A78BFA' }}> ALT</strong> (the bot&apos;s secondary HR lane, hover for
+            the reason) — name and score, so the either/or is one glance. A chip only appears when the
+            bot actually published that lane, and never names the same hitter twice on one card.
+            {onPairPick ? ' Tap any chip to add him as a pair leg; 🔗 marks the legs you already have.' : ''}
+            {' '}Click a card to open the full deep-dive below the grid; click it again to close.
+          </div>
+        )}
       </div>
     </div>
     </MobileFold>
