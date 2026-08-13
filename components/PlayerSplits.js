@@ -72,6 +72,31 @@ const LIVE_SIT_GROUPS = [
 ]
 const LIVE_SIT_CODES = LIVE_SIT_GROUPS.flatMap((g) => g.codes)
 
+// ── ONE PICKER FOR EVERY SPLIT ON THIS TAB (2026-08-13) ─────────────────────
+// Donovan: "a intuitive thing where i can filter home away day of the week
+// certain situations. so i can see the avg and stats based on the filters."
+// Before this, home/away, win/loss and day-of-week (the bot's file) sat as
+// three tables stacked and always on screen, while outs/count/runners/
+// platoon (the live league splits) sat behind their own separate picker,
+// one group at a time — two different interaction patterns for what reads
+// to him as one idea. This merges them into one pill row and one table:
+// pick ANY split, bot file or live league, see its rows.
+//
+// What this ISN'T: a true cross-filter that intersects two picks into one
+// number (e.g. "Home AND Friday AND RISP" as a single line). Neither source
+// carries that — the bot's file is pre-aggregated one dimension at a time,
+// and the league's sitCodes API returns one split per code, not the
+// Cartesian product of several codes at once. A real combined number would
+// mean pulling this hitter's full play-by-play and intersecting it
+// client-side — a much bigger, separate build. Every dimension he named is
+// filterable here on its own, which is the same "one active cut, not
+// several stacked" idea the BBE log and the live spray/zone filters already
+// use elsewhere on this site.
+const PICKER_GROUPS = [
+  ...GROUPS.map((g) => ({ key: g.key, label: g.label, source: 'file' })),
+  ...LIVE_SIT_GROUPS.map((g) => ({ key: g.key, label: g.label, source: 'live' })),
+]
+
 // column set shared by the in-body tables and the missing-file branch
 const MISSING_COLS = [
   { key: 'split', label: 'Split', heat: false, w: 78, bold: true, sticky: true },
@@ -85,11 +110,14 @@ const MISSING_COLS = [
   { key: 'kPct', label: 'K%', w: 46, dp: 1, invert: true },
 ]
 
-// Pill-row picker, shared by both render branches below.
-function SitPicker({ active, onPick }) {
+// Pill-row picker, shared by every split on this tab regardless of source —
+// takes whichever group list is currently available so the same component
+// drives the "bot file missing" branch (live groups only) and the normal
+// branch (everything).
+function GroupPicker({ groups, active, onPick }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-      {LIVE_SIT_GROUPS.map((g) => {
+      {groups.map((g) => {
         const on = g.key === active
         return (
           <button
@@ -113,7 +141,10 @@ function SitPicker({ active, onPick }) {
 export default function PlayerSplits({ player, slateMode }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
-  const [sitGroup, setSitGroup] = useState('platoon')
+  // Drives the ONE picker for every split on the tab — a key into either
+  // GROUPS (bot file) or LIVE_SIT_GROUPS (live league), doesn't matter which;
+  // see PICKER_GROUPS above.
+  const [activeGroup, setActiveGroup] = useState('platoon')
 
   const pid = player?.player_id || player?.id
 
@@ -210,15 +241,31 @@ export default function PlayerSplits({ player, slateMode }) {
     }
   }).filter(Boolean), [data])
 
-  // Rows for whichever live situational group is currently picked.
+  // Only offer a pill if it actually leads somewhere — a bot-file group with
+  // no published table, or the whole live block before it's loaded, would
+  // otherwise be a dead click.
+  const availableGroups = useMemo(
+    () => PICKER_GROUPS.filter((g) => (g.source === 'file' ? tables.some((t) => t.key === g.key) : !!lr)),
+    [tables, lr],
+  )
+  // First real pick if the remembered one isn't available (yet) — bot file
+  // still loading, this hitter has no file at all, or the live block hasn't
+  // resolved — keeps the picker from opening on a pill that leads nowhere.
+  const effectiveGroup = availableGroups.some((g) => g.key === activeGroup)
+    ? activeGroup
+    : availableGroups[0]?.key || null
+
+  const activeFileTable = tables.find((t) => t.key === effectiveGroup) || null
+  // Rows for the active group, IF it's a live-league one — null (not a
+  // fallback to some other group) when the pick is a bot-file group instead,
+  // so the two sources never get crossed under one label.
   const activeLiveRows = useMemo(() => {
     if (!lr) return null
-    const group = LIVE_SIT_GROUPS.find((g) => g.key === sitGroup) || LIVE_SIT_GROUPS[0]
-    const rows = group.codes
-      .map((c) => lr.find((r) => r.code === c))
-      .filter(Boolean)
+    const group = LIVE_SIT_GROUPS.find((g) => g.key === effectiveGroup)
+    if (!group) return null
+    const rows = group.codes.map((c) => lr.find((r) => r.code === c)).filter(Boolean)
     return { group, rows }
-  }, [lr, sitGroup])
+  }, [lr, effectiveGroup])
 
   if (!pid) return null
   if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading splits…</div>
@@ -228,9 +275,9 @@ export default function PlayerSplits({ player, slateMode }) {
       {lr && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Situational splits <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, fontWeight: 400 }}>season · live from the league</span></div>
-          <SitPicker active={sitGroup} onPick={setSitGroup} />
+          <GroupPicker groups={availableGroups} active={effectiveGroup} onPick={setActiveGroup} />
           {activeLiveRows && (
-            <DenseTable rows={activeLiveRows.rows} columns={MISSING_COLS} initialSort={null} maxHeight={200} />
+            <DenseTable rows={activeLiveRows.rows} columns={MISSING_COLS} initialSort={null} maxHeight={200} caption={activeLiveRows.group.caption} />
           )}
         </div>
       )}
@@ -319,53 +366,68 @@ export default function PlayerSplits({ player, slateMode }) {
         against the league. K% is inverted; everything else reads bright-is-better for the bat.
       </div>
 
-      {lr && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 800 }}>Situational splits</span>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              season, straight from the league — pick a category
-            </span>
-          </div>
-          <SitPicker active={sitGroup} onPick={setSitGroup} />
-          {activeLiveRows && (
+      {/* ── ONE PICKER, EVERY SPLIT (2026-08-13) ─────────────────────────
+          Donovan: "an intuitive thing where i can filter home away day of
+          the week certain situations. so i can see the avg and stats based
+          on the filters." Home/away, win/loss and day-of-week (the bot's
+          file) used to sit as three tables stacked here, always all on
+          screen at once; outs/count/runners/platoon (the live league
+          splits) sat behind a second, separate picker above this section.
+          One pill row now, spanning both sources — which table you're
+          looking at is a tap, not a scroll. See PICKER_GROUPS for why this
+          picks ONE split at a time rather than intersecting several. */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 800 }}>Splits</span>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+            pick a filter — bot file and live league, all in one place
+          </span>
+        </div>
+        <GroupPicker groups={availableGroups} active={effectiveGroup} onPick={setActiveGroup} />
+
+        {activeFileTable && (() => {
+          const thinnest = Math.min(...activeFileTable.rows.map((r) => r.pa))
+          return (
+            <>
+              <div style={{ fontSize: 9.5, color: thinnest < THIN_PA ? C.orange : C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
+                season · from the bot&apos;s file · {activeFileTable.rows.length} rows · thinnest {thinnest} PA
+              </div>
+              <DenseTable
+                rows={activeFileTable.rows}
+                columns={cols}
+                initialSort={null}
+                maxHeight={260}
+                caption={
+                  activeFileTable.key === 'day_of_week'
+                    ? 'Seven ways to cut one season. Every row here is a few dozen plate appearances, which is not enough to separate any hitter from himself — a 130-point gap between two weekdays is two or three hits. This table is here because the bot publishes it, not because it should move a decision.'
+                    : thinnest < THIN_PA
+                      ? `The smallest row here is ${thinnest} plate appearances. Under about 100, batting average moves 30 points on three hits, so treat the gap between these rows as noise unless it is very large.`
+                      : 'Both rows clear 100 plate appearances, which is enough to be worth a look — though a season split is still one season, and the gap you see is usually smaller next year.'
+                }
+              />
+            </>
+          )
+        })()}
+
+        {!activeFileTable && activeLiveRows && (
+          <>
+            <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
+              season · live from the league
+            </div>
             <DenseTable
               rows={activeLiveRows.rows}
               columns={cols}
               initialSort={null}
-              maxHeight={200}
+              maxHeight={260}
               caption={activeLiveRows.group.caption}
             />
-          )}
-        </div>
-      )}
+          </>
+        )}
 
-      {tables.map((t) => {
-        const thinnest = Math.min(...t.rows.map((r) => r.pa))
-        return (
-          <div key={t.key} style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 800 }}>{t.label}</span>
-              <span style={{ fontSize: 9.5, color: thinnest < THIN_PA ? C.orange : C.text3, fontFamily: NUM_FONT }}>
-                {t.rows.length} rows · thinnest {thinnest} PA
-              </span>
-            </div>
-            <DenseTable
-              rows={t.rows}
-              columns={cols}
-              initialSort={null}
-              maxHeight={260}
-              caption={
-                t.key === 'day_of_week'
-                  ? 'Seven ways to cut one season. Every row here is a few dozen plate appearances, which is not enough to separate any hitter from himself — a 130-point gap between two weekdays is two or three hits. This table is here because the bot publishes it, not because it should move a decision.'
-                  : thinnest < THIN_PA
-                    ? `The smallest row here is ${thinnest} plate appearances. Under about 100, batting average moves 30 points on three hits, so treat the gap between these rows as noise unless it is very large.`
-                    : 'Both rows clear 100 plate appearances, which is enough to be worth a look — though a season split is still one season, and the gap you see is usually smaller next year.'
-              }
-            />
-          </div>
-        )
-      })}
+        {!activeFileTable && !activeLiveRows && (
+          <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>Loading this split…</div>
+        )}
+      </div>
 
       {thin && (
         <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: -4 }}>
