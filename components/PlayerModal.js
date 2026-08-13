@@ -372,6 +372,33 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   // An API-only player can land while a bot-only tab is open — snap home.
   useEffect(() => { if (player?.api_only) setTab('overview') }, [player])
 
+  // 🎽 JERSEY NUMBER (2026-08-13, Donovan: "add jersey numbers to the players
+  // modal"). Not something the bot publishes — it's static roster info, the
+  // same one-field pull HomerLedger's numerology feature already proved out
+  // the same day (statsapi.mlb.com/api/v1/people, primaryNumber). Kept
+  // deliberately separate from that cache rather than reaching into it: this
+  // fetches at most once per modal-open, not a hot enough path to share one.
+  const [jersey, setJersey] = useState(null)
+  useEffect(() => {
+    setJersey(null)
+    if (!pid) return undefined
+    let alive = true
+    fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${pid}&fields=people,id,primaryNumber`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive) return
+        const person = j?.people?.[0]
+        const num = Number(person?.primaryNumber)
+        // '' -> Number('') -> 0, which IS a real jersey number for someone —
+        // the explicit "!== ''" check is the same guard the numerology
+        // feature needed for the identical reason, so a player with no
+        // number on file renders nothing instead of a fake "#0".
+        setJersey(person?.primaryNumber != null && person.primaryNumber !== '' && Number.isFinite(num) ? num : null)
+      })
+      .catch(() => { if (alive) setJersey(null) })
+    return () => { alive = false }
+  }, [pid])
+
   // LIVE SEASON FALLBACK (2026-08-08, Donovan: "season stats need to
   // populate as best as possible" for non-slate players). When the bot
   // fields are missing, one small people/stats call fills AVG/HR/PA/OPS.
@@ -439,7 +466,12 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
           {/* header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
             <div>
-              <div style={{ fontSize: 19, fontWeight: 900 }}>{nameOf(p)}</div>
+              <div style={{ fontSize: 19, fontWeight: 900 }}>
+                {jersey != null && (
+                  <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{jersey} </span>
+                )}
+                {nameOf(p)}
+              </div>
               <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}>
                 {apiOnly ? (
                   <>{clean(p?.team, '—')}{p?.position ? ` · ${p.position}` : ''} · {clean(p?.bats, '?')}HB
