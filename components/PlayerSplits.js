@@ -21,13 +21,56 @@ import DenseTable from './DenseTable'
 // exactly the wrong conclusion.
 
 const GROUPS = [
-  { key: 'day_night',   label: 'Day / Night',  order: ['Day', 'Night'] },
   { key: 'home_away',   label: 'Home / Away',  order: ['Home', 'Away'] },
   { key: 'win_loss',    label: 'Team won / lost', order: ['Win', 'Loss', 'W', 'L'] },
   { key: 'day_of_week', label: 'Day of week',  order: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
 ]
+// day_night deliberately dropped from this list (2026-08-13): player_splits.py's
+// day/night bucket comes off MLB gameLog's game.dayNight field, and at least one
+// real hitter's file showed 100% of a full season's PA bucketed as "Day" and zero
+// as "Night" -- implausible for a real slate of games, and never independently
+// verified since nothing here can reach the live API to check the raw values.
+// Rather than debug a field this file doesn't otherwise touch, day/night now
+// comes from the SAME live, verified sitCodes mechanism RISP/platoon already use
+// below (codes 'd'/'n') -- see LIVE_SIT_GROUPS. One less place for this file and
+// the live API to quietly disagree.
 
 const THIN_PA = 100
+
+// ── Live situational splits (2026-08-13) ────────────────────────────────────
+// Everything below rides the SAME mechanism the 2026-08-08 platoon/RISP table
+// already proved out: MLB's own statSplits + sitCodes, fetched live in the
+// browser, season-long, real samples -- not something player_splits.py needs
+// to carry, not something the bot-ship pipeline needs to pull. Full code list
+// confirmed directly against MLB's own meta endpoint
+// (statsapi.mlb.com/api/v1/situationCodes) rather than assumed.
+const SIT_LABELS = {
+  vl: 'vs LHP', vr: 'vs RHP', risp: 'RISP', risp2: 'RISP · 2 out',
+  o0: 'No outs', o1: '1 out', o2: '2 outs',
+  d: 'Day', n: 'Night',
+  ac: 'Ahead in count', bc: 'Behind in count', ec: 'Even count',
+  '2s': '2 strikes', fc: 'Full count',
+  r0: 'Bases empty', r1: 'Runner on 1st', r2: 'Runner on 2nd', r3: 'Runner on 3rd',
+  r12: 'Runners on 1st & 2nd', r13: 'Runners on 1st & 3rd', r23: 'Runners on 2nd & 3rd',
+  r123: 'Bases loaded', ron: 'Runners on', ron2: 'Runners on · 2 out',
+}
+
+// Order matters within a group (display order), group order is tab order.
+// 'platoon' is the existing front-door group -- unchanged default, unchanged
+// hero tiles above it. Everything else is new, reachable via the pill row.
+const LIVE_SIT_GROUPS = [
+  { key: 'platoon', label: 'Platoon + RISP', codes: ['vl', 'vr', 'risp', 'risp2'],
+    caption: 'The most decision-relevant table on this tab: which ARM he punishes, and what he does with runners in scoring position. Season-long samples, live from the StatsAPI — check the PA column, then check which hand tonight’s starter throws with.' },
+  { key: 'outs', label: 'Outs', codes: ['o0', 'o1', 'o2'],
+    caption: 'How he hits with 0, 1, or 2 outs in the inning. Roughly a third of his PA fall in each bucket, so these samples run bigger than most splits on this tab.' },
+  { key: 'count', label: 'Count', codes: ['ac', 'bc', 'ec', '2s', 'fc'],
+    caption: 'Ahead/behind/even in the count, with a 2-strikes cut and a full-count cut layered in. Full count especially is a real minority of his plate appearances — check PA before reading much into it.' },
+  { key: 'daynight', label: 'Day / Night', codes: ['d', 'n'],
+    caption: 'Live from the league, replacing the bot-file version of this split — see the note in this file’s header for why.' },
+  { key: 'runners', label: 'Runners on base', codes: ['r0', 'r1', 'r2', 'r3', 'r12', 'r13', 'r23', 'r123', 'ron', 'ron2'],
+    caption: 'Exact base-out state. Bases loaded and the two-runner combos are genuinely rare situations for any one hitter — read the PA column first, these rows will often be the thinnest on the whole tab.' },
+]
+const LIVE_SIT_CODES = LIVE_SIT_GROUPS.flatMap((g) => g.codes)
 
 // column set shared by the in-body tables and the missing-file branch
 const MISSING_COLS = [
@@ -42,33 +85,61 @@ const MISSING_COLS = [
   { key: 'kPct', label: 'K%', w: 46, dp: 1, invert: true },
 ]
 
+// Pill-row picker, shared by both render branches below.
+function SitPicker({ active, onPick }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+      {LIVE_SIT_GROUPS.map((g) => {
+        const on = g.key === active
+        return (
+          <button
+            key={g.key}
+            onClick={() => onPick(g.key)}
+            style={{
+              fontSize: 10.5, fontWeight: on ? 800 : 600,
+              padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+              background: on ? C.bg2 : 'transparent',
+              border: `1px solid ${on ? C.border : 'transparent'}`,
+              color: on ? C.text : C.text3,
+            }}>
+            {g.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function PlayerSplits({ player, slateMode }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
+  const [sitGroup, setSitGroup] = useState('platoon')
 
   const pid = player?.player_id || player?.id
 
-  // vs LHP / vs RHP / RISP — "all that jazz" (2026-08-08). The bot's splits
-  // file never carried the platoon cut, so this table comes straight from
-  // the league: statSplits sitCodes vl,vr,risp — full stat lines verified
-  // live. Season-long, so the samples are the realest on this tab.
+  // vs LHP / vs RHP / RISP / outs / count / day-night / runners-on-base — "all
+  // that jazz" (2026-08-08, expanded 2026-08-13). The bot's splits file never
+  // carried any of this, so it comes straight from the league: statSplits with
+  // every sitCode this tab uses, one request, full stat lines verified live.
   const [lr, setLr] = useState(null)
   useEffect(() => {
     if (!pid) return
     let alive = true
     setLr(null)
     const yr = new Date().getFullYear()
-    fetch(`https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=vl,vr,risp&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi,baseOnBalls`)
+    fetch(`https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=${LIVE_SIT_CODES.join(',')}&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi,baseOnBalls`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!alive) return
         const rows = (j?.stats?.[0]?.splits || []).map((sp) => {
           const st = sp?.stat || {}
+          const code = sp?.split?.code || ''
           const pa = n(st.plateAppearances, 0)
           const hr = n(st.homeRuns, 0)
-          const label = sp?.split?.code === 'vl' ? 'vs LHP' : sp?.split?.code === 'vr' ? 'vs RHP' : 'RISP'
+          const label = SIT_LABELS[code] || sp?.split?.description || code
           return {
-            _key: sp?.split?.code || label,
+            _key: code || label,
+            code,
             split: label,
             g: n(st.gamesPlayed, 0), pa,
             h: n(st.hits, 0), hr,
@@ -139,6 +210,16 @@ export default function PlayerSplits({ player, slateMode }) {
     }
   }).filter(Boolean), [data])
 
+  // Rows for whichever live situational group is currently picked.
+  const activeLiveRows = useMemo(() => {
+    if (!lr) return null
+    const group = LIVE_SIT_GROUPS.find((g) => g.key === sitGroup) || LIVE_SIT_GROUPS[0]
+    const rows = group.codes
+      .map((c) => lr.find((r) => r.code === c))
+      .filter(Boolean)
+    return { group, rows }
+  }, [lr, sitGroup])
+
   if (!pid) return null
   if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading splits…</div>
   if (state === 'missing' || state === 'error' || !tables.length) {
@@ -146,15 +227,19 @@ export default function PlayerSplits({ player, slateMode }) {
       <div>
       {lr && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>vs LHP / RHP · RISP <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, fontWeight: 400 }}>season · live from the league</span></div>
-          <DenseTable rows={lr} columns={MISSING_COLS} initialSort={null} maxHeight={200} />
+          <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Situational splits <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, fontWeight: 400 }}>season · live from the league</span></div>
+          <SitPicker active={sitGroup} onPick={setSitGroup} />
+          {activeLiveRows && (
+            <DenseTable rows={activeLiveRows.rows} columns={MISSING_COLS} initialSort={null} maxHeight={200} />
+          )}
         </div>
       )}
       <div style={{ fontSize: 11.5, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
         No splits file published for this hitter. These come from{' '}
         <code>player_splits.py</code>, which runs inside the Today and Tomorrow workflows and can be
         skipped on a slow slate — it&apos;s set to <code>continue-on-error</code>, so a miss here means
-        that step timed out rather than that anything is broken.
+        that step timed out rather than that anything is broken. The situational table above doesn&apos;t
+        depend on that file at all, so it still works even when this message shows.
       </div>
       </div>
     )
@@ -184,12 +269,12 @@ export default function PlayerSplits({ player, slateMode }) {
   // tables gave the tab no front door. The platoon line for the side he'll
   // actually see tonight is the one split that moves a decision, so it opens
   // the page as tiles — the relevant side lit, the other side dim for
-  // contrast, RISP along for the ride. Same live-API rows as the table below.
+  // contrast, RISP along for the ride. Same live-API rows as the picker below.
   const tonightArm = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
   const lrTiles = lr && (() => {
-    const vsL = lr.find((r) => r.split === 'vs LHP')
-    const vsR = lr.find((r) => r.split === 'vs RHP')
-    const risp = lr.find((r) => r.split === 'RISP')
+    const vsL = lr.find((r) => r.code === 'vl')
+    const vsR = lr.find((r) => r.code === 'vr')
+    const risp = lr.find((r) => r.code === 'risp')
     const tiles = [
       vsL && { label: 'vs LHP', r: vsL, hot: tonightArm === 'L' },
       vsR && { label: 'vs RHP', r: vsR, hot: tonightArm === 'R' },
@@ -237,18 +322,21 @@ export default function PlayerSplits({ player, slateMode }) {
       {lr && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 800 }}>vs LHP / RHP · RISP</span>
+            <span style={{ fontSize: 12, fontWeight: 800 }}>Situational splits</span>
             <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              season, straight from the league — the platoon cut the bot file never carried
+              season, straight from the league — pick a category
             </span>
           </div>
-          <DenseTable
-            rows={lr}
-            columns={cols}
-            initialSort={null}
-            maxHeight={200}
-            caption="The most decision-relevant table on this tab: which ARM he punishes, and what he does with runners in scoring position. Season-long samples, live from the StatsAPI — check the PA column, then check which hand tonight's starter throws with."
-          />
+          <SitPicker active={sitGroup} onPick={setSitGroup} />
+          {activeLiveRows && (
+            <DenseTable
+              rows={activeLiveRows.rows}
+              columns={cols}
+              initialSort={null}
+              maxHeight={200}
+              caption={activeLiveRows.group.caption}
+            />
+          )}
         </div>
       )}
 
