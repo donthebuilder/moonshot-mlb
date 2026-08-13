@@ -169,7 +169,18 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   const packApplies = housePack
     && housePack.slate_date === (slateDate || new Date().toLocaleDateString('en-CA'))
 
+  // 2026-08-13, Donovan (screenshot feedback): "too many cards on screen at
+  // once" + "packed with too much text." Each card already carries nine
+  // stacked info blocks built up over a dozen prior feedback rounds — real
+  // content, not fat to trim blind. Fifteen of them at once was the actual
+  // problem. Six is enough to see both ends of tonight's range (the glowing
+  // top-3 plus a bit of context) without the wall; the rest are a tap away.
+  const DEFAULT_SHOWN = 6
+  const [showAllParks, setShowAllParks] = useState(false)
+
   if (!parks.length) return null
+
+  const visibleParks = showAllParks ? parks : parks.slice(0, DEFAULT_SHOWN)
 
   // Visual bands (2026-08-07, "this need to be cooler"): the edge number
   // decides the card's whole personality — launch pads burn, ice boxes
@@ -221,7 +232,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
         + '@media (prefers-reduced-motion: reduce){.park-glow{animation:none!important;opacity:.6!important}}'
       }</style>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {parks.map((g, i2) => {
+        {visibleParks.map((g, i2) => {
           const band = bandOf(g.edge)
           const isActive = activeVenue && g.venue === activeVenue
           const isTop = i2 < 3 && g.edge > 0
@@ -576,6 +587,22 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
           )
         })}
       </div>
+      {/* the other N parks are a tap away, not gone — matches the "rest are
+          a tap away" call in the DEFAULT_SHOWN comment above */}
+      {!showAllParks && parks.length > DEFAULT_SHOWN && (
+        <button
+          type="button"
+          onClick={() => setShowAllParks(true)}
+          style={{
+            display: 'block', width: '100%', marginTop: 9, cursor: 'pointer',
+            fontSize: 10, fontWeight: 800, color: C.text2, fontFamily: NUM_FONT,
+            background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
+            padding: '7px 10px', letterSpacing: '.02em',
+          }}
+        >
+          Show all {parks.length} parks ▾
+        </button>
+      )}
     </div>
     </MobileFold>
   )
