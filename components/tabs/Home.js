@@ -532,8 +532,10 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           by default, the header counts tell you if it's worth opening. It sat
           eight hundred lines further down, below two stat boards, which split
           the narrative half of the page in two. It belongs next to the angles
-          it expands on. */}
-      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+          it expands on.
+          results (2026-08-13): this page already holds it — see the note in
+          Storylines.js for why it used to fetch its own copy. */}
+      <Storylines players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
 
       {/* ── TOP WEATHER GAMES (2026-08-08) — the three friendliest airs
           tonight, same edge math as the park board (bot park factor +

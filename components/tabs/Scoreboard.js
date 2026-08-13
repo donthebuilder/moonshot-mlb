@@ -234,9 +234,12 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // 2026-08-13: passes `results` now instead of HomerLedger fetching its own
   // copy of the identical payload — see the note in HomerLedger.js.
   const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+  // results (2026-08-13, same pass as secLedger above): Storylines used to
+  // fetch its own copy of this identical payload — see the note in
+  // Storylines.js.
   const secStories = (
     <Fold key="stories" label="📰 Storylines — tonight's angles, written from the slate">
-      <Storylines players={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+      <Storylines players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
     </Fold>
   )
   const goneTable = goneYard.length > 0 && (

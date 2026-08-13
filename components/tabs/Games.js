@@ -120,11 +120,22 @@ const CAT_SCORE = {
   HRR: (p) => p?.hrr_score ?? 0,
   CONTACT: (p) => p?.contact_score ?? 0,
 }
-const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+// A player can carry more than one role (e.g. "TOP/HR") -- match on any
+// tag, not just the first, so a double-up shows up in every slot he holds
+// (mirrors the same fix already shipped in BotPicksStrip.js's pickBuckets).
+// Returns {cat, p} pairs (not bare players): a dual-slotted player can
+// legitimately fill two slots with the SAME underlying player object, so
+// each occurrence needs to carry its own slot forward rather than have the
+// render step re-derive "which category is this" from p.game_pick_role,
+// which would just return his first tag both times (2026-08-13).
+const roleTags = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
 const picksFor = (g) => CAT_ORDER
-  .map((cat) => [...(g.players || [])]
-    .filter((p) => primaryRole(p) === cat)
-    .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0])
+  .map((cat) => {
+    const p = [...(g.players || [])]
+      .filter((pp) => roleTags(pp).includes(cat))
+      .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0]
+    return p ? { cat, p } : null
+  })
   .filter(Boolean)
 
 // The two sides of a game: each team with the ARM ITS BATTERS FACE — every
@@ -154,7 +165,7 @@ function sidesOf(g) {
   })
 }
 
-export default function Games({ players, slateDate = '', pairHistorySummary, onAdd, onWatch, watchIds, onPlayerClick }) {
+export default function Games({ players, slateDate = '', pairHistorySummary, results, onAdd, onWatch, watchIds, onPlayerClick }) {
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
   // Donovan: "make sure the live wire and games can update the lineups — does
@@ -652,10 +663,17 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                     HR: (p) => p?.hr_score ?? 0, HIT: (p) => p?.hit_score ?? 0,
                     HRR: (p) => p?.hrr_score ?? 0, CONTACT: (p) => p?.contact_score ?? 0,
                   }
-                  const prim = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+                  // A player can carry more than one role (e.g. "TOP/HR") --
+                  // match on any tag, not just the first, so a double-up
+                  // shows up in both chips instead of only the first-listed
+                  // one (2026-08-13; mirrors BotPicksStrip.js's pickBuckets).
+                  const roleTags = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
                   const picks = CAT_ORDER
-                    .map((cat) => (g.players || []).filter((p) => prim(p) === cat)
-                      .sort((a, b) => (CAT_SC[cat](b) || 0) - (CAT_SC[cat](a) || 0))[0])
+                    .map((cat) => {
+                      const p = (g.players || []).filter((pp) => roleTags(pp).includes(cat))
+                        .sort((a, b) => (CAT_SC[cat](b) || 0) - (CAT_SC[cat](a) || 0))[0]
+                      return p ? { cat, p } : null
+                    })
                     .filter(Boolean)
                   if (!picks.length) return null
                   return (
@@ -669,11 +687,10 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                           second row read as clutter. Chips squeeze instead of
                           wrapping; phones get the auto-fit fallback via CSS. */}
                       <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch' }}>
-                        {picks.map((p) => {
-                          const cat = prim(p)
+                        {picks.map(({ cat, p }) => {
                           const col = CAT_COLOR[cat] || C.text3
                           return (
-                            <button key={playerId(p)} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
+                            <button key={`${cat}-${playerId(p)}`} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
                               display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
                               border: `1px solid ${col}55`, background: `${col}10`,
                               borderRadius: 7, padding: '3px 8px',
@@ -732,7 +749,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                 const isDesignated = picks.length > 0
                 const sorted = isDesignated
                   ? picks
-                  : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4)
+                  : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4).map((p) => ({ cat: null, p }))
                 const past = isPast(g.game_time)
                 const isActive = g.game_pk === activeGame
                 const sides = sidesOf(g)
@@ -815,8 +832,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                       {/* pick chips — the bot's five slots, always visible */}
                       {picks.length > 0 && (
                         <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch', marginTop: 8 }}>
-                          {picks.map((p) => {
-                            const cat = primaryRole(p)
+                          {picks.map(({ cat, p }) => {
                             const col = CAT_COLOR[cat] || C.text3
                             return (
                               // THE CHIP NOW CARRIES A REASON (2026-08-09).
@@ -827,7 +843,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                               // THIS category for him, in slate-relative colour;
                               // the bot's score stays beside it, smaller. Both
                               // numbers, one glance, and the stat leads.
-                              <StatChip key={playerId(p)} p={p} cat={cat} col={col}
+                              <StatChip key={`${cat}-${playerId(p)}`} p={p} cat={cat} col={col}
                                 score={CAT_SCORE[cat](p) || 0}
                                 onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} />
                             )
@@ -839,7 +855,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                     {/* ── expanded: the full read, in place ── */}
                     {isActive && (
                       <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
                         <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
 
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
@@ -857,10 +873,10 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                             fill, no orphan card beside empty cells. Each card wears
                             its category as a ring + tag: one object, labelled. */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
-                          {sorted.map((p) => {
-                            const roleInfo = isDesignated ? getRoleDisplay(p) : null
+                          {sorted.map(({ cat: slotCat, p }) => {
+                            const roleInfo = slotCat ? ROLE_CONFIG[slotCat] : null
                             const wrap = (inner) => (
-                              <div key={playerId(p)} style={{
+                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} style={{
                                 flex: '1 1 240px', minWidth: 0, position: 'relative',
                                 display: 'flex', flexDirection: 'column',
                                 marginTop: roleInfo ? 9 : 0,
@@ -890,11 +906,14 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                   const { color: lcolor } = getRoleDisplay(p)
                   const pills = Array.isArray(p?.signal_pills) ? p.signal_pills : []
                   // Each bar in its category's site-wide colour, and the bar
-                  // for the category HE'S PICKED FOR renders at full weight
-                  // while the rest sit dimmed — so the card answers "how
-                  // strong is he at the thing he's here for" at a glance
-                  // instead of five identical orange bars.
-                  const pickedCat = String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+                  // for the category THIS CARD IS HERE FOR renders at full
+                  // weight while the rest sit dimmed — so the card answers
+                  // "why is he here" at a glance instead of five identical
+                  // bars. Uses the slot this specific card was picked for
+                  // (slotCat, carried from picksFor) rather than re-reading
+                  // his first tag off game_pick_role, so a TOP/HR double-up's
+                  // two separate cards each light up their OWN bar instead of
+                  // both lighting the same one (2026-08-13).
                   const scores = [
                     { k: 'hr_score',      l: 'HR',  c: '#FB923C', cat: 'HR' },
                     { k: 'hrr_score',     l: 'HRR', c: '#22d3ee', cat: 'HRR' },
@@ -924,9 +943,9 @@ export default function Games({ players, slateDate = '', pairHistorySummary, onA
                       </div>
                       {scores.map(({ k, l, c, cat }) => {
                         const val = Math.min(100, Math.max(0, p?.[k] || 0))
-                        const isHis = cat === pickedCat
+                        const isHis = cat === slotCat
                         return (
-                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: isHis || !pickedCat ? 1 : 0.5 }}>
+                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: isHis || !slotCat ? 1 : 0.5 }}>
                             <span style={{ width: 26, fontSize: 9, color: isHis ? c : C.text3, fontWeight: isHis ? 800 : 400, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{l}</span>
                             <div style={{ flex: 1, height: isHis ? 6 : 4, background: 'rgba(255,255,255,0.07)', borderRadius: 3 }}>
                               <div style={{ width: `${val}%`, height: '100%', background: c, borderRadius: 3, boxShadow: isHis ? `0 0 8px ${c}66` : 'none' }} />

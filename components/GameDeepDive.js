@@ -116,7 +116,7 @@ function StarterPanel({ team, rows, onPlayerClick }) {
   )
 }
 
-export default function GameDeepDive({ game, allPlayers = [], slateDate = '', onPlayerClick }) {
+export default function GameDeepDive({ game, allPlayers = [], slateDate = '', results, onPlayerClick }) {
   const gp = game?.players || []
   if (!gp.length) return null
   const any = gp[0]
@@ -170,6 +170,7 @@ export default function GameDeepDive({ game, allPlayers = [], slateDate = '', on
           gamePk={game?.game_pk}
           compact
           slateDate={slateDate}
+          results={results}
           onPlayerClick={onPlayerClick}
         />
       </div>

@@ -1,9 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
-import { dataUrl } from '../lib/dataSource'
 import { matchupStories } from '../lib/matchupStory'
 import { funFacts } from '../lib/funFacts'
 import { dedupeGraded } from '../lib/graded'
@@ -88,7 +87,7 @@ const _ffactCache = new Map()
 // always slate-wide no matter which mount fires first; `gamePk` narrows
 // giveaways to this building; `compact` = the deep-dive skin (always open,
 // no collapse persistence, smaller header).
-export default function Storylines({ players = [], fetchPlayers = null, gamePk = null, compact = false, slateDate = '', onPlayerClick }) {
+export default function Storylines({ players = [], fetchPlayers = null, gamePk = null, compact = false, slateDate = '', results, onPlayerClick }) {
   const dateKey = slateDate || new Date().toLocaleDateString('en-CA')
   const [data, setData] = useState(_cacheByDate[dateKey] || null)
   // Collapsed by default (2026-08-07, Donovan: "storyline kinda fills the
@@ -238,41 +237,41 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   //
   //   4. Cache-busted, because raw.githubusercontent serves a five-minute
   //      max-age and the 5-minute poll was re-reading its own cached copy.
-  const [actuals, setActuals] = useState(null)
-  useEffect(() => {
-    setActuals(null)
-    if (isTmrw) return undefined
-    let alive = true
-    const pull = () => {
-      const u = dataUrl('current/results_live.json')
-      fetch(`${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => {
-          if (!alive || !j) return
-          // (2) the gate. No date, or a date that isn't this slate's, means we
-          // have no graded results for tonight — show none rather than
-          // yesterday's.
-          if (String(j.date || '') !== String(dateKey)) { setActuals(null); return }
-          // ONE ROW PER PLAYER (dedupeGraded — see lib/graded.js for why the
-          // file has two rows for a hitter designated in two categories).
-          // The old Map.set let the LAST category silently overwrite the
-          // first; on a mid-grading file where one category was a step ahead
-          // of the other, that could hand back the lower line.
-          const m = new Map()
-          dedupeGraded(j.graded_slots || j.results || []).forEach((s) => {
-            const pid = Number(s?.player_id)
-            if (pid) m.set(pid, { hr: Number(s?.actual_hr) || 0, hits: Number(s?.actual_hits) || 0 })
-          })
-          setActuals(m.size ? m : null)
-        })
-        .catch(() => {})
-    }
-    pull()
-    // Background tabs don't poll (2026-08-09 scan) — same guard every other
-    // timer on the site carries.
-    const t = setInterval(() => { if (!document.hidden) pull() }, 5 * 60 * 1000)
-    return () => { alive = false; clearInterval(t) }
-  }, [isTmrw, dateKey])
+  //
+  //   SOURCED FROM THE PROP NOW, NOT ITS OWN FETCH (2026-08-13, same "load
+  //   faster" pass as HomerLedger.js — see the note there). Every one of
+  //   this component's mounts sits on a page that already holds this exact
+  //   results_live.json payload on the same refresh schedule this effect
+  //   used to run on its own: Scoreboard.js and Home.js both already thread
+  //   it through as `results`, and the per-game deep-dive now gets it via
+  //   GameDeepDive → Games → Dashboard.js the same way. This was a second,
+  //   independent fetch with its own 5-minute timer and its own
+  //   cache-buster, fully duplicating a request the page already makes (and
+  //   Dashboard's own poll is not gated to a foreground tab the way this
+  //   one was, so it could actually be staler, not fresher). No fallback
+  //   fetch if a caller doesn't have `results` to pass: the ✅ checkmarks
+  //   below simply don't render, same as HomerLedger when it has none —
+  //   every other section of this panel (matchup lines, fun facts,
+  //   milestones, duels, revenge, birthdays, giveaways) reads nothing from
+  //   this and renders exactly the same either way.
+  const actuals = useMemo(() => {
+    if (isTmrw || !results) return null
+    // (2) the gate. No date, or a date that isn't this slate's, means we
+    // have no graded results for tonight — show none rather than
+    // yesterday's.
+    if (String(results.date || '') !== String(dateKey)) return null
+    // ONE ROW PER PLAYER (dedupeGraded — see lib/graded.js for why the
+    // file has two rows for a hitter designated in two categories).
+    // The old Map.set let the LAST category silently overwrite the
+    // first; on a mid-grading file where one category was a step ahead
+    // of the other, that could hand back the lower line.
+    const m = new Map()
+    dedupeGraded(results.graded_slots || results.results || []).forEach((s) => {
+      const pid = Number(s?.player_id)
+      if (pid) m.set(pid, { hr: Number(s?.actual_hr) || 0, hits: Number(s?.actual_hits) || 0 })
+    })
+    return m.size ? m : null
+  }, [results, isTmrw, dateKey])
   // (1) id join, both sides numeric.
   const lineOf = (p) => {
     const pid = Number(p?.player_id ?? p?.id)
