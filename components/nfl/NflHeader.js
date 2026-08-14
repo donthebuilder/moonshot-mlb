@@ -31,9 +31,16 @@ function Tile({ label, value, color, title }) {
 
 export default function NflHeader({ tab, setTab, data, meta }) {
   const games = data?.games?.length ?? 0
-  const players = data?.players?.length ?? 0
   const live = (data?.games || []).filter((g) => g.state === 'in').length
   const isPre = data?.mode === 'preseason'
+
+  // What the header used to say was "3 games, 102 players", which is a
+  // description of the file, not of the slate. These two are the output:
+  // how many touchdowns the card projects, and how many plays cleared A-.
+  const rows = data?.players || []
+  const projTd = rows.reduce((a, p) => a + (p.stats?.xTD || 0), 0)
+  const aGrade = rows.filter(
+    (p) => Math.max(...Object.values(p.scores || { _: 0 })) >= 62).length
 
   return (
     <header style={{
@@ -100,9 +107,16 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           gap: 6, flexWrap: 'wrap', flex: '1 1 420px', minWidth: 0,
         }}>
           <Tile label="Games" value={games} color={C.blue} title="Games on this slate" />
-          <Tile label="Players" value={players} color={C.green}
-                title="Skill players and kickers scored on this slate" />
-          {live > 0 && <Tile label="Live" value={live} color={C.cyan} title="Games in progress" />}
+          <Tile
+            label="Proj TD"
+            value={projTd ? projTd.toFixed(1) : '—'}
+            color={C.green}
+            title={`Expected touchdowns across the ${rows.length} players scored on this slate — the sum of each man's xTD.${
+              isPre ? ' Preseason caveat: xTD is last season\'s per-game rate at full usage, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
+          />
+          <Tile label="A-grade" value={aGrade} color={C.cyan}
+                title="Players clearing A- (62) in at least one market" />
+          {live > 0 && <Tile label="Live" value={live} color={C.yellow} title="Games in progress" />}
           {isPre && (
             <div
               title="Preseason: starters play two series, so weekly form does not exist yet. Every board here is built from last season's per-game baselines and says so on each row."
