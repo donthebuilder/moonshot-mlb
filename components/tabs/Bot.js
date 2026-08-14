@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { tierTone } from '../../lib/roleBadge'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import TheRead from '../TheRead'
 import { logUrl } from '../../lib/dataSource'
@@ -40,15 +41,12 @@ function hrwEmoji(s) {
   return '🧊'
 }
 
+// Colour by TOKEN, not by glyph. This used to sniff the pictograph out of the
+// role string, which quietly made the emoji load-bearing: strip it for the
+// redesign and every row goes grey. tierTone matches the glyph OR the text,
+// so it works before and after the bot's format ever changes.
 function roleColor(role) {
-  const s = String(role || '')
-  if (s.includes('🏆') || s.includes('🧨')) return '#FB923C'
-  if (s.includes('🔥')) return '#f97316'
-  if (s.includes('🏁')) return '#22d3ee'
-  if (s.includes('💠')) return '#38bdf8'
-  if (s.includes('🔭')) return '#a78bfa'
-  if (s.includes('⛔')) return '#ef4444'
-  return C.text2
+  return tierTone(role, C) || C.text2
 }
 
 // game_pick_role can now carry more than one tag on the same player
@@ -58,13 +56,15 @@ const rolesOf = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.t
 
 // ── The Board — the bot's raw ranking, unadjusted ────────────────────────────
 
+// Text, not emoji. These are the bot's own game_pick_role categories and the
+// label should read as a filter, not as decoration.
 const PICK_TABS = [
-  { key: 'top',     label: '🏆 Top',     roles: ['TOP'] },
-  { key: 'hr',      label: '🧨 HR',      roles: ['HR'] },
-  { key: 'hrr',     label: '🏁 HRR',     roles: ['HRR'] },
-  { key: 'hit',     label: '💠 Hit',     roles: ['HIT'] },
-  { key: 'contact', label: '⚾ Contact', roles: ['CONTACT'] },
-  { key: 'all',     label: 'All',        roles: null },
+  { key: 'top',     label: 'Top',     roles: ['TOP'] },
+  { key: 'hr',      label: 'HR',      roles: ['HR'] },
+  { key: 'hrr',     label: 'HRR',     roles: ['HRR'] },
+  { key: 'hit',     label: 'Hit',     roles: ['HIT'] },
+  { key: 'contact', label: 'Contact', roles: ['CONTACT'] },
+  { key: 'all',     label: 'All',     roles: null },
 ]
 
 function BoardRow({ p, i, onPlayerClick }) {

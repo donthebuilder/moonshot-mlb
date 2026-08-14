@@ -37,7 +37,7 @@ const LEGEND = [
   { sym: '★', label: 'weak lineup spot vs tonight’s arm' },
   { sym: '🤖', label: 'a designated bot pick' },
   { sym: '🧩', label: 'aligned signals' },
-  { sym: '⛔', label: 'model expects no HR (score capped)' },
+  { sym: 'AVOID', label: 'model expects no HR (score capped)' },
   { sym: '·', label: 'no data — not a zero' },
 ]
 

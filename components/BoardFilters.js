@@ -21,7 +21,7 @@ export const CATEGORIES = [
   { key: 'weak',    label: '★ Weak spot',   test: (p) => p?.weak_spot_flag === true },
   { key: 'edge',    label: '🎯 Pitch edge',  test: (p) => n(p?.pitch_type_match_score, 0) > 0 },
   { key: 'aligned', label: '◆ Aligned',     test: (p) => isAligned(p) },
-  { key: 'hot',     label: '🔥 L5 HR',       test: (p) => n(p?.last5_hr, 0) > 0 },
+  { key: 'hot',     label: 'L5 HR',       test: (p) => n(p?.last5_hr, 0) > 0 },
   { key: 'due',     label: '⏳ Due tag',     test: (p) => /due/i.test(clean(p?.hr_due_tag, '')) },
   { key: 'softarm', label: '💣 Arm ≥1.4',    test: (p) => n(p?.pitcher_hr9, 0) >= 1.4 },
   { key: 'confirmed', label: '✓ Lineup set', test: (p) => p?.lineup_confirmed === true },

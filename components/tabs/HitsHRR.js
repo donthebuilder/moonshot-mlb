@@ -203,9 +203,9 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button onClick={() => setView('top')}     style={btnStyle(C.yellow, view === 'top')}>🥇 Top</button>
-          <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}>🧨 HR</button>
-          <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}>💠 Hits</button>
-          <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}>🏁 HRR</button>
+          <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}>HR</button>
+          <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}>Hits</button>
+          <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}>HRR</button>
           <button onClick={() => setView('contact')} style={btnStyle(C.blue,   view === 'contact')}>⚾ Contact</button>
           <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')}>⭐ Weak Spot</button>
           <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')}>🧩 Aligned</button>

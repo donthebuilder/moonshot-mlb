@@ -133,11 +133,11 @@ export const CATEGORIES = [
   // site's Four and the bot's printed FOUR could disagree, and people noticed.
   // The rule then was "one voice per surface". There is one voice everywhere
   // now; see lib/scoring.js for why the adjustment came out.
-  { role: 'HR',      label: 'HR',      icon: '🧨', color: '#f97316',
+  { role: 'HR',      label: 'HR',      icon: null, color: '#f97316',
     blurb: 'Going deep',     score: hrScore },
-  { role: 'HIT',     label: 'HIT',     icon: '💠', color: '#a78bfa',
+  { role: 'HIT',     label: 'HIT',     icon: null, color: '#a78bfa',
     blurb: 'Base-hit floor', score: hitScore },
-  { role: 'HRR',     label: 'HRR',     icon: '🏁', color: '#22d3ee',
+  { role: 'HRR',     label: 'HRR',     icon: null, color: '#22d3ee',
     blurb: 'Runs + RBI',     score: prodScore },
   { role: 'CONTACT', label: 'CONTACT', icon: '⚾', color: '#4ade80',
     blurb: 'Total bases',    score: tbScore },
