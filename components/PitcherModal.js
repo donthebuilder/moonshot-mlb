@@ -27,6 +27,24 @@ import TeamVsStarter from './TeamVsStarter'
 // the panel says which side that is so nobody reads a lefty's split as the
 // whole staff view.
 
+// AT-A-GLANCE TILE (2026-08-14 upgrade — Donovan: "the pitchers page and
+// modal need a full upgrade, bring it up to speed"). Same tile language his
+// own hitter page header wears (label above a mono number, border tinted by
+// meaning) — orange = good for the BATS facing him, blue = his strength.
+function Tile({ label, value, tone, tip }) {
+  return (
+    <span title={tip} style={{
+      display: 'flex', flexDirection: 'column', gap: 1, minWidth: 62, padding: '5px 10px',
+      border: `1px solid ${tone === 'hot' ? 'rgba(249,115,22,.5)' : tone === 'cold' ? 'rgba(96,165,250,.45)' : C.border}`,
+      background: tone === 'hot' ? 'rgba(249,115,22,.07)' : tone === 'cold' ? 'rgba(96,165,250,.06)' : 'rgba(255,255,255,.02)',
+      borderRadius: 8, cursor: tip ? 'help' : 'default',
+    }}>
+      <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 900, fontFamily: NUM_FONT, color: tone === 'hot' ? C.orange : tone === 'cold' ? '#60a5fa' : C.text }}>{value}</span>
+    </span>
+  )
+}
+
 function TabBtn({ active, onClick, children }) {
   return (
     <button onClick={onClick} style={{
@@ -96,6 +114,39 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
   const weakSide = clean(src('pitcher_weak_side'), '')
   const hr9 = n(src('pitcher_hr9'), null)
 
+  // The at-a-glance row (2026-08-14) — every number was already on the
+  // opposing hitters' rows; the modal just never surfaced them above the
+  // fold. Thresholds mirror the starter table's own documented slate means
+  // (FB% ~38, HH% ~38, Brl% ~7; HR/9 1.3+ hot / 0.85- wall).
+  const era = n(pitcher?.pitcher_era ?? src('pitcher_era'), null)
+  const whip = n(pitcher?.pitcher_whip ?? src('pitcher_whip'), null)
+  const k9 = n(src('pitcher_k9'), null)
+  const fbAllowed = n(src('pitcher_fb_rate'), null)
+  const hhAllowed = n(src('pitcher_hardhit_allowed'), null)
+  const brlAllowed = n(src('pitcher_barrel_allowed'), null)
+  const l3hr9 = n(src('pitcher_l3_hr9'), null)
+  const l3n = n(src('pitcher_l3_starts_found'), 0)
+  const fmt2 = (v) => (v == null ? '—' : v.toFixed(2))
+  const fmtPct = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
+  const tiles = [
+    { label: 'ERA', value: fmt2(era), tone: era == null ? null : era >= 5 ? 'hot' : era <= 3.2 ? 'cold' : null,
+      tip: 'Season earned-run average.' },
+    { label: 'WHIP', value: fmt2(whip), tone: whip == null ? null : whip >= 1.4 ? 'hot' : whip <= 1.1 ? 'cold' : null,
+      tip: 'Walks + hits per inning — traffic. High traffic means more RBI chances for the bats.' },
+    { label: 'HR/9', value: fmt2(hr9), tone: hr9 == null ? null : hr9 >= 1.3 ? 'hot' : hr9 <= 0.85 ? 'cold' : null,
+      tip: 'Homers allowed per nine — the leak. 1.30+ is a live power window; 0.85 or under is a wall.' },
+    { label: 'K/9', value: k9 == null ? '—' : k9.toFixed(1), tone: k9 == null ? null : k9 <= 7 ? 'hot' : k9 >= 9.5 ? 'cold' : null,
+      tip: 'Strikeouts per nine. LOW is good for the bats — more balls in play. High is his strength.' },
+    { label: 'FB%', value: fmtPct(fbAllowed), tone: fbAllowed == null ? null : fbAllowed >= 0.42 ? 'hot' : fbAllowed <= 0.32 ? 'cold' : null,
+      tip: 'Fly-ball rate allowed, season — the only batted ball that leaves the yard. Slate mean ~38%.' },
+    { label: 'HH%', value: fmtPct(hhAllowed), tone: hhAllowed == null ? null : hhAllowed >= 0.42 ? 'hot' : hhAllowed <= 0.33 ? 'cold' : null,
+      tip: 'Hard-hit rate allowed (95+ mph). Slate mean ~38%.' },
+    { label: 'BRL%', value: fmtPct(brlAllowed), tone: brlAllowed == null ? null : brlAllowed >= 0.09 ? 'hot' : brlAllowed <= 0.05 ? 'cold' : null,
+      tip: 'Barrel rate allowed — the single best contact-quality signal for homers. Slate mean ~7%.' },
+    ...(l3n > 0 ? [{ label: `L3 HR/9`, value: fmt2(l3hr9), tone: l3hr9 == null ? null : l3hr9 >= 1.3 ? 'hot' : l3hr9 <= 0.85 ? 'cold' : null,
+      tip: `Last ${l3n} start${l3n === 1 ? '' : 's'} — a direction, not a rate. Three outings is a handful of innings.` }] : []),
+  ]
+
   return (
     <div
       onClick={onClose}
@@ -133,6 +184,15 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             {clean(src('pitcher_attack_tag'), '') !== '—' && <Chip color={C.text2}>{clean(src('pitcher_attack_tag'))}</Chip>}
             {src('pitcher_low_k_flag') && <Chip color={C.orange}>Low K</Chip>}
             {src('weak_pitcher_flag') && <Chip color={C.orange}>Weak arm</Chip>}
+          </div>
+
+          {/* the at-a-glance row — see Tile above */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 6 }}>
+            {tiles.map((t) => <Tile key={t.label} {...t} />)}
+          </div>
+          <div style={{ fontSize: 8.5, color: C.text3, marginBottom: 12 }}>
+            <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
+            <b style={{ color: '#60a5fa' }}>blue</b> = his strength — hover any tile for what it means
           </div>
 
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>

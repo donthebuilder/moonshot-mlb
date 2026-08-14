@@ -366,9 +366,33 @@ export default function Pitchers({ players, onPlayerClick }) {
   const [openId, setOpenId] = useState(null)
   const [modalPitcher, setModalPitcher] = useState(null)
   const [colGroup, setColGroup] = useState('core')
+  // DROPDOWN FILTERS (2026-08-14 upgrade — Donovan, from the competitor
+  // screenshots: "i like how they have drop down menus, it saves space in
+  // some situations"). Two compact selects narrow the starter TABLE only —
+  // the attack cards and pen board stay slate-wide, since their whole job
+  // is ranking the full night.
+  const [gameSel, setGameSel] = useState('all')   // 'all' | 'TEAM|TEAM' sorted pair
+  const [armSel, setArmSel] = useState('all')     // 'all' | 'L' | 'R'
 
   const pitchers = useMemo(() => groupPitchers(players), [players])
   const sorted = useMemo(() => sortPitchers(pitchers, sortKey), [pitchers, sortKey])
+  const gameKey = (p) => [String(p.team || ''), String(p.opponent_team || '')].sort().join('|')
+  const gameOptions = useMemo(() => {
+    const m = new Map()
+    pitchers.forEach((p) => {
+      const k = gameKey(p)
+      if (!k.replace('|', '')) return
+      if (!m.has(k)) {
+        const [a, b] = k.split('|')
+        m.set(k, `${a} – ${b} · ${localTime(p.game_time)}`)
+      }
+    })
+    return [...m.entries()].sort((x, y) => x[1].localeCompare(y[1]))
+  }, [pitchers])
+  const tableSource = useMemo(() => sorted.filter((p) =>
+    (gameSel === 'all' || gameKey(p) === gameSel)
+    && (armSel === 'all' || String(p.pitcher_throws || '').toUpperCase() === armSel)),
+  [sorted, gameSel, armSel])
   const tableRef = useRef(null)
 
   if (!pitchers.length) return <Empty text="No pitcher data found yet." />
@@ -552,6 +576,35 @@ export default function Pitchers({ players, onPlayerClick }) {
             color: colGroup === k ? C.orange : C.text3,
           }}>{label}</button>
         ))}
+        {/* the space-saving dropdowns (2026-08-14) — see the state block */}
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={gameSel} onChange={(e) => setGameSel(e.target.value)}
+            title="Narrow the table to one game's two starters"
+            style={{
+              background: C.bg3, border: `1px solid ${gameSel !== 'all' ? C.orange : C.border}`,
+              color: gameSel !== 'all' ? C.orange : C.text2, borderRadius: 7,
+              fontSize: 10, fontFamily: NUM_FONT, padding: '3px 6px', cursor: 'pointer', maxWidth: 190,
+            }}>
+            <option value="all">All games ({pitchers.length} arms)</option>
+            {gameOptions.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
+          <select value={armSel} onChange={(e) => setArmSel(e.target.value)}
+            title="Narrow the table by throwing arm"
+            style={{
+              background: C.bg3, border: `1px solid ${armSel !== 'all' ? C.orange : C.border}`,
+              color: armSel !== 'all' ? C.orange : C.text2, borderRadius: 7,
+              fontSize: 10, fontFamily: NUM_FONT, padding: '3px 6px', cursor: 'pointer',
+            }}>
+            <option value="all">Any arm</option>
+            <option value="L">LHP only</option>
+            <option value="R">RHP only</option>
+          </select>
+          {(gameSel !== 'all' || armSel !== 'all') && (
+            <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+              {tableSource.length} of {pitchers.length}
+            </span>
+          )}
+        </span>
       </div>
       {/* The card list below is one starter at a time. This is the slate:
           which arms are actually attackable, and on which axis. */}
@@ -567,6 +620,10 @@ export default function Pitchers({ players, onPlayerClick }) {
           — there is no L3 K/9 published, so it isn't invented. */}
       <DenseTable
         rows={(() => {
+        // Built over the FULL slate even when the dropdowns narrow the view:
+        // the HR-luck column percentiles each arm against tonight's other
+        // starters, and a percentile against one filtered opponent is
+        // meaningless. Filtered AFTER the math, below.
         const built = sorted.map((p) => {
           const src = (k) => {
             for (const b of p.lineup || []) {
@@ -669,7 +726,9 @@ export default function Pitchers({ players, onPlayerClick }) {
           const h = pct(built.map((x) => x.hr9), r.hr9)
           r.luck = d != null && h != null ? Math.round((d - h) * 100) : null
         })
-        return built
+        // the dropdown filters apply here, AFTER the slate-relative math
+        const keep = new Set(tableSource.map((p) => p.pitcher_id ?? p.pitcher_name))
+        return built.filter((r) => keep.has(r._key))
         })()}
         columns={(() => {
           // Calibrated xHR columns appear on their own once the bot publishes
