@@ -1,5 +1,5 @@
-import Dashboard from '../components/Dashboard'
+import SportRoot from '../components/SportRoot'
 
 export default function Page() {
-  return <Dashboard />
+  return <SportRoot />
 }

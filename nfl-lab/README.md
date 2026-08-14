@@ -16,16 +16,49 @@ Markets, and ONLY these — no defensive props, ever:
 | Passing yards | line-based (200/250/300+) |
 | Kicking points | FG×3 + PAT (6/9+) |
 
-## Architecture — mirrors MLB exactly
+## WHERE THIS ACTUALLY LIVES NOW (2026-08-14)
+
+This folder is the lab — scratch, notes, the original market spec. The
+**running bot moved to `MLB-HR-DASHBOARD-STREAMLIT/bots/nfl/`**, alongside the
+MLB bot, because moonshot-mlb is read-only and must never gain a workflows
+directory. It publishes to that repo's `data` branch via the same
+`publish_data.sh` the MLB bot uses.
+
+The **site is not a fork** either. NFL lives inside moonshot-mlb behind a
+sport toggle in the header (`lib/sport.js`), sharing DenseTable, Explain,
+PaletteButton and the rest. `nfl-lab/site/` is superseded; it stays for now
+only as a record of the preseason landing page.
 
 ```
-nfl-lab (this repo, eventually its own)
-├── bots/            scoring bot + graders → publish JSON to a data branch
-│   ├── fetch_nflverse.py   data pull (WORKING — run it first)
-│   └── nfl_markets.py      market bars + per-week outcome extraction
-├── data/            local nflverse cache (gitignored eventually)
-└── site/            Next.js read-only site, moonshot skeleton (LATER)
+MLB-HR-DASHBOARD-STREAMLIT/bots/nfl/
+├── nfl_features.py    weekly feature table (trailing / pregame / outcome, kept apart)
+├── nfl_scoring.py     the seven market models
+├── nfl_espn.py        schedule + live scores, incl. preseason (nflverse has none)
+├── nfl_bot.py         builds nfl_week.json + nfl_meta.json
+├── export_report.py   builds nfl_report_card.json
+├── nfl_backtest.py    the report card, in the terminal
+└── SCORING.md         every weight, why it's there, and what it scored
+
+moonshot-mlb/
+├── lib/sport.js       the toggle
+├── lib/nfl/           theme (emerald→cyan), dataSource
+└── components/nfl/    header, dashboard, modal, 5 tabs
 ```
+
+## Build-order status
+
+1. ~~`fetch_nflverse.py` — pull last season~~ **done**
+2. ~~verify `nfl_markets.py` aliases against real headers~~ **done — 9/9 resolve
+   on the first candidate, no drift.** Separately found that
+   `stats_player_reg_*.csv` is season-aggregated with no `week` column, so it
+   cannot grade a weekly market; `stats_player_week_*.csv` is the right grain.
+3. ~~backtest harness~~ **done** — see SCORING.md. Weights tuned on 2025, run
+   untouched on 2024. Three markets beat naive form in both seasons; two fail
+   out of sample and the site says so in red.
+4. ~~bot: weekly slate builder → published JSON~~ **done**
+5. ~~site~~ **done** — toggle, not fork.
+6. live layer — ESPN scoreboard is wired for schedule and scores. Play-level
+   live data is still unproven; do NOT ship a fake Live Wire.
 
 The site never computes; it reads published JSON. Picks lock at kickoff
 (the pick-lock idea ports 1:1 — first pitch becomes kickoff per game).

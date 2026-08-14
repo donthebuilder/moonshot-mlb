@@ -177,6 +177,15 @@ export default function Dashboard() {
   }, [allPlayers])
   useEffect(() => {
     const h = new URLSearchParams()
+    // KEEP THE SPORT KEY. This effect rebuilds the hash from scratch, so it
+    // used to delete #sport= on mount — which broke every NFL deep link before
+    // SportRoot ever got to read it. Anything else in the hash is this
+    // dashboard's own business; sport is not.
+    try {
+      const prev = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      const sp = prev.get('sport')
+      if (sp) h.set('sport', sp)
+    } catch { /* ignore */ }
     if (tab !== 'home') h.set('tab', tab)
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
     if (pid2) h.set('p', pid2)
