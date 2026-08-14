@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C } from '../../lib/nfl/theme'
-import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflSlateLooksReal } from '../../lib/nfl/dataSource'
+import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflSlateLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams } from '../../lib/sport'
 import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
@@ -10,6 +10,7 @@ import MobileCSS from '../MobileCSS'
 import Games from './tabs/Games'
 import Boards from './tabs/Boards'
 import Research from './tabs/Research'
+import Matchups from './tabs/Matchups'
 import Report from './tabs/Report'
 import Guide from './tabs/Guide'
 
@@ -25,6 +26,8 @@ export default function NflDashboard() {
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
   const [meta, setMeta] = useState(null)
+  const [matchup, setMatchup] = useState(null)
+  const [logs, setLogs] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)      // { player, market }
   const [refreshKey, setRefreshKey] = useState(0)
@@ -37,7 +40,7 @@ export default function NflDashboard() {
     hashDone.current = true
     // initialHashParams(), not window.location.hash — see lib/sport.js.
     const t = initialHashParams().get('tab')
-    if (t && ['games', 'boards', 'research', 'report', 'guide'].includes(t)) setTab(t)
+    if (t && ['games', 'boards', 'research', 'matchups', 'report', 'guide'].includes(t)) setTab(t)
   }, [])
 
   useEffect(() => {
@@ -47,6 +50,8 @@ export default function NflDashboard() {
       fetchNfl(nflSlatePaths(), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchNfl(nflReportPaths()).then((j) => { if (alive) setReport(j) }),
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
+      fetchNfl(nflMatchupPaths()).then((j) => { if (alive) setMatchup(j) }),
+      fetchNfl(nflLogPaths()).then((j) => { if (alive) setLogs(j) }),
     ]).then(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [refreshKey])
@@ -75,6 +80,7 @@ export default function NflDashboard() {
             {tab === 'games' && <Games data={data} onPlayerClick={openPlayer} />}
             {tab === 'boards' && <Boards data={data} onPlayerClick={openPlayer} />}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
+            {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'guide' && <Guide />}
           </>
@@ -85,6 +91,8 @@ export default function NflDashboard() {
         market={modal?.market}
         markets={data?.markets}
         splitMeta={{ pairs: data?.split_pairs, labels: data?.split_labels }}
+        logs={logs}
+        matchup={matchup}
         onClose={() => setModal(null)}
       />
     </>

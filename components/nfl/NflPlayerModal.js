@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
+import HitRate from './HitRate'
 
 // Why this player scores what he scores.
 //
@@ -127,7 +128,97 @@ function Splits({ player, market, data }) {
   )
 }
 
-export default function NflPlayerModal({ player, market, markets, splitMeta, onClose }) {
+
+// ── coverage + explosive ──────────────────────────────────────────────────────
+
+function Mini({ label, children, accent }) {
+  return (
+    <div style={{
+      flex: '1 1 210px', background: 'rgba(255,255,255,.03)',
+      border: `1px solid ${C.border}`, borderLeft: `2px solid ${accent}`,
+      borderRadius: 8, padding: '8px 10px',
+    }}>
+      <div style={{
+        fontSize: 8.5, fontWeight: 900, color: C.text3, letterSpacing: '.09em',
+        marginBottom: 5,
+      }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+function KV({ k, v, hi }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
+      <span style={{ fontSize: 10, color: C.text3 }}>{k}</span>
+      <span style={{
+        fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, color: hi ? C.green : C.text,
+      }}>{v}</span>
+    </div>
+  )
+}
+
+function CoverageAndExplosive({ player, matchup }) {
+  const cov = matchup?.coverage_player?.[player?.player_id]
+  const exp = matchup?.player_explosive?.[player?.player_id]
+  const oppCov = matchup?.coverage_team?.[player?.opp]
+  if (!cov && !exp) return null
+
+  // Which side he's better against, and by how much — the reason to show the
+  // split at all rather than two columns of numbers.
+  let edge = null
+  if (cov?.man && cov?.zone) {
+    const d = cov.zone.ypt - cov.man.ypt
+    if (Math.abs(d) >= 1.0) edge = d > 0 ? 'zone' : 'man'
+  }
+
+  return (
+    <>
+      <div style={{
+        fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+        margin: '16px 0 7px',
+      }}>COVERAGE & EXPLOSIVE</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {cov?.man && (
+          <Mini label="VS MAN" accent={edge === 'man' ? C.green : C.border2}>
+            <KV k="Targets" v={cov.man.tgts} />
+            <KV k="Yds / target" v={cov.man.ypt} hi={edge === 'man'} />
+            <KV k="Catch %" v={`${cov.man.catch_pct}%`} />
+            <KV k="TD" v={cov.man.td} />
+          </Mini>
+        )}
+        {cov?.zone && (
+          <Mini label="VS ZONE" accent={edge === 'zone' ? C.green : C.border2}>
+            <KV k="Targets" v={cov.zone.tgts} />
+            <KV k="Yds / target" v={cov.zone.ypt} hi={edge === 'zone'} />
+            <KV k="Catch %" v={`${cov.zone.catch_pct}%`} />
+            <KV k="TD" v={cov.zone.td} />
+          </Mini>
+        )}
+        {exp && (
+          <Mini label="EXPLOSIVE" accent={C.purple}>
+            <KV k="10+ / 20+" v={`${exp.rec_10} / ${exp.rec_20}`} />
+            <KV k="30+ / 40+" v={`${exp.rec_30} / ${exp.rec_40}`} />
+            <KV k="Longest" v={exp.lng} />
+            <KV k="Air yards" v={exp.air} />
+          </Mini>
+        )}
+      </div>
+      {edge && oppCov && (
+        <div style={{ fontSize: 10.5, color: C.text2, marginTop: 7, lineHeight: 1.6 }}>
+          He&apos;s better against <b style={{ color: C.green }}>{edge}</b>, and{' '}
+          <b style={{ color: C.text }}>{player.opp}</b> plays{' '}
+          <b style={{ color: C.cyan }}>
+            {edge === 'zone' ? `${oppCov.zone_pct}% zone` : `${oppCov.man_pct}% man`}
+          </b>. Read it as direction, not destiny — a season split on a couple
+          hundred targets is thinner than it looks.
+        </div>
+      )}
+    </>
+  )
+}
+
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, onClose }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', esc)
@@ -262,6 +353,16 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, onC
             </div>
           </>
         )}
+
+        {logs?.logs?.[player.player_id]?.log && (
+          <HitRate
+            log={logs.logs[player.player_id].log}
+            market={market}
+            defaultBar={spec?.bar ?? 1}
+          />
+        )}
+
+        <CoverageAndExplosive player={player} matchup={matchup} />
 
         <Splits player={player} market={market} data={splitMeta} />
 
