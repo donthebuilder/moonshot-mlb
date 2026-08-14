@@ -32,11 +32,24 @@ export default function Guide() {
   return (
     <div style={{ maxWidth: 760 }}>
       <Section title="The one thing to understand">
-        A score is a <b style={{ color: C.text }}>rank, not a probability</b>. An 88 means
-        he sits in the top slice of this slate on the inputs the model weighs. It does not
-        mean 88%. Every component is percentile-ranked inside that week&apos;s eligible
-        pool, then weighted — so the weights mean exactly what they say, and no input
-        dominates just because its raw numbers are bigger.
+        A score is a <b style={{ color: C.text }}>rank, not a probability</b>. A 67 does
+        not mean 67%. It means he sits that far up the league on the inputs the model
+        weighs.
+        <Card>
+          <b style={{ color: C.text }}>It&apos;s the same scale as the MLB side</b>, on
+          purpose. Each component is ranked against every qualified player in the league —
+          not against whoever happens to be playing this week — then the blend is ranked
+          against the league&apos;s blends and landed on hr_score&apos;s own distribution
+          (centred near 47, almost nothing past 75). So the grades transfer: A+ 78, A 70,
+          A- 62, B+ 54, B 46. An NFL 78 is as rare as an MLB 78.
+          <div style={{ marginTop: 6 }}>
+            The reason it matters: ranking inside the slate forces a 0-100 spread every
+            week, so the best goal-line back among six teams scores 100 whether
+            he&apos;s a superstar or a backup. <b style={{ color: C.text }}>A thin card
+            should score thin</b> — and now it does. This preseason board tops out in the
+            60s and hands out no A+ at all.
+          </div>
+        </Card>
       </Section>
 
       <Section title="The seven markets">
