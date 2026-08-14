@@ -49,14 +49,12 @@ export default function Boards({ data, onPlayerClick }) {
           borderRadius: 10, padding: '9px 13px', marginBottom: 10,
           fontSize: 11.5, color: C.text2, lineHeight: 1.6,
         }}>
-          <b style={{ color: C.text }}>{spec.label}</b> — graded at{' '}
-          <b style={{ color: C.green, fontFamily: NUM_FONT }}>{spec.bar}</b>,{' '}
-          {spec.positions.join(' / ')}. Score is a <b>rank</b>, not a probability: it
-          answers who&apos;s most likely, never how likely.
+          <b style={{ color: C.text }}>{spec.label}</b> · bar{' '}
+          <b style={{ color: C.green, fontFamily: NUM_FONT }}>{spec.bar}</b> ·{' '}
+          {spec.positions.join(' / ')}
           {spec.dropped?.length > 0 && (
-            <div style={{ color: C.yellow, marginTop: 4, fontSize: 10.5 }}>
-              Not available on this slate, so their weight was redistributed:{' '}
-              {spec.dropped.join(', ')}.
+            <div style={{ color: C.yellow, marginTop: 3, fontSize: 10 }}>
+              no lines this slate · weight redistributed
             </div>
           )}
         </div>

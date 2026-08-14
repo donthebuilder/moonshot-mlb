@@ -176,7 +176,7 @@ export function Band({ children, note, right, style }) {
  * redesign reference apps uses: restrained mark, colour as the signal,
  * the word doing the work.
  */
-export function RoleTag({ label, color = C.text2, title, style }) {
+export function RoleTag({ label, color = C.text2, title, style, glyph = null }) {
   if (!label || label === '—') return null
   return (
     <span
@@ -191,9 +191,11 @@ export function RoleTag({ label, color = C.text2, title, style }) {
         ...style,
       }}
     >
-      <span style={{
-        width: 5, height: 5, borderRadius: '50%', background: color, flex: '0 0 auto',
-      }} />
+      {glyph
+        ? <span style={{ fontSize: 10, lineHeight: 1 }}>{glyph}</span>
+        : <span style={{
+            width: 5, height: 5, borderRadius: '50%', background: color, flex: '0 0 auto',
+          }} />}
       {label}
     </span>
   )

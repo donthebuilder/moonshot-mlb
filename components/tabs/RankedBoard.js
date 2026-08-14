@@ -10,6 +10,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
+import { heatModeFromUrl } from '../../lib/heatMode'
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
@@ -140,6 +141,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           this hitter actually stronger somewhere else tonight. */}
       {viewMode === 'list' && (
         <DenseTable
+            heatMode={heatModeFromUrl()}
           rows={ranked.map((p, i) => {
             const rec = recordOf(nameOf(p))
             const cats = { HR: hrScore(p), Hit: hitScore(p), HRR: prodScore(p), TB: tbScore(p) }
@@ -218,7 +220,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // is. ISO keeps its own column: the audit's finding is real and
             // now it's VISIBLE next to the score instead of folded silently
             // into it.
-            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1,
+            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, primary: true,
               title: type === 'hr'
                 ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, so a big score on thin power is the board’s most common trap.'
                 : 'The score this board is ranked by' },
@@ -227,14 +229,14 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                 title: 'The bot’s HR score, for context on every board — this column never ranks here, but a high number means the power lane is live for him tonight too' },
             ] : []),
             ...(type === 'hr' ? [
-              { key: 'iso', label: 'ISO', w: 42, dp: 0,
+              { key: 'iso', label: 'ISO', w: 42, dp: 0, primary: true,
                 title: 'Season ISO ×100 — slugging minus batting average, so it measures extra-base pop with the singles stripped out. Across the graded archive, sub-13 homered 8.2% and 23+ homered 22.2%. Read it WITH the score, not instead of it.' },
             ] : []),
             { key: 'rec',    label: 'When picked', heat: false, w: 82, mono: true,
               title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that. From ${'3,973'} graded picks over 39 days.` },
             { key: 'bestOther', label: 'Best other', heat: false, w: 66, mono: true, dim: true,
               title: 'His strongest OTHER category tonight — if this number dwarfs his score here, he might be the wrong kind of bet' },
-            { key: 'hrw',    label: 'HRW', w: 44, dp: 0 },
+            { key: 'hrw',    label: 'HRW', w: 44, dp: 0, primary: true },
             { key: 'xpa',    label: 'xPA', w: 44, dp: 2, title: XPA_TITLE },
             { key: 'l5',     label: 'L5', heat: false, w: 58, mono: true, dim: true },
             { key: 'hr9',    label: 'P HR/9', w: 50, dp: 2 },

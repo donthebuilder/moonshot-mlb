@@ -249,7 +249,13 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
             {(() => {
               const rt = roleTag(p)
-              return rt ? <RoleTag label={rt.label} color={rt.color} title={`Bot conviction tier: ${rt.label}`} /> : null
+              // GLYPH HERE, TEXT IN TABLES (chosen 2026-08-14). A card has room and a
+              // personality; a 25-column table has neither, and a pictograph's
+              // unpredictable width is exactly what breaks a numeric column's
+              // alignment. One glyph per tier, never stacked — which is the real
+              // fix to the old problem, where a single card could carry a role
+              // emoji, an HRW-zone emoji, a lock AND a target.
+              return rt ? <RoleTag label={rt.label} color={rt.color} glyph={rt.glyph} title={`Bot conviction tier: ${rt.label}`} /> : null
             })()}
             {showRoleChip && <Chip color={color}>{role}</Chip>}
             {showBetChip && !gamePickLabel && bet !== role && <Chip color={C.text2}>{bet}</Chip>}
