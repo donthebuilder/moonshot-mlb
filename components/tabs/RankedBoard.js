@@ -10,7 +10,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
-import { heatModeFromUrl } from '../../lib/heatMode'
+import { heatModeFromUrl, heroModeFromUrl } from '../../lib/heatMode'
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
@@ -142,6 +142,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       {viewMode === 'list' && (
         <DenseTable
             heatMode={heatModeFromUrl()}
+            heroMode={heroModeFromUrl()}
           rows={ranked.map((p, i) => {
             const rec = recordOf(nameOf(p))
             const cats = { HR: hrScore(p), Hit: hitScore(p), HRR: prodScore(p), TB: tbScore(p) }
@@ -220,7 +221,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // is. ISO keeps its own column: the audit's finding is real and
             // now it's VISIBLE next to the score instead of folded silently
             // into it.
-            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, primary: true,
+            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 62, dp: 1, primary: true, hero: true,
               title: type === 'hr'
                 ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, so a big score on thin power is the board’s most common trap.'
                 : 'The score this board is ranked by' },
