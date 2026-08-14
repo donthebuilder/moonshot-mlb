@@ -1035,9 +1035,9 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
           // anywhere else, so the column and its total can never disagree.
           const tot = rows.reduce((a, r) => {
             const l = lines?.[Number(r.id)]
-            if (l) { a.ab += l.ab; a.h += l.h; a.d2 += l.d2; a.d3 += l.d3; a.hr += l.hr; a.rbi += l.rbi; a.k += l.k }
+            if (l) { a.ab += l.ab; a.r += l.r; a.h += l.h; a.d2 += l.d2; a.d3 += l.d3; a.hr += l.hr; a.rbi += l.rbi; a.k += l.k }
             return a
-          }, { ab: 0, h: 0, d2: 0, d3: 0, hr: 0, rbi: 0, k: 0 })
+          }, { ab: 0, r: 0, h: 0, d2: 0, d3: 0, hr: 0, rbi: 0, k: 0 })
           // On defense right now — where their order picks back up. See
           // lastUpRef above; before they've batted at all this game there's
           // no history yet, so this only appears once they've had a turn.
@@ -1073,7 +1073,7 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
               <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
                 <span style={{ width: 11, flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>BATTER</span>
-                <H>AB</H><H>H</H><H>2B</H><H>3B</H><H>HR</H><H>RBI</H><H>K</H>
+                <H>AB</H><H>R</H><H>H</H><H>2B</H><H>3B</H><H>HR</H><H>RBI</H><H>K</H>
               </div>
               {rows.map((r) => {
                 const l = lines?.[Number(r.id)] || null
@@ -1108,6 +1108,7 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
                     {/* A man with no line has not batted yet. That is a blank,
                         not a row of zeros — zeros read as "0 for 3". */}
                     <H>{l ? l.ab : '·'}</H>
+                    <H>{l ? l.r : '·'}</H>
                     <H>{l ? l.h : '·'}</H>
                     <H>{l ? l.d2 : '·'}</H>
                     <H>{l ? l.d3 : '·'}</H>
@@ -1120,7 +1121,7 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
               <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingTop: 3, marginTop: 2, borderTop: `1px solid ${C.border}` }}>
                 <span style={{ width: 11, flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '.05em' }}>Team</span>
-                <H>{tot.ab}</H><H>{tot.h}</H><H>{tot.d2}</H><H>{tot.d3}</H><H>{tot.hr}</H><H>{tot.rbi}</H><H>{tot.k}</H>
+                <H>{tot.ab}</H><H>{tot.r}</H><H>{tot.h}</H><H>{tot.d2}</H><H>{tot.d3}</H><H>{tot.hr}</H><H>{tot.rbi}</H><H>{tot.k}</H>
               </div>
             </div>
           )
