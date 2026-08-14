@@ -64,14 +64,29 @@ export default function Research({ data, onPlayerClick }) {
       { key: 'pos', label: 'POS', w: 42, heat: false },
       { key: 'team', label: 'TM', w: 42, heat: false },
       { key: 'opp', label: 'OPP', w: 46, heat: false },
-      { key: 'TDSC', label: 'TD SCORE', w: 66 },
+      { key: 'TDSC', label: 'TD SCORE', w: 66, dp: 0 },
     ]
     // Only render a stat column if at least one row actually has it — an all-
     // dash column is noise, and with seven positions sharing one table most
     // columns are empty for most of them.
     const present = specs.filter((s) => rows.some((r) => Number.isFinite(r[s.key])))
     return [...base, ...present.map((s) => ({
-      key: s.key, label: s.label, w: 58, invert: INVERT.has(s.key),
+      key: s.key,
+      label: s.label,
+      w: 58,
+      invert: INVERT.has(s.key),
+      // PRECISION COMES FROM THE PAYLOAD. DenseTable defaults to toFixed(0),
+      // which is right for a homer count and catastrophic for a rate: target
+      // share 0.198, xTD 0.63 and TDoE -0.01 every one rendered as "0" or
+      // "1", so the whole table read as random noise. The bot declares `dp`
+      // and `pct` alongside each stat because precision is a property of the
+      // measurement, not of the table drawing it.
+      dp: s.dp ?? 2,
+      fmt: (v) => {
+        const n = Number(v)
+        if (!Number.isFinite(n)) return '—'
+        return s.pct ? `${(n * 100).toFixed(s.dp ?? 1)}%` : n.toFixed(s.dp ?? 2)
+      },
     }))]
   }, [specs, rows])
 

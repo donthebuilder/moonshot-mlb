@@ -90,7 +90,11 @@ export default function Boards({ data, onPlayerClick }) {
               {/* the bar IS the score — read the board's shape before any number */}
               <div style={{
                 position: 'absolute', left: 0, top: 0, bottom: 0,
-                width: `${Math.max(0, Math.min(100, s))}%`,
+                // The fill spans the LIVE band, not 0-100. On the MLB scale
+                // nothing legitimately reaches 100, so a raw percentage made
+                // every bar look half-empty and flattened the difference
+                // between a 67 and a 30.
+                width: `${Math.max(2, Math.min(100, ((s - 20) / 60) * 100))}%`,
                 background: `linear-gradient(90deg, ${g.color}1f, transparent)`,
                 pointerEvents: 'none',
               }} />
@@ -102,6 +106,14 @@ export default function Boards({ data, onPlayerClick }) {
                 position: 'relative', fontFamily: NUM_FONT, fontSize: 14,
                 fontWeight: 900, color: g.color, minWidth: 36,
               }}>{Math.round(s)}</span>
+              {/* The grade, same ladder as the MLB board. The number alone
+                  doesn't tell you whether 61 is good on this slate. */}
+              <span style={{
+                position: 'relative', fontFamily: NUM_FONT, fontSize: 9.5,
+                fontWeight: 900, color: g.color, minWidth: 22,
+                border: `1px solid ${g.color}55`, borderRadius: 5,
+                padding: '1px 4px', textAlign: 'center',
+              }}>{g.label}</span>
               <span style={{
                 position: 'relative', fontSize: 12.5, fontWeight: 700, color: C.text,
                 flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
