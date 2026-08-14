@@ -35,3 +35,6 @@ venv/
 # never part of the site build. Tracking it as a gitlink made Vercel try
 # to fetch it as a submodule every deploy (2026-08-08 warning fix).
 bot-ship/
+
+# local render fixture (scripts/dev-fixture.mjs regenerates it)
+public/__devfixture/

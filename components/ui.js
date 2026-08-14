@@ -164,3 +164,37 @@ export function Band({ children, note, right, style }) {
     </div>
   )
 }
+
+
+/**
+ * RoleTag — a conviction tier as typography.
+ *
+ * The dot is the whole icon system. It reads at 9px where an emoji doesn't,
+ * renders identically on every platform, inherits the tier colour so the badge
+ * is legible in one glance, and — unlike a pictograph — has a predictable
+ * width, so a column of these stays aligned. That's the idiom every one of the
+ * redesign reference apps uses: restrained mark, colour as the signal,
+ * the word doing the work.
+ */
+export function RoleTag({ label, color = C.text2, title, style }) {
+  if (!label || label === '—') return null
+  return (
+    <span
+      title={title}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        border: `1px solid ${color}55`, background: `${color}14`, color,
+        borderRadius: 6, padding: '2px 7px',
+        fontSize: 9.5, fontWeight: 900, letterSpacing: '.06em',
+        whiteSpace: 'nowrap', textTransform: 'uppercase',
+        fontFamily: NUM_FONT,
+        ...style,
+      }}
+    >
+      <span style={{
+        width: 5, height: 5, borderRadius: '50%', background: color, flex: '0 0 auto',
+      }} />
+      {label}
+    </span>
+  )
+}

@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
-import { Chip, Card } from './ui'
+import { roleBadge } from '../lib/roleBadge'
+import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
 
@@ -39,11 +40,14 @@ const HRW_EMOJI = {
   cold:          '🧊',
 }
 
-function roleEmoji(p) {
-  const raw = (p?.final_hr_role || '').trim()
-  if (!raw) return null
-  const m = raw.match(/^([\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}])/u)
-  return m ? m[1] : null
+// WAS: pulled the leading pictograph off final_hr_role and rendered it as the
+// badge — emoji-as-UI in its purest form, and the reason the card's tier was
+// unreadable at a glance for anyone who didn't already know the glyph key.
+// The tier is now a word with a colour, resolved off a semantic token so it
+// survives the bot changing its string format. See lib/roleBadge.js.
+function roleTag(p) {
+  const b = roleBadge(p?.final_hr_role, C)
+  return b.known ? b : null
 }
 
 const ALT_GLOW = {
@@ -123,8 +127,6 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // truncated the NAME — the one thing a card can't lose. Two emojis max,
   // the full stack lives in the tooltip.
   const emojisAll = []
-  const re = roleEmoji(p)
-  if (re) emojisAll.push([re, 'role'])
   const hrwE = HRW_EMOJI[(p?.hrw_zone || '').trim()]
   if (hrwE) emojisAll.push([hrwE, 'HRW zone'])
   if (p?.high_confidence_hr_flag === true) emojisAll.push(['🔒', 'high confidence'])
@@ -245,6 +247,10 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
         ) : (
           <>
             {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
+            {(() => {
+              const rt = roleTag(p)
+              return rt ? <RoleTag label={rt.label} color={rt.color} title={`Bot conviction tier: ${rt.label}`} /> : null
+            })()}
             {showRoleChip && <Chip color={color}>{role}</Chip>}
             {showBetChip && !gamePickLabel && bet !== role && <Chip color={C.text2}>{bet}</Chip>}
             {risk && <Chip color={risk.color}>{risk.label}</Chip>}

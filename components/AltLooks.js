@@ -95,14 +95,17 @@ const variance = (p) => {
   )
 }
 
+// Icons dropped 2026-08-14 with the rest of the badge language. Each group
+// already carries a colour and a name; the pictograph was a third encoding of
+// the same fact, and the one that rendered differently on every platform.
 const GROUPS = {
-  'HOT/DUE':  { color: '#f97316', icon: '🔥', why: 'Recent power plus overdue signal' },
-  'MATCHUP':  { color: '#22d3ee', icon: '🎯', why: 'The arm, the split, the spot' },
-  'VARIANCE': { color: '#FCD34D', icon: '⚠️', why: 'Big power signals, thin sample — priced accordingly' },
-  'ALT':      { color: '#a78bfa', icon: '🔄', why: 'Best of the rest by all three blends' },
-  'HIGH ACROSS CATEGORIES': { color: '#4ade80', icon: '🔎', cross: true,
+  'HOT/DUE':  { color: '#f97316', icon: null, why: 'Recent power plus overdue signal' },
+  'MATCHUP':  { color: '#22d3ee', icon: null, why: 'The arm, the split, the spot' },
+  'VARIANCE': { color: '#FCD34D', icon: null, why: 'Big power signals, thin sample — priced accordingly' },
+  'ALT':      { color: '#a78bfa', icon: null, why: 'Best of the rest by all three blends' },
+  'HIGH ACROSS CATEGORIES': { color: '#4ade80', icon: null, cross: true,
     why: 'Strong in several categories at once — the model’s consensus names' },
-  'HR UPSIDE / UNDERLISTED': { color: '#FB923C', icon: '🧨', cross: true,
+  'HR UPSIDE / UNDERLISTED': { color: '#FB923C', icon: null, cross: true,
     why: 'Power signals bigger than his board rank — the sneaky HR lane' },
 }
 

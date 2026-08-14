@@ -22,7 +22,7 @@ const ASKS = [
     why: 'Hitters the bot designated for one of tonight’s five pick slots' },
   { key: 'weak', label: '⭐ Weak spots', test: (p) => p?.weak_spot_flag === true,
     why: 'Batting in a lineup spot this starter has been beaten in' },
-  { key: 'hot',  label: '🧨 Hot L5', test: (p) => n(p?.last5_hits, 0) >= 6 || n(p?.last5_hr, 0) >= 2,
+  { key: 'hot',  label: 'Hot L5', test: (p) => n(p?.last5_hits, 0) >= 6 || n(p?.last5_hr, 0) >= 2,
     why: '6+ hits or 2+ homers over his last five games' },
   { key: 'edge', label: '🎯 Pitch match', test: (p) => n(p?.pitch_type_match_score, 0) > 0,
     why: 'The model found a documented batter-vs-pitch exploit — the single largest graded separator' },

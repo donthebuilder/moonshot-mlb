@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { roleBadge } from '../../lib/roleBadge'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
 import { PanelTitle, Empty, btnStyle } from '../ui'
@@ -71,11 +72,12 @@ const ROLE_CONFIG = {
 function getRoleDisplay(p) {
   const primary = (p?.game_pick_role || '').split('/')[0]
   if (ROLE_CONFIG[primary]) return ROLE_CONFIG[primary]
-  const label = p?.best_bet_type || p?.beginner_label || '—'
-  const color = label.toLowerCase().includes('avoid') ? '#F87171'
-    : label.toLowerCase().includes('strong hr') ? '#FB923C'
-    : label.toLowerCase().includes('power watch') ? '#A78BFA'
-    : '#9CA3AF'
+  // best_bet_type arrives with a pictograph baked in ("🏆 HR Bet"), which used
+  // to be rendered verbatim as the label. roleBadge strips it and resolves the
+  // colour off a semantic token instead of substring-matching the display text.
+  const badge = roleBadge(p?.best_bet_type || p?.beginner_label, C)
+  const label = badge.label
+  const color = badge.color
   return { label, color }
 }
 
