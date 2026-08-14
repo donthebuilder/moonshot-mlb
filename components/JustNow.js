@@ -107,6 +107,13 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
   if (!rows.length) return null
   const visRows = showAll ? rows : rows.slice(0, DEFAULT_SHOWN)
 
+  // TABLE, NOT CARDS (2026-08-14 restructure — Donovan: "the just now and
+  // all that... should look better and more precise like how that chart is
+  // at the bottom of the screen"). Same row grammar as At The Plate's
+  // contact-tonight section: micro header, hairline separators, mono
+  // numbers right-aligned, the loud thing in colour. The card version's
+  // hard-won lessons carry over: name scans first, the 100+ mph out keeps
+  // its own colour, and every row still opens his card.
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
@@ -116,72 +123,57 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-        {visRows.map((r) => {
-            const col = TONE_COL[r.tone] || C.text3
-            const p = byId.get(r.id) || null
-            return (
-              <button
-                key={r.key}
-                type="button"
-                onClick={() => p && onPlayerClick?.(p)}
-                title={`${r.name} — ${r.event}${r.pitcher ? ` off ${r.pitcher}` : ''} · ${r.half} ${r.inning}${r.ev ? ` · ${Math.round(r.ev)}mph off the bat` : ''}`}
-                style={{
-                  flex: '0 0 auto', width: 176, textAlign: 'left',
-                  cursor: p ? 'pointer' : 'default',
-                  // color HAS to be set here. A <button> does not inherit text
-                  // colour — it resets to the UA's `buttontext`, which is
-                  // near-black, which on this page is invisible. Every name in
-                  // this rail rendered as a dark smudge on the first night it
-                  // was live. LiveAtBats set a colour on its name and survived;
-                  // this one leaned on inheritance and did not.
-                  color: C.text,
-                  background: r.tone === 'hr' ? `${col}1a` : C.bg3,
-                  border: `1px solid ${r.tone === 'hr' || r.tone === 'hot' ? `${col}77` : C.border2}`,
-                  borderRadius: 10, padding: '7px 10px 8px', minWidth: 0,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, fontFamily: NUM_FONT }}>
-                  <span style={{ fontSize: 10 }}>{r.icon}</span>
-                  <span style={{ fontSize: 9, color: C.text2, fontWeight: 700 }}>
-                    {/^top/i.test(r.half) ? '▲' : '▼'}{r.inning}
-                  </span>
-                  {r.ev ? (
-                    <span title={`${Math.round(r.ev)} mph off the bat`}
-                      style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
-                        color: r.ev >= 100 ? '#fb7185' : C.text2 }}>
-                      {Math.round(r.ev)}<span style={{ fontSize: 7.5, color: C.text3 }}> mph</span>
-                    </span>
-                  ) : null}
-                </div>
-                {/* NAME FIRST AND BIGGEST. You scan this rail for a name and
-                    then read what happened to him — never the other way round.
-                    The first version had them nearly the same size, with the
-                    verb in the loud colour and the name in none at all. */}
-                <div style={{
-                  fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap',
-                  overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2,
-                  color: C.text, letterSpacing: '-.01em',
-                }}>{r.name}</div>
-                <div style={{
-                  fontSize: 9.5, fontWeight: r.tone === 'hr' ? 900 : 700, color: col,
-                  fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  textTransform: r.tone === 'hr' ? 'none' : 'uppercase', letterSpacing: '.02em',
-                  marginTop: 1,
-                }}>{SHORT(r.event)}</div>
-              </button>
-            )
-          })}
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ width: 34, flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>INN</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>PLAYER</span>
+          <span style={{ flex: 1.1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>RESULT</span>
+          <span style={{ width: 44, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>EV</span>
+        </div>
+        {visRows.map((r, i) => {
+          const col = TONE_COL[r.tone] || C.text3
+          const p = byId.get(r.id) || null
+          return (
+            <div
+              key={r.key}
+              onClick={() => p && onPlayerClick?.(p)}
+              className={p ? 'tap-row' : undefined}
+              title={`${r.name} — ${r.event}${r.pitcher ? ` off ${r.pitcher}` : ''} · ${r.half} ${r.inning}${r.ev ? ` · ${Math.round(r.ev)}mph off the bat` : ''}`}
+              style={{
+                display: 'flex', gap: 8, alignItems: 'center', padding: '3.5px 0',
+                cursor: p ? 'pointer' : 'default', minWidth: 0,
+                borderBottom: i < visRows.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
+              }}
+            >
+              <span style={{ width: 34, flexShrink: 0, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                {/^top/i.test(r.half) ? 'T' : 'B'}{r.inning}
+              </span>
+              <span style={{
+                flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: C.text,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>{r.name}</span>
+              <span style={{
+                flex: 1.1, minWidth: 0, fontSize: 10, fontWeight: r.tone === 'hr' ? 900 : 700, color: col,
+                fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                letterSpacing: '.02em',
+              }}>{r.icon} {SHORT(r.event)}</span>
+              <span style={{
+                width: 44, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT,
+                fontWeight: (r.ev || 0) >= 100 ? 800 : 400,
+                color: (r.ev || 0) >= 100 ? '#fb7185' : r.ev ? C.text2 : C.text3,
+              }}>{r.ev ? Math.round(r.ev) : '·'}</span>
+            </div>
+          )
+        })}
+        {!showAll && rows.length > DEFAULT_SHOWN && (
+          <button type="button" onClick={() => setShowAll(true)} style={{
+            display: 'block', width: '100%', marginTop: 6, cursor: 'pointer',
+            fontSize: 10, fontWeight: 800, color: C.text2, fontFamily: NUM_FONT,
+            background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 8,
+            padding: '5px 10px', letterSpacing: '.02em',
+          }}>Show all {rows.length} ▾</button>
+        )}
       </div>
-
-      {!showAll && rows.length > DEFAULT_SHOWN && (
-        <button type="button" onClick={() => setShowAll(true)} style={{
-          display: 'block', width: '100%', marginTop: 9, cursor: 'pointer',
-          fontSize: 10, fontWeight: 800, color: C.text2, fontFamily: NUM_FONT,
-          background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 10,
-          padding: '7px 10px', letterSpacing: '.02em',
-        }}>Show all {rows.length} ▾</button>
-      )}
     </div>
   )
 }

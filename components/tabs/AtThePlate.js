@@ -9,7 +9,8 @@ import {
   pitchColor, PITCH_NAMES, KIND_WORD,
 } from '../../lib/livePitches'
 import { Empty, Band } from '../ui'
-import LiveAtBats from '../LiveAtBats'
+// LiveAtBats retired from THIS page 2026-08-14 (the Games board table
+// replaced it) — the component itself lives on; the Games tab mounts it.
 import BattedBallLog from '../BattedBallLog'
 import JustNow from '../JustNow'
 import ZoneMap from '../ZoneMap'
@@ -209,6 +210,71 @@ function PitcherChips({ pitchers, viewId, onPick }) {
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
 const LIVE = '#4ade80'
 
+/** 🎮 THE GAMES BOARD (2026-08-14 restructure — Donovan: "i wanted the
+ * games at the top. with a better selector... the just now and all that
+ * pick a game should look better and more precise like how that chart is
+ * at the bottom of the screen"). ONE precise table — the same language as
+ * the contact-tonight section — replaces BOTH the who's-up card strip
+ * (LiveAtBats stays a component; the Games tab still mounts it) and the
+ * separate collapsed Pick-a-game control: every live game, its score,
+ * inning and outs, who's standing at the plate and his line tonight — and
+ * tapping a row IS the game selector. Picks sort first (the incoming list
+ * is already ordered that way). */
+function GamesBoard({ games, activePk, lines, abbrs, onSelect }) {
+  if (!games.length) return null
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <Band note="every live at-bat, your picks first — tap a row to open that game's room below">Games</Band>
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ width: 118, flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>GAME</span>
+          <span style={{ width: 58, flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>INN</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>AT THE PLATE</span>
+          <span style={{ width: 70, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>TONIGHT</span>
+        </div>
+        {games.map((x, i) => {
+          const on = x.pk === activePk
+          const l = lines?.[x.pid] || null
+          const outs = x.g.outs
+          return (
+            <div key={x.pk} onClick={() => onSelect(x.pk)} className="tap-row" style={{
+              display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0 4px 4px',
+              cursor: 'pointer', minWidth: 0, marginLeft: -6,
+              borderLeft: `2px solid ${on ? C.orange : 'transparent'}`,
+              background: on ? 'rgba(249,115,22,.07)' : 'transparent',
+              borderBottom: i < games.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
+            }}>
+              <span style={{ width: 118, flexShrink: 0, fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {abbrs?.[x.g.awayId] || 'Away'} <b style={{ color: on ? C.orange : C.text }}>{x.g.awayScore ?? 0}–{x.g.homeScore ?? 0}</b> {abbrs?.[x.g.homeId] || 'Home'}
+              </span>
+              <span style={{ width: 58, flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}
+                title={outs != null ? `${String(x.g.half || '')} ${x.g.inning}, ${outs} out${outs === 1 ? '' : 's'}` : undefined}>
+                {String(x.g.half || '').slice(0, 3)}{x.g.inning}{outs != null ? ` · ${outs}o` : ''}
+              </span>
+              <span style={{ flex: 1, minWidth: 0, display: 'flex', gap: 5, alignItems: 'baseline' }}>
+                {x.role ? (
+                  <span style={{ fontSize: 7.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[x.role] || C.text3, letterSpacing: '.05em', flexShrink: 0 }}>🤖{x.role}</span>
+                ) : x.watched ? (
+                  <span style={{ fontSize: 9, flexShrink: 0 }}>★</span>
+                ) : null}
+                <span style={{ fontSize: 10.5, fontWeight: on ? 800 : 600, color: on ? C.text : C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{x.name}</span>
+              </span>
+              <span style={{ width: 70, textAlign: 'right', flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: l?.hr ? C.orange : C.text3, fontWeight: l?.hr ? 800 : 400 }}
+                title={l ? `The batter at the plate, tonight: ${l.h}-${l.ab}${l.hr ? `, ${l.hr} HR` : ''}` : 'First trip tonight'}>
+                {l ? `${l.h}-${l.ab}${l.hr ? ` ${l.hr}HR` : ''}` : '—'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
+        This picks the GAME — inside its room, tap anyone in Coming up or the box score to point
+        the charts at him instead.
+      </div>
+    </div>
+  )
+}
+
 /** The situation, broadcast-style (2026-08-14, Donovan: "i dont see the
  * outs like if its two outs or one"). A mini base diamond (2B top, 3B left,
  * 1B right — filled yellow when occupied, tooltip names the runner) and two
@@ -272,12 +338,6 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   useEffect(() => { let a = true; teamAbbrs().then((m) => { if (a && m) setAbbrs(m) }).catch(() => {}); return () => { a = false } }, [])
   const [pinnedGame, setPinnedGame] = useState(null)   // gamePk the user locked onto
   const [pinnedHitter, setPinnedHitter] = useState(null)   // mlb id driving the charts
-  // 2026-08-13, Donovan: Pick a game "needs to be different... a drop down
-  // type thing." A row of N full buttons scaled badly — eight live games
-  // meant eight buttons competing with the room below for attention.
-  // Collapsed to the current pick + a toggle, same pattern as the Games
-  // page legend: the full list is a tap away, not permanently on screen.
-  const [gamePickerOpen, setGamePickerOpen] = useState(false)
   const [auto, setAuto] = useState(true)
   const [feed, setFeed] = useState(undefined)   // undefined = loading, null = failed
   const timer = useRef(null)
@@ -507,123 +567,30 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     <div>
       <Header auto={auto} setAuto={setAuto} refresh={refresh} count={liveGames.length} />
 
-      {/* ── 0 · THE WHOLE SLATE, BEFORE THE ROOM ──────────────────────────
-          This page is a ROOM: one batter, deep. That is right for the man you
-          care about and wrong for "what is happening right now", which is
-          about all eight games and none of them in particular — and which you
-          had to answer by picking a game first, which is exactly what you
-          cannot do when you don't yet know where to look. The strip answers it
-          in one glance and then hands you the room. No extra request; every
-          field is already in the snapshot this page polls.
-
-          2026-08-13, Donovan, on this whole stack: "a whole new
-          reconstruction... i don't like how the top of the page looks right
-          before the lineups." The three rails below now each answer exactly
-          ONE question and say so in their own header, instead of one rail
-          quietly switching meaning under a toggle: who's up (this one) → the
-          loudest contact anywhere on the slate (BattedBallLog) → what
-          happened to YOUR guys specifically (JustNow). */}
-      <LiveAtBats
-        players={players}
-        watchIds={watchIds}
-        onGo={(pk) => setPinnedGame(pk)}
+      {/* ── 0 · THE GAMES, FIRST (2026-08-14 restructure) ──────────────────
+          Donovan: "i wanted the games at the top. with a better selector...
+          the just now and all that pick a game should look better and more
+          precise like how that chart is at the bottom of the screen." One
+          precise table now leads the page: every live game, who's at the
+          plate, tap to enter — it IS the selector, replacing the who's-up
+          card strip AND the separate Pick-a-game control this page used to
+          stack above the room. The two slate-wide review rails (loudest
+          contact, your guys' finished ABs) moved BELOW the room — they're
+          what you check between at-bats, not what should stand between you
+          and the man currently hitting. */}
+      <GamesBoard
+        games={liveGames}
+        activePk={a.pk}
+        lines={snap?.lines}
+        abbrs={abbrs}
+        onSelect={(pk) => setPinnedGame(pk)}
       />
 
-      {/* ── 0b · THE LOUDEST CONTACT, EVERYONE'S ───────────────────────────
-          "i'd like to see hh deep fly out barrels distance and ev... like the
-          live spray the live ev... bbes from the game." Slate-wide on
-          purpose — see fetchBattedBallLog() in lib/livePitches.js for the
-          three gates (hard-hit / barrel / deep fly out) and why this used to
-          be a toggle mode on JustNow and now has its own header instead. */}
-      <BattedBallLog players={players} onPlayerClick={onPlayerClick} />
-
-      {/* ── 0c · AND HOW YOUR OWN GUYS' AT-BATS ENDED ──────────────────────
-          The strip above is who is up; this is how it finished, for the names
-          you have skin on. Scoped to picks + watchlist on purpose — see
-          fetchSkinEvents() for the cost reasoning. Renders nothing when
-          nothing of yours has completed a plate appearance. */}
-      <JustNow players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-
-      {/* ── 1 · WHICH GAME ─────────────────────────────────────────────
-          2026-08-13, Donovan: "pick a game like it actually needs the games
-          instead of the players. i should be able to see all the previous ab
-          for the other players as well." Two separate fixes:
-          1. The label. This picked a GAME but named it by whoever happened
-             to be up, so scanning the closed list read as a list of eight
-             hitters, not eight games — you couldn't tell which two teams
-             you'd be looking at until after you picked. Matchup-first now,
-             same abbr+score shape LiveAtBats already uses above; who's up
-             is still here, just demoted to the line under it.
-          2. The other players. This part already existed and didn't need
-             new code — tap any row in Coming up or the box score below and
-             the whole room, prior at-bats included, points at him instead,
-             same game. "Pick a game" only ever picked the GAME; it was never
-             connected to that, so the capability was real but not findable
-             from here. The line under the toggle says so now instead of
-             leaving you to discover it three sections down. */}
-      {liveGames.length > 1 && (
-        <div style={{ marginBottom: 12 }}>
-          <Band note={`${liveGames.length} games have someone at the plate — your picks first`}>Pick a game</Band>
-          <button onClick={() => setGamePickerOpen((v) => !v)} className="tap-row" style={{
-            display: 'flex', width: '100%', gap: 8, alignItems: 'center', cursor: 'pointer', textAlign: 'left',
-            border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
-            borderRadius: 10, padding: '7px 12px',
-          }}>
-            <span style={{ fontSize: 11 }}>⚾</span>
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
-              <span style={{
-                fontSize: 12, fontWeight: 900, color: C.text, fontFamily: NUM_FONT,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {abbrs?.[a.g.awayId] || 'Away'} {a.g.awayScore ?? 0}–{a.g.homeScore ?? 0} {abbrs?.[a.g.homeId] || 'Home'}
-              </span>
-              <span style={{
-                fontSize: 9.5, color: C.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                🎤 {a.name}{a.role ? ` · 🤖 ${a.role}` : a.watched ? ' · ★' : ''} at the plate
-              </span>
-            </span>
-            <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-              {String(a.g.half || '').slice(0, 3)}{a.g.inning}{a.g.outs != null ? ` · ${a.g.outs} out` : ''}
-            </span>
-            <span style={{ fontSize: 9, color: C.text3 }}>{gamePickerOpen ? '▴' : `▾ ${liveGames.length} games`}</span>
-          </button>
-          {gamePickerOpen && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 6 }}>
-              {liveGames.map((x) => {
-                const on = x.pk === a.pk
-                const col = ROLE_COLOR[x.role] || (x.watched ? '#a78bfa' : C.border2)
-                return (
-                  <button key={x.pk} onClick={() => { setPinnedGame(x.pk); setGamePickerOpen(false) }} className="tap-row" style={{
-                    display: 'flex', gap: 7, alignItems: 'center', cursor: 'pointer', textAlign: 'left',
-                    border: `1px solid ${on ? col : C.border}`,
-                    background: on ? `${col}1c` : 'rgba(255,255,255,.02)',
-                    borderRadius: 10, padding: '6px 12px',
-                    boxShadow: on ? `0 0 14px ${col}30` : 'none',
-                  }}>
-                    <span style={{ fontSize: 10 }}>⚾</span>
-                    <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
-                      <span style={{ fontSize: 11.5, fontWeight: 800, color: on ? C.text : C.text2, fontFamily: NUM_FONT }}>
-                        {abbrs?.[x.g.awayId] || 'Away'} {x.g.awayScore ?? 0}–{x.g.homeScore ?? 0} {abbrs?.[x.g.homeId] || 'Home'}
-                      </span>
-                      <span style={{ fontSize: 9, color: C.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        🎤 {x.name}{x.role ? ` · 🤖 ${x.role}` : x.watched ? ' · ★' : ''}
-                      </span>
-                    </span>
-                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
-                      {String(x.g.half || '').slice(0, 3)}{x.g.inning}{x.g.outs != null ? ` · ${x.g.outs} out` : ''}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-          <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-            This picks the game. Once you&apos;re in it, tap anyone in Coming up or the box score
-            below to see his at-bats — the charts and the log follow him, not just whoever&apos;s up.
-          </div>
-        </div>
-      )}
+      {/* ── 1 · (retired 2026-08-14) — "Pick a game" merged into the Games
+          board above: one table is the selector AND the who's-up read.
+          Its 2026-08-13 matchup-first labelling lesson carries over (rows
+          lead with the matchup, who's-up beside it, never a bare list of
+          hitters). */}
 
       {/* ── 2 · NOW BATTING ────────────────────────────────────────────── */}
       <div style={{
@@ -985,6 +952,14 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           </div>
         </div>
       )}
+
+      {/* ── 5 · THE SLATE-WIDE REVIEW RAILS (moved below the room,
+          2026-08-14 restructure) — what you check BETWEEN at-bats, not what
+          should stand between you and the man currently hitting. */}
+      <div style={{ marginTop: 14 }}>
+        <BattedBallLog players={players} onPlayerClick={onPlayerClick} />
+        <JustNow players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+      </div>
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 10, lineHeight: 1.65, maxWidth: 760 }}>
         The same zone map and spray chart the player card uses, in their <b style={{ color: C.text2 }}>tonight-only</b>{' '}
