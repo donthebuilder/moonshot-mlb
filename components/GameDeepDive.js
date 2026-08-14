@@ -3,6 +3,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { n, nn, clean, nameOf, hrScore } from '../lib/player'
 import GameCockpit from './GameCockpit'
 import Storylines from './Storylines'
+import TeamVsStarter from './TeamVsStarter'
 
 // GAME DEEP DIVE — what clicking a game actually earns you (2026-08-06).
 //
@@ -158,6 +159,29 @@ export default function GameDeepDive({ game, allPlayers = [], slateDate = '', re
         {teams.map((t) => (
           <StarterPanel key={t} team={t} rows={gp.filter((p) => clean(p?.team, '') === t)} onPlayerClick={onPlayerClick} />
         ))}
+      </div>
+
+      {/* 🆚 career vs the starter, both sides (2026-08-14 — the competitor
+          feature Donovan asked for: "team vs pitcher splits... needs to be
+          accessible somewhere". Same table also lives in the pitcher
+          modal's Lineup-he-faces tab; one component, two mounts.) */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+        {teams.map((t) => {
+          const rows = gp.filter((p) => clean(p?.team, '') === t)
+          const any = rows[0] || {}
+          return (
+            <div key={`vs-${t}`} style={{ flex: '1 1 330px', minWidth: 0 }}>
+              <TeamVsStarter
+                players={rows}
+                team={t}
+                pitcherName={clean(any?.pitcher_name, '')}
+                pitcherThrows={clean(any?.pitcher_throws, '')}
+                onPlayerClick={onPlayerClick}
+                compact
+              />
+            </div>
+          )
+        })}
       </div>
 
       {/* this game's storylines — the same engine the Scoreboard runs,

@@ -10,6 +10,7 @@ import PitcherProfile from './PitcherProfile'
 import SituationalSplits from './SituationalSplits'
 import PitcherField from './PitcherField'
 import SlotDamage from './SlotDamage'
+import TeamVsStarter from './TeamVsStarter'
 
 // The pitcher's own modal.
 //
@@ -159,6 +160,17 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             rows.length
               ? (
                 <>
+                  {/* 🆚 career vs him, first (2026-08-14 — the competitor
+                      feature Donovan asked for; full column set here since
+                      the modal has the width. Same component rides in each
+                      game's deep-dive in compact form.) */}
+                  <TeamVsStarter
+                    players={lineup.map((b) => b?.raw).filter(Boolean)}
+                    team={opp}
+                    pitcherName={name}
+                    pitcherThrows={throws}
+                    onPlayerClick={onPlayerClick}
+                  />
                   <DenseTable
                     rows={rows}
                     columns={[
