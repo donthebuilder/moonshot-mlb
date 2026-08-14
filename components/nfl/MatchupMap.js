@@ -204,9 +204,10 @@ export default function MatchupMap({
     const dMax = compact ? 52 : 64
     for (const c of cells) {
       const d = dMax * Math.sqrt(Math.max(0, c.share) / ref)
-      // Below the height of the number it stops being a circle and becomes a
-      // smudge behind the decimal point. Nothing is nothing — draw nothing.
-      c.d = d < 16 ? 0 : d
+      // Narrower than the number it sits behind, a circle stops reading as a
+      // circle and becomes a smudge around the decimal point. Nothing is
+      // nothing — draw nothing.
+      c.d = d < 20 ? 0 : d
     }
 
     let spot = null
