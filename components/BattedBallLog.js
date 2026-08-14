@@ -95,7 +95,12 @@ const COLUMNS = [
 ]
 
 // ── FILTERS ──────────────────────────────────────────────────────────────
-const OUTCOME_TABS = [
+// EXPORTED (2026-08-14, At The Plate rebuild Pass 3) so the spray chart's
+// tonight-only filters speak the exact same Result/Quality language as this
+// log. Two surfaces offering different category sets for the same balls is
+// the drift the pick-buckets export already exists to prevent — one
+// definition, two callers, same rule here.
+export const OUTCOME_TABS = [
   { key: 'all', label: 'All' },
   { key: 'hr', label: 'HR' },
   { key: '3b', label: '3B' },
@@ -109,7 +114,7 @@ const OUTCOME_TABS = [
 // Everything that isn't one of those four is bucketed Out, deliberately —
 // see the header comment for why that's the honest simplification, not a
 // missing case.
-const outcomeOf = (event) => {
+export const outcomeOf = (event) => {
   const e = String(event || '').toLowerCase().trim()
   if (e === 'home run') return 'hr'
   if (e === 'triple') return '3b'
@@ -118,7 +123,7 @@ const outcomeOf = (event) => {
   return 'out'
 }
 
-const QUALITY_TABS = [
+export const QUALITY_TABS = [
   { key: 'hh', label: '🔥 HH', title: "95+ mph off the bat — Statcast's own hard-hit line" },
   { key: 'barrel', label: '💎 BRL', title: 'A real barrel — the EV / launch-angle combo behind .500+ AVG, 1.500+ SLG' },
   { key: 'ev100', label: '⚡ 100+', title: '100+ mph off the bat — a stricter bar than the 95+ hard-hit gate every row here already cleared' },

@@ -6,7 +6,15 @@ import { detailUrl } from '../lib/dataSource'
 import { chipColor } from './Heatmap'
 // Pitch colours shared with ZoneMap and the live feed parser, so a sinker is
 // the same orange on the spray chips as it is on the strike-zone dots.
-import { pitchColor } from '../lib/livePitches'
+// isDeepFlyOut too (Pass 3, 2026-08-14): the 📏 DEEP gate has ONE definition
+// (a 370ft+ fly ball that did not land for a hit) and this chart borrows it
+// rather than approximating a second one.
+import { pitchColor, isDeepFlyOut } from '../lib/livePitches'
+// The tonight-only filters speak the SAME Result/Quality language as the
+// Batted Ball Log at the top of the At The Plate page (Pass 3, 2026-08-14,
+// Donovan's redesign screenshots) — categories imported from that file, not
+// copied, so the two surfaces can't drift apart.
+import { outcomeOf, OUTCOME_TABS, QUALITY_TABS } from './BattedBallLog'
 
 // Spray field — radar, not a ballpark illustration.
 //
@@ -354,7 +362,12 @@ export default function SprayField({
   const [hoverLive, setHoverLive] = useState(null)
   const [liveOn, setLiveOn] = useState(true)
   // Tonight-only cuts: contact quality and the pitch that produced the ball.
-  const [liveCut, setLiveCut] = useState('all')   // all | hh | barrel | xbh
+  // Result (single-select) + Quality (multi-select, OR within, AND against
+  // Result) — the exact filter grammar BattedBallLog established, replacing
+  // the old 4-chip single-select (All/HH/Barrels/XBH) that offered a
+  // DIFFERENT category set for the same balls (Pass 3, 2026-08-14).
+  const [liveRes, setLiveRes] = useState('all')      // all | hr | 3b | 2b | 1b | out
+  const [liveQual, setLiveQual] = useState(new Set()) // of: hh | barrel | ev100 | deepFly
   const [livePitch, setLivePitch] = useState(null) // null = every pitch type
 
   const pid = player?.player_id || player?.id
@@ -526,13 +539,19 @@ export default function SprayField({
   }), [inRange, only, picked, bbPick])
 
   // Tonight's balls, through the same transform as the season ones.
+  // res/deepFly stamped here once (Pass 3) so the filter rows below and the
+  // counts on their chips all read the same precomputed answer.
   const liveHits = useMemo(() => (Array.isArray(liveBalls) ? liveBalls : []).map((b) => {
     const p = toPolar({ hc_x: b?.cx, hc_y: b?.cy })
     if (!p) return null
-    return { ...b, r: p.dist, ang: p.ang, hr: liveIsHR(b) }
+    return {
+      ...b, r: p.dist, ang: p.ang, hr: liveIsHR(b),
+      res: outcomeOf(b?.event),
+      deepFly: isDeepFlyOut(b?.traj, b?.dist, b?.event),
+    }
   }).filter(Boolean), [liveBalls])
 
-  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all'); setLiveCut('all'); setLivePitch(null) }
+  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all'); setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null) }
 
   const liveN = liveHits.length
   // In liveOnly the ● Tonight chip isn't rendered (it lives in the season
@@ -548,12 +567,22 @@ export default function SprayField({
   // COUNTS ARE ALWAYS SHOWN ON THE CHIP. A filter that can return zero without
   // warning you is a filter that reads as a broken chart, and this sample is
   // small enough that "Barrels 0" is a normal, true answer.
-  const liveCuts = useMemo(() => ([
-    { k: 'all', label: 'All', n: liveHits.length, col: C.text2, tip: 'Every ball in play from this game.' },
-    { k: 'hh', label: 'Hard hit', n: liveHits.filter((b) => b.hh).length, col: '#fb923c', tip: 'Left the bat at 95 mph or more — Statcast’s own hard-hit line. No launch-angle condition.' },
-    { k: 'barrel', label: 'Barrels', n: liveHits.filter((b) => b.barrel).length, col: '#f87171', tip: 'Statcast barrel: the exit-velo / launch-angle combinations that have historically produced a .500 average and 1.500 slugging. Starts at 98 mph in a 26–30° window and widens with velocity. Computed from this ball’s own EV and LA.' },
-    { k: 'xbh', label: 'XBH', n: liveHits.filter((b) => b.xbh).length, col: '#a78bfa', tip: 'Doubles, triples and homers — read from the play’s own result, not inferred from distance.' },
-  ]), [liveHits])
+  // Chip rows in BattedBallLog's own grammar: OUTCOME_TABS / QUALITY_TABS are
+  // imported from that file, counts computed against tonight's balls here.
+  const liveResTabs = useMemo(() => OUTCOME_TABS.map((t) => ({
+    ...t,
+    n: t.key === 'all' ? liveHits.length : liveHits.filter((b) => b.res === t.key).length,
+    col: t.key === 'hr' ? '#fb923c' : C.text2,
+  })), [liveHits])
+  const liveQualTabs = useMemo(() => {
+    const gate = { hh: (b) => b.hh, barrel: (b) => b.barrel, ev100: (b) => (b.ev || 0) >= 100, deepFly: (b) => b.deepFly }
+    const col = { hh: '#fb923c', barrel: '#f87171', ev100: '#fbbf24', deepFly: '#a78bfa' }
+    return QUALITY_TABS.map((t) => ({
+      ...t,
+      n: liveHits.filter(gate[t.key] || (() => false)).length,
+      col: col[t.key] || C.text2,
+    }))
+  }, [liveHits])
   // Pitch types present in tonight's contact, so the row can never offer a
   // filter that would return nothing.
   const livePitchTypes = useMemo(() => {
@@ -563,10 +592,17 @@ export default function SprayField({
   }, [liveHits])
 
   const liveFiltered = useMemo(() => liveHits.filter((b) => {
-    const okCut = liveCut === 'all' ? true : !!b[liveCut]
+    // Same AND/OR grammar as BattedBallLog's filteredRows: Result narrows,
+    // Quality (when anything is ticked) passes a ball matching ANY tick.
+    const okRes = liveRes === 'all' || b.res === liveRes
+    const okQual = !liveQual.size
+      || (liveQual.has('hh') && b.hh)
+      || (liveQual.has('barrel') && b.barrel)
+      || (liveQual.has('ev100') && (b.ev || 0) >= 100)
+      || (liveQual.has('deepFly') && b.deepFly)
     const okPitch = !livePitch || b.type === livePitch
-    return okCut && okPitch
-  }), [liveHits, liveCut, livePitch])
+    return okRes && okQual && okPitch
+  }), [liveHits, liveRes, liveQual, livePitch])
 
   const liveDrawn = liveOnly || liveOn ? liveFiltered : []
   const fid = Number(liveFocusId) || null
@@ -689,26 +725,26 @@ export default function SprayField({
         </div>
       )}
 
-      {/* Contact-quality cuts, on their own row — the same one-concept-per-row
-          pattern the season chart already uses below (Games / Result / Pitch
-          / Contact each get their own labelled line). 2026-08-13, Donovan:
-          "needs to be more intuitive like the one on the player modal." The
-          season chart earns that read by never sharing a row between two
-          different filter ideas; this one used to run cuts and pitch chips
-          together on a single line with nothing but a small inline "Pitch"
-          label between them. Counts ride on every chip so an empty result
-          reads as an answer, not a bug. Reset now shows here too — reset()
-          already clears liveCut/livePitch (see below), it just had no button
-          to reach it from in this mode. */}
+      {/* Result + Quality, each on its own labelled row — the same
+          one-concept-per-row pattern the season chart already uses below,
+          AND the same two categories the Batted Ball Log at the top of the
+          page filters by (Pass 3, 2026-08-14 — the tabs are imported from
+          that file, so the two surfaces literally cannot offer different
+          category sets). Result is single-select; Quality is multi-select
+          and ticking two reads as "either", exactly like the log. Counts
+          ride on every chip so an empty result reads as an answer, not a
+          bug; a zero-count chip is dimmed rather than offered. */}
       {liveOnly && liveN > 0 && (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 5 }}>
-          {liveCuts.map((c) => (
-            <button key={c.k} onClick={() => setLiveCut(c.k)} title={c.tip}
-              disabled={c.n === 0 && c.k !== 'all'}
+          <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Result</span>
+          {liveResTabs.map((c) => (
+            <button key={c.key} onClick={() => setLiveRes(c.key)}
+              title={c.key === 'all' ? 'Every ball in play from this game.' : c.key === 'out' ? 'Everything that didn’t land for a hit — outs, errors, fielder’s choices.' : undefined}
+              disabled={c.n === 0 && c.key !== 'all'}
               style={{
-                ...chipBtn(liveCut === c.k, c.col), padding: '2px 8px', fontSize: 9.5,
-                opacity: c.n === 0 && c.k !== 'all' ? 0.3 : 1,
-                cursor: c.n === 0 && c.k !== 'all' ? 'default' : 'pointer',
+                ...chipBtn(liveRes === c.key, c.col), padding: '2px 8px', fontSize: 9.5,
+                opacity: c.n === 0 && c.key !== 'all' ? 0.3 : 1,
+                cursor: c.n === 0 && c.key !== 'all' ? 'default' : 'pointer',
               }}>
               {c.label} <b style={{ fontFamily: NUM_FONT }}>{c.n}</b>
             </button>
@@ -719,6 +755,34 @@ export default function SprayField({
           <button onClick={reset} style={{ ...chipBtn(false, C.text3), padding: '2px 8px', fontSize: 9.5 }}>
             Reset
           </button>
+        </div>
+      )}
+      {liveOnly && liveN > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 5 }}>
+          <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Quality</span>
+          {liveQualTabs.map((c) => {
+            const on = liveQual.has(c.key)
+            return (
+              <button key={c.key} title={c.title}
+                onClick={() => setLiveQual((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(c.key)) next.delete(c.key)
+                  else next.add(c.key)
+                  return next
+                })}
+                disabled={c.n === 0}
+                style={{
+                  ...chipBtn(on, c.col), padding: '2px 8px', fontSize: 9.5,
+                  opacity: c.n === 0 ? 0.3 : 1,
+                  cursor: c.n === 0 ? 'default' : 'pointer',
+                }}>
+                {c.label} <b style={{ fontFamily: NUM_FONT }}>{c.n}</b>
+              </button>
+            )
+          })}
+          {liveQual.size > 1 && (
+            <span style={{ fontSize: 8.5, color: C.text3 }}>either one counts</span>
+          )}
         </div>
       )}
 
@@ -742,8 +806,9 @@ export default function SprayField({
       {/* A cut that empties the field says so — the picture alone can't. */}
       {liveOnly && liveN > 0 && liveFiltered.length === 0 && (
         <div style={{ fontSize: 10.5, color: C.orange, marginBottom: 6, lineHeight: 1.5 }}>
-          Nothing in this game matches that cut yet — {liveN} ball{liveN === 1 ? '' : 's'} in play,
-          none of them {liveCut === 'barrel' ? 'barrelled' : liveCut === 'hh' ? 'hit 95+ mph' : 'for extra bases'}
+          Nothing in this game matches that combination yet — {liveN} ball{liveN === 1 ? '' : 's'} in play,
+          none of them{liveRes !== 'all' ? ` a ${(OUTCOME_TABS.find((t) => t.key === liveRes) || {}).label || liveRes}` : ''}
+          {liveQual.size ? `${liveRes !== 'all' ? ' that was also' : ''} ${[...liveQual].map((k) => (QUALITY_TABS.find((t) => t.key === k) || {}).label || k).join(' or ')}` : ''}
           {livePitch ? ` off a ${PITCH_NAMES[livePitch] || livePitch}` : ''}. That&apos;s the answer, not an error.
         </div>
       )}
