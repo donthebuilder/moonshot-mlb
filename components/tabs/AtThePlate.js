@@ -424,6 +424,23 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   // memoized so the spray chart isn't handed a fresh array every render
   const liveBalls = useMemo(() => feed?.balls || [], [feed])
 
+  // ── PASS 2 of the At The Plate rebuild (2026-08-14, scoped 2026-08-13 via
+  // AskUserQuestion — Donovan picked "keep both patterns" and "a few focused
+  // passes"). Two pieces:
+  //   1. FULL-GAME vs JUST-HIM on the spray chart. The field always drew the
+  //      whole game's balls with his solid and the rest dimmed — good default,
+  //      but there was no way to LOOK AT ONLY HIM. The toggle below narrows
+  //      the liveBalls prop itself, so SprayField needed no changes.
+  //   2. A PLAYER-SCOPED BBE section (his contact tonight, every ball — not
+  //      just the slate-wide loud stuff BattedBallLog gates at the top of the
+  //      page), rendered under the charts for whoever the room is pointed at.
+  const [sprayScope, setSprayScope] = useState('game')   // 'game' | 'him'
+  const hisBalls = useMemo(
+    () => liveBalls.filter((b) => Number(b.batterId) === Number(selectedId)),
+    [liveBalls, selectedId],
+  )
+  const sprayBalls = sprayScope === 'him' ? hisBalls : liveBalls
+
   if (isTomorrow) {
     return <Empty text="At the Plate is a tonight instrument — flip back to Today once games start." />
   }
@@ -817,12 +834,28 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               <span style={{ fontSize: 12, fontWeight: 800 }}>🗺 Spray chart</span>
-              {liveBalls.length > 0 && (
-                <span title={`${liveBalls.length} tracked balls in play in this game, plotted on the same field`} style={{
+              {sprayBalls.length > 0 && (
+                <span title={`${sprayBalls.length} tracked ball${sprayBalls.length === 1 ? '' : 's'} in play ${sprayScope === 'him' ? `from ${selName || 'him'}` : 'in this game'}, plotted on the same field`} style={{
                   fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
                   color: LIVE, border: `1px solid ${LIVE}70`, background: 'rgba(74,222,128,.10)',
                   borderRadius: 999, padding: '2px 8px',
-                }}>● LIVE {liveBalls.length}</span>
+                }}>● LIVE {sprayBalls.length}</span>
+              )}
+              {/* full-game vs just-him (Pass 2). Counts on both chips, same
+                  rule as the tonight-only filters inside the chart: a toggle
+                  that can hand back zero without saying so reads as broken. */}
+              {liveBalls.length > 0 && (
+                <span style={{ display: 'flex', gap: 4 }}>
+                  {[['game', `This game ${liveBalls.length}`], ['him', `Just ${String(selName || 'him').split(' ').slice(-1)[0]} ${hisBalls.length}`]].map(([k, label]) => (
+                    <button key={k} onClick={() => setSprayScope(k)} style={{
+                      fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer',
+                      border: `1px solid ${sprayScope === k ? LIVE : C.border}`,
+                      background: sprayScope === k ? 'rgba(74,222,128,.12)' : 'transparent',
+                      color: sprayScope === k ? LIVE : C.text3,
+                      borderRadius: 999, padding: '2px 9px',
+                    }}>{label}</button>
+                  ))}
+                </span>
               )}
               <span style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
                 tonight only
@@ -837,13 +870,70 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               slateMode={slateMode}
               height={320}
               liveOnly
-              liveBalls={liveBalls}
+              liveBalls={sprayBalls}
               liveFocusId={Number(selectedId)}
               liveLabel={selName}
             />
           </div>
         </div>
       </div>
+
+      {/* ── 4b · HIS CONTACT TONIGHT (Pass 2, 2026-08-14) ────────────────
+          The player-scoped BBE section. The slate-wide log at the top of
+          the page gates on loud contact (HH / barrel / deep) across every
+          game; this is EVERY ball the selected hitter has put in play in
+          THIS game, soft ground balls included — his night's contact as a
+          list, under the two charts drawing the same balls as pictures.
+          Same data (feed.balls), zero new fetch. Appears with his first
+          ball in play — the zone map's own empty message already covers
+          "nothing yet", so this section doesn't add a second one. */}
+      {hisBalls.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <Band note="every ball he's put in play in this game, newest first">
+            {`${String(selName || 'His').split(' ').slice(-1)[0]}'s contact tonight`}
+          </Band>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ width: 30, flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>INN</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>RESULT</span>
+              <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>EV</span>
+              <span style={{ width: 30, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>LA</span>
+              <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>DIST</span>
+              <span style={{ width: 66, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>FLAGS</span>
+            </div>
+            {[...hisBalls].reverse().map((b, i) => {
+              const isHr = /home.?run/i.test(String(b.event || ''))
+              return (
+                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '3px 0', borderBottom: i < hisBalls.length - 1 ? `1px solid rgba(255,255,255,.04)` : 'none' }}>
+                  <span style={{ width: 30, flexShrink: 0, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                    {b.half === 'top' ? 'T' : 'B'}{b.inning || '?'}
+                  </span>
+                  <span title={b.typeName ? `Off a ${b.typeName}${b.velo != null ? ` at ${b.velo.toFixed(0)} mph` : ''}` : undefined} style={{
+                    flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: isHr ? 900 : 600,
+                    color: isHr ? C.orange : b.xbh ? '#4ade80' : C.text2,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>
+                    {isHr ? '💥 ' : ''}{String(b.event || '—').replace(/_/g, ' ')}
+                  </span>
+                  <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT, fontWeight: b.hh ? 800 : 400, color: b.hh ? '#fb923c' : C.text2 }}>
+                    {b.ev != null ? b.ev.toFixed(1) : '·'}
+                  </span>
+                  <span style={{ width: 30, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT, color: C.text2 }}>
+                    {b.la != null ? `${Math.round(b.la)}°` : '·'}
+                  </span>
+                  <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT, color: b.dist >= 375 ? '#fb923c' : C.text2 }}>
+                    {b.dist ? Math.round(b.dist) : '·'}
+                  </span>
+                  <span style={{ width: 66, textAlign: 'right', flexShrink: 0, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
+                    {b.hh && <span title="Hard hit — 95+ mph off the bat" style={{ fontSize: 7.5, fontWeight: 900, fontFamily: NUM_FONT, color: '#fb923c', border: '1px solid #fb923c55', borderRadius: 4, padding: '0 4px' }}>HH</span>}
+                    {b.barrel && <span title="Barrel — the EV/LA combinations that historically produce .500/1.500" style={{ fontSize: 7.5, fontWeight: 900, fontFamily: NUM_FONT, color: '#f87171', border: '1px solid #f8717155', borderRadius: 4, padding: '0 4px' }}>BRL</span>}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 10, lineHeight: 1.65, maxWidth: 760 }}>
         The same zone map and spray chart the player card uses, in their <b style={{ color: C.text2 }}>tonight-only</b>{' '}
