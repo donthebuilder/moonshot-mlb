@@ -209,6 +209,49 @@ function PitcherChips({ pitchers, viewId, onPick }) {
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
 const LIVE = '#4ade80'
 
+/** The situation, broadcast-style (2026-08-14, Donovan: "i dont see the
+ * outs like if its two outs or one"). A mini base diamond (2B top, 3B left,
+ * 1B right — filled yellow when occupied, tooltip names the runner) and two
+ * out dots. Renders nothing when outs is null — that means the linescore
+ * detail didn't come through, and an empty diamond you'd be guessing at is
+ * worse than none (bases-empty and data-stripped would look identical
+ * otherwise; outs being a real number is the proof the block arrived). */
+function Situation({ outs, on1, on2, on3 }) {
+  if (outs == null) return null
+  const bases = [
+    ['2B', on2, { left: 8, top: 0 }],
+    ['3B', on3, { left: 0, top: 8 }],
+    ['1B', on1, { left: 17, top: 8 }],
+  ]
+  const who = [on1 && `1B ${on1}`, on2 && `2B ${on2}`, on3 && `3B ${on3}`].filter(Boolean).join(' · ')
+  return (
+    <span title={`${outs} out${outs === 1 ? '' : 's'}${who ? ` · on base: ${who}` : ' · bases empty'}`}
+      style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'help', flexShrink: 0 }}>
+      <span style={{ position: 'relative', width: 25, height: 16, display: 'inline-block' }}>
+        {bases.map(([k, name, pos]) => (
+          <span key={k} style={{
+            position: 'absolute', ...pos, width: 7, height: 7,
+            transform: 'rotate(45deg)',
+            background: name ? '#FCD34D' : 'transparent',
+            border: `1px solid ${name ? '#FCD34D' : 'rgba(255,255,255,.28)'}`,
+            boxShadow: name ? '0 0 5px rgba(252,211,77,.4)' : 'none',
+          }} />
+        ))}
+      </span>
+      <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+        {[0, 1].map((i) => (
+          <span key={i} style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: outs > i ? '#f87171' : 'transparent',
+            border: `1px solid ${outs > i ? '#f87171' : 'rgba(255,255,255,.28)'}`,
+          }} />
+        ))}
+        <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.06em', fontWeight: 800 }}>OUT</span>
+      </span>
+    </span>
+  )
+}
+
 const CARD = {
   background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.025))`,
   border: `1px solid ${C.border}`,
@@ -541,7 +584,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               </span>
             </span>
             <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-              {String(a.g.half || '').slice(0, 3)}{a.g.inning}
+              {String(a.g.half || '').slice(0, 3)}{a.g.inning}{a.g.outs != null ? ` · ${a.g.outs} out` : ''}
             </span>
             <span style={{ fontSize: 9, color: C.text3 }}>{gamePickerOpen ? '▴' : `▾ ${liveGames.length} games`}</span>
           </button>
@@ -568,7 +611,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                       </span>
                     </span>
                     <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
-                      {String(x.g.half || '').slice(0, 3)}{x.g.inning}
+                      {String(x.g.half || '').slice(0, 3)}{x.g.inning}{x.g.outs != null ? ` · ${x.g.outs} out` : ''}
                     </span>
                   </button>
                 )
@@ -601,7 +644,15 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           }} />
           <style>{'@keyframes atpPulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
           <span style={{ ...LABEL, color: LIVE }}>Now batting</span>
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'baseline', fontFamily: NUM_FONT }}>
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 9, alignItems: 'center', fontFamily: NUM_FONT, flexWrap: 'wrap' }}>
+            {/* The feed's linescore (15s poll) is the fresher source for the
+                game on screen; the schedule snapshot (25s) is the fallback.
+                One source per render — never outs from one and runners from
+                the other, which could disagree mid-play. */}
+            {(() => {
+              const s = feed && feed.outs != null ? feed : (a.g.outs != null ? a.g : null)
+              return s ? <Situation outs={s.outs} on1={s.on1} on2={s.on2} on3={s.on3} /> : null
+            })()}
             <span style={{ fontSize: 11, fontWeight: 900, color: LIVE }}>
               {String(a.g.half || '').slice(0, 3)} {a.g.inning}
             </span>
