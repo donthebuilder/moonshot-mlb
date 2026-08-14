@@ -18,9 +18,32 @@ import { explainFor, InfoDot, ExplainBanner } from './Explain'
 //   invert:true -> low is good, so the ramp runs the other way
 //   flag:true   -> boolean-ish; lit if truthy, dark if not
 
+/**
+ * HEAT MODE — how much of the table is coloured.
+ *
+ * DenseTable was built on the argument that at 25 columns an uncoloured table
+ * is a wall of digits you read one cell at a time, and that argument is true.
+ * But it produced a table where EVERY numeric column is shaded against its own
+ * range, which is more colour than any of the four apps in the redesign
+ * reference — and notably more than PropFinder, the only one of them that
+ * colours by value at all. PropFinder's line is "colour coding makes the
+ * standouts impossible to miss", and that only works because everything else
+ * is NOT coloured.
+ *
+ *   full        every numeric column, every row — what shipped
+ *   standouts   only the top and bottom slice of each column
+ *   primary     only columns marked `primary: true`; the rest go neutral
+ *   none        no cell colour at all
+ *
+ * Default stays 'full' so nothing changes until it's chosen deliberately.
+ */
+export const HEAT_MODES = ['full', 'standouts', 'primary', 'none']
+const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
+
 export default function DenseTable({
   rows = [],
   columns = [],
+  heatMode = 'full',
   onRowClick = null,
   maxHeight = 460,
   initialSort = null,
@@ -71,6 +94,33 @@ export default function DenseTable({
     })
     return out
   }, [rows, heatCols])
+
+  // Cutoffs for 'standouts': the value at the 20th and 80th percentile of each
+  // column. Percentile rather than a fixed distance from the extremes, so one
+  // outlier can't drag the whole band with it.
+  const cuts = useMemo(() => {
+    if (heatMode !== 'standouts') return {}
+    const out = {}
+    heatCols.forEach((c) => {
+      const vals = rows.map((r) => Number(r[c.key])).filter(Number.isFinite).sort((a, b) => a - b)
+      if (vals.length < 5) { out[c.key] = null; return }
+      const lo = vals[Math.floor(vals.length * STANDOUT_SLICE)]
+      const hi = vals[Math.ceil(vals.length * (1 - STANDOUT_SLICE)) - 1]
+      out[c.key] = [lo, hi]
+    })
+    return out
+  }, [rows, heatCols, heatMode])
+
+  // Does this cell get colour at all, under the current mode?
+  const lit = (c, num) => {
+    if (heatMode === 'none') return false
+    if (!Number.isFinite(num)) return false
+    if (heatMode === 'full') return true
+    if (heatMode === 'primary') return c.primary === true
+    const k = cuts[c.key]
+    if (!k) return false
+    return c.invert ? (num <= k[0] || num >= k[1]) : (num >= k[1] || num <= k[0])
+  }
 
   const sorted = useMemo(() => {
     if (!sort.length) return rows
@@ -269,7 +319,7 @@ export default function DenseTable({
 
                   const [lo, hi] = ranges[c.key] || [0, 1]
                   const num = Number(v)
-                  const bg = Number.isFinite(num)
+                  const bg = lit(c, num)
                     ? (c.invert ? rampColor(hi - (num - lo), lo, hi) : rampColor(num, lo, hi))
                     : null
                   // ROUNDED TOOLTIP. This used to print the raw float, so

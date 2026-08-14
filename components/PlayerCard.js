@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { roleBadge } from '../lib/roleBadge'
+import { glyphModeFromUrl } from '../lib/heatMode'
 import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
@@ -249,7 +250,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
             {(() => {
               const rt = roleTag(p)
-              return rt ? <RoleTag label={rt.label} color={rt.color} title={`Bot conviction tier: ${rt.label}`} /> : null
+              return rt ? <RoleTag label={rt.label} color={rt.color} glyph={glyphModeFromUrl() === 'on' ? rt.glyph : null} title={`Bot conviction tier: ${rt.label}`} /> : null
             })()}
             {showRoleChip && <Chip color={color}>{role}</Chip>}
             {showBetChip && !gamePickLabel && bet !== role && <Chip color={C.text2}>{bet}</Chip>}
