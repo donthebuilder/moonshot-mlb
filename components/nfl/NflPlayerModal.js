@@ -38,7 +38,96 @@ const LABELS = {
   f_tm_drives: 'Team drives',
 }
 
-export default function NflPlayerModal({ player, market, markets, onClose }) {
+
+// ── splits ────────────────────────────────────────────────────────────────────
+
+// Which per-game number a split should show depends on what you're looking at.
+// Staring at the TD board, "he averages 3.18 targets when trailing" is trivia;
+// "he scores 0.36 a game when trailing vs 0.20 when leading" is the read.
+const SPLIT_STAT = {
+  TD:       ['td',    'TD/g'],
+  REC_YDS:  ['recyd', 'yds/g'],
+  REC:      ['rec',   'rec/g'],
+  RUSH_YDS: ['ruyd',  'yds/g'],
+  RUSH_ATT: ['car',   'car/g'],
+  PASS_YDS: ['payd',  'yds/g'],
+}
+
+function Splits({ player, market, data }) {
+  const sp = player?.splits
+  if (!sp || !Object.keys(sp).length) return null
+  const entry = SPLIT_STAT[market]
+  // Kickers have no play-level split: nflverse attributes a field goal to the
+  // kicker but the situational buckets here are built off receiver/rusher/
+  // passer roles. Rather than render an empty grid, say nothing.
+  if (!entry) return null
+  const [statKey, unit] = entry
+
+  const pairs = (data?.pairs || []).filter(([a, b]) => sp[a] || sp[b])
+  if (!pairs.length) return null
+
+  // Colour the better side of each pair, but only when the gap is real — a
+  // 4% difference on a 17-game sample is not a split, it's noise wearing one.
+  const MEANINGFUL = 0.15
+
+  return (
+    <>
+      <div style={{
+        fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+        margin: '16px 0 7px',
+      }}>SPLITS — {unit}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {pairs.map(([a, b]) => {
+          const A = sp[a]; const B = sp[b]
+          const va = A?.[statKey]; const vb = B?.[statKey]
+          const both = Number.isFinite(va) && Number.isFinite(vb)
+          const hi = both && Math.max(va, vb) > 0
+            && Math.abs(va - vb) / Math.max(va, vb) >= MEANINGFUL
+            ? (va > vb ? 'a' : 'b') : null
+          const cell = (v, g, side) => (
+            <div style={{
+              flex: 1, textAlign: 'center', padding: '4px 6px', borderRadius: 7,
+              background: hi === side ? `${C.green}14` : 'transparent',
+              border: `1px solid ${hi === side ? C.green + '45' : 'transparent'}`,
+            }}>
+              <div style={{
+                fontFamily: NUM_FONT, fontSize: 12.5, fontWeight: 900,
+                color: hi === side ? C.green : C.text,
+              }}>{Number.isFinite(v) ? v.toFixed(2) : '—'}</div>
+              <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+                {g ? `${g}g` : ''}
+              </div>
+            </div>
+          )
+          return (
+            <div key={`${a}-${b}`} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
+              borderRadius: 8, padding: '5px 8px',
+            }}>
+              <span style={{ fontSize: 10, color: C.text3, minWidth: 62 }}>
+                {data?.labels?.[a] || a}
+              </span>
+              {cell(va, A?.g, 'a')}
+              <span style={{ fontSize: 9, color: C.text3 }}>vs</span>
+              {cell(vb, B?.g, 'b')}
+              <span style={{
+                fontSize: 10, color: C.text3, minWidth: 62, textAlign: 'right',
+              }}>{data?.labels?.[b] || b}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+        Per-game rates with the games behind them. A side is lit only when the
+        gap is 15%+ — below that a seventeen-game sample can&apos;t tell a split
+        from noise.
+      </div>
+    </>
+  )
+}
+
+export default function NflPlayerModal({ player, market, markets, splitMeta, onClose }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', esc)
@@ -141,8 +230,10 @@ export default function NflPlayerModal({ player, market, markets, onClose }) {
               ))}
             </div>
             <div style={{ fontSize: 10, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
-              Each number is a <b>percentile inside this slate&apos;s eligible pool</b>, not a
-              probability. 90 means he ranks in the top 10% of this slate on that input.
+              Each number is a <b>percentile against the whole league</b> at his position,
+              not a probability and not a rank on this card. 90 means only a tenth of
+              qualified players beat him on that input — true whether he&apos;s on a
+              three-game preseason slate or a full Sunday.
             </div>
           </>
         )}
@@ -171,6 +262,8 @@ export default function NflPlayerModal({ player, market, markets, onClose }) {
             </div>
           </>
         )}
+
+        <Splits player={player} market={market} data={splitMeta} />
 
         {player.carryover && (
           <div style={{
