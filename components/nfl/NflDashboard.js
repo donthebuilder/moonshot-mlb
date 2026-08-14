@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C } from '../../lib/nfl/theme'
-import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflSlateLooksReal } from '../../lib/nfl/dataSource'
+import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflSlateLooksReal, nflMatchupLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams } from '../../lib/sport'
 import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
@@ -50,7 +50,7 @@ export default function NflDashboard() {
       fetchNfl(nflSlatePaths(), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchNfl(nflReportPaths()).then((j) => { if (alive) setReport(j) }),
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
-      fetchNfl(nflMatchupPaths()).then((j) => { if (alive) setMatchup(j) }),
+      fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
       fetchNfl(nflLogPaths()).then((j) => { if (alive) setLogs(j) }),
     ]).then(() => { if (alive) setLoading(false) })
     return () => { alive = false }
