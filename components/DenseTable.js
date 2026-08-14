@@ -39,29 +39,12 @@ import { explainFor, InfoDot, ExplainBanner } from './Explain'
  */
 export const HEAT_MODES = ['full', 'standouts', 'primary', 'none']
 
-/**
- * HERO MODE — whether one column dominates the row.
- *
- * Every app in the redesign reference puts ONE large figure on a row with
- * small labels around it. This table gives eight numbers the same weight, so
- * the eye has no entry point. `hero: true` on a column marks the number the
- * board is actually ranked by.
- *
- *   off      every column at the same size — what shipped
- *   hero     the hero column jumps; the rest stay readable
- *   demote   the hero column jumps AND everything else shrinks
- *
- * The cost of 'demote' is real and worth stating: a grid's job is comparing
- * across columns, and shrinking the supporting numbers makes that harder.
- */
-export const HERO_MODES = ['off', 'hero', 'demote']
 const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
 
 export default function DenseTable({
   rows = [],
   columns = [],
   heatMode = 'full',
-  heroMode = 'off',
   onRowClick = null,
   maxHeight = 460,
   initialSort = null,
@@ -350,10 +333,7 @@ export default function DenseTable({
                   return (
                     <td key={c.key} title={`${c.label}: ${titleNum}`} style={{
                       background: bg || C.bg3, color: bg ? inkFor(bg) : C.text3,
-                      fontFamily: NUM_FONT,
-                      fontSize: heroMode !== 'off' && c.hero ? 17
-                        : heroMode === 'demote' ? 9.5 : 10.5,
-                      fontWeight: heroMode !== 'off' && c.hero ? 900 : 700,
+                      fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700,
                       textAlign: 'center', padding: pad,
                       // A ramp may light its own edge (neon does). The inset
                       // ring sits INSIDE the cell so it can't change the

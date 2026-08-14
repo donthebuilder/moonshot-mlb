@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
+import FieldChart from '../FieldChart'
 
 // Matchups — defence vs position, BY DEPTH ROLE.
 //
@@ -187,20 +188,8 @@ export default function Matchups({ matchup, data }) {
 
   return (
     <div>
-      <div style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
-        borderRadius: 10, padding: '10px 14px', marginBottom: 11,
-        fontSize: 11.5, color: C.text2, lineHeight: 1.65,
-      }}>
-        <b style={{ color: C.text }}>Defence vs position, by depth role.</b> Not &quot;what
-        they allow to receivers&quot; — that averages a WR1 and a fourth receiver into one
-        useless number — but what they allow to the role your player actually occupies.
-        Role is assigned off <b>trailing</b> usage, so a WR1 who gets blanketed still
-        counts as a WR1 rather than being demoted by the result we&apos;re measuring.
-        <div style={{ marginTop: 4, color: C.text3, fontSize: 10.5 }}>
-          Rank 1 = allows the most = softest matchup, so green is good for your player.
-          Stats from {matchup.season}.
-        </div>
+      <div style={{ fontSize: 11, color: C.text3, marginBottom: 10 }}>
+        By depth role. Rank 1 = allows the most = softest. {matchup.season}.
       </div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -222,6 +211,17 @@ export default function Matchups({ matchup, data }) {
           fontSize: 12.5, fontWeight: 900, color: C.text,
         }}>{active} Defense</div>
         <DvpTable data={matchup} team={active} win={win} />
+      </div>
+
+      <div style={{
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
+        padding: '13px 15px', marginTop: 12,
+      }}>
+        <div style={{
+          fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+          marginBottom: 9,
+        }}>{active} — WHERE THEY LEAK</div>
+        <FieldChart field={matchup.field} team={active} mode="def" />
       </div>
 
       <Profile data={matchup} team={active} />

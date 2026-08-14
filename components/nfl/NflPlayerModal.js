@@ -120,9 +120,7 @@ function Splits({ player, market, data }) {
         })}
       </div>
       <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-        Per-game rates with the games behind them. A side is lit only when the
-        gap is 15%+ — below that a seventeen-game sample can&apos;t tell a split
-        from noise.
+        Per-game rates, games beside them. Lit at a 15%+ gap.
       </div>
     </>
   )
@@ -206,12 +204,10 @@ function CoverageAndExplosive({ player, matchup }) {
       </div>
       {edge && oppCov && (
         <div style={{ fontSize: 10.5, color: C.text2, marginTop: 7, lineHeight: 1.6 }}>
-          He&apos;s better against <b style={{ color: C.green }}>{edge}</b>, and{' '}
-          <b style={{ color: C.text }}>{player.opp}</b> plays{' '}
+          Better vs <b style={{ color: C.green }}>{edge}</b> · {player.opp} plays{' '}
           <b style={{ color: C.cyan }}>
             {edge === 'zone' ? `${oppCov.zone_pct}% zone` : `${oppCov.man_pct}% man`}
-          </b>. Read it as direction, not destiny — a season split on a couple
-          hundred targets is thinner than it looks.
+          </b>
         </div>
       )}
     </>
@@ -321,10 +317,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               ))}
             </div>
             <div style={{ fontSize: 10, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
-              Each number is a <b>percentile against the whole league</b> at his position,
-              not a probability and not a rank on this card. 90 means only a tenth of
-              qualified players beat him on that input — true whether he&apos;s on a
-              three-game preseason slate or a full Sunday.
+              Percentile against the league at his position — not a probability.
             </div>
           </>
         )}
@@ -372,9 +365,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             background: `${C.purple}12`, border: `1px solid ${C.purple}38`,
             borderRadius: 9, padding: '7px 10px',
           }}>
-            <b style={{ color: C.purple }}>Carryover.</b> No current-season form exists for
-            him yet, so every number above is last season&apos;s per-game baseline. Treat it
-            as a starting position, not a read on this week.
+            <b style={{ color: C.purple }}>Carryover</b> — last season&apos;s per-game baseline.
           </div>
         )}
       </div>
