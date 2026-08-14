@@ -84,6 +84,7 @@ export default function NflDashboard() {
         player={modal?.player}
         market={modal?.market}
         markets={data?.markets}
+        splitMeta={{ pairs: data?.split_pairs, labels: data?.split_labels }}
         onClose={() => setModal(null)}
       />
     </>
