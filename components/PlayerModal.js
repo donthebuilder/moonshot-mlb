@@ -25,6 +25,7 @@ import ThresholdGrid from './ThresholdGrid'
 import BvP from './BvP'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
+import { personalFormRead } from '../lib/hrShape'
 
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
 // verified live; percentile computed from the same payload. Switch hitters
@@ -720,6 +721,85 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                 </div>
               </div>
               )}
+              {/* ── 💥 HIS HOMER SHAPE (2026-08-14) ─────────────────────────
+                  Donovan: "each player needs to be categorized by the homers
+                  they hit this season... Schwarber lasers, James Wood
+                  moonshoots... maybe it will help figure out when a certain
+                  batter is in their form — not the overall shape but their
+                  personal shape." Computed client-side from batted_ball_log
+                  (the detail file's season per-ball log — same rows the EV
+                  Log tab shows), classified with the same five bands the
+                  Homer Ledger stamps on tonight's homers (lib/hrShape.js).
+                  Renders nothing without a log or without a homer in it —
+                  an unclassified hitter and a "no data" hitter are different
+                  claims, and neither gets a made-up mix. The matching
+                  "is he in his form" number is also computed + archived by
+                  the bot nightly (personal_shape_match) so a few weeks of
+                  graded slates can say whether it PREDICTS anything —
+                  until then this panel is descriptive, not a score. */}
+              {(() => {
+                const log = Array.isArray(p?.batted_ball_log) && p.batted_ball_log.length
+                  ? p.batted_ball_log
+                  : (Array.isArray(p?.spray_chart) ? p.spray_chart : [])
+                if (!log.length) return null
+                const f = personalFormRead(log)
+                if (!f.n) return null
+                const thinMix = f.n < 4
+                const inForm = f.match != null && f.match >= 0.08
+                const outForm = f.match != null && f.match <= -0.08
+                const formCol = inForm ? C.green : outForm ? '#f87171' : C.text3
+                return (
+                  <div style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800 }}>💥 His homer shape</span>
+                      <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                        {f.n} tracked HR{f.n === 1 ? '' : 's'} this season
+                      </span>
+                      {thinMix && (
+                        <span title="Under 4 tracked homers, one ball swings the whole mix — counts shown, no 'his type' claimed."
+                          style={{ fontSize: 8.5, color: '#FCD34D', fontFamily: NUM_FONT, fontWeight: 800 }}>thin sample</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: f.laLo != null ? 6 : 0 }}>
+                      {f.mix.map((m) => (
+                        <span key={m.key} title={`${m.label} — ${m.blurb}`} style={{
+                          display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'help',
+                          border: `1px solid ${m.color}55`, background: `${m.color}12`,
+                          borderRadius: 999, padding: '2px 9px',
+                        }}>
+                          <span style={{ fontSize: 8.5, fontWeight: 900, color: m.color, fontFamily: NUM_FONT, letterSpacing: '.05em' }}>{m.short}</span>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: C.text, fontFamily: NUM_FONT }}>{m.count}</span>
+                          {!thinMix && (
+                            <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{Math.round(m.share * 100)}%</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    {f.laLo != null && (
+                      <div style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
+                        His homers leave at <b style={{ color: C.text }}>{Math.round(f.laLo)}–{Math.round(f.laHi)}°</b>
+                        {f.status === 'ok' ? (
+                          <>
+                            {' '}· recent hard-hit contact in that window:{' '}
+                            <b style={{ color: formCol }}>{Math.round((f.recentRate || 0) * 100)}%</b>
+                            <span style={{ color: C.text3 }}> vs {Math.round((f.seasonRate || 0) * 100)}% season</span>
+                            <b style={{ color: formCol }}>
+                              {' '}{inForm ? '— trending toward his shape' : outForm ? '— away from his shape lately' : '— about his norm'}
+                            </b>
+                          </>
+                        ) : f.status === 'thin_recent' ? (
+                          <span style={{ color: C.text3 }}> · too few recent hard-hit balls to read his form yet</span>
+                        ) : null}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
+                      Bands are slices of the league homer distribution (see the Homer Ledger), not physics — and
+                      this reads what his contact looks like, it is not a score. Whether &quot;in his shape&quot; actually
+                      predicts his homer nights is being tracked from the graded archive before it touches any number.
+                    </div>
+                  </div>
+                )
+              })()}
               {!apiOnly && clean(p?.note || p?.summary, '') !== '—' && clean(p?.note || p?.summary, '') !== '' && (
                 <div style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
                   {clean(p?.note || p?.summary)}
