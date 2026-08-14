@@ -275,6 +275,85 @@ function GamesBoard({ games, activePk, lines, abbrs, onSelect }) {
   )
 }
 
+/** 📜 THE TIMELINE (2026-08-14, Donovan: "im still a little confused on the
+ * whole at the plate page, i need like a timeline too of what happened in
+ * the game"). The game's story so far, newest first, in the precise table
+ * language: scoring plays and homers by default (the plays that changed the
+ * game), one tap away from every completed plate appearance. Zero new
+ * fetches — feed.meta is already one row per completed PA, and as of the
+ * same date each row carries the play's RBI and the score AFTER it,
+ * straight off the feed's own result block. Replaces the Coming Up section
+ * (removed same date, on request) as what sits between the hero card and
+ * the box score: the box score already lists the whole order with AT
+ * BAT / ON DECK / IN HOLE / NEXT tags, so a second batting-order list was
+ * one list too many — but "how did the score get here" had no home at all. */
+function Timeline({ feed, g, abbrs, onPick }) {
+  const [allPlays, setAllPlays] = useState(false)
+  const meta = feed?.meta || []
+  if (!meta.length) return null
+  const isHr = (e) => /home.?run/i.test(String(e || ''))
+  const scoring = meta.filter((m) => (m.rbi || 0) > 0 || isHr(m.event))
+  const rows = [...(allPlays ? meta : scoring)].reverse()
+  const away = abbrs?.[g?.awayId] || 'Away'
+  const home = abbrs?.[g?.homeId] || 'Home'
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <Band note="how the score got here — newest first">Timeline</Band>
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 4, borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ display: 'flex', gap: 4 }}>
+            {[[false, `Scoring ${scoring.length}`], [true, `All plays ${meta.length}`]].map(([v, label]) => (
+              <button key={String(v)} onClick={() => setAllPlays(v)} style={{
+                fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer',
+                border: `1px solid ${allPlays === v ? C.orange : C.border}`,
+                background: allPlays === v ? 'rgba(249,115,22,.12)' : 'transparent',
+                color: allPlays === v ? C.orange : C.text3,
+                borderRadius: 999, padding: '2px 9px',
+              }}>{label}</button>
+            ))}
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>{away}–{home}</span>
+        </div>
+        {rows.length === 0 ? (
+          <div style={{ fontSize: 10, color: C.text3, padding: '6px 0', lineHeight: 1.5 }}>
+            No runs yet — {meta.length} plate appearance{meta.length === 1 ? '' : 's'} complete.
+            Tap <b style={{ color: C.text2 }}>All plays</b> for every one of them.
+          </div>
+        ) : rows.map((m, i) => {
+          const hr = isHr(m.event)
+          return (
+            <div key={`${m.pi}`} onClick={() => onPick?.(m.batterId)} className="tap-row"
+              title={`${m.batterName || 'batter'} — ${m.event}${m.pitcherName ? ` off ${m.pitcherName}` : ''}${m.rbi ? ` · ${m.rbi} RBI` : ''}. Tap to point the charts at him.`}
+              style={{
+                display: 'flex', gap: 8, alignItems: 'center', padding: '3.5px 0',
+                cursor: 'pointer', minWidth: 0,
+                borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
+              }}>
+              <span style={{ width: 30, flexShrink: 0, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                {/^top/i.test(m.half) ? 'T' : 'B'}{m.inning}
+              </span>
+              <span style={{
+                flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: hr ? 800 : 600,
+                color: hr ? C.orange : C.text2,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {hr ? '💥 ' : ''}<b style={{ color: C.text }}>{String(m.batterName || '').split(' ').slice(-1)[0] || '—'}</b>
+                {' '}{String(m.event || '').toLowerCase()}
+              </span>
+              <span style={{ width: 34, textAlign: 'right', flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: m.rbi ? '#4ade80' : C.text3, fontWeight: m.rbi ? 800 : 400 }}>
+                {m.rbi ? `+${m.rbi}` : '·'}
+              </span>
+              <span style={{ width: 44, textAlign: 'right', flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: (m.rbi || 0) > 0 || hr ? C.text : C.text3, fontWeight: (m.rbi || 0) > 0 || hr ? 800 : 400 }}>
+                {m.as != null && m.hs != null ? `${m.as}–${m.hs}` : '·'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /** The situation, broadcast-style (2026-08-14, Donovan: "i dont see the
  * outs like if its two outs or one"). A mini base diamond (2B top, 3B left,
  * 1B right — filled yellow when occupied, tooltip names the runner) and two
@@ -758,13 +837,17 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         )}
       </div>
 
-      {/* ── 3 · COMING UP ──────────────────────────────────────────────── */}
-      <ComingUp
-        game={a.g}
-        lineup={lineup}
-        selectedId={Number(selectedId)}
+      {/* ── 3 · TIMELINE (2026-08-14 — replaced the Coming Up section, on
+          request: "i would also like that what i sent picture of removed").
+          Coming Up was a second batting-order list on a page whose box
+          score below already lists the whole order with AT BAT / ON DECK /
+          IN HOLE / NEXT tags and tap-to-point — but "what happened in this
+          game" had no home at all. See Timeline above. */}
+      <Timeline
+        feed={feed}
+        g={a.g}
+        abbrs={abbrs}
         onPick={(id) => setPinnedHitter(Number(id))}
-        onOpen={(p) => onPlayerClick?.(p)}
       />
 
       {/* ── 3b · BOX SCORE ─────────────────────────────────────────────
@@ -975,123 +1058,12 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   )
 }
 
-// ── who's coming ────────────────────────────────────────────────────────────
-//
-// On deck and in the hole come from the linescore's own offense block; the
-// rest of the order comes from the boxscore's `battingOrder`, which is the
-// lineup as it actually stands after every substitution. Nobody is invented:
-// a slot with no published hitter simply isn't drawn, and a hitter who isn't
-// on tonight's slate shows his name with an honest dash where the score goes.
-function ComingUp({ game, lineup, selectedId, onPick, onOpen }) {
-  const deck = lineup.find((r) => r.isDeck) || null
-  const hole = lineup.find((r) => r.isHole) || null
-
-  if (!lineup.length) {
-    return (
-      <div style={{ ...CARD, padding: '11px 13px' }}>
-        <div style={{ ...LABEL, marginBottom: 5 }}>Coming up</div>
-        <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6 }}>
-          {game?.onDeckName || game?.inHoleName ? <>
-            On deck <b style={{ color: C.text2 }}>{clean(game.onDeckName, '—')}</b>
-            {game?.inHoleName && <> · in the hole <b style={{ color: C.text2 }}>{clean(game.inHoleName, '—')}</b></>}.
-            {' '}The full batting order hasn&apos;t come back from this game&apos;s boxscore yet.
-          </> : 'No batting order published for this game yet.'}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <Band note="tap anyone to point the charts at him">Coming up</Band>
-
-      {/* The two that matter most, given their own row.
-          .atplate-deck is a phone hook: these two cards are minWidth 168, so at
-          a 390px portrait viewport they total 345px inside 346px of card — they
-          "fit" by one pixel, and then the text inside them (name + "board 87 ·
-          🤖 HR") has nowhere to go. On a phone they get a row each. */}
-      {(deck || hole) && (
-        <div className="atplate-deck" style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginBottom: 10 }}>
-          {[['ON DECK', deck, '#FCD34D'], ['IN THE HOLE', hole, '#a78bfa']].map(([tag, row, col]) => (
-            row ? (
-              <button key={tag} onClick={() => onPick(row.id)} className="tap-row" style={{
-                display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start',
-                cursor: 'pointer', textAlign: 'left', minWidth: 168,
-                border: `1px solid ${Number(row.id) === selectedId ? col : C.border}`,
-                background: Number(row.id) === selectedId ? `${col}18` : 'rgba(255,255,255,.02)',
-                borderRadius: 10, padding: '7px 12px',
-              }}>
-                <span style={{ ...LABEL, color: col, fontSize: 7.5 }}>{tag}</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{row.name}</span>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                  {row.slot ? `${row.slot} hole` : ''}
-                  {row.score != null ? ` · board ${row.score.toFixed(0)}` : ' · not on the slate'}
-                  {row.role ? ` · 🤖 ${row.role}` : ''}
-                </span>
-              </button>
-            ) : null
-          ))}
-        </div>
-      )}
-
-      {/* the whole order, in order */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {lineup.map((r) => {
-          const on = Number(r.id) === selectedId
-          const tag = r.isUp ? ['AT BAT', LIVE] : r.isDeck ? ['ON DECK', '#FCD34D'] : r.isHole ? ['IN HOLE', '#a78bfa'] : null
-          return (
-            <div key={r.id} className="tap-row" onClick={() => onPick(r.id)} style={{
-              display: 'flex', gap: 9, alignItems: 'center', cursor: 'pointer', minWidth: 0,
-              padding: '5px 9px', borderRadius: 8,
-              background: on ? 'rgba(249,115,22,.10)' : 'transparent',
-              border: `1px solid ${on ? 'rgba(249,115,22,.45)' : 'transparent'}`,
-              borderLeft: `2px solid ${tag ? tag[1] : 'transparent'}`,
-            }}>
-              <span style={{ width: 14, flexShrink: 0, fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{r.slot || '—'}</span>
-              <span style={{
-                fontSize: 11.5, fontWeight: on ? 800 : 600, color: on ? C.text : C.text2,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: '1 1 auto',
-              }}>
-                {r.name}
-                {r.sub && <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}> (sub)</span>}
-              </span>
-              {tag && (
-                <span style={{ fontSize: 7.5, fontWeight: 900, letterSpacing: '.08em', color: tag[1], fontFamily: NUM_FONT, flexShrink: 0 }}>
-                  {tag[0]}
-                </span>
-              )}
-              {r.role && (
-                <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[r.role] || C.text3, flexShrink: 0 }}>
-                  🤖 {r.role}
-                </span>
-              )}
-              <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, minWidth: 62, textAlign: 'right' }}>
-                {r.line ? `${r.line.h}-${r.line.ab}${r.line.hr ? ` ${r.line.hr}HR` : ''}` : '—'}
-              </span>
-              <span
-                onClick={(e) => { e.stopPropagation(); if (r.p) onOpen(r.p) }}
-                title={r.p ? `Open ${r.name}'s card` : 'Not on tonight’s published slate'}
-                style={{
-                  fontSize: 10.5, fontWeight: 900, fontFamily: NUM_FONT, flexShrink: 0,
-                  minWidth: 30, textAlign: 'right',
-                  color: r.score != null ? C.orange : C.text3,
-                  cursor: r.p ? 'pointer' : 'default',
-                }}
-              >{r.score != null ? r.score.toFixed(0) : '—'}</span>
-            </div>
-          )
-        })}
-      </div>
-
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
-        The order is the boxscore&apos;s own <code>battingOrder</code> as it stands after substitutions;
-        on deck and in the hole are the linescore&apos;s. The number on the right is his board score
-        tonight — a dash means he isn&apos;t on the published slate, and tapping his name still points
-        the charts at him. The middle column is his line so far tonight.
-      </div>
-    </div>
-  )
-}
+// ── Coming Up: RETIRED (2026-08-14, Donovan sent a screenshot of it and
+// asked for it removed). It was a second batting-order list on a page whose
+// box score below already carries the whole order with AT BAT / ON DECK /
+// IN HOLE / NEXT tags, lines, and tap-to-point — one list too many. Its one
+// unique piece of information (the on-deck / in-the-hole marks) moved onto
+// the box score rows so nothing was actually lost.
 
 // 📋 BOX SCORE — the whole game, not just the man in the box.
 //
@@ -1197,11 +1169,15 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
                 const on = Number(r.id) === Number(selectedId)
                 const up = Number(r.id) === Number(g.upBatter)
                 const isNext = !!nextUpRow && Number(r.id) === Number(nextUpRow.id)
+                // Deck/hole marks moved here from the retired Coming Up
+                // section (2026-08-14) — same linescore fields, new home.
+                const isDeck = Number(r.id) === Number(g.onDeck)
+                const isHole = Number(r.id) === Number(g.inHole)
                 return (
                   <div key={r.id} onClick={() => onPick?.(r.id)} className="tap-row" style={{
                     display: 'flex', gap: 5, alignItems: 'center', padding: '2.5px 0',
                     cursor: 'pointer', minWidth: 0,
-                    borderLeft: `2px solid ${up ? '#4ade80' : on ? C.orange : isNext ? '#FCD34D' : 'transparent'}`,
+                    borderLeft: `2px solid ${up ? '#4ade80' : on ? C.orange : isNext || isDeck ? '#FCD34D' : isHole ? '#a78bfa' : 'transparent'}`,
                     paddingLeft: 4, marginLeft: -6,
                   }}>
                     <span style={{ width: 11, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>{r.slot}</span>
@@ -1214,6 +1190,9 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
                       {r.sub && <span title="Substitute — he replaced the man in this slot" style={{ fontSize: 8, color: C.text3, marginLeft: 3 }}>sub</span>}
                       {p && String(p?.game_pick_role || '').trim() ? <span style={{ fontSize: 8.5, marginLeft: 3 }}>🤖</span> : null}
                       {isNext && <span title="Leads off when this team bats next" style={{ fontSize: 7.5, fontWeight: 900, color: '#FCD34D', marginLeft: 3, letterSpacing: '.04em' }}>NEXT</span>}
+                      {up && <span title="At the plate right now" style={{ fontSize: 7.5, fontWeight: 900, color: '#4ade80', marginLeft: 3, letterSpacing: '.04em' }}>AT BAT</span>}
+                      {isDeck && <span title="On deck" style={{ fontSize: 7.5, fontWeight: 900, color: '#FCD34D', marginLeft: 3, letterSpacing: '.04em' }}>ON DECK</span>}
+                      {isHole && <span title="In the hole — two away" style={{ fontSize: 7.5, fontWeight: 900, color: '#a78bfa', marginLeft: 3, letterSpacing: '.04em' }}>IN HOLE</span>}
                       {/* watchIds is keyed \`playerId-gamePk\`, not by bare id —
                           the same composite the live-games list above builds.
                           Testing the raw id here would have silently starred
@@ -1246,11 +1225,13 @@ function BoxScore({ g, lines, byId, watchIds, selectedId, onPick, abbrs }) {
       <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
         Straight off the league&apos;s boxscore for this game — the same pull the rest of this page
         runs on, so it costs no extra request. A dot means he hasn&apos;t batted yet; the green name is
-        the man at the plate. The <b style={{ color: '#FCD34D' }}>yellow NEXT</b> tag is the fielding
-        team&apos;s own order — it remembers the last man who batted for them and marks whoever leads
-        off once they&apos;re back up, since the feed only ever names an on-deck hitter for whichever
-        side is currently hitting. Team rows are summed from the lines above them, so the column and
-        its total can&apos;t disagree.
+        the man at the plate, with <b style={{ color: '#FCD34D' }}>ON DECK</b> and{' '}
+        <b style={{ color: '#a78bfa' }}>IN HOLE</b> marked on the batting side (moved here from the
+        retired Coming Up section). The <b style={{ color: '#FCD34D' }}>yellow NEXT</b> tag is the
+        fielding team&apos;s own order — it remembers the last man who batted for them and marks whoever
+        leads off once they&apos;re back up, since the feed only ever names an on-deck hitter for
+        whichever side is currently hitting. Team rows are summed from the lines above them, so the
+        column and its total can&apos;t disagree. Tap any row to point the charts at him.
       </div>
     </div>
   )
