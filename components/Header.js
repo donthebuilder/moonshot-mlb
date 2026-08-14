@@ -2,11 +2,10 @@
 import { useState, useEffect } from 'react'
 import { C, NUM_FONT, TABS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
+import { setSport } from '../lib/sport'
 import SlateTiles from './SlateTiles'
 import PaletteButton from './PaletteButton'
-import { InfoDot } from './Explain'
 
-const NFL_NOTE = 'MOONSHOT · NFL arrives for Week 1 — its own site, one click from here. TDs, receiving, rushing, passing, kicking. No defensive props.'
 
 // ── live capture ticker ───────────────────────────────────────────────────────
 
@@ -179,7 +178,6 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
   // TAP TARGET (2026-08-12): the NFL "coming soon" pill carried its note in a
   // bare title= — invisible on a phone, the same gap fixed elsewhere via the
   // InfoDot pattern (see Explain.js's header comment).
-  const [nflOpen, setNflOpen] = useState(false)
   return (
     <header style={{
       position:'sticky', top:0, zIndex:50,
@@ -216,42 +214,25 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                   wore the pre-migration Streamlit name. The sport tag stays
                   so an NFL sibling can slot in later as MOONSHOT · NFL. */}
               <span style={{ fontSize:18, fontWeight:900, letterSpacing:'-0.02em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>MOONSHOT</span>
-              {/* SPORT SWITCHER (2026-08-08). MLB is home; NFL is a sibling
-                  SITE, one click away once it deploys — set NFL_URL below and
-                  the pill goes live. Until then it wears SEP and explains
-                  itself on hover instead of pretending. */}
+              {/* SPORT SWITCHER (2026-08-08, rewired 2026-08-14). It was going
+                  to be a link to a SECOND deployed site — that's off. The asset
+                  here is the eighty components in this folder, and forking them
+                  means maintaining two copies of every fix for the rest of the
+                  season. NFL lives in this app now; the pill is a real toggle
+                  and lib/sport.js holds the state. */}
               <span style={{ display:'flex', gap:3, marginLeft:5, alignSelf:'center' }}>
                 <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999, background:'rgba(249,115,22,.15)', border:'1px solid rgba(249,115,22,.45)', color:C.orange }}>MLB</span>
-                {(() => {
-                  const NFL_URL = '' // ← set to the NFL site URL at launch
-                  const pill = {
-                    fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999,
-                    border:`1px solid ${C.border2}`, color:C.text3, textDecoration:'none',
-                    cursor: 'pointer',
-                  }
-                  return NFL_URL
-                    ? <a href={NFL_URL} style={pill}>NFL</a>
-                    : (
-                      <span
-                        role="button" tabIndex={0} aria-label="About the NFL site"
-                        onClick={() => setNflOpen((v) => !v)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNflOpen((v) => !v) } }}
-                        style={pill}
-                      >
-                        NFL <span style={{ fontSize:7.5, color:'#4ade80' }}>SEP</span>
-                        <InfoDot on={nflOpen} onClick={() => setNflOpen((v) => !v)} />
-                      </span>
-                    )
-                })()}
+                <button
+                  onClick={() => setSport('nfl')}
+                  aria-label="Switch to MOONSHOT · NFL"
+                  style={{
+                    fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px',
+                    borderRadius:999, border:`1px solid ${C.border2}`, background:'transparent',
+                    color:C.text3, cursor:'pointer',
+                  }}
+                >NFL</button>
               </span>
             </div>
-            {nflOpen && (
-              <div style={{
-                fontSize: 9.5, color: C.text2, lineHeight: 1.5, marginTop: 4, maxWidth: 280,
-                background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
-                borderRadius: 7, padding: '5px 8px',
-              }}>{NFL_NOTE}</div>
-            )}
             <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />
           </div>
         </div>
