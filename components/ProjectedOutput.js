@@ -86,7 +86,52 @@ const prodOf = (p) => {
   return 0.88 + 0.24 * (0.45 * xbh + 0.35 * hrr + 0.20 * k)   // 0.88 .. 1.12
 }
 
-function hrProbV2(p, formNorm = 1, prodNorm = 1) {
+// ── THE BUILDING AND THE ARM (v3, 2026-08-15) ────────────────────────────
+//
+// Donovan: "seems like the scoring is leaning and not taking in park factor,
+// winds and pitchers and streaks." He is right about two of the three, and
+// the third is already here — worth saying which is which:
+//
+//   STREAKS are in. formOf() above is exactly that, and it is the term the
+//   archive measured hardest (last5_hr 0 -> 9.0% HR rate, 3+ -> 23.0%).
+//
+//   THE PARK AND THE AIR were NOT. The slate publishes park_hr_factor (1.20
+//   at Great American tonight — literally 20% more homers) and the weather's
+//   own percentage effect, and this projection ignored both. Two hitters with
+//   identical scores in Coors and in Oracle projected the same number, which
+//   is the flattening he can see.
+//
+//   THE OPPOSING ARM was NOT. A 1.65 HR/9 starter and a 0.82 HR/9 starter are
+//   not the same night, and only hr_score's internal blend knew that.
+//
+// HALF WEIGHT, BOTH. hr_blend already carries a park_weather term and two
+// pitcher-damage terms, so the published factors would count the building and
+// the arm a second time. Half is the honest correction for a term that is
+// partly already inside the score — not a tuned number, a stated discount.
+//
+// NORMALISED, BOTH, exactly like form and production: divided by the slate's
+// own mean so they REORDER hitters without moving the slate total. The total
+// is calibrated against the graded archive; a term that shifts it is a term
+// that breaks the one number this table promises.
+function parkOf(p) {
+  const pf = n(p?.park_hr_factor, NaN)
+  const wx = n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, NaN))
+  let m = Number.isFinite(pf) && pf > 0 ? pf : 1
+  if (Number.isFinite(wx)) m *= 1 + wx / 100
+  if (!Number.isFinite(m) || m <= 0) return 1
+  return Math.max(0.75, Math.min(1.35, 1 + 0.5 * (m - 1)))
+}
+
+// League HR/9 sits near 1.25. A hitter faces the starter for roughly 2.5 of
+// his ~4.2 trips, so even at full strength this arm owns well under half the
+// night — another reason the effect is halved rather than taken whole.
+function armOf(p) {
+  const hr9 = n(p?.pitcher_hr9, NaN)
+  if (!Number.isFinite(hr9) || hr9 <= 0) return 1
+  return Math.max(0.80, Math.min(1.28, 1 + 0.5 * (hr9 / 1.25 - 1)))
+}
+
+function hrProbV2(p, formNorm = 1, prodNorm = 1, parkNorm = 1, armNorm = 1) {
   const scoreRate = bandRate(scoreOf(p, 'hr'), CALIB['Proj HR'][1])
   const iso = n(p?.season_iso, NaN)
   const base = Number.isFinite(iso)
@@ -131,9 +176,11 @@ function hrProbV2(p, formNorm = 1, prodNorm = 1) {
   // whole board.
   const form = formOf(p) / (formNorm || 1)
   const prod = prodOf(p) / (prodNorm || 1)
+  const park = parkOf(p) / (parkNorm || 1)
+  const arm = armOf(p) / (armNorm || 1)
   const xpa = xpaFor(p?.lineup_spot)
   const paMult = (xpa ? xpa / 4.2 : 1) * (p?.lineup_confirmed === false ? 0.9 : 1)
-  return base * form * prod * paMult
+  return base * form * prod * park * arm * paMult
 }
 
 const contactScore = (p) => n(p?.contact_score_v2 ?? p?.contact_score, 0)
@@ -179,6 +226,16 @@ export default function ProjectedOutput({ games = [], players = [] }) {
     return ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : 1
   }, [players])
 
+  // Same guarantee again for the building and the arm — see parkOf/armOf.
+  const parkNorm = useMemo(() => {
+    const xs = (players || []).map(parkOf).filter((x) => Number.isFinite(x) && x > 0)
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1
+  }, [players])
+  const armNorm = useMemo(() => {
+    const xs = (players || []).map(armOf).filter((x) => Number.isFinite(x) && x > 0)
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1
+  }, [players])
+
   const rows = useMemo(() => {
     const groups = new Map()
 
@@ -202,7 +259,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       COLUMNS.forEach((col) => {
         const [kind, bands] = CALIB[col]
         values[col] = col === 'Proj HR'
-          ? pool.reduce((sum, p) => sum + hrProbV2(p, formNorm, prodNorm), 0) // v2: ISO-blended, xPA-weighted, form + production normalised
+          ? pool.reduce((sum, p) => sum + hrProbV2(p, formNorm, prodNorm, parkNorm, armNorm), 0) // v2: ISO-blended, xPA-weighted, form + production normalised
           : pool.reduce((sum, p) => sum + bandRate(scoreOf(p, kind), bands), 0)
       })
 
@@ -222,7 +279,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       // The base Proj HR column stays untouched — it's calibrated, this is
       // calibrated × modeled, and the caption keeps them distinct.
       values['Adj HR'] = pool.reduce((sum, p) => {
-        const base = hrProbV2(p, formNorm, prodNorm)
+        const base = hrProbV2(p, formNorm, prodNorm, parkNorm, armNorm)
         const park = n(p?.park_hr_factor, n(p?.park_dist_factor, 1)) || 1
 
         // WEATHER — the bot's OWN published number, not a re-derivation
@@ -274,7 +331,7 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       // is sorted by Proj HR but nothing SAID so — a rank number makes the
       // ordering legible and gives the rows something to be quoted by.
       .map((r, i) => ({ ...r, label: `${i + 1}.  ${r.label}` }))
-  }, [games, players, by, pens, formNorm, prodNorm])
+  }, [games, players, by, pens, formNorm, prodNorm, parkNorm, armNorm])
 
   if (!rows.length) return null
 

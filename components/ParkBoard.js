@@ -381,21 +381,35 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                     ? { k: 'sky', label: 'Rain', val: `${Math.round(g.rain)}%`, col: g.rain >= 50 ? '#f87171' : '#7dd3fc', tip: `${Math.round(g.rain)}% chance of precipitation around first pitch, from the bot's weather pull. A delay-risk read, not a promise of one.` }
                     : { k: 'sky', label: 'Sky', val: g.roof ? 'open' : 'clear', col: C.text2, tip: g.roof ? `${g.roof} — open tonight, so the weather above plays.` : 'No meaningful rain chance published for first pitch.' })
 
+                // ONE LINE, NOT FOUR BOXES (2026-08-15). Donovan, third time
+                // on this card and the second time on tiles generally: "still
+                // don't like those park chips" — after "i dont like the tile
+                // style, id rather text just like the storylines section."
+                // Four labelled cells turned four short facts into a widget
+                // you had to parse; as a sentence they read at a glance and
+                // give the card its space back. Every colour and every
+                // tooltip survives verbatim — the words carry the meaning,
+                // the boxes never did.
+                const phrase = (c) => (
+                  c.k === 'temp' ? c.val
+                    : c.k === 'wind' ? `${c.val} mph`
+                    : c.k === 'air' ? `${c.val} air`
+                    : c.label === 'Roof' ? `roof ${c.val}`
+                    : c.label === 'Rain' ? `${c.val} rain`
+                    : `${c.val} sky`
+                )
                 return (
-                  <div className="stat-strip" style={{
-                    display: 'grid', gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))`,
-                    gap: 4, marginTop: 5,
+                  <div style={{
+                    marginTop: 4, fontSize: 10.5, lineHeight: 1.65, color: C.text3,
+                    // wraps between facts instead of running off the card —
+                    // each fact stays whole, the line breaks between them
+                    whiteSpace: 'normal', overflowWrap: 'anywhere',
                   }}>
-                    {cells.map((c) => (
-                      <div key={c.k} title={c.tip} style={{
-                        minWidth: 0, textAlign: 'center', cursor: 'help',
-                        background: c.col === C.text2 || c.col === C.text3 ? 'rgba(255,255,255,.03)' : `${c.col}12`,
-                        border: `1px solid ${c.col === C.text2 || c.col === C.text3 ? C.border : `${c.col}40`}`,
-                        borderRadius: 7, padding: '3px 2px 4px',
-                      }}>
-                        <div style={{ fontSize: 8, letterSpacing: '.05em', textTransform: 'uppercase', color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.3 }}>{c.label}</div>
-                        <div style={{ fontSize: 11.5, fontWeight: 800, color: c.col, fontFamily: NUM_FONT, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.val}</div>
-                      </div>
+                    {cells.map((c, ci) => (
+                      <span key={c.k} title={c.tip} style={{ cursor: 'help', whiteSpace: 'nowrap' }}>
+                        {ci > 0 && <span style={{ color: C.border2 }}>{'  ·  '}</span>}
+                        <b style={{ color: c.col, fontFamily: NUM_FONT, fontWeight: 800 }}>{phrase(c)}</b>
+                      </span>
                     ))}
                   </div>
                 )

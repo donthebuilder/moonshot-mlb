@@ -38,6 +38,7 @@ import Results from './tabs/Results'
 import Watchlist from './tabs/Watchlist'
 import Pairs from './tabs/Pairs'
 import Bot from './tabs/Bot'
+import OddsBoard from './tabs/OddsBoard'
 import Pitchers from './tabs/Pitchers'
 import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
@@ -438,6 +439,7 @@ export default function Dashboard() {
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
+            {tab === 'odds'       && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}
             {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} odds={odds} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'trueprice'  && <TruePrice onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
