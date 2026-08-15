@@ -479,66 +479,78 @@ export default function PlayerSplits({ player, slateMode }) {
         against the league. K% is inverted; everything else reads bright-is-better for the bat.
       </div>
 
-      {/* ── ONE PICKER, EVERY SPLIT (2026-08-13) ─────────────────────────
-          Donovan: "an intuitive thing where i can filter home away day of
-          the week certain situations. so i can see the avg and stats based
-          on the filters." Home/away, win/loss and day-of-week (the bot's
-          file) used to sit as three tables stacked here, always all on
-          screen at once; outs/count/runners/platoon (the live league
-          splits) sat behind a second, separate picker above this section.
-          One pill row now, spanning both sources — which table you're
-          looking at is a tap, not a scroll. See PICKER_GROUPS for why this
-          picks ONE split at a time rather than intersecting several. */}
+      {/* ── ONE LONG SHEET (2026-08-15) ──────────────────────────────────
+          Donovan, twice now: "I'm not really happy with the splits being
+          grouped by toggle — rather it be one long sheet style but can be
+          broken into parts" and today, "i still wanted them shown as one
+          long spreadsheet instead of grouped by filter." The 08-13 picker
+          made which-table-you-see a tap; he wants them all on screen, in
+          sections, like a sheet reads. So: every table, stacked — the bot
+          file's splits first, then the live-league situations — each under
+          its own rule, every caption kept. The pill row survives as a JUMP
+          strip: tapping a pill scrolls to that section instead of hiding
+          the other seven. */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 800 }}>Splits</span>
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-            pick a filter — bot file and live league, all in one place
+            one sheet, every split — the pills jump, nothing hides
           </span>
         </div>
-        <GroupPicker groups={availableGroups} active={effectiveGroup} onPick={setActiveGroup} />
+        <GroupPicker
+          groups={availableGroups}
+          active={effectiveGroup}
+          onPick={(k) => {
+            setActiveGroup(k)
+            try { document.getElementById(`split-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) } catch { /* jsdom */ }
+          }}
+        />
 
-        {activeFileTable && (() => {
-          const thinnest = Math.min(...activeFileTable.rows.map((r) => r.pa))
+        {tables.map((t) => {
+          const thinnest = Math.min(...t.rows.map((r) => r.pa))
+          const g = GROUPS.find((g2) => g2.key === t.key)
           return (
-            <>
-              <div style={{ fontSize: 9.5, color: thinnest < THIN_PA ? C.orange : C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
-                season · from the bot&apos;s file · {activeFileTable.rows.length} rows · thinnest {thinnest} PA
+            <div key={t.key} id={`split-${t.key}`} style={{ marginTop: 12, scrollMarginTop: 60 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 900 }}>{g?.label || t.key}</span>
+                <span style={{ fontSize: 9.5, color: thinnest < THIN_PA ? C.orange : C.text3, fontFamily: NUM_FONT }}>
+                  season · bot file · {t.rows.length} rows · thinnest {thinnest} PA
+                </span>
               </div>
               <DenseTable
-                rows={activeFileTable.rows}
+                rows={t.rows}
                 columns={cols}
                 initialSort={null}
-                maxHeight={260}
+                maxHeight={300}
                 caption={
-                  activeFileTable.key === 'day_of_week'
+                  t.key === 'day_of_week'
                     ? 'Seven ways to cut one season. Every row here is a few dozen plate appearances, which is not enough to separate any hitter from himself — a 130-point gap between two weekdays is two or three hits. This table is here because the bot publishes it, not because it should move a decision.'
                     : thinnest < THIN_PA
                       ? `The smallest row here is ${thinnest} plate appearances. Under about 100, batting average moves 30 points on three hits, so treat the gap between these rows as noise unless it is very large.`
                       : 'Both rows clear 100 plate appearances, which is enough to be worth a look — though a season split is still one season, and the gap you see is usually smaller next year.'
                 }
               />
-            </>
-          )
-        })()}
-
-        {!activeFileTable && activeLiveRows && (
-          <>
-            <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
-              season · live from the league
             </div>
-            <DenseTable
-              rows={activeLiveRows.rows}
-              columns={cols}
-              initialSort={null}
-              maxHeight={260}
-              caption={activeLiveRows.group.caption}
-            />
-          </>
-        )}
+          )
+        })}
 
-        {!activeFileTable && !activeLiveRows && (
-          <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>Loading this split…</div>
+        {lr && LIVE_SIT_GROUPS.map((group) => {
+          const rows = group.codes.map((c) => lr.find((r) => r.code === c)).filter(Boolean)
+          if (!rows.length) return null
+          return (
+            <div key={group.key} id={`split-${group.key}`} style={{ marginTop: 12, scrollMarginTop: 60 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 900 }}>{group.label}</span>
+                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>season · live from the league</span>
+              </div>
+              <DenseTable rows={rows} columns={cols} initialSort={null} maxHeight={300} caption={group.caption} />
+            </div>
+          )
+        })}
+        {!lr && (
+          <div style={{ fontSize: 10, color: C.text3, padding: '8px 0', fontFamily: NUM_FONT }}>
+            live-league situations (platoon, RISP, outs, count, runners) load in a moment…
+          </div>
         )}
       </div>
 

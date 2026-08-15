@@ -15,8 +15,7 @@ import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
 import HomerLedger from '../HomerLedger'
 import LiveWire from '../LiveWire'
-import Storylines from '../Storylines'
-import SlateStrength from '../SlateStrength'
+import NearMisses from '../NearMisses'
 import { groupPitchers } from '../../lib/data'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
@@ -229,27 +228,23 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />
   const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
   const secPicks = <BotPicksStrip key="picks" players={players} onPlayerClick={onPlayerClick} />
-  // 📐 What an average score is worth tonight. Folded rather than always-open:
-  // it is the reference you check once at the start of a night, not something
-  // you re-read between innings — and the first screen of this tab is already
-  // the busiest on the site.
-  const secStrength = (
-    <Fold key="strength" label="📐 Tonight's board — what an average score is worth">
-      <SlateStrength players={players} onGameClick={() => onNavigate?.('games')} />
+  // 🧱 NEAR MISSES replaced Storylines AND the slate-strength fold here
+  // (2026-08-15, Donovan, this page only: "take storylines off and put near
+  // misses from players who haven't gone yard in 2+ games, and statcast
+  // when... the tonight's board one you can just remove"). Storylines still
+  // lives on Home and in every game's deep dive; SlateStrength still renders
+  // inside Boards. This page is the one you watch between innings, and the
+  // between-innings question is who's been hitting homers without getting
+  // one — that's the drought most likely to end tonight.
+  const secNear = (
+    <Fold key="near" label="🧱 Near misses — homer contact, no homer, 2+ games" open>
+      <NearMisses players={players} onPlayerClick={onPlayerClick} />
     </Fold>
   )
   // 🧾 the ledger builds through the night — lives with the live layer.
   // 2026-08-13: passes `results` now instead of HomerLedger fetching its own
   // copy of the identical payload — see the note in HomerLedger.js.
   const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
-  // results (2026-08-13, same pass as secLedger above): Storylines used to
-  // fetch its own copy of this identical payload — see the note in
-  // Storylines.js.
-  const secStories = (
-    <Fold key="stories" label="📰 Storylines — tonight's angles, written from the slate">
-      <Storylines players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
-    </Fold>
-  )
   const goneTable = goneYard.length > 0 && (
     <Tracker
       title="💥 Gone yard"
@@ -312,9 +307,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   const order = liveNow
     // broadcast order: the wire, the homers, then tonight's picks, then context
-    ? [secWire, secGone, secLedger, secPicks, secPulse, secStrength, secStories, secWeak, secStart]
+    ? [secWire, secGone, secLedger, secNear, secPicks, secPulse, secWeak, secStart]
     // plan order: orientation, the picks, the (quiet) wire, the pulse, context
-    : [secStart, secPicks, secStrength, secWire, secLedger, secPulse, secStories, secGone, secWeak]
+    : [secStart, secPicks, secNear, secWire, secLedger, secPulse, secGone, secWeak]
 
   return (
     <div>

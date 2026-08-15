@@ -744,6 +744,22 @@ export default function Results({ results, backtest, players = [], onPlayerClick
     return dates.filter(Boolean).sort().reverse()
   }, [backtest])
 
+  // 🌙 PREGAME MORNINGS (2026-08-15, Donovan: "why hasn't the results
+  // updated"). It HAD updated — the live file had rolled over to tonight's
+  // pregame shell (90 tracked slots, all AB 0, nothing started), and last
+  // night's finished grading sat behind the date picker. Correct data, wrong
+  // default: a results page whose lead view is ninety pending rows reads as
+  // broken every single morning. So when the live payload has nothing judged
+  // yet, the tab says so in one line and points at last night, instead of
+  // presenting the empty shell as the news.
+  const liveIsPregame = (() => {
+    if (day !== 'live') return false
+    const rows = results?.graded_slots || results?.results || []
+    if (!rows.length) return false
+    return !rows.some((r) => Number(r?.actual_ab) > 0 || Number(r?.is_final) === 1)
+  })()
+
+
   useEffect(() => {
     if (day === 'live') { setDayData(null); setDayState('idle'); return }
     let alive = true
@@ -817,6 +833,19 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           <span style={{ fontSize: 10, color: C.text3 }}>
             grading updates as games finish
           </span>
+          {liveIsPregame && gradedDays.length > 0 && (
+            <span style={{
+              fontSize: 10.5, color: C.text2, lineHeight: 1.5,
+              border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.03)',
+              borderRadius: 8, padding: '4px 10px',
+            }}>
+              Nothing has started yet — tonight&apos;s {(results?.graded_slots || results?.results || []).length} tracked
+              slots are all pregame. Last night&apos;s finished card is{' '}
+              <b onClick={() => setDay(gradedDays[0])} style={{ color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                one click away
+              </b>.
+            </span>
+          )}
           {gradedDays.length > 0 && (
             <button
               onClick={() => setArchiveOpen((v) => !v)}
