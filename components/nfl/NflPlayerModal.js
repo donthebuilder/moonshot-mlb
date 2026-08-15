@@ -2,6 +2,8 @@
 import { useEffect } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import HitRate from './HitRate'
+import MatchupMap from './MatchupMap'
+import DvpTable, { GROUP } from './DvpTable'
 
 // Why this player scores what he scores.
 //
@@ -214,6 +216,60 @@ function CoverageAndExplosive({ player, matchup }) {
   )
 }
 
+function Head({ children }) {
+  return (
+    <div style={{
+      fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+      margin: '18px 0 8px',
+    }}>{children}</div>
+  )
+}
+
+// The map, scoped to this player and the defence he's actually facing.
+//
+// This is the one thing in the modal that isn't about him in the abstract —
+// every other section would read the same if he were playing a bye week.
+function MatchupSection({ player, matchup, market }) {
+  const field = matchup?.field
+  if (!field || !player?.opp) return null
+  const hasPass = Boolean(field.player_pass?.[player.player_id])
+  const hasRush = Boolean(field.player_rush?.[player.player_id])
+  if (!hasPass && !hasRush) return null
+  const rushFirst = market === 'RUSH_YDS' || market === 'RUSH_ATT' || (!hasPass && hasRush)
+  return (
+    <>
+      <Head>MATCHUP MAP — HIS WORK ON {player.opp}&apos;S HOLES</Head>
+      <MatchupMap field={field} player={player} mode="player" compact
+                  defaultView={rushFirst ? 'rush' : 'pass'} />
+    </>
+  )
+}
+
+// ...and the same defence read the orthodox way. The map says where the field
+// is soft; this says whether it's soft to somebody in HIS chair. A defence can
+// leak deep right all day and still smother the WR3 who runs those routes.
+function DvpSection({ player, matchup }) {
+  const group = GROUP[player?.position]
+  if (!group || !matchup?.dvp?.season?.[player?.opp]) return null
+  const role = matchup?.roles?.[player.player_id]
+  return (
+    <>
+      <Head>{player.opp} DEFENCE VS {player.position} — BY DEPTH ROLE</Head>
+      <div style={{
+        border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden',
+        background: C.bg2,
+      }}>
+        <DvpTable data={matchup} team={player.opp} roles={group}
+                  highlight={role} minWidth={340} />
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+        Rank 1 = allows the most = softest matchup. {matchup.season} season.
+        {!role && ' Depth roles publish with the next bot run, so no row is pinned to him yet.'}
+      </div>
+    </>
+  )
+}
+
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, onClose }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -243,7 +299,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         onClick={(e) => e.stopPropagation()}
         style={{
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 14,
-          padding: 18, maxWidth: 520, width: '100%', maxHeight: '84vh', overflowY: 'auto',
+          padding: 18, maxWidth: 620, width: '100%', maxHeight: '86vh', overflowY: 'auto',
         }}
       >
         <div style={{
@@ -285,12 +341,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           })}
         </div>
 
+        <MatchupSection player={player} matchup={matchup} market={market} />
+        <DvpSection player={player} matchup={matchup} />
+
         {ordered.length > 0 && (
           <>
-            <div style={{
-              fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-              margin: '16px 0 7px',
-            }}>WHY — {spec?.label || market}</div>
+            <Head>WHY — {spec?.label || market}</Head>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {ordered.map(({ key, pct, w }) => (
                 <div key={key} style={{

@@ -2,104 +2,28 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
-import FieldChart from '../FieldChart'
+import MatchupMap from '../MatchupMap'
+import DvpTable from '../DvpTable'
 
-// Matchups — defence vs position, BY DEPTH ROLE.
+// Matchups — pick a defence, then read it two ways.
 //
-// The distinction is the whole point. "What this defence allows to wide
-// receivers" averages a WR1 and a fourth receiver into one number and is close
-// to useless. What you need is what it allows to the guy in the role YOUR
-// player occupies, which is why the rows are WR1 / WR2 / WR3 / TE1 / TE2 /
-// RB1 / RB2 / QB rather than WR / TE / RB / QB.
+//   THE MAP    where the yards they give up actually come from, as a shape.
+//   THE TABLE  what they allow to each depth role, ranked against the league.
 //
-// Rank is the reading instrument, not the raw number: 66 receiving yards
-// allowed means nothing until you know it's 4th-most in the league. Rank 1 =
-// allows the most = the softest matchup, which is the direction a bettor
-// reads, so rank 1 is green.
+// The map answers "where do I attack them", the table answers "does that
+// help MY guy". Neither replaces the other, which is why both are here rather
+// than one winning. Drop a player onto the map and it stops being a scouting
+// report and becomes a bet: his usage lands on their holes, or it doesn't.
 
 const WINDOWS = [['season', 'Season'], ['l10', 'L10'], ['l5', 'L5'], ['l3', 'L3']]
 
-// 32 teams. Rank 1 is the softest spot on the board, 32 the hardest.
-function rankColor(rank) {
-  if (!Number.isFinite(rank)) return null
-  if (rank <= 5) return C.green
-  if (rank <= 12) return C.lime
-  if (rank <= 21) return C.yellow
-  if (rank <= 27) return '#fb923c'
-  return C.red
-}
-
-function Cell({ cell, stat }) {
-  const v = cell?.[stat]
-  const r = cell?.[`${stat}_rank`]
-  if (v === undefined || v === null) {
-    // N/A rather than 0 — a receiver has no rushing line and a quarterback has
-    // no receiving line, and printing a zero reads as a measurement.
-    return <td style={{ padding: '7px 6px', textAlign: 'center', color: C.text3, fontSize: 10 }}>N/A</td>
-  }
-  const col = rankColor(r)
-  return (
-    <td style={{
-      padding: '6px 6px', textAlign: 'center',
-      background: col ? `${col}14` : 'transparent',
-      borderRight: `1px solid ${C.bg}`,
-    }}>
-      <div style={{ fontFamily: NUM_FONT, fontSize: 12.5, fontWeight: 900, color: C.text }}>
-        {Number.isInteger(v) ? v : v.toFixed(1)}
-      </div>
-      {Number.isFinite(r) && (
-        <div style={{
-          display: 'inline-block', marginTop: 2, fontFamily: NUM_FONT, fontSize: 8.5,
-          fontWeight: 900, color: col, border: `1px solid ${col}55`,
-          background: `${col}18`, borderRadius: 4, padding: '0 4px',
-        }}>#{r}</div>
-      )}
-    </td>
-  )
-}
-
-function DvpTable({ data, team, win }) {
-  const roles = data?.dvp_roles || []
-  const stats = data?.dvp_stats || []
-  const labels = data?.dvp_labels || {}
-  const blob = data?.dvp?.[win]?.[team]
-  if (!blob) {
-    return <div style={{ color: C.text3, fontSize: 12, padding: 16 }}>
-      No defence data for {team} in this window.
-    </div>
-  }
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
-        <thead>
-          <tr style={{ background: 'rgba(255,255,255,.03)' }}>
-            <th style={{
-              padding: '7px 10px', fontSize: 9.5, fontWeight: 900, color: C.text3,
-              textAlign: 'left', letterSpacing: '.08em', position: 'sticky', left: 0,
-              background: C.bg2,
-            }}>POSITION</th>
-            {stats.map((s) => (
-              <th key={s} style={{
-                padding: '7px 6px', fontSize: 9.5, fontWeight: 900, color: C.text3,
-                letterSpacing: '.06em',
-              }}>{labels[s] || s}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {roles.filter((r) => blob[r]).map((role) => (
-            <tr key={role} style={{ borderTop: `1px solid ${C.border}` }}>
-              <td style={{
-                padding: '6px 10px', fontSize: 11.5, fontWeight: 800, color: C.text,
-                position: 'sticky', left: 0, background: C.bg2,
-              }}>{role}</td>
-              {stats.map((s) => <Cell key={s} cell={blob[role]} stat={s} />)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+// "Marvin Mims Jr." → "Mims". Taking the last token gave a picker with a
+// button labelled "Jr.".
+const SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i
+function surname(name) {
+  const parts = String(name || '').split(/\s+/).filter(Boolean)
+  while (parts.length > 1 && SUFFIX.test(parts[parts.length - 1])) parts.pop()
+  return parts[parts.length - 1] || name
 }
 
 function Row({ label, children }) {
@@ -165,17 +89,68 @@ function Profile({ data, team }) {
   )
 }
 
+function Section({ title, sub, children, style }) {
+  return (
+    <div style={{
+      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+      overflow: 'hidden', marginTop: 12, ...style,
+    }}>
+      <div style={{
+        padding: '10px 14px', borderBottom: `1px solid ${C.border}`,
+        display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap',
+      }}>
+        <span style={{
+          fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, color: C.text,
+          letterSpacing: '.12em',
+        }}>{title}</span>
+        {sub && <span style={{ fontSize: 10.5, color: C.text3 }}>{sub}</span>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+// Squarer and tighter than the shared pill. The MLB side keeps btnStyle as-is.
+function teamStyle(active) {
+  return {
+    fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.06em',
+    padding: '6px 10px', borderRadius: 7, cursor: 'pointer', whiteSpace: 'nowrap',
+    border: `1px solid ${active ? C.green : C.border}`,
+    background: active ? `${C.green}1f` : 'rgba(255,255,255,.03)',
+    color: active ? C.green : C.text2,
+  }
+}
+
 export default function Matchups({ matchup, data }) {
-  const teams = useMemo(() => {
-    const fromGames = (data?.games || []).flatMap((g) => [g.home, g.away])
-    const all = Object.keys(matchup?.dvp?.season || {}).sort()
-    // Teams on this slate first — that's what you're here for — then the league.
-    return [...new Set([...fromGames.filter(Boolean), ...all])]
-  }, [matchup, data])
+  // The slate is six teams. Listing all 32 alphabetically put ATL next to ARI
+  // and buried the ones playing tonight in a wall of three-letter codes — so
+  // the games lead, laid out as games, and the league hides behind a toggle.
+  const slate = useMemo(
+    () => (data?.games || []).map((g) => [g.away, g.home]).filter(([a, h]) => a && h),
+    [data])
+  const onSlate = useMemo(() => new Set(slate.flat()), [slate])
+  const rest = useMemo(
+    () => Object.keys(matchup?.dvp?.season || {}).sort().filter((t) => !onSlate.has(t)),
+    [matchup, onSlate])
 
   const [team, setTeam] = useState(null)
   const [win, setWin] = useState('season')
-  const active = team || teams[0]
+  const [pid, setPid] = useState(null)
+  const [showAll, setShowAll] = useState(false)
+  const active = team || slate[0]?.[0] || rest[0]
+
+  const pick = (t) => { setTeam(t); setPid(null) }
+
+  // Who's actually going at this defence on this card. Ranked by their best
+  // score so the picker leads with the names worth checking.
+  const facing = useMemo(() => (data?.players || [])
+    .filter((p) => p.opp === active && matchup?.field?.player_pass?.[p.player_id])
+    .map((p) => ({ ...p, best: Math.max(...Object.values(p.scores || { x: 0 })) }))
+    .sort((a, b) => b.best - a.best)
+    .slice(0, 14), [data, active, matchup])
+
+  const picked = facing.find((p) => p.player_id === pid) || null
+  const role = picked ? matchup?.roles?.[picked.player_id] : null
 
   if (!matchup?.dvp) {
     return (
@@ -188,41 +163,82 @@ export default function Matchups({ matchup, data }) {
 
   return (
     <div>
-      <div style={{ fontSize: 11, color: C.text3, marginBottom: 10 }}>
-        By depth role. Rank 1 = allows the most = softest. {matchup.season}.
-      </div>
-
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
-        {teams.slice(0, 40).map((t) => (
-          <button key={t} onClick={() => setTeam(t)} style={btnStyle(C.green, t === active)}>{t}</button>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
-        {WINDOWS.filter(([k]) => matchup.dvp[k]).map(([k, label]) => (
-          <button key={k} onClick={() => setWin(k)} style={btnStyle(C.cyan, k === win)}>{label}</button>
-        ))}
-      </div>
-
       <div style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, overflow: 'hidden',
+        display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10,
       }}>
-        <div style={{
-          padding: '9px 13px', borderBottom: `1px solid ${C.border}`,
-          fontSize: 12.5, fontWeight: 900, color: C.text,
-        }}>{active} Defense</div>
-        <DvpTable data={matchup} team={active} win={win} />
+        {slate.map(([away, home]) => (
+          <div key={`${away}@${home}`} style={{
+            display: 'flex', alignItems: 'center', gap: 4, padding: 3,
+            border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2,
+          }}>
+            <button onClick={() => pick(away)} style={teamStyle(away === active)}>{away}</button>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>@</span>
+            <button onClick={() => pick(home)} style={teamStyle(home === active)}>{home}</button>
+          </div>
+        ))}
+        {rest.length > 0 && (
+          <button onClick={() => setShowAll((v) => !v)} style={{
+            ...teamStyle(showAll), color: showAll ? C.green : C.text3,
+          }}>{showAll ? 'HIDE' : `ALL ${rest.length + onSlate.size}`}</button>
+        )}
       </div>
+      {showAll && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+          {rest.map((t) => (
+            <button key={t} onClick={() => pick(t)} style={teamStyle(t === active)}>{t}</button>
+          ))}
+        </div>
+      )}
 
-      <div style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
-        padding: '13px 15px', marginTop: 12,
-      }}>
-        <div style={{
-          fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-          marginBottom: 9,
-        }}>{active} — WHERE THEY LEAK</div>
-        <FieldChart field={matchup.field} team={active} mode="def" />
-      </div>
+      <Section
+        title={`${active} — THE MAP`}
+        sub={picked
+          ? `${picked.name}'s work on their holes`
+          : 'where their yards allowed come from — pick a player to overlay his usage'}
+        style={{ marginTop: 0 }}
+      >
+        {facing.length > 0 && (
+          <div style={{
+            display: 'flex', gap: 5, flexWrap: 'wrap', padding: '10px 14px 0',
+          }}>
+            <button onClick={() => setPid(null)} style={btnStyle(C.cyan, !pid)}>Defence only</button>
+            {facing.map((p) => (
+              <button key={p.player_id} onClick={() => setPid(p.player_id)}
+                      style={btnStyle(C.cyan, pid === p.player_id)}>
+                {surname(p.name)} <span style={{ opacity: .6 }}>{p.position}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ padding: 14 }}>
+          <MatchupMap
+            field={matchup.field}
+            team={active}
+            player={picked}
+            mode={picked ? 'player' : 'def'}
+            defaultView={picked?.position === 'RB' ? 'rush' : 'pass'}
+          />
+        </div>
+      </Section>
+
+      <Section
+        title={`${active} — DEFENCE VS POSITION`}
+        sub={`by depth role · rank 1 = allows the most = softest · ${matchup.season}`}
+      >
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '10px 14px 0' }}>
+          {WINDOWS.filter(([k]) => matchup.dvp[k]).map(([k, label]) => (
+            <button key={k} onClick={() => setWin(k)} style={btnStyle(C.cyan, k === win)}>{label}</button>
+          ))}
+        </div>
+        <div style={{ paddingTop: 10 }}>
+          <DvpTable data={matchup} team={active} win={win} highlight={role} />
+        </div>
+        {picked && !role && (
+          <div style={{ fontSize: 10, color: C.text3, padding: '8px 14px 12px' }}>
+            Depth roles publish with the next bot run — until then no row is pinned to {picked.name}.
+          </div>
+        )}
+      </Section>
 
       <Profile data={matchup} team={active} />
     </div>

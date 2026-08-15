@@ -16,6 +16,7 @@ import MobileCSS from './MobileCSS'
 import StaleBanner from './StaleBanner'
 
 import Home from './tabs/Home'
+import MyPicks from './tabs/MyPicks'
 import Guide from './tabs/Guide'
 import Games from './tabs/Games'
 import AtThePlate from './tabs/AtThePlate'
@@ -367,6 +368,7 @@ export default function Dashboard() {
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} />}
+            {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
