@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows } from '../lib/data'
-import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, setSlateMode } from '../lib/dataSource'
+import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { Empty } from './ui'
@@ -52,6 +52,7 @@ export default function Dashboard() {
   }
   const [data, setData] = useState(null)
   const [results, setResults] = useState(null)
+  const [datedResults, setDatedResults] = useState(null)
   const [pairSummary, setPairSummary] = useState(null)
   const [pairBuilder, setPairBuilder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -307,8 +308,49 @@ export default function Dashboard() {
   // night you're actually looking at.
   const slateDate = clean(obj(data).date || obj(data).slate_date, '') || slateDateFromRows(data)
   const slateIsReal = !data || slateLooksReal(data)
-  const resultsForSlate =
-    (!slateDate || !clean(results?.date, '') || results.date === slateDate) ? results : null
+  // FALLBACK TO THE DATED FILE WHEN results_live.json GOES STALE.
+  //
+  // 2026-08-15: the branch was serving results_live.json dated 2026-07-26
+  // while graded_results_2026-08-14.json sat next to it, current. The grader's
+  // FINAL step publishes the dated file and is healthy; its LIVE step writes
+  // results_live.json and had stopped refreshing it. Everything keyed on
+  // `resultsForSlate` — Home's pulse, Pools, Pairs, the watch ledger, My Picks
+  // — date-gates against that stale file and correctly resolves to null, so
+  // the whole site quietly showed no results at all while a perfectly good
+  // graded file was one URL away.
+  //
+  // The site can't fix the publish, but it does not have to depend on it. When
+  // the live file's date doesn't match the slate, fetch the slate's own dated
+  // file. Identical shape (see gradedResultsUrl's comment), so it drops in.
+  const liveMatchesSlate =
+    !slateDate || !clean(results?.date, '') || results.date === slateDate
+  const resultsForSlate = liveMatchesSlate
+    ? results
+    : (clean(datedResults?.date, '') === slateDate ? datedResults : null)
+  // Keyed on what we've ALREADY asked for, not on what came back. Gating on
+  // datedResults.date instead would refetch forever the moment the branch
+  // serves a file whose own date doesn't match the name it's published under
+  // — which is exactly the class of failure this fallback exists because of.
+  const datedAsked = useRef(null)
+  useEffect(() => {
+    // Only when the live file is actually stale — a healthy branch never pays
+    // for this request.
+    if (!slateDate || liveMatchesSlate) {
+      datedAsked.current = null
+      setDatedResults(null)
+      return
+    }
+    const want = `${slateDate}#${refreshKey}`
+    if (datedAsked.current === want) return
+    datedAsked.current = want
+    let alive = true
+    fetch(gradedResultsUrl(slateDate), { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) setDatedResults(j || null) })
+      .catch(() => { if (alive) setDatedResults(null) })
+    return () => { alive = false }
+  }, [slateDate, liveMatchesSlate, refreshKey])
+
   // These render from their own payloads, so an empty slate must not blank them.
   const tabsWithoutPlayers = ['home', 'pairs', 'bot', 'results', 'guide', 'watch', 'pairhist']
   const showEmpty = !loading && !players.length && !tabsWithoutPlayers.includes(tab)
