@@ -18,6 +18,8 @@ import { leagueRates, tonightTotals } from '../lib/leagueRates'
 // Nothing polls in the background; nothing here feeds a score.
 
 const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
+// Fixed, so a category is always in the same place on the board.
+const GROUP_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
 
 export default function LiveWire({ players = [], results, watchIds, mode = 'today', onPlayerClick }) {
@@ -426,13 +428,42 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
           {graded.length > 0 && (
             <>
             <SecLbl>🤖 The picks — live vs their own bars</SecLbl>
-            {/* 230px columns meant five of them on a desktop and names cut to
-                "Nathaniel L…" — a board of initials. 300px gives the name room
-                at every width, and .wire-picks drops to one column on a phone
-                with a thumb-sized row. */}
+            {/* GROUPED BY PICK TYPE (2026-08-15, Donovan: "group the plaeyeres
+                by pick type. so its easier to findplayers"). One flat list
+                sorted hunt-first meant HR picks were scattered between HIT and
+                CONTACT ones and finding "did my HR guys go" was a scan of the
+                whole board.
+
+                Groups sit in a FIXED order — that's the point of grouping.
+                A category that moves position depending on how its picks are
+                doing is no easier to find than no grouping at all. Hunt-first
+                ordering is kept INSIDE each group, where it still does its job.
+
+                The 44px per-row role column is gone with it: the header says
+                the category now, and those 44px go back to the name, which
+                this file's own comment already called out as too tight. */}
+            {GROUP_ORDER.map((gRole) => {
+              const rows = graded.filter((x) => x.role === gRole)
+              if (!rows.length) return null
+              const col = ROLE_COLOR[gRole] || C.text3
+              const got = rows.filter((x) => x.cleared === true).length
+              const openN = rows.filter((x) => x.cleared === false && !x.line.settled).length
+              return (
+                <div key={gRole} style={{ marginBottom: 7 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'baseline', gap: 7,
+                    padding: '2px 0 3px', borderBottom: `1px solid ${col}2e`, marginBottom: 3,
+                  }}>
+                    <span style={{
+                      fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT,
+                      color: col, letterSpacing: '.08em',
+                    }}>{gRole}</span>
+                    <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>
+                      {got}/{rows.length} cleared{openN ? ` · ${openN} still live` : ''}
+                    </span>
+                  </div>
             <div className="wire-picks" style={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-              {graded.map(({ p, role, line, cleared }) => {
-                const col = ROLE_COLOR[role] || C.text3
+              {rows.map(({ p, role, line, cleared }) => {
                 const st = rowState(cleared, line)
                 const status = st.mark
                 const sCol = st.color
@@ -456,8 +487,6 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                       : (line.delayed || line.suspended) ? 'rgba(96,165,250,.07)' : 'transparent',
                   }}>
                     <span style={{ fontSize: 12, fontWeight: 900, color: sCol, width: 13, flexShrink: 0, textAlign: 'center' }}>{status}</span>
-                    {/* CONTACT is 7 chars — 30px jammed it into the name */}
-                    <span style={{ fontSize: 8, fontWeight: 900, color: col, fontFamily: NUM_FONT, width: 44, flexShrink: 0, letterSpacing: 0 }}>{role}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                       {nameOf(p)}
                     </span>
@@ -486,6 +515,9 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 )
               })}
             </div>
+                </div>
+              )
+            })}
             </>
           )}
 

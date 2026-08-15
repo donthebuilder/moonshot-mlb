@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows } from '../lib/data'
-import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
+import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { Empty } from './ui'
@@ -53,6 +53,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null)
   const [results, setResults] = useState(null)
   const [datedResults, setDatedResults] = useState(null)
+  const [odds, setOdds] = useState(null)
   const [pairSummary, setPairSummary] = useState(null)
   const [pairBuilder, setPairBuilder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -107,6 +108,8 @@ export default function Dashboard() {
       // behind it in the fallback list. See lib/data.js.
       fetchJSON(paths, slateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
+      // No validator: no odds file is the normal state until a key is set.
+      fetchJSON(oddsPaths()).then((j) => { if (alive) setOdds(j) }),
       fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
       fetchJSON(pairSummaryPaths()).then((j) => { if (alive) setPairSummary(j) }),
       fetchJSON(backtestPaths()).then((j) => { if (alive) setBacktest(j) }),
@@ -410,7 +413,7 @@ export default function Dashboard() {
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} />}
-            {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
+            {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} odds={odds} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
