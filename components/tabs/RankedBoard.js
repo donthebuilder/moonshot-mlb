@@ -46,7 +46,13 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // mark on tonight's board for the homer he had already hit. Five rounds of
   // that bug are written up in b2b.js; this board never adopted the fix.
   // No proof file, no mark.
-  const { setupHr } = useSetupHomers(slateDate)
+  // useSetupHomers returns the BARE value — a Set once proven, null when it
+  // can't check, undefined while loading. The first ship destructured it
+  // ({ setupHr }) as if it returned an object, which is undefined.setupHr →
+  // a TypeError on first paint, and the entire Boards tab died. Found in
+  // production 2026-08-15, on the one tab the render harness never visited;
+  // it visits all of them now (scripts/check-render note below).
+  const setupHr = useSetupHomers(slateDate)
   const b2bIds = useMemo(() => (setupHr instanceof Set ? setupHr : null), [setupHr])
   const [title, sub] = TITLES[type] || TITLES.hr
   const { filtered, state } = useBoardFilter(players)

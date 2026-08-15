@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { tierTone } from '../../lib/roleBadge'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import TheRead from '../TheRead'
+import Shortlist from '../Shortlist'
 import { logUrl } from '../../lib/dataSource'
 import { pillMeta } from '../../lib/pills'
 
@@ -480,6 +481,7 @@ function SheetViewer({ url, label }) {
 // receipt.
 const VIEWS = [
   { key: 'read',     label: '📝 The Read' },
+  { key: 'short',    label: '🎯 Shortlist' },
   { key: 'sheet',    label: '📄 Today’s Sheet' },
   { key: 'tomorrow', label: '📄 Tomorrow' },
 ]
@@ -504,6 +506,7 @@ export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = nul
       />
 
       {view === 'read'     && <TheRead players={players} onPlayerClick={onPlayerClick} odds={odds} />}
+      {view === 'short'    && <Shortlist players={players} odds={odds} onPlayerClick={onPlayerClick} />}
       {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
       {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
     </div>

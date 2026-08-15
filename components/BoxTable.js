@@ -43,7 +43,12 @@ const BAT_COLS = [
   ['bb', 'BB'], ['k', 'K'], ['lob', 'LOB'],
 ]
 
-export function BattingBox({ side, highlight, onPlayerClick, title }) {
+// `marks` (2026-08-15): {up, deck, hole} — numeric ids from the live
+// snapshot. Restores the AT BAT / ON DECK / IN HOLE tags Donovan built into
+// the old At-the-Plate box (his 9d843cd); that block couldn't survive the
+// box-score rewrite because it read variables the rewrite removed, so the
+// tags come back here, in the shared table, where the Boxes tab gets them too.
+export function BattingBox({ side, highlight, onPlayerClick, title, marks = null }) {
   const rows = side?.batting || []
   if (!rows.length) return null
   const t = side?.totals?.batting
@@ -91,6 +96,9 @@ export function BattingBox({ side, highlight, onPlayerClick, title }) {
                     {p.sub && <span style={{ color: C.text3, marginRight: 3 }}>↳</span>}
                     {p.name}
                     <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>{p.pos}</span>
+                    {marks?.up === p.id && <b title="At the plate right now" style={{ fontSize: 7.5, fontWeight: 900, color: '#4ade80', marginLeft: 4, letterSpacing: '.05em' }}>AT BAT</b>}
+                    {marks?.deck === p.id && <b title="On deck" style={{ fontSize: 7.5, fontWeight: 900, color: '#FCD34D', marginLeft: 4, letterSpacing: '.05em' }}>ON DECK</b>}
+                    {marks?.hole === p.id && <b title="In the hole — two away" style={{ fontSize: 7.5, fontWeight: 900, color: '#a78bfa', marginLeft: 4, letterSpacing: '.05em' }}>IN HOLE</b>}
                   </td>
                   {BAT_COLS.map(([k]) => {
                     const v = p[k]

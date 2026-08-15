@@ -5,10 +5,11 @@ import { nameOf, teamOf } from '../../lib/player'
 import { groupGames } from '../../lib/data'
 import { CATEGORIES } from '../BotPicksStrip'
 import OddsLine from '../OddsLine'
+import { readLedger } from '../../lib/myPicks'
 import { quoteFor } from '../../lib/odds'
 import {
-  BAR, isLocked, getPicks, savePick, clearPick, slotKey,
-  gradeSlate, recordNight, ledgerTotals, exportStore, importStore, clearAll,
+  BAR, isLocked, getPicks, savePick, clearPick, setConviction, slotKey,
+  CONVICTION, gradeSlate, recordNight, ledgerTotals, exportStore, importStore, clearAll,
 } from '../../lib/myPicks'
 
 // 🎫 MY PICKS — put your guy in the bot's slot, get graded on it.
@@ -31,6 +32,47 @@ import {
 // different hitters as "the bot's pick" is a failure this project has had.
 
 const pctTxt = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)
+
+// 🟩 YOUR NIGHTS, AS A STRIP (2026-08-15, "make the my pick page fun and
+// interactive"). Each square is one graded night of head-to-head: green you
+// beat the bot on contested slots, red it beat you, grey a push or a night
+// you didn't contest. The streak counter only speaks past two, because a
+// one-night streak is a Tuesday. Same visual language as the Patterns board,
+// so the site keeps one way of drawing a run.
+function NightStrip({ bump }) {
+  const rows = useMemo(() => readLedger().slice(-20), [bump])
+  if (rows.length < 2) return null
+  const verdict = (r) => (r.mw > r.bw ? 1 : r.bw > r.mw ? -1 : 0)
+  let streak = 0
+  const last = verdict(rows[rows.length - 1])
+  if (last !== 0) {
+    for (let i = rows.length - 1; i >= 0 && verdict(rows[i]) === last; i--) streak += 1
+  }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
+      <span style={{ display: 'inline-flex', gap: 2 }}>
+        {rows.map((r, i) => {
+          const v = verdict(r)
+          return (
+            <span key={r.date || i}
+              title={`${r.date} — you ${r.mw ?? 0}, bot ${r.bw ?? 0} on ${r.n ?? 0} contested`}
+              style={{
+                width: 7, height: 7, borderRadius: 1.5,
+                background: v > 0 ? '#4ade80' : v < 0 ? 'rgba(248,113,113,.8)' : 'rgba(255,255,255,.14)',
+                boxShadow: i >= rows.length - streak && last !== 0 && v === last
+                  ? `0 0 4px ${last > 0 ? 'rgba(74,222,128,.6)' : 'rgba(248,113,113,.5)'}` : 'none',
+              }} />
+          )
+        })}
+      </span>
+      {streak >= 2 && (
+        <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: last > 0 ? '#4ade80' : '#f87171' }}>
+          {last > 0 ? `${streak} nights over the bot` : `bot's had you ${streak} straight`}
+        </b>
+      )}
+    </span>
+  )
+}
 
 function Pill({ tone, children, title }) {
   const col = tone === 'won' ? C.green || '#4ade80'
@@ -147,6 +189,10 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
 
   const totals = useMemo(() => ledgerTotals(), [bump, picks])
 
+  function convict(slot, key) {
+    setPicks({ ...setConviction(slateDate, slot.game_pk, slot.role, key) })
+  }
+
   function choose(slot, pid) {
     const next = pid
       ? savePick(slateDate, slot.game_pk, slot.role,
@@ -204,6 +250,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
           <span style={{ fontSize: 10, color: C.text3 }}>
             {totals.nights} night{totals.nights === 1 ? '' : 's'} · saved on this device only
           </span>
+          <NightStrip bump={bump} />
         </div>
 
         {totals.nights > 0 ? (
@@ -249,6 +296,37 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                     sub={`${totals.cardBotWon}/${totals.cardBotN} slots`} />
               <Stat label="Overrides made" value={totals.overrides} sub="all time" />
             </div>
+
+            {/* 🎚 DO YOUR TIERS MEAN ANYTHING — the only reason conviction
+                exists. One sentence, in the page's own language, and it stays
+                quiet until two tiers have five contested slots each; below
+                that any comparison is a coin flip narrating itself. */}
+            {(() => {
+              const cv = totals.conv || {}
+              const tiers = ['lock', 'strong', 'lean']
+                .map((k) => ({ k, ...cv[k] }))
+                .filter((t) => (t.n || 0) >= 5)
+              if (tiers.length < 2) return null
+              const rate = (t) => (100 * t.w) / t.n
+              const hi = tiers[0], lo = tiers[tiers.length - 1]
+              const gap = rate(hi) - rate(lo)
+              return (
+                <div style={{ fontSize: 11, color: C.text2, marginTop: 9, lineHeight: 1.6 }}>
+                  🎚 {gap >= 10 ? (
+                    <>Your tiers mean something: <b style={{ color: '#4ade80' }}>{hi.k}s</b> beat the bot{' '}
+                      <b style={{ fontFamily: NUM_FONT }}>{rate(hi).toFixed(0)}%</b> of the time against{' '}
+                      <b style={{ fontFamily: NUM_FONT }}>{rate(lo).toFixed(0)}%</b> for your {lo.k}s — trust the feeling.</>
+                  ) : gap <= -10 ? (
+                    <>Uncomfortable but real: your <b style={{ color: '#f87171' }}>{hi.k}s</b> do WORSE than your {lo.k}s
+                      ({rate(hi).toFixed(0)}% vs {rate(lo).toFixed(0)}%). The stronger you feel, the more the bot is right.</>
+                  ) : (
+                    <>Your {hi.k}s and {lo.k}s beat the bot at about the same rate
+                      ({rate(hi).toFixed(0)}% vs {rate(lo).toFixed(0)}%) — so far the tier is decoration, which is
+                      worth knowing before you size a bet on one.</>
+                  )}
+                </div>
+              )
+            })()}
 
             <div style={{ fontSize: 10.5, color: C.text3, marginTop: 10, lineHeight: 1.6 }}>
               <b style={{ color: C.text2 }}>Head to head</b> is the number that means something —
@@ -393,6 +471,36 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                     )}
                     {row && mine && outcomePill(row.mineOut, !reporting.has(g.game_pk))}
                     {mine && <OddsLine quote={quoteFor(odds, { player_id: mine.pid, name: mine.name }, cat.role)} compact />}
+                    {/* 🎚 HOW SURE ARE YOU. Three words, same as the NFL card,
+                        because the payoff is comparing your own tiers later:
+                        if your locks hit like your leans, the tier was
+                        decoration — and the ledger below will say so. Chips,
+                        not a dropdown: changing your mind should be one tap.
+                        Frozen with the slot at first pitch. */}
+                    {mine && !locked && (
+                      <span style={{ display: 'inline-flex', gap: 3 }}>
+                        {CONVICTION.map(([k, label, why]) => {
+                          const on = (mine.conviction || 'strong') === k
+                          return (
+                            <button key={k} onClick={() => convict(s, k)} title={why} style={{
+                              fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900, letterSpacing: '.05em',
+                              padding: '1.5px 6px', borderRadius: 999, cursor: 'pointer',
+                              border: `1px solid ${on ? cat.color : C.border}`,
+                              background: on ? `${cat.color}22` : 'transparent',
+                              color: on ? cat.color : C.text3,
+                              textTransform: 'uppercase',
+                            }}>{label}</button>
+                          )
+                        })}
+                      </span>
+                    )}
+                    {mine && locked && (
+                      <span title="How sure you were, frozen at first pitch with the slot" style={{
+                        fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900, letterSpacing: '.05em',
+                        padding: '1.5px 6px', borderRadius: 999, textTransform: 'uppercase',
+                        border: `1px solid ${cat.color}66`, color: cat.color, background: `${cat.color}14`,
+                      }}>{mine.conviction || 'strong'}</span>
+                    )}
 
                     {row?.contested && (
                       <Pill tone={row.mineOut && !row.botOut ? 'won' : !row.mineOut && row.botOut ? 'lost' : 'void'}>

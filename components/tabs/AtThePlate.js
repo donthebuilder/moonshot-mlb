@@ -1145,6 +1145,7 @@ function BoxScore({ g, byId, watchIds, onPick, abbrs }) {
               side={box[sd]}
               title={box[sd]?.team?.name || abbrs?.[sd === 'away' ? g.awayId : g.homeId] || sd}
               highlight={watched}
+              marks={{ up: Number(g.upBatter) || null, deck: Number(g.onDeck) || null, hole: Number(g.inHole) || null }}
               onPlayerClick={onPick ? (p) => onPick(p.id) : undefined}
             />
             <PitchingBox side={box[sd]} />
