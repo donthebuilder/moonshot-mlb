@@ -181,8 +181,13 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar }) {
         </div>
       )}
 
-      {/* the bars — the same HitRate chart, now following the matrix */}
-      <HitRate key={active[0]} log={log} market={active[0]} defaultBar={lineFor(active) + 0.5} />
+      {/* the bars — the same HitRate chart, following the matrix. The KEY
+          carries the LINE as well as the market: HitRate seeds its line from
+          defaultBar in useState only, so without the line in the key a chip
+          click re-graded the matrix row while the chart kept answering the
+          OLD line — two chip rows, one screen, two different answers (the
+          audit's find). Remounting on either change keeps them in step. */}
+      <HitRate key={`${active[0]}-${lineFor(active)}`} log={log} market={active[0]} defaultBar={lineFor(active) + 0.5} />
 
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         % of games over the line, from his own log — re-graded in the browser when you move a chip,

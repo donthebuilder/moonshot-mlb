@@ -164,7 +164,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
   )
 }
 
-export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
+export default function HitsHRR({ players, allPlayers = [], onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
   const [bview, setBview] = useState('boards')
   const [view, setView] = useState('hr')
   const { filtered, state } = useBoardFilter(players)
@@ -173,7 +173,9 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
     return (
       <div>
       <BoardPills view={bview} setView={setBview} />
-        <Runs players={players} onPlayerClick={onPlayerClick} />
+        {/* allPlayers: a streak board silently narrowed by the header's team
+            filter reads as the whole board — the audit's wrong-number find. */}
+        <Runs players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} />
       </div>
     )
   }

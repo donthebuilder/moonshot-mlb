@@ -65,6 +65,14 @@ export default function TruePrice({ onPlayerClick }) {
 
   const rows = useMemo(() => flatten(hist, { minN }), [hist, minN])
 
+  // Rows sort by how much the sample backs them FIRST, so a proven small gap
+  // outranks an unproven big one. (Restored 2026-08-15 — the sentences rewrite
+  // of the Reality Check swallowed these two lines and the default sort threw
+  // `rank is not defined`, which the render walk caught only after the walk
+  // itself was fixed to actually reload between tabs.)
+  const RANK = { real: 3, leaning: 2, noise: 1, thin: 0 }
+  const rank = (r) => RANK[r.trust] ?? 0
+
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     let r = rows.filter((x) => x.n >= minN)

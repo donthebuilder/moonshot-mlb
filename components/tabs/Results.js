@@ -752,15 +752,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) { setDayData(j); setDayState(j ? 'done' : 'missing') } })
       .catch(() => { if (alive) setDayState('error') })
-    if (rview === 'trueprice') {
-    return (
-      <div>
-      <ResultPills view={rview} setView={setRview} />
-        <TruePrice onPlayerClick={onPlayerClick} />
-      </div>
-    )
-  }
-  return () => { alive = false }
+    return () => { alive = false }
   }, [day])
 
   // Everything below reads `view`, so the whole tab follows the picker.
@@ -918,6 +910,19 @@ export default function Results({ results, backtest, players = [], onPlayerClick
     )
   }
 
+  // 🏷 THE FOLD, DONE RIGHT. Round one injected this inside the graded-day
+  // effect, where React 18 treats returned JSX as the effect's CLEANUP and
+  // calls it on unmount — a TypeError with no error boundary above it, i.e.
+  // a blank page, found by the render audit before anyone hit it live. The
+  // branch now sits at the real return, after every hook.
+  if (rview === 'trueprice') {
+    return (
+      <div>
+        <ResultPills view={rview} setView={setRview} />
+        <TruePrice onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
   return (
     <div>
       <PanelTitle

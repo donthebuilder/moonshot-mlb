@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, oppOf, clean } from '../lib/player'
+import { nameOf, teamOf, oppOf } from '../lib/player'
 import { hrScore } from '../lib/player'
 import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
@@ -118,7 +118,12 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick }) 
         )}
       </div>
 
+      {/* key={view}: DenseTable keeps its own sort stack, and once a header
+          has been clicked that stack overrides row order — so the profile/fit
+          pills re-highlighted and nothing moved (the audit's find). Remounting
+          on the toggle resets the stack, which is what the pill promises. */}
       <DenseTable
+        key={view}
         rows={rows}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
         initialSort={null}

@@ -196,7 +196,7 @@ function sidesOf(g) {
   })
 }
 
-export default function Games({ players, slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick }) {
+export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick }) {
   const [gview, setGview] = useState('games')
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
@@ -232,15 +232,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, res
       t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 30000 : 120000)
     }).catch(() => {})
     pull()
-    if (gview === 'boxes') {
-    return (
-      <div>
-      <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
-        <Boxes players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-      </div>
-    )
-  }
-  return () => { alive = false; clearInterval(t) }
+    return () => { alive = false; clearInterval(t) }
   }, [])
   // 🔗 build a pair straight off the grid (2026-08-09). Two legs max; tapping
   // a third rolls the oldest off so it always reads as "these two".
@@ -323,6 +315,21 @@ export default function Games({ players, slateDate = '', pairHistorySummary, res
     })
   }
 
+  // 📋 THE FOLD, DONE RIGHT THIS TIME. Round one injected this branch INSIDE
+  // the live-poll effect — the render audit found the pill turned orange and
+  // showed nothing, which is exactly what Donovan reported. It now sits at
+  // the real return, after every hook, so the hook order never changes.
+  // allPlayers, not players: the box score of a game is not subject to the
+  // header's team filter — filtering a box makes games appear to lose their
+  // roster.
+  if (gview === 'boxes') {
+    return (
+      <div>
+        <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <Boxes players={allPlayers.length ? allPlayers : players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
   return (
     <div>
       <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
