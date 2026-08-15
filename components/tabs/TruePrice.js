@@ -258,65 +258,70 @@ const cell = { textAlign: 'center', fontSize: 11, padding: '4px 6px', whiteSpace
 
 // 💵 Hit rate is not the finish line. Everything else on this page is a
 // percentage; this is the only band that says whether a unit came back.
+//
+// WRITTEN AS SENTENCES, NOT TILES (2026-08-15, second pass). Donovan: "i dont
+// like the tile style id rather text just like the storylines section." He's
+// right about this one in particular — a grid of six ROI tiles reads like a
+// dashboard you have to decode, and every one of these numbers needs a clause
+// after it anyway ("+30% and still inside its own error bar" is the finding,
+// not "+30%"). Storylines' shape — an icon, then a line you can read — carries
+// the caveat for free, which a tile never can.
 function RealityCheck({ hist }) {
   const rows = roiRows(hist)
   if (!rows.length) return null
   const fmt = (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
+    <div style={{
+      background: `linear-gradient(155deg, ${C.bg2}, rgba(252,211,77,.03))`,
+      border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11.5, fontWeight: 900 }}>💵 Reality check</span>
         <span style={{ fontSize: 9, color: C.text3 }}>
-          flat one unit a bet at the price it was actually offered — a +700 homer can miss
-          most nights and still profit, and a −170 prop can hit most nights and still bleed
+          flat one unit a bet at the price it was actually offered
         </span>
       </div>
-      <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))' }}>
-        {rows.map((r) => {
-          const v = roiVerdict(r.all)
-          const best = [...r.bands].sort((a, b) => b.roi - a.roi)[0]
-          return (
-            <div key={r.market} title={r.bands.length
-              ? r.bands.map((b) => `${b.band}: ${b.n} bets · ${b.hit_rate}% hit · ROI ${b.roi > 0 ? '+' : ''}${b.roi}% ±${b.roi_se}`).join('\n')
-              : undefined}
-              style={{
-                border: `1px solid ${v.tone}44`, background: `${v.tone}0d`,
-                borderRadius: 10, padding: '8px 11px', minWidth: 0,
-              }}>
-              <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>
-                {r.label}
-              </div>
-              <div style={{ fontFamily: NUM_FONT, fontSize: 18, fontWeight: 900, color: v.tone, lineHeight: 1.25 }}>
-                {fmt(r.all.roi)}
-              </div>
-              <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, lineHeight: 1.5 }}>
-                ±{r.all.roi_se} · {r.all.n} bets · {r.all.hit_rate}% hit
-                <br />
-                <b style={{ color: v.tone }}>{v.label}</b>
-                {best && best.roi > r.all.roi + 5 && !best.thin && (
-                  <span> · best in the <b style={{ color: C.text2 }}>{best.band}</b> band</span>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
+      {rows.map((r) => {
+        const v = roiVerdict(r.all)
+        const best = [...r.bands].sort((a, b) => b.roi - a.roi)[0]
+        return (
+          <div key={r.market} title={r.bands.length
+            ? r.bands.map((b) => `${b.band}: ${b.n} bets · ${b.hit_rate}% hit · ROI ${b.roi > 0 ? '+' : ''}${b.roi}% ±${b.roi_se}`).join('\n')
+            : undefined}
+            style={{
+              display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11,
+              lineHeight: 1.55, padding: '3px 0', color: C.text2,
+            }}>
+            <span style={{ flexShrink: 0 }}>{v.key === 'up' ? '💰' : v.key === 'down' ? '🩸' : '➖'}</span>
+            <span style={{ minWidth: 0 }}>
+              <b style={{ color: C.text, display: 'inline-block', minWidth: 92, verticalAlign: 'top' }}>{r.label}</b>
+              {' '}came back <b style={{ fontFamily: NUM_FONT, color: v.tone }}>{fmt(r.all.roi)}</b> over{' '}
+              <b style={{ fontFamily: NUM_FONT }}>{r.all.n.toLocaleString()}</b> priced bets, hitting{' '}
+              <b style={{ fontFamily: NUM_FONT }}>{r.all.hit_rate}%</b> of them
+              {r.all.thin
+                ? <> — <span style={{ color: C.text3 }}>too few bets to mean anything yet</span>.</>
+                : v.key === 'flat'
+                  ? <> — but the error bar is <b style={{ fontFamily: NUM_FONT }}>±{r.all.roi_se}</b>, so that is
+                      <span style={{ color: v.tone }}> indistinguishable from break-even</span>.</>
+                  : <> — <span style={{ color: v.tone }}>{v.label}</span>, and it clears its own
+                      <b style={{ fontFamily: NUM_FONT }}> ±{r.all.roi_se}</b> error bar.</>}
+              {best && !best.thin && best.roi > r.all.roi + 5 && (
+                <> Best in the <b style={{ color: C.text }}>{best.band}</b> band, at{' '}
+                  <b style={{ fontFamily: NUM_FONT }}>{fmt(best.roi)}</b>.</>
+              )}
+            </span>
+          </div>
+        )
+      })}
+      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         ROI&apos;s error bar comes from the RETURNS, not the win rate — one +900 winner moves a small
-        book more than twenty −150 winners — so a cohort can post +30% and still be indistinguishable
-        from zero. Nothing is called profitable until it clears two of its own standard errors. Hover
-        a card for the same split by price band, which is where a model that is right about WHO and
+        book more than twenty −150 winners — so a book can post +30% and still be break-even. Hover a
+        line for the same split by price band, which is where a model that is right about WHO and
         wrong about AT WHAT NUMBER gives itself away.
       </div>
     </div>
   )
 }
-
-// Rows sort by how much the sample backs them FIRST, so a proven small gap
-// outranks an unproven big one. This is the whole reason the page can be
-// trusted at a glance.
-const RANK = { real: 3, leaning: 2, noise: 1, thin: 0 }
-const rank = (r) => RANK[r.trust] ?? 0
 
 function Shell({ days, settled, stamp, children }) {
   return (

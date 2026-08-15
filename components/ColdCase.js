@@ -52,15 +52,16 @@ const fmt = (v) => (v == null ? '—' : `${v.toFixed(0)}%`)
 // wearing a costume.
 const se = (p, n) => (n > 0 && p != null ? 100 * Math.sqrt(Math.max((p / 100) * (1 - p / 100), 1e-6) / n) : null)
 
-function Stat({ label, value, sub, tone }) {
+// The Storylines shape: an icon, then a line you can read. A number with its
+// clause attached beats a number in a box, because every number here needs one.
+function Line({ icon, children }) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-      borderRadius: 9, padding: '7px 11px', minWidth: 0, flex: '1 1 128px',
+      display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11,
+      lineHeight: 1.55, padding: '3px 0', color: C.text2,
     }}>
-      <div style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>{label}</div>
-      <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, color: tone || C.text, lineHeight: 1.2 }}>{value}</div>
-      {sub && <div style={{ fontSize: 9, color: C.text3, marginTop: 1, lineHeight: 1.4 }}>{sub}</div>}
+      <span style={{ flexShrink: 0 }}>{icon}</span>
+      <span style={{ minWidth: 0 }}>{children}</span>
     </div>
   )
 }
@@ -210,33 +211,41 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
-        <Stat
-          label="Since his last"
-          value={read.sinceIdx === 0 ? 'last game' : `${read.sinceIdx}g`}
-          tone={read.sinceIdx === 0 ? '#f87171' : read.median && read.sinceIdx > read.median ? C.orange : C.text}
-          sub={read.last ? `${read.last.date} ${read.last.home ? 'vs' : '@'} ${ab} · ${read.last.h}-${read.last.ab}` : ''}
-        />
-        <Stat
-          label="Blank rate"
-          value={fmt(read.rate)}
-          sub={`${read.donuts} of ${read.n} games${read.median != null ? ` · one every ~${read.median}` : ''}`}
-        />
-        <Stat
-          label="Answers a blank"
-          value={read.afterHit == null ? '—' : fmt(read.afterHit)}
-          tone={!bounceReal ? C.text : bounceGap > 0 ? '#4ade80' : '#f87171'}
-          sub={read.after
-            ? `1+ hit the next game (${read.after} times) · he's ${fmt(read.baseHit)} overall`
-            : 'no blank has been followed by a logged game yet'}
-        />
-        <Stat
-          label="Blank at-bats"
-          value={read.avgAbDonut == null ? '—' : read.avgAbDonut.toFixed(1)}
-          sub={read.avgAbOther != null
-            ? `vs ${read.avgAbOther.toFixed(1)} otherwise${read.shortDonuts ? ` · ${read.shortDonuts} came on 2 trips or fewer` : ''}`
-            : ''}
-        />
+      {/* SENTENCES, NOT TILES (2026-08-15). Donovan: "i dont like the tile
+          style id rather text just like the storylines section." Four big
+          numbers in four boxes made you decode a dashboard; every one of them
+          needed a clause anyway — "31%" is not the finding, "he blanks 31% of
+          the time, one every ~3 games" is. Same shape Storylines uses: an
+          icon, then a line. */}
+      <div style={{ marginBottom: 9 }}>
+        <Line icon="🍩">
+          <b style={{ color: C.text }}>Last blank</b>{' '}
+          {read.sinceIdx === 0
+            ? <>was <b style={{ color: '#f87171' }}>his last game</b></>
+            : <><b style={{ fontFamily: NUM_FONT, color: read.median && read.sinceIdx > read.median ? C.orange : C.text }}>{read.sinceIdx}</b> games ago</>}
+          {read.last && <> — {read.last.date} {read.last.home ? 'vs' : '@'} {ab}, {read.last.h}-for-{read.last.ab}</>}
+          {read.median != null && <>. He has one every <b style={{ fontFamily: NUM_FONT }}>~{read.median}</b> games</>}.
+        </Line>
+        <Line icon="📉">
+          <b style={{ color: C.text }}>Blank rate</b>{' '}
+          <b style={{ fontFamily: NUM_FONT, color: C.text }}>{fmt(read.rate)}</b> —{' '}
+          {read.donuts} of his {read.n} games this season.
+        </Line>
+        {read.after > 0 && (
+          <Line icon="↩️">
+            <b style={{ color: C.text }}>After one</b> he gets a hit{' '}
+            <b style={{ fontFamily: NUM_FONT, color: !bounceReal ? C.text : bounceGap > 0 ? '#4ade80' : '#f87171' }}>{fmt(read.afterHit)}</b>{' '}
+            of the time ({read.after} chances), against <b style={{ fontFamily: NUM_FONT }}>{fmt(read.baseHit)}</b> normally.
+          </Line>
+        )}
+        {read.avgAbDonut != null && (
+          <Line icon="🪑">
+            <b style={{ color: C.text }}>Blank at-bats</b>{' '}
+            <b style={{ fontFamily: NUM_FONT }}>{read.avgAbDonut.toFixed(1)}</b>
+            {read.avgAbOther != null && <> against <b style={{ fontFamily: NUM_FONT }}>{read.avgAbOther.toFixed(1)}</b> otherwise</>}
+            {read.shortDonuts ? <> — <b style={{ fontFamily: NUM_FONT }}>{read.shortDonuts}</b> of them came on two trips or fewer, which is a night he barely got</> : ''}.
+          </Line>
+        )}
       </div>
 
       {/* THE BOUNCE, said in words, because the number alone doesn't say which
@@ -273,21 +282,13 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
           <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800, marginBottom: 5 }}>
             Where his blanks come from
           </div>
-          <div style={{ display: 'grid', gap: 5, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-            {read.splits.slice(0, 3).map((s) => (
-              <div key={s.label} style={{
-                background: 'rgba(248,113,113,.06)', border: '1px solid rgba(248,113,113,.22)',
-                borderRadius: 9, padding: '7px 11px',
-              }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, color: C.text }}>
-                  Blanks <b style={{ color: '#f87171' }}>{s.hiPct.toFixed(0)}%</b> {s.hi}
-                </div>
-                <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
-                  vs {s.loPct.toFixed(0)}% {s.lo} · {s.hiN}/{s.loN} games · {s.note}
-                </div>
-              </div>
-            ))}
-          </div>
+          {read.splits.slice(0, 3).map((s2) => (
+            <Line key={s2.label} icon="🔻">
+              He blanks <b style={{ color: '#f87171', fontFamily: NUM_FONT }}>{s2.hiPct.toFixed(0)}%</b> {s2.hi} against{' '}
+              <b style={{ fontFamily: NUM_FONT }}>{s2.loPct.toFixed(0)}%</b> {s2.lo}
+              <span style={{ color: C.text3 }}> — {s2.hiN}/{s2.loN} games, {s2.note}</span>.
+            </Line>
+          ))}
         </div>
       )}
 
