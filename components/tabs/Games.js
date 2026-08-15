@@ -857,13 +857,29 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         </span>
                         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
                         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT, flexShrink: 0 }}>
-                          {temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
-                          {wind > 0 && <span title={`Wind: ${wLbl || 'direction n/a'}`} style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}</span>}
-                          {parkF > 0 && <span title="Park HR factor — above 1.00 the yard helps hitters" style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>×{parkF.toFixed(2)}</span>}
+                          {/* Same reason as the duel below: open, the air is a
+                              full sentence in GameDeepDive's AirLine. */}
+                          {!isActive && temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
+                          {!isActive && wind > 0 && <span title={`Wind: ${wLbl || 'direction n/a'}`} style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}</span>}
+                          {!isActive && parkF > 0 && <span title="Park HR factor — above 1.00 the yard helps hitters" style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>×{parkF.toFixed(2)}</span>}
                           <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
                         </span>
                       </div>
 
+                      {/* ── THE HEADER STEPS BACK WHEN THE GAME IS OPEN ──────
+                          (2026-08-15) This strip is a CARD SUMMARY: closed, the
+                          duel and the five pick chips are the whole reason to
+                          scan the grid. Open, they are said again six pixels
+                          below and at length — GameDeepDive now writes both
+                          arms out as a read and both sides' designated picks as
+                          cards carrying their market, their bar and the book's
+                          price. Two arm lines above two arm paragraphs, and a
+                          cramped chip row above the same picks with more on
+                          them, is the density Donovan screenshotted.
+                          So: closed keeps everything, open keeps identity —
+                          teams, lineup state, first pitch, the air, the caret.
+                          Nothing is lost in either state. */}
+                      {!isActive && (<>
                       {/* the pitcher duel — each side wears the arm ITS bats face */}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 7 }}>
                         {sides.map((s) => (
@@ -924,12 +940,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           })}
                         </div>
                       )}
+                      </>)}
                     </div>
 
                     {/* ── expanded: the full read, in place ── */}
                     {isActive && (
                       <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} />
                         <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
 
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
