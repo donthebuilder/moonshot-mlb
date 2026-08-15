@@ -17,6 +17,7 @@ import StaleBanner from './StaleBanner'
 
 import Home from './tabs/Home'
 import MyPicks from './tabs/MyPicks'
+import TruePrice from './tabs/TruePrice'
 import Guide from './tabs/Guide'
 import Games from './tabs/Games'
 import AtThePlate from './tabs/AtThePlate'
@@ -40,6 +41,10 @@ import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
+
+// Tabs that read no slate data and must render even when tonight's card
+// hasn't been built. See the gate below.
+const SLATE_FREE = new Set(['trueprice'])
 
 export default function Dashboard() {
   const [mode, setMode] = useState('today')
@@ -383,9 +388,16 @@ export default function Dashboard() {
         <TabExplainer tab={tab} />
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
-        {loading ? (
+        {/* SLATE-FREE TABS (2026-08-15). Every tab used to sit behind the
+            slate: no slate, no page. True Price doesn't read the slate at
+            all — it's a season of settled prices — so gating it meant the
+            one surface that still has something to say on a dark day, an
+            off-season morning, or during a slate outage was the one showing
+            "Loading slate data…". Anything else that genuinely doesn't
+            depend on tonight's card belongs in this set too. */}
+        {loading && !SLATE_FREE.has(tab) ? (
           <Empty text="Loading slate data…" />
-        ) : showEmpty ? (
+        ) : showEmpty && !SLATE_FREE.has(tab) ? (
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
           <div key={tab} className="tab-fade">
@@ -414,6 +426,7 @@ export default function Dashboard() {
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} />}
             {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} odds={odds} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
+            {tab === 'trueprice'  && <TruePrice onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
