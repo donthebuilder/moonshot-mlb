@@ -1,4 +1,5 @@
 'use client'
+import TruePrice from './TruePrice'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { gradedResultsUrl } from '../../lib/dataSource'
@@ -713,6 +714,7 @@ function MultiHitCluster({ slots }) {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function Results({ results, backtest, players = [], onPlayerClick }) {
+  const [rview, setRview] = useState('results')
   // OPENS ON OVERVIEW (2026-08-09, owner: "open up results at Overview").
   // It used to open on the season Report card, which meant the first thing you
   // saw after a slate was a season average rather than last night. Overview is
@@ -750,7 +752,15 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) { setDayData(j); setDayState(j ? 'done' : 'missing') } })
       .catch(() => { if (alive) setDayState('error') })
-    return () => { alive = false }
+    if (rview === 'trueprice') {
+    return (
+      <div>
+      <ResultPills view={rview} setView={setRview} />
+        <TruePrice onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
+  return () => { alive = false }
   }, [day])
 
   // Everything below reads `view`, so the whole tab follows the picker.
@@ -806,6 +816,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   // above survives every re-render of the page.
   const archiveBar = (
     <div style={{ marginBottom: 12 }}>
+      <ResultPills view={rview} setView={setRview} />
       {day === 'live' ? (
         <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 900, color: C.text }}>
@@ -1244,6 +1255,22 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function ResultPills({ view, setView }) {
+  return (
+    <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+      {[['results', '🧾 Results'], ['trueprice', '🏷 True Price']].map(([k, label]) => (
+        <button key={k} onClick={() => setView(k)} style={{
+          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+          fontWeight: 800, fontFamily: NUM_FONT,
+          border: `1px solid ${view === k ? C.orange : C.border}`,
+          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
+          color: view === k ? C.orange : C.text3,
+        }}>{label}</button>
+      ))}
     </div>
   )
 }

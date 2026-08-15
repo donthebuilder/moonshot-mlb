@@ -1,4 +1,5 @@
 'use client'
+import PairHistory from './PairHistory'
 import { useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Empty, btnStyle } from '../ui'
@@ -1393,6 +1394,7 @@ const VIEWS = [
 ]
 
 export default function Pairs({ players=[], pairBuilder, pairHistorySummary, results, focusPlayerId, onClearFocus, onPlayerClick }) {
+  const [pview, setPview] = useState('pairs')
   const [view, setView] = useState('today')
 
   const homers = useMemo(() => {
@@ -1406,8 +1408,17 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
   // is to say it landed at chance.
   const evPairs = useMemo(() => buildPairs(players, { limit: 6 }), [players])
 
+  if (pview === 'history') {
+    return (
+      <div>
+      <PairPills view={pview} setView={setPview} />
+        <PairHistory summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
   return (
     <div>
+      <PairPills view={pview} setView={setPview} />
       {evPairs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
@@ -1487,6 +1498,22 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
         <PairBoard pairBuilder={pairBuilder} results={results} onPlayerClick={onPlayerClick} />
       )}
       {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />}
+    </div>
+  )
+}
+
+function PairPills({ view, setView }) {
+  return (
+    <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+      {[['pairs', '👥 Pairs'], ['history', '📜 Pair History']].map(([k, label]) => (
+        <button key={k} onClick={() => setView(k)} style={{
+          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+          fontWeight: 800, fontFamily: NUM_FONT,
+          border: `1px solid ${view === k ? C.orange : C.border}`,
+          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
+          color: view === k ? C.orange : C.text3,
+        }}>{label}</button>
+      ))}
     </div>
   )
 }

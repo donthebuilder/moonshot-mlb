@@ -3,6 +3,7 @@ import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { roleBadge } from '../../lib/roleBadge'
 import PriceBubble from '../PriceBubble'
+import Boxes from './Boxes'
 import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
@@ -196,6 +197,7 @@ function sidesOf(g) {
 }
 
 export default function Games({ players, slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick }) {
+  const [gview, setGview] = useState('games')
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
   // Donovan: "make sure the live wire and games can update the lineups — does
@@ -230,7 +232,15 @@ export default function Games({ players, slateDate = '', pairHistorySummary, res
       t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 30000 : 120000)
     }).catch(() => {})
     pull()
-    return () => { alive = false; clearInterval(t) }
+    if (gview === 'boxes') {
+    return (
+      <div>
+      <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <Boxes players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
+  return () => { alive = false; clearInterval(t) }
   }, [])
   // 🔗 build a pair straight off the grid (2026-08-09). Two legs max; tapping
   // a third rolls the oldest off so it always reads as "these two".
@@ -315,6 +325,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, res
 
   return (
     <div>
+      <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
       <PanelTitle
         title="Games"
         sub={`${games.length} games · ${slots.length} time slots · ${
@@ -1089,6 +1100,24 @@ export default function Games({ players, slateDate = '', pairHistorySummary, res
         pairHistorySummary={pairHistorySummary}
         onPlayerClick={onPlayerClick}
       />
+    </div>
+  )
+}
+
+// A view pill row — the fold pattern (2026-08-15). The folded page keeps its
+// own tab key alive for deep links; this is just its seat at the host's table.
+function ViewPills({ views, view, setView }) {
+  return (
+    <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
+      {views.map(([k, label]) => (
+        <button key={k} onClick={() => setView(k)} style={{
+          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+          fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+          border: `1px solid ${view === k ? C.orange : C.border}`,
+          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
+          color: view === k ? C.orange : C.text3,
+        }}>{label}</button>
+      ))}
     </div>
   )
 }

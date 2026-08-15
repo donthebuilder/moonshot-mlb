@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { C, NUM_FONT, TABS } from '../lib/theme'
+import { C, NUM_FONT, TABS, NAV, NAV_HOME } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
 import SlateTiles from './SlateTiles'
@@ -175,6 +175,7 @@ function DateBadge({ label }) {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function Header({ tab, setTab, mode, setMode, dateLabel, results, players = [], games = [] }) {
+  const [openGroup, setOpenGroup] = useState(null)
   // TAP TARGET (2026-08-12): the NFL "coming soon" pill carried its note in a
   // bare title= — invisible on a phone, the same gap fixed elsewhere via the
   // InfoDot pattern (see Explain.js's header comment).
@@ -295,26 +296,61 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
         overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
       }}>
         <div style={{ display:'flex', gap:2, paddingBottom:0, minWidth:'max-content' }}>
-          {TABS.map(([key,label]) => {
-            const active = tab === key
+          {/* FIVE GROUPS, NOT TWENTY TABS (2026-08-15, Donovan). Click a
+              group: its first page opens AND the row of its pages drops in
+              below — one click to land somewhere useful, a second to land
+              anywhere. The dropdown closes on pick, on re-click, and when a
+              tab outside it becomes active. Old keys all still render, so
+              nothing bookmarked breaks. */}
+          {NAV.map((g) => {
+            const activeIn = g.keys.some(([k]) => k === tab) || NAV_HOME[tab] === g.label
+            const isOpen = openGroup === g.label
             return (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                style={{
-                  padding:'8px 13px', fontSize:11, fontWeight:active ? 800 : 500,
-                  cursor:'pointer', border:'none', borderRadius:0,
-                  background:'transparent', color:active ? '#f97316' : C.text3,
-                  position:'relative', transition:'color .12s', whiteSpace:'nowrap',
-                }}
-              >
-                {label}
-                {active && <div style={{
-                  position:'absolute', bottom:0, left:0, right:0, height:2,
-                  background:'linear-gradient(90deg, #f97316, #ef4444)',
-                  borderRadius:'2px 2px 0 0',
-                }} />}
-              </button>
+              <div key={g.label} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => {
+                    if (isOpen) { setOpenGroup(null); return }
+                    setOpenGroup(g.label)
+                    if (!activeIn) setTab(g.keys[0][0])
+                  }}
+                  style={{
+                    padding: '8px 15px', fontSize: 11.5, fontWeight: activeIn ? 800 : 500,
+                    cursor: 'pointer', border: 'none', borderRadius: 0,
+                    background: 'transparent', color: activeIn ? '#f97316' : C.text3,
+                    position: 'relative', transition: 'color .12s', whiteSpace: 'nowrap',
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  {g.label}
+                  <span style={{ fontSize: 7, opacity: 0.7 }}>{isOpen ? '▲' : '▼'}</span>
+                  {activeIn && <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+                    background: 'linear-gradient(90deg, #f97316, #ef4444)',
+                    borderRadius: '2px 2px 0 0',
+                  }} />}
+                </button>
+                {isOpen && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, zIndex: 60,
+                    background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
+                    padding: 4, minWidth: 148, boxShadow: '0 10px 28px rgba(0,0,0,.45)',
+                  }}>
+                    {g.keys.map(([k, label]) => (
+                      <button key={k}
+                        onClick={() => { setTab(k); setOpenGroup(null) }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '7px 11px', fontSize: 11.5, borderRadius: 7,
+                          border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                          background: tab === k ? 'rgba(249,115,22,.14)' : 'transparent',
+                          color: tab === k ? '#f97316' : C.text2,
+                          fontWeight: tab === k ? 800 : 500,
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>

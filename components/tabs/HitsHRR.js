@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { btnStyle } from '../ui'
 import RankedBoard from './RankedBoard'
+import Runs from './Runs'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
 import { playerId } from '../../lib/player'
@@ -164,11 +165,21 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 }
 
 export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
+  const [bview, setBview] = useState('boards')
   const [view, setView] = useState('hr')
   const { filtered, state } = useBoardFilter(players)
 
+  if (bview === 'patterns') {
+    return (
+      <div>
+      <BoardPills view={bview} setView={setBview} />
+        <Runs players={players} onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
   return (
     <div>
+      <BoardPills view={bview} setView={setBview} />
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -294,6 +305,22 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
         ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
         : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} />
       }
+    </div>
+  )
+}
+
+function BoardPills({ view, setView }) {
+  return (
+    <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+      {[['boards', '📊 Boards'], ['patterns', '🔥 Patterns']].map(([k, label]) => (
+        <button key={k} onClick={() => setView(k)} style={{
+          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+          fontWeight: 800, fontFamily: NUM_FONT,
+          border: `1px solid ${view === k ? C.orange : C.border}`,
+          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
+          color: view === k ? C.orange : C.text3,
+        }}>{label}</button>
+      ))}
     </div>
   )
 }
