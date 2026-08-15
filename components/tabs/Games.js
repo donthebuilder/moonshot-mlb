@@ -4,7 +4,6 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { roleBadge } from '../../lib/roleBadge'
 import PriceBubble from '../PriceBubble'
 import Boxes from './Boxes'
-import AirBoard from '../AirBoard'
 import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
@@ -334,20 +333,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   return (
     <div>
       <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
-      {/* 🌬 THE AIR (2026-08-15) — the park-factors read, MOONSHOT's way:
-          every building tonight ranked by park × weather, with the bot's own
-          picks standing in each one. Folded because it's a start-of-night
-          read; allPlayers so a team filter can't hide a game's air. */}
-      <details style={{ marginBottom: 10 }}>
-        <summary className="tap-row" style={{
-          cursor: 'pointer', fontSize: 12, fontWeight: 800, padding: '7px 11px',
-          background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
-          listStyle: 'none',
-        }}>🌬 The Air — tonight&apos;s parks ranked, with the picks standing in them</summary>
-        <div style={{ padding: '10px 2px 2px' }}>
-          <AirBoard players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} />
-        </div>
-      </details>
+      {/* 🌬 AirBoard used to mount here (2026-08-15, same day it was built).
+          Deleted: components/ParkBoard.js — "Tonight's conditions", the
+          launch-pads board on Power and behind Scoreboard's "Parks ranked" —
+          has done park × weather since 08-08, richer than the duplicate was.
+          Two park boards diverging is the exact two-answers disease this
+          repo keeps finding; Donovan's own screenshots surfaced it within
+          the hour. Park-factor work goes in ParkBoard. */}
       <PanelTitle
         title="Games"
         sub={`${games.length} games · ${slots.length} time slots · ${

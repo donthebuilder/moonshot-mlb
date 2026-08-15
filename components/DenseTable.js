@@ -1,6 +1,7 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { useSpotlight, SPOT_RING } from '../lib/spotlight'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
 import { explainFor, InfoDot, ExplainBanner } from './Explain'
@@ -68,6 +69,10 @@ export default function DenseTable({
   // you can't see is worse than no stack at all, because you can't tell why
   // the rows moved.
   const [sort, setSort] = useState(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])
+  // ✨ site-wide spotlight — a row whose _raw slate record matches the user's
+  // saved criteria gets the shared ring. Rows without _raw simply can't match.
+  const { match: spotOn } = useSpotlight()
+  const railRef = useRef(null)
 
   // 📖 TAP A HEADER'S ⓘ FOR WHAT THE COLUMN MEANS (2026-08-09).
   //
@@ -150,6 +155,26 @@ export default function DenseTable({
   }, [rows, sort])
 
   const view = sorted.length > maxRows ? sorted.slice(0, maxRows) : sorted
+
+  // 📄 THE CHEAT SHEET (2026-08-15, from ballparkpal's Export CSV). Every
+  // DenseTable can hand you its CURRENT view — sorted how you sorted it —
+  // as a CSV. Raw values, not the formatted strings, so the sheet is
+  // spreadsheet-ready rather than full of '+12%' strings.
+  const exportCsv = () => {
+    const esc = (v) => {
+      const t = v == null ? '' : String(v)
+      return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+    }
+    const cols = columns.filter((c) => !String(c.key).startsWith('_'))
+    const lines = [cols.map((c) => esc(c.label)).join(',')]
+    sorted.forEach((r) => lines.push(cols.map((c) => esc(r[c.key])).join(',')))
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `moonshot-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
   const truncated = sorted.length - view.length
 
   if (!rows.length || !columns.length) return null
@@ -218,10 +243,35 @@ export default function DenseTable({
           a scroll container scrolls away with the content, so it would drift
           off screen exactly when you need it. */}
       <div className="dense-wrap">
-      <div className="dense-scroll" style={{
-        border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'auto',
-        maxHeight, background: C.bg2,
-      }}>
+      {/* ⌨️ KEYBOARD SCROLL (2026-08-15, Donovan: "charts are hard to
+          maneuver on the web because no side scroll... so i can use keyboard
+          to move left or right"). The rail is focusable — click or Tab into
+          any table and the arrow keys pan it, shift for a whole screen. And
+          the horizontal scrollbar is VISIBLE now: a thin rule under wide
+          tables, instead of content silently hiding off the right edge. */}
+      <div
+        className="dense-scroll kb-rail"
+        ref={railRef}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          const el = railRef.current
+          if (!el) return
+          const step = e.shiftKey ? el.clientWidth * 0.9 : 90
+          if (e.key === 'ArrowRight') { el.scrollBy({ left: step, behavior: 'smooth' }); e.preventDefault() }
+          else if (e.key === 'ArrowLeft') { el.scrollBy({ left: -step, behavior: 'smooth' }); e.preventDefault() }
+          else if (e.key === 'ArrowDown') { el.scrollBy({ top: 64, behavior: 'smooth' }); e.preventDefault() }
+          else if (e.key === 'ArrowUp') { el.scrollBy({ top: -64, behavior: 'smooth' }); e.preventDefault() }
+        }}
+        style={{
+          border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'auto',
+          maxHeight, background: C.bg2, outline: 'none',
+        }}>
+        <style>{`
+          .kb-rail::-webkit-scrollbar { height: 7px; width: 7px; display: block; }
+          .kb-rail::-webkit-scrollbar-thumb { background: rgba(249,115,22,.35); border-radius: 4px; }
+          .kb-rail::-webkit-scrollbar-track { background: rgba(255,255,255,.03); }
+          .kb-rail:focus-visible { box-shadow: 0 0 0 1.5px rgba(249,115,22,.5); }
+        `}</style>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
             <tr>
@@ -286,6 +336,11 @@ export default function DenseTable({
                 style={{
                   cursor: onRowClick ? 'pointer' : 'default',
                   opacity: dimRow?.(r) ? 0.42 : 1,
+                  // ✨ the site-wide spotlight — inset so it can't collide
+                  // with the row borders, and it never changes layout.
+                  ...(spotOn(r._raw ?? r) ? {
+                    boxShadow: 'inset 2.5px 0 0 #FCD34D, inset 0 0 18px rgba(252,211,77,.10)',
+                  } : {}),
                 }}
                 className="dense-row"
               >
@@ -416,6 +471,13 @@ export default function DenseTable({
           affordance printed under every table on the site, which is the
           definition of something that doesn't need to be on screen by default. */}
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+        {/* 📄 the cheat sheet — this view, sorted how you sorted it */}
+        <button onClick={exportCsv} title="Download this table — current sort, raw values — as a CSV cheat sheet"
+          style={{
+            float: 'right', fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer',
+            border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+            borderRadius: 999, padding: '2px 9px', marginLeft: 8,
+          }}>⬇ CSV</button>
         {truncated > 0 && (
           <span style={{ color: C.orange }}>
             Showing the top {view.length} of {sorted.length} — sort a column to bring others up.{' '}

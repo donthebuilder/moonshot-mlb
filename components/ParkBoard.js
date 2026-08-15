@@ -108,11 +108,15 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
     out.forEach((g) => {
       const parkTerm = g.parkHR > 0 ? (g.parkHR - 1) * 100 : 0
       const wxTerm = g.wxEff != null ? g.wxEff : windOut(g) + (g.temp > 0 ? (g.temp - 70) / 7 : 0)
+      // All three lenses computed once — the toggle below just picks which
+      // one ranks the board (2026-08-15, from the park-factors site Donovan
+      // sent: their Combined / Stadium Only / Weather Only switch, on ours).
+      g.parkTerm = parkTerm
+      g.wxTerm = wxTerm
       g.edge = parkTerm + wxTerm
       g.wxFromBot = g.wxEff != null
       g.threats = [...g.bats].sort((a, b) => n(b?.longest_hr_score, 0) - n(a?.longest_hr_score, 0)).slice(0, 2)
     })
-    out.sort((a, b) => b.edge - a.edge)
     return out
   }, [players])
 
@@ -180,7 +184,15 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
 
   if (!parks.length) return null
 
-  const visibleParks = showAllParks ? parks : parks.slice(0, DEFAULT_SHOWN)
+  // 🔀 THE LENS. Combined ranks like always; Stadium ranks on the building
+  // alone (structural, survives the season); Weather ranks on tonight alone
+  // (expires at midnight). The big number on each card follows the lens, so
+  // "which building is best" and "where is tonight's air best" are one tap
+  // apart instead of one mental subtraction apart.
+  const [lens, setLens] = useState('both')
+  const lensVal = (g) => (lens === 'park' ? g.parkTerm : lens === 'wx' ? g.wxTerm : g.edge)
+  const ranked = useMemo(() => [...parks].sort((a, b) => lensVal(b) - lensVal(a)), [parks, lens])
+  const visibleParks = showAllParks ? ranked : ranked.slice(0, DEFAULT_SHOWN)
 
   // Visual bands (2026-08-07, "this need to be cooler"): the edge number
   // decides the card's whole personality — launch pads burn, ice boxes
@@ -197,7 +209,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   // carry the headline fact or the fold is just a wall with a door in it, so
   // it names the best air in the league tonight and by how much — which is
   // the one thing most people open this board for.
-  const best = parks[0]
+  const best = ranked[0]
   const foldSummary = `${parks.length} parks · best air ${best.edge > 0 ? '+' : ''}${best.edge.toFixed(0)}% ${best.venue || best.matchup}`
 
   return (
@@ -211,6 +223,17 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}
           title="Ranked by park factor plus tonight's weather. Every card carries live game status, first pitch, rain risk and per-team lineup confirmation.">
           🌋 launch pads → 🧊 ice boxes · tap to filter
+        </span>
+        <span style={{ display: 'inline-flex', gap: 4, marginLeft: 'auto' }}>
+          {[['both', 'Combined'], ['park', 'Stadium only'], ['wx', 'Weather only']].map(([k, label]) => (
+            <button key={k} onClick={() => setLens(k)} style={{
+              fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer',
+              padding: '2px 8px', borderRadius: 999, letterSpacing: '.04em',
+              border: `1px solid ${lens === k ? C.orange : C.border}`,
+              background: lens === k ? 'rgba(249,115,22,.14)' : 'transparent',
+              color: lens === k ? C.orange : C.text3,
+            }}>{label}</button>
+          ))}
         </span>
       </div>
       {/* EVEN ROWS (2026-08-08, Donovan): auto-fill grid stranded ragged
@@ -233,7 +256,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
       }</style>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {visibleParks.map((g, i2) => {
-          const band = bandOf(g.edge)
+          const band = bandOf(lensVal(g))
           const isActive = activeVenue && g.venue === activeVenue
           const isTop = i2 < 3 && g.edge > 0
           const out = /out/i.test(g.windLabel)
@@ -246,7 +269,12 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
               title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "the bot's weather HR effect" : 'wind/temp heuristic (bot weather effect not published for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs neutral. Ranks this board, scores nothing.`}
               style={{
                 cursor: 'pointer', position: 'relative', overflow: 'hidden', minWidth: 0,
+                // maxWidth (2026-08-15, Donovan's screenshot): an orphan card on the
+                // last flex row grew to the FULL row — one park stretched edge
+                // to edge with its chips pulled comically wide. Growth is now
+                // capped, so a lone straggler stays card-shaped.
                 flex: `${i2 === 0 && g.edge > 0 ? 2 : 1} 1 ${i2 === 0 && g.edge > 0 ? 320 : 196}px`,
+                maxWidth: i2 === 0 && g.edge > 0 ? 620 : 430,
                 background: `linear-gradient(160deg, ${band.col}${isTop ? '2e' : '1a'} 0%, ${band.col}08 48%, ${C.bg2} 100%)`,
                 border: `1px solid ${isActive ? band.col : `${band.col}${isTop ? '70' : '35'}`}`,
                 borderRadius: 12, padding: '9px 11px 8px',
@@ -276,7 +304,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span style={{ fontSize: 15 }}>{band.icon}</span>
                 <span style={{ fontSize: 18, fontWeight: 900, fontFamily: NUM_FONT, color: band.col, letterSpacing: '-0.03em' }}>
-                  {g.edge > 0 ? '+' : ''}{g.edge.toFixed(0)}%
+                  {lensVal(g) > 0 ? '+' : ''}{lensVal(g).toFixed(0)}%
                 </span>
                 <span style={{ fontSize: 7.5, fontWeight: 900, color: band.col, letterSpacing: '.08em', fontFamily: NUM_FONT, opacity: 0.85 }}>
                   {band.word}
