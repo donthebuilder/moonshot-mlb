@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, MARKETS } from '../lib/gamelogs'
+import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 
 // PROP GRID v5 — PATTERNS, not furniture.
 //
@@ -26,6 +27,19 @@ const rateCol = (pct) => pct >= 60 ? '#4ade80' : pct >= 40 ? '#FCD34D' : pct >= 
 const cellBg = (pct) => pct == null ? 'transparent'
   : pct >= 60 ? 'rgba(74,222,128,.13)' : pct >= 40 ? 'rgba(252,211,77,.10)' : pct >= 25 ? 'rgba(249,115,22,.10)' : 'rgba(248,113,113,.07)'
 
+// The book's price against his own: green when they're paying MORE than his
+// rate says the bet is worth. Only ever fires when the book is on this row's
+// exact number — otherwise it would be scoring a different bet.
+const priceTone = (row) => {
+  if (!row.quote?.matches || row.seasonPct == null) {
+    return { fg: row.quote?.matches ? C.text : C.text3, bg: 'transparent' }
+  }
+  const d = row.seasonPct - row.quote.implied
+  if (d >= 5) return { fg: '#4ade80', bg: 'rgba(74,222,128,.10)' }
+  if (d <= -5) return { fg: '#f87171', bg: 'rgba(248,113,113,.10)' }
+  return { fg: C.text, bg: 'transparent' }
+}
+
 const LINES = { hit: [1, 2], tb2: [2, 3, 4], hr: [1, 2], hrr: [1, 2, 3], run: [1, 2], rbi: [1, 2], bb: [1, 2], k1: [1, 2] }
 const SHORT = { hit: 'Hit', tb2: 'TB', hr: 'HR', hrr: 'HRR', run: 'Run', rbi: 'RBI', bb: 'BB', k1: 'K' }
 const VAL = {
@@ -40,7 +54,7 @@ const VAL = {
   k1: (g) => g.k,
 }
 
-export default function ThresholdGrid({ playerId }) {
+export default function ThresholdGrid({ playerId, odds }) {
   const [data, setData] = useState(null)
   const [ls, setLs] = useState(null)
   const [staff, setStaff] = useState(null)
@@ -51,12 +65,27 @@ export default function ThresholdGrid({ playerId }) {
   const [line, setLine] = useState(1)
   const [venue, setVenue] = useState('all')
   const [arm, setArm] = useState('all')
+  // 🎛 THE SITUATION BUILDER (2026-08-15, Donovan: "really would like to latch
+  // the splits thing on how the props grid lets you pick different situations
+  // like away or vs left ... I'd like to be able to filter the splits to see
+  // what the hit rate is in certain situations.")
+  //
+  // The grid already recomputed the WHOLE matrix under venue and arm side —
+  // that mechanism was the good part and only had two dimensions. These four
+  // more come out of the same game log with no new fetch, and they stack: the
+  // matrix under "on the road, vs righties, after a blank" is a question no
+  // splits page can answer, because a splits page is pre-aggregated one
+  // dimension at a time and this is per-game.
+  const [staffQ, setStaffQ] = useState('all')   // soft / tough opposing staff
+  const [rest, setRest] = useState('all')       // day off before, or not
+  const [after, setAfter] = useState('all')     // the game after a blank / a big one
   const [span, setSpan] = useState('L20')
   const [selGame, setSelGame] = useState(null)
 
   useEffect(() => {
     let alive = true
     setData(null); setHands(null); setHandsState('idle'); setArm('all'); setSelGame(null)
+    setVenue('all'); setStaffQ('all'); setRest('all'); setAfter('all')
     thresholdRates(playerId).then((d) => { if (alive) setData(d) })
     lastSeasonRates(playerId).then((d) => { if (alive) setLs(d) })
     staffQuality().then((d) => { if (alive) setStaff(d) })
@@ -84,9 +113,65 @@ export default function ThresholdGrid({ playerId }) {
 
   const full = data.logAll || data.log || []
   const armReady = arm === 'all' || (handsState === 'done' && hands)
+
+  // TWO OF THESE ARE ABOUT THE GAME BEFORE, so they need the index, not the
+  // row. The log is newest-first, so the game that came BEFORE full[i] is
+  // full[i + 1] — the same off-by-one the Patterns section below gets right
+  // and which is worth stating twice, because getting it backwards produces a
+  // pattern that reads perfectly and means the opposite.
+  const prevOf = (i) => full[i + 1] || null
+  const daysOff = (i) => {
+    const a = full[i]?.iso
+    const b = prevOf(i)?.iso
+    if (!a || !b) return null
+    const d = (new Date(`${a}T12:00:00`) - new Date(`${b}T12:00:00`)) / 86400000
+    return Number.isFinite(d) ? Math.round(d) - 1 : null
+  }
+  // Market-neutral on purpose. "After a blank" has to mean the same thing on
+  // every row of the matrix or the rows stop being comparable — and it is the
+  // cold case's own definition, so the two panels agree.
+  const BLANK = (g) => g && (g.h + g.r + g.rbi) === 0 && (g.ab > 0 || g.bb > 0)
+  const BIG = (g) => g && (g.h >= 2 || g.hr >= 1)
+
   const pool = full
-    .filter((g) => venue === 'all' ? true : venue === 'home' ? g.home : !g.home)
-    .filter((g) => (arm === 'all' || !armReady) ? true : hands[g.gamePk] === arm)
+    .map((g, i) => ({ g, i }))
+    .filter(({ g }) => (venue === 'all' ? true : venue === 'home' ? g.home : !g.home))
+    .filter(({ g }) => ((arm === 'all' || !armReady) ? true : hands[g.gamePk] === arm))
+    .filter(({ g }) => {
+      if (staffQ === 'all' || !staff) return true
+      const soft = staff[g.oppId]?.soft
+      if (soft == null) return false
+      return staffQ === 'soft' ? soft >= 0.6 : soft <= 0.4
+    })
+    .filter(({ i }) => {
+      if (rest === 'all') return true
+      const d = daysOff(i)
+      if (d == null) return false          // his first logged game — unknowable
+      return rest === 'rested' ? d >= 1 : d === 0
+    })
+    .filter(({ i }) => {
+      if (after === 'all') return true
+      const prev = prevOf(i)
+      if (!prev) return false
+      return after === 'blank' ? BLANK(prev) : BIG(prev)
+    })
+    .map(({ g }) => g)
+
+  const anyFilter = venue !== 'all' || arm !== 'all' || staffQ !== 'all' || rest !== 'all' || after !== 'all'
+  // WHAT A FILTERED RATE IS WORTH. "62% on the road vs righties after a blank"
+  // is meaningless on its own — the only question is whether it differs from
+  // what he does normally, and by more than a sample that small can produce.
+  // So the read-out under the chips always carries three things: the filtered
+  // rate, his unfiltered one, and the error bar on the gap.
+  const baseRate = full.length
+    ? (100 * full.filter(clears).length) / full.length : null
+  const cutRate = pool.length
+    ? (100 * pool.filter(clears).length) / pool.length : null
+  const cutGap = (cutRate != null && baseRate != null) ? cutRate - baseRate : null
+  const cutSe = (cutRate != null && pool.length)
+    ? 100 * Math.sqrt(Math.max((baseRate / 100) * (1 - baseRate / 100), 1e-6) / pool.length)
+    : null
+  const cutReal = cutGap != null && cutSe != null && Math.abs(cutGap) >= 2 * cutSe
 
   const SPAN_N = { L5: 5, L10: 10, L20: 20, Szn: 40 }
   const filteredLog = pool.slice(0, SPAN_N[span] || 20)
@@ -110,7 +195,15 @@ export default function ThresholdGrid({ playerId }) {
       for (const g of pool) { if (clr(g) === first) k++; else break }
       stk = first ? k : -k
     }
-    return { key: mk.key, label: `${t}+ ${SHORT[mk.key]}`, cells, lsCell, stk }
+    // THE PRICE, AND ONLY WHEN IT IS THE SAME BET. `t` is this row's threshold;
+    // gridQuote returns matches=false when the book is at a different number,
+    // and pairing that price with this row's rate would be confidently wrong.
+    const q = gridQuote(odds, { player_id: playerId }, mk.key, t)
+    // His own break-even: the price at which THIS rate is exactly fair. That's
+    // the "true price" — everything longer is value, everything shorter isn't.
+    const seasonPct = cells[3]?.pct ?? cells[2]?.pct ?? null
+    return { key: mk.key, label: `${t}+ ${SHORT[mk.key]}`, cells, lsCell, stk,
+             quote: q, fair: fairOdds(seasonPct), seasonPct }
   })
 
   // ── PATTERNS — mined from the UNfiltered log at the active line ────────────
@@ -230,6 +323,10 @@ export default function ThresholdGrid({ playerId }) {
                 ))}
                 <th style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>{new Date().getFullYear() - 1}</th>
                 <th style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>STK</th>
+                <th title="What the book pays for this exact bet. Green means it pays more than his own rate says it should."
+                    style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>PRICE</th>
+                <th title="His TRUE price — the number at which his own rate for this row breaks even. The book paying longer than this is value; shorter is not."
+                    style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>TRUE</th>
               </tr>
             </thead>
             <tbody>
@@ -259,6 +356,46 @@ export default function ThresholdGrid({ playerId }) {
                       textAlign: 'center', fontSize: 11, fontWeight: 900, padding: '3px 4px',
                       color: row.stk > 0 ? '#4ade80' : row.stk < 0 ? '#f87171' : C.text3,
                     }}>{row.stk > 0 ? `W${row.stk}` : row.stk < 0 ? `L${-row.stk}` : '—'}</td>
+                    {/* PRICE and TRUE are BOTH American odds, on purpose.
+                        The first draft put a percentage-point edge in the
+                        second column and fell back to a fair PRICE when there
+                        was no quote — so one column carried "+12" (points) and
+                        "+675" (odds) with nothing to tell them apart. A +675
+                        reading as a 675-point edge is exactly the kind of
+                        confident nonsense this file exists to prevent. Two
+                        columns, one unit each, directly comparable: what
+                        they pay vs what he's worth. The gap in points lives in
+                        the tooltip, where it can be labelled. */}
+                    <td title={
+                      !row.quote ? 'No price published for this market.'
+                        : !row.quote.matches
+                          ? `The book is at ${row.quote.line} (${row.quote.threshold}+), not ${row.label} — a different bet, so its price isn't shown here.`
+                          : `${fmtOdds(row.quote.over)} · needs ${row.quote.implied}% to break even`
+                            + (row.quote.best_over ? ` · best ${fmtOdds(row.quote.best_over)} at ${row.quote.best_book}` : '')
+                            + (row.quote.lines_seen > 1 ? `\n⚠ books disagree on the line (${row.quote.lines_seen} seen)` : '')
+                            + (row.seasonPct != null
+                              ? `\nhe clears it ${row.seasonPct.toFixed(0)}% → ${(row.seasonPct - row.quote.implied) > 0 ? '+' : ''}${(row.seasonPct - row.quote.implied).toFixed(0)}pp vs the price`
+                              : '')
+                    } style={{
+                      textAlign: 'center', fontSize: 11, fontWeight: 800, padding: '3px 4px',
+                      borderRadius: 6, whiteSpace: 'nowrap',
+                      color: priceTone(row).fg, background: priceTone(row).bg,
+                    }}>
+                      {row.quote?.matches ? fmtOdds(row.quote.over)
+                        : row.quote ? <span style={{ fontSize: 9 }}>@{row.quote.threshold}+</span>
+                          : '—'}
+                    </td>
+                    {/* HIS TRUE PRICE. Independent of any book — it's just his
+                        own rate for THIS row expressed as odds, so it still
+                        answers "what is he worth here" on the rows nobody
+                        prices (walks, strikeouts) and on the nights no board
+                        publishes at all. */}
+                    <td title={row.fair
+                      ? `He clears ${row.label} in ${row.seasonPct.toFixed(0)}% of the games in view, which is exactly fair at ${fmtOdds(row.fair)}. Longer than that is value; shorter is paying for the privilege.`
+                      : 'Not enough games in view to price him.'} style={{
+                      textAlign: 'center', fontSize: 10.5, fontWeight: 700, padding: '3px 4px',
+                      color: C.text2, whiteSpace: 'nowrap',
+                    }}>{row.fair ? fmtOdds(row.fair) : '—'}</td>
                   </tr>
                 )
               })}
@@ -278,12 +415,17 @@ export default function ThresholdGrid({ playerId }) {
           <b style={{ color: C.orange }}>25–39</b>
           <b style={{ color: '#f87171' }}>under 25</b>
           <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>
+          <span style={{ width: '100%', height: 0 }} />
+          <span><b style={{ color: C.text2 }}>PRICE</b> = what the book pays ·{' '}
+            <b style={{ color: C.text2 }}>TRUE</b> = the price his own rate deserves ·{' '}
+            <b style={{ color: '#4ade80' }}>green</b> = they&apos;re paying more than he&apos;s worth ·{' '}
+            <b>@3+</b> = the book is on a different number</span>
         </div>
 
         {/* ══ PATTERNS ══ */}
         <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 7 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🧭 Patterns</span>
+            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🧭 What repeats</span>
             <span style={{ fontSize: 9, color: C.text3 }}>
               what actually repeats in his log for <b style={{ color: C.text2 }}>{dynLabel}</b> — 25+ point gaps on real samples only
             </span>
@@ -334,16 +476,68 @@ export default function ThresholdGrid({ playerId }) {
               <button key={k} onClick={() => wantArm(k)} style={chip(arm === k)}
                 title="Games where the opposing STARTER threw from this side">{label}</button>
             ))}
+            <span style={{ width: 6 }} />
+            {[['all', 'Any staff'], ['soft', 'vs soft staffs'], ['tough', 'vs good staffs']].map(([k, label]) => (
+              <button key={k} onClick={() => { setStaffQ(k); setSelGame(null) }} style={chip(staffQ === k)}
+                title="Where the opponent's whole staff sits in the league's OPS-against range that season — not just the starter.">{label}</button>
+            ))}
+            <span style={{ width: 6 }} />
+            {[['all', 'Any rest'], ['b2b', 'no day off'], ['rested', 'after a day off']].map(([k, label]) => (
+              <button key={k} onClick={() => { setRest(k); setSelGame(null) }} style={chip(rest === k)}
+                title="Days between this game and his previous one, from the log's own dates. His first logged game has no answer and drops out of both.">{label}</button>
+            ))}
+            <span style={{ width: 6 }} />
+            {[['all', 'Any lead-in'], ['blank', 'after a blank'], ['big', 'after a big one']].map(([k, label]) => (
+              <button key={k} onClick={() => { setAfter(k); setSelGame(null) }} style={chip(after === k)}
+                title="What he did in his PREVIOUS game. A blank is no hit, no run, no RBI — the cold case's definition, so the two panels agree. A big one is 2+ hits or a homer.">{label}</button>
+            ))}
             {arm !== 'all' && handsState === 'loading' && (
               <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>checking who started each game…</span>
             )}
             {arm !== 'all' && handsState === 'none' && (
               <span style={{ fontSize: 9, color: C.orange, fontFamily: NUM_FONT }}>couldn&apos;t resolve starters — showing all</span>
             )}
-            {(venue !== 'all' || (arm !== 'all' && armReady)) && (
-              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>matrix recomputed · {pool.length} games match</span>
+            {anyFilter && (
+              <button onClick={() => { setVenue('all'); setArm('all'); setStaffQ('all'); setRest('all'); setAfter('all'); setSelGame(null) }}
+                style={{ ...chip(false), borderStyle: 'dashed' }}
+                title="Back to every game">clear</button>
             )}
           </div>
+
+          {/* THE SITUATION READ-OUT. One sentence, and it refuses to call a
+              gap real until it beats two standard errors — the same bar the
+              True Price page and the cold case use. */}
+          {anyFilter && (
+            <div style={{
+              fontSize: 10.5, lineHeight: 1.6, marginBottom: 9, padding: '7px 10px',
+              borderRadius: 9, background: 'rgba(255,255,255,.03)',
+              border: `1px solid ${cutReal ? (cutGap > 0 ? 'rgba(74,222,128,.35)' : 'rgba(248,113,113,.35)') : C.border}`,
+              color: C.text2,
+            }}>
+              {pool.length === 0 ? (
+                <>No games match that situation this season — the matrix above is empty, not zero.</>
+              ) : (
+                <>
+                  <b style={{ color: C.text }}>{pool.length}</b> game{pool.length === 1 ? '' : 's'} match.
+                  He clears <b style={{ color: C.text }}>{dynLabel}</b> in{' '}
+                  <b style={{ color: cutReal ? (cutGap > 0 ? '#4ade80' : '#f87171') : C.text }}>
+                    {cutRate.toFixed(0)}%
+                  </b>{' '}of them against <b style={{ color: C.text }}>{baseRate.toFixed(0)}%</b> overall
+                  {cutGap != null && <> — <b style={{ color: C.text }}>{cutGap > 0 ? '+' : ''}{cutGap.toFixed(0)}</b> points</>}.
+                  {' '}
+                  {cutReal
+                    ? <span style={{ color: cutGap > 0 ? '#4ade80' : '#f87171' }}>
+                        That clears the error bar (±{cutSe.toFixed(0)}) on this many games.
+                      </span>
+                    : <span style={{ color: C.text3 }}>
+                        {pool.length < 6
+                          ? 'Far too few games to read anything into that.'
+                          : `Inside the error bar (±${cutSe.toFixed(0)}) at ${pool.length} games — treat it as the same rate.`}
+                      </span>}
+                </>
+              )}
+            </div>
+          )}
 
           {filteredLog.length > 0 && (
             <div style={{ position: 'relative' }}>

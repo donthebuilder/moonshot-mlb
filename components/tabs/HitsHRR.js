@@ -163,7 +163,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
   )
 }
 
-export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
+export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
   const [view, setView] = useState('hr')
   const { filtered, state } = useBoardFilter(players)
 
@@ -292,7 +292,7 @@ export default function HitsHRR({ players, onAdd, onWatch, watchIds, onPlayerCli
         ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
         : view === 'matchupedge'
         ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-        : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+        : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} />
       }
     </div>
   )

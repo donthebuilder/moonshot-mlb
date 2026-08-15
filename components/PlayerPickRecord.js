@@ -98,6 +98,13 @@ export function usePickRecords(backtest) {
         if (!j) return
         const id = String(s?.player_id ?? '')
         if (!id) return
+        // VOID IS NOT A MISS — see the note in PickScorecard.js. This one is
+        // worse than a single night's table: it accumulates across the WHOLE
+        // archive, so every scratch a player ever had was a permanent loss in
+        // his "As this pick" record and could end a bot streak. SignalAudit
+        // already gates on actual_ab; the track record did not, so the honesty
+        // machine and the record beside it measured on different denominators.
+        if (i(s.actual_ab) === 0 && i(s.actual_bb) === 0) return
         const app = {
           hr: i(s.actual_hr), hits: i(s.actual_hits),
           runs: i(s.actual_runs), rbi: i(s.actual_rbi), tb: i(s.actual_tb),

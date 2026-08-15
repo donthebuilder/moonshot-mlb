@@ -95,7 +95,21 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
     const j = JOBS[role]
     r.job = j ? j.job : '—'
     r.did = j ? (j.test(r) ? 1 : 0) : 0
+    // VOID IS NOT A MISS, and this is the third surface to have to learn it.
+    // A designated pick who was scratched, or who never came to the plate,
+    // has no outcome — grading him 0 punishes a bet that never existed. The
+    // rule is stated in lib/myPicks.js, lib/watchLedger.js, lib/liveSlate.js
+    // and the bot's own live_results_tracker; the Results Overview on this
+    // very tab already applies it (`actual_ab > 0`) to produce "the picks
+    // cleared X of Y". This table did not, so §1 and §4 of one page printed
+    // two different denominators for the same claim and only one obeyed the
+    // site's stated rule.
+    r.void = i(s?.actual_ab) === 0 && i(s?.actual_bb) === 0
     r.graded = !!j
+    // The row STAYS — a scratched pick is information, and dropping it would
+    // just move the lie from the percentage to the roster. It leaves the
+    // denominator, not the table.
+    if (r.void) { r.did = 0; r.job = 'never batted' }
 
     // His record IN THIS CATEGORY across every graded day, and overall. Shown
     // as a raw fraction, never a percentage — on a nine-day archive most of
@@ -111,7 +125,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
   }).filter((r) => r.graded), [slots, byPlayer])
 
   const byRole = useMemo(() => ORDER.map((role) => {
-    const sub = rows.filter((r) => r.role === role)
+    const sub = rows.filter((r) => r.role === role && !r.void)
     const ok = sub.filter((r) => r.did).length
     return { role, ...JOBS[role], n: sub.length, ok, pct: sub.length ? (100 * ok) / sub.length : 0 }
   }).filter((x) => x.n > 0), [rows])
@@ -210,7 +224,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
         onRowClick={onPlayerClick}
         initialSort="did"
         maxHeight={420}
-        caption="A ✓ means this hitter did the thing his own category was for — a HIT pick that singled counts, even though he didn't homer. Grading every category against home runs is the mistake this table exists to avoid. 'As this pick' is his record the other times the bot has picked him in this same category, across every graded day; it's a fraction rather than a percentage because on a nine-day archive the sample size is half the information. Sort by Pick to compare within a category, or open Track record for the full per-player table."
+        caption="A pick who never came to the plate reads “never batted” and is left out of the counts above — void is not a miss. A ✓ means this hitter did the thing his own category was for — a HIT pick that singled counts, even though he didn't homer. Grading every category against home runs is the mistake this table exists to avoid. 'As this pick' is his record the other times the bot has picked him in this same category, across every graded day; it's a fraction rather than a percentage because on a nine-day archive the sample size is half the information. Sort by Pick to compare within a category, or open Track record for the full per-player table."
       />
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>

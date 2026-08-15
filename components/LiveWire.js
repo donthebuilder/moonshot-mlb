@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import PriceBubble from './PriceBubble'
+import { hrPerGame } from '../lib/odds'
 import { nameOf, teamOf, clean, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
@@ -22,7 +24,7 @@ const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3e
 const GROUP_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
 
-export default function LiveWire({ players = [], results, watchIds, mode = 'today', onPlayerClick }) {
+export default function LiveWire({ players = [], results, watchIds, mode = 'today', odds = null, onPlayerClick }) {
   const [snap, setSnap] = useState(null)
   const [busy, setBusy] = useState(false)
   const [auto, setAuto] = useState(false)
@@ -508,6 +510,11 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                       }}>{needOf(role, line)}{(g?.inning ?? 0) >= 7 ? ` · ${g.inning}th` : ''}</span>
                     )}
                     {prog && <span title="Live progress toward this pick's own bar" style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: prog.startsWith('1') ? '#FCD34D' : C.text3, flexShrink: 0 }}>{prog}</span>}
+                    {/* 💸 what it paid. On a live board the price is the one
+                        thing that can't change under you, so it belongs beside
+                        the grade rather than only pre-game. */}
+                    <PriceBubble odds={odds} player={p} cat={role}
+                      rate={role === 'HR' || role === 'TOP' ? hrPerGame(p) : null} />
                     <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.text3, flexShrink: 0 }}>
                       {line.h}-{line.ab}{line.hr ? ` ${line.hr}HR` : ''}{line.tb > 1 ? ` ${line.tb}TB` : ''}
                     </span>

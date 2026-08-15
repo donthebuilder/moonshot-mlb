@@ -22,6 +22,7 @@ import PlayerSplits from './PlayerSplits'
 import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
 import ThresholdGrid from './ThresholdGrid'
+import ColdCase from './ColdCase'
 import BvP from './BvP'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
@@ -333,7 +334,7 @@ function Navigator({ peers, cur, onNavigate }) {
   )
 }
 
-export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null }) {
+export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null }) {
   const [tab, setTab] = useState('overview')
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
@@ -599,7 +600,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             <>
               {/* The prop hero leads — the thing you came to check. Stats
                   grid below it is the supporting evidence, not the opener. */}
-              <ThresholdGrid playerId={pid} />
+              <ThresholdGrid playerId={pid} odds={odds} />
+              {/* 🍩 The other half of the read. Everything above this argues
+                  for him; this is the only panel that argues against. */}
+              <ColdCase playerId={pid} player={player} />
               {apiOnly && (
                 <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 12px', borderLeft: `2px solid ${C.orange}`, paddingLeft: 10 }}>
                   He&apos;s not in tonight&apos;s bot run, so there are no model scores or batted-ball

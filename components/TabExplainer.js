@@ -48,6 +48,12 @@ const TEXTS = {
     // to see between them.
     what: 'The bot’s raw output, untouched — the same sheet it publishes every day, plus a board ranked on its own overall score. Every board on the site ranks on the bot’s own numbers now, so this isn’t a different calibration to compare — it’s the bot’s own words, unformatted, and its own overall ranking instead of the HR-specific one.',
   },
+  runs: {
+    what: 'Every hitter on tonight’s card sorted by how many games running he has cleared the bar you pick — market and number are both chips, so 1+ Hit and 2+ Hits are different boards. The strip is his last games with the newest on the right and the active run lit up. Cold flips it to the drought board, because nine misses in a row is a position too. Each card also says how ordinary the streak is at his own rate: five in a row for a 60% hitter comes up about one stretch in thirteen.',
+  },
+  trueprice: {
+    what: 'Every price the bot fetched before first pitch, settled against that night’s box score. Two prices per row: TRUE is what a hitter’s own rate says the bet is worth, GOES AT is what the book has actually been paying him. The gap between them is the whole point — but a gap is not an edge until it beats its own error bar, so each row says how much the sample actually backs it. Click any row for the nights behind the numbers.',
+  },
   leaders: {
     what: 'Plain season stats for tonight’s hitters — batting average, homers, OPS, the real baseball card numbers. Nothing here is modeled or scored; it’s the one page where the site has no opinion. Use it to sanity-check a pick against what a player has actually done all year.',
   },

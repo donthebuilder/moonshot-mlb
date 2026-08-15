@@ -7,6 +7,7 @@ import { groupGames } from '../../lib/data'
 import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
+import ScoreRail from '../ScoreRail'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
 
@@ -256,6 +257,12 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
         @keyframes homePulse { 0%,100%{opacity:1} 50%{opacity:.35} }
         @keyframes homeFade { from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none} }
       `}</style>
+
+      {/* 🛰 THE RAIL — every game, always visible, with your picks in it.
+          2026-08-15: taken from ESPN's front-page strip and given the one
+          column they can't have. Sits ABOVE the hero because a score is what
+          you came to check. */}
+      <ScoreRail players={players} results={results} onNavigate={onNavigate} />
 
       {/* ── HERO ─────────────────────────────────────────────────────── */}
       <div style={{

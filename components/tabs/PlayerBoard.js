@@ -30,7 +30,7 @@ const ASKS = [
     why: 'Homered inside his last two games — the back-to-back chase' },
 ]
 
-export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
+export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = null }) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [ask, setAsk] = useState(null)
@@ -262,6 +262,7 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds }) {
             onAdd={onAdd}
             onWatch={onWatch}
             watched={!!watchIds?.has(playerId(selected))}
+            odds={odds}
           />
         ) : (
           <Empty text={phone ? 'Pick a hitter above.' : 'Pick a hitter on the left.'} />

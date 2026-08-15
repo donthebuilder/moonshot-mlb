@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { playerId, nameOf, teamOf, clean, nn, hrScore, hitScore, prodScore, tbScore, barrelRate, pitchMixScore, mlbId } from '../../lib/player'
 import { scoreFor, isAligned, hrRank } from '../../lib/scoring'
+import { useSetupHomers } from '../../lib/b2b'
 import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
 import Heatmap from '../Heatmap'
@@ -37,7 +38,16 @@ function fetchMatrix() {
 // Which archive category answers for each board type.
 const ARCHIVE_CAT = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }
 
-export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60 }) {
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60, slateDate = null }) {
+  // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
+  // directly, which lib/b2b.js exists to stop: the field means "he homered in
+  // his most recent game", and on a slate rebuilt after the 12:05 window that
+  // game is TODAY — so a hitter who went deep at lunchtime wore the encore
+  // mark on tonight's board for the homer he had already hit. Five rounds of
+  // that bug are written up in b2b.js; this board never adopted the fix.
+  // No proof file, no mark.
+  const { setupHr } = useSetupHomers(slateDate)
+  const b2bIds = useMemo(() => (setupHr instanceof Set ? setupHr : null), [setupHr])
   const [title, sub] = TITLES[type] || TITLES.hr
   const { filtered, state } = useBoardFilter(players)
   // LIST IS THE DEFAULT (2026-08-04). The card grid is pretty but ranking-
@@ -164,7 +174,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               facing: clean(p?.pitcher_name, 'TBD'),
               isPick: pick && pick === wantRole ? 1 : 0,
               otherPick: pick && pick !== wantRole ? pick : '',
-              b2b: Number(p?.games_since_last_hr) === 0 ? 1 : 0,
+              b2b: b2bIds && b2bIds.has(mlbId(p)) && !(Number(p?.games_since_last_hr) > 0) ? 1 : 0,
               weak: p?.weak_spot_flag ? 1 : 0,
               multiHit: p?.multi_hit_flag ? 1 : 0,
               aligned: isAligned(p) ? 1 : 0,
@@ -198,7 +208,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,
               title: 'Picked tonight, but in a DIFFERENT category than this board — informational, not an endorsement here' },
             { key: 'b2b', label: '🔁', flag: true, mark: '↻', w: 28,
-              title: 'Homered his LAST game — tonight is the back-to-back try. A heads-up, not a signal: B2Bs are folklore-grade, the score columns are the evidence.' },
+              title: 'Homered on the night that would set this up, PROVEN from that day\u2019s graded file — not inferred from a slate field that means \u201chis most recent game\u201d and can mean today. A heads-up, not a signal: B2Bs are folklore-grade, the score columns are the evidence.' },
             { key: 'weak',   label: '★', flag: true, mark: '★', w: 28,
               title: ['hr', 'hrr'].includes(type)
                 ? 'Weak spot — validated on HR outcomes: flagged hitters homered 18.0% vs 13.9%'

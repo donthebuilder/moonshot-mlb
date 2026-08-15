@@ -17,8 +17,11 @@ import StaleBanner from './StaleBanner'
 
 import Home from './tabs/Home'
 import MyPicks from './tabs/MyPicks'
+import TruePrice from './tabs/TruePrice'
 import Guide from './tabs/Guide'
 import Games from './tabs/Games'
+import Boxes from './tabs/Boxes'
+import Runs from './tabs/Runs'
 import AtThePlate from './tabs/AtThePlate'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
@@ -40,6 +43,10 @@ import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
+
+// Tabs that read no slate data and must render even when tonight's card
+// hasn't been built. See the gate below.
+const SLATE_FREE = new Set(['trueprice', 'boxes'])
 
 export default function Dashboard() {
   const [mode, setMode] = useState('today')
@@ -330,6 +337,15 @@ export default function Dashboard() {
   const resultsForSlate = liveMatchesSlate
     ? results
     : (clean(datedResults?.date, '') === slateDate ? datedResults : null)
+  // EVERY CONSUMER TAKES THE GATED COPY. The one exception is the Results tab,
+  // whose day picker owns its own dates. This used to be three exceptions:
+  // Header rendered "HR capture 78% · 14/18 — how many of tonight's home runs
+  // were on the sheet" straight off the raw file, so on a stale-publish day the
+  // sticky bar announced a two-week-old capture rate on every tab while the
+  // rest of the site correctly showed nothing. Scoreboard's Gone Yard did the
+  // same and then ranked those homers against TONIGHT's board. Watchlist wrote
+  // the stale night into a persistent local ledger under today's date.
+  //
   // Keyed on what we've ALREADY asked for, not on what came back. Gating on
   // datedResults.date instead would refetch forever the moment the branch
   // serves a file whose own date doesn't match the name it's published under
@@ -369,7 +385,7 @@ export default function Dashboard() {
       {/* The ember signature — same bar the night-receipts card wears. */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
         background: 'linear-gradient(90deg, #f97316, #FCD34D 50%, #f97316)' }} />
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={results} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
@@ -383,9 +399,16 @@ export default function Dashboard() {
         <TabExplainer tab={tab} />
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
-        {loading ? (
+        {/* SLATE-FREE TABS (2026-08-15). Every tab used to sit behind the
+            slate: no slate, no page. True Price doesn't read the slate at
+            all — it's a season of settled prices — so gating it meant the
+            one surface that still has something to say on a dark day, an
+            off-season morning, or during a slate outage was the one showing
+            "Loading slate data…". Anything else that genuinely doesn't
+            depend on tonight's card belongs in this set too. */}
+        {loading && !SLATE_FREE.has(tab) ? (
           <Empty text="Loading slate data…" />
-        ) : showEmpty ? (
+        ) : showEmpty && !SLATE_FREE.has(tab) ? (
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
           <div key={tab} className="tab-fade">
@@ -398,25 +421,28 @@ export default function Dashboard() {
                 date-gated copy. */}
             {tab === 'home'        && <Home players={allPlayers} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
-            {tab === 'games'       && <Games players={players} slateDate={slateDate} pairHistorySummary={pairSummary} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'games'       && <Games players={players} slateDate={slateDate} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
+            {tab === 'boxes'       && <Boxes players={allPlayers} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
-            {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
             {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'due'         && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
-            {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
+            {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {/* 'hitshrr' merged into 'board' — route kept as alias for old links */}
-            {tab === 'hitshrr'     && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} mode={mode} slateDate={slateDate} results={results} backtest={backtest} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
+            {tab === 'hitshrr'     && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
+            {tab === 'scoreboard'  && <Scoreboard players={players} mode={mode} slateDate={slateDate} results={resultsForSlate} backtest={backtest} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'pools'       && <Pools players={players} results={resultsForSlate} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
-            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} />}
+            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
             {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} odds={odds} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
+            {tab === 'trueprice'  && <TruePrice onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+            {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={resultsForSlate} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
           </div>
@@ -455,6 +481,7 @@ export default function Dashboard() {
         // reaches the same list.
         peers={players}
         onNavigate={setModalPlayer}
+        odds={odds}
       />
     </SlateScaleProvider>
   )
