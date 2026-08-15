@@ -5,6 +5,20 @@ export default function MobileCSS() {
       html, body { max-width: 100%; overflow-x: hidden; }
       * { box-sizing: border-box; }
 
+      /* ── BUTTONS INHERIT THEIR TEXT COLOUR ──────────────────────────────
+         2026-08-15, Donovan's Near Misses screenshot: every player name on
+         that board rendered in a dim grey while the numbers beside them were
+         bright. Not a colour choice — a <button> does NOT inherit colour from
+         its parent, it falls back to the UA's own ButtonText, and a row built
+         as a button with no explicit colour renders in that instead of the
+         site's text colour. A sweep found 34 buttons in this codebase with no
+         colour of their own; any of them that renders bare text has the same
+         invisible-name bug waiting.
+         One rule fixes all of them, and cannot break the ones that are
+         already correct: an inline style always beats a stylesheet, so every
+         button that sets its own colour keeps it. */
+      button { color: inherit; }
+
       @media (max-width: 860px) {
         .dash-header-inner { padding: 8px 10px 8px !important; }
         .dash-title { font-size: 17px !important; }
@@ -16,7 +30,9 @@ export default function MobileCSS() {
         .dash-tabs::-webkit-scrollbar { display: none; }
         .dash-tabs button { flex: 0 0 auto !important; padding: 6px 8px !important; font-size: 10px !important; }
         .dashboard-main { padding-left: 10px !important; padding-right: 10px !important; padding-bottom: 18px !important; }
-        .dash-controls { grid-template-columns: 1fr 120px !important; gap: 7px !important; }
+        /* three cells since the ✨ spotlight got its own column (2026-08-15) —
+           this was still forcing two, which wrapped the button to a new row */
+        .dash-controls { grid-template-columns: 1fr 108px auto !important; gap: 7px !important; }
         .modal-box { width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important; border-radius: 16px !important; }
         .modal-content { padding: 16px 14px 18px !important; }
         .stat-grid-two { grid-template-columns: 1fr !important; gap: 0 !important; }
