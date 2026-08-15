@@ -138,6 +138,18 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         weak: gp.filter((x) => x?.weak_spot_flag).length,
         venue: head?.venue_name || '',
         batters: gp.length,
+        // MORE INTUITIVE SORTS (2026-08-15, Donovan: "add more intuitive
+        // game sorts"). Both come off rows this card already has — no new
+        // data, no new fetch. "Air" is the building plus tonight's weather,
+        // the same combination the park board ranks on; "Set" is how much of
+        // this game's board is actually locked in, because a projection over
+        // an unconfirmed lineup is a guess about who plays.
+        air: (() => {
+          const pf = nn(head?.park_hr_factor)
+          const wx = nn(head?.weather_hr_effect_pct ?? head?.hr_weather_effect_pct)
+          return (pf > 0 ? (pf - 1) * 100 : 0) + wx
+        })(),
+        setPct: gp.length ? gp.filter((x) => x?.lineup_confirmed === true).length / gp.length : 0,
       }
     })
     const slateMed = med(built.map((c) => c.gs))
@@ -163,6 +175,8 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       gs: (a, b) => b.gs - a.gs,
       hr9: (a, b) => b.worstHr9 - a.worstHr9,
       whip: (a, b) => b.worstWhip - a.worstWhip,
+      air: (a, b) => b.air - a.air,
+      set: (a, b) => (b.setPct - a.setPct) || (b.gs - a.gs),
     }
     return SORTERS[sortBy] ? [...withRank].sort(SORTERS[sortBy]) : withRank
   }, [games, sortBy])
@@ -329,6 +343,8 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           <span>
             {sortBy === 'gs' ? 'Sorted by Game Score, hottest first'
               : sortBy === 'hr9' ? "Sorted by the leakier starter's HR/9, worst first"
+              : sortBy === 'air' ? 'Sorted by park factor plus tonight\u2019s weather — the friendliest building first'
+              : sortBy === 'set' ? 'Sorted by how much of each lineup is confirmed — the settled games first'
               : sortBy === 'whip' ? "Sorted by the leakier starter's WHIP, worst first"
               : 'First-pitch order'}, heat-tinted and heat-sized.
           </span>

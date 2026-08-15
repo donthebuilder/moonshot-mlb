@@ -75,7 +75,16 @@ export default function PriceBubble({ odds, player, cat, rate = null, size = 'sm
         letterSpacing: '.01em',
       }}
     >
-      {q.matches === false ? '≠' : ''}{fmtOdds(q.over)}
+      {/* THE BOOK'S OWN NUMBER, not just a warning glyph (2026-08-15,
+          Donovan: "we need to see the line the book has them for, esp if
+          it's at like 1.5"). A bare ≠ said "this price is for a different
+          bet" without ever saying WHICH bet — so the one case that matters
+          most, a hit line moved to 1.5, looked identical to a line moved to
+          2.5. The number rides along now. */}
+      {q.matches === false && Number.isFinite(Number(q.line))
+        ? <span style={{ color: '#FCD34D' }}>{Number(q.line)}{'\u00A0'}</span>
+        : null}
+      {fmtOdds(q.over)}
     </span>
   )
 }

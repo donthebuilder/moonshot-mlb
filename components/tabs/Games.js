@@ -377,7 +377,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       {mode !== 'lineups' && (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
           <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
-          {[['time', 'Time'], ['gs', 'Score'], ['hr9', 'Worst HR/9'], ['whip', 'Worst WHIP']].map(([k, label]) => (
+          {[['time', 'Time'], ['gs', 'Score'], ['air', 'Best air'], ['set', 'Lineups in'], ['hr9', 'Worst HR/9'], ['whip', 'Worst WHIP']].map(([k, label]) => (
             <button key={k} onClick={() => setSortBy(k)} style={{
               padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
               border: `1px solid ${sortBy === k ? C.orange : C.border}`,
