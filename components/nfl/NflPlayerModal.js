@@ -1,7 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
-import HitRate from './HitRate'
+import PropsGrid from './PropsGrid'
 import MatchupMap from './MatchupMap'
 import DvpTable, { GROUP } from './DvpTable'
 
@@ -403,8 +403,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           </>
         )}
 
+        {/* 🎯 The props grid, football edition (2026-08-15) — the MLB matrix
+            ported. HitRate still draws the bars; it now rides INSIDE the grid
+            and follows whichever row is open, so the modal keeps one chart
+            and gains the every-market glance above it. */}
         {logs?.logs?.[player.player_id]?.log && (
-          <HitRate
+          <PropsGrid
             log={logs.logs[player.player_id].log}
             market={market}
             defaultBar={spec?.bar ?? 1}

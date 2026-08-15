@@ -173,6 +173,46 @@ export default function DenseTable({
   return (
     <div>
       <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)} />
+      {/* The stack, said out loud. Shift-click was the only way to build a
+          tiebreaker and nothing ever showed what was stacked — on a phone it
+          was impossible outright. These chips ARE the stack: tap one to flip
+          it, ✕ to drop it, clear to reset. Shift-click still works on desktop
+          and now has a visible result. */}
+      {sort.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', margin: '0 0 6px' }}>
+          <span style={{ fontFamily: NUM_FONT, fontSize: 8, fontWeight: 800, letterSpacing: '.08em', color: C.text3, textTransform: 'uppercase' }}>
+            sorted by
+          </span>
+          {sort.map((x2, i2) => {
+            const col = columns.find((c2) => c2.key === x2.key)
+            return (
+              <span key={x2.key} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800,
+                border: `1px solid ${C.orange}55`, background: 'rgba(249,115,22,.10)',
+                color: C.orange, borderRadius: 999, padding: '1.5px 4px 1.5px 8px',
+              }}>
+                <span onClick={() => setSort((s2) => s2.map((y) => (y.key === x2.key ? { ...y, dir: y.dir === 'desc' ? 'asc' : 'desc' } : y)))} style={{ cursor: 'pointer' }}
+                  title="Flip this column's direction">
+                  {i2 + 1}. {col?.label || x2.key} {x2.dir === 'desc' ? '▼' : '▲'}
+                </span>
+                <span onClick={() => setSort((s2) => s2.filter((y) => y.key !== x2.key))}
+                  title="Drop this column from the sort"
+                  style={{ cursor: 'pointer', color: C.text3, padding: '0 3px', fontSize: 10 }}>✕</span>
+              </span>
+            )
+          })}
+          {sort.length > 1 && (
+            <span onClick={() => setSort([])} style={{
+              fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, cursor: 'pointer',
+              textDecoration: 'underline', textDecorationStyle: 'dotted',
+            }}>clear</span>
+          )}
+          <span style={{ fontFamily: NUM_FONT, fontSize: 8, color: C.text3 }}>
+            · shift-click a header to add a tiebreaker
+          </span>
+        </div>
+      )}
       {/* .dense-wrap exists only so MobileCSS can hang a right-edge fade off
           it. The fade can't live on .dense-scroll itself — a pseudo-element on
           a scroll container scrolls away with the content, so it would drift
