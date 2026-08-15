@@ -11,6 +11,7 @@ import SituationalSplits from './SituationalSplits'
 import PitcherField from './PitcherField'
 import SlotDamage from './SlotDamage'
 import TeamVsStarter from './TeamVsStarter'
+import PitcherRead from './PitcherRead'
 
 // The pitcher's own modal.
 //
@@ -194,6 +195,19 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
             <b style={{ color: '#60a5fa' }}>blue</b> = his strength — hover any tile for what it means
           </div>
+
+          {/* 🧭 the story in sentences — same flow pass the batter modal got
+              (2026-08-15). All from fields already resolved above. */}
+          <PitcherRead
+            name={name}
+            throws={throws}
+            lineup={lineup}
+            stats={{
+              era, whip, hr9, k9, fbAllowed, hhAllowed, brlAllowed, l3hr9, l3n, weakSide,
+              venue: clean(src('venue_name'), ''),
+              parkHr: n(src('park_hr_factor'), null),
+            }}
+          />
 
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
             {TABS.map((t) => (

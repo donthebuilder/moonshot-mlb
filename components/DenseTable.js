@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { useSpotlight, SPOT_RING } from '../lib/spotlight'
+import { useSpotlight, washOf } from '../lib/spotlight'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
 import { explainFor, InfoDot, ExplainBanner } from './Explain'
@@ -69,9 +69,10 @@ export default function DenseTable({
   // you can't see is worse than no stack at all, because you can't tell why
   // the rows moved.
   const [sort, setSort] = useState(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])
-  // ✨ site-wide spotlight — a row whose _raw slate record matches the user's
-  // saved criteria gets the shared ring. Rows without _raw simply can't match.
-  const { match: spotOn } = useSpotlight()
+  // ✨ site-wide spotlight v2 — a row whose _raw slate record matches one of
+  // the user's named highlights washes in THAT light's color; when several
+  // match, priority (1 = top) decides. Rows without _raw simply can't match.
+  const { firstMatch } = useSpotlight()
   const railRef = useRef(null)
 
   // 📖 TAP A HEADER'S ⓘ FOR WHAT THE COLUMN MEANS (2026-08-09).
@@ -337,10 +338,9 @@ export default function DenseTable({
                   cursor: onRowClick ? 'pointer' : 'default',
                   opacity: dimRow?.(r) ? 0.42 : 1,
                   // ✨ the site-wide spotlight — inset so it can't collide
-                  // with the row borders, and it never changes layout.
-                  ...(spotOn(r._raw ?? r) ? {
-                    boxShadow: 'inset 2.5px 0 0 #FCD34D, inset 0 0 18px rgba(252,211,77,.10)',
-                  } : {}),
+                  // with the row borders, and it never changes layout. The
+                  // wash is the winning highlight's own color.
+                  ...((() => { const l = firstMatch(r._raw ?? r); return l ? washOf(l.color) : {} })()),
                 }}
                 className="dense-row"
               >
