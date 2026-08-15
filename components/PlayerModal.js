@@ -23,6 +23,7 @@ import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
 import ThresholdGrid from './ThresholdGrid'
 import ColdCase from './ColdCase'
+import PlayerRead from './PlayerRead'
 import BvP from './BvP'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
@@ -549,23 +550,39 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                     >+ {b}</button>
                   ))}
                   <span style={{ fontSize: 9, color: C.text3 }}>
-                    bot&apos;s pick: <b style={{ color: C.text2 }}>{bestBet(p, 'hr')}</b>
+                    {/* "pick: Avoid for HR" is not a pick — a Skip HR reads as
+                        the pass it is (flow-and-clean pass, 2026-08-15). */}
+                    bot&apos;s pick: <b style={{ color: C.text2 }}>{/skip/i.test(role) ? 'pass tonight' : bestBet(p, 'hr')}</b>
                   </span>
                 </>
               )}
             </div>
           )}
 
-          {/* chips — model opinions, so they don't exist for API-only players */}
-          {!apiOnly && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-            <Chip color={rc}>{role}</Chip>
-            <Chip color={C.text2}>{bestBet(p, 'hr')}</Chip>
-            <Chip color={C.text2}>Grade {gradeFor(p, 'hr')}</Chip>
-            {hasMatchupEdge && <Chip color={C.orange}>🎯 Matchup Edge</Chip>}
-            {pills.map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
-          </div>
-          )}
+          {/* chips — model opinions, so they don't exist for API-only players.
+              COHERENCE FIX (2026-08-15, part of the "flow and clean" pass):
+              these used to grade every hitter on HR, which put "Grade A+" and
+              "Avoid for HR" side by side on a Skip HR player. The grade and
+              bet chips now follow HIS market, same mapping The Read uses —
+              and a Skip HR wears no grade at all, because grading a market
+              the bot said to skip is decoration. */}
+          {!apiOnly && (() => {
+            const skipHr = /skip/i.test(role)
+            const roleType = /hit/i.test(role) && !skipHr ? 'hit'
+              : /hrr/i.test(role) ? 'hrr'
+              : /(tb|contact)/i.test(role) ? 'tb'
+              : 'hr'
+            const roleBet = bestBet(p, roleType)
+            return (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                <Chip color={rc}>{role}</Chip>
+                {!skipHr && roleBet && roleBet !== role && <Chip color={C.text2}>{roleBet}</Chip>}
+                {!skipHr && <Chip color={C.text2}>Grade {gradeFor(p, roleType)}</Chip>}
+                {hasMatchupEdge && <Chip color={C.orange}>🎯 Matchup Edge</Chip>}
+                {pills.map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
+              </div>
+            )
+          })()}
 
           {/* tab bar + range toggle */}
           <div style={{
@@ -598,8 +615,14 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
           {/* overview */}
           {tab === 'overview' && (
             <>
-              {/* The prop hero leads — the thing you came to check. Stats
-                  grid below it is the supporting evidence, not the opener. */}
+              {/* FLOW PASS (2026-08-15, Donovan: "the overview on the player
+                  modal as well — make it flow and clean"). The tab now reads
+                  top to bottom as one argument: the read (the story, in
+                  sentences) → the record (props matrix) → the case against
+                  (cold case) → the numbers (evidence appendix) → his shape.
+                  Nothing was removed; the wall of rows just stopped going
+                  first. */}
+              {!apiOnly && <PlayerRead p={p} odds={odds} />}
               <ThresholdGrid playerId={pid} odds={odds} />
               {/* 🍩 The other half of the read. Everything above this argues
                   for him; this is the only panel that argues against. */}
@@ -613,11 +636,18 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                 </div>
               )}
               {!apiOnly && (
-              // auto-fit so the two columns become one on a phone instead of
-              // squeezing every value row into ellipsis territory
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0 24px', marginBottom: 14 }}>
+              <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}`, marginBottom: 14 }}>
+              {/* Same anchored-section shape as the cold case, so the page
+                  reads as chapters instead of one unbroken wall. */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 2, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 900 }}>🔢 The numbers</span>
+                <span style={{ fontSize: 9, color: C.text3 }}>the evidence behind the read — hover any label for what it means</span>
+              </div>
+              {/* auto-fit so the two columns become one on a phone instead of
+                  squeezing every value row into ellipsis territory */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0 24px' }}>
                 <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '8px 0 4px' }}>Model Scores</div>
+                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Model Scores</div>
                   <Row label="HR Score"  value={hrScore(p).toFixed(1)} />
                   <Row label="HRR Score" value={prodScore(p).toFixed(1)} />
                   <Row label="Hit Score" value={hitScore(p).toFixed(1)} />
@@ -628,7 +658,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <PullWallRow bats={clean(p?.bats || p?.handedness, '')} venueName={clean(p?.venue_name, '')} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '8px 0 4px' }}>Batted Ball</div>
+                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Batted Ball</div>
                   <Row label="Avg EV"       value={avgEV(p) ? avgEV(p).toFixed(1) + ' mph' : '—'} />
                   <Row label="Max EV"       value={maxEV(p) ? maxEV(p).toFixed(1) + ' mph' : '—'} />
                   <Row label="Barrel %"     value={pct(barrelRate(p))} />
@@ -672,14 +702,14 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   })()}
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '14px 0 4px' }}>Recent Distance</div>
+                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Recent Distance</div>
                   <Row label="350+ count" value={recent350(p)} />
                   <Row label="375+ count" value={recent375(p)} />
                   <Row label="400+ count" value={recent400(p)} />
                   <Row label="Ideal HR %" value={ihrVal(p) ? (ihrVal(p) * 100).toFixed(1) + '%' : '—'} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '14px 0 4px' }}>Season</div>
+                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Season</div>
                   {/* live fallback fills these for non-slate players */}
                   <Row label="AVG"    value={clean(p?.season_avg ?? liveSeason?.avg, '—')} />
                   {/* explicit: a bare "HR" in the Season block is his home-run
@@ -696,7 +726,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   {b > 0 && <Row label="BABIP" value={b.toFixed(3)} />}
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '14px 0 4px' }}>Splits</div>
+                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Splits</div>
                   {avgVsRHP(p) > 0 && <Row label="vs RHP" value={avgVsRHP(p).toFixed(3)} />}
                   {avgVsLHP(p) > 0 && <Row label="vs LHP" value={avgVsLHP(p).toFixed(3)} />}
                   <Row label="L5 Hits" value={n(p?.last5_hits, 0)} />
@@ -704,7 +734,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   <Row label="L5 XBH"  value={n(p?.last5_xbh, 0)} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '14px 0 4px' }}>Opposing Pitcher</div>
+                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Opposing Pitcher</div>
                   <Row label="Name"   value={clean(p?.pitcher_name, '—')} mono={false} />
                   <Row label="Throws" value={clean(p?.pitcher_throws, '—')} />
                   <Row label="HR/9"   value={sc(p?.pitcher_hr9)} />
@@ -723,6 +753,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   )}
                   {pb > 0 && <Row label="P-BABIP" value={pb.toFixed(3)} />}
                 </div>
+              </div>
               </div>
               )}
               {/* ── 💥 HIS HOMER SHAPE (2026-08-14) ─────────────────────────
@@ -804,11 +835,9 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   </div>
                 )
               })()}
-              {!apiOnly && clean(p?.note || p?.summary, '') !== '—' && clean(p?.note || p?.summary, '') !== '' && (
-                <div style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
-                  {clean(p?.note || p?.summary)}
-                </div>
-              )}
+              {/* The bot's note used to sit here, orphaned at the very bottom
+                  of the tab — it rides in The Read now (💬), where a sentence
+                  belongs. */}
               {/* Your own words, this device only — the read you had on him
                   three days ago that no stat column remembers. */}
               <PlayerNotes playerId={pid} />
