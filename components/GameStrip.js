@@ -202,13 +202,18 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       accent={accent}
     >
     <div style={{ marginBottom: 16 }}>
-      {/* EVEN ROWS (2026-08-06): auto-fill grid stranded orphans — 12 games
-          on a 10-wide row left two cards floating in six empty cells. Flex
-          with grow means every row stretches edge to edge no matter the
-          count, and the leftover width isn't distributed evenly: each card's
-          flex-grow AND flex-basis scale with its Game Score, so the hottest
-          games are physically bigger. The size IS the heat, twice over. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {/* ONE SIZE (2026-08-15, Donovan: "for the games tab i don't like the
+          game bubble"). Cards used to scale their width AND their flex-grow
+          with Game Score, so a 15-game slate rendered as fifteen different
+          sized boxes on ragged rows — the heat was said three times over
+          (size, tint, ghost numeral) and the cost was a grid you couldn't
+          scan. Colour still carries the heat; the geometry stops shouting.
+          An even grid also means a card's position now means what the SORT
+          says it means, which is the whole point of the sort control. */}
+      <div style={{
+        display: 'grid', gap: 7,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 232px), 1fr))',
+      }}>
         {cards.map((c) => {
           const on = activeGame === c.pk
           // PERSONALITY BANDS (2026-08-07, same language as the park board):
@@ -226,10 +231,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               style={{
                 textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
                 borderRadius: 11, minWidth: 0, position: 'relative', overflow: 'hidden',
-                // Words first (2026-08-08): basis widened so names and band
-                // words render whole like the park cards do, instead of
-                // ellipsing at the old 138px floor.
-                flex: `${(1 + c.heat).toFixed(2)} 1 ${Math.round(158 + c.heat * 58)}px`,
+                // every card the same box — see the grid note above
                 border: `1px solid ${on ? accent : `${band.col}${c.heat >= 0.62 ? '66' : '30'}`}`,
                 background: on
                   ? 'rgba(249,115,22,0.09)'
@@ -243,7 +245,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                   game sits on the slate without a legend */}
               <div style={{
                 position: 'absolute', top: -6, right: 2, fontFamily: NUM_FONT,
-                fontSize: 40, fontWeight: 900, color: band.col, opacity: 0.09,
+                fontSize: 34, fontWeight: 900, color: band.col, opacity: 0.07,
                 lineHeight: 1, pointerEvents: 'none',
               }}>{c.gsRank}</div>
 

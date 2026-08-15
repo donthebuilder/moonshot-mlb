@@ -183,6 +183,30 @@ function hrProbV2(p, formNorm = 1, prodNorm = 1, parkNorm = 1, armNorm = 1) {
   return base * form * prod * park * arm * paMult
 }
 
+/**
+ * The slate's projected home runs, to one decimal — v3, park and arm included.
+ *
+ * 2026-08-15, Donovan: "the header projected should show to the decimal, not
+ * a range." The header and the home tile were both reading a RANGE parsed out
+ * of the bot's today.txt ("projected HRs 36–45"), which is a different number
+ * from the one this table computes and prints at the top of the page. Two
+ * numbers for one claim on one screen, and neither said which was which.
+ *
+ * This is the table's own sum, exported so every surface quotes the SAME
+ * model — the one that now knows the building and the arm.
+ */
+export function slateProjHr(players) {
+  const ps = (players || []).filter(Boolean)
+  if (!ps.length) return null
+  const mean = (f) => {
+    const xs = ps.map(f).filter((x) => Number.isFinite(x) && x > 0)
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1
+  }
+  const fN = mean(formOf), pN = mean(prodOf), kN = mean(parkOf), aN = mean(armOf)
+  const total = ps.reduce((sum, p) => sum + hrProbV2(p, fN, pN, kN, aN), 0)
+  return Number.isFinite(total) ? total : null
+}
+
 const contactScore = (p) => n(p?.contact_score_v2 ?? p?.contact_score, 0)
 const scoreOf = (p, kind) =>
   kind === 'hr' ? hrScore(p) : kind === 'hit' ? hitScore(p) : contactScore(p)

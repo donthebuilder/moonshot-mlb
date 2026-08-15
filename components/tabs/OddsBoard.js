@@ -35,8 +35,17 @@ const MARKETS = [
   { key: 'batter_total_bases', label: 'Bases', std: 1.5, color: '#FCD34D' },
   { key: 'batter_runs_scored', label: 'Runs', std: 0.5, color: '#c084fc' },
   { key: 'batter_rbis', label: 'RBI', std: 0.5, color: '#f87171' },
+  { key: 'batter_doubles', label: '2B', std: 0.5, color: '#38bdf8' },
+  { key: 'batter_triples', label: '3B', std: 0.5, color: '#a78bfa' },
 ]
 
+// Only four markets have a score on this site. Runs, RBI, doubles and
+// triples have none — and a column of 0.0 (2026-08-15, straight off his
+// screenshot) reads as "the model rates every one of these zero", which is a
+// claim, and a false one. No score, no column.
+const HAS_SCORE = new Set([
+  'batter_home_runs', 'batter_hits', 'batter_hits_runs_rbis', 'batter_total_bases',
+])
 const scoreFor = (p, mk) => (
   mk === 'batter_home_runs' ? hrScore(p)
     : mk === 'batter_hits' ? hitScore(p)
@@ -49,6 +58,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
   const [market, setMarket] = useState('batter_home_runs')
   const [plusOnly, setPlusOnly] = useState(false)
   const [offStd, setOffStd] = useState(false)
+  const [need, setNeed] = useState('any')   // 1+ / 2+ / 3+
 
   const status = useOddsStatus()
   const live = MARKETS.find((m) => m.key === market) || MARKETS[0]
@@ -80,10 +90,11 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
         line,
         over,
         need: need != null ? Math.round(10 * need) / 10 : null,
-        score: Math.round(10 * scoreFor(p, market)) / 10 || null,
+        score: HAS_SCORE.has(market) ? (Math.round(10 * scoreFor(p, market)) / 10 || null) : null,
         rate: rate != null ? Math.round(10 * rate) / 10 : null,
         edge: edge != null ? Math.round(10 * edge) / 10 : null,
         fair: rate != null ? fairOdds(rate) : null,
+        frozen: q.frozen ? 1 : 0,
         books: n(q.books, 0),
         best: n(q.best_over, over),
         bestBook: clean(q.best_book, ''),
@@ -96,8 +107,13 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
     let r = rows
     if (plusOnly) r = r.filter((x) => x.over > 0)
     if (offStd) r = r.filter((x) => Number.isFinite(x.line) && Math.abs(x.line - live.std) > 1e-9)
+    // 1+ / 2+ / 3+ (2026-08-15, Donovan: "more filters to see like 1+ 2+ 3").
+    // A book's 0.5 line IS the 1+ bet, 1.5 is 2+, 2.5 is 3+ — the half-point
+    // exists so the bet can't push, and reading it as "one and a half hits"
+    // is how people misread every prop board there is. Filter in his units.
+    if (need !== 'any') r = r.filter((x) => Number.isFinite(x.line) && Math.round(x.line + 0.5) === Number(need))
     return r
-  }, [rows, plusOnly, offStd, live.std])
+  }, [rows, plusOnly, offStd, live.std, need])
 
   const offCount = rows.filter((x) => Number.isFinite(x.line) && Math.abs(x.line - live.std) > 1e-9).length
   const plusCount = rows.filter((x) => x.over > 0).length
@@ -162,6 +178,19 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
           title={`Only quotes where the book moved OFF the standard ${live.std} bar — the ones where a normal hit-rate column is answering the wrong question.`}>
           ≠ Off the standard line <span style={{ fontFamily: NUM_FONT, fontSize: 9 }}>{offCount}</span>
         </button>
+        <span style={{ width: 1, height: 18, background: C.border, margin: '0 2px' }} />
+        {['any', '1', '2', '3'].map((k) => {
+          const cnt = k === 'any' ? rows.length
+            : rows.filter((x) => Number.isFinite(x.line) && Math.round(x.line + 0.5) === Number(k)).length
+          return (
+            <button key={k} onClick={() => setNeed(k)} disabled={!cnt && k !== 'any'}
+              title={k === 'any' ? 'Every line the books posted' : `Only the ${k}+ bet — the book's ${Number(k) - 0.5} line`}
+              style={{ ...pill(need === k, '#60a5fa'), opacity: cnt || k === 'any' ? 1 : 0.35 }}>
+              {k === 'any' ? 'Any line' : `${k}+`}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4, opacity: 0.75 }}>{cnt}</span>
+            </button>
+          )
+        })}
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {shown.length} of {rows.length} shown
         </span>
@@ -178,7 +207,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
         </div>
       ) : (
         <DenseTable
-          key={`${market}-${plusOnly}-${offStd}`}
+          key={`${market}-${plusOnly}-${offStd}-${need}`}
           rows={shown}
           columns={[
             { key: 'player', label: 'Hitter', heat: false, w: 152, bold: true, sticky: true },
@@ -203,10 +232,10 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
               key: 'need', label: 'NEED %', w: 56, dp: 1, invert: true,
               title: 'What that price has to hit to break even.',
             },
-            {
+            ...(HAS_SCORE.has(market) ? [{
               key: 'score', label: `${live.label} score`, w: 62, dp: 1,
               title: "The bot's 0-100 confidence on THIS market. Not a probability — never compare it to NEED.",
-            },
+            }] : []),
             ...(market === 'batter_home_runs' ? [
               { key: 'rate', label: 'HIS RATE %', w: 62, dp: 1,
                 title: 'His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes.' },
@@ -221,11 +250,13 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
                   </b>
                 )) },
             ] : []),
+            { key: 'frozen', label: '❄', w: 32, flag: true, mark: '❄',
+              title: "Frozen — his game has started, so this is the last price taken BEFORE first pitch, not the live in-game number. A live price already knows he grounded out twice; comparing it to a pregame hit rate would be nonsense." },
             { key: 'books', label: 'BKS', w: 40, heat: false, dim: true,
               title: 'How many of your books quoted it. One book is one opinion.' },
           ]}
           onRowClick={onPlayerClick}
-          initialSort={market === 'batter_home_runs' ? 'edge' : 'score'}
+          initialSort={market === 'batter_home_runs' ? 'edge' : HAS_SCORE.has(market) ? 'score' : 'need'}
           maxHeight={560}
           caption={`Click a header to sort, a row to open his card. LINE in yellow with a ≠ means the book is NOT on the standard ${live.std} bar for ${live.label} — the boards' hit rates are measured against ${live.std}, so read those two together carefully.`}
         />

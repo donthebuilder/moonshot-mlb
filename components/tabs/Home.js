@@ -10,6 +10,7 @@ import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
+import { slateProjHr } from '../ProjectedOutput'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
 
 // HOME — the front porch.
@@ -99,6 +100,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
   }, [mode])
 
   const games = useMemo(() => groupGames(players), [players])
+  const modelHr = useMemo(() => slateProjHr(players), [players])
   const isLive = results?.live_mode === true
 
   // First pitch: the earliest game that hasn't started yet, else the earliest.
@@ -446,9 +448,17 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
         <StatCell label="Games" col={C.blue} pulse={isLive}
           value={empty ? '—' : games.length}
           sub={empty ? 'slate not built yet' : `${games.filter((g) => g.lineup_confirmed).length} with confirmed lineups`} />
+        {/* ONE NUMBER, ONE DECIMAL (2026-08-15, Donovan: "should show to the
+            decimal not range"). This tile showed the bot sheet's RANGE while
+            the header and the projected-output table showed the model's own
+            figure — three surfaces, two different claims. All three quote
+            slateProjHr now; the bot's range is still in the sub-line, where a
+            second opinion belongs. */}
         <StatCell label="Projected HR" col={C.orange}
-          value={proj ? `${proj.low}–${proj.high}` : '—'}
-          sub={proj ? `bot's own range · power grade ${proj.grade || 'n/a'}` : 'appears when the bot publishes its sheet'} />
+          value={modelHr != null ? modelHr.toFixed(1) : (proj ? `${proj.low}–${proj.high}` : '—')}
+          sub={modelHr != null
+            ? `the site's own model${proj ? ` · bot's sheet says ${proj.low}–${proj.high}` : ''}`
+            : (proj ? `bot's own range · power grade ${proj.grade || 'n/a'}` : 'appears when the bot publishes its sheet')} />
         <StatCell label="First pitch" col={C.yellow}
           value={firstPitch ? firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—'}
           sub={firstPitch ? 'your local time' : 'no game times on the slate yet'} />

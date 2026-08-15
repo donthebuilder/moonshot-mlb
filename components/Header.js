@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT, TABS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
 import SlateTiles from './SlateTiles'
 import PaletteButton from './PaletteButton'
+import { slateProjHr } from './ProjectedOutput'
 
 
 // ── live capture ticker ───────────────────────────────────────────────────────
@@ -73,7 +74,9 @@ function CaptureStat({ results }) {
 
 // ── projected HR total ────────────────────────────────────────────────────────
 
-function ProjectedHRStat({ mode }) {
+function ProjectedHRStat({ mode, players = [] }) {
+  // the model's own number, to one decimal — see slateProjHr
+  const modelHr = useMemo(() => slateProjHr(players), [players])
   const [projection, setProjection] = useState(null)
 
   useEffect(() => {
@@ -115,7 +118,7 @@ function ProjectedHRStat({ mode }) {
     return () => { cancelled = true }
   }, [mode])
 
-  if (!projection) return null
+  if (!projection && modelHr == null) return null
   // ORANGE, always. The pill used to shift hue with the power grade, but the
   // strip now has a fixed colour order (blue-orange-blue-orange-gold-green)
   // and a grade-coloured pill broke it on medium/weak slates. The grade is
@@ -124,7 +127,7 @@ function ProjectedHRStat({ mode }) {
 
   return (
     <div
-      title={`Bot's projection for this slate: ${projection.low}–${projection.high} home runs, power grade ${projection.grade || 'n/a'}${projection.profiles != null ? `. ${projection.profiles} hitters clear its top-HR profile` : ''}${projection.weakSpots != null ? `, ${projection.weakSpots} weak pitcher spots` : ''}.`}
+      title={`${modelHr != null ? `The site's own model projects ${modelHr.toFixed(1)} home runs across this slate — each hitter's score-band and ISO-band rate, weighted by his expected plate appearances, his last-5 form, the park and tonight's air, and the arm he faces. ` : ''}${projection ? `The bot's own sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}${projection.profiles != null ? `; ${projection.profiles} hitters clear its top-HR profile` : ''}${projection.weakSpots != null ? `, ${projection.weakSpots} weak pitcher spots` : ''}.` : ''}`}
       style={{
         display:'flex', alignItems:'center', gap:8,
         padding:'5px 13px', borderRadius:9,
@@ -145,7 +148,8 @@ function ProjectedHRStat({ mode }) {
             interval is a detail you want on demand rather than always. */}
         <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
           <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:col }}>
-            {((projection.low + projection.high) / 2).toFixed(1)}
+            {modelHr != null ? modelHr.toFixed(1)
+              : ((projection.low + projection.high) / 2).toFixed(1)}
           </span>
           <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>HR</span>
         </span>
@@ -254,7 +258,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
             players={players}
             results={results}
             games={games}
-            projected={<ProjectedHRStat mode={mode} />}
+            projected={<ProjectedHRStat mode={mode} players={players} />}
             capture={<CaptureStat results={results} />}
           />
         </div>
