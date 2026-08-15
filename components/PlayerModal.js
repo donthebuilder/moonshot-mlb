@@ -24,6 +24,7 @@ import PlayerNotes from './PlayerNotes'
 import ThresholdGrid from './ThresholdGrid'
 import ColdCase from './ColdCase'
 import PlayerRead from './PlayerRead'
+import { downloadPlayerCard } from './shareCard'
 import BvP from './BvP'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
@@ -489,6 +490,18 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                 thumb on a modal that now covers the whole phone screen. The
                 padding makes it a real target without moving it a pixel. */}
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+              {/* 🎴 his card as a PNG — the single-player twin of the
+                  watchlist share card (2026-08-15). Bot fields only, so an
+                  API-only player has no card to print. */}
+              {!apiOnly && (
+                <button onClick={() => downloadPlayerCard(p, { jersey })}
+                  title="Download his card as a PNG for posting — the bot's call, his scores, the bat vs the arm, and his homer signature"
+                  style={{
+                    background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
+                    borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
+                    cursor: 'pointer', minHeight: 26,
+                  }}>📸</button>
+              )}
               {onNavigate && peers.length > 1 && (
                 <Navigator peers={peers} cur={player} onNavigate={onNavigate} />
               )}
