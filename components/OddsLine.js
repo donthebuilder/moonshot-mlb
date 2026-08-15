@@ -32,6 +32,11 @@ export default function OddsLine({ quote, edge, compact = false }) {
         quote.lines_seen > 1
           ? `⚠ books disagree on the line (${quote.lines_seen} different lines seen)`
           : '',
+        // The pick's bar and the book's number are not the same bet. Said out
+        // loud rather than left for the reader to notice in "o1.5".
+        quote.matches === false
+          ? `⚠ this pick has to clear ${quote.wantLine + 0.5}+, the book is on ${line} — a different bet`
+          : '',
         edge ? `his rate ${edge.have}% vs ${edge.need}% needed → ${edge.diff > 0 ? '+' : ''}${edge.diff}pp` : '',
       ].filter(Boolean).join('\n')}
       style={{
@@ -41,6 +46,13 @@ export default function OddsLine({ quote, edge, compact = false }) {
         borderRadius: 6, padding: compact ? '1px 5px' : '2px 7px',
       }}
     >
+      {/* ≠ when the book's number isn't the pick's bar. The line was always
+          printed, so a careful reader could catch it; nobody reads carefully
+          at a glance, and "-180" beside a pick's record is read as the price
+          OF that pick. The mark is the cheapest way to say it isn't. */}
+      {quote.matches === false && (
+        <span style={{ color: '#f87171', fontWeight: 900 }}>≠</span>
+      )}
       {Number.isFinite(line) && (
         <span style={{ color: C.text2, fontWeight: 700 }}>o{line}</span>
       )}

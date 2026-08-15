@@ -424,7 +424,7 @@ export default function Dashboard() {
             {tab === 'pools'       && <Pools players={players} results={resultsForSlate} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
-            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} />}
+            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
             {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} odds={odds} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'trueprice'  && <TruePrice onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}

@@ -484,7 +484,7 @@ const VIEWS = [
   { key: 'tomorrow', label: '📄 Tomorrow' },
 ]
 
-export default function Bot({ players = [], onPlayerClick, onGoPairs }) {
+export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = null }) {
   const [view, setView] = useState('read')
 
   return (
@@ -503,7 +503,7 @@ export default function Bot({ players = [], onPlayerClick, onGoPairs }) {
         }
       />
 
-      {view === 'read'     && <TheRead players={players} onPlayerClick={onPlayerClick} />}
+      {view === 'read'     && <TheRead players={players} onPlayerClick={onPlayerClick} odds={odds} />}
       {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
       {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
     </div>

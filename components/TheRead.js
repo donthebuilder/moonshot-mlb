@@ -1,6 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { quoteFor, fmtOdds, impliedPct } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
 import { isoAdjustedHr, isoMultiplier } from '../lib/scoring_additions'
 import { Empty } from './ui'
@@ -131,7 +132,7 @@ function MoveBar({ delta, max }) {
   )
 }
 
-export default function TheRead({ players = [], onPlayerClick }) {
+export default function TheRead({ players = [], onPlayerClick, odds = null }) {
   const read = useMemo(() => {
     const rows = (players || []).filter(Boolean)
     if (!rows.length) return null
@@ -182,6 +183,24 @@ export default function TheRead({ players = [], onPlayerClick }) {
   }, [players])
 
   if (!read) return <Empty>No slate loaded, so there is nothing to read yet.</Empty>
+
+  // The book's number for this exact call, or nothing. Nothing is the normal
+  // state: no key configured, no board published, or the book is on a
+  // different line than the bar — and a page that speaks in sentences should
+  // stay quiet rather than emit a sentence about an absence.
+  const PriceClause = ({ p, cat, odds }) => {
+    const q = quoteFor(odds, p, cat.role)
+    if (!q || q.matches === false || q.over == null) return null
+    const need = q.implied ?? impliedPct(q.over)
+    return (
+      <Para dim>
+        <span style={{ color: C.text3 }}>The price:</span>{' '}
+        <b style={{ color: C.text2 }}>{fmtOdds(q.over)}</b> to clear it
+        {need != null && <> — which needs it to happen <b style={{ color: C.text2 }}>{Math.round(need)}%</b> of the time to be worth taking</>}
+        {q.best_over != null && q.best_over !== q.over && <>; best on the board is <b style={{ color: C.text2 }}>{fmtOdds(q.best_over)}</b>{q.best_book ? ` at ${q.best_book}` : ''}</>}.
+      </Para>
+    )
+  }
 
   const Name = ({ p }) => (
     <b onClick={() => onPlayerClick?.(p)} style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}>{nameOf(p)}</b>
@@ -235,6 +254,12 @@ export default function TheRead({ players = [], onPlayerClick }) {
                 {why2 && why2 !== why && <> {why2}.</>}
               </Para>
               <Para>{formClause(p)}</Para>
+              {/* 💰 THE PRICE, said in sentences because that is what this page
+                  does. Donovan, 2026-08-15: "just odd on the picks to see what
+                  price they are at." Only when the book is asking for the same
+                  thing the pick's bar asks for — an HR call beside a 1.5 HR
+                  line would be quoting a multi-homer bet. */}
+              <PriceClause p={p} cat={c} odds={odds} />
               {weak && <Para><span style={{ color: C.orange }}>The hole:</span> {weak}</Para>}
               {risk && <Para dim><span style={{ color: C.text3 }}>Against it:</span> {risk}.</Para>}
             </div>
