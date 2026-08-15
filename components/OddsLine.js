@@ -26,6 +26,12 @@ export default function OddsLine({ quote, edge, compact = false }) {
         `break-even ${quote.implied ?? '—'}%`,
         quote.best_over ? `best ${fmtOdds(quote.best_over)} at ${quote.best_book}` : '',
         `${quote.books} book${quote.books === 1 ? '' : 's'} at this line`,
+        // With two books, "consensus" is a strong word for a median of two —
+        // and a split on WHERE the line sits is a coin flip the bot resolved
+        // silently. Say so rather than let it read as settled.
+        quote.lines_seen > 1
+          ? `⚠ books disagree on the line (${quote.lines_seen} different lines seen)`
+          : '',
         edge ? `his rate ${edge.have}% vs ${edge.need}% needed → ${edge.diff > 0 ? '+' : ''}${edge.diff}pp` : '',
       ].filter(Boolean).join('\n')}
       style={{
