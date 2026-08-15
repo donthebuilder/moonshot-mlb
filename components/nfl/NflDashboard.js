@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C } from '../../lib/nfl/theme'
-import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflSlateLooksReal, nflMatchupLooksReal } from '../../lib/nfl/dataSource'
+import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams } from '../../lib/sport'
 import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
@@ -11,6 +11,7 @@ import Games from './tabs/Games'
 import Boards from './tabs/Boards'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
+import Picks from './tabs/Picks'
 import Report from './tabs/Report'
 import Guide from './tabs/Guide'
 
@@ -28,6 +29,8 @@ export default function NflDashboard() {
   const [meta, setMeta] = useState(null)
   const [matchup, setMatchup] = useState(null)
   const [logs, setLogs] = useState(null)
+  const [picks, setPicks] = useState(null)
+  const [nflResults, setNflResults] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)      // { player, market }
   const [refreshKey, setRefreshKey] = useState(0)
@@ -40,7 +43,7 @@ export default function NflDashboard() {
     hashDone.current = true
     // initialHashParams(), not window.location.hash — see lib/sport.js.
     const t = initialHashParams().get('tab')
-    if (t && ['games', 'boards', 'research', 'matchups', 'report', 'guide'].includes(t)) setTab(t)
+    if (t && ['games', 'picks', 'boards', 'research', 'matchups', 'report', 'guide'].includes(t)) setTab(t)
   }, [])
 
   useEffect(() => {
@@ -52,6 +55,10 @@ export default function NflDashboard() {
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
       fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
       fetchNfl(nflLogPaths()).then((j) => { if (alive) setLogs(j) }),
+      fetchNfl(nflPicksPaths(), nflPicksLooksReal).then((j) => { if (alive) setPicks(j) }),
+      // No validator: an absent results file is the normal state before
+      // kickoff, and there is no committed snapshot to lose a race against.
+      fetchNfl(nflResultsPaths()).then((j) => { if (alive) setNflResults(j) }),
     ]).then(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [refreshKey])
@@ -81,6 +88,7 @@ export default function NflDashboard() {
             {tab === 'boards' && <Boards data={data} onPlayerClick={openPlayer} />}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
+            {tab === 'picks'    && <Picks picks={picks} results={nflResults} data={data} onPlayerClick={openPlayer} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'guide' && <Guide />}
           </>
