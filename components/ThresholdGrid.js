@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, MARKETS } from '../lib/gamelogs'
+import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 
 // PROP GRID v5 — PATTERNS, not furniture.
 //
@@ -26,6 +27,19 @@ const rateCol = (pct) => pct >= 60 ? '#4ade80' : pct >= 40 ? '#FCD34D' : pct >= 
 const cellBg = (pct) => pct == null ? 'transparent'
   : pct >= 60 ? 'rgba(74,222,128,.13)' : pct >= 40 ? 'rgba(252,211,77,.10)' : pct >= 25 ? 'rgba(249,115,22,.10)' : 'rgba(248,113,113,.07)'
 
+// The book's price against his own: green when they're paying MORE than his
+// rate says the bet is worth. Only ever fires when the book is on this row's
+// exact number — otherwise it would be scoring a different bet.
+const priceTone = (row) => {
+  if (!row.quote?.matches || row.seasonPct == null) {
+    return { fg: row.quote?.matches ? C.text : C.text3, bg: 'transparent' }
+  }
+  const d = row.seasonPct - row.quote.implied
+  if (d >= 5) return { fg: '#4ade80', bg: 'rgba(74,222,128,.10)' }
+  if (d <= -5) return { fg: '#f87171', bg: 'rgba(248,113,113,.10)' }
+  return { fg: C.text, bg: 'transparent' }
+}
+
 const LINES = { hit: [1, 2], tb2: [2, 3, 4], hr: [1, 2], hrr: [1, 2, 3], run: [1, 2], rbi: [1, 2], bb: [1, 2], k1: [1, 2] }
 const SHORT = { hit: 'Hit', tb2: 'TB', hr: 'HR', hrr: 'HRR', run: 'Run', rbi: 'RBI', bb: 'BB', k1: 'K' }
 const VAL = {
@@ -40,7 +54,7 @@ const VAL = {
   k1: (g) => g.k,
 }
 
-export default function ThresholdGrid({ playerId }) {
+export default function ThresholdGrid({ playerId, odds }) {
   const [data, setData] = useState(null)
   const [ls, setLs] = useState(null)
   const [staff, setStaff] = useState(null)
@@ -110,7 +124,15 @@ export default function ThresholdGrid({ playerId }) {
       for (const g of pool) { if (clr(g) === first) k++; else break }
       stk = first ? k : -k
     }
-    return { key: mk.key, label: `${t}+ ${SHORT[mk.key]}`, cells, lsCell, stk }
+    // THE PRICE, AND ONLY WHEN IT IS THE SAME BET. `t` is this row's threshold;
+    // gridQuote returns matches=false when the book is at a different number,
+    // and pairing that price with this row's rate would be confidently wrong.
+    const q = gridQuote(odds, { player_id: playerId }, mk.key, t)
+    // His own break-even: the price at which THIS rate is exactly fair. That's
+    // the "true price" — everything longer is value, everything shorter isn't.
+    const seasonPct = cells[3]?.pct ?? cells[2]?.pct ?? null
+    return { key: mk.key, label: `${t}+ ${SHORT[mk.key]}`, cells, lsCell, stk,
+             quote: q, fair: fairOdds(seasonPct), seasonPct }
   })
 
   // ── PATTERNS — mined from the UNfiltered log at the active line ────────────
@@ -230,6 +252,10 @@ export default function ThresholdGrid({ playerId }) {
                 ))}
                 <th style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>{new Date().getFullYear() - 1}</th>
                 <th style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>STK</th>
+                <th title="What the book pays for this exact bet. Green means it pays more than his own rate says it should."
+                    style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>PRICE</th>
+                <th title="His TRUE price — the number at which his own rate for this row breaks even. The book paying longer than this is value; shorter is not."
+                    style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>TRUE</th>
               </tr>
             </thead>
             <tbody>
@@ -259,6 +285,46 @@ export default function ThresholdGrid({ playerId }) {
                       textAlign: 'center', fontSize: 11, fontWeight: 900, padding: '3px 4px',
                       color: row.stk > 0 ? '#4ade80' : row.stk < 0 ? '#f87171' : C.text3,
                     }}>{row.stk > 0 ? `W${row.stk}` : row.stk < 0 ? `L${-row.stk}` : '—'}</td>
+                    {/* PRICE and TRUE are BOTH American odds, on purpose.
+                        The first draft put a percentage-point edge in the
+                        second column and fell back to a fair PRICE when there
+                        was no quote — so one column carried "+12" (points) and
+                        "+675" (odds) with nothing to tell them apart. A +675
+                        reading as a 675-point edge is exactly the kind of
+                        confident nonsense this file exists to prevent. Two
+                        columns, one unit each, directly comparable: what
+                        they pay vs what he's worth. The gap in points lives in
+                        the tooltip, where it can be labelled. */}
+                    <td title={
+                      !row.quote ? 'No price published for this market.'
+                        : !row.quote.matches
+                          ? `The book is at ${row.quote.line} (${row.quote.threshold}+), not ${row.label} — a different bet, so its price isn't shown here.`
+                          : `${fmtOdds(row.quote.over)} · needs ${row.quote.implied}% to break even`
+                            + (row.quote.best_over ? ` · best ${fmtOdds(row.quote.best_over)} at ${row.quote.best_book}` : '')
+                            + (row.quote.lines_seen > 1 ? `\n⚠ books disagree on the line (${row.quote.lines_seen} seen)` : '')
+                            + (row.seasonPct != null
+                              ? `\nhe clears it ${row.seasonPct.toFixed(0)}% → ${(row.seasonPct - row.quote.implied) > 0 ? '+' : ''}${(row.seasonPct - row.quote.implied).toFixed(0)}pp vs the price`
+                              : '')
+                    } style={{
+                      textAlign: 'center', fontSize: 11, fontWeight: 800, padding: '3px 4px',
+                      borderRadius: 6, whiteSpace: 'nowrap',
+                      color: priceTone(row).fg, background: priceTone(row).bg,
+                    }}>
+                      {row.quote?.matches ? fmtOdds(row.quote.over)
+                        : row.quote ? <span style={{ fontSize: 9 }}>@{row.quote.threshold}+</span>
+                          : '—'}
+                    </td>
+                    {/* HIS TRUE PRICE. Independent of any book — it's just his
+                        own rate for THIS row expressed as odds, so it still
+                        answers "what is he worth here" on the rows nobody
+                        prices (walks, strikeouts) and on the nights no board
+                        publishes at all. */}
+                    <td title={row.fair
+                      ? `He clears ${row.label} in ${row.seasonPct.toFixed(0)}% of the games in view, which is exactly fair at ${fmtOdds(row.fair)}. Longer than that is value; shorter is paying for the privilege.`
+                      : 'Not enough games in view to price him.'} style={{
+                      textAlign: 'center', fontSize: 10.5, fontWeight: 700, padding: '3px 4px',
+                      color: C.text2, whiteSpace: 'nowrap',
+                    }}>{row.fair ? fmtOdds(row.fair) : '—'}</td>
                   </tr>
                 )
               })}
@@ -278,6 +344,11 @@ export default function ThresholdGrid({ playerId }) {
           <b style={{ color: C.orange }}>25–39</b>
           <b style={{ color: '#f87171' }}>under 25</b>
           <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>
+          <span style={{ width: '100%', height: 0 }} />
+          <span><b style={{ color: C.text2 }}>PRICE</b> = what the book pays ·{' '}
+            <b style={{ color: C.text2 }}>TRUE</b> = the price his own rate deserves ·{' '}
+            <b style={{ color: '#4ade80' }}>green</b> = they&apos;re paying more than he&apos;s worth ·{' '}
+            <b>@3+</b> = the book is on a different number</span>
         </div>
 
         {/* ══ PATTERNS ══ */}

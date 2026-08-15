@@ -126,4 +126,62 @@ for (const f of ['pair_builder_latest', 'pair_history_summary', 'backtest_summar
   writeFileSync(`${OUT}/${f}.json`, JSON.stringify({}))
 }
 
-console.log(`fixture: ${players.length} players, ${GAMES.length} games, ${slots.length} graded slots -> ${OUT}`)
+// ── odds_latest.json, the shape bots/odds_fetch.py publishes ────────────────
+// Deliberately NOT complete: a real board misses people, and the site has to
+// look right when it does. So this covers every case the UI has a branch for —
+//
+//   · every market priced          → the PRICE and EDGE columns fill in
+//   · a book line that DOESN'T match the grid row (tb2 at 2.5, row reads 2+)
+//     → the grid must show "@3+" instead of pairing a price with the wrong rate
+//   · lines_seen > 1               → the tooltip's books-disagree warning
+//   · roughly a third of the card unpriced → the '—' path, which is the common
+//     case in August when only the main slate gets props
+const IMPLIED = (o) => Math.round(1000 * (o < 0 ? -o / (-o + 100) : 100 / (o + 100))) / 10
+const priceFor = (base) => {          // American price around a rough true rate
+  const p = Math.max(0.06, Math.min(0.88, base))
+  return p >= 0.5 ? -Math.round((100 * p) / (1 - p) / 5) * 5 : Math.round((100 * (1 - p)) / p / 5) * 5
+}
+const MK = [
+  ['batter_hits', 0.5, (s) => 0.30 + s / 250],
+  ['batter_total_bases', 1.5, (s) => 0.22 + s / 300],
+  ['batter_home_runs', 0.5, (s) => 0.05 + s / 900],
+  ['batter_hits_runs_rbis', 1.5, (s) => 0.28 + s / 260],
+  ['batter_runs_scored', 0.5, (s) => 0.20 + s / 320],
+  ['batter_rbis', 0.5, (s) => 0.18 + s / 330],
+]
+const byId = {}
+const byName = {}
+players.forEach((p, i) => {
+  if (i % 3 === 2) return                                   // a third go unpriced
+  const book = {}
+  MK.forEach(([market, line, f], mi) => {
+    // Every fourth hitter's TB line is at 2.5, not 1.5 — a different bet from
+    // the grid's "2+ TB" row, which is the case the mismatch branch exists for.
+    const ln = market === 'batter_total_bases' && i % 4 === 0 ? 2.5 : line
+    const over = priceFor(f(p.overall_score) - (ln > line ? 0.14 : 0))
+    book[market] = {
+      line: ln,
+      over,
+      under: -Math.round(over * 0.9),
+      implied: IMPLIED(over),
+      best_over: over + (mi % 2 ? 10 : 0),
+      best_book: mi % 2 ? 'fanatics' : 'draftkings',
+      books: 2,
+      lines_seen: i % 7 === 0 ? 2 : 1,                       // the disagree warning
+      name: p.player_name,
+      game: `${p.away} @ ${p.home}`,
+    }
+  })
+  byId[String(p.player_id)] = book
+  byName[p.player_name.toLowerCase()] = book
+})
+writeFileSync(`${OUT}/odds_latest.json`, JSON.stringify({
+  source: 'fixture', sport: 'baseball_mlb', regions: 'us',
+  fetched_at: new Date().toISOString(),
+  fetched_at_human: 'fixture',
+  category_market: { TOP: 'batter_home_runs', HR: 'batter_home_runs', HIT: 'batter_hits', HRR: 'batter_hits_runs_rbis', CONTACT: 'batter_total_bases' },
+  by_player_id: byId, by_name: byName,
+  match_rate: 100, unmatched: [], note: 'dev fixture — not real prices',
+}, null, 0))
+
+console.log(`fixture: ${players.length} players, ${GAMES.length} games, ${slots.length} graded slots, ${Object.keys(byId).length} priced -> ${OUT}`)
