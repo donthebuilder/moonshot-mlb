@@ -219,7 +219,39 @@ function bandRate(score, bands) {
   return rate / 100
 }
 
-export default function ProjectedOutput({ games = [], players = [] }) {
+// 🎛 THE FILTERS (2026-08-15, Donovan: "we talked about how we'd like to
+// click filters to see the projected bases and such").
+//
+// A projection over the whole lineup answers "what does this game produce".
+// These answer the question a bettor actually has — what does the TOP of the
+// order produce, what do the confirmed bats produce, what happens in the
+// launch pads — and every column recomputes live, because the model is a
+// per-hitter sum and a sum can be taken over any subset.
+//
+// The normalisers recompute over the same pool, which is the part that has to
+// be right: form and park are divided by the POOL's mean, so a filtered view
+// stays internally calibrated instead of quietly inheriting the whole slate's
+// average and drifting.
+const LENSES = [
+  { key: 'set', label: '✓ Lineups in', hit: (p) => p?.lineup_confirmed === true,
+    tip: 'Only hitters in a confirmed lineup — a projection over an unconfirmed one is a guess about who plays.' },
+  { key: 'top5', label: 'Top 5 spots', hit: (p) => n(p?.lineup_spot, 99) <= 5,
+    tip: 'Only the top five lineup spots — the bats that get the extra trip.' },
+  { key: 'pad', label: '🌋 Launch pads', hit: (p) => n(p?.park_hr_factor, 1) >= 1.05,
+    tip: "Only hitters in a park that adds home runs (factor 1.05 and up), before weather." },
+  { key: 'leak', label: '🩹 Leaky arms', hit: (p) => n(p?.pitcher_hr9, 0) >= 1.3,
+    tip: 'Only hitters facing a starter giving up 1.30 HR/9 or worse.' },
+  { key: 'hot', label: '🔥 Hot bats', hit: (p) => n(p?.last5_hr, 0) >= 1,
+    tip: 'Only hitters with a home run in their last five games.' },
+]
+
+export default function ProjectedOutput({ games = [], players: allPlayers = [] }) {
+  const [lenses, setLenses] = useState(() => new Set())
+  const players = useMemo(() => {
+    if (!lenses.size) return allPlayers
+    const on = LENSES.filter((l) => lenses.has(l.key))
+    return (allPlayers || []).filter((p) => on.every((l) => l.hit(p)))
+  }, [allPlayers, lenses])
   const [by, setBy] = useState('game')
 
   // Opposing-pen stats, live from the MLB StatsAPI team `rp` split. Loaded
@@ -373,6 +405,38 @@ export default function ProjectedOutput({ games = [], players = [] }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>📈 Projected output</span>
         <span style={{ fontSize: 9.5, color: C.text3 }}>expected COUNT, not a score — a claim that can be wrong</span>
+      {/* click-to-filter — every number below recomputes over what's left */}
+      <div className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+        {LENSES.map((l) => {
+          const on = lenses.has(l.key)
+          return (
+            <button key={l.key} title={l.tip}
+              onClick={() => setLenses((prev) => {
+                const nx = new Set(prev)
+                if (nx.has(l.key)) nx.delete(l.key); else nx.add(l.key)
+                return nx
+              })}
+              style={{
+                padding: '4px 11px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+                borderRadius: 999, whiteSpace: 'nowrap',
+                border: `1px solid ${on ? C.orange : C.border}`,
+                background: on ? 'rgba(249,115,22,.14)' : 'transparent',
+                color: on ? C.orange : C.text3,
+              }}>{l.label}</button>
+          )
+        })}
+        {lenses.size > 0 && (
+          <>
+            <button onClick={() => setLenses(new Set())} style={{
+              background: 'none', border: 'none', color: C.text3, cursor: 'pointer',
+              fontSize: 9.5, textDecoration: 'underline', textDecorationStyle: 'dotted',
+            }}>clear</button>
+            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              projecting {players.length} of {allPlayers.length} hitters
+            </span>
+          </>
+        )}
+      </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           {['game', 'team'].map((k) => (
             <button
