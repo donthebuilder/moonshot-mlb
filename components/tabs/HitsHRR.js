@@ -5,6 +5,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { btnStyle } from '../ui'
 import RankedBoard from './RankedBoard'
 import Runs from './Runs'
+import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
 import { playerId } from '../../lib/player'
@@ -164,7 +165,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
   )
 }
 
-export default function HitsHRR({ players, allPlayers = [], onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
+export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
   const [bview, setBview] = useState('boards')
   const [view, setView] = useState('hr')
   const { filtered, state } = useBoardFilter(players)
@@ -211,6 +212,7 @@ export default function HitsHRR({ players, allPlayers = [], onAdd, onWatch, watc
               weakspot: 'which hitters are standing in a slot tonight’s starter has already been beaten in.',
               aligned: 'which hitters have every flag that grades out firing at once.',
               matchupedge: 'which hitters get to face the exact pitches they punish.',
+              blank: 'who went hitless last time out — and whether his own bounce-back record beats what the book is charging.',
             }[view] || 'every ranked board in one place, each with its record stated, not implied.'}
           </div>
         </div>
@@ -223,6 +225,12 @@ export default function HitsHRR({ players, allPlayers = [], onAdd, onWatch, watc
           <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')}>⭐ Weak Spot</button>
           <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')}>🧩 Aligned</button>
           <button onClick={() => setView('matchupedge')} style={btnStyle(C.orange, view === 'matchupedge')}>🎯 Matchup Edge</button>
+          {/* 🧊 AFTER A BLANK (2026-08-15) — Donovan: "show all the players who
+              blanked in their last game ... on a chart, have a column with
+              price [and hit] rate for hits and 1 HRR." A ninth lens rather
+              than a tab: it is a board, it ranks, and it belongs beside the
+              other eight. */}
+          <button onClick={() => setView('blank')} style={btnStyle(C.cyan, view === 'blank')}>🧊 After a Blank</button>
         </div>
       </div>
 
@@ -299,7 +307,9 @@ export default function HitsHRR({ players, allPlayers = [], onAdd, onWatch, watc
         <BoardFilters state={state} total={players.length} shown={filtered.length} />
       )}
 
-      {view === 'weakspot'
+      {view === 'blank'
+        ? <BlankBoard players={allPlayers.length ? allPlayers : players} odds={odds} onPlayerClick={onPlayerClick} />
+        : view === 'weakspot'
         ? <WeakSpotSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
         : view === 'aligned'
         ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />

@@ -426,7 +426,7 @@ export default function Dashboard() {
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'boxes'       && <Boxes players={allPlayers} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
-            {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
+            {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
             {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'due'         && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
