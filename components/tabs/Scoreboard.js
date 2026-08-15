@@ -108,7 +108,7 @@ function Tracker({ title, count, children, note, answers }) {
   )
 }
 
-export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate }) {
+export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate, odds = null }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -226,7 +226,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   )
 
   const secStart = <StartHere key="start" onNavigate={onNavigate} />
-  const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+  const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />
   const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
   const secPicks = <BotPicksStrip key="picks" players={players} onPlayerClick={onPlayerClick} />
   // 📐 What an average score is worth tonight. Folded rather than always-open:

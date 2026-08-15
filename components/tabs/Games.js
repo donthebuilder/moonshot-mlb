@@ -2,6 +2,8 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { roleBadge } from '../../lib/roleBadge'
+import PriceBubble from '../PriceBubble'
+import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
 import { PanelTitle, Empty, btnStyle } from '../ui'
@@ -24,7 +26,7 @@ import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../.
 //
 // Own component rather than inline JSX because it reads the slate scale from
 // context, and a hook cannot live inside a .map() callback.
-function StatChip({ p, cat, col, score, onClick, label }) {
+function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
   // `label` (2026-08-14): display text when it differs from the functional
   // category — a merged "TOP/HR" chip still computes its stat line and score
   // from ONE real category (the primary), but wears both names.
@@ -54,6 +56,13 @@ function StatChip({ p, cat, col, score, onClick, label }) {
           // No published stat for him — say nothing rather than print a dash.
           <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>no stat yet</span>
         )}
+        {/* 💸 THE PRICE, ON THE PICK (2026-08-15, Donovan: "i wanted to see
+            them on the games picks like a little buble or ... glow of the
+            odd"). It sits on the stat line rather than the name line because
+            the name line is the one that truncates, and it glows only when
+            there is a real rate to judge the number against. */}
+        <PriceBubble odds={odds} player={p} cat={cat}
+          rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
         <span title="The bot's score for this category" style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: `${col}cc`, fontFamily: NUM_FONT, flexShrink: 0 }}>
           {score.toFixed(0)}
         </span>
@@ -186,7 +195,7 @@ function sidesOf(g) {
   })
 }
 
-export default function Games({ players, slateDate = '', pairHistorySummary, results, onAdd, onWatch, watchIds, onPlayerClick }) {
+export default function Games({ players, slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick }) {
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
   // Donovan: "make sure the live wire and games can update the lineups — does
@@ -728,6 +737,11 @@ export default function Games({ players, slateDate = '', pairHistorySummary, res
                             }}>
                               <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{(cats || [cat]).join('/')}</span>
                               <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
+                              {/* 💸 the price, on the pick. Glows only when
+                                  there is a real rate to judge it against —
+                                  see components/PriceBubble.js. */}
+                              <PriceBubble odds={odds} player={p} cat={cat}
+                                rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
                               <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
                             </button>
                           )
@@ -879,6 +893,7 @@ export default function Games({ players, slateDate = '', pairHistorySummary, res
                               <StatChip key={`${cat}-${playerId(p)}`} p={p} cat={cat} col={col}
                                 label={(cats || [cat]).join('/')}
                                 score={CAT_SCORE[cat](p) || 0}
+                                odds={odds}
                                 onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} />
                             )
                           })}
