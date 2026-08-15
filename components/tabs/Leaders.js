@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
-import { leagueLeaders, LEADER_CATS } from '../../lib/leaders'
+import { leagueLeaders, LEADER_CATS, seasonLines, chases } from '../../lib/leaders'
 
 // League Leaders — SEASON STATS ONLY.
 //
@@ -181,11 +181,16 @@ export default function Leaders({ players = [], onPlayerClick }) {
   // League leader boards — undefined while loading, null if the live call
   // failed (the section says so instead of showing nothing silently).
   const [league, setLeague] = useState(undefined)
+  // 🏁 Every qualified hitter's season line, one request, joined to tonight's
+  // card by id. See lib/leaders.js for why this is season and not career.
+  const [lines, setLines] = useState(undefined)
   useEffect(() => {
     let alive = true
     leagueLeaders().then((d) => { if (alive) setLeague(d) })
+    seasonLines().then((d) => { if (alive) setLines(d) })
     return () => { alive = false }
   }, [])
+  const chase = useMemo(() => chases(lines, players).slice(0, 12), [lines, players])
 
   // MLB person id → slate row, for the 🤖 on-slate marker.
   const slateById = useMemo(() => {
@@ -272,6 +277,41 @@ export default function Leaders({ players = [], onPlayerClick }) {
 
   return (
     <div>
+      {/* 🏁 THE CHASE — the only reason a season total belongs on a betting
+          board. Somebody tonight is two homers from thirty, and his park,
+          his lineup spot and his opponent all stop being neutral when he is. */}
+      {chase.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🏁 Chasing a number tonight</span>
+            <span style={{ fontSize: 9, color: C.text3 }}>
+              season totals from the league&apos;s own leaderboard — closest first
+            </span>
+          </div>
+          <div className="dense-scroll rail" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 3 }}>
+            {chase.map((c) => (
+              <button key={`${c.p.player_id}-${c.mark.key}`}
+                onClick={() => onPlayerClick?.(c.p)}
+                style={{
+                  flex: '0 0 auto', minWidth: 132, textAlign: 'left', cursor: 'pointer',
+                  border: `1px solid ${c.away <= 1 ? 'rgba(249,115,22,.45)' : C.border}`,
+                  background: c.away <= 1 ? 'rgba(249,115,22,.07)' : C.bg2,
+                  borderRadius: 10, padding: '6px 10px',
+                }}>
+                <div style={{ fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {nameOf(c.p)}
+                </div>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: C.orange, lineHeight: 1.25 }}>
+                  {c.away} from {c.next}
+                </div>
+                <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
+                  {c.value} {c.mark.label} · {teamOf(c.p)}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <PanelTitle
         title="League Leaders"
         sub="Season stats for tonight's hitters — no model scores on this page"

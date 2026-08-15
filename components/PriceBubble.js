@@ -46,31 +46,36 @@ export default function PriceBubble({ odds, player, cat, rate = null, size = 'sm
   return (
     <span
       title={[
-        `${q.name || player?.name || player?.player_name || ''} · ${cat}`,
-        `${fmtOdds(q.over)} at the book${q.best_over && q.best_over !== q.over ? ` (best ${fmtOdds(q.best_over)}${q.best_book ? ` at ${q.best_book}` : ''})` : ''}`,
+        `${q.name || player?.name || player?.player_name || ''} · ${cat} · the book's ${q.line} line`,
+        `${fmtOdds(q.over)}${q.best_over && q.best_over !== q.over ? ` (best ${fmtOdds(q.best_over)}${q.best_book ? ` at ${q.best_book}` : ''})` : ''}`,
         need != null ? `needs ${Math.round(need)}% to break even` : '',
         q.matches === false
           ? `⚠ the book is on ${q.line} — this pick has to clear ${q.wantLine + 0.5}+, so that price is for a different bet`
           : have != null
             ? `he clears it ${have.toFixed(0)}% of the time → ${diff > 0 ? '+' : ''}${diff.toFixed(0)} points`
-            : 'no track record for this category yet, so nothing is being compared',
+            : '',
         q.lines_seen > 1 ? `⚠ books disagree on the line (${q.lines_seen} seen)` : '',
       ].filter(Boolean).join('\n')}
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0,
-        fontFamily: NUM_FONT, fontSize: big ? 10 : 8.5, fontWeight: 900,
-        lineHeight: 1, padding: big ? '2.5px 7px' : '1.5px 5px',
-        borderRadius: 999, whiteSpace: 'nowrap',
-        color: col,
-        border: `1px solid ${col}${tone ? '77' : '33'}`,
-        background: tone ? `${col}1c` : 'rgba(255,255,255,.04)',
-        // The glow, and only when there is something to glow about. A chip
-        // that lights up on every pick is a chip that means nothing.
-        boxShadow: tone ? `0 0 8px ${tone}44` : 'none',
+        // PLAIN TEXT, NOT A CHIP (2026-08-15, second pass). The first version
+        // wrapped this in a bordered, tinted, glowing pill and it changed the
+        // shape of every card it landed on — Donovan: "i liked how it was
+        // before i just wanted you to add the odds simple."
+        //
+        // He's right, and the pill was solving a problem the price doesn't
+        // have. A number in the row's own type, tinted only when there is a
+        // verdict, reads as part of the pick instead of as a widget stuck to
+        // it — and on a chip that already carries a category, a name, a stat
+        // and a score, the quietest thing that can be added is the only thing
+        // that should be.
+        fontFamily: NUM_FONT, fontSize: big ? 10.5 : 9,
+        fontWeight: tone ? 900 : 700,
+        color: tone || C.text2,
+        whiteSpace: 'nowrap', flexShrink: 0,
+        letterSpacing: '.01em',
       }}
     >
-      {q.matches === false && <span style={{ color: BAD }}>≠</span>}
-      {fmtOdds(q.over)}
+      {q.matches === false ? '≠' : ''}{fmtOdds(q.over)}
     </span>
   )
 }

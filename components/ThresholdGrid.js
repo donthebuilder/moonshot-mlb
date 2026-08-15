@@ -425,7 +425,7 @@ export default function ThresholdGrid({ playerId, odds }) {
         {/* ══ PATTERNS ══ */}
         <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 7 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🧭 Patterns</span>
+            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🧭 What repeats</span>
             <span style={{ fontSize: 9, color: C.text3 }}>
               what actually repeats in his log for <b style={{ color: C.text2 }}>{dynLabel}</b> — 25+ point gaps on real samples only
             </span>

@@ -259,7 +259,7 @@ function Head({ stamp, n, span }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 4 }}>
-        <span style={{ fontSize: 14, fontWeight: 900 }}>🔥 Runs</span>
+        <span style={{ fontSize: 14, fontWeight: 900 }}>🔥 Patterns</span>
         {n != null && (
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
             {n} hitters · last {span || 30} games{stamp ? ` · ${stamp}` : ''}
