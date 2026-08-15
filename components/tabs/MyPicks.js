@@ -4,6 +4,8 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf } from '../../lib/player'
 import { groupGames } from '../../lib/data'
 import { CATEGORIES } from '../BotPicksStrip'
+import OddsLine from '../OddsLine'
+import { quoteFor } from '../../lib/odds'
 import {
   BAR, isLocked, getPicks, savePick, clearPick, slotKey,
   gradeSlate, recordNight, ledgerTotals, exportStore, importStore, clearAll,
@@ -75,7 +77,7 @@ function Stat({ label, value, sub, color, big }) {
   )
 }
 
-export default function MyPicks({ players = [], results, slateDate, onPlayerClick }) {
+export default function MyPicks({ players = [], results, odds, slateDate, onPlayerClick }) {
   const [picks, setPicks] = useState({})
   const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState('')
@@ -356,6 +358,12 @@ export default function MyPicks({ players = [], results, slateDate, onPlayerClic
                       </span>}
                     </button>
                     {row && s.bot && outcomePill(row.botOut, !reporting.has(g.game_pk))}
+                    {/* THE PRICE, next to the pick it belongs to. A board that
+                        ranks by score and never shows what the market charges
+                        is a research tool; this is the one column that makes it
+                        a decision. No verdict chip here — that needs a real
+                        historical rate, and a SCORE is not a probability. */}
+                    {s.bot && <OddsLine quote={quoteFor(odds, s.bot, cat.role)} compact />}
 
                     <span style={{ color: C.text3, fontSize: 11 }}>→</span>
 
@@ -384,6 +392,7 @@ export default function MyPicks({ players = [], results, slateDate, onPlayerClic
                       </select>
                     )}
                     {row && mine && outcomePill(row.mineOut, !reporting.has(g.game_pk))}
+                    {mine && <OddsLine quote={quoteFor(odds, { player_id: mine.pid, name: mine.name }, cat.role)} compact />}
 
                     {row?.contested && (
                       <Pill tone={row.mineOut && !row.botOut ? 'won' : !row.mineOut && row.botOut ? 'lost' : 'void'}>
