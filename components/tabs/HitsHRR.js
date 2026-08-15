@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { btnStyle } from '../ui'
@@ -9,6 +9,173 @@ import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
 import { playerId } from '../../lib/player'
+
+// 📊 BOARDS — the nine ranked lenses, and the streak page they share a roof
+// with.
+//
+// ── THE CHROME PASS (2026-08-15) ─────────────────────────────────────────────
+//
+// Donovan: "i think the over boards page acan be better", plus the standing
+// complaint that pages feel "all over the place" and that he keeps having to
+// "scroll up to scroll back down".
+//
+// WHAT WAS WRONG. Between the top of the tab and the first ranked row sat
+// FOUR stacked things: a pill pair (Boards / Patterns), a bordered card whose
+// left half was a "What this answers" paragraph and whose right half was nine
+// lens buttons, a second bordered gradient banner carrying the per-view proof
+// paragraph, and only then the filter bar. Two containers and roughly a
+// screenful of furniture ahead of the content — and because the lens buttons
+// lived at the top of all of it, changing boards meant scrolling back up past
+// every word of it. That is the "scroll up to scroll back down" complaint
+// literally described.
+//
+// WHAT CHANGED — FORM ONLY, NOT ONE FACT DROPPED.
+//   · ONE STICKY ROW carries the view pills AND all nine lenses. It follows
+//     you down the board (same idiom as the Games page's sticky game strip),
+//     so switching lenses never costs a scroll. The bordered card around them
+//     is gone; the buttons themselves are the header now.
+//   · THE "WHAT THIS ANSWERS" LINE AND THE PROOF HEADLINE ARE ONE SENTENCE.
+//     Same words, same per-view text, now a line instead of a card plus a
+//     banner. Tiles and boxes lose to sentences.
+//   · THE PROOF PARAGRAPH — the measured archive numbers, quoted verbatim,
+//     which are the whole reason to trust a board — hangs one tap off the end
+//     of that sentence, behind its own headline. Same disclosure idiom as the
+//     Games legend ("what do the symbols mean") and ParkBoard's "show all
+//     parks". Nothing is hidden that isn't named by the thing you tap.
+//   · The three signal sections below lost their gradient header boxes for a
+//     left rule and a sentence, and their standalone description paragraphs
+//     folded into that same sentence — those paragraphs were repeating the
+//     validated-rate pill's own tooltip a line above them.
+//
+// Every button, caption, tooltip and measured number that existed before is
+// still on this page, in the same words.
+
+// What each lens is FOR, in the market's own language. The proof line below
+// says why to trust a board; this says which bet it belongs to — nine buttons
+// that all look like rankings needed one line naming the market each answers.
+// (2026-08-09 spoon-feed pass; text unchanged, lifted to module scope so the
+// header sentence and the lens row can both read it.)
+const ANSWERS = {
+  top: 'if you were making one play per game, who would it be.',
+  hr: 'who to back to hit a home run tonight.',
+  hit: 'who to back for a 1+ hit prop — the site’s most reliable market.',
+  hrr: 'who to back for 2+ hits+runs+RBI.',
+  contact: 'who to back for 2+ total bases.',
+  weakspot: 'which hitters are standing in a slot tonight’s starter has already been beaten in.',
+  aligned: 'which hitters have every flag that grades out firing at once.',
+  matchupedge: 'which hitters get to face the exact pitches they punish.',
+  blank: 'who went hitless last time out — and whether his own bounce-back record beats what the book is charging.',
+}
+const ANSWER_FALLBACK = 'every ranked board in one place, each with its record stated, not implied.'
+
+// THE PROOF. This tab covers the categories the archive says actually work —
+// HIT picks delivered 64.5% and hit_score is the second-best-calibrated score
+// in the system; hrr_score is THE best-calibrated (+13.3 quartile spread). The
+// HR tab can't make those claims; this one can, so it does — per view, with
+// the numbers, so the tab reads as the site's proven product rather than the
+// undercard. Was a full-width gradient banner; now the head is a line you can
+// read at a glance and the body is one tap behind it. Wording untouched: these
+// are measured archive figures and they get quoted, not paraphrased.
+const PROOF = {
+  top: {
+    color: C.yellow,
+    head: 'The bot’s overall ranking — graded as an HR bet, honestly',
+    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Graded on homers across the 39-day archive TOP delivered 19.2% — decent for an any-HR bet, and the recent locked stretch runs hotter (see the Report Card). Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
+  },
+  hr: {
+    color: C.orange,
+    head: 'Ranked on the bot’s own HR score — and here’s why',
+    body: 'This board ranks on the bot’s raw hr_score, untouched. It used to multiply that by the measured HR rate of the hitter’s ISO band — real research, across 3,973 graded picks ISO bands ran 8.2% to 22.2% while raw-score quartiles managed +4.7 points — but that multiplier was removed on 2026-08-09 for two checkable reasons: hr_score ALREADY carries ISO through season_power, so the band counted it twice, and it corrupted the projection bands, which were measured against the raw score. The ISO column still sits beside the score so you can see it, and The Read applies the band as an explicit second opinion rather than folding it back in.',
+  },
+  hit: {
+    color: C.purple,
+    head: 'The site’s most reliable product',
+    body: 'HIT picks got their hit 64.5% of the time across 3,973 graded picks, and hit_score separates cleanly (58.3% bottom quartile → 67.0% top). The "When picked" column below is each hitter’s own delivery record in this exact category.',
+  },
+  hrr: {
+    color: C.cyan,
+    head: 'The best-calibrated score in the system',
+    body: 'hrr_score has the strongest quartile spread of any score the bot writes (41.2% → 54.5% on its own 2+ H+R+RBI outcome), and HRR picks cleared their bar 48% of the time. When this board says top-quartile, the archive backs it.',
+  },
+  contact: {
+    color: C.blue,
+    head: 'Real, with a caveat the others don’t have',
+    body: 'CONTACT picks cleared 2+ TB 38.2% of the time — but the graded files record no walks, so a pick who walked twice is scored a failure. Treat these rates as a floor. contact_score itself is the flattest in the system (+3.5); lean on the player’s own "When picked" record over the score.',
+  },
+  weakspot: {
+    color: C.yellow,
+    head: 'Validated: ⭐ hitters homer more',
+    body: 'A weak spot means tonight’s starter has given up real damage to this lineup slot. Measured across the archive: flagged hitters homered 18.0% vs 13.9% unflagged, and cleared 2+ TB 41.3% vs 37.5%. One of only three flags on the site that survives grading.',
+  },
+  aligned: {
+    color: C.purple,
+    head: 'Rebuilt on the two flags that grade out — the old 🧩 didn’t',
+    body: 'The bot’s 🧩 tag graded at 15.4% vs 14.6% baseline on 39 samples — nothing. Aligned now means the measured stack instead: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18. That trio homered 29.2% across 154 graded slots — more than double the 12.9% rate of hitters with neither flag, the strongest composite on the site.',
+  },
+  matchupedge: {
+    color: C.orange,
+    head: 'Validated: 🎯 pitch match is a real HR signal',
+    body: 'The hitter’s damage pitches overlap what tonight’s arm actually throws. Measured: matched hitters homered 18.4% vs 13.6% unmatched across 1,669 graded slots — the same size edge as the weak-spot flag, and the two stack: both together homered 23.3%.',
+  },
+}
+
+/**
+ * How far down the page the sticky lens row has to pin.
+ *
+ * The app header (components/Header.js) is ITSELF `position: sticky; top: 0`
+ * at z-index 50, and its height changes with the width because the tab rail
+ * wraps. So a child that pins at `top: 0` does not sit under your eye — it
+ * slides underneath the header and disappears, which is worse than not being
+ * sticky at all. (The Games page's sticky game strip pins at 0 and has that
+ * problem; the scrollMarginTop: 160 sprinkled around this codebase is the
+ * same header height, guessed by hand.) Measuring it once and on resize is
+ * cheaper than another guessed constant and cannot drift when the header
+ * changes.
+ */
+function useHeaderOffset() {
+  const [top, setTop] = useState(0)
+  useEffect(() => {
+    const measure = () => {
+      const h = typeof document !== 'undefined' ? document.querySelector('header') : null
+      const stuck = h && getComputedStyle(h).position === 'sticky'
+      setTop(stuck ? Math.round(h.getBoundingClientRect().height) : 0)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+  return top
+}
+
+/**
+ * A signal section's header, as one line.
+ *
+ * WAS: a tinted gradient bar (emoji + title + validated-rate pill + count),
+ * and under it, for two of the three sections, a separate grey paragraph that
+ * said in prose exactly what the pill's own tooltip already said — the
+ * "check whether the top one is repeating the bottom one" trap. Now it is a
+ * left rule and a sentence: same emoji, same title, same pill with the same
+ * tooltip, same count, and the description reading on as the rest of the
+ * sentence rather than as a second block.
+ */
+function SectionHead({ color, icon, title, rate, rateTitle, count, children }) {
+  return (
+    <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 14 }}>{icon}</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{title}</span>
+        <span title={rateTitle} style={{
+          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color, cursor: 'help',
+          border: `1px solid ${color}55`, borderRadius: 999, padding: '1px 8px',
+        }}>{rate}</span>
+        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{count} players</span>
+      </div>
+      {children && (
+        <div style={{ fontSize: 10.5, color: C.text3, marginTop: 3, lineHeight: 1.5, maxWidth: 720 }}>{children}</div>
+      )}
+    </div>
+  )
+}
 
 function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
   const ws = players
@@ -28,20 +195,12 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
         title="Weak spot matchups"
         onPlayerClick={onPlayerClick}
       />
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 10, padding: '7px 12px',
-        background: `linear-gradient(90deg, #f59e0b14, transparent)`,
-        borderLeft: `3px solid #f59e0b`, borderRadius: 8,
-      }}>
-        <span style={{ fontSize: 16 }}>⭐</span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Weak Spot Matchups</span>
-        <span title="Validated: flagged hitters homered 18.0% vs 13.9% baseline across the graded archive" style={{
-          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: '#f59e0b', cursor: 'help',
-          border: `1px solid #f59e0b55`, borderRadius: 999, padding: '1px 8px',
-        }}>18.0% HR</span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{ws.length} players</span>
-      </div>
+      <SectionHead
+        color="#f59e0b" icon="⭐" title="Weak Spot Matchups"
+        rate="18.0% HR"
+        rateTitle="Validated: flagged hitters homered 18.0% vs 13.9% baseline across the graded archive"
+        count={ws.length}
+      />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
         {ws.map(p => (
           <PlayerCard
@@ -77,24 +236,15 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
         title="Aligned signals"
         onPlayerClick={onPlayerClick}
       />
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 10, padding: '7px 12px',
-        background: `linear-gradient(90deg, #a78bfa14, transparent)`,
-        borderLeft: `3px solid #a78bfa`, borderRadius: 8,
-      }}>
-        <span style={{ fontSize: 16 }}>🧩</span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Aligned Signals</span>
-        <span title="The measured stack: 29.2% HR across 154 graded slots — the strongest validated combo on the site" style={{
-          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: '#a78bfa', cursor: 'help',
-          border: `1px solid #a78bfa55`, borderRadius: 999, padding: '1px 8px',
-        }}>29.2% HR</span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{aligned.length} players</span>
-      </div>
-      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
+      <SectionHead
+        color="#a78bfa" icon="🧩" title="Aligned Signals"
+        rate="29.2% HR"
+        rateTitle="The measured stack: 29.2% HR across 154 graded slots — the strongest validated combo on the site"
+        count={aligned.length}
+      >
         Weak-spot lineup matchup, pitch-type match, and real recent contact quality all line up —
         the strongest validated signal combo found in backtesting.
-      </div>
+      </SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
         {aligned.map(p => (
           <PlayerCard
@@ -130,24 +280,15 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
         title="Matchup edge"
         onPlayerClick={onPlayerClick}
       />
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 10, padding: '7px 12px',
-        background: `linear-gradient(90deg, #22d3ee14, transparent)`,
-        borderLeft: `3px solid #22d3ee`, borderRadius: 8,
-      }}>
-        <span style={{ fontSize: 16 }}>🎯</span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Matchup Edge</span>
-        <span title="Backtested separator: 23.9% HR with the flag vs 9.5% without" style={{
-          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: '#22d3ee', cursor: 'help',
-          border: `1px solid #22d3ee55`, borderRadius: 999, padding: '1px 8px',
-        }}>23.9% HR</span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{edge.length} players</span>
-      </div>
-      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
+      <SectionHead
+        color="#22d3ee" icon="🎯" title="Matchup Edge"
+        rate="23.9% HR"
+        rateTitle="Backtested separator: 23.9% HR with the flag vs 9.5% without"
+        count={edge.length}
+      >
         Documented batter-vs-pitch exploit — backtested separator: players with this flag hit
         23.9% vs 9.5% without it.
-      </div>
+      </SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
         {edge.map(p => (
           <PlayerCard
@@ -168,171 +309,109 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
   const [bview, setBview] = useState('boards')
   const [view, setView] = useState('hr')
+  const [proofOpen, setProofOpen] = useState(false)
+  const stickTop = useHeaderOffset()
   const { filtered, state } = useBoardFilter(players)
 
-  if (bview === 'patterns') {
-    return (
-      <div>
-      <BoardPills view={bview} setView={setBview} />
-        {/* allPlayers: a streak board silently narrowed by the header's team
-            filter reads as the whole board — the audit's wrong-number find. */}
-        <Runs players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} />
-      </div>
-    )
-  }
+  const boards = bview === 'boards'
+  const pr = PROOF[view]
+
   return (
     <div>
-      <BoardPills view={bview} setView={setBview} />
+      {/* ── THE ONLY HEADER ──────────────────────────────────────────────
+          Sticky, because the lens you want next should always be one tap away
+          and never one scroll up — that is the "scroll up to scroll back
+          down" complaint, answered. It pins BELOW the app header rather than
+          at 0; see useHeaderOffset above for why that distinction matters. */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 10,
-        flexWrap: 'wrap',
-        background: C.bg2,
-        border: `1px solid ${C.border}`,
-        borderRadius: 14,
-        padding: 10,
-        marginBottom: 14,
+        position: 'sticky', top: stickTop, zIndex: 20, background: C.bg,
+        paddingTop: 4, paddingBottom: 7, marginBottom: 10,
+        borderBottom: `1px solid ${C.border}`,
+        display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
       }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 900 }}>Boards</div>
-          {/* 2026-08-09 spoon-feed pass. The proof banner below every board
-              says why to trust it; this says which bet it is FOR — eight
-              buttons that all look like rankings needed one line naming the
-              market each one belongs to. */}
-          <div style={{ fontSize: 10.5, color: C.text3, marginTop: 2, lineHeight: 1.55, maxWidth: 460 }}>
-            <b style={{ color: C.text2 }}>What this answers:</b>{' '}
-            {{
-              top: 'if you were making one play per game, who would it be.',
-              hr: 'who to back to hit a home run tonight.',
-              hit: 'who to back for a 1+ hit prop — the site’s most reliable market.',
-              hrr: 'who to back for 2+ hits+runs+RBI.',
-              contact: 'who to back for 2+ total bases.',
-              weakspot: 'which hitters are standing in a slot tonight’s starter has already been beaten in.',
-              aligned: 'which hitters have every flag that grades out firing at once.',
-              matchupedge: 'which hitters get to face the exact pitches they punish.',
-              blank: 'who went hitless last time out — and whether his own bounce-back record beats what the book is charging.',
-            }[view] || 'every ranked board in one place, each with its record stated, not implied.'}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button onClick={() => setView('top')}     style={btnStyle(C.yellow, view === 'top')}>🥇 Top</button>
-          <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}>HR</button>
-          <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}>Hits</button>
-          <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}>HRR</button>
-          <button onClick={() => setView('contact')} style={btnStyle(C.blue,   view === 'contact')}>⚾ Contact</button>
-          <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')}>⭐ Weak Spot</button>
-          <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')}>🧩 Aligned</button>
-          <button onClick={() => setView('matchupedge')} style={btnStyle(C.orange, view === 'matchupedge')}>🎯 Matchup Edge</button>
-          {/* 🧊 AFTER A BLANK (2026-08-15) — Donovan: "show all the players who
-              blanked in their last game ... on a chart, have a column with
-              price [and hit] rate for hits and 1 HRR." A ninth lens rather
-              than a tab: it is a board, it ranks, and it belongs beside the
-              other eight. */}
-          <button onClick={() => setView('blank')} style={btnStyle(C.cyan, view === 'blank')}>🧊 After a Blank</button>
-        </div>
+        {[['boards', '📊 Boards'], ['patterns', '🔥 Patterns']].map(([k, label]) => (
+          <button key={k} onClick={() => setBview(k)} style={{
+            padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+            fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+            border: `1px solid ${bview === k ? C.orange : C.border}`,
+            background: bview === k ? 'rgba(249,115,22,.14)' : 'transparent',
+            color: bview === k ? C.orange : C.text3,
+          }}>{label}</button>
+        ))}
+        {boards && (
+          <>
+            <span style={{ width: 1, alignSelf: 'stretch', background: C.border, margin: '0 3px' }} />
+            <button onClick={() => setView('top')}     style={btnStyle(C.yellow, view === 'top')}     title={`Top — ${ANSWERS.top}`}>🥇 Top</button>
+            <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}      title={`HR — ${ANSWERS.hr}`}>HR</button>
+            <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}     title={`Hits — ${ANSWERS.hit}`}>Hits</button>
+            <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}     title={`HRR — ${ANSWERS.hrr}`}>HRR</button>
+            <button onClick={() => setView('contact')} style={btnStyle(C.blue,   view === 'contact')} title={`Contact — ${ANSWERS.contact}`}>⚾ Contact</button>
+            <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')} title={`Weak Spot — ${ANSWERS.weakspot}`}>⭐ Weak Spot</button>
+            <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')} title={`Aligned — ${ANSWERS.aligned}`}>🧩 Aligned</button>
+            <button onClick={() => setView('matchupedge')} style={btnStyle(C.orange, view === 'matchupedge')} title={`Matchup Edge — ${ANSWERS.matchupedge}`}>🎯 Matchup Edge</button>
+            {/* 🧊 AFTER A BLANK (2026-08-15) — Donovan: "show all the players who
+                blanked in their last game ... on a chart, have a column with
+                price [and hit] rate for hits and 1 HRR." A ninth lens rather
+                than a tab: it is a board, it ranks, and it belongs beside the
+                other eight. */}
+            <button onClick={() => setView('blank')} style={btnStyle(C.cyan, view === 'blank')} title={`After a Blank — ${ANSWERS.blank}`}>🧊 After a Blank</button>
+          </>
+        )}
       </div>
 
-      {/* THE PROOF BANNER. This tab covers the categories the archive says
-          actually work — HIT picks delivered 64.5% and hit_score is the
-          second-best-calibrated score in the system; hrr_score is THE
-          best-calibrated (+13.3 quartile spread). The HR tab can't make
-          those claims; this one can, so it does — per view, with the
-          numbers, so the tab reads as the site's proven product rather than
-          the undercard. */}
-      {(() => {
-        const PROOF = {
-          top: {
-            color: C.yellow,
-            head: 'The bot’s overall ranking — graded as an HR bet, honestly',
-            body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Graded on homers across the 39-day archive TOP delivered 19.2% — decent for an any-HR bet, and the recent locked stretch runs hotter (see the Report Card). Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
-          },
-          hr: {
-            color: C.orange,
-            head: 'Ranked on the bot’s own HR score — and here’s why',
-            body: 'This board ranks on the bot’s raw hr_score, untouched. It used to multiply that by the measured HR rate of the hitter’s ISO band — real research, across 3,973 graded picks ISO bands ran 8.2% to 22.2% while raw-score quartiles managed +4.7 points — but that multiplier was removed on 2026-08-09 for two checkable reasons: hr_score ALREADY carries ISO through season_power, so the band counted it twice, and it corrupted the projection bands, which were measured against the raw score. The ISO column still sits beside the score so you can see it, and The Read applies the band as an explicit second opinion rather than folding it back in.',
-          },
-          hit: {
-            color: C.purple,
-            head: 'The site’s most reliable product',
-            body: 'HIT picks got their hit 64.5% of the time across 3,973 graded picks, and hit_score separates cleanly (58.3% bottom quartile → 67.0% top). The "When picked" column below is each hitter’s own delivery record in this exact category.',
-          },
-          hrr: {
-            color: C.cyan,
-            head: 'The best-calibrated score in the system',
-            body: 'hrr_score has the strongest quartile spread of any score the bot writes (41.2% → 54.5% on its own 2+ H+R+RBI outcome), and HRR picks cleared their bar 48% of the time. When this board says top-quartile, the archive backs it.',
-          },
-          contact: {
-            color: C.blue,
-            head: 'Real, with a caveat the others don’t have',
-            body: 'CONTACT picks cleared 2+ TB 38.2% of the time — but the graded files record no walks, so a pick who walked twice is scored a failure. Treat these rates as a floor. contact_score itself is the flattest in the system (+3.5); lean on the player’s own "When picked" record over the score.',
-          },
-          weakspot: {
-            color: C.yellow,
-            head: 'Validated: ⭐ hitters homer more',
-            body: 'A weak spot means tonight’s starter has given up real damage to this lineup slot. Measured across the archive: flagged hitters homered 18.0% vs 13.9% unflagged, and cleared 2+ TB 41.3% vs 37.5%. One of only three flags on the site that survives grading.',
-          },
-          aligned: {
-            color: C.purple,
-            head: 'Rebuilt on the two flags that grade out — the old 🧩 didn’t',
-            body: 'The bot’s 🧩 tag graded at 15.4% vs 14.6% baseline on 39 samples — nothing. Aligned now means the measured stack instead: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18. That trio homered 29.2% across 154 graded slots — more than double the 12.9% rate of hitters with neither flag, the strongest composite on the site.',
-          },
-          matchupedge: {
-            color: C.orange,
-            head: 'Validated: 🎯 pitch match is a real HR signal',
-            body: 'The hitter’s damage pitches overlap what tonight’s arm actually throws. Measured: matched hitters homered 18.4% vs 13.6% unmatched across 1,669 graded slots — the same size edge as the weak-spot flag, and the two stack: both together homered 23.3%.',
-          },
-        }
-        const pr = PROOF[view]
-        if (!pr) return null
-        return (
-          <div style={{
-            background: `linear-gradient(155deg, ${pr.color}12, ${pr.color}04)`,
-            border: `1px solid ${pr.color}3d`, borderRadius: 11,
-            padding: '9px 13px', marginBottom: 12,
-          }}>
-            <div style={{ fontSize: 11.5, fontWeight: 800, color: pr.color, marginBottom: 2 }}>
-              ✓ {pr.head}
-            </div>
-            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.55, maxWidth: 760 }}>{pr.body}</div>
+      {!boards ? (
+        /* allPlayers: a streak board silently narrowed by the header's team
+           filter reads as the whole board — the audit's wrong-number find. */
+        <Runs players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} />
+      ) : (
+        <>
+          {/* ONE SENTENCE, TWO OLD BLOCKS. The market this board is for, then
+              the archive's verdict on it as a tap-to-open clause. The full
+              measured paragraph is behind the headline that names it — read
+              the claim, open the receipts. */}
+          <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
+            <b style={{ color: C.text }}>What this answers:</b> {ANSWERS[view] || ANSWER_FALLBACK}
+            {pr && (
+              <>
+                {' '}
+                <button
+                  onClick={() => setProofOpen((v) => !v)}
+                  title={proofOpen ? 'Hide the measured record' : 'Open the measured record behind this board — the archive rates, in full'}
+                  style={{
+                    background: 'transparent', border: 'none', padding: 0, margin: 0,
+                    font: 'inherit', cursor: 'pointer', color: pr.color, fontWeight: 800,
+                    borderBottom: `1px dashed ${pr.color}66`, textAlign: 'left',
+                  }}
+                >✓ {pr.head} {proofOpen ? '▴' : '▾'}</button>
+              </>
+            )}
           </div>
-        )
-      })()}
+          {pr && proofOpen && (
+            <div style={{
+              fontSize: 10.5, color: C.text2, lineHeight: 1.6, maxWidth: 780,
+              borderLeft: `2px solid ${pr.color}66`, paddingLeft: 11, marginBottom: 12,
+            }}>{pr.body}</div>
+          )}
 
-      {/* The three signal sections get the filter bar here. The hrr/hit/contact
-          views delegate to RankedBoard, which carries its own — showing two
-          filter bars stacked would be worse than either. */}
-      {['weakspot', 'aligned', 'matchupedge'].includes(view) && (
-        <BoardFilters state={state} total={players.length} shown={filtered.length} />
+          {/* The three signal sections get the filter bar here. The hrr/hit/contact
+              views delegate to RankedBoard, which carries its own — showing two
+              filter bars stacked would be worse than either. */}
+          {['weakspot', 'aligned', 'matchupedge'].includes(view) && (
+            <BoardFilters state={state} total={players.length} shown={filtered.length} />
+          )}
+
+          {view === 'blank'
+            ? <BlankBoard players={allPlayers.length ? allPlayers : players} odds={odds} onPlayerClick={onPlayerClick} />
+            : view === 'weakspot'
+            ? <WeakSpotSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+            : view === 'aligned'
+            ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+            : view === 'matchupedge'
+            ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+            : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} />
+          }
+        </>
       )}
-
-      {view === 'blank'
-        ? <BlankBoard players={allPlayers.length ? allPlayers : players} odds={odds} onPlayerClick={onPlayerClick} />
-        : view === 'weakspot'
-        ? <WeakSpotSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-        : view === 'aligned'
-        ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-        : view === 'matchupedge'
-        ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-        : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} />
-      }
-    </div>
-  )
-}
-
-function BoardPills({ view, setView }) {
-  return (
-    <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
-      {[['boards', '📊 Boards'], ['patterns', '🔥 Patterns']].map(([k, label]) => (
-        <button key={k} onClick={() => setView(k)} style={{
-          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
-          fontWeight: 800, fontFamily: NUM_FONT,
-          border: `1px solid ${view === k ? C.orange : C.border}`,
-          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
-          color: view === k ? C.orange : C.text3,
-        }}>{label}</button>
-      ))}
     </div>
   )
 }

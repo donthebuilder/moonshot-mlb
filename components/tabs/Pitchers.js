@@ -1,13 +1,14 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { penStatsFor, fetchPenFatigue, penTier } from '../../lib/bullpen'
+import { penStatsFor, fetchPenFatigue, penTier, penFrom, penLineParts, penWorkParts, penWorkSentence } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import { groupPitchers } from '../../lib/data'
 import { n, clean } from '../../lib/player'
 import { pitcherOverall } from '../../lib/scoring_additions'
 import { PanelTitle, Empty, Chip, btnStyle, Band } from '../ui'
-import { rankArms } from '../../lib/armLeak'
+import { rankArms, armFormParts, armFormSentence, hrLuckPointers } from '../../lib/armLeak'
+import { airParts, airSentence, airVerdict } from '../../lib/conditions'
 import DenseTable from '../DenseTable'
 import PitcherSpots from '../PitcherSpots'
 import PitcherProfile from '../PitcherProfile'
@@ -19,6 +20,128 @@ const PCT = (v) => {
   const x = Number(v)
   return Number.isFinite(x) ? (x * 100).toFixed(1) : '—'
 }
+
+// MISSING IS NOT ZERO (2026-08-15). n(v, null) does not do what the columns
+// above it look like they assume: Number(null) is 0 and 0 is finite, so a
+// field that never published comes back as a measured 0.00 and DenseTable
+// draws it as one. The columns added today route through this instead, which
+// yields `undefined` — DenseTable prints that as an em dash, sinks it in every
+// sort and leaves it out of the column's heat range. The older columns keep
+// their existing behaviour deliberately; changing them would move heat ranges
+// and sort order on a table people already read, and it is a separate fix.
+const numOrGap = (v) => {
+  if (v === null || v === undefined || v === '') return undefined
+  const x = Number(v)
+  return Number.isFinite(x) ? x : undefined
+}
+const textOrGap = (v) => {
+  const s = String(v ?? '').trim()
+  return s || undefined
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THREE THINGS THIS PAGE NEVER SAID (2026-08-15)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Donovan: "pitcehrs breakdown page just needs to be better fill like more
+// things can be now wiether about the bull pen piutcher or whats been going on
+// for the pitcher or the invriment."
+//
+// Three named gaps, and all three were gaps of OMISSION rather than of data —
+// every field below was already on 266 of 266 slate rows and simply never
+// drawn on this page:
+//
+//   the pen         bullpen_era / _whip / _hr9 / _quality / _attack_score /
+//                   _pitch_fit. The board was one bar (StatsAPI reliever HR/9)
+//                   and a fatigue tag; six published pen fields sat unused.
+//   what's going on pitcher_l3_* against the season line, the bot's own
+//                   trend direction WITH its published reason, velocity
+//                   against his own baseline, HR luck. One 58px "Trend"
+//                   column carried all of that, abbreviated to one word.
+//   the environment park_hr_factor, roof, weather_*. A page about arms that
+//                   never mentioned the building or the air they throw in,
+//                   while the hitter boards read exactly those fields.
+//
+// HOW IT IS SAID. Clauses, not tiles — every one of the three reads hands back
+// the same { key, text, tone, title } shape (lib/armLeak armFormParts,
+// lib/bullpen penLineParts/penWorkParts, lib/conditions airParts) and the
+// Clauses renderer below strings them into one sentence with the numbers
+// inside it. The air specifically goes through lib/conditions rather than a
+// fifth private copy of the temp/wind/park chip logic, which is the exact
+// duplication that file was created to end.
+
+const toneColor = (t) => (t === 'hot' ? C.orange : t === 'cold' ? C.blue : C.text2)
+
+/**
+ * One voice for every clause list on this page. `lead` is the bold stub that
+ * names what is being said ("Lately: ", "Behind him: "), each clause keeps its
+ * own tooltip, and tone colours from the HITTER's side — ember means the
+ * clause is good news for the bat.
+ */
+function Clauses({ lead, parts, size = 9.5, color, style, tail = null }) {
+  if (!parts?.length) return null
+  return (
+    <div style={{ fontSize: size, lineHeight: 1.6, color: color || C.text3, ...style }}>
+      {lead && <b style={{ color: C.text2 }}>{lead}</b>}
+      {parts.map((p, i) => (
+        <span key={p.key}>
+          {i > 0 && (i === parts.length - 1 ? ' and ' : ', ')}
+          <span title={p.title} style={{
+            color: toneColor(p.tone), fontWeight: p.tone === 'plain' ? 400 : 700, cursor: 'help',
+          }}>{p.text}</span>
+        </span>
+      ))}
+      .{tail}
+    </div>
+  )
+}
+
+/**
+ * THE ENVIRONMENT, for one game.
+ *
+ * The whole point is that this goes through lib/conditions.js — temp, wind,
+ * park factor, humidity, rain and roof were already written there once and
+ * copied four times before that file existed, and this page is not going to be
+ * the fifth copy. The only clause added on top is weather_hr_effect_pct, which
+ * airParts does not carry: it is the bot's own published summary of what
+ * tonight's air does to home runs here, and it is a percent effect on a rate,
+ * not a chance of anything.
+ */
+function AirLine({ row, venue, lead, size = 9.5, style }) {
+  if (!row) return null
+  const parts = airParts(row)
+  const hrEff = n(row.weather_hr_effect_pct, null)
+  const all = [
+    ...parts,
+    ...(hrEff != null && hrEff !== 0 ? [{
+      key: 'wxhr',
+      text: `the bot puts the air at ${hrEff > 0 ? '+' : ''}${hrEff}% on home runs`,
+      tone: hrEff > 0 ? 'hot' : 'cold',
+      title: 'weather_hr_effect_pct — the bot\'s published summary of tonight\'s conditions as a percentage swing on home runs at this park. A published field, not derived here.',
+    }] : []),
+  ]
+  if (!all.length) return null
+  const verdict = airVerdict(row)
+  return (
+    <Clauses
+      lead={lead ?? (venue ? `${venue}: ` : 'The air: ')}
+      parts={all}
+      size={size}
+      style={style}
+      tail={verdict === 'carrying'
+        ? <span style={{ color: C.orange, fontWeight: 700 }}> The ball is carrying here tonight.</span>
+        : verdict === 'dead'
+          ? <span style={{ color: C.blue, fontWeight: 700 }}> This is dead air.</span>
+          : null}
+    />
+  )
+}
+
+// A grouped starter carries his whole opposing lineup, and every hitter in it
+// was stamped with the same pitcher_*, bullpen_* and park/weather fields — so
+// any one of those rows is the starter's slate row. Same shortcut the Overall
+// column already takes with pitcherOverall(p.lineup?.[0]?.raw).
+const rawOf = (p) => p?.lineup?.[0]?.raw || null
 
 const SORTS = [
   ['weak', 'Most Weak Spots'],
@@ -51,11 +174,20 @@ function sortPitchers(pitchers, sortKey) {
 // and a record is exactly the kind of number that would be trivial to
 // approximate and wrong. The caption says the pen's real workload numbers
 // instead, which are measured.
+//
+// DEPTH PASS 2026-08-15 ("more about the bull pen"): the board knew one thing
+// about a pen — its StatsAPI reliever HR/9 — and the slate had been publishing
+// five more on every row the whole time. Now each row also carries the bot's
+// quality grade, its ERA and its WHIP; the sentences under the list say the
+// attack score against tonight's real spread, the pitch fit of the bats it has
+// to face, and which individual arms were emptied yesterday (fetchPenFatigue
+// has collected those names since day one and nothing ever showed them). The
+// two sources are labelled rather than blended — see lib/bullpen.js.
 function BullpenBoard({ pitchers, onTeamClick }) {
   const [pen, setPen] = useState(null)          // ABBR → {hr9, hr, ip}
   const [fatByAbbr, setFatByAbbr] = useState(null)
   const [open, setOpen] = useState(false)
-  const [sortKey, setSortKey] = useState('hr9') // hr9 | fatigue
+  const [sortKey, setSortKey] = useState('hr9') // hr9 | fatigue | attack
 
   useEffect(() => {
     penStatsFor().then((m) => setPen(m)).catch(() => {})
@@ -86,30 +218,81 @@ function BullpenBoard({ pitchers, onTeamClick }) {
     return { oppOfTeam: oppMap, starterOfTeam: armMap }
   }, [pitchers])
 
+  // THE PUBLISHED PEN LINE, joined by team. bullpen_* on a hitter's row belongs
+  // to the pen of the club he FACES, so team T's block is read off T's own
+  // starter's opposing lineup — the verification is in lib/bullpen.js penFrom.
+  // pitch fit is per hitter, so the board carries the average across the bats
+  // that pen actually has to get out tonight, and says how many that is.
+  const slatePen = useMemo(() => {
+    const m = {}
+    pitchers.forEach((p) => {
+      const t = String(p.team || '').toUpperCase()
+      if (!t || m[t]) return
+      const line = penFrom(rawOf(p))
+      if (!line) return
+      const fits = (p.lineup || [])
+        .map((b) => Number(b?.raw?.bullpen_pitch_fit))
+        .filter((v) => Number.isFinite(v))
+      m[t] = {
+        ...line,
+        fitAvg: fits.length ? fits.reduce((a, b) => a + b, 0) / fits.length : null,
+        fitN: fits.length,
+      }
+    })
+    return m
+  }, [pitchers])
+
+  // The attack score's REAL spread tonight, so the number can be read against
+  // what it actually does rather than against an instinctive 0-100.
+  const attackRange = useMemo(() => {
+    const xs = Object.values(slatePen).map((x) => x.attack).filter((v) => v != null)
+    return xs.length >= 3 ? [Math.min(...xs), Math.max(...xs)] : null
+  }, [slatePen])
+
   const rows = useMemo(() => {
-    if (!pen) return []
     const tonight = new Set()
     pitchers.forEach((p) => {
       [p.team, p.opponent_team].forEach((t) => t && tonight.add(String(t).toUpperCase()))
     })
     const built = [...tonight]
-      .map((ab) => ({ ab, st: pen.get(ab), tier: penTier(fatByAbbr?.[ab]), fat: fatByAbbr?.[ab] }))
-      .filter((r) => r.st?.hr9 != null)
+      .map((ab) => ({
+        ab, st: pen?.get(ab), tier: penTier(fatByAbbr?.[ab]), fat: fatByAbbr?.[ab], line: slatePen[ab],
+      }))
+      // A pen earns a row on either source now. It used to need the StatsAPI
+      // split, so on a night that call failed the whole board vanished even
+      // though the slate was carrying a full pen line for all thirty clubs.
+      .filter((r) => r.st?.hr9 != null || r.line)
     if (sortKey === 'fatigue') {
       // Heaviest yesterday first; pens with no workload logged sink, because
       // "no data" and "fresh" are not the same claim and shouldn't share a slot.
       return built.sort((a, b) =>
         (b.fat?.pitches ?? -1) - (a.fat?.pitches ?? -1)
         || (b.fat?.used ?? -1) - (a.fat?.used ?? -1)
-        || b.st.hr9 - a.st.hr9)
+        || (b.st?.hr9 ?? -1) - (a.st?.hr9 ?? -1))
     }
-    return built.sort((a, b) => b.st.hr9 - a.st.hr9)
-  }, [pen, fatByAbbr, pitchers, sortKey])
+    if (sortKey === 'attack') {
+      // The bot's own view of how attackable the pen is — a different question
+      // from HR/9, which is why it gets its own sort rather than a blend.
+      return built.sort((a, b) => (b.line?.attack ?? -1) - (a.line?.attack ?? -1)
+        || (b.st?.hr9 ?? -1) - (a.st?.hr9 ?? -1))
+    }
+    return built.sort((a, b) => (b.st?.hr9 ?? -1) - (a.st?.hr9 ?? -1))
+  }, [pen, fatByAbbr, pitchers, slatePen, sortKey])
 
   if (!rows.length) return null
   const shown = open ? rows : rows.slice(0, 8)
-  const worst = Math.max(...rows.map((r) => r.st.hr9), 0.01)
+  const worst = Math.max(...rows.map((r) => r.st?.hr9 ?? 0), 0.01)
   const anyFatigue = rows.some((r) => r.fat)
+  const anyAttack = rows.some((r) => r.line?.attack != null)
+
+  // THE READ UNDER THE LIST. Up to three pens worth saying something about —
+  // graded weak, leaking 1.25+, or emptied yesterday — each as one sentence
+  // with its numbers inside it rather than as another strip of boxes.
+  const notable = [...rows]
+    .filter((r) => r.line?.quality === 'weak' || (r.line?.hr9 ?? r.st?.hr9 ?? 0) >= 1.25 || r.tier?.key === 'gassed')
+    .sort((a, b) => (b.line?.attack ?? -1) - (a.line?.attack ?? -1)
+      || (b.st?.hr9 ?? -1) - (a.st?.hr9 ?? -1))
+    .slice(0, 3)
 
   return (
     <div style={{
@@ -119,26 +302,32 @@ function BullpenBoard({ pitchers, onTeamClick }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
         <span style={{ fontSize: 11.5, fontWeight: 900 }}>🚪 Bullpen board</span>
         <span style={{ fontSize: 9.5, color: C.text3, flex: '1 1 220px', minWidth: 0 }}>
-          the other six innings — whose pen, who they face, and how hard they worked yesterday
+          the other six innings — whose pen, who they face, how good it is and how hard it worked yesterday
         </span>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
           <span style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Sort</span>
-          {[['hr9', 'HR/9'], ['fatigue', 'Fatigue']].map(([k, label]) => (
-            <button key={k} onClick={() => setSortKey(k)}
-              disabled={k === 'fatigue' && !anyFatigue}
-              title={k === 'fatigue'
-                ? (anyFatigue ? "Heaviest reliever workload yesterday first. Pens with nothing logged sink — no data isn't the same claim as fresh."
-                  : 'No reliever workload logged for yesterday, so there is nothing to sort by')
-                : 'Season reliever-only HR/9, leakiest first'}
-              style={{
-                padding: '2px 9px', borderRadius: 6, fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
-                cursor: k === 'fatigue' && !anyFatigue ? 'not-allowed' : 'pointer',
-                border: `1px solid ${sortKey === k ? C.orange : C.border}`,
-                background: sortKey === k ? 'rgba(249,115,22,.14)' : 'transparent',
-                color: k === 'fatigue' && !anyFatigue ? C.text3 : sortKey === k ? C.orange : C.text2,
-                opacity: k === 'fatigue' && !anyFatigue ? 0.45 : 1,
-              }}>{label}</button>
-          ))}
+          {[['hr9', 'HR/9'], ['fatigue', 'Fatigue'], ['attack', 'Attack']].map(([k, label]) => {
+            const dead = (k === 'fatigue' && !anyFatigue) || (k === 'attack' && !anyAttack)
+            return (
+              <button key={k} onClick={() => setSortKey(k)}
+                disabled={dead}
+                title={k === 'fatigue'
+                  ? (anyFatigue ? "Heaviest reliever workload yesterday first. Pens with nothing logged sink — no data isn't the same claim as fresh."
+                    : 'No reliever workload logged for yesterday, so there is nothing to sort by')
+                  : k === 'attack'
+                    ? (anyAttack ? "The bot's own bullpen_attack_score, most attackable first. A different question from HR/9 — it reads the pen against the bats it has to face — so it gets its own sort instead of being blended into one number."
+                      : 'No bullpen attack score published on tonight\'s slate')
+                    : 'Season reliever-only HR/9, leakiest first'}
+                style={{
+                  padding: '2px 9px', borderRadius: 6, fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
+                  cursor: dead ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${sortKey === k ? C.orange : C.border}`,
+                  background: sortKey === k ? 'rgba(249,115,22,.14)' : 'transparent',
+                  color: dead ? C.text3 : sortKey === k ? C.orange : C.text2,
+                  opacity: dead ? 0.45 : 1,
+                }}>{label}</button>
+            )
+          })}
         </div>
       </div>
       {/* SINGLE-COLUMN, RANKED (owner feedback 2026-08-08): the two-column
@@ -148,12 +337,19 @@ function BullpenBoard({ pitchers, onTeamClick }) {
           const opp = oppOfTeam[r.ab] || ''
           const arm = starterOfTeam[r.ab] || null
           const clickable = !!(arm && onTeamClick)
+          // The whole row as one sentence, for the tooltip. Every number the
+          // row draws plus the ones it has no width for — attack score, pitch
+          // fit, and which arms carried yesterday.
+          const apiLine = r.st?.hr9 != null
+            ? `${r.ab} relievers this season (StatsAPI, relievers only): ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}.`
+            : `No StatsAPI reliever split loaded for ${r.ab}; the pen numbers on this row are the slate's own.`
+          const slateLine = r.line
+            ? ` Published pen line: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN }).map((x) => x.text).join(', ')}.`
+            : ''
           return (
             <div key={r.ab}
               onClick={clickable ? () => onTeamClick(arm) : undefined}
-              title={clickable
-                ? `${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP (HR/9 ${r.st.hr9.toFixed(2)})${opp ? ` — they pitch to ${opp} tonight` : ''}. Click to open ${arm.pitcher_name}, ${r.ab}'s starter in this game.`
-                : `${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}`}
+              title={`${apiLine}${slateLine}${opp ? ` They pitch to ${opp} tonight.` : ''} ${penWorkSentence(r.fat)}${clickable ? ` Click to open ${arm.pitcher_name}, ${r.ab}'s starter in this game.` : ''}`}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '2px 5px', borderRadius: 6,
                 cursor: clickable ? 'pointer' : 'default',
@@ -168,33 +364,56 @@ function BullpenBoard({ pitchers, onTeamClick }) {
               <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 46, flexShrink: 0 }}>
                 {opp ? `vs ${opp}` : '—'}
               </span>
-              <div style={{ flex: '1 1 80px', maxWidth: 190, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{
-                  width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
-                  background: r.st.hr9 >= 1.3 ? '#f87171' : r.st.hr9 >= 1.05 ? C.orange : '#4ade80',
-                }} />
+              <div style={{ flex: '1 1 60px', maxWidth: 130, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}>
+                {r.st?.hr9 != null && (
+                  <div style={{
+                    width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
+                    background: r.st.hr9 >= 1.3 ? C.red : r.st.hr9 >= 1.05 ? C.orange : C.green,
+                  }} />
+                )}
               </div>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 38, flexShrink: 0, color: r.st.hr9 >= 1.3 ? '#f87171' : C.text2 }}>
-                {r.st.hr9.toFixed(2)}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 38, flexShrink: 0, color: (r.st?.hr9 ?? 0) >= 1.3 ? C.red : C.text2 }}>
+                {r.st?.hr9 != null ? r.st.hr9.toFixed(2) : '—'}
               </span>
               {/* The raw counts the bar is built from, on the row instead of
                   hidden in a tooltip — a 1.40 on 180 IP and a 1.40 on 40 IP
                   are not the same statement. */}
               <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, width: 82, flexShrink: 0 }}>
-                {r.st.hr} HR / {r.st.ip} IP
+                {r.st?.hr9 != null ? `${r.st.hr} HR / ${r.st.ip} IP` : 'no split'}
               </span>
+              {/* THE SLATE'S OWN PEN LINE (2026-08-15). HR/9 alone can't tell a
+                  pen that walks the yard from one that gives up the odd solo
+                  shot — ERA and WHIP can, and the bot's grade is its summary of
+                  both. Different source from the bar to its left, which is why
+                  they sit apart and the caption names each. */}
+              <span title={r.line
+                ? `Slate-published bullpen line for ${r.ab}: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN }).map((x) => x.text).join(', ')}.`
+                : `No bullpen line published on tonight's slate for ${r.ab}`}
+                style={{
+                  fontFamily: NUM_FONT, fontSize: 8.5, width: 128, flexShrink: 0, cursor: 'help',
+                  color: r.line?.quality === 'weak' ? C.orange : r.line?.quality === 'strong' ? C.text3 : C.text2,
+                }}>
+                {r.line
+                  ? `${r.line.quality || '—'} · ${r.line.era != null ? r.line.era.toFixed(2) : '—'} ERA · ${r.line.whip != null ? r.line.whip.toFixed(2) : '—'} WHIP`
+                  : 'no pen line'}
+              </span>
+              {/* The workload tag keeps its exact three states — the third one
+                  ("no log") is the honesty case and is never spoken as rest.
+                  What is new is that the tooltips now name the arms that were
+                  actually emptied, which fetchPenFatigue has always collected
+                  and this board has never shown. */}
               {r.tier ? (
-                <span title={`${r.ab} bullpen yesterday: ${r.fat.used} relievers, ${r.fat.pitches} pitches`}
-                  style={{ fontSize: 9, fontWeight: 900, color: r.tier.col, flexShrink: 0 }}>
+                <span title={penWorkSentence(r.fat)}
+                  style={{ fontSize: 9, fontWeight: 900, color: r.tier.col, flexShrink: 0, cursor: 'help' }}>
                   {r.tier.icon} {r.tier.word}
                 </span>
               ) : r.fat ? (
-                <span title={`${r.ab} bullpen yesterday: ${r.fat.used} relievers, ${r.fat.pitches} pitches — under both fatigue thresholds`}
-                  style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                <span title={penWorkSentence(r.fat)}
+                  style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'help' }}>
                   {r.fat.used}a / {r.fat.pitches}p
                 </span>
               ) : (
-                <span title="No reliever workload logged for this club yesterday — an off day, or the boxscore hasn't landed" style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                <span title="No reliever workload logged for this club yesterday — an off day, or the boxscore hasn't landed. Unknown, NOT rested." style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'help' }}>
                   no log
                 </span>
               )}
@@ -208,6 +427,32 @@ function BullpenBoard({ pitchers, onTeamClick }) {
           background: 'transparent', border: `1px dashed ${C.border}`, borderRadius: 6, padding: '2px 9px',
         }}>{open ? 'show less' : `all ${rows.length} pens`}</button>
       )}
+
+      {/* ── THE PENS WORTH TALKING ABOUT ─────────────────────────────────────
+          A ranked list tells you the order; it doesn't tell you what any one
+          pen IS. These are the two or three that carry a reason — graded weak,
+          leaking 1.25+, or emptied yesterday — each as a sentence with its
+          numbers inside it. This is where the attack score, the pitch fit and
+          the individual arms from yesterday get said out loud, because none of
+          them fit on a row and all three are the point. */}
+      {notable.length > 0 && (
+        <div style={{ marginTop: 7, paddingTop: 6, borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {notable.map((r) => {
+            const arm = starterOfTeam[r.ab] || null
+            return (
+              <Clauses
+                key={r.ab}
+                lead={`${r.ab}${oppOfTeam[r.ab] ? ` vs ${oppOfTeam[r.ab]}` : ''}${arm ? `, behind ${arm.pitcher_name}` : ''}: `}
+                parts={[
+                  ...penLineParts(r.line, { attackRange, fitAvg: r.line?.fitAvg, fitN: r.line?.fitN }),
+                  ...penWorkParts(r.fat),
+                ]}
+              />
+            )
+          })}
+        </div>
+      )}
+
       <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         Red bar = a pen surrendering 1.30+ HR/9 — the late innings there are a live power window,
         doubly so with a 🥵 tag (they threw heavy yesterday). <b style={{ color: C.text2 }}>vs</b> is who
@@ -218,6 +463,14 @@ function BullpenBoard({ pitchers, onTeamClick }) {
         rested, so it is never sorted as if it were. Team records aren&apos;t shown because the slate
         payload doesn&apos;t publish them; everything here is measured. Context lane: this ranks nothing
         else on the site.
+        {' '}<b style={{ color: C.text2 }}>Two sources, on purpose:</b> the bar and the HR/9 beside it
+        are the live StatsAPI reliever-only split, while the grade, ERA and WHIP to their right are the
+        slate&apos;s own published pen line (bullpen_quality, bullpen_era, bullpen_whip). They measure the
+        same relievers and should agree — where they don&apos;t, that difference is a fact about the two
+        feeds, so they are shown side by side rather than averaged into one number you can&apos;t trace.
+        The <b style={{ color: C.text2 }}>attack score</b> in the sentences below is a 0-100 rating of
+        how attackable the pen is, quoted against tonight&apos;s real spread; it is a score, not a chance
+        of anything.
       </div>
     </div>
   )
@@ -393,6 +646,31 @@ export default function Pitchers({ players, onPlayerClick }) {
     (gameSel === 'all' || gameKey(p) === gameSel)
     && (armSel === 'all' || String(p.pitcher_throws || '').toUpperCase() === armSel)),
   [sorted, gameSel, armSel])
+  // HR LUCK, ONCE. This used to be computed inside the DenseTable rows IIFE
+  // and was therefore reachable by exactly one column; the form read in the
+  // cards needs the same number, and two copies of a percentile ladder is how
+  // two surfaces start quietly disagreeing. It moved to lib/armLeak
+  // (hrLuckPointers) with the same fields and the same maths, and it is still
+  // built over the FULL slate even when the dropdowns narrow the table — a
+  // percentile against one filtered opponent means nothing.
+  const luckPts = useMemo(() => hrLuckPointers(players), [players])
+  // The pen attack score's real spread tonight, so the cards can quote a 79
+  // against the 15–79 it actually runs rather than against an imagined 100.
+  const penAtkRange = useMemo(() => {
+    const xs = pitchers.map((p) => penFrom(rawOf(p))?.attack).filter((v) => v != null)
+    return xs.length >= 3 ? [Math.min(...xs), Math.max(...xs)] : null
+  }, [pitchers])
+  // One line per game, in start order — the environment section below.
+  const games = useMemo(() => {
+    const m = new Map()
+    pitchers.forEach((p) => {
+      const k = p.game_pk ?? gameKey(p)
+      if (!m.has(k)) m.set(k, { key: k, arms: [], row: rawOf(p), venue: p.venue_name, time: p.game_time })
+      m.get(k).arms.push(p)
+      if (!m.get(k).row) m.get(k).row = rawOf(p)
+    })
+    return [...m.values()].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0))
+  }, [pitchers])
   const tableRef = useRef(null)
 
   if (!pitchers.length) return <Empty text="No pitcher data found yet." />
@@ -439,7 +717,7 @@ export default function Pitchers({ players, onPlayerClick }) {
     <div>
       <PanelTitle
         title="Pitchers"
-        sub={`${pitchers.length} starters ranked by leak score — who to attack, with which bats`}
+        sub={`${pitchers.length} starters ranked by leak score — who to attack, with which bats, what he has been doing lately, who follows him and the air he throws in`}
         right={
           <button
             onClick={() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -487,6 +765,28 @@ export default function Pitchers({ players, onPlayerClick }) {
                 worst on: {leak.drivers.map((d) => `${d.label} ${d.text}`).join(' · ')}
               </div>
             )}
+
+            {/* ── THE THREE THINGS THE CARD NEVER SAID ────────────────────────
+                A card that ranks an arm as tonight's #1 target and then shows
+                you three season rates is answering a narrower question than
+                the reader is asking. What has he been doing LATELY, what
+                comes in AFTER him, and what AIR is he throwing it in — three
+                sentences, each with its numbers inside it, each clause
+                hoverable for the field behind it. */}
+            <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Clauses lead="Lately: "
+                parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })} />
+              <Clauses lead="Behind him: "
+                parts={penLineParts(penFrom(rawOf(p)), {
+                  attackRange: penAtkRange,
+                  fitAvg: (() => {
+                    const f = (p.lineup || []).map((b) => Number(b?.raw?.bullpen_pitch_fit)).filter((v) => Number.isFinite(v))
+                    return f.length ? f.reduce((a, b) => a + b, 0) / f.length : null
+                  })(),
+                  fitN: (p.lineup || []).filter((b) => Number.isFinite(Number(b?.raw?.bullpen_pitch_fit))).length,
+                })} />
+              <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} />
+            </div>
             {/* the point of the card: attack WITH these bats */}
             <div style={{ marginTop: 7, paddingTop: 6, borderTop: '1px solid rgba(249,115,22,.2)' }}>
               <div style={{ fontSize: 8.5, fontWeight: 800, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>Attack with</div>
@@ -537,11 +837,20 @@ export default function Pitchers({ players, onPlayerClick }) {
                   <span style={{ fontSize: 12.5, fontWeight: 800 }}>{p.pitcher_name}</span>
                   <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5 }}>{p.team} vs {p.opponent_team} · HR/9 {n(p.pitcher_hr9, 0).toFixed(2)} · ERA {n(p.pitcher_era, 0).toFixed(2)}</span>
                 </div>
+                {/* A STAY-AWAY IS A CLAIM ABOUT FORM TOO. An arm can be the
+                    stingiest on the slate all season and still be the one
+                    coming apart this month — so the same recent-form read the
+                    attack cards get is here, where it is most likely to change
+                    somebody's mind. */}
+                <Clauses lead="Lately: "
+                  parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })}
+                  size={9} style={{ marginTop: 3 }} />
+                <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} size={9} style={{ marginTop: 1 }} />
                 {best && (
                   <div style={{ fontSize: 9, color: C.text3, marginTop: 3 }}>
                     If you must:{' '}
                     <span onClick={() => onPlayerClick?.(best.raw)} style={{ color: C.text2, fontWeight: 700, cursor: 'pointer' }}>
-                      {best.name} <b style={{ fontFamily: NUM_FONT, color: '#60a5fa' }}>{Math.round(best.hr_score)}</b>
+                      {best.name} <b style={{ fontFamily: NUM_FONT, color: C.blue }}>{Math.round(best.hr_score)}</b>
                     </span>
                     {' '}is his lineup&apos;s best-armed bat.
                   </div>
@@ -564,11 +873,75 @@ export default function Pitchers({ players, onPlayerClick }) {
         }}
       />
 
+      {/* ── 🌤️ WHERE THEY'RE THROWING ────────────────────────────────────────
+          The third gap. Every hitter board on this site reads the park and the
+          air; the page about the men throwing into that air never mentioned it
+          once, so a starter with a 1.10 HR/9 in Oracle Park and the same 1.10
+          in Coors read identically here.
+
+          One line per game, in first-pitch order, both starters named — click
+          either to open his card. Everything spoken comes out of
+          lib/conditions.js airParts, which is the single copy of the
+          temp/wind/park/humidity/rain/roof logic, plus the bot's own
+          weather_hr_effect_pct. A game whose weather hasn't published simply
+          doesn't get a line rather than getting a made-up mild evening. */}
+      {games.length > 0 && (
+        <div style={{
+          background: `linear-gradient(155deg, ${C.bg2}, rgba(34,211,238,.04))`,
+          border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 13px', marginBottom: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🌤️ Where they&apos;re throwing</span>
+            <span style={{ fontSize: 9.5, color: C.text3, flex: '1 1 220px', minWidth: 0 }}>
+              the building and the air each starter works in — the same read the hitter boards get
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {games.map((g) => {
+              const arms = [...g.arms].sort((a, b) => String(a.team).localeCompare(String(b.team)))
+              return (
+                <div key={g.key} style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>
+                    {localTime(g.time)}
+                  </span>
+                  <span style={{ flex: '1 1 260px', minWidth: 0 }}>
+                    <AirLine row={g.row} lead={`${g.venue || 'Venue not published'} — `} size={10} />
+                    <div style={{ fontSize: 9, color: C.text3, marginTop: 1 }}>
+                      {arms.map((a, i) => (
+                        <span key={a.pitcher_id ?? a.pitcher_name}>
+                          {i > 0 && ' vs '}
+                          <span onClick={() => setModalPitcher(a)}
+                            title={`${a.pitcher_name} — ${armFormSentence(rawOf(a), { luckPointer: luckPts.get(a.pitcher_name) }) || 'no recent-form fields published'}`}
+                            style={{ color: C.text2, fontWeight: 700, cursor: 'pointer' }}>
+                            {a.pitcher_name}
+                          </span>
+                          <span style={{ fontFamily: NUM_FONT }}> ({a.team})</span>
+                        </span>
+                      ))}
+                      {arms.length < 2 && <span> — the other starter hasn&apos;t published</span>}
+                    </div>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+            Ember is air that helps the ball, blue is air that kills it. The park clause is spoken
+            rather than printed as a multiplier — hover it for the raw
+            <b style={{ color: C.text2 }}> park HR factor</b>. A closed roof takes the weather out of the
+            game, which is why it is said even though it moves nothing by itself. The
+            <b style={{ color: C.text2 }}> +% on home runs</b> at the end is the bot&apos;s own published
+            weather effect, a swing on the home-run rate rather than anybody&apos;s chance of hitting one.
+            Games with no weather published get no line here instead of a plausible-looking default.
+          </div>
+        </div>
+      )}
+
       {/* Column groups — the other half of the usability fix. Thirty columns
           at once was a wall; each group is one question. */}
       <div ref={tableRef} style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center', scrollMarginTop: 130 }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Columns</span>
-        {[['core', 'Core'], ['recent', 'Recent form'], ['bot', 'Bot scores'], ['bb', 'Batted ball'], ['all', 'Everything']].map(([k, label]) => (
+        {[['core', 'Core'], ['recent', 'Recent form'], ['cmd', 'Command'], ['bot', 'Bot scores'], ['bb', 'Batted ball'], ['pen', 'His pen'], ['air', 'The air'], ['all', 'Everything']].map(([k, label]) => (
           <button key={k} onClick={() => setColGroup(k)} style={{
             padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
             border: `1px solid ${colGroup === k ? C.orange : C.border}`,
@@ -680,8 +1053,13 @@ export default function Pitchers({ players, onPlayerClick }) {
             // built. See BOT-DATA-REQUESTS.md — this is a bot-side fix.
             // Docket #20 calibrated fields — null until the bot's xHR machine
             // publishes; the columns only appear once they carry values.
-            xallowed: n(src('pitcher_xhr_allowed'), null) || null,
-            xluck: (() => { const v = n(src('pitcher_hr_luck'), null); return v === 0 ? null : v })(),
+            // 2026-08-15: these two were resolving to `null`, and DenseTable
+            // renders null as 0.0 (Number(null) is 0) — so in the Everything
+            // group both calibrated columns printed a confident "0.0" for
+            // every arm on a slate where the bot has not published them at
+            // all. numOrGap makes an unpublished field read as a dash.
+            xallowed: numOrGap(src('pitcher_xhr_allowed')) || undefined,
+            xluck: (() => { const v = numOrGap(src('pitcher_hr_luck')); return v === 0 ? undefined : v })(),
             fb: n(src('pitcher_fb_rate'), null),
             fbSc: n(src('pitcher_statcast_fb_rate'), null),
             hh: n(src('pitcher_hardhit_allowed'), null),
@@ -696,6 +1074,46 @@ export default function Pitchers({ players, onPlayerClick }) {
               if (l == null && r == null) return null
               return (l || 0) + (r || 0)
             })(),
+
+            // ── FORM · COMMAND · PEN · AIR (2026-08-15) ───────────────────
+            // The same three subjects the cards above now speak, as sortable
+            // columns — the cards read the top three arms and the bottom
+            // three, and this is how you ask the question of all thirty.
+            //
+            // Velocity is gated on pitcher_fb_velo_status: 'missing' on nine
+            // of 266 rows tonight, and a missing delta is NOT 0.0 mph.
+            velo: (() => {
+              const st = clean(src('pitcher_fb_velo_status'), '')
+              return st.toLowerCase() === 'missing' ? undefined : numOrGap(src('pitcher_fb_velo_delta'))
+            })(),
+            meat: numOrGap(src('pitcher_meatball_pct')),
+            whiff: numOrGap(src('pitcher_whiff_pct')),
+            swstr: numOrGap(src('pitcher_swstr_pct')),
+            put: numOrGap(src('pitcher_putaway_pct')),
+            fps: numOrGap(src('pitcher_first_pitch_strike_pct')),
+            ev: numOrGap(src('pitcher_ev_allowed')),
+            hr9L: numOrGap(src('pitcher_hr9_vs_lhb')),
+            hr9R: numOrGap(src('pitcher_hr9_vs_rhb')),
+            // The pen that comes in behind HIM — bullpen_* on his opposing
+            // lineup's rows belongs to his own club (see lib/bullpen penFrom).
+            penQual: textOrGap(src('bullpen_quality')),
+            penEra: numOrGap(src('bullpen_era')),
+            penWhip: numOrGap(src('bullpen_whip')),
+            penHr9: numOrGap(src('bullpen_hr9')),
+            penAtk: numOrGap(src('bullpen_attack_score')),
+            penFit: (() => {
+              const f = (p.lineup || []).map((b) => Number(b?.raw?.bullpen_pitch_fit)).filter((v) => Number.isFinite(v))
+              return f.length ? f.reduce((a, b) => a + b, 0) / f.length : undefined
+            })(),
+            // The building and the air, straight off the row.
+            venue: textOrGap(p.venue_name),
+            roof: textOrGap(src('roof')),
+            temp: numOrGap(src('weather_temp_f')),
+            wind: numOrGap(src('weather_wind_mph')),
+            windDir: textOrGap(src('weather_wind_direction_label')),
+            humid: numOrGap(src('weather_humidity')),
+            parkHr: numOrGap(src('park_hr_factor')),
+            wxHr: numOrGap(src('weather_hr_effect_pct')),
           }
         })
         // HR LUCK (2026-08-06, from the expected-vs-actual teardown): rank
@@ -706,26 +1124,12 @@ export default function Pitchers({ players, onPlayerClick }) {
         // "lucky", the regression bet says TARGET him; homers without loud
         // contact = "unlucky", his HR/9 overstates him. Published fields
         // only, no expected-HR model — a pointer, not a projection.
-        const pct = (arr, v) => {
-          const xs = arr.filter((x) => x != null).sort((a, b) => a - b)
-          if (v == null || !xs.length) return null
-          let i = 0; while (i < xs.length && xs[i] <= v) i++
-          return i / xs.length
-        }
-        const damage = (r) => {
-          const parts = [
-            pct(built.map((x) => x.brl), r.brl),
-            pct(built.map((x) => x.hh), r.hh),
-            pct(built.map((x) => x.pullAir), r.pullAir),
-            pct(built.map((x) => x.fb), r.fb),
-          ].filter((x) => x != null)
-          return parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null
-        }
-        built.forEach((r) => {
-          const d = damage(r)
-          const h = pct(built.map((x) => x.hr9), r.hr9)
-          r.luck = d != null && h != null ? Math.round((d - h) * 100) : null
-        })
+        //
+        // 2026-08-15: the ladder itself now lives in lib/armLeak
+        // (hrLuckPointers) because the recent-form sentences on the cards need
+        // the identical number. Same fields, same maths, computed once over
+        // the whole slate — this line is the only thing that changed here.
+        built.forEach((r) => { r.luck = luckPts.get(r._raw?.pitcher_name) ?? null })
         // the dropdown filters apply here, AFTER the slate-relative math
         const keep = new Set(tableSource.map((p) => p.pitcher_id ?? p.pitcher_name))
         return built.filter((r) => keep.has(r._key))
@@ -735,11 +1139,18 @@ export default function Pitchers({ players, onPlayerClick }) {
           // (docket #20) — until then they'd be a blank stripe, so they don't.
           const hasX = sorted.some((p) => (p.lineup || []).some((b) => Number(b?.raw?.pitcher_xhr_bbe) >= 50))
           // Column groups. 'core' answers tonight; the rest are drill-ins.
+          // Three groups joined the row on 2026-08-15 — command, pen and air —
+          // for the same reason the sentences above them exist: the page could
+          // rank an arm but couldn't tell you what has been happening to him,
+          // who follows him, or where he is throwing.
           const GROUPS = {
             core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9',...(hasX ? ['xallowed','xluck'] : ['luck']),'era','whip','spots'],
-            recent: ['name','tm','vs','overall','l3hr9','l3era','l3whip','l3n','trend'],
+            recent: ['name','tm','vs','trend','overall','l3hr9','l3era','l3whip','l3n','velo','hr9',...(hasX ? ['xallowed','xluck'] : ['luck'])],
+            cmd:    ['name','t','tm','vs','meat','fps','put','whiff','swstr','k9','ev','hr9L','hr9R'],
             bot:    ['name','tm','vs','overall','attack','wsScore','zoneDmg','spotDmg','spots','gbTrap','hardCon','lowK'],
-            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9',...(hasX ? ['xallowed','xluck'] : ['luck'])],
+            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9','ev',...(hasX ? ['xallowed','xluck'] : ['luck'])],
+            pen:    ['name','tm','vs','penQual','penEra','penWhip','penHr9','penAtk','penFit'],
+            air:    ['name','tm','vs','venue','roof','windDir','temp','wind','humid','parkHr','wxHr','hr9'],
           }
           const all = [
           // LAYOUT RULE: every text column first, every number after, nothing
@@ -757,6 +1168,17 @@ export default function Pitchers({ players, onPlayerClick }) {
             // neighbor wsScore had the opposite problem — see that column.
             explain: 'The side (L or R) this pitcher struggles against. If it matches how this hitter bats, that’s a point in his favor.' },
           { key: 'trend',  label: 'Trend', heat: false, w: 58, dim: true },
+          // The three new text columns sit with the other text, per the layout
+          // rule below: nothing textual is allowed to interrupt a run of digits.
+          { key: 'penQual', label: 'Pen', heat: false, w: 54, mono: true, dim: true,
+            title: 'The bot\'s one-word grade on the bullpen behind THIS starter (bullpen_quality) — strong, average or weak. Who finishes the game he starts.',
+            explain: 'The bot’s grade on the bullpen that comes in behind this starter — strong, average or weak. It says nothing about the starter himself; it is who you get in the seventh.' },
+          { key: 'venue',  label: 'Park', heat: false, w: 128, dim: true,
+            title: 'The building he is throwing in tonight' },
+          { key: 'roof',   label: 'Roof', heat: false, w: 56, mono: true, dim: true,
+            title: 'Roof state — a closed roof takes the weather out of the game entirely' },
+          { key: 'windDir', label: 'Wind dir', heat: false, w: 96, mono: true, dim: true,
+            title: 'Reported wind direction at first pitch. "Out" is the one that matters for home runs.' },
           // Flags, as dots. The attack tag used to print "🧊 GB/TRAP" and
           // "⚠️ HARD CONTACT" as words in a 104px column — three values wearing
           // a lot of width, and the emoji made every row look busy. As dots
@@ -821,6 +1243,58 @@ export default function Pitchers({ players, onPlayerClick }) {
             title: 'Pulled air contact allowed. Pulled fly balls are where the short porch lives.' },
           { key: 'xbh',    label: 'XBH', w: 44, dp: 0,
             title: 'Extra-base hits allowed this season, both batter sides combined. A count, not a rate — it scales with innings pitched, so read it next to ERA rather than alone.' },
+
+          // ── WHAT HAS BEEN GOING ON WITH HIM ────────────────────────────────
+          { key: 'velo',   label: 'Velo Δ', w: 54, dp: 2, invert: true,
+            title: 'Fastball velocity against HIS OWN season baseline, in mph (pitcher_fb_velo_delta). Inverted, because a man throwing harder than usual is bad news for the bat. Blank rather than 0.0 where pitcher_fb_velo_status reads missing — nine arms tonight — since an unmeasured delta is not a flat one.',
+            explain: 'How his fastball is sitting against his own normal, in mph. Negative means he has lost velocity, which favours the hitter. It is measured against himself, not against the league.' },
+
+          // ── COMMAND. His weapons, so every one of these is INVERTED: a big
+          // number here is the pitcher's edge, not the hitter's, and this
+          // table is bright-is-good-for-the-bat throughout.
+          { key: 'meat',   label: 'Meat%', w: 52, fmt: PCT,
+            title: 'Meatball rate — the share of his pitches down the middle. NOT inverted: these are the ones that get hit a long way, so more of them is good for the bat. Slate range tonight runs roughly 16–30%.' },
+          { key: 'fps',    label: '1st-K%', w: 56, fmt: PCT, invert: true,
+            title: 'First-pitch strike rate. Inverted — an arm that gets ahead is working from in front all night, which is his edge.' },
+          { key: 'put',    label: 'Putaway%', w: 62, fmt: PCT, invert: true,
+            title: 'Share of two-strike counts he finishes. Inverted: his strength, not yours.' },
+          { key: 'whiff',  label: 'Whiff%', w: 56, fmt: PCT, invert: true,
+            title: 'Misses per swing against him. Inverted — bat-missing is the pitcher\'s weapon.' },
+          { key: 'swstr',  label: 'SwStr%', w: 56, fmt: PCT, invert: true,
+            title: 'Swinging strikes per pitch thrown. Inverted, same reason as Whiff%.' },
+          { key: 'ev',     label: 'EV alw', w: 54, dp: 1,
+            title: 'Average exit velocity allowed, mph. Not inverted — loud contact against him is the hitter\'s news.' },
+          { key: 'hr9L',   label: 'HR/9 vL', w: 58, dp: 2,
+            title: 'Home runs per nine against left-handed bats. Read it against HR/9 vR beside it — the gap is the platoon hole, and the Weak column names which side it is.' },
+          { key: 'hr9R',   label: 'HR/9 vR', w: 58, dp: 2,
+            title: 'Home runs per nine against right-handed bats.' },
+
+          // ── THE PEN BEHIND HIM. Not his numbers at all: these describe the
+          // relievers who finish the game he starts, which is the other six
+          // innings of the same bet. Higher is better for the bat throughout.
+          { key: 'penEra', label: 'Pen ERA', w: 60, dp: 2,
+            title: 'Season ERA of the bullpen behind this starter (bullpen_era). His own line says nothing about who follows him.' },
+          { key: 'penWhip', label: 'Pen WHIP', w: 64, dp: 2,
+            title: 'Season WHIP of that same bullpen — traffic in the late innings.' },
+          { key: 'penHr9', label: 'Pen HR/9', w: 62, dp: 2,
+            title: 'Home runs per nine allowed by that bullpen. This is the slate\'s published number; the Bullpen board above also shows a live StatsAPI reliever-only split, and the two are separate pulls rather than one blended figure.' },
+          { key: 'penAtk', label: 'Pen atk', w: 58, dp: 0,
+            title: 'bullpen_attack_score — how attackable the bot rates that pen, 0-100. A SCORE, not a chance of anything, and it does not use the whole scale: tonight it runs roughly 15–79.' },
+          { key: 'penFit', label: 'Pen fit', w: 56, dp: 0,
+            title: 'Average published bullpen_pitch_fit across the lineup that will actually bat against this pen — how well those swings match what the relievers throw. The mean of a published per-hitter field, not a model.' },
+
+          // ── THE AIR. The same six fields every hitter board reads, on the
+          // page about the men throwing into them.
+          { key: 'temp',   label: 'Temp', w: 48, dp: 0,
+            title: 'Game-time temperature, °F. Warm air is less dense, so the ball carries.' },
+          { key: 'wind',   label: 'Wind', w: 48, dp: 0,
+            title: 'Wind speed in mph. Meaningless without the direction beside it — a 15 mph wind in is the opposite bet from a 15 mph wind out.' },
+          { key: 'humid',  label: 'Humid', w: 52, dp: 0,
+            title: 'Relative humidity, %. Humid air is slightly thinner than dry air, so the ball carries a touch further.' },
+          { key: 'parkHr', label: 'Park HR', w: 60, dp: 2,
+            title: 'The park\'s home-run factor as a multiplier against a neutral park. Above 1.00 helps the hitter.' },
+          { key: 'wxHr',   label: 'Wx HR%', w: 58, dp: 0, fmt: (v) => (v == null || !Number.isFinite(Number(v)) ? '—' : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(0)}%`),
+            title: 'weather_hr_effect_pct — the bot\'s published swing on the home-run RATE from tonight\'s conditions at this park. A percentage change to a rate, not anybody\'s chance of hitting one.' },
         ]
           if (colGroup === 'all') return all
           const keep = new Set(GROUPS[colGroup] || GROUPS.core)
@@ -829,7 +1303,7 @@ export default function Pitchers({ players, onPlayerClick }) {
         onRowClick={(p) => setModalPitcher(p)}
         initialSort="hr9"
         maxHeight={420}
-        caption="Every starter on the slate, now including the bot's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter. The batted-ball block at the right is what he actually gives up: fly balls, hard contact, barrels, pulled air and extra-base hits. Ground-ball, line-drive and popup rate now compute for real off that same batted-ball pull (2026-08-12, they used to publish flat 0) — not broken out as their own columns yet, so this block stays fly-ball-led for now. Overall now blends 70% season with 30% last-three-starts wherever L3 HR/9 exists, so a starter who has been getting hit lately no longer reads like his April self."
+        caption="Every starter on the slate, now including the bot's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter. The batted-ball block at the right is what he actually gives up: fly balls, hard contact, barrels, pulled air and extra-base hits. Ground-ball, line-drive and popup rate now compute for real off that same batted-ball pull (2026-08-12, they used to publish flat 0) — not broken out as their own columns yet, so this block stays fly-ball-led for now. Overall now blends 70% season with 30% last-three-starts wherever L3 HR/9 exists, so a starter who has been getting hit lately no longer reads like his April self. Three column groups are new (2026-08-15): COMMAND is how he beats hitters — meatball rate, first-pitch strikes, putaway, whiff and swinging strikes — and every one of those except Meat% is INVERTED, because they are his weapons and this table is bright-is-good-for-the-bat throughout. HIS PEN is not about him at all: it is the relievers who finish the game he starts, read off the slate's own published bullpen line, and it is the other six innings of the same bet. THE AIR is the park and the weather he throws into, the same fields the hitter boards have always read and this page never did — a 1.10 HR/9 in Oracle Park and a 1.10 in Coors used to sit here looking identical. Velo Δ is measured against the arm's OWN baseline rather than the league's and is blank, not zero, for the arms whose velocity status reads missing."
       />
 
       {/* The per-pitcher accordion card list that lived here is GONE
@@ -841,6 +1315,13 @@ export default function Pitchers({ players, onPlayerClick }) {
       <div style={{ fontSize: 10, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
         Click any starter above for the full breakdown — order-zone damage, arsenal, weak spots,
         situational splits and the damage field all live in his card.
+        {' '}The column buttons over the table hold the rest: <b style={{ color: C.text2 }}>Recent form</b> is
+        his last three starts against his season line plus the velocity he is carrying,
+        {' '}<b style={{ color: C.text2 }}>Command</b> is how he beats hitters rather than how he leaks,
+        {' '}<b style={{ color: C.text2 }}>His pen</b> is the relievers who finish the game he starts, and
+        {' '}<b style={{ color: C.text2 }}>The air</b> is the park and weather he is throwing into. Every
+        one of those numbers is a published slate field — where a field has not published, the cell is a
+        dash rather than a zero.
       </div>
 
       {modalPitcher && (

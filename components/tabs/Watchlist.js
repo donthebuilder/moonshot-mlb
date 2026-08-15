@@ -1,12 +1,12 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   playerId, mlbId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
   nn, n, clean, arr, obj, barrelRate, avgEV, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
 import { dedupeGraded } from '../../lib/graded'
-import { recordNight, ledgerTotals } from '../../lib/watchLedger'
+import { recordNight, ledgerTotals, exportLedger, importLedger, clearLedger } from '../../lib/watchLedger'
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
 import DenseTable from '../DenseTable'
@@ -348,8 +348,27 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
 // SCOPE IS SAID OUT LOUD. There is no account and no server here; the
 // watchlist is device-local and so is its record. A number whose scope you
 // misunderstand is worse than no number.
-function WatchTracker({ items, nightOf, slateDate, mode }) {
+//
+// ── ADDED 2026-08-15 ("the watch list page is awesome if you can add more do
+// it") ────────────────────────────────────────────────────────────────────────
+//
+// Three additions, all of them ON TOP of the four numbers and the spark row —
+// nothing that was here moved or left:
+//
+//   · A SENTENCE FIRST, above the tiles. The strip could tell you your saves
+//     homered 18.8% of the time and could not tell you whether that was good.
+//     It now leads with your rate against what every tracked hitter did on the
+//     same nights, both sides printed k/n. That is the only version of this
+//     number that answers "does starring names work for me".
+//   · WHO IS CARRYING IT — the aggregate hides a list that is one hitter and
+//     eleven passengers.
+//   · EXPORT / IMPORT / CLEAR for the record itself, which previously could
+//     only be destroyed (by clearing the browser) and never moved.
+function WatchTracker({ items, nightOf, slateDate, mode, onLedger }) {
   const [led, setLed] = useState(null)
+  const [msg, setMsg] = useState('')
+  const fileRef = useRef(null)
+  const [bump, setBump] = useState(0)
 
   // Write tonight, then read the whole ledger back. Recording is idempotent by
   // date — this runs on every results refresh and just overwrites today's row
@@ -362,17 +381,70 @@ function WatchTracker({ items, nightOf, slateDate, mode }) {
   useEffect(() => {
     if (mode !== 'tomorrow' && slateDate) {
       const lines = items.map((p) => {
-        const g = nightOf.get(mlbId(p))
-        return g ? { ab: n(g.actual_ab, 0), hr: n(g.actual_hr, 0), hits: n(g.actual_hits, 0) } : null
+        const id = mlbId(p)
+        const g = nightOf.get(id)
+        // pid rides along so the night can also be remembered per hitter. It
+        // is the MLB id, the same key nightOf is built on — never the
+        // composite row key, which is the bug this whole layer died of once.
+        return g ? { pid: id, ab: n(g.actual_ab, 0), hr: n(g.actual_hr, 0), hits: n(g.actual_hits, 0) } : null
       }).filter(Boolean)
-      if (lines.length) recordNight(slateDate, lines)
+      // THE FIELD ON THE SAME NIGHT: every tracked hitter in the graded file
+      // who batted, not just your stars. Both sides are read off the same map
+      // at the same moment, so a night caught half-graded is half-graded for
+      // your list AND for the field — the comparison stays fair even before
+      // the last game ends, and the idempotent rewrite settles it later.
+      const played = [...nightOf.values()].filter((g) => n(g.actual_ab, 0) > 0)
+      const field = played.length >= 10 ? {
+        n: played.length,
+        hr: played.filter((g) => n(g.actual_hr, 0) > 0).length,
+        hit: played.filter((g) => n(g.actual_hits, 0) > 0).length,
+      } : null
+      if (lines.length) recordNight(slateDate, lines, field)
     }
-    setLed(ledgerTotals())
-  }, [items, nightOf, slateDate, mode])
+    const t = ledgerTotals()
+    setLed(t)
+    onLedger?.(t)
+  }, [items, nightOf, slateDate, mode, onLedger, bump])
+
+  function doExport() {
+    try {
+      const blob = new Blob([exportLedger()], { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `moonshot-watchlist-record-${new Date().toLocaleDateString('en-CA')}.json`
+      a.click()
+      URL.revokeObjectURL(a.href)
+      setMsg('Exported.')
+    } catch { setMsg("Couldn't export.") }
+  }
+
+  function doImport(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const r = new FileReader()
+    r.onload = () => {
+      const res = importLedger(String(r.result || ''))
+      setMsg(res.ok ? `Merged — ${res.added} new night${res.added === 1 ? '' : 's'}, ${res.nights} total.` : res.error)
+      if (res.ok) setBump((b) => b + 1)
+    }
+    r.readAsText(f)
+    e.target.value = ''
+  }
 
   if (!led || !led.nights) return null
 
   const spark = led.rows.slice(-14)
+  const f = led.field
+  // Names for the per-hitter line come from the CURRENT list — the ledger
+  // stores ids and counts, never names. A hitter you have since un-starred
+  // keeps his row on disk but has nobody to be named after, so he sits out
+  // rather than appearing as a bare id.
+  const nameById = new Map(items.map((p) => [String(mlbId(p)), nameOf(p)]))
+  const carrying = Object.entries(led.byPid || {})
+    .map(([pid, v]) => ({ pid, name: nameById.get(String(pid)), ...v }))
+    .filter((x) => x.name && x.starts > 0)
+    .sort((a, b) => b.hr - a.hr || b.hit - a.hit || b.starts - a.starts)
+    .slice(0, 3)
   const cell = (label, value, sub, col) => (
     <div key={label} style={{
       background: `linear-gradient(135deg, ${col}12, ${col}04)`,
@@ -395,6 +467,56 @@ function WatchTracker({ items, nightOf, slateDate, mode }) {
         <span style={{ fontSize: 9.5, color: C.text3 }}>
           {led.nights} night{led.nights === 1 ? '' : 's'} recorded on this device
         </span>
+      </div>
+      {/* THE SENTENCE, ABOVE THE TILES. "18.8%" is not an answer to anything
+          on its own; "18.8% against the field's 13.2% on the same nights" is.
+          Both sides carry their denominator, and the comparison only claims
+          the nights it actually covers — older rows have no baseline and are
+          left out of it rather than counted as a zero. */}
+      <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.65, marginBottom: 8 }}>
+        Over <b style={{ fontFamily: NUM_FONT, color: C.text }}>{led.nights}</b> recorded night
+        {led.nights === 1 ? '' : 's'}, your saved hitters went deep in{' '}
+        <b style={{ fontFamily: NUM_FONT, color: led.hr ? C.green : C.text3 }}>{led.hr}/{led.n}</b> starts
+        and got a hit in <b style={{ fontFamily: NUM_FONT, color: C.purple }}>{led.hit}/{led.n}</b>.
+        {f && f.myN > 0 && (() => {
+          // pp difference on the comparable nights only. Under 25 starts it
+          // refuses to call the gap anything — the two rates would be inside
+          // each other's noise and saying "ahead of the field" off eleven
+          // at-bats is the exact overclaim this page exists to avoid.
+          const mine = (100 * f.myHr) / f.myN
+          const fieldPct = (100 * f.hr) / f.n
+          const d = mine - fieldPct
+          return (
+            <> On the <b style={{ fontFamily: NUM_FONT }}>{f.nights}</b> night
+              {f.nights === 1 ? '' : 's'} with a field to compare against, your list homered{' '}
+              <b style={{ fontFamily: NUM_FONT, color: C.green }}>{f.myHr}/{f.myN}</b> ({mine.toFixed(1)}%)
+              against every tracked hitter&apos;s{' '}
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{f.hr}/{f.n}</b> ({fieldPct.toFixed(1)}%)
+              {f.myN < 25 ? (
+                <> — too few starts to call that a difference either way.</>
+              ) : Math.abs(d) < 2 ? (
+                <> — level with the field, which is what most lists are.</>
+              ) : d > 0 ? (
+                <> — <b style={{ color: C.green }}>{d.toFixed(1)}pp ahead of the field</b> on those nights.</>
+              ) : (
+                <> — <b style={{ color: C.red }}>{Math.abs(d).toFixed(1)}pp behind the field</b>, which
+                  is worth knowing before you trust the list over the board.</>
+              )}
+            </>
+          )
+        })()}
+        {carrying.length > 0 && (
+          <> Carrying it:{' '}
+            {carrying.map((c2, i) => (
+              <span key={c2.pid}>
+                {i > 0 ? ', ' : ''}<b style={{ color: C.text }}>{c2.name}</b>{' '}
+                <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>
+                  {c2.hr}HR · {c2.hit}H in {c2.starts} start{c2.starts === 1 ? '' : 's'}
+                </b>
+              </span>
+            ))}.
+          </>
+        )}
       </div>
       <div className="watch-track" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         {cell('Went deep', led.hrPct == null ? '—' : `${led.hrPct.toFixed(1)}%`, `${led.hr} of ${led.n} starts`, led.hr ? '#4ade80' : C.text3)}
@@ -428,10 +550,42 @@ function WatchTracker({ items, nightOf, slateDate, mode }) {
         Counted the same way the bot grades itself: a saved hitter only counts on a night he actually
         batted — scratched and never-used names are <b style={{ color: C.text2 }}>void, not misses</b>.
         This history lives in your browser, like the watchlist does, so it only knows the nights you had
-        this page open. Clearing your browser data clears it.
+        this page open. Clearing your browser data clears it
+        {led.playerNights < led.nights && (
+          <> — and the per-hitter records cover{' '}
+            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{led.playerNights}</b> of those{' '}
+            {led.nights} nights, because rows written before this ledger kept names apart know only
+            their totals</>
+        )}. <b style={{ color: C.text2 }}>Export it</b> and it survives the browser.
+      </div>
+      {/* THE RECORD CAN NOW LEAVE. It was device-local with no way out, which
+          meant one cleared cache ended a season of nights. Import MERGES by
+          date — a phone's backup must not delete the laptop's history. */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+        <button onClick={doExport} style={ledBtn()}>⬇ Export record</button>
+        <button onClick={() => fileRef.current?.click()} style={ledBtn()}>Import record</button>
+        <button
+          onClick={() => {
+            if (window.confirm('Delete the whole watchlist record on this device? Your saved players stay.')) {
+              clearLedger(); setBump((b) => b + 1); setMsg('Record cleared.')
+            }
+          }}
+          style={{ ...ledBtn(), color: C.red, borderColor: `${C.red}55` }}
+        >Clear record</button>
+        <input ref={fileRef} type="file" accept="application/json,.json"
+               onChange={doImport} style={{ display: 'none' }} />
+        {msg && <span style={{ fontSize: 9.5, color: C.text3, alignSelf: 'center' }}>{msg}</span>}
       </div>
     </div>
   )
+}
+
+function ledBtn() {
+  return {
+    border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.035)',
+    color: C.text2, borderRadius: 999, padding: '3px 10px',
+    fontSize: 9.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+  }
 }
 
 export default function Watchlist({ items, players = [], pairSummary, results, slateDate = '', mode = 'today', onWatch, onAdd, onPlayerClick }) {
@@ -481,6 +635,28 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
   )
   const { filtered: filteredOnSlate, state: filterState } = useBoardFilter(onSlate)
   const trackOf = useTrackRecords()
+
+  // YOUR OWN NIGHTS, PER HITTER (2026-08-15). The tracker below already wrote
+  // and read the device ledger; it kept the totals to itself, so the table
+  // could show a hitter's bot-wide track record and not the one record that is
+  // actually yours — how he has done on the nights HE WAS ON YOUR LIST.
+  // WatchTracker hands the totals up rather than the table re-reading
+  // localStorage: two readers of one store drift, and only the tracker knows
+  // when tonight's row has just been rewritten.
+  const [led, setLed] = useState(null)
+  // pid → { nights, starts, hit, hr, void }, keyed the same way nightOf is.
+  const mineOf = useMemo(() => {
+    const by = led?.byPid || {}
+    return (p) => by[String(mlbId(p))] || null
+  }, [led])
+  // "2HR·5H/9" — counts, never a bare percentage. Nine starts on this device
+  // is not a rate, and the site's own 3+ rule wouldn't save it: the sample
+  // here is nights you happened to have the page open.
+  const mineText = (rec) => {
+    if (!rec) return '—'
+    if (!rec.starts) return `0/${rec.nights} played`
+    return `${rec.hr}HR·${rec.hit}H/${rec.starts}`
+  }
 
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -580,7 +756,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
           </div>
         }
       />
-      <WatchTracker items={items} nightOf={nightOf} slateDate={slateDate} mode={mode} />
+      <WatchTracker items={items} nightOf={nightOf} slateDate={slateDate} mode={mode} onLedger={setLed} />
 
       {/* VITALS STRIP — the list as one glance: size, bot overlap, power,
           matchup edges. Each tile is the answer to a question you'd otherwise
@@ -668,8 +844,14 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             <DenseTable
               rows={filteredOnSlate.map((p) => {
                 const track = trackOf(nameOf(p))
+                const mine = mineOf(p)
                 return {
                   _key: String(playerId(p)),
+                  // YOUR nights with him, from the device ledger. Sorts on
+                  // starts — the denominator — because sorting on a homer
+                  // count would float a 1-for-1 above a 3-for-19.
+                  mine: mine ? mine.starts : null,
+                  mine_t: mineText(mine),
                   _raw: p,
                   watched: 1,
                   name: nameOf(p),
@@ -717,6 +899,10 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                 { key: 'track', label: 'Track record', w: 96, mono: true,
                   fmt: (v, row) => row.track_t,
                   title: `His overall did-the-job rate across every category the bot has ever picked him for — HR pick homering, HIT pick getting a hit, and so on, combined. From the same 39-day archive as the Results tab's full pick record. A percentage shows at ${MIN_TRACK_PICKS}+ picks; below that it stays a raw fraction, because 1/1 is not 100%. Dash = never a bot pick.` },
+                { key: 'mine', label: 'Your nights', w: 96, mono: true, heat: false,
+                  fmt: (v, row) => row.mine_t,
+                  title: 'How he has done on the nights he was on YOUR watchlist and this page was open — homers · hits / starts. Different question from Track record next door, which is every night the BOT picked him. Counts, not a rate: this sample is nights you happened to be here. Dash = no recorded night with him saved.',
+                  explain: 'Your own record with this hitter: homers and hits over the starts he made while saved to your watchlist, counted only on nights this page was open to see them. A night he was saved but never batted is void, not a miss, and is left out of the starts. It stays a raw count on purpose — the denominator here is your browsing habits as much as his season.' },
                 { key: 'weak',  label: '⭐',    flag: true, mark: '★', w: 30,
                   title: 'Weak lineup spot against tonight’s starter' },
                 { key: 'l5',    label: 'L5',   heat: false, w: 76, mono: true, dim: true,
@@ -740,7 +926,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
               onRowClick={(r) => r && onPlayerClick?.(r)}
               initialSort="hr"
               maxHeight={380}
-              caption="Your saved hitters, side by side — every column heats against THE FILTERED LIST only, so bright means best of what's currently shown, not best of the slate. Narrow the filter and the colours re-scale to the survivors. ★ un-saves without leaving the table."
+              caption="Your saved hitters, side by side — every column heats against THE FILTERED LIST only, so bright means best of what's currently shown, not best of the slate. Narrow the filter and the colours re-scale to the survivors. ★ un-saves without leaving the table. Two record columns sit next to each other on purpose: Track record is every night the BOT picked him, Your nights is every night HE WAS ON YOUR LIST and this page was open — the second is a small sample by construction and stays a raw count for that reason."
             />
             )}
           </div>
@@ -798,13 +984,20 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
           }}>
             <span style={{ fontSize: 10.5, fontWeight: 800, color: C.text2 }}>🌙 Not on tonight&apos;s slate</span>
             <span style={{ fontSize: 9.5, color: C.text3 }}>
-              saved but the bot didn&apos;t score them tonight — click for the live-season read
+              {/* ON TONIGHT'S CARD VS IDLE, as a count. The strip listed the
+                  idle names and never said how much of the list that was —
+                  "three of four saves are sitting out" is a different evening
+                  from "three of twenty". */}
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{off.length}</b> of your{' '}
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{items.length}</b> saves — the bot
+              didn&apos;t score them tonight; click for the live-season read
             </span>
             {off.map((p) => {
               const track = trackText(trackOf(nameOf(p)))
+              const mine = mineOf(p)
               return (
                 <button key={playerId(p)} onClick={() => onPlayerClick?.(p)}
-                  title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.${track !== '—' ? ` Track record: ${track}.` : ''}`}
+                  title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.${track !== '—' ? ` Track record: ${track}.` : ''}${mine ? ` On your list: ${mineText(mine)} across ${mine.nights} recorded night${mine.nights === 1 ? '' : 's'}.` : ''}`}
                   style={{
                     fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
                     border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',

@@ -258,6 +258,25 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // replacement for the default.
   const [sortBy, setSortBy]     = useState('time')
   const [activeGame, setActive] = useState(null)
+  // ── WHICH SECTION OF THE OPEN GAME YOU ARE LOOKING AT (2026-08-15) ────────
+  //
+  // Donovan, on the lineups: "like the lineups should be just easy accessible
+  // in the same game bubble when you're checking out the game inside, instead
+  // of click off to lineups... just a little shift to see the pitcher weak
+  // spots and what the pitcher is doing to that spot." And, separately, twice:
+  // "i keep having to scroll up to scroll back down."
+  //
+  // Opening a game used to render, in one column: the deep dive (cockpit, air,
+  // both arms, both head-to-head tables, storylines), then the full 30-column
+  // lineup table, then the pick cards. Four screens of a single game, with the
+  // lineup buried in the middle of it — so the lineup was easier to reach from
+  // the Lineups MODE, which is exactly the trip he is asking not to make.
+  //
+  // One state, not one per game: only one card is open at a time. It is also
+  // deliberately NOT reset when you open a different game — if you are reading
+  // spot damage down the slate, the next game should open on spot damage
+  // rather than making you re-pick the pill twelve times.
+  const [panel, setPanel] = useState('read')
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
   // page to a card buried under ten others — "flies all the way to the
   // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
@@ -345,7 +364,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         sub={`${games.length} games · ${slots.length} time slots · ${
           mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
           : mode === 'botview' ? "the picks with the bot's five category bars per card"
-          : 'the slate as heat-sized game cards — tap one for the full deep-dive, in place'
+          : 'the slate as heat-sized game cards — tap one and switch between its read, its lineups, the head-to-head and the picks in place'
         }`}
         right={
           <div style={{ display: 'flex', gap: 6 }}>
@@ -366,7 +385,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
           : mode === 'botview'
           ? 'which hitter the bot designated in each game, and in which market — the five category bars show whether it likes him for power or for contact.'
-          : 'which game to spend your attention on. Bigger, brighter cards are the matchups where the board stacks highest; tap one to open the full deep-dive in place.'}
+          : 'which game to spend your attention on. Bigger, brighter cards are the matchups where the board stacks highest; tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
       </div>
 
       {/* Sort control (2026-08-12) — Default/Bot Output only. Time is the
@@ -943,12 +962,40 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       </>)}
                     </div>
 
-                    {/* ── expanded: the full read, in place ── */}
+                    {/* ── expanded: the full read, in place, ONE SECTION AT A
+                        TIME (2026-08-15). The four sections all still exist and
+                        all still render the same components with the same
+                        props — they are simply no longer stacked four screens
+                        deep. See the `panel` state above for why. */}
                     {isActive && (
                       <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} />
-                        <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
+                        <GamePanelPills
+                          panel={panel}
+                          setPanel={setPanel}
+                          weakSpots={(g.players || []).filter((p) => p?.weak_spot_flag).length}
+                          pickCount={sorted.length}
+                          arm={sides.map((s) => s.arm).filter(Boolean).join(' / ')}
+                        />
 
+                        {panel === 'read' && (
+                          <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
+                        )}
+
+                        {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component
+                            the Lineups mode uses — it now opens on its spot
+                            read (what this arm does to each batting-order slot,
+                            in sentences) with the full dense table one pill
+                            further in. Nothing about it is a Games-tab-only
+                            copy, so the two surfaces cannot drift. */}
+                        {panel === 'lineups' && (
+                          <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
+                        )}
+
+                        {panel === 'h2h' && (
+                          <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
+                        )}
+
+                        {panel === 'picks' && (<>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
                           <span style={{ fontSize: 11.5, fontWeight: 800 }}>
                             {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
@@ -1107,6 +1154,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             )
                           })}
                         </div>
+                        </>)}
                       </div>
                     )}
                   </section>
@@ -1131,6 +1179,66 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         pairHistorySummary={pairHistorySummary}
         onPlayerClick={onPlayerClick}
       />
+    </div>
+  )
+}
+
+// ── THE OPEN GAME'S SEGMENTED CONTROL (2026-08-15) ──────────────────────────
+//
+// Four sections of one game, four buttons, no scrolling between them. The
+// counts on the pills are the point of putting them here rather than in a
+// dropdown: "Lineups ★2" says there is something in there worth the tap
+// BEFORE you tap it, which a bare label cannot do.
+//
+// The line underneath is the same "what this answers" sentence the mode
+// buttons at the top of the tab already carry — a control that changes the
+// whole panel should say what it just did in words.
+const GAME_PANELS = [
+  ['read',    'The read'],
+  ['lineups', 'Lineups'],
+  ['h2h',     'Head-to-head'],
+  ['picks',   'Picks'],
+]
+const PANEL_SUB = {
+  read: 'tonight’s air, both starters written out, and this game’s storylines.',
+  lineups: 'both batting orders 1 through 9, and what this arm has done to each spot — the weak spots said in words, with the full table one pill further in.',
+  h2h: 'what these hitters have done against tonight’s starter across their careers, both sides.',
+  picks: 'the bot’s designated slots for this game as full cards — score bars, pills, add to slip.',
+}
+function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '' }) {
+  const badge = { lineups: weakSpots ? `★${weakSpots}` : '', picks: pickCount ? String(pickCount) : '' }
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+        {GAME_PANELS.map(([k, label]) => {
+          const on = panel === k
+          return (
+            <button
+              key={k}
+              onClick={(e) => { e.stopPropagation(); setPanel(k) }}
+              title={PANEL_SUB[k]}
+              style={{
+                padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+                fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+                border: `1px solid ${on ? C.orange : C.border}`,
+                background: on ? 'rgba(249,115,22,.14)' : 'transparent',
+                color: on ? C.orange : C.text3,
+              }}
+            >
+              {label}
+              {badge[k] && (
+                <span style={{ marginLeft: 5, color: on ? C.orange : C.yellow, fontWeight: 900 }}>{badge[k]}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
+        {PANEL_SUB[panel]}
+        {panel === 'lineups' && arm && (
+          <span style={{ color: C.text3 }}> Tonight: {arm}.</span>
+        )}
+      </div>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { nameOf, teamOf } from '../../lib/player'
 import { groupGames } from '../../lib/data'
 import { CATEGORIES } from '../BotPicksStrip'
 import OddsLine from '../OddsLine'
-import { readLedger } from '../../lib/myPicks'
+import { readLedger, nightVerdict, coinTail } from '../../lib/myPicks'
 import { quoteFor } from '../../lib/odds'
 import {
   BAR, isLocked, getPicks, savePick, clearPick, setConviction, slotKey,
@@ -30,46 +30,111 @@ import {
 //
 // The category list is imported, not re-declared. Two surfaces naming
 // different hitters as "the bot's pick" is a failure this project has had.
+//
+// ── MADE A GAME OF IT (2026-08-15) ───────────────────────────────────────────
+//
+// Donovan: "my picks needs to be like a fun game area but serious business as
+// well because it is still…". What was here was honest and dull: a row of four
+// grey tiles, a row of three more, and a paragraph. Everything true, nothing
+// you'd come back for.
+//
+// WHAT CHANGED, AND WHAT DIDN'T. The panel now opens on a SCORELINE and a
+// standing — where you're beating it, the calls you got right, what you have
+// riding tonight, and how far you are from the 25 contested slots the number
+// needs. Every one of those is the same contested-slot arithmetic from
+// lib/myPicks.js re-sliced; not one of them is a new, kinder way to win a
+// slot. Voids and untracked slots are still dropped from both sides.
+//
+// AND IT'S SENTENCES, NOT TILES. The seven Stat boxes are gone — as boxes. The
+// numbers they held (W–L–T, both contested rates, the edge in points, both
+// full-card rates with their denominators, the all-time override count) are
+// all still on screen, in prose, each with its k/n attached. This page had
+// been told five times that tiles lose to sentences; a "fun game area" is
+// stakes and a standing, not more boxes.
+//
+// THE ONE RULE THE GAME LAYER LIVES UNDER: nothing here may make the number
+// look better than it is. The streak language says outright that it describes
+// nights already played. The coin-flip line is a statement about guessing,
+// printed with its denominator, and stays hidden until ten slots have actually
+// been decided.
 
 const pctTxt = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)
+
+// A category's colour and label, from the one CATEGORIES list the whole site
+// ranks on — never a second table of role names in this file.
+const ROLE_META = Object.fromEntries(CATEGORIES.map((c) => [c.role, c]))
+const roleColor = (r) => ROLE_META[r]?.color || C.text2
+const roleLabel = (r) => ROLE_META[r]?.label || r
+
+// Ledger dates are YYYY-MM-DD. Noon avoids the timezone slip that makes a
+// midnight-parsed date render as the day before west of UTC.
+const shortDate = (d) => {
+  const t = new Date(`${d}T12:00:00`)
+  return Number.isFinite(t.getTime())
+    ? t.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : String(d || '')
+}
+
+// A slot is cleared or it isn't — there is no margin in a binary outcome. So
+// the reel ranks by the only size a call carries: how sure you said you were
+// before first pitch. Said out loud in the UI rather than left to be guessed.
+const CONV_WEIGHT = { lock: 3, strong: 2, lean: 1 }
+const callRank = (c) => (CONV_WEIGHT[c?.c] || 2)
+
+// The progress rail toward the 25-slot bar. A rail, not a tile: it's one fact
+// (how far along you are) and it belongs on the same line as the sentence that
+// explains it.
+function Rail({ value, max, color }) {
+  const pct = Math.max(0, Math.min(1, max ? value / max : 0))
+  return (
+    <span style={{
+      display: 'inline-block', width: 120, height: 5, borderRadius: 999,
+      background: 'rgba(255,255,255,.08)', overflow: 'hidden', verticalAlign: 'middle',
+    }}>
+      <span style={{
+        display: 'block', width: `${pct * 100}%`, height: '100%',
+        borderRadius: 999, background: color,
+      }} />
+    </span>
+  )
+}
 
 // 🟩 YOUR NIGHTS, AS A STRIP (2026-08-15, "make the my pick page fun and
 // interactive"). Each square is one graded night of head-to-head: green you
 // beat the bot on contested slots, red it beat you, grey a push or a night
-// you didn't contest. The streak counter only speaks past two, because a
-// one-night streak is a Tuesday. Same visual language as the Patterns board,
-// so the site keeps one way of drawing a run.
+// you didn't contest.
+//
+// The verdict rule moved to lib/myPicks.js (nightVerdict) — this strip used to
+// carry its own inline copy, and a second definition of "a night you won" is
+// exactly the kind of drift that makes two surfaces disagree. The streak
+// LABEL that used to sit here also moved, into the standing sentence below,
+// which can say both the current run and the longest one; the glow on the
+// trailing squares still marks the run itself.
 function NightStrip({ bump }) {
   const rows = useMemo(() => readLedger().slice(-20), [bump])
   if (rows.length < 2) return null
-  const verdict = (r) => (r.mw > r.bw ? 1 : r.bw > r.mw ? -1 : 0)
   let streak = 0
-  const last = verdict(rows[rows.length - 1])
+  const last = nightVerdict(rows[rows.length - 1])
   if (last !== 0) {
-    for (let i = rows.length - 1; i >= 0 && verdict(rows[i]) === last; i--) streak += 1
+    for (let i = rows.length - 1; i >= 0 && nightVerdict(rows[i]) === last; i--) streak += 1
   }
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
       <span style={{ display: 'inline-flex', gap: 2 }}>
         {rows.map((r, i) => {
-          const v = verdict(r)
+          const v = nightVerdict(r)
           return (
             <span key={r.date || i}
-              title={`${r.date} — you ${r.mw ?? 0}, bot ${r.bw ?? 0} on ${r.n ?? 0} contested`}
+              title={`${r.date} — you ${r.mw ?? 0}, bot ${r.bw ?? 0} on ${r.n ?? 0} contested (${r.w ?? 0}–${r.l ?? 0}–${r.t ?? 0})`}
               style={{
                 width: 7, height: 7, borderRadius: 1.5,
-                background: v > 0 ? '#4ade80' : v < 0 ? 'rgba(248,113,113,.8)' : 'rgba(255,255,255,.14)',
+                background: v > 0 ? C.green : v < 0 ? `${C.red}cc` : 'rgba(255,255,255,.14)',
                 boxShadow: i >= rows.length - streak && last !== 0 && v === last
-                  ? `0 0 4px ${last > 0 ? 'rgba(74,222,128,.6)' : 'rgba(248,113,113,.5)'}` : 'none',
+                  ? `0 0 4px ${last > 0 ? `${C.green}99` : `${C.red}88`}` : 'none',
               }} />
           )
         })}
       </span>
-      {streak >= 2 && (
-        <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: last > 0 ? '#4ade80' : '#f87171' }}>
-          {last > 0 ? `${streak} nights over the bot` : `bot's had you ${streak} straight`}
-        </b>
-      )}
     </span>
   )
 }
@@ -100,23 +165,25 @@ function outcomePill(out, pending) {
   )
 }
 
-function Stat({ label, value, sub, color, big }) {
+// One line of the standing. Not a tile — a sentence with a leading glyph, so
+// the block reads top to bottom as a story instead of scanning as a grid.
+function Line({ icon, children, color, dim }) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-      borderRadius: 10, padding: '9px 13px', minWidth: 110,
+      display: 'flex', gap: 7, alignItems: 'baseline',
+      fontSize: dim ? 10.5 : 11.5, color: dim ? C.text3 : C.text2,
+      lineHeight: 1.6, marginTop: 6,
     }}>
-      <div style={{
-        fontSize: 8.5, fontWeight: 800, color: C.text3,
-        letterSpacing: '.09em', textTransform: 'uppercase',
-      }}>{label}</div>
-      <div style={{
-        fontFamily: NUM_FONT, fontSize: big ? 21 : 15, fontWeight: 900,
-        color: color || C.text, lineHeight: 1.2, marginTop: 2,
-      }}>{value}</div>
-      {sub && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 2 }}>{sub}</div>}
+      <span style={{ flex: '0 0 auto', color: color || C.text3 }}>{icon}</span>
+      <span style={{ flex: 1, minWidth: 0 }}>{children}</span>
     </div>
   )
+}
+
+// A number in the middle of a sentence still gets the numeral font — that's
+// the house rule, and it's what makes a k/n readable at 11px.
+function Num({ children, color }) {
+  return <b style={{ fontFamily: NUM_FONT, color: color || C.text }}>{children}</b>
 }
 
 export default function MyPicks({ players = [], results, odds, slateDate, onPlayerClick }) {
@@ -188,6 +255,35 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
   }, [slateDate, results, graded])
 
   const totals = useMemo(() => ledgerTotals(), [bump, picks])
+
+  // 🎮 WHAT'S RIDING TONIGHT. The record answers "how have I done"; nothing on
+  // the page answered "what do I have on the line right now", which is the
+  // question you actually open the tab with at 6pm. Live off the slate — none
+  // of this is stored, and none of it touches the ledger: it's the same rows
+  // gradeSlate already produced, counted by state.
+  //
+  // The four states are kept apart on purpose, because they mean different
+  // things: still open to change, locked and waiting, graded, and the two
+  // kinds of ungradeable (void = tracked but never batted, untracked = no line
+  // in the file at all).
+  const tonight = useMemo(() => {
+    const mineRows = graded.rows.filter((r) => r.mine)
+    const open = mineRows.filter((r) => !isLocked(r.game_time, now)).length
+    const contested = mineRows.filter((r) => r.contested)
+    const w = contested.filter((r) => r.mineOut && !r.botOut).length
+    const l = contested.filter((r) => !r.mineOut && r.botOut).length
+    return {
+      rows: mineRows,
+      games: new Set(mineRows.map((r) => r.game_pk)).size,
+      open,
+      locked: mineRows.length - open,
+      contested: contested.length,
+      w, l, t: contested.length - w - l,
+      pending: mineRows.filter((r) => !reporting.has(r.game_pk)).length,
+      voided: mineRows.filter((r) => r.mineOut === null).length,
+      untracked: mineRows.filter((r) => reporting.has(r.game_pk) && r.mineOut === undefined).length,
+    }
+  }, [graded, reporting, now])
 
   function convict(slot, key) {
     setPicks({ ...setConviction(slateDate, slot.game_pk, slot.role, key) })
@@ -266,36 +362,246 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
               </div>
             )}
 
-            {totals.n > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 11 }}>
-              <Stat
-                label="Head to head" big
-                value={`${totals.w}–${totals.l}–${totals.t}`}
-                sub={`${totals.n} slot${totals.n === 1 ? '' : 's'} you contested`}
-                color={totals.w > totals.l ? '#4ade80' : totals.w < totals.l ? '#f87171' : C.text}
-              />
-              <Stat label="You, contested" value={pctTxt(totals.minePct)}
-                    sub={`${totals.mineWon}/${totals.n}`} color="#4ade80" />
-              <Stat label="Bot, same slots" value={pctTxt(totals.botPct)}
-                    sub={`${totals.botWon}/${totals.n}`} color="#a78bfa" />
-              {edge != null && (
-                <Stat
-                  label="Your edge"
-                  value={`${edge > 0 ? '+' : ''}${edge.toFixed(1)}pp`}
-                  sub="on contested slots"
-                  color={edge > 0 ? '#4ade80' : edge < 0 ? '#f87171' : C.text3}
-                />
-              )}
-            </div>
-            )}
+            {/* ── THE SCORELINE AND THE STANDING ──────────────────────────
+                Everything the four tiles used to hold, said instead. The
+                scoreline is the only thing here allowed to be big, because
+                it's the one figure with a claim on anything: your record on
+                slots you contested, where the game, the category and the bar
+                were held fixed and only the name changed. */}
+            {totals.n > 0 && (() => {
+              const lead = totals.w - totals.l
+              const leadCol = lead > 0 ? C.green : lead < 0 ? C.red : C.text
+              // The coin line always describes the LEADING side, so it reads
+              // as the same sentence whichever way the record is running.
+              const tail = lead >= 0 ? coinTail(totals.w, totals.l) : coinTail(totals.l, totals.w)
+              const tailTxt = tail == null ? null
+                : tail < 0.001 ? 'under 0.1%' : `${(tail * 100).toFixed(tail < 0.1 ? 1 : 0)}%`
+              const st = totals.streak || {}
+              const roles = Object.entries(totals.role || {}).sort((a, b) => b[1].n - a[1].n)
+              const calls = totals.calls || []
+              const byRank = (a, b) => callRank(b) - callRank(a) || String(b.date).localeCompare(String(a.date))
+              const best = calls.filter((c) => c.o).sort(byRank)[0]
+              const worst = calls.filter((c) => !c.o).sort(byRank)[0]
+              return (
+                <>
+                  <div style={{
+                    display: 'flex', alignItems: 'baseline', gap: 9,
+                    flexWrap: 'wrap', marginTop: 11,
+                  }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 800, color: C.text3,
+                      letterSpacing: '.09em', textTransform: 'uppercase',
+                    }}>You</span>
+                    <span style={{
+                      fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900,
+                      lineHeight: 1, color: leadCol, letterSpacing: '-.02em',
+                    }}>
+                      {totals.w}
+                      <span style={{ color: C.text3, margin: '0 5px' }}>–</span>{totals.l}
+                      <span style={{ color: C.text3, margin: '0 5px' }}>–</span>
+                      <span style={{ color: C.text3 }}>{totals.t}</span>
+                    </span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 800, color: C.text3,
+                      letterSpacing: '.09em', textTransform: 'uppercase',
+                    }}>the bot</span>
+                    <span style={{ fontSize: 10, color: C.text3 }}>
+                      wins – losses – pushes, contested slots only
+                    </span>
+                  </div>
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-              <Stat label="Your full card" value={pctTxt(totals.cardMinePct)}
-                    sub={`${totals.cardMineWon}/${totals.cardMineN} slots`} />
-              <Stat label="Bot's full card" value={pctTxt(totals.cardBotPct)}
-                    sub={`${totals.cardBotWon}/${totals.cardBotN} slots`} />
-              <Stat label="Overrides made" value={totals.overrides} sub="all time" />
-            </div>
+                  <div style={{ fontSize: 11.5, color: C.text2, marginTop: 7, lineHeight: 1.65 }}>
+                    <Num>{totals.n}</Num> contested slot{totals.n === 1 ? '' : 's'} over{' '}
+                    <Num>{totals.nights}</Num> night{totals.nights === 1 ? '' : 's'} — every call where you
+                    put a different name in the bot&apos;s seat and both names ended up judgeable.
+                    You cleared the bar on <Num color={C.green}>{totals.mineWon}/{totals.n}</Num>{' '}
+                    ({pctTxt(totals.minePct)}); it cleared the same slots on{' '}
+                    <Num color={C.purple}>{totals.botWon}/{totals.n}</Num> ({pctTxt(totals.botPct)})
+                    {edge != null && (
+                      <> — <Num color={edge > 0 ? C.green : edge < 0 ? C.red : C.text3}>
+                        {edge > 0 ? '+' : ''}{edge.toFixed(1)}pp
+                      </Num>{' '}
+                      {edge > 0 ? 'your way' : edge < 0 ? 'the bot’s way' : 'dead level'}</>
+                    )}.
+                  </div>
+
+                  {/* 🎉 PROPORTIONATE, OR NOT AT ALL. The tone is a function of
+                      the sample, not of the mood: under ten contested slots
+                      this refuses to have an opinion, and it never claims the
+                      record predicts anything. Confetti over a 1–0 is how a
+                      serious page stops being one. */}
+                  {totals.n < 10 ? (
+                    <Line icon="🌱" color={C.text3}>
+                      Ten contested slots is where this stops being noise, and you have{' '}
+                      <Num>{totals.n}</Num>. Nothing to celebrate or worry about yet — keep swapping.
+                    </Line>
+                  ) : totals.n < 25 ? (
+                    <Line icon={lead > 0 ? '📈' : lead < 0 ? '📉' : '➖'} color={leadCol}>
+                      {lead > 0 ? (
+                        <>You are ahead of it, <Num color={C.green}>{totals.w}–{totals.l}</Num> on decided
+                          slots. Real, and still a read rather than a finding at this size.</>
+                      ) : lead < 0 ? (
+                        <>The bot is ahead, <Num color={C.red}>{totals.l}–{totals.w}</Num> on decided slots.
+                          Worth sitting with, not yet worth changing your process over.</>
+                      ) : (
+                        <>Dead level at <Num>{totals.w}–{totals.l}</Num> on decided slots.</>
+                      )}
+                    </Line>
+                  ) : (
+                    <Line icon={lead > 0 ? '🏆' : lead < 0 ? '🤖' : '➖'} color={leadCol}>
+                      {lead > 0 ? (
+                        <>Past the bar and in front: <Num color={C.green}>{totals.w}–{totals.l}–{totals.t}</Num>{' '}
+                          over <Num>{totals.n}</Num> contested slots. On the calls you actually argued, you
+                          have been the better of the two.</>
+                      ) : lead < 0 ? (
+                        <>Past the bar and behind: the bot is <Num color={C.red}>{totals.l}–{totals.w}–{totals.t}</Num>{' '}
+                          over <Num>{totals.n}</Num> contested slots. Overriding it has cost more slots than
+                          it has won.</>
+                      ) : (
+                        <>Level over <Num>{totals.n}</Num> contested slots — <Num>{totals.w}–{totals.l}–{totals.t}</Num>.
+                          Your overrides have neither helped nor hurt.</>
+                      )}
+                    </Line>
+                  )}
+
+                  {/* The 25-slot bar as PROGRESS, not as a scolding. The
+                      caution itself still lives in the footnote below, word
+                      for word — this is the same fact with a direction. */}
+                  <Line icon="🎯" color={totals.n >= 25 ? C.green : C.yellow}>
+                    {totals.n >= 25 ? (
+                      <>Past the 25-slot bar (<Num>{totals.n}</Num> contested). The number has a floor
+                        under it now — which is not the same as being a season.</>
+                    ) : (
+                      <><Num>{totals.n}</Num> of <Num>25</Num> contested slots{' '}
+                        <Rail value={totals.n} max={25} color={C.yellow} />{' '}
+                        <Num>{25 - totals.n}</Num> more before this is worth arguing with.</>
+                    )}
+                  </Line>
+
+                  {totals.decided >= 10 && tailTxt && (
+                    <Line icon="🎲" color={C.text3}>
+                      {lead >= 0 ? (
+                        <>Someone guessing blind goes <Num>{totals.w}–{totals.l}</Num> or better about{' '}
+                          <Num>{tailTxt}</Num> of the time over <Num>{totals.decided}</Num> decided slots</>
+                      ) : (
+                        <>Someone guessing blind goes <Num>{totals.w}–{totals.l}</Num> or worse about{' '}
+                          <Num>{tailTxt}</Num> of the time over <Num>{totals.decided}</Num> decided slots</>
+                      )}
+                      {' '}(pushes excluded). That is a fact about coin flips at this sample size, not a
+                      forecast for tonight.
+                    </Line>
+                  )}
+
+                  {st.len >= 2 ? (
+                    <Line icon={st.dir > 0 ? '🔥' : '🧊'} color={st.dir > 0 ? C.green : C.red}>
+                      {st.dir > 0 ? (
+                        <><Num color={C.green}>{st.len}</Num> nights running you have taken the head-to-head</>
+                      ) : (
+                        <>The bot has taken it <Num color={C.red}>{st.len}</Num> nights running</>
+                      )}
+                      {' '}(longest on this record: <Num>{st.bestWin || 0}</Num> yours,{' '}
+                      <Num>{st.bestLoss || 0}</Num> its). A run that happened — it says nothing about tonight.
+                    </Line>
+                  ) : (st.bestWin >= 2 || st.bestLoss >= 2) ? (
+                    <Line icon="📆" dim>
+                      Longest runs on this record: <Num>{st.bestWin || 0}</Num> nights over the bot,{' '}
+                      <Num>{st.bestLoss || 0}</Num> under it. Nights you contested nothing break a run
+                      rather than extend it.
+                    </Line>
+                  ) : null}
+
+                  {/* 📊 WHERE YOU BEAT IT, BY CATEGORY. The question the single
+                      number can't answer: you may be genuinely better than it
+                      at picking a homer and plainly worse at picking a hit,
+                      and the aggregate hides both. Each line prints its own
+                      k/n — a 2–0 in HRR is two slots, and it says so. */}
+                  {roles.length > 0 && (
+                    <div style={{ marginTop: 9 }}>
+                      <Line icon="📊">
+                        By category
+                        {totals.roleN < totals.n && (
+                          <> — <Num>{totals.roleN}</Num> of your <Num>{totals.n}</Num> contested slots have a
+                            category on file; the older nights were recorded before this split existed and
+                            are counted in the scoreline only</>
+                        )}:
+                      </Line>
+                      {roles.map(([k, v]) => {
+                        // Clamped: w + l can only exceed n if a stored row was
+                        // hand-edited or half-written, and a "–-2 push" is a
+                        // worse thing to print than a silently dropped one.
+                        const push = Math.max(0, v.n - v.w - v.l)
+                        const col = v.w > v.l ? C.green : v.w < v.l ? C.red : C.text2
+                        return (
+                          <div key={k} style={{
+                            display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap',
+                            fontSize: 11, color: C.text2, lineHeight: 1.7, marginLeft: 21,
+                          }}>
+                            <b style={{
+                              fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900,
+                              color: roleColor(k), border: `1px solid ${roleColor(k)}55`,
+                              background: `${roleColor(k)}14`, borderRadius: 6,
+                              padding: '1px 6px', minWidth: 58, textAlign: 'center',
+                            }}>{roleLabel(k)}</b>
+                            <span>
+                              <Num color={col}>{v.w}–{v.l}{push ? `–${push}` : ''}</Num> on{' '}
+                              <Num>{v.n}</Num> contested — you <Num color={C.green}>{v.mw}/{v.n}</Num>,
+                              it <Num color={C.purple}>{v.bw}/{v.n}</Num>
+                              {v.n >= 8 && v.l - v.w >= 3 && (
+                                <span style={{ color: C.red }}> · the bot owns this one — worth leaving its pick alone</span>
+                              )}
+                              {v.n >= 8 && v.w - v.l >= 3 && (
+                                <span style={{ color: C.green }}> · this is your category</span>
+                              )}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* 🏅 THE REEL. Two calls, one each way. Only decided slots
+                      are stored (lib/myPicks.js CALL_CAP), and the bot name is
+                      the one snapshotted when you swapped — the name you
+                      actually argued with, not whoever the slate landed on by
+                      first pitch. */}
+                  {best && (
+                    <Line icon="🏅" color={C.green}>
+                      Best call so far — <b style={{ color: C.text2 }}>{shortDate(best.date)}</b>, a{' '}
+                      <b style={{ color: C.text2 }}>{best.c}</b> in{' '}
+                      <b style={{ color: roleColor(best.r) }}>{roleLabel(best.r)}</b>: your{' '}
+                      <b style={{ color: C.text }}>{best.m || 'pick'}</b> cleared the bar
+                      {best.b ? <> and its <b style={{ color: C.text2 }}>{best.b}</b> did not</> : null}.
+                    </Line>
+                  )}
+                  {worst && (
+                    <Line icon="🧊" color={C.red}>
+                      Worst — <b style={{ color: C.text2 }}>{shortDate(worst.date)}</b>, a{' '}
+                      <b style={{ color: C.text2 }}>{worst.c}</b> in{' '}
+                      <b style={{ color: roleColor(worst.r) }}>{roleLabel(worst.r)}</b>: its{' '}
+                      <b style={{ color: C.text2 }}>{worst.b || 'pick'}</b> cleared and your{' '}
+                      <b style={{ color: C.text }}>{worst.m || 'pick'}</b> did not.
+                    </Line>
+                  )}
+                  {(best || worst) && (
+                    <Line icon=" " dim>
+                      Ranked by how sure you said you were before first pitch: a slot is cleared or it
+                      is not, so conviction is the only size a call has.
+                    </Line>
+                  )}
+                </>
+              )
+            })()}
+
+            {/* The full card, in a sentence. Same three figures the tiles
+                carried — your rate, the bot's, and the all-time override
+                count — each still printed with its denominator. */}
+            <Line icon="🗂">
+              Your full card, meaning the bot&apos;s slate with your swaps applied, sits at{' '}
+              <Num>{pctTxt(totals.cardMinePct)}</Num> (<Num>{totals.cardMineWon}/{totals.cardMineN}</Num>{' '}
+              slots) against its untouched <Num>{pctTxt(totals.cardBotPct)}</Num>{' '}
+              (<Num>{totals.cardBotWon}/{totals.cardBotN}</Num>). <Num>{totals.overrides}</Num> override
+              {totals.overrides === 1 ? '' : 's'} made all time.
+            </Line>
 
             {/* 🎚 DO YOUR TIERS MEAN ANYTHING — the only reason conviction
                 exists. One sentence, in the page's own language, and it stays
@@ -363,6 +669,94 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                  onChange={doImport} style={{ display: 'none' }} />
           {msg && <span style={{ fontSize: 10.5, color: C.text3, alignSelf: 'center' }}>{msg}</span>}
         </div>
+      </div>
+
+      {/* ── 🎮 WHAT'S RIDING TONIGHT ────────────────────────────────────────
+          The record says how you've done. This says what is on the line right
+          now, which is the question you actually open the tab with before
+          first pitch — and it was the one thing the page never answered.
+
+          It is a sentence and a row of names, not a tile strip: how many slots
+          you've taken, how many are still yours to change, how many have
+          frozen, and what has come back so far tonight. The four ungradeable
+          states stay separate here too — a void is not a miss and an untracked
+          name was never being watched. */}
+      <div style={{
+        background: C.bg2, border: `1px solid ${C.border}`,
+        borderLeft: `3px solid ${tonight.rows.length ? C.cyan : C.border2}`,
+        borderRadius: 12, padding: '11px 14px', marginBottom: 12,
+      }}>
+        {tonight.rows.length ? (
+          <>
+            <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.65 }}>
+              <b style={{ fontSize: 12.5, color: C.text }}>🎮 Riding tonight</b> —{' '}
+              <Num color={C.cyan}>{tonight.rows.length}</Num> slot
+              {tonight.rows.length === 1 ? '' : 's'} across <Num>{tonight.games}</Num> game
+              {tonight.games === 1 ? '' : 's'}: <Num>{tonight.locked}</Num> already frozen,{' '}
+              <Num>{tonight.open}</Num> still open to change.
+              {tonight.contested > 0 && (
+                <> Graded so far: <Num color={C.green}>you {tonight.w}</Num>,{' '}
+                  <Num color={C.purple}>the bot {tonight.l}</Num>
+                  {tonight.t ? <>, <Num>{tonight.t}</Num> push{tonight.t === 1 ? '' : 'es'}</> : null}{' '}
+                  on <Num>{tonight.contested}</Num> contested slot{tonight.contested === 1 ? '' : 's'}.</>
+              )}
+              {tonight.pending > 0 && (
+                <> <Num>{tonight.pending}</Num> of your slots {tonight.pending === 1 ? 'is' : 'are'} in
+                  games the graded file hasn&apos;t reported on yet.</>
+              )}
+              {tonight.voided > 0 && (
+                <> <Num>{tonight.voided}</Num> void — tracked but never batted, dropped from both
+                  sides rather than counted against you.</>
+              )}
+              {tonight.untracked > 0 && (
+                <> <Num>{tonight.untracked}</Num> untracked — no line in tonight&apos;s file to score
+                  against, so {tonight.untracked === 1 ? 'it' : 'they'} can never be contested.</>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              {tonight.rows.map((r) => {
+                const col = roleColor(r.role)
+                const live = r.pool?.find((p) => String(p.player_id) === String(r.mine.pid))
+                const mark = r.mineOut === true ? '✓' : r.mineOut === false ? '✗' : ''
+                const markCol = r.mineOut === true ? C.green : r.mineOut === false ? C.red : C.text3
+                return (
+                  <button
+                    key={slotKey(r.game_pk, r.role)}
+                    onClick={() => live && onPlayerClick?.(live)}
+                    disabled={!live}
+                    title={`${roleLabel(r.role)} — needs ${BAR[r.role]}. Your ${r.mine.conviction || 'strong'}, in for ${r.mine.bot_name || 'the bot’s pick'}.`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'baseline', gap: 6,
+                      background: `${col}12`, border: `1px solid ${col}55`, borderRadius: 8,
+                      padding: '3px 9px', cursor: live ? 'pointer' : 'default',
+                      color: C.text, fontSize: 11, fontWeight: 700,
+                    }}
+                  >
+                    {r.mine.name}
+                    <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, color: col, letterSpacing: '.05em' }}>
+                      {roleLabel(r.role)} · {(r.mine.conviction || 'strong').toUpperCase()}
+                    </span>
+                    {mark && <span style={{ color: markCol, fontWeight: 900 }}>{mark}</span>}
+                    {r.contested && (
+                      <span style={{
+                        fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900,
+                        color: r.mineOut && !r.botOut ? C.green : !r.mineOut && r.botOut ? C.red : C.text3,
+                      }}>
+                        {r.mineOut && !r.botOut ? 'WON' : !r.mineOut && r.botOut ? 'LOST' : 'PUSH'}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.65 }}>
+            <b style={{ fontSize: 12.5, color: C.text2 }}>🎮 Nothing riding tonight</b> — every slot
+            below is still the bot&apos;s. Swap one name in and tonight starts counting toward the
+            head-to-head; leave them all and the night passes without asking you a question.
+          </div>
+        )}
       </div>
 
       {/* ── tonight's card ─────────────────────────────────────────────── */}

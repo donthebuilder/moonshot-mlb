@@ -65,60 +65,98 @@ const surname = (full) => {
 // It ranks cards and scores nothing. Each card names the two biggest
 // distance threats in that building (by longest_hr_score) and clicking a
 // card filters the Longest board to that game — click again to release.
+//
+// ── DEMOTED, NOT DELETED (2026-08-15) ────────────────────────────────────────
+// Donovan: "i dont like the parks ranked like that at the top." Fair — this
+// was the first thing on the Power page, so fifteen weather cards stood
+// between him and the board he opened the tab for. It is now the THIRD LENS
+// behind the page's one switch, and the page's lead sentence names tonight's
+// friendliest and coldest buildings (off `parkRows` below, so the numbers
+// cannot disagree) with this ladder one tap away. Nothing on any card was
+// touched: every card, chip, tooltip and the Combined / Stadium / Weather
+// switch are all still here, one click later than they used to be.
 
 const wTemp = (p) => n(p?.weather_temp_f, n(p?.temp_f, 0))
 const wWind = (p) => n(p?.weather_wind_mph, n(p?.wind_mph, 0))
 
-export default function ParkBoard({ players = [], slateDate = '', activeVenue, onVenueClick, onPlayerClick }) {
-  const parks = useMemo(() => {
-    const map = new Map()
-    players.forEach((p) => {
-      const pk = p?.game_pk
-      if (pk == null) return
-      if (!map.has(pk)) {
-        map.set(pk, {
-          pk,
-          venue: clean(p?.venue_name, ''),
-          temp: wTemp(p),
-          wind: wWind(p),
-          windLabel: clean(p?.wind_direction_label, ''),
-          parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 0)),
-          wxEff: n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null)),
-          roof: clean(p?.roof, ''),
-          rain: n(p?.weather_precip_chance, n(p?.precip_chance, 0)) * 100,
-          // 2026-08-09, Donovan: "parks should be more focused on the weather
-          // and park conditions, emphasize that." These three were already in
-          // the payload and the board never read them.
-          humidity: n(p?.weather_humidity, null),
-          feels: n(p?.weather_feels_like_f, null),
-          windBoost: n(p?.weather_wind_boost, null),
-          time: p?.game_time || null,
-          matchup: `${teamOf(p) || '?'} vs ${oppOf(p) || '?'}`,
-          bats: [],
-          confByTeam: {},
-        })
-      }
-      const g0 = map.get(pk)
-      g0.bats.push(p)
-      const tm = teamOf(p)
-      if (tm && !(tm in g0.confByTeam)) g0.confByTeam[tm] = p?.lineup_confirmed !== false
-    })
-    const out = [...map.values()].filter((g) => g.venue || g.temp)
-    const windOut = (g) => /out/i.test(g.windLabel) ? g.wind : /in\b/i.test(g.windLabel) ? -g.wind : 0
-    out.forEach((g) => {
-      const parkTerm = g.parkHR > 0 ? (g.parkHR - 1) * 100 : 0
-      const wxTerm = g.wxEff != null ? g.wxEff : windOut(g) + (g.temp > 0 ? (g.temp - 70) / 7 : 0)
-      // All three lenses computed once — the toggle below just picks which
-      // one ranks the board (2026-08-15, from the park-factors site Donovan
-      // sent: their Combined / Stadium Only / Weather Only switch, on ours).
-      g.parkTerm = parkTerm
-      g.wxTerm = wxTerm
-      g.edge = parkTerm + wxTerm
-      g.wxFromBot = g.wxEff != null
-      g.threats = [...g.bats].sort((a, b) => n(b?.longest_hr_score, 0) - n(a?.longest_hr_score, 0)).slice(0, 2)
-    })
-    return out
-  }, [players])
+// 🏟 THE PARK ARITHMETIC, EXTRACTED (2026-08-15).
+//
+// The Power page no longer OPENS on this board (Donovan: "i dont like the
+// parks ranked like that at the top"), so its lead sentence names tonight's
+// friendliest and coldest buildings before any table renders. That sentence
+// has to agree with this board to the last percent, and the only way to
+// guarantee that is to rank both off one function — a second copy of the
+// park+weather sum in Power.js would have drifted the first time either side
+// was touched.
+//
+// Pure, no hooks: one row per game_pk, each carrying its park term, its
+// weather term and their sum, plus everything the cards read.
+export function parkRows(players = []) {
+  const map = new Map()
+  players.forEach((p) => {
+    const pk = p?.game_pk
+    if (pk == null) return
+    if (!map.has(pk)) {
+      map.set(pk, {
+        pk,
+        venue: clean(p?.venue_name, ''),
+        temp: wTemp(p),
+        wind: wWind(p),
+        windLabel: clean(p?.wind_direction_label, ''),
+        parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 0)),
+        wxEff: n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null)),
+        roof: clean(p?.roof, ''),
+        rain: n(p?.weather_precip_chance, n(p?.precip_chance, 0)) * 100,
+        // 2026-08-09, Donovan: "parks should be more focused on the weather
+        // and park conditions, emphasize that." These three were already in
+        // the payload and the board never read them.
+        //
+        // UNITS (2026-08-15): weather_humidity is published as PERCENT (51,
+        // not 0.51 — checked across the whole slate), and this card read it as
+        // a fraction. Every game therefore scored as "humid", and the Air
+        // tooltip printed "5100% humidity". Normalised here so the card is
+        // right whichever spelling the bot sends; the reads below now compare
+        // against percent thresholds.
+        humidity: (() => {
+          const h = n(p?.weather_humidity, null)
+          return h == null ? null : (h > 0 && h <= 1 ? h * 100 : h)
+        })(),
+        feels: n(p?.weather_feels_like_f, null),
+        windBoost: n(p?.weather_wind_boost, null),
+        time: p?.game_time || null,
+        matchup: `${teamOf(p) || '?'} vs ${oppOf(p) || '?'}`,
+        bats: [],
+        confByTeam: {},
+      })
+    }
+    const g0 = map.get(pk)
+    g0.bats.push(p)
+    const tm = teamOf(p)
+    if (tm && !(tm in g0.confByTeam)) g0.confByTeam[tm] = p?.lineup_confirmed !== false
+  })
+  const out = [...map.values()].filter((g) => g.venue || g.temp)
+  const windOut = (g) => /out/i.test(g.windLabel) ? g.wind : /in\b/i.test(g.windLabel) ? -g.wind : 0
+  out.forEach((g) => {
+    const parkTerm = g.parkHR > 0 ? (g.parkHR - 1) * 100 : 0
+    const wxTerm = g.wxEff != null ? g.wxEff : windOut(g) + (g.temp > 0 ? (g.temp - 70) / 7 : 0)
+    // All three lenses computed once — the toggle below just picks which
+    // one ranks the board (2026-08-15, from the park-factors site Donovan
+    // sent: their Combined / Stadium Only / Weather Only switch, on ours).
+    g.parkTerm = parkTerm
+    g.wxTerm = wxTerm
+    g.edge = parkTerm + wxTerm
+    g.wxFromBot = g.wxEff != null
+    g.threats = [...g.bats].sort((a, b) => n(b?.longest_hr_score, 0) - n(a?.longest_hr_score, 0)).slice(0, 2)
+  })
+  return out
+}
+
+// `fold` (2026-08-15): on the Power page this board is now one of three LENSES
+// behind a single switch, so choosing "Parks" is already the open gesture —
+// wrapping it in the phone fold on top of that would make a phone user tap
+// twice to see the thing he just asked for. Every other mount keeps the fold.
+export default function ParkBoard({ players = [], slateDate = '', activeVenue, onVenueClick, onPlayerClick, fold = true }) {
+  const parks = useMemo(() => parkRows(players), [players])
 
   const statuses = useGameStatus(slateDate)
   // pen fatigue means 'threw YESTERDAY' — that claim is only true for a
@@ -182,16 +220,23 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   const DEFAULT_SHOWN = 6
   const [showAllParks, setShowAllParks] = useState(false)
 
-  if (!parks.length) return null
-
   // 🔀 THE LENS. Combined ranks like always; Stadium ranks on the building
   // alone (structural, survives the season); Weather ranks on tonight alone
   // (expires at midnight). The big number on each card follows the lens, so
   // "which building is best" and "where is tonight's air best" are one tap
   // apart instead of one mental subtraction apart.
+  //
+  // HOOK ORDER (2026-08-15): this useState and the `ranked` memo below it used
+  // to sit AFTER the `if (!parks.length) return null` guard. On a slate that
+  // arrives a beat late — empty first render, populated second — React counted
+  // a different number of hooks between the two renders and threw the tree
+  // away. Both moved above the guard; neither changed otherwise.
   const [lens, setLens] = useState('both')
   const lensVal = (g) => (lens === 'park' ? g.parkTerm : lens === 'wx' ? g.wxTerm : g.edge)
   const ranked = useMemo(() => [...parks].sort((a, b) => lensVal(b) - lensVal(a)), [parks, lens])
+
+  if (!parks.length) return null
+
   const visibleParks = showAllParks ? ranked : ranked.slice(0, DEFAULT_SHOWN)
 
   // Visual bands (2026-08-07, "this need to be cooler"): the edge number
@@ -212,8 +257,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   const best = ranked[0]
   const foldSummary = `${parks.length} parks · best air ${best.edge > 0 ? '+' : ''}${best.edge.toFixed(0)}% ${best.venue || best.matchup}`
 
-  return (
-    <MobileFold title="🏟 Tonight's parks" summary={foldSummary} count={parks.length}>
+  const body = (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>🏟 Tonight&apos;s conditions</span>
@@ -363,15 +407,15 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 if (g.temp > 0) {
                   // Temperature leads; humidity nudges the boundary by a few
                   // degrees rather than getting a verdict of its own.
-                  const humid = g.humidity != null && g.humidity > 0.65
-                  const dry = g.humidity != null && g.humidity < 0.35
+                  const humid = g.humidity != null && g.humidity > 65
+                  const dry = g.humidity != null && g.humidity < 35
                   const eff = g.temp + (humid ? 3 : dry ? -3 : 0)
                   const read = eff >= 80 ? { w: 'thin', c: '#fb923c' } : eff <= 62 ? { w: 'heavy', c: '#38bdf8' } : { w: 'average', c: C.text2 }
                   cells.push({
                     k: 'air', label: 'Air',
                     val: read.w,
                     col: read.c,
-                    tip: `Air density, read from temperature${g.humidity != null ? ` (${Math.round(g.humidity * 100)}% humidity)` : ''}. Warm air is thinner and the ball carries; cold air is dense and it doesn't. Humid air is very slightly thinner than dry air — water vapour weighs less than the air it replaces — so it nudges the same way. Derived here, not a published number.`,
+                    tip: `Air density, read from temperature${g.humidity != null ? ` (${Math.round(g.humidity)}% humidity)` : ''}. Warm air is thinner and the ball carries; cold air is dense and it doesn't. Humid air is very slightly thinner than dry air — water vapour weighs less than the air it replaces — so it nudges the same way. Derived here, not a published number.`,
                   })
                 }
 
@@ -646,6 +690,12 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
         </button>
       )}
     </div>
+  )
+
+  if (!fold) return body
+  return (
+    <MobileFold title="🏟 Tonight's parks" summary={foldSummary} count={parks.length}>
+      {body}
     </MobileFold>
   )
 }

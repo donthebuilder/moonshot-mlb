@@ -72,20 +72,14 @@ const buildColumns = (onWatch) => [
     title: 'The side this pitcher struggles against' },
 ]
 
-function Tile({ label, value, sub }) {
-  return (
-    <div style={{
-      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
-    }}>
-      <div style={{
-        fontSize: 9, textTransform: 'uppercase', letterSpacing: '.07em',
-        color: C.text3, fontWeight: 700, whiteSpace: 'nowrap',
-      }}>{label}</div>
-      <div style={{ fontFamily: NUM_FONT, fontSize: 18, fontWeight: 800, color: C.orange }}>{value}</div>
-      {sub && <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}
-    </div>
-  )
-}
+// The Tile component that used to live here is GONE (2026-08-15). It printed
+// five boxes — qualifying hitters, elite-power count, longest drought, median
+// due score, biggest gap — in a row above the board. Donovan has now ruled
+// against the tile style five separate times ("i dont like the tile style, id
+// rather text just like the storylines section"), and this row was the purest
+// example of it on the page: five numbers with no verbs between them. All five
+// facts are now the sentence directly above the filters, where they read as a
+// description of tonight instead of a dashboard. Nothing was dropped.
 
 // Who homered inside the last N games, N scalable 1–5. Sorted most-recent
 // first, then by homers in the window, so "went last night" leads.
@@ -94,7 +88,13 @@ function RecentBombers({ all = [], onPlayerClick }) {
   // EXACT-DAY MODE (2026-08-08, Donovan): clicking 2g shows ONLY the hitters
   // whose last homer came exactly two games ago — a bucket, not a range.
   const [exact, setExact] = useState(true)
-  const [open, setOpen] = useState(true)
+  // CLOSED BY DEFAULT (2026-08-15). This strip is the flip side of the Due
+  // board, and it used to sit ABOVE it, open, as a second scrolling table —
+  // so opening the Due lens put 360px of "who already homered" between the
+  // reader and the drought list he came for. It now sits under the board and
+  // starts folded: one header line carrying the window buttons and the hitter
+  // count, which is enough to tell you whether opening it is worth it.
+  const [open, setOpen] = useState(false)
 
   // THE ONE PARAMETER: games_since_last_hr, on 267/267 slate rows.
   // 0 = homered in his most recent game, so "within the last N games" is
@@ -220,7 +220,11 @@ function RecentBombers({ all = [], onPlayerClick }) {
   )
 }
 
-export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClick }) {
+// `showTitle` — see the note on LongestBoard: on the Power page the lens pill
+// IS this board's title, so the h2 is suppressed and the two facts the
+// PanelTitle carried (the one-line definition and the row count) move into the
+// paragraph below. Standalone mounts are unchanged.
+export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClick, showTitle = true }) {
   const [minDue, setMinDue] = useState(0)
   const [minDrought, setMinDrought] = useState(0)
   const [tag, setTag] = useState('All')
@@ -300,38 +304,51 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
 
   return (
     <div>
-      <PanelTitle
-        title="Due"
-        sub="Overdue for a homer — a ratio board, not a drought board"
-        right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
-      />
-
-      {/* WHO WENT DEEP RECENTLY — the flip side of this tab, on the same
-          field. games_since_last_hr is on 268/268: 0 = homered his last game,
-          so a window of N games is drought <= N-1. Scales 1..5 with the
-          buttons. Lives here because heat and drought are two ends of one
-          axis, and you check them in the same breath. */}
-      <RecentBombers all={all} onPlayerClick={onPlayerClick} />
+      {showTitle && (
+        <PanelTitle
+          title="Due"
+          sub="Overdue for a homer — a ratio board, not a drought board"
+          right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
+        />
+      )}
 
       <div style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 680,
       }}>
+        {!showTitle && (
+          <>
+            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{rows.length} shown.</b>{' '}
+            Overdue for a homer — <b style={{ color: C.text2 }}>a ratio board, not a drought
+            board</b>.{' '}
+          </>
+        )}
         A long drought on its own is not a signal — it usually just identifies a hitter without
         power. What makes this board worth reading is <b style={{ color: C.text2 }}>Ratio</b> and{' '}
         <b style={{ color: C.text2 }}>HR/PA</b> next to the drought: real power plus a gap is a cold
-        streak, no power plus a gap is just who he is.
+        streak, no power plus a gap is just who he is.{' '}
+        {/* The page's old "What this answers" block said this too, above the
+            board, in different words. Its sharpest clause was the warning, so
+            the warning is what survived the merge — read the rate, not the
+            gap. */}
+        Reading the drought column on its own is the single most common way to misread this board.
       </div>
 
-      <div style={{
-        display: 'grid', gap: 8, marginBottom: 12,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
-      }}>
-        <Tile label="Qualifying" value={all.length} sub="on the slate" />
-        <Tile label="Due elite power" value={elite} sub="HR/PA ≥ .045" />
-        <Tile label="Longest drought" value={`${longest} g`} />
-        <Tile label="Median due score" value={medDue.toFixed(1)} />
-        <Tile label="Biggest HR gap" value={`${biggestGap.toFixed(1)}×`} sub="vs his own rate" />
+      {/* TONIGHT, IN A LINE — the five tiles that used to sit here. Same five
+          numbers, now with the verbs that say what they are FOR: the pool, how
+          much of it has real power, where the extremes sit. */}
+      <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.7, marginBottom: 12, maxWidth: 680 }}>
+        <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{all.length}</b> hitters qualify tonight,
+        of whom <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{elite}</b>{' '}
+        <span
+          title="HR/PA ≥ .045 — roughly a homer every 22 plate appearances, the rate at which a drought is worth reading at all"
+          style={{ cursor: 'help', textDecoration: 'underline dotted' }}
+        >carry elite power</span> (HR/PA ≥ <span style={{ fontFamily: NUM_FONT }}>.045</span>). The longest
+        drought on the board runs <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{longest}</b>{' '}
+        game{longest === 1 ? '' : 's'}, the median due score is{' '}
+        <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{medDue.toFixed(1)}</b>, and the biggest
+        gap against a hitter&apos;s own rate is{' '}
+        <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{biggestGap.toFixed(1)}×</b>.
       </div>
 
       <div style={{
@@ -378,6 +395,15 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
           />
         </>
       )}
+
+      {/* WHO WENT DEEP RECENTLY — the flip side of this board, on the same
+          field. games_since_last_hr is on 268/268: 0 = homered his last game,
+          so a window of N games is drought <= N-1. Scales 1..5 with the
+          buttons. Still lives on this board because heat and drought are two
+          ends of one axis and you check them in the same breath — it just sits
+          UNDER the drought list now instead of on top of it, folded, because
+          the board is what the reader came for. */}
+      <RecentBombers all={all} onPlayerClick={onPlayerClick} />
     </div>
   )
 }

@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { fetchJSON } from '../../lib/data'
+import { fetchJSON, groupGames } from '../../lib/data'
+import { clean, teamOf } from '../../lib/player'
 import { Empty } from '../ui'
 import Sparkline, { GameStrip } from '../Sparkline'
 import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS } from '../../lib/runs'
@@ -28,6 +29,34 @@ import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS } from '.
 //      arithmetic instead of leaving the streak to speak for itself.
 //
 // Rides bots/player_splits.py's existing fetch — no new request on either side.
+//
+// ── SLICING BY TEAM AND BY GAME (2026-08-15, round two) ──────────────────────
+//
+// Donovan: "the patteren needs more intuvtive things but i like it alot /
+// soriting by team and games and sthings like that."
+//
+// WHAT WAS WRONG: the only way to narrow this board was the free-text box,
+// and a search box is not a slice. Typing "STL" got you nine of the eighteen
+// hitters in tonight's Cardinals game and no way to see the other nine — you
+// cannot type a MATCHUP. So the page could rank the whole slate or one string
+// match, with nothing in between, and the thing a bettor actually does — look
+// at one game, or one lineup — had no control on it at all.
+//
+// WHAT CHANGED, all additive:
+//   · A TEAM picker and a GAME picker, built off the slate rows this component
+//     is already handed. Same dropdown language the header's team filter uses
+//     (Controls.js), so team selection means one thing everywhere on the site.
+//   · AN ORDER control — by run length (what it always did), by team, or by
+//     game. Team and game order also print a quiet rule between groups, so a
+//     matchup's whole lineup reads as one block instead of scattered rows.
+//   · The featured cards stay run-ordered ALWAYS, and they obey the slice: pick
+//     a game and the six cards become that game's six longest runs, which is
+//     the read he described wanting.
+//   · One sentence under the controls says what is currently being hidden and
+//     clears it in one tap. An active filter you can't see is a wrong number.
+//
+// The free-text box survives untouched — it answers a different question
+// (find one man) than the pickers do (show me this slate slice).
 
 const chip = (on) => ({
   padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
@@ -38,6 +67,7 @@ const chip = (on) => ({
 })
 
 const SPLITS = [['all', 'All games'], ['D', 'Day'], ['N', 'Night'], ['H', 'Home'], ['A', 'Road']]
+const ORDERS = [['run', 'Run length'], ['team', 'Team'], ['game', 'Game']]
 const pct = (w) => (w ? `${w.pct.toFixed(0)}%` : '—')
 
 /**
@@ -57,6 +87,60 @@ function runOdds(run, base) {
   return Math.round(1 / one)
 }
 
+/**
+ * The same arithmetic as a sentence, for anywhere the number alone is mute.
+ *
+ * This used to render only on the six featured cards, which meant the one
+ * genuinely honest thing this page computes was unavailable for the other two
+ * hundred hitters — you could open a row, see "7▲", and get no help at all
+ * deciding whether seven is remarkable for THAT hitter. It now backs every
+ * expanded row too. Phrasing stays descriptive of his own past rate; nothing
+ * here says a run continues.
+ */
+function RunOddsLine({ run, base, size = 9 }) {
+  const k = Math.abs(run)
+  const odds = runOdds(k, base)
+  if (!odds) return null
+  return (
+    <div style={{ fontSize: size, color: C.text3, marginTop: 3, lineHeight: 1.45 }}>
+      At his own {pct(base)} rate, {k} in a row comes up about once every{' '}
+      <b style={{ color: C.text2 }}>{odds}</b> stretches
+      {odds <= 20 ? ' — which is to say regularly.' : ' — an unusual stretch at that rate, and still only a stretch.'}
+    </div>
+  )
+}
+
+/** A dropdown that looks like the header's team filter, at board scale. */
+function Picker({ label, value, onChange, options, title }) {
+  const on = !!value
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex' }} title={title}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="moon-select"
+        style={{
+          appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+          background: on ? 'rgba(249,115,22,.14)' : 'transparent',
+          border: `1px solid ${on ? C.orange : C.border}`,
+          color: on ? C.orange : C.text3,
+          fontWeight: on ? 800 : 700,
+          borderRadius: 999, padding: '3px 21px 3px 10px',
+          fontSize: 9.5, fontFamily: NUM_FONT, outline: 'none', cursor: 'pointer',
+          maxWidth: 172, textOverflow: 'ellipsis',
+        }}
+      >
+        <option value="">{label}</option>
+        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+      <span style={{
+        position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+        fontSize: 8, color: on ? C.orange : C.text3, pointerEvents: 'none',
+      }}>▾</span>
+    </span>
+  )
+}
+
 export default function Runs({ players = [], onPlayerClick }) {
   const [data, setData] = useState(undefined)
   const [mk, setMk] = useState('hit')
@@ -64,6 +148,9 @@ export default function Runs({ players = [], onPlayerClick }) {
   const [split, setSplit] = useState('all')
   const [dir, setDir] = useState('hot')
   const [q, setQ] = useState('')
+  const [team, setTeam] = useState('')
+  const [game, setGame] = useState('')
+  const [order, setOrder] = useState('run')
   const [open, setOpen] = useState(null)
 
   useEffect(() => {
@@ -86,7 +173,53 @@ export default function Runs({ players = [], onPlayerClick }) {
     return s.size ? s : null
   }, [players])
 
-  const rows = useMemo(() => {
+  // Tonight's matchups, from the same grouping every other page uses
+  // (lib/data groupGames — away is the first row's team, home its opponent).
+  // Deriving them here rather than taking a games prop keeps Runs mountable
+  // from anywhere with nothing but the slate, which is how HitsHRR mounts it.
+  const games = useMemo(() => groupGames(players || []).map((g) => ({
+    key: String(g.game_pk),
+    away: clean(g.away, ''),
+    home: clean(g.home, ''),
+    label: `${clean(g.away, '—')} @ ${clean(g.home, '—')}`,
+  })).filter((g) => g.away || g.home), [players])
+
+  const teams = useMemo(() => {
+    const s = new Set()
+    ;(players || []).forEach((p) => { const t = teamOf(p); if (t) s.add(t) })
+    return Array.from(s).sort()
+  }, [players])
+
+  // team → its game. A doubleheader would put a team in two games and this
+  // map keeps the later one; the slate payload has never carried both halves
+  // at once, and a wrong game label is a smaller lie than a missing picker.
+  const byTeam = useMemo(() => {
+    const m = new Map()
+    games.forEach((g, i) => {
+      if (g.away) m.set(g.away, { key: g.key, label: g.label, i })
+      if (g.home) m.set(g.home, { key: g.key, label: g.label, i })
+    })
+    return m
+  }, [games])
+
+  // A team and a game that don't overlap can only ever produce an empty board,
+  // so each picker releases the other when they disagree. A control that can
+  // dead-end you into "no rows" is the opposite of intuitive.
+  const pickTeam = (t) => {
+    setTeam(t); setOpen(null)
+    if (t && game && byTeam.get(t)?.key !== game) setGame('')
+  }
+  const pickGame = (k) => {
+    setGame(k); setOpen(null)
+    if (k && team && byTeam.get(team)?.key !== k) setTeam('')
+  }
+  const clearSlice = () => { setTeam(''); setGame(''); setOpen(null) }
+
+  // Everything except the team/game slice, already ranked by run length. Held
+  // separately so the slice sentence can say "18 of 214" honestly — the
+  // denominator has to be the board you'd see without the slice, not the
+  // whole payload.
+  const base = useMemo(() => {
     if (!data?.players) return []
     const needle = q.trim().toLowerCase()
     return data.players
@@ -101,6 +234,47 @@ export default function Runs({ players = [], onPlayerClick }) {
         : (a.r.run - b.r.run) || (a.r.l15?.pct ?? 0) - (b.r.l15?.pct ?? 0)))
   }, [data, market, bar, split, dir, q, onSlate])
 
+  const gameTeams = useMemo(() => {
+    if (!game) return null
+    const g = games.find((x) => x.key === game)
+    return g ? new Set([g.away, g.home].filter(Boolean)) : null
+  }, [game, games])
+
+  const rows = useMemo(() => base
+    .filter((x) => !team || String(x.p.team) === team)
+    .filter((x) => !gameTeams || gameTeams.has(String(x.p.team))), [base, team, gameTeams])
+
+  // The board list, re-ordered. The featured cards below deliberately do NOT
+  // use this — they are "the longest runs in what you're looking at", and
+  // sorting them alphabetically would turn the page's answer into a roster.
+  const ordered = useMemo(() => {
+    if (order === 'run') return rows
+    const idx = (t) => byTeam.get(String(t))?.i ?? 999
+    return [...rows].sort((a, b) => {
+      if (order === 'team') {
+        const c = String(a.p.team || '').localeCompare(String(b.p.team || ''))
+        if (c) return c
+      } else {
+        const c = idx(a.p.team) - idx(b.p.team)
+        if (c) return c
+        const t = String(a.p.team || '').localeCompare(String(b.p.team || ''))
+        if (t) return t
+      }
+      return dir === 'hot' ? b.r.run - a.r.run : a.r.run - b.r.run
+    })
+  }, [rows, order, dir, byTeam])
+
+  const groupOf = (x) => {
+    if (!x || order === 'run') return null
+    if (order === 'team') return String(x.p.team || '—')
+    return byTeam.get(String(x.p.team))?.label || 'Not on tonight’s card'
+  }
+  const groupCounts = useMemo(() => {
+    const m = new Map()
+    if (order !== 'run') ordered.forEach((x) => { const k = groupOf(x); m.set(k, (m.get(k) || 0) + 1) })
+    return m
+  }, [ordered, order]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (data === undefined) {
     return <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, padding: 18 }}>Loading the run board…</div>
   }
@@ -114,12 +288,13 @@ export default function Runs({ players = [], onPlayerClick }) {
   }
 
   const label = barLabel(market, bar)
+  const sliceName = game ? (games.find((g) => g.key === game)?.label || game) : team
 
   return (
     <div>
       <Head stamp={data.slate_date} n={rows.length} span={data.games_per_player} />
 
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 7 }}>
         {MARKETS.map((m) => (
           <button key={m.key} onClick={() => { setMk(m.key); setThr(m.lines[0]); setOpen(null) }}
             style={chip(mk === m.key)}>{m.label}</button>
@@ -138,7 +313,32 @@ export default function Runs({ players = [], onPlayerClick }) {
         <button onClick={() => setDir('hot')} style={chip(dir === 'hot')}>Hot</button>
         <button onClick={() => setDir('cold')} style={chip(dir === 'cold')}
           title="The same board, the other direction — who has missed this bar the most times running.">Cold</button>
+      </div>
+
+      {/* ── SECOND LINE: which slice of the slate, and in what order ──────
+          Kept off the market/bar line on purpose. The row above chooses the
+          QUESTION (which bar, hot or cold); this one chooses WHO you're
+          asking it about. Mixing the two into one long wrapping row is how
+          the page got called "all over the place". */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+        <Picker label="⚾ All teams" value={team} onChange={pickTeam}
+          title="Show only this team's hitters. Same team list as the header filter."
+          options={teams.map((t) => [t, t])} />
+        <Picker label="🆚 All games" value={game} onChange={pickGame}
+          title="Show both lineups in one matchup — the whole game on one board."
+          options={games.map((g) => [g.key, g.label])} />
+        <span style={{ width: 8 }} />
+        <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Order</span>
+        {ORDERS.map(([k, l]) => (
+          <button key={k} onClick={() => { setOrder(k); setOpen(null) }} style={chip(order === k)}
+            title={k === 'run'
+              ? 'Longest active run first — the ranking this board has always used.'
+              : `Group the board by ${k}, longest run first inside each group. The cards up top stay ranked by run.`}>
+            {l}
+          </button>
+        ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team"
+          title="Free-text search. To slice the slate rather than hunt one name, use the team and game pickers."
           style={{
             marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10.5, padding: '4px 9px',
             borderRadius: 999, border: `1px solid ${C.border}`, background: 'transparent',
@@ -146,8 +346,25 @@ export default function Runs({ players = [], onPlayerClick }) {
           }} />
       </div>
 
+      {/* The slice, as a sentence you can undo. A filter you can't see is a
+          wrong number waiting to happen — this is the same lesson that put
+          allPlayers into HitsHRR's Runs mount. */}
+      {(team || game) && (
+        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginBottom: 9 }}>
+          Showing <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{sliceName}</b> only —{' '}
+          <b style={{ fontFamily: NUM_FONT, color: C.text }}>{rows.length}</b> of the{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{base.length}</b> hitters this board would otherwise show.{' '}
+          <button onClick={clearSlice} style={{
+            background: 'transparent', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer',
+            color: C.orange, fontWeight: 800, borderBottom: `1px dashed ${C.orange}66`,
+          }}>show everyone</button>
+        </div>
+      )}
+
       {!rows.length ? (
-        <Empty text={`Nobody on tonight's card has five ${split === 'all' ? '' : 'qualifying '}games logged for ${label}.`} />
+        <Empty text={team || game
+          ? `Nobody in ${sliceName} has five ${split === 'all' ? '' : 'qualifying '}games logged for ${label}. Clear the slice to see the rest of the card.`
+          : `Nobody on tonight's card has five ${split === 'all' ? '' : 'qualifying '}games logged for ${label}.`} />
       ) : (
         <>
           {/* ── the leaders, as cards ── */}
@@ -156,7 +373,6 @@ export default function Runs({ players = [], onPlayerClick }) {
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
           }}>
             {rows.slice(0, 6).map(({ p, r }) => {
-              const odds = runOdds(Math.abs(r.run), r.l30 || r.l15)
               const hot = r.run > 0
               return (
                 <div key={p.player_id} onClick={() => onPlayerClick?.(slateRow(players, p))} className="tap-row"
@@ -175,20 +391,21 @@ export default function Runs({ players = [], onPlayerClick }) {
                   }}>
                     {Math.abs(r.run)} game {hot ? 'run' : 'drought'}
                   </div>
-                  <div style={{ margin: '5px 0 4px' }}><Sparkline strip={r.strip} run={r.run} /></div>
-                  <div style={{ display: 'flex', gap: 10, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
-                    <span>L5 <b style={{ color: C.text2 }}>{pct(r.l5)}</b></span>
-                    <span>L10 <b style={{ color: C.text2 }}>{pct(r.l10)}</b></span>
-                    <span>L15 <b style={{ color: C.text2 }}>{pct(r.l15)}</b></span>
-                    <span>L30 <b style={{ color: C.text2 }}>{pct(r.l30)}</b></span>
+                  <div style={{ margin: '5px 0 4px' }}
+                    title={`His last ${Math.min(r.strip.length, 30)} games for ${label} — oldest on the left, tonight would come next on the right. Bright green is the active run.`}>
+                    <Sparkline strip={r.strip} run={r.run} />
                   </div>
-                  {odds && (
-                    <div style={{ fontSize: 9, color: C.text3, marginTop: 3, lineHeight: 1.45 }}>
-                      At his own {pct(r.l30 || r.l15)} rate, {Math.abs(r.run)} in a row comes up about
-                      once every <b style={{ color: C.text2 }}>{odds}</b> stretches
-                      {odds <= 20 ? ' — which is to say regularly.' : '.'}
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', gap: 10, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
+                    <span title={r.l5 ? `${r.l5.ok} of ${r.l5.n} games` : ''}>L5 <b style={{ color: C.text2 }}>{pct(r.l5)}</b></span>
+                    <span title={r.l10 ? `${r.l10.ok} of ${r.l10.n} games` : ''}>L10 <b style={{ color: C.text2 }}>{pct(r.l10)}</b></span>
+                    <span title={r.l15 ? `${r.l15.ok} of ${r.l15.n} games` : ''}>L15 <b style={{ color: C.text2 }}>{pct(r.l15)}</b></span>
+                    <span title={r.l30 ? `${r.l30.ok} of ${r.l30.n} games` : ''}>L30 <b style={{ color: C.text2 }}>{pct(r.l30)}</b></span>
+                  </div>
+                  {/* The one honest line on this page, at 9.5 rather than 9 —
+                      it is the reason to trust or discount the big green
+                      number directly above it, so it should not read as fine
+                      print. */}
+                  <RunOddsLine run={r.run} base={r.l30 || r.l15} size={9.5} />
                 </div>
               )
             })}
@@ -196,48 +413,69 @@ export default function Runs({ players = [], onPlayerClick }) {
 
           {/* ── the full board ── */}
           <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
-            {rows.map(({ p, r }) => {
+            {ordered.map((x, i) => {
+              const { p, r } = x
               const isOpen = open === p.player_id
+              const g = groupOf(x)
+              const newGroup = g && g !== groupOf(ordered[i - 1])
+              const verb = r.run > 0 ? 'cleared' : 'missed'
               return (
-                <div key={p.player_id} style={{
-                  border: `1px solid ${isOpen ? `${C.orange}55` : C.border}`, borderRadius: 9,
-                  background: isOpen ? 'rgba(249,115,22,.05)' : C.bg2,
-                  padding: '6px 9px', gridColumn: isOpen ? '1 / -1' : 'auto',
-                }}>
-                  <div onClick={() => setOpen(isOpen ? null : p.player_id)} className="tap-row"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', minWidth: 0 }}>
-                    <span style={{
-                      fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, minWidth: 26, textAlign: 'right',
-                      color: r.run > 0 ? '#4ade80' : r.run < 0 ? '#f87171' : C.text3,
-                    }}>{r.run > 0 ? `${r.run}▲` : `${-r.run}▼`}</span>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
-                      {p.name}
-                      <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>{p.team}</span>
-                    </span>
-                    <Sparkline strip={r.strip} run={r.run} size={6} max={15} />
-                    <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, minWidth: 30, textAlign: 'right' }}>
-                      {pct(r.l15)}
-                    </span>
-                  </div>
-                  {isOpen && (
-                    <div style={{ paddingTop: 8 }}>
-                      <div style={{ display: 'flex', gap: 12, marginBottom: 7, flexWrap: 'wrap', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
-                        {[['L5', r.l5], ['L10', r.l10], ['L15', r.l15], ['L30', r.l30]].map(([l, w]) => (
-                          <span key={l} title={w ? `${w.ok} of ${w.n}` : ''}>
-                            {l} <b style={{ color: C.text, fontSize: 12 }}>{pct(w)}</b>
-                          </span>
-                        ))}
-                        <button onClick={(e) => { e.stopPropagation(); onPlayerClick?.(slateRow(players, p)) }}
-                          style={{ ...chip(false), marginLeft: 'auto' }}>open his card →</button>
-                      </div>
-                      <GameStrip strip={r.strip} max={15} />
-                      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5 }}>
-                        {label} · newest on the right · green cleared it
-                        {split !== 'all' ? ` · ${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} only` : ''}
-                      </div>
+                <Fragment key={p.player_id}>
+                  {newGroup && (
+                    /* A rule with a name on it, not a header tile. */
+                    <div style={{
+                      gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 9,
+                      padding: i === 0 ? '2px 2px 1px' : '11px 2px 1px',
+                    }}>
+                      <span style={{ fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT, color: C.text2, letterSpacing: '.05em' }}>{g}</span>
+                      <span style={{ flex: 1, height: 1, background: C.border }} />
+                      <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>{groupCounts.get(g)} hitters</span>
                     </div>
                   )}
-                </div>
+                  <div style={{
+                    border: `1px solid ${isOpen ? `${C.orange}55` : C.border}`, borderRadius: 9,
+                    background: isOpen ? 'rgba(249,115,22,.05)' : C.bg2,
+                    padding: '6px 9px', gridColumn: isOpen ? '1 / -1' : 'auto',
+                  }}>
+                    <div onClick={() => setOpen(isOpen ? null : p.player_id)} className="tap-row"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', minWidth: 0 }}>
+                      <span
+                        title={`${p.name} ${verb} ${label} in each of his last ${Math.abs(r.run)} ${split === 'all' ? '' : `${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} `}games. Tap for the log.`}
+                        style={{
+                          fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, minWidth: 26, textAlign: 'right',
+                          color: r.run > 0 ? '#4ade80' : r.run < 0 ? '#f87171' : C.text3,
+                        }}>{r.run > 0 ? `${r.run}▲` : `${-r.run}▼`}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+                        {p.name}
+                        <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>{p.team}</span>
+                      </span>
+                      <Sparkline strip={r.strip} run={r.run} size={6} max={15} />
+                      <span title={r.l15 ? `${r.l15.ok} of his last ${r.l15.n} games cleared ${label}` : ''}
+                        style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, minWidth: 30, textAlign: 'right' }}>
+                        {pct(r.l15)}
+                      </span>
+                    </div>
+                    {isOpen && (
+                      <div style={{ paddingTop: 8 }}>
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 7, flexWrap: 'wrap', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
+                          {[['L5', r.l5], ['L10', r.l10], ['L15', r.l15], ['L30', r.l30]].map(([l, w]) => (
+                            <span key={l} title={w ? `${w.ok} of ${w.n}` : ''}>
+                              {l} <b style={{ color: C.text, fontSize: 12 }}>{pct(w)}</b>
+                            </span>
+                          ))}
+                          <button onClick={(e) => { e.stopPropagation(); onPlayerClick?.(slateRow(players, p)) }}
+                            style={{ ...chip(false), marginLeft: 'auto' }}>open his card →</button>
+                        </div>
+                        <GameStrip strip={r.strip} max={15} />
+                        <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5 }}>
+                          {label} · newest on the right · green cleared it
+                          {split !== 'all' ? ` · ${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} only` : ''}
+                        </div>
+                        <RunOddsLine run={r.run} base={r.l30 || r.l15} size={9.5} />
+                      </div>
+                    )}
+                  </div>
+                </Fragment>
               )
             })}
           </div>
@@ -266,11 +504,17 @@ function Head({ stamp, n, span }) {
           </span>
         )}
       </div>
-      <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, maxWidth: 780, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, maxWidth: 780, marginBottom: 9 }}>
         Everyone on tonight&apos;s card, sorted by how many games running they&apos;ve cleared the bar you
         pick. <b style={{ color: C.text }}>Cold</b> flips it to the drought board — nine misses in a row
         is a position too. The strip is his last games, newest on the right, and the active run is the
-        bright end of it.
+        bright end of it. Narrow it to one <b style={{ color: C.text }}>team</b> or one{' '}
+        <b style={{ color: C.text }}>game</b> with the pickers below, and every card, count and ranking
+        on the page recomputes to that slice.{' '}
+        <span style={{ color: C.text3 }}>
+          Pattern watching, not evidence — a run is a record of games already played, and the line under
+          each card says how often a hitter of his own rate puts one together.
+        </span>
       </div>
     </>
   )

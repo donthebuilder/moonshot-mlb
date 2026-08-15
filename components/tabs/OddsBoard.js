@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean, hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
-import { fmtOdds, impliedPct, fairOdds, hrPerGame, normName } from '../../lib/odds'
+import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName } from '../../lib/odds'
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
 
@@ -27,17 +27,67 @@ import OddsStatus, { useOddsStatus } from '../OddsStatus'
 // side and the reader draws his own line — a 0-100 score is not a probability
 // and multiplying it against a break-even would be the most confident wrong
 // number on the site.
+//
+// ── 2026-08-15, ROUND TWO — "the odds page need to be turnt" ─────────────────
+//
+// It shipped as one flat table of 184 rows under a paragraph of instructions,
+// and it bored him. Fair. This is the one page on the site showing LIVE MONEY
+// and it opened by explaining a column header.
+//
+// THE PAGE NOW LEADS WITH THE NIGHT AND KEEPS THE TABLE AS ITS SECOND HALF.
+// Three named calls in sentences — the widest gap, the longest number the
+// model still clears, and the one you're being asked to overpay for — then
+// one paragraph for every market that CANNOT carry a verdict, then the board.
+// Not a tile row: tiles have lost to sentences five separate times on this
+// project ("i dont like the tile style id rather text just like the
+// storylines section"), and a row of stat boxes on top of a table would be
+// the same page with a hat on. There are no boxes, borders or backgrounds in
+// the lead at all — the energy is type size, the market's own colour, one
+// comparison rail and a live dot, all of it sitting on published numbers.
+//
+// THREE HONESTY FIXES CAME WITH IT, and two were real bugs:
+//
+//   1. THE EDGE COLUMN WAS COMPARING TWO DIFFERENT BETS. hrPerGame() is the
+//      probability of ONE homer — the over on 0.5. The old row builder handed
+//      it to every HR quote including the ones where the book had moved to
+//      1.5, which is a MULTI-HOMER bet. Live payload, tonight: Alec Burleson,
+//      HR line 1.5 at +7000, printed "+14.7 EDGE" — a 1+ homer rate measured
+//      against a 2+ homer price. lib/odds.js's quoteFor() has guarded exactly
+//      this since the day it was written ("a book sitting on 1.5 is selling a
+//      multi-homer game"); this file simply never asked. Off the standard bar
+//      there is now no rate, no fair price and no edge — the price and the ≠
+//      flag stand alone, which is the whole point of the ≠ flag.
+//   2. A RATE OFF FORTY PLATE APPEARANCES LED THE PAGE. Sorted by edge, the
+//      top of tonight's board was a hitter with 4 homers in 40 PA, whose
+//      hr_per_pa of .100 projects to a 35% per-game homer rate — noise with a
+//      decimal point. The TABLE still shows him (nothing is removed, he just
+//      renders dimmed), but no call in the lead can be made on fewer than 150
+//      plate appearances, because a named call is the loudest claim the page
+//      makes.
+//   3. ONE BOOK IS ONE OPINION, said out loud in the lead rather than left in
+//      a BKS column tooltip. Tonight's board is a single book, and a +5000
+//      homer price from one shop is a different object than a consensus.
+//
+// AND WHAT THE LEAD DELIBERATELY DOES NOT SAY: "the prices that moved." The
+// published payload (bots/odds_fetch.py) carries no opening price and no
+// history — line, over, under, implied, best_over, best_book, books,
+// lines_seen, and nothing with a timestamp on it. Every honest version of
+// "moved" that the data does support is in the opening sentence instead: the
+// bar the books moved OFF the standard number, and the gap between the median
+// price and the best one on the board. Inventing a delta from a field that
+// doesn't exist would be the second most confident wrong thing on this page.
 
 const MARKETS = [
-  { key: 'batter_home_runs', label: 'HR', std: 0.5, color: '#FB923C' },
-  { key: 'batter_hits', label: 'Hits', std: 0.5, color: '#60A5FA' },
-  { key: 'batter_hits_runs_rbis', label: 'H+R+RBI', std: 1.5, color: '#4ade80' },
-  { key: 'batter_total_bases', label: 'Bases', std: 1.5, color: '#FCD34D' },
-  { key: 'batter_runs_scored', label: 'Runs', std: 0.5, color: '#c084fc' },
-  { key: 'batter_rbis', label: 'RBI', std: 0.5, color: '#f87171' },
-  { key: 'batter_doubles', label: '2B', std: 0.5, color: '#38bdf8' },
-  { key: 'batter_triples', label: '3B', std: 0.5, color: '#a78bfa' },
+  { key: 'batter_home_runs', label: 'HR', std: 0.5, color: '#FB923C', verb: 'to go deep' },
+  { key: 'batter_hits', label: 'Hits', std: 0.5, color: '#60A5FA', verb: 'for a hit' },
+  { key: 'batter_hits_runs_rbis', label: 'H+R+RBI', std: 1.5, color: '#4ade80', verb: 'for two of hits / runs / RBI' },
+  { key: 'batter_total_bases', label: 'Bases', std: 1.5, color: '#FCD34D', verb: 'for two total bases' },
+  { key: 'batter_runs_scored', label: 'Runs', std: 0.5, color: '#c084fc', verb: 'to score' },
+  { key: 'batter_rbis', label: 'RBI', std: 0.5, color: '#f87171', verb: 'to drive one in' },
+  { key: 'batter_doubles', label: '2B', std: 0.5, color: '#38bdf8', verb: 'for a double' },
+  { key: 'batter_triples', label: '3B', std: 0.5, color: '#a78bfa', verb: 'for a triple' },
 ]
+const MK = Object.fromEntries(MARKETS.map((m) => [m.key, m]))
 
 // Only four markets have a score on this site. Runs, RBI, doubles and
 // triples have none — and a column of 0.0 (2026-08-15, straight off his
@@ -54,6 +104,31 @@ const scoreFor = (p, mk) => (
     : 0
 )
 
+// The bar a named call has to clear to be allowed to lead. hr_per_pa is a
+// season rate and it is only as good as the trips it was measured over; at 40
+// PA one extra swing moves it by two and a half points, which is larger than
+// most of the edges on this board. The table is unfiltered — this gate only
+// decides who gets to be a SENTENCE.
+const LEAD_MIN_PA = 150
+// edgeOf()'s own thresholds, restated so the prose and the verdict agree.
+const CALL_EDGE = 5
+// A HOMER PRICE SHORTER THAN THIS IS A BAD QUOTE, NOT AN OFFER.
+//
+// Tonight's payload prices Seiya Suzuki to go deep at +101 — a break-even of
+// 49.8%, meaning the book is claiming he homers in half his games. Nobody in
+// the history of the sport has done that over a season; the best per-game
+// homer rate on this slate is 26%. It is a provider parse, and sorted by edge
+// it was the single most extreme row on the board, so it would have LED the
+// "paying up" call — a named hitter attached to a price no book is offering.
+//
+// This is a constraint on the MARKET, not a judgement on the model: 1+ HR
+// cannot be a coin flip. It gates who may be named in a sentence and nothing
+// else — the row is still in the table at +101 with its −30.5 edge, because
+// a quote the page won't headline is still a quote the page must show.
+const LEAD_MAX_NEED = 40
+
+const one = (v) => (Number.isFinite(v) ? (Math.round(10 * v) / 10).toFixed(1) : '—')
+
 export default function OddsBoard({ players = [], odds = null, onPlayerClick }) {
   const [market, setMarket] = useState('batter_home_runs')
   const [plusOnly, setPlusOnly] = useState(false)
@@ -61,7 +136,104 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
   const [need, setNeed] = useState('any')   // 1+ / 2+ / 3+
 
   const status = useOddsStatus()
-  const live = MARKETS.find((m) => m.key === market) || MARKETS[0]
+  const live = MK[market] || MARKETS[0]
+
+  // ── THE NIGHT ───────────────────────────────────────────────────────────
+  //
+  // One pass over every player × every market, independent of the pills, so
+  // the lead is about TONIGHT rather than about whichever tab is selected.
+  // Everything it collects is a published field; nothing is modelled here.
+  const night = useMemo(() => {
+    const byId = odds?.by_player_id || {}
+    const byName = odds?.by_name || {}
+    if (!Object.keys(byId).length && !Object.keys(byName).length) return null
+
+    const hr = []            // HR quotes ON the 0.5 bar, with a real rate behind them
+    const topScore = {}      // market -> the site's best score in it, and its price
+    const longest = {}       // market -> the longest plus-money price in it
+    const seen = new Set()   // markets with at least one price
+    let priced = 0, plus = 0, offBar = 0, maxBooks = 0
+    const bookNames = new Set()
+    let shop = null          // biggest median → best-available improvement
+
+    players.forEach((p) => {
+      const quotes = byId[String(p?.player_id ?? p?.id)] || byName[normName(nameOf(p))]
+      if (!quotes) return
+      MARKETS.forEach((m) => {
+        const q = quotes[m.key]
+        if (!q) return
+        const over = n(q.over, NaN)
+        if (!Number.isFinite(over)) return
+        const line = n(q.line, NaN)
+        const onBar = Number.isFinite(line) && Math.abs(line - m.std) < 1e-9
+
+        priced += 1
+        seen.add(m.key)
+        if (over > 0) plus += 1
+        if (Number.isFinite(line) && !onBar) offBar += 1
+        maxBooks = Math.max(maxBooks, n(q.books, 0))
+        if (clean(q.best_book, '')) bookNames.add(clean(q.best_book, ''))
+
+        // The only "movement" the payload actually supports: the median price
+        // at the consensus line versus the best one anybody is offering.
+        const best = n(q.best_over, NaN)
+        if (Number.isFinite(best) && best !== over) {
+          const gain = (impliedPct(over) ?? 0) - (impliedPct(best) ?? 0)
+          if (gain > 0 && (!shop || gain > shop.gain)) {
+            shop = { gain, p, m, over, best, book: clean(q.best_book, '') }
+          }
+        }
+
+        // Longest plus-money number in each market — a fact about the price,
+        // which needs no model to be true.
+        if (over > 0 && (!longest[m.key] || over > longest[m.key].over)) {
+          longest[m.key] = { p, m, q, over, line, onBar, need: q.implied ?? impliedPct(over) }
+        }
+
+        // The site's own favourite in each scored market, and what it costs.
+        // Two facts printed side by side — NOT a comparison, and never an edge.
+        if (HAS_SCORE.has(m.key) && onBar) {
+          const sc = scoreFor(p, m.key)
+          if (sc > 0 && (!topScore[m.key] || sc > topScore[m.key].score)) {
+            topScore[m.key] = { p, m, score: sc, over, need: q.implied ?? impliedPct(over) }
+          }
+        }
+
+        // ── THE ONLY MARKET THAT MAY CARRY A VERDICT ──────────────────────
+        // hrPerGame() is the chance of ONE homer, so it may only be set
+        // against the over on 0.5. A book on 1.5 is selling a multi-homer
+        // game and its price answers a different question entirely.
+        if (m.key === 'batter_home_runs' && onBar) {
+          const rate = hrPerGame(p)
+          const pa = n(p?.season_pa, 0)
+          if (rate != null && pa >= LEAD_MIN_PA) {
+            const e = edgeOf(q, rate)   // takes a RATE, never a score
+            if (e && e.need <= LEAD_MAX_NEED) hr.push({ p, m, q, over, rate, pa, ...e, fair: fairOdds(rate) })
+          }
+        }
+      })
+    })
+
+    if (!priced) return null
+    const byEdge = [...hr].sort((a, b) => b.diff - a.diff)
+    const widest = byEdge[0] && byEdge[0].diff >= CALL_EDGE ? byEdge[0] : null
+    // The longest number his own rate still clears. Deliberately a different
+    // question from "the biggest gap": the biggest gap is often a short price
+    // on a slugger, and he asked for the long plus-money shots by name.
+    const longshot = [...hr]
+      .filter((x) => x.over >= 200 && x.diff >= CALL_EDGE && x !== widest)
+      .sort((a, b) => b.over - a.over)[0] || null
+    const fade = byEdge.length && byEdge[byEdge.length - 1].diff <= -CALL_EDGE
+      ? byEdge[byEdge.length - 1] : null
+
+    return {
+      priced, plus, offBar, markets: seen.size, maxBooks,
+      books: [...bookNames], shop,
+      rated: hr.length, widest, longshot, fade,
+      topScore, longest,
+      when: clean(odds?.fetched_at_human, ''),
+    }
+  }, [players, odds])
 
   // Join the published board to tonight's slate. by_player_id is the honest
   // key; by_name is the fallback for a hitter the bot's join missed, and a
@@ -79,11 +251,17 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
       const line = n(q.line, NaN)
       if (!Number.isFinite(over)) return
       const need = q.implied ?? impliedPct(over)
-      const rate = market === 'batter_home_runs' ? hrPerGame(p) : null
+      // OFF THE BAR, NO RATE (2026-08-15 fix). hrPerGame is the chance of ONE
+      // homer; against a 1.5 line the book is pricing TWO, and the old code
+      // printed the difference as an EDGE anyway — +14.7 on a 1.5 HR line
+      // tonight. A blank here is the truthful cell.
+      const onBar = Number.isFinite(line) && Math.abs(line - live.std) < 1e-9
+      const rate = market === 'batter_home_runs' && onBar ? hrPerGame(p) : null
       const edge = rate != null && need != null ? rate - need : null
       out.push({
         _key: `${p?.player_id}-${p?.game_pk}`,
         _raw: p,
+        _pa: n(p?.season_pa, 0),
         player: nameOf(p),
         tm: teamOf(p),
         opp: oppOf(p),
@@ -101,7 +279,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
       })
     })
     return out
-  }, [players, odds, market])
+  }, [players, odds, market, live.std])
 
   const shown = useMemo(() => {
     let r = rows
@@ -125,10 +303,263 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
     color: on ? col : C.text3, whiteSpace: 'nowrap',
   })
 
+  // Jump from a sentence into the board that proves it. A named call the
+  // reader can't go verify is an assertion; one click away it's a claim with
+  // its working shown.
+  const jump = (mk, opts = {}) => () => {
+    setMarket(mk)
+    setPlusOnly(Boolean(opts.plus))
+    setOffStd(Boolean(opts.off))
+    setNeed(opts.need || 'any')
+  }
+
+  const Name = ({ p, size = 15 }) => (
+    <b
+      onClick={() => onPlayerClick?.(p)}
+      style={{ color: C.text, fontSize: size, fontWeight: 900, cursor: onPlayerClick ? 'pointer' : 'default', letterSpacing: '-.01em' }}
+    >{nameOf(p)}</b>
+  )
+  const Num = ({ children, color = C.text, size = 13 }) => (
+    <b style={{ fontFamily: NUM_FONT, fontSize: size, color, fontWeight: 900 }}>{children}</b>
+  )
+  const Link = ({ onClick, children, color = C.text3, title }) => (
+    <span onClick={onClick} title={title} style={{ color, cursor: 'pointer', borderBottom: `1px dotted ${color}66` }}>{children}</span>
+  )
+  const Kicker = ({ color, children, onClick, title }) => (
+    <div onClick={onClick} title={title} style={{
+      fontSize: 9.5, fontWeight: 900, letterSpacing: '.15em', textTransform: 'uppercase',
+      color, marginBottom: 4, cursor: onClick ? 'pointer' : 'default',
+    }}>{children} {onClick && <span style={{ opacity: 0.5 }}>→</span>}</div>
+  )
+
+  // THE RAIL — the two percentages, drawn. Precedent: TheRead's MoveBar, and
+  // the argument is the same one. "26.2 against 6.7" is a fact you have to do
+  // arithmetic on; two bars on a shared scale is a glance. Both ends are real
+  // published percentages, so the picture cannot say more than the numbers do.
+  const Rail = ({ needPct, ratePct, color }) => {
+    const max = Math.max(needPct, ratePct, 1)
+    const bar = (w, col, sub) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ width: 74, fontSize: 9, color: C.text3, textAlign: 'right', flexShrink: 0 }}>{sub}</span>
+        <div style={{ flex: 1, maxWidth: 320, height: 7, background: 'rgba(255,255,255,.05)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ width: `${Math.max(1.5, (w / max) * 100)}%`, height: 7, background: col, borderRadius: 4 }} />
+        </div>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: col, width: 42 }}>{one(w)}%</span>
+      </div>
+    )
+    return (
+      <div style={{ display: 'grid', gap: 4, margin: '8px 0 2px' }}>
+        {bar(needPct, C.text3, 'the price needs')}
+        {bar(ratePct, color, 'his own rate')}
+      </div>
+    )
+  }
+
+  const Para = ({ children }) => (
+    <p style={{ margin: '4px 0 0', fontSize: 12.5, lineHeight: 1.7, color: C.text2, maxWidth: 640 }}>{children}</p>
+  )
+
+  const w = night?.widest
+  const ls = night?.longshot
+  const fd = night?.fade
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+      <style>{'@keyframes oddsIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@keyframes oddsDot{0%,100%{opacity:1}50%{opacity:.25}}'}</style>
+
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
+        {night?.when && (
+          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999, background: C.green, animation: 'oddsDot 2.2s ease-in-out infinite' }} />
+            board pulled {night.when}
+          </span>
+        )}
+      </div>
+
+      <OddsStatus status={status} />
+
+      {/* ── THE LEAD ─────────────────────────────────────────────────────────
+          Sentences, not tiles. Every number in here is published: the price
+          off the board, the break-even off the price, the rate off hr_per_pa
+          and the lineup spot. The only thing the page adds is the subtraction,
+          and it only performs it where a real rate exists. */}
+      {night && (
+        <div style={{ margin: '14px 0 26px', animation: 'oddsIn .35s ease both' }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: C.text2, maxWidth: 660 }}>
+            <Num size={14} color={C.text}>{night.priced}</Num> prices on tonight&apos;s hitters across{' '}
+            <Num size={14} color={C.text}>{night.markets}</Num> market{night.markets === 1 ? '' : 's'},{' '}
+            <Link color={C.green} onClick={jump(market, { plus: true })}
+              title={`${night.plus} plus-money quotes across every market. Clicking turns the plus-money lens on for the ${live.label} board below — the count there is that market's share of this one.`}>
+              <Num size={14} color={C.green}>{night.plus}</Num> of them paying plus money
+            </Link>
+            {night.books.length === 1
+              ? <> — all of it <b style={{ color: C.text2 }}>{night.books[0]}</b>&apos;s number, so read every long price below as one shop&apos;s opinion rather than a market.</>
+              : night.books.length > 1
+                ? <> across <Num size={14} color={C.text}>{night.books.length}</Num> books
+                  {night.maxBooks > 1
+                    ? '.'
+                    : ' — though every individual number below came from a single one of them, so none of these is a consensus.'}</>
+                : '.'}
+            {night.offBar > 0 && (
+              <> The books moved off the standard bar on{' '}
+                <Link color={C.yellow} onClick={jump(market, { off: true })}
+                  title={`${night.offBar} quotes across every market sit on a line other than the standard one. Clicking isolates them on the ${live.label} board below.`}>
+                  <Num size={14} color={C.yellow}>{night.offBar}</Num> of them
+                </Link> — those are a different bet than every rate on this site is measured against.</>
+            )}
+            {night.shop && (
+              <> The widest gap between the median price and the best one available is{' '}
+                <b style={{ color: C.text }}>{nameOf(night.shop.p)}</b>&apos;s {night.shop.m.label} at{' '}
+                <Num color={C.text2}>{fmtOdds(night.shop.over)}</Num> against{' '}
+                <Num color={C.green}>{fmtOdds(night.shop.best)}</Num>
+                {night.shop.book ? ` at ${night.shop.book}` : ''} — {one(night.shop.gain)} points of break-even for shopping it.</>
+            )}
+          </p>
+
+          {/* THE WIDEST GAP — the hero. HR only, on the 0.5 bar only, and only
+              off a rate with real trips behind it. */}
+          {w && (
+            <div style={{ marginTop: 22, animation: 'oddsIn .4s .05s ease both' }}>
+              <Kicker color={MK.batter_home_runs.color} onClick={jump('batter_home_runs')}
+                title="Sorted by his own per-game homer rate minus what the price has to hit to break even. Home runs only — it is the one market where the slate publishes a real rate.">
+                the widest gap on the board
+              </Kicker>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <Name p={w.p} size={22} />
+                <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: w.over > 0 ? C.green : C.text, letterSpacing: '-.02em', lineHeight: 1 }}>
+                  {fmtOdds(w.over)}
+                </span>
+                <span style={{ fontSize: 12, color: C.text3 }}>
+                  {teamOf(w.p)} vs {oppOf(w.p)} · {MK.batter_home_runs.verb}
+                </span>
+              </div>
+              <Para>
+                That price only has to be right <Num color={C.text}>{one(w.need)}%</Num> of the time. His own
+                per-game homer rate — <span style={{ fontFamily: NUM_FONT }}>hr_per_pa</span> over the plate
+                appearances his lineup spot gets — is <Num color={MK.batter_home_runs.color}>{one(w.rate)}%</Num>,
+                which is <Num color={C.green}>{w.diff > 0 ? '+' : ''}{one(w.diff)}</Num> points clear of the
+                break-even and the widest of the <Num color={C.text2}>{night.rated}</Num> homer quotes with a real
+                rate behind them tonight.
+                {w.fair != null && <> His true price is <Num color={C.text}>{fmtOdds(w.fair)}</Num>; the book is at <Num color={C.text}>{fmtOdds(w.over)}</Num>.</>}
+                {' '}Measured over <Num color={C.text2}>{w.pa}</Num> plate appearances.
+              </Para>
+              <Rail needPct={w.need} ratePct={w.rate} color={MK.batter_home_runs.color} />
+            </div>
+          )}
+
+          {/* THE LONG SHOT HE ASKS FOR BY NAME — the longest number the model
+              still clears, which is a different question from the biggest gap. */}
+          {ls && (
+            <div style={{ marginTop: 20, animation: 'oddsIn .4s .1s ease both' }}>
+              <Kicker color={C.green} onClick={jump('batter_home_runs', { plus: true })}
+                title="The longest plus-money homer price whose own per-game rate still clears the break-even by 5 points or more.">
+                the longest number the model still clears
+              </Kicker>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <Name p={ls.p} size={17} />
+                <span style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900, color: C.green, lineHeight: 1 }}>{fmtOdds(ls.over)}</span>
+                <span style={{ fontSize: 11, color: C.text3 }}>{teamOf(ls.p)} vs {oppOf(ls.p)}</span>
+              </div>
+              <Para>
+                <Num color={C.text}>{fmtOdds(ls.over)}</Num> needs it to happen <Num color={C.text}>{one(ls.need)}%</Num> of
+                the time; he runs <Num color={C.green}>{one(ls.rate)}%</Num> —{' '}
+                <Num color={C.green}>{ls.diff > 0 ? '+' : ''}{one(ls.diff)}</Num> points the right way, off{' '}
+                <Num color={C.text2}>{n(ls.p?.season_hr, 0)}</Num> homers in <Num color={C.text2}>{ls.pa}</Num> plate
+                appearances. Long is not the same as wrong, and long with his own season behind it is the shape
+                worth writing down.
+              </Para>
+            </div>
+          )}
+
+          {/* THE OTHER HALF. A page that prints only the flattering side of its
+              own model is advertising — the same argument TheRead's "Against
+              it:" clause is built on. */}
+          {fd && (
+            <div style={{ marginTop: 20, animation: 'oddsIn .4s .15s ease both' }}>
+              <Kicker color={C.red} onClick={jump('batter_home_runs')}
+                title="The homer price furthest SHORT of the man taking it — his own rate is well behind what the number demands.">
+                where you&apos;re being asked to pay up
+              </Kicker>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <Name p={fd.p} size={17} />
+                <span style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900, color: C.red, lineHeight: 1 }}>{fmtOdds(fd.over)}</span>
+                <span style={{ fontSize: 11, color: C.text3 }}>{teamOf(fd.p)} vs {oppOf(fd.p)}</span>
+              </div>
+              <Para>
+                The board&apos;s shortest homer price relative to the man taking it:{' '}
+                <Num color={C.text}>{fmtOdds(fd.over)}</Num> demands <Num color={C.text}>{one(fd.need)}%</Num> and
+                his rate is <Num color={C.red}>{one(fd.rate)}%</Num> —{' '}
+                <Num color={C.red}>{one(Math.abs(fd.diff))}</Num> points the wrong way.
+                {fd.fair != null && <> His true price here is <Num color={C.text}>{fmtOdds(fd.fair)}</Num>.</>}
+                {' '}That is the site&apos;s <b style={{ color: C.red }}>priced out</b> verdict, and it is deliberately
+                coarse — anything inside five points is called fair, because at these samples a 1.5-point edge is
+                noise wearing a costume.
+              </Para>
+            </div>
+          )}
+
+          {!w && !ls && !fd && night.rated === 0 && (
+            <Para>
+              No homer quote tonight has a rate behind it that this page will stand on: every priced hitter is
+              off the standard <span style={{ fontFamily: NUM_FONT }}>0.5</span> bar, under{' '}
+              <Num color={C.text2}>{LEAD_MIN_PA}</Num> plate appearances, or carrying a price so short it is a bad
+              quote rather than an offer. A homer rate off forty trips is noise with a decimal point, so nothing
+              gets named on one. The full board is below and it hides none of them.
+            </Para>
+          )}
+
+          {/* EVERY OTHER MARKET — present, loud, and carrying no verdict. This
+              paragraph is the reason the page can be energetic without lying:
+              it says the quiet part out loud instead of filling the gap with a
+              green chip. */}
+          <div style={{ marginTop: 22, animation: 'oddsIn .4s .2s ease both' }}>
+            <Kicker color={C.blue}>everywhere else, a price and no verdict</Kicker>
+            <Para>
+              {['batter_hits', 'batter_hits_runs_rbis', 'batter_total_bases']
+                .map((k) => night.topScore[k]).filter(Boolean).length > 0 ? (
+                  <>
+                    The site&apos;s highest score in each of the other scored markets, with what it costs:{' '}
+                    {['batter_hits', 'batter_hits_runs_rbis', 'batter_total_bases'].map((k) => {
+                      const t = night.topScore[k]
+                      if (!t) return null
+                      return (
+                        <span key={k}>
+                          <Link color={t.m.color} onClick={jump(k)}>{t.m.label}</Link>{' '}
+                          <b style={{ color: C.text }} onClick={() => onPlayerClick?.(t.p)}>{nameOf(t.p)}</b>{' '}
+                          at <Num color={t.over > 0 ? C.green : C.text2}>{fmtOdds(t.over)}</Num>{' '}
+                          <span style={{ color: C.text3 }}>(score {one(t.score)}, needs {one(t.need)}%)</span>
+                          {k === 'batter_total_bases' ? '. ' : '; '}
+                        </span>
+                      )
+                    })}
+                  </>
+                ) : null}
+              Those two numbers are printed <i>beside</i> each other and never subtracted. A 0-100 score is not a
+              probability — it has no units in common with a break-even percentage — so there is no edge column on
+              those markets and no green chip anywhere near them. Home runs are the exception because{' '}
+              <span style={{ fontFamily: NUM_FONT }}>hr_per_pa</span> is a real per-game rate, and it is the only
+              one the slate publishes.
+              {['batter_runs_scored', 'batter_rbis', 'batter_doubles', 'batter_triples'].filter((k) => night.longest[k]).length > 0 && (
+                <>
+                  {' '}
+                  {['batter_runs_scored', 'batter_rbis', 'batter_doubles', 'batter_triples']
+                    .filter((k) => night.longest[k]).map((k) => MK[k].label).join(', ')}{' '}
+                  carry a price and nothing else: this site publishes no score for them, so no column is invented
+                  for them either.
+                </>
+              )}
+            </Para>
+          </div>
+        </div>
+      )}
+
+      {/* ── THE BOARD ────────────────────────────────────────────────────────
+          The second half of the page. Every column, filter and tooltip that
+          has ever been here is still here — the lead sits on top of it, it
+          does not replace it. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 6 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 900, margin: 0, letterSpacing: '-.01em' }}>The full board</h3>
         <span style={{ fontSize: 11, color: C.text3 }}>
           every price the bot pulled tonight — with the number the book is actually offering
         </span>
@@ -138,12 +569,11 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
         assumes the standard one ({live.label} at {live.std}); when a book moves it — a hit line at
         1.5, bases at 2.5 — a rate measured against the standard bar is answering a different
         question. <b style={{ color: C.text }}>NEED</b> is what the price has to hit to break even.
-        On home runs only, the slate publishes a real per-game rate, so <b style={{ color: C.text }}>EDGE</b> is
+        On home runs only, and only on the standard {MK.batter_home_runs.std} bar,
+        the slate publishes a real per-game rate, so <b style={{ color: C.text }}>EDGE</b> is
         his rate minus that break-even; every other market shows the score beside the price and
         leaves the judgement to you.
       </div>
-
-      <OddsStatus status={status} />
 
       {/* market picker */}
       <div className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '10px 0 8px' }}>
@@ -238,12 +668,12 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
             }] : []),
             ...(market === 'batter_home_runs' ? [
               { key: 'rate', label: 'HIS RATE %', w: 62, dp: 1,
-                title: 'His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes.' },
+                title: `His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes — and blank on any row where the book has moved off the ${live.std} bar, because that price is for two homers and this rate is for one.` },
               { key: 'fair', label: 'FAIR', w: 52, heat: false,
                 title: 'What his own rate says the price should be.',
                 fmt: (v) => (v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text3 }}>{fmtOdds(v)}</span>) },
               { key: 'edge', label: 'EDGE', w: 54, dp: 1,
-                title: 'His rate minus the break-even. Positive means the book is paying more than his season says it should.',
+                title: 'His rate minus the break-even. Positive means the book is paying more than his season says it should. Blank off the standard line — there the book is pricing a different bet.',
                 fmt: (v) => (v == null ? '—' : (
                   <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>
                     {v > 0 ? '+' : ''}{v.toFixed(1)}
@@ -256,9 +686,14 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
               title: 'How many of your books quoted it. One book is one opinion.' },
           ]}
           onRowClick={onPlayerClick}
+          // THIN SEASON, DIMMED — never hidden (2026-08-15). A homer rate built
+          // on forty plate appearances rendered at full weight is how a 4-for-40
+          // sample ended up sorting to the top of this board. The row still
+          // carries every number; it just stops shouting.
+          dimRow={market === 'batter_home_runs' ? ((r) => r?._pa > 0 && r._pa < LEAD_MIN_PA) : null}
           initialSort={market === 'batter_home_runs' ? 'edge' : HAS_SCORE.has(market) ? 'score' : 'need'}
           maxHeight={560}
-          caption={`Click a header to sort, a row to open his card. LINE in yellow with a ≠ means the book is NOT on the standard ${live.std} bar for ${live.label} — the boards' hit rates are measured against ${live.std}, so read those two together carefully.`}
+          caption={`Click a header to sort, a row to open his card. LINE in yellow with a ≠ means the book is NOT on the standard ${live.std} bar for ${live.label} — the boards' hit rates are measured against ${live.std}, so read those two together carefully.${market === 'batter_home_runs' ? ` Dimmed rows are hitters with under ${LEAD_MIN_PA} plate appearances this season: their rate is real arithmetic on a sample too thin to lead with, and no dimmed row is ever named in the read above.` : ''}`}
         />
       )}
     </div>

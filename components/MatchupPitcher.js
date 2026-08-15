@@ -5,6 +5,9 @@ import { n, clean, obj, arr, nameOf } from '../lib/player'
 import { pitcherDetailUrl } from '../lib/dataSource'
 import DenseTable from './DenseTable'
 import { rampColor, inkFor } from './Heatmap'
+import { armFormParts } from '../lib/armLeak'
+import { penFrom, penLineParts } from '../lib/bullpen'
+import { airParts, airVerdict } from '../lib/conditions'
 
 // The arm he's facing tonight — everything about the pitcher in one tab.
 //
@@ -109,6 +112,41 @@ function Meter({ v, spec }) {
         position: 'absolute', left: `${(m * 100).toFixed(1)}%`, top: -1, bottom: -1,
         width: 1.5, background: 'rgba(255,255,255,.45)',
       }} />
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE THREE THINGS THIS TAB ALSO NEVER SAID (2026-08-15)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Same gap as the Pitchers board, on the surface a reader is far more likely
+// to be looking at: this tab told you what the arm IS — fourteen season tiles,
+// an arsenal, two damage tables — and nothing about what has been happening to
+// him lately, who comes in behind him, or what air he is throwing in. All of
+// it was already on the hitter's own slate row.
+//
+// It goes ABOVE the fold, next to the verdict, because that is where a reason
+// changes a decision; the tiles stay exactly as they were behind "Show the
+// numbers". Nothing was removed to make room. And it is three sentences, not
+// three more tiles — the tile grid below is already the thing the owner called
+// "lazy and confusing to read", so this is deliberately not more of it.
+const toneColor = (t) => (t === 'hot' ? C.orange : t === 'cold' ? C.blue : C.text2)
+
+function ReadLine({ lead, parts, tail }) {
+  if (!parts?.length) return null
+  return (
+    <div style={{ fontSize: 10.5, lineHeight: 1.65, color: C.text3 }}>
+      <b style={{ color: C.text2 }}>{lead}</b>
+      {parts.map((p, i) => (
+        <span key={p.key}>
+          {i > 0 && (i === parts.length - 1 ? ' and ' : ', ')}
+          <span title={p.title} style={{
+            color: toneColor(p.tone), fontWeight: p.tone === 'plain' ? 400 : 700, cursor: 'help',
+          }}>{p.text}</span>
+        </span>
+      ))}
+      .{tail}
     </div>
   )
 }
@@ -361,6 +399,69 @@ export default function MatchupPitcher({ player, slateMode }) {
           }}
         >{showDetail ? 'Hide the numbers' : 'Show the numbers'}</button>
       </div>
+
+      {/* ── FORM · THE PEN · THE AIR ───────────────────────────────────────
+          Three sentences off the same slate row the verdict is built from.
+          Every clause carries its own tooltip naming the field behind it, and
+          a clause with no published field behind it is dropped rather than
+          printed as a zero. */}
+      {(() => {
+        const form = armFormParts(player)
+        const penParts = penLineParts(penFrom(player))
+        const air = airParts(player)
+        const wxHr = n(player.weather_hr_effect_pct, null)
+        const airAll = [
+          ...air,
+          ...(wxHr != null && wxHr !== 0 ? [{
+            key: 'wxhr',
+            text: `the bot puts the air at ${wxHr > 0 ? '+' : ''}${wxHr}% on home runs`,
+            tone: wxHr > 0 ? 'hot' : 'cold',
+            title: 'weather_hr_effect_pct — the bot\'s published summary of tonight\'s conditions as a percentage swing on the home-run RATE at this park. Not a chance of anything.',
+          }] : []),
+        ]
+        // This hitter's OWN fit against those relievers, which is a different
+        // question from how the pen grades overall — the Pitchers board shows
+        // the lineup average, this shows him.
+        const myFit = n(player.bullpen_pitch_fit, null)
+        const vsPen = n(player.batter_vs_bullpen_score, null)
+        const verdict = airVerdict(player)
+        if (!form.length && !penParts.length && !airAll.length) return null
+        return (
+          <div style={{
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
+            padding: '9px 13px', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 3,
+          }}>
+            <ReadLine lead={'What’s been going on: '} parts={form} />
+            <ReadLine
+              lead="Behind him: "
+              parts={[
+                ...penParts,
+                ...(myFit != null ? [{
+                  key: 'myfit',
+                  text: `this hitter grades ${myFit.toFixed(0)} on pitch fit against it`,
+                  tone: myFit >= 70 ? 'hot' : myFit <= 45 ? 'cold' : 'plain',
+                  title: 'bullpen_pitch_fit — how well THIS batter\'s swing matches what those relievers throw. A 0-100 fit score, not a chance of anything.',
+                }] : []),
+                ...(vsPen != null && vsPen > 0 ? [{
+                  key: 'vspen',
+                  text: `his batter-versus-bullpen score is ${vsPen.toFixed(0)}`,
+                  tone: vsPen >= 60 ? 'hot' : 'plain',
+                  title: 'batter_vs_bullpen_score — the bot\'s combined rating of this hitter against this bullpen. A 0-100 score that sits low across most of the slate (median around 10), so read a 60 as high rather than as middling.',
+                }] : []),
+              ]}
+            />
+            <ReadLine
+              lead={`${clean(player.venue_name, '') || 'The air'}: `}
+              parts={airAll}
+              tail={verdict === 'carrying'
+                ? <span style={{ color: C.orange, fontWeight: 700 }}> The ball is carrying here tonight.</span>
+                : verdict === 'dead'
+                  ? <span style={{ color: C.blue, fontWeight: 700 }}> This is dead air.</span>
+                  : null}
+            />
+          </div>
+        )
+      })()}
 
       {showDetail && (<>
 

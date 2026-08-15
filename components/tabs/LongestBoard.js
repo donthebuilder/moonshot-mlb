@@ -127,7 +127,14 @@ const buildColumns = (onWatch) => [
     title: 'Park barrel factor — above 1.00 helps hard contact' },
 ]
 
-export default function LongestBoard({ players = [], results = null, onWatch, watchIds, onPlayerClick, venueFilter = '', onClearVenue }) {
+// `showTitle` (2026-08-15): the Power page now presents Farthest / Overdue /
+// Parks as ONE board with a lens switch, and the switch is the title — an
+// h2 reading "🚀 Longest HR" directly under a lit-up "🚀 Farthest" pill named
+// the same thing twice and pushed the table another 40px down. When the host
+// supplies the heading, the two facts the PanelTitle carried (the one-line
+// definition and the row count) move into the paragraph below rather than
+// disappearing. Standalone mounts are unchanged.
+export default function LongestBoard({ players = [], results = null, onWatch, watchIds, onPlayerClick, venueFilter = '', onClearVenue, showTitle = true }) {
   const [rankBy, setRankBy] = useState('adj')
   const [top, setTop] = useState(25)
   const [minBBE, setMinBBE] = useState(0)
@@ -204,21 +211,36 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
 
   return (
     <div>
-      <PanelTitle
-        title="🚀 Longest HR"
-        sub="Who hits the farthest ball tonight — a distance board, not a probability board"
-        right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
-      />
+      {showTitle && (
+        <PanelTitle
+          title="🚀 Longest HR"
+          sub="Who hits the farthest ball tonight — a distance board, not a probability board"
+          right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
+        />
+      )}
 
       <div style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 700,
       }}>
+        {!showTitle && (
+          <>
+            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{rows.length} shown.</b>{' '}
+            Who hits the farthest ball tonight — a distance board, <b style={{ color: C.text2 }}>not a
+            probability board</b>.{' '}
+          </>
+        )}
         Different question from the HR tab, and it regularly disagrees with it.{' '}
         <b style={{ color: C.text2 }}>Adjusted</b> multiplies the raw score by the park&apos;s distance
         factor and a small temperature term — warm air carries, which is physics rather than a model
         opinion. It&apos;s kept gentle on purpose: the bot already folds park into the raw score, and
-        double-counting it would just rank Coors first every night.
+        double-counting it would just rank Coors first every night.{' '}
+        {/* The two clauses the page's old "What this answers" block carried.
+            That block sat above the board repeating what the board already
+            said, so it's gone and its content lives here, on the board it was
+            describing. Condense the form, keep every fact. */}
+        Use it for longest-homer markets, and for spotting warning-track power that a friendly park
+        turns into a homer.
       </div>
 
       {/* 🚀 LONGEST TRACKER — tonight's actual bombs by distance, live off

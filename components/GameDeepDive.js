@@ -46,6 +46,24 @@ import TeamVsStarter from './TeamVsStarter'
 // NOTHING WAS REMOVED. The lineup HRW average and weak-spot count that used
 // to sit in the dashed footer are in the read; the projected-pitcher caveat,
 // the trend direction and the HR-luck regression note all still print.
+//
+// ── 2026-08-15 — `section`, SO THE GAME CARD CAN SWITCH INSTEAD OF SCROLL ───
+//
+// Donovan on the expanded game: "i keep having to scroll up to scroll back
+// down." Opening a game rendered this whole component, then the full lineup
+// table, then the pick cards — one column about four screens tall, and the
+// only way from the arms to the head-to-head splits was your thumb.
+//
+// Games.js now puts a segmented control at the top of the open card and asks
+// for one section at a time. That is all this prop does:
+//
+//   'all'  every block, in the original order — the DEFAULT, so any other
+//          mount of this component (and every old deep link) is unchanged
+//   'read' the live cockpit, the air, both arms as a read, the storylines
+//   'h2h'  the career-vs-this-starter tables for both sides
+//
+// Splitting rather than deleting is deliberate: the sections still exist, they
+// are just no longer stacked on top of each other by force.
 
 const LEAGUE_HR9 = 1.25   // same reference ProjectedOutput's armOf() uses
 
@@ -299,14 +317,19 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
   )
 }
 
-export default function GameDeepDive({ game, allPlayers = [], slateDate = '', results, odds = null, onPlayerClick }) {
+export default function GameDeepDive({ game, allPlayers = [], slateDate = '', results, odds = null, onPlayerClick, section = 'all' }) {
   const gp = game?.players || []
   if (!gp.length) return null
   const any = gp[0]
   const teams = [...new Set(gp.map((p) => clean(p?.team, '')).filter(Boolean))]
+  // 'all' is the default and means every block — an unknown value degrades to
+  // showing everything rather than to showing nothing, which is the safe
+  // direction for a component eighty per cent of whose job is not losing facts.
+  const show = (k) => section === 'all' || section === k
 
   return (
     <div style={{ marginBottom: 12 }}>
+      {show('read') && (<>
       {/* live cockpit — renders only while this game is actually in progress */}
       <GameCockpit game={game} onPlayerClick={onPlayerClick} />
 
@@ -318,11 +341,13 @@ export default function GameDeepDive({ game, allPlayers = [], slateDate = '', re
           <SidePanel key={t} team={t} rows={gp.filter((p) => clean(p?.team, '') === t)} odds={odds} onPlayerClick={onPlayerClick} />
         ))}
       </div>
+      </>)}
 
       {/* 🆚 career vs the starter, both sides (2026-08-14 — the competitor
           feature Donovan asked for: "team vs pitcher splits... needs to be
           accessible somewhere". Same table also lives in the pitcher
           modal's Lineup-he-faces tab; one component, two mounts.) */}
+      {show('h2h') && (
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
         {teams.map((t) => {
           const rows = gp.filter((p) => clean(p?.team, '') === t)
@@ -341,10 +366,14 @@ export default function GameDeepDive({ game, allPlayers = [], slateDate = '', re
           )
         })}
       </div>
+      )}
 
       {/* this game's storylines — the same engine the Scoreboard runs,
           scoped to one building: its duels, revenge games, B2B bats,
-          milestones in reach, birthdays and giveaway night (2026-08-08) */}
+          milestones in reach, birthdays and giveaway night (2026-08-08).
+          Rides with 'read': it is narrative about this game, and it is the
+          part you want under the arms rather than on a pill of its own. */}
+      {show('read') && (
       <div style={{ marginTop: 8 }}>
         <Storylines
           players={gp}
@@ -356,6 +385,7 @@ export default function GameDeepDive({ game, allPlayers = [], slateDate = '', re
           onPlayerClick={onPlayerClick}
         />
       </div>
+      )}
     </div>
   )
 }

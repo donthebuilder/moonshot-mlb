@@ -15,6 +15,14 @@ import { fetchWalls, pullWallFor } from '../lib/walls'
 //   fieldInfo          the league's own wall dimensions for tonight's park
 // The read: a guy stacking 350-ft pulled outs walks into a 315-ft pull
 // porch — those same swings clear tonight. All stats, no feel.
+//
+// MOVED UNDER THE BOARD (2026-08-15). This panel used to sit directly above
+// the Power page's board, so it was the second thing you scrolled past to
+// reach the table you opened the tab for. It is unchanged and complete — just
+// below the board now, with the rest of the supporting reads. Since the fold
+// is the only thing most people see, the closed line now carries how many
+// riders are inside as well as who leads them: a summary that doesn't say
+// what's behind the door is a wall with a door in it.
 
 export default function FenceBoard({ onPlayerClick, players = [] }) {
   const [board, setBoard] = useState(null)
@@ -80,7 +88,7 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
         </span>
         {!open && rows[0] && (
           <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.orange, fontWeight: 800 }}>
-            #1 {rows[0].name.split(' ').slice(-1)[0]}{rows[0].shortPorch ? ' → short porch tonight' : ''}
+            {rows.length} riders · #1 {rows[0].name.split(' ').slice(-1)[0]}{rows[0].shortPorch ? ' → short porch tonight' : ''}
           </span>
         )}
       </div>
