@@ -65,12 +65,27 @@ export default function ThresholdGrid({ playerId, odds }) {
   const [line, setLine] = useState(1)
   const [venue, setVenue] = useState('all')
   const [arm, setArm] = useState('all')
+  // 🎛 THE SITUATION BUILDER (2026-08-15, Donovan: "really would like to latch
+  // the splits thing on how the props grid lets you pick different situations
+  // like away or vs left ... I'd like to be able to filter the splits to see
+  // what the hit rate is in certain situations.")
+  //
+  // The grid already recomputed the WHOLE matrix under venue and arm side —
+  // that mechanism was the good part and only had two dimensions. These four
+  // more come out of the same game log with no new fetch, and they stack: the
+  // matrix under "on the road, vs righties, after a blank" is a question no
+  // splits page can answer, because a splits page is pre-aggregated one
+  // dimension at a time and this is per-game.
+  const [staffQ, setStaffQ] = useState('all')   // soft / tough opposing staff
+  const [rest, setRest] = useState('all')       // day off before, or not
+  const [after, setAfter] = useState('all')     // the game after a blank / a big one
   const [span, setSpan] = useState('L20')
   const [selGame, setSelGame] = useState(null)
 
   useEffect(() => {
     let alive = true
     setData(null); setHands(null); setHandsState('idle'); setArm('all'); setSelGame(null)
+    setVenue('all'); setStaffQ('all'); setRest('all'); setAfter('all')
     thresholdRates(playerId).then((d) => { if (alive) setData(d) })
     lastSeasonRates(playerId).then((d) => { if (alive) setLs(d) })
     staffQuality().then((d) => { if (alive) setStaff(d) })
@@ -98,9 +113,65 @@ export default function ThresholdGrid({ playerId, odds }) {
 
   const full = data.logAll || data.log || []
   const armReady = arm === 'all' || (handsState === 'done' && hands)
+
+  // TWO OF THESE ARE ABOUT THE GAME BEFORE, so they need the index, not the
+  // row. The log is newest-first, so the game that came BEFORE full[i] is
+  // full[i + 1] — the same off-by-one the Patterns section below gets right
+  // and which is worth stating twice, because getting it backwards produces a
+  // pattern that reads perfectly and means the opposite.
+  const prevOf = (i) => full[i + 1] || null
+  const daysOff = (i) => {
+    const a = full[i]?.iso
+    const b = prevOf(i)?.iso
+    if (!a || !b) return null
+    const d = (new Date(`${a}T12:00:00`) - new Date(`${b}T12:00:00`)) / 86400000
+    return Number.isFinite(d) ? Math.round(d) - 1 : null
+  }
+  // Market-neutral on purpose. "After a blank" has to mean the same thing on
+  // every row of the matrix or the rows stop being comparable — and it is the
+  // cold case's own definition, so the two panels agree.
+  const BLANK = (g) => g && (g.h + g.r + g.rbi) === 0 && (g.ab > 0 || g.bb > 0)
+  const BIG = (g) => g && (g.h >= 2 || g.hr >= 1)
+
   const pool = full
-    .filter((g) => venue === 'all' ? true : venue === 'home' ? g.home : !g.home)
-    .filter((g) => (arm === 'all' || !armReady) ? true : hands[g.gamePk] === arm)
+    .map((g, i) => ({ g, i }))
+    .filter(({ g }) => (venue === 'all' ? true : venue === 'home' ? g.home : !g.home))
+    .filter(({ g }) => ((arm === 'all' || !armReady) ? true : hands[g.gamePk] === arm))
+    .filter(({ g }) => {
+      if (staffQ === 'all' || !staff) return true
+      const soft = staff[g.oppId]?.soft
+      if (soft == null) return false
+      return staffQ === 'soft' ? soft >= 0.6 : soft <= 0.4
+    })
+    .filter(({ i }) => {
+      if (rest === 'all') return true
+      const d = daysOff(i)
+      if (d == null) return false          // his first logged game — unknowable
+      return rest === 'rested' ? d >= 1 : d === 0
+    })
+    .filter(({ i }) => {
+      if (after === 'all') return true
+      const prev = prevOf(i)
+      if (!prev) return false
+      return after === 'blank' ? BLANK(prev) : BIG(prev)
+    })
+    .map(({ g }) => g)
+
+  const anyFilter = venue !== 'all' || arm !== 'all' || staffQ !== 'all' || rest !== 'all' || after !== 'all'
+  // WHAT A FILTERED RATE IS WORTH. "62% on the road vs righties after a blank"
+  // is meaningless on its own — the only question is whether it differs from
+  // what he does normally, and by more than a sample that small can produce.
+  // So the read-out under the chips always carries three things: the filtered
+  // rate, his unfiltered one, and the error bar on the gap.
+  const baseRate = full.length
+    ? (100 * full.filter(clears).length) / full.length : null
+  const cutRate = pool.length
+    ? (100 * pool.filter(clears).length) / pool.length : null
+  const cutGap = (cutRate != null && baseRate != null) ? cutRate - baseRate : null
+  const cutSe = (cutRate != null && pool.length)
+    ? 100 * Math.sqrt(Math.max((baseRate / 100) * (1 - baseRate / 100), 1e-6) / pool.length)
+    : null
+  const cutReal = cutGap != null && cutSe != null && Math.abs(cutGap) >= 2 * cutSe
 
   const SPAN_N = { L5: 5, L10: 10, L20: 20, Szn: 40 }
   const filteredLog = pool.slice(0, SPAN_N[span] || 20)
@@ -405,16 +476,68 @@ export default function ThresholdGrid({ playerId, odds }) {
               <button key={k} onClick={() => wantArm(k)} style={chip(arm === k)}
                 title="Games where the opposing STARTER threw from this side">{label}</button>
             ))}
+            <span style={{ width: 6 }} />
+            {[['all', 'Any staff'], ['soft', 'vs soft staffs'], ['tough', 'vs good staffs']].map(([k, label]) => (
+              <button key={k} onClick={() => { setStaffQ(k); setSelGame(null) }} style={chip(staffQ === k)}
+                title="Where the opponent's whole staff sits in the league's OPS-against range that season — not just the starter.">{label}</button>
+            ))}
+            <span style={{ width: 6 }} />
+            {[['all', 'Any rest'], ['b2b', 'no day off'], ['rested', 'after a day off']].map(([k, label]) => (
+              <button key={k} onClick={() => { setRest(k); setSelGame(null) }} style={chip(rest === k)}
+                title="Days between this game and his previous one, from the log's own dates. His first logged game has no answer and drops out of both.">{label}</button>
+            ))}
+            <span style={{ width: 6 }} />
+            {[['all', 'Any lead-in'], ['blank', 'after a blank'], ['big', 'after a big one']].map(([k, label]) => (
+              <button key={k} onClick={() => { setAfter(k); setSelGame(null) }} style={chip(after === k)}
+                title="What he did in his PREVIOUS game. A blank is no hit, no run, no RBI — the cold case's definition, so the two panels agree. A big one is 2+ hits or a homer.">{label}</button>
+            ))}
             {arm !== 'all' && handsState === 'loading' && (
               <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>checking who started each game…</span>
             )}
             {arm !== 'all' && handsState === 'none' && (
               <span style={{ fontSize: 9, color: C.orange, fontFamily: NUM_FONT }}>couldn&apos;t resolve starters — showing all</span>
             )}
-            {(venue !== 'all' || (arm !== 'all' && armReady)) && (
-              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>matrix recomputed · {pool.length} games match</span>
+            {anyFilter && (
+              <button onClick={() => { setVenue('all'); setArm('all'); setStaffQ('all'); setRest('all'); setAfter('all'); setSelGame(null) }}
+                style={{ ...chip(false), borderStyle: 'dashed' }}
+                title="Back to every game">clear</button>
             )}
           </div>
+
+          {/* THE SITUATION READ-OUT. One sentence, and it refuses to call a
+              gap real until it beats two standard errors — the same bar the
+              True Price page and the cold case use. */}
+          {anyFilter && (
+            <div style={{
+              fontSize: 10.5, lineHeight: 1.6, marginBottom: 9, padding: '7px 10px',
+              borderRadius: 9, background: 'rgba(255,255,255,.03)',
+              border: `1px solid ${cutReal ? (cutGap > 0 ? 'rgba(74,222,128,.35)' : 'rgba(248,113,113,.35)') : C.border}`,
+              color: C.text2,
+            }}>
+              {pool.length === 0 ? (
+                <>No games match that situation this season — the matrix above is empty, not zero.</>
+              ) : (
+                <>
+                  <b style={{ color: C.text }}>{pool.length}</b> game{pool.length === 1 ? '' : 's'} match.
+                  He clears <b style={{ color: C.text }}>{dynLabel}</b> in{' '}
+                  <b style={{ color: cutReal ? (cutGap > 0 ? '#4ade80' : '#f87171') : C.text }}>
+                    {cutRate.toFixed(0)}%
+                  </b>{' '}of them against <b style={{ color: C.text }}>{baseRate.toFixed(0)}%</b> overall
+                  {cutGap != null && <> — <b style={{ color: C.text }}>{cutGap > 0 ? '+' : ''}{cutGap.toFixed(0)}</b> points</>}.
+                  {' '}
+                  {cutReal
+                    ? <span style={{ color: cutGap > 0 ? '#4ade80' : '#f87171' }}>
+                        That clears the error bar (±{cutSe.toFixed(0)}) on this many games.
+                      </span>
+                    : <span style={{ color: C.text3 }}>
+                        {pool.length < 6
+                          ? 'Far too few games to read anything into that.'
+                          : `Inside the error bar (±${cutSe.toFixed(0)}) at ${pool.length} games — treat it as the same rate.`}
+                      </span>}
+                </>
+              )}
+            </div>
+          )}
 
           {filteredLog.length > 0 && (
             <div style={{ position: 'relative' }}>
