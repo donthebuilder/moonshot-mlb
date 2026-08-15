@@ -129,12 +129,23 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
       const bits = []
       if (ctx?.dist) bits.push(`${Math.round(ctx.dist)}ft${ctx.ev ? ` at ${Math.round(ctx.ev)}mph` : ''}`)
       else if (ctx?.ev) bits.push(`${Math.round(ctx.ev)}mph off the bat`)
-      const szn = Number(p?.season_hr)
-      if (Number.isFinite(szn) && szn >= 0 && line?.hr) {
-        const nth = szn + line.hr
-        if (nth > 0) bits.push(`his ${nth}${nth % 10 === 1 && nth % 100 !== 11 ? 'st' : nth % 10 === 2 && nth % 100 !== 12 ? 'nd' : nth % 10 === 3 && nth % 100 !== 13 ? 'rd' : 'th'}`)
-      }
-      if (Number(p?.games_since_last_hr) === 0 && line?.hr === 1) bits.push('back-to-back nights 🔁')
+      // TWO CLAIMS REMOVED (2026-08-15), both of them numbers this toast
+      // cannot actually support:
+      //
+      //   "his 33rd"  was season_hr + tonight's homers. HomerLedger.js:162
+      //   documents why that is wrong and asks statsapi for the real total
+      //   instead: the slate republishes thirteen times a day, so season_hr is
+      //   NOT reliably a pre-game count, and adding tonight's to it counts the
+      //   same swing twice. The ledger and this toast could name different
+      //   numbers for the same homer, and the toast was the wrong one.
+      //
+      //   "back-to-back nights 🔁"  was the raw games_since_last_hr field,
+      //   which means "his most recent game" — today, on a slate rebuilt after
+      //   an early window. lib/b2b.js is the verified version and needs a
+      //   graded proof file this component doesn't fetch.
+      //
+      // Distance and exit velocity below are measured, come from the play
+      // itself, and stay.
       if (!bits.length) return
       setToasts((ts) => ts.map((t) => t.key === key ? { ...t, text: `${t.text} — ${bits.join(' · ')}` } : t))
     }).catch(() => {})

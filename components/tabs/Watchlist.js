@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
 import {
-  playerId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
+  playerId, mlbId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
   nn, n, clean, arr, obj, barrelRate, avgEV, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
@@ -362,7 +362,7 @@ function WatchTracker({ items, nightOf, slateDate, mode }) {
   useEffect(() => {
     if (mode !== 'tomorrow' && slateDate) {
       const lines = items.map((p) => {
-        const g = nightOf.get(String(playerId(p)))
+        const g = nightOf.get(mlbId(p))
         return g ? { ab: n(g.actual_ab, 0), hr: n(g.actual_hr, 0), hits: n(g.actual_hits, 0) } : null
       }).filter(Boolean)
       if (lines.length) recordNight(slateDate, lines)
@@ -444,10 +444,22 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
   // this map kept whichever one came last. dedupeGraded merges them, taking
   // the max of each actual_* field, so a starred name can't show the lower of
   // two lines depending on category order.
+  //
+  // KEYED BY mlbId, READ BY mlbId. This map was built on String(player_id) —
+  // "600036" — and every one of its three readers looked it up with
+  // String(playerId(p)), which is the COMPOSITE row key, "600036-811003". The
+  // lookup could never hit, so the whole graded layer of this tab has been
+  // dead since the day it shipped: no "went deep" tile, no per-hitter chip
+  // row, and WatchTracker below built an empty `lines` every night, which
+  // means recordNight was never called and the "graded" panel could never
+  // accumulate a single night. All silent — an empty board looks like a quiet
+  // night. scripts/check-ids.mjs asserts the inverse of this bug and not this
+  // one; it does now.
   const nightOf = useMemo(() => {
     const m = new Map()
     dedupeGraded(results?.graded_slots || results?.results || []).forEach((s2) => {
-      if (s2?.player_id != null) m.set(String(s2.player_id), s2)
+      const id = mlbId(s2)
+      if (id) m.set(id, s2)
     })
     return m
   }, [results])
@@ -586,7 +598,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             ['Weak spots', weak, '#FCD34D', ''],
             ['Confirmed', `${conf}/${items.length}`, conf === items.length ? '#4ade80' : '#a78bfa', 'lineups locked'],
             ...(() => {
-              const graded = items.map((p) => nightOf.get(String(playerId(p)))).filter(Boolean)
+              const graded = items.map((p) => nightOf.get(mlbId(p))).filter(Boolean)
               if (!graded.length) return []
               const hrs = graded.filter((g) => Number(g.actual_hr) > 0).length
               const hits = graded.filter((g) => Number(g.actual_hits) > 0).length
@@ -610,7 +622,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
       {/* TONIGHT — each saved hitter's live line, worn as a chip. Green =
           homered, purple = hit(s), dim = nothing yet / not graded. */}
       {(() => {
-        const chips = items.map((p) => ({ p, g: nightOf.get(String(playerId(p))) })).filter((x) => x.g)
+        const chips = items.map((p) => ({ p, g: nightOf.get(mlbId(p)) })).filter((x) => x.g)
         if (!chips.length) return null
         return (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>

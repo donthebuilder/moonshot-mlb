@@ -161,18 +161,26 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
     // numbers, so a hitter is #4 here and #4 there and nowhere else. Enforced
     // by scripts/check-rank-lock.mjs; do not reintroduce a local sort.
     const rankOf = hrRank(players)
-    const byRank = [...players].sort((a, b) => hrScore(b) - hrScore(a))
+    // JOIN BY ID, NOT BY NAME. The id is on these entries — the _key below
+    // already used it — and this joined on a letters-only squash of the name
+    // instead. MLB carries same-named hitters, and findIndex on a list sorted
+    // by HR score returns whichever of them scores higher, so the homer got
+    // the wrong man's board rank, HR score and tier role. Any name the two
+    // sources spell differently (accents, a suffix) silently rendered no rank
+    // at all. tabs/Derby.js joins the identical array by player_id already.
+    const byId = new Map(players.map((p) => [mlbId(p), p]).filter(([k2]) => k2))
     return homers.map((h, i) => {
-      const k = String(h?.name || '').toLowerCase().replace(/[^a-z]/g, '')
-      const idx = byRank.findIndex((p) => String(nameOf(p) || '').toLowerCase().replace(/[^a-z]/g, '') === k)
-      const p = idx >= 0 ? byRank[idx] : null
+      const p = byId.get(Number(h?.player_id)) || null
       return {
         _key: `${h?.player_id ?? h?.name}-${i}`,
         _raw: p,
         rank: p ? rankOf.get(mlbId(p)) ?? null : null,
         name: clean(h?.name, '—'),
         team: clean(h?.team, ''),
-        hr: n(h?.hr, 1),
+        // n(h?.hr, 1) invented "1 HR" whenever the field was absent, under a
+        // column captioned "how many home runs he has already hit tonight".
+        // A missing count is unknown, and reads as one.
+        hr: Number.isFinite(Number(h?.hr)) ? Number(h.hr) : null,
         score: p ? hrScore(p) : 0,
         role: p ? tierRole(p) : '—',
       }

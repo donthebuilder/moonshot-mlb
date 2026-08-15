@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { fetchJSON } from '../../lib/data'
+import OddsStatus, { useOddsStatus } from '../OddsStatus'
 import { oddsHistoryPaths } from '../../lib/dataSource'
 import { fmtOdds } from '../../lib/odds'
 import {
@@ -52,6 +53,7 @@ export default function TruePrice({ onPlayerClick }) {
   const [sort, setSort] = useState('gap')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(null)
+  const oddsStatus = useOddsStatus()
 
   useEffect(() => {
     let alive = true
@@ -101,6 +103,11 @@ export default function TruePrice({ onPlayerClick }) {
             Needs the odds workflow to have run before first pitch and the grading workflow to have
             run after. One night of both, and the first rows appear.
           </div>
+          {/* This is exactly where someone stands when they ask "are the odds
+              even on there", so the status shows even when it's fine. */}
+          <div style={{ marginTop: 11 }}>
+            <OddsStatus status={oddsStatus} always />
+          </div>
           {hist?.priced_not_graded?.length > 0 && (
             <div style={{ fontSize: 10.5, color: C.orange, marginTop: 8, fontFamily: NUM_FONT }}>
               Priced but not yet graded: {hist.priced_not_graded.join(', ')}
@@ -115,6 +122,8 @@ export default function TruePrice({ onPlayerClick }) {
 
   return (
     <Shell days={hist.days} settled={hist.settled_props} stamp={hist.generated_at_human}>
+      <div style={{ marginBottom: 10 }}><OddsStatus status={oddsStatus} /></div>
+
       {/* ── controls ── */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
         <button onClick={() => setMarket('all')} style={chip(market === 'all')}>All props</button>

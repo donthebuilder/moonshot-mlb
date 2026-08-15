@@ -41,6 +41,28 @@ for (const f of files) {
       bad += 1
     }
   })
+
+  // THIRD SHAPE, and the one that got through both rules above for weeks: a
+  // Map BUILT on a bare player_id and READ with the composite row key. No NaN,
+  // no crash, no warning — .get() just never hits, so the whole graded layer
+  // of the Watchlist rendered nothing every night and looked like a quiet
+  // slate. Found 2026-08-15.
+  //
+  // File-local on purpose: a composite lookup is only wrong when the same file
+  // built its map on an id, which is exactly what makes this cheap to check
+  // and impossible to false-positive on a genuinely composite-keyed map.
+  const buildsOnId = /\.\s*set\s*\(\s*(String\s*\(\s*\w+[.?]*\.player_id|mlbId\s*\(|Number\s*\(\s*\w+[.?]*\.player_id)/.test(src)
+  if (buildsOnId) {
+    src.split('\n').forEach((line, i) => {
+      if (/^\s*(\/\/|\*)/.test(line)) return
+      // watchIds IS composite-keyed — that's the rule above, in reverse.
+      if (/watchIds/.test(line)) return
+      if (/\.\s*(get|has)\s*\(\s*(String\s*\(\s*)?playerId\s*\(/.test(line)) {
+        console.log(`MISS ${f}:${i + 1} — this file keys a Map on the numeric id; playerId() is the composite row key and will never match`)
+        bad += 1
+      }
+    })
+  }
 }
 console.log(bad ? `\n${bad} id problem(s)` : `\nok   ids: ${files.length} files, no numeric/composite id mixups`)
 process.exit(bad ? 1 : 0)

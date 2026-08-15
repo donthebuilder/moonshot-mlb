@@ -335,6 +335,15 @@ export default function Dashboard() {
   const resultsForSlate = liveMatchesSlate
     ? results
     : (clean(datedResults?.date, '') === slateDate ? datedResults : null)
+  // EVERY CONSUMER TAKES THE GATED COPY. The one exception is the Results tab,
+  // whose day picker owns its own dates. This used to be three exceptions:
+  // Header rendered "HR capture 78% · 14/18 — how many of tonight's home runs
+  // were on the sheet" straight off the raw file, so on a stale-publish day the
+  // sticky bar announced a two-week-old capture rate on every tab while the
+  // rest of the site correctly showed nothing. Scoreboard's Gone Yard did the
+  // same and then ranked those homers against TONIGHT's board. Watchlist wrote
+  // the stale night into a persistent local ledger under today's date.
+  //
   // Keyed on what we've ALREADY asked for, not on what came back. Gating on
   // datedResults.date instead would refetch forever the moment the branch
   // serves a file whose own date doesn't match the name it's published under
@@ -374,7 +383,7 @@ export default function Dashboard() {
       {/* The ember signature — same bar the night-receipts card wears. */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
         background: 'linear-gradient(90deg, #f97316, #FCD34D 50%, #f97316)' }} />
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={results} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
@@ -412,15 +421,15 @@ export default function Dashboard() {
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'games'       && <Games players={players} slateDate={slateDate} pairHistorySummary={pairSummary} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
-            {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
             {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'due'         && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
             {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {/* 'hitshrr' merged into 'board' — route kept as alias for old links */}
-            {tab === 'hitshrr'     && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} mode={mode} slateDate={slateDate} results={results} backtest={backtest} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
+            {tab === 'hitshrr'     && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
+            {tab === 'scoreboard'  && <Scoreboard players={players} mode={mode} slateDate={slateDate} results={resultsForSlate} backtest={backtest} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'pools'       && <Pools players={players} results={resultsForSlate} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
@@ -429,7 +438,7 @@ export default function Dashboard() {
             {tab === 'trueprice'  && <TruePrice onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={results} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+            {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={resultsForSlate} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
           </div>
