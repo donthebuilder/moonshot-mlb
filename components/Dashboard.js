@@ -20,6 +20,7 @@ import MyPicks from './tabs/MyPicks'
 import TruePrice from './tabs/TruePrice'
 import Guide from './tabs/Guide'
 import Games from './tabs/Games'
+import Boxes from './tabs/Boxes'
 import AtThePlate from './tabs/AtThePlate'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
@@ -44,7 +45,7 @@ const WATCH_KEY = 'mlb_watchlist_v1'
 
 // Tabs that read no slate data and must render even when tonight's card
 // hasn't been built. See the gate below.
-const SLATE_FREE = new Set(['trueprice'])
+const SLATE_FREE = new Set(['trueprice', 'boxes'])
 
 export default function Dashboard() {
   const [mode, setMode] = useState('today')
@@ -420,6 +421,7 @@ export default function Dashboard() {
             {tab === 'home'        && <Home players={allPlayers} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'games'       && <Games players={players} slateDate={slateDate} pairHistorySummary={pairSummary} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'boxes'       && <Boxes players={allPlayers} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
             {/* Power = Longest + Due merged; 'due' kept as alias route. */}
