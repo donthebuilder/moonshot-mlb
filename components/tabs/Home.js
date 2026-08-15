@@ -10,6 +10,7 @@ import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
+import { getPicks, CONVICTION } from '../../lib/myPicks'
 
 // HOME — the front porch.
 //
@@ -203,6 +204,61 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
     return () => { alive = false }
   }, [penApplies, players.length])
 
+  // ── best air, hoisted (2026-08-15 "make the home page better" pass) ──
+  // Was computed inline in the strip's own IIFE; the hero's tonight-sentence
+  // needs the same answer, so it's one memo now instead of two computations
+  // that could drift.
+  const airRanked = useMemo(() => {
+    const seen = new Map()
+    players.forEach((p) => {
+      const pk = p?.game_pk
+      if (pk == null || seen.has(pk)) return
+      const parkHR = n(p?.park_hr_factor, n(p?.park_dist_factor, 0))
+      const temp = n(p?.weather_temp_f, n(p?.temp_f, 0))
+      const wind = n(p?.weather_wind_mph, n(p?.wind_mph, 0))
+      const wl = clean(p?.wind_direction_label, '')
+      const wxEff = n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null))
+      const windOut = /out/i.test(wl) ? wind : /in\b/i.test(wl) ? -wind : 0
+      const edge = (parkHR > 0 ? (parkHR - 1) * 100 : 0)
+        + (wxEff != null ? wxEff : windOut + (temp > 0 ? (temp - 70) / 7 : 0))
+      seen.set(pk, { venue: clean(p?.venue_name, ''), matchup: `${teamOf(p)} vs ${oppOf(p)}`, temp, wind, wl, edge })
+    })
+    return [...seen.values()].filter((g) => g.venue).sort((a, b) => b.edge - a.edge)
+  }, [players])
+
+  // ── 🎟 your own night (2026-08-15). The one thing the front page knew
+  // nothing about was the person reading it. If he logged calls for this
+  // slate on My Picks, the porch says so and points at the scorecard —
+  // and if he didn't, the card doesn't exist. Read in an effect, same
+  // hydration rule as startDone above.
+  const [mine, setMine] = useState([])
+  useEffect(() => {
+    try { setMine(Object.values(getPicks(b2bDateKey) || {})) } catch { setMine([]) }
+  }, [b2bDateKey])
+  const convWord = (k) => (CONVICTION.find(([key]) => key === k)?.[1] || '').toLowerCase()
+
+  // ── 🧱 near-miss watch — the same bar the Scoreboard board sets (drought
+  // + genuinely homer-shaped recent contact), reduced to the single
+  // strongest case for one Angles line. close >= 3 here, a notch above the
+  // board's 2: a hero line should need a better reason than a board row.
+  const nearMiss = useMemo(() => {
+    let best = null
+    players.forEach((p) => {
+      const since = n(p?.games_since_last_hr, 0)
+      if (since < 2) return
+      const d = n(p?.hr_shape_components?.max_distance, 0)
+      const e = n(p?.hr_shape_components?.max_ev, 0)
+      const w = n(p?.hr_shape_profile?.wall_scraper, 0)
+      const close = (d >= 400 ? 3 : d >= 385 ? 2 : d >= 372 ? 1 : 0)
+        + w * 2 + (e >= 110 ? 2 : e >= 106 ? 1 : 0)
+        + (n(p?.recent_barrel_rate, 0) >= 0.12 ? 1 : 0)
+      if (close >= 3 && (!best || close > best.close || (close === best.close && d > best.d))) {
+        best = { p, since, d, e, w, close }
+      }
+    })
+    return best
+  }, [players])
+
   // Bot record from the graded backtest file — the number he can quote.
   const record = useMemo(() => {
     const bt = obj(backtest)
@@ -298,10 +354,25 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
             {empty ? 'The slate is still cooking.' : isLive ? 'The slate is live.' : 'Tonight’s sheet is ready.'}
           </span>
         </h1>
-        <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.6, maxWidth: 640 }}>
-          {empty
-            ? 'No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands; no refresh ritual required.'
-            : 'MOONSHOT reads every hitter, every arm and every park on tonight’s slate, then grades its own picks in public the next morning. Start with the glance below, or pick a door.'}
+        {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
+            The old body was the same mission statement every single day —
+            furniture. This is the slate itself, assembled from the numbers
+            already on this page, so the first paragraph is different every
+            night because every night is. */}
+        <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.7, maxWidth: 680 }}>
+          {empty ? (
+            'No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands; no refresh ritual required.'
+          ) : (
+            <>
+              {isLive && homersSoFar > 0 && <><b style={{ color: C.orange }}>⚡ {homersSoFar} already gone tonight.</b>{' '}</>}
+              <b style={{ color: C.text, fontFamily: NUM_FONT }}>{games.length} games</b>
+              {firstPitch && !isLive && <>, first pitch <b style={{ color: C.text, fontFamily: NUM_FONT }}>{firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</b></>}
+              {proj && <>. The bot projects <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{proj.low}–{proj.high} homers</b>{proj.grade ? ` — power grade ${proj.grade}` : ''}</>}
+              {airRanked[0]?.edge > 0 && <>. The best air is <b style={{ color: C.text }}>{airRanked[0].venue}</b> at <b style={{ color: C.orange, fontFamily: NUM_FONT }}>+{airRanked[0].edge.toFixed(0)}%</b></>}
+              {headline && <>, and the game to circle is <b style={{ color: C.text, fontFamily: NUM_FONT }}>{clean(headline.g.away, '?')} @ {clean(headline.g.home, '?')}</b></>}
+              . The bot grades its own picks in public every morning — the receipts door below has the record.
+            </>
+          )}
         </div>
         {/* the living line — rotates through real facts about tonight */}
         {pulse && (
@@ -386,6 +457,36 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           sub={record ? `every pick, ${record.days} graded days` : 'grading archive not published yet'} />
       </div>
 
+      {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}
+      {mine.length > 0 && (
+        <div style={{
+          background: `linear-gradient(155deg, rgba(96,165,250,.09), ${C.bg2} 60%)`,
+          border: '1px solid rgba(96,165,250,.3)', borderRadius: 14,
+          padding: '11px 16px', marginBottom: 14,
+        }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+            <span style={{ flexShrink: 0 }}>🎟</span>
+            <span style={{ minWidth: 0 }}>
+              <b style={{ color: '#60a5fa' }}>Your night</b> — you have{' '}
+              <b style={{ color: C.text, fontFamily: NUM_FONT }}>{mine.length}</b> call{mine.length === 1 ? '' : 's'} riding
+              against the bot on this slate:{' '}
+              {mine.slice(0, 3).map((m, i) => (
+                <span key={i}>
+                  {i > 0 && ', '}
+                  <b style={{ color: C.text }}>{m.name}</b>
+                  <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {m.role}{m.conviction ? ` · ${convWord(m.conviction)}` : ''}</span>
+                </span>
+              ))}
+              {mine.length > 3 && <span style={{ color: C.text3 }}> and {mine.length - 3} more</span>}
+              .{' '}
+              <span onClick={() => onNavigate?.('mypicks')} style={{ color: '#60a5fa', cursor: 'pointer', fontWeight: 800 }}>
+                Grade them on My Picks →
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ── NOTHING BUILT YET. One honest card instead of eight strips each
              quietly rendering nothing — an empty page that says why is a
              different experience from an empty page. ── */}
@@ -458,9 +559,9 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
             <span style={{ fontSize: 9.5, color: C.text3 }}>every line from tonight&apos;s own data</span>
           </div>
 
-          {!b2b.length && !fenceRider && !pens.length && (
+          {!b2b.length && !fenceRider && !pens.length && !nearMiss && (
             <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, padding: '2px 0' }}>
-              None of the three fired tonight:{' '}
+              None of the angles fired tonight:{' '}
               {b2bVerified
                 ? 'nobody on the slate homered in his last game'
                 : 'the graded file that proves who went deep last night hasn’t published yet, so the back-to-back watch is being withheld rather than guessed'}
@@ -514,6 +615,28 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
             </div>
           )}
 
+          {/* 🧱 the drought whose contact says it's ending (2026-08-15) —
+              the Scoreboard's near-miss board, reduced to its single best
+              case. Same statcast fields, a higher bar (close ≥ 3). */}
+          {nearMiss && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+              <span style={{ flexShrink: 0 }}>🧱</span>
+              <span style={{ minWidth: 0 }}>
+                <b style={{ color: C.text }}>Near-miss watch</b> —{' '}
+                <button onClick={() => onPlayerClick?.(nearMiss.p)} style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 800, color: '#FCD34D', textDecoration: 'underline', textDecorationColor: 'rgba(252,211,77,.35)',
+                }}>{nameOf(nearMiss.p)}</button>
+                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(nearMiss.p)}</span>
+                {' '}is <b style={{ fontFamily: NUM_FONT, color: nearMiss.since >= 10 ? '#f87171' : C.orange }}>{nearMiss.since} games</b> without
+                a homer, but his recent window holds a <b style={{ fontFamily: NUM_FONT }}>{Math.round(nearMiss.d)} ft</b> ball
+                {nearMiss.e > 0 && <> at <b style={{ fontFamily: NUM_FONT }}>{nearMiss.e.toFixed(0)} mph</b></>}
+                {nearMiss.w > 0 && <> and <b style={{ fontFamily: NUM_FONT, color: '#FCD34D' }}>{nearMiss.w} wall-scraper{nearMiss.w > 1 ? 's' : ''}</b></>}
+                {' '}— drought, not decline. The full board lives on the Scoreboard.
+              </span>
+            </div>
+          )}
+
           {pens.length > 0 && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
               <span style={{ flexShrink: 0 }}>🚪</span>
@@ -548,21 +671,8 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           tonight, same edge math as the park board (bot park factor +
           published weather effect, heuristic fallback). Tap → Power page. */}
       {(() => {
-        const seen = new Map()
-        players.forEach((p) => {
-          const pk = p?.game_pk
-          if (pk == null || seen.has(pk)) return
-          const parkHR = n(p?.park_hr_factor, n(p?.park_dist_factor, 0))
-          const temp = n(p?.weather_temp_f, n(p?.temp_f, 0))
-          const wind = n(p?.weather_wind_mph, n(p?.wind_mph, 0))
-          const wl = clean(p?.wind_direction_label, '')
-          const wxEff = n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null))
-          const windOut = /out/i.test(wl) ? wind : /in\b/i.test(wl) ? -wind : 0
-          const edge = (parkHR > 0 ? (parkHR - 1) * 100 : 0)
-            + (wxEff != null ? wxEff : windOut + (temp > 0 ? (temp - 70) / 7 : 0))
-          seen.set(pk, { venue: clean(p?.venue_name, ''), matchup: `${teamOf(p)} vs ${oppOf(p)}`, temp, wind, wl, edge })
-        })
-        const ranked = [...seen.values()].filter((g) => g.venue).sort((a, b) => b.edge - a.edge)
+        // hoisted to the airRanked memo up top — hero shares the same answer
+        const ranked = airRanked
         const tops = ranked.slice(0, 3)
         // HONEST EMPTY STATE (2026-08-09 polish pass). This strip used to
         // vanish whole when no park cleared a positive edge, which reads as a
