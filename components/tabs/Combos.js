@@ -38,6 +38,16 @@ export default function Combos({
   focusPlayerId = null,
   onClearFocus = null,
   onPlayerClick = null,
+  // 2026-08-16, the follow-up pass. Pairs and Pools gained optional `odds`
+  // and `slateDate` on the day of the merge, and both fell back to fetching
+  // odds_latest.json themselves because Dashboard.js was being held by other
+  // workers at the time. Dashboard already had both values in hand for nine
+  // other tabs. They are threaded through now, so the builder stops issuing a
+  // second fetch for a payload the page has already loaded and dates its own
+  // history off the slate rather than re-deriving it from the rows. The
+  // fallbacks stay in place — nothing depends on these being supplied.
+  odds = null,
+  slateDate = '',
   initial = 'pairs',
 }) {
   const [view, setView] = useState(VIEWS.some(([k]) => k === initial) ? initial : 'pairs')
@@ -61,6 +71,8 @@ export default function Combos({
           focusPlayerId={focusPlayerId}
           onClearFocus={onClearFocus}
           onPlayerClick={onPlayerClick}
+          odds={odds}
+          slateDate={slateDate}
         />
       )}
       {view === 'pools' && (
@@ -70,6 +82,8 @@ export default function Combos({
           pairBuilder={pairBuilder}
           pairHistorySummary={pairSummary}
           onPlayerClick={onPlayerClick}
+          odds={odds}
+          slateDate={slateDate}
         />
       )}
       {view === 'history' && (

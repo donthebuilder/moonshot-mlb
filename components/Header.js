@@ -192,18 +192,69 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
   // writes --hdr-h on <html>; everyone else styles `top: var(--hdr-h, 86px)`
   // and is correct at every width without a matching media query.
   const hdrRef = useRef(null)
+
+  // ── AND IT CONDENSES ONCE YOU SCROLL (2026-08-16, same pass) ───────────
+  // Fixing the sticky bug above had an immediate consequence: a bar that
+  // correctly never leaves is a bar you are paying for on every screen. At
+  // 390px this one is 232px tall — the slate tiles wrap to two rows and the
+  // tab rail to a third — which is 27% of an iPhone viewport permanently
+  // spent on chrome. Sticky was right; sticky AND 232px was not.
+  //
+  // So past 150px of scroll the header drops to its identity and its
+  // navigation: logo, brand, date, mode, tabs. The slate strip is HIDDEN,
+  // NOT UNMOUNTED (display:none) — SlateTiles owns polling state and a
+  // remount would re-derive it on every scroll reversal, and hiding is the
+  // form changing while every fact stays one scroll-up away.
+  //
+  // Two guards worth keeping:
+  //   · It only engages if the EXPANDED bar is actually tall (>130px). At
+  //     desktop width the header is 85px and the tiles are the reason you
+  //     glance up, so nothing is taken away there. The threshold is measured
+  //     rather than a media query, so it tracks whatever the bar grows into.
+  //   · Hysteresis — condense at 150, expand at 90. Condensing changes the
+  //     height, which on a short page can move the scroll position, which
+  //     without a gap between the thresholds oscillates.
+  const TALL = 130
+  const [condensed, setCondensed] = useState(false)
+  const expandedH = useRef(0)
+
   useEffect(() => {
     const el = hdrRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
+    if (!el) return
     const write = () => {
       const h = Math.round(el.getBoundingClientRect().height)
       if (h > 0) document.documentElement.style.setProperty('--hdr-h', `${h}px`)
     }
     write()
-    const ro = new ResizeObserver(write)
-    ro.observe(el)
-    return () => ro.disconnect()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(write) : null
+    if (ro) ro.observe(el)
+
+    let raf = 0
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        const y = window.scrollY || window.pageYOffset || 0
+        setCondensed((was) => (was ? y > 90 : expandedH.current > TALL && y > 150))
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      if (ro) ro.disconnect()
+      window.removeEventListener('scroll', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
   }, [])
+
+  // Record the full height whenever we are showing it, so the guard above is
+  // comparing against the real expanded bar at the CURRENT width rather than
+  // a value captured once at mount and stale after a rotation.
+  useEffect(() => {
+    if (!condensed && hdrRef.current) {
+      const h = Math.round(hdrRef.current.getBoundingClientRect().height)
+      if (h > 0) expandedH.current = h
+    }
+  })
 
   return (
     <header ref={hdrRef} style={{
@@ -214,18 +265,21 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
     }}>
       <div style={{
         maxWidth:1300, margin:'0 auto',
-        padding:'10px 16px 8px',
+        padding: condensed ? '5px 16px 3px' : '10px 16px 8px',
         display:'flex', alignItems:'center', justifyContent:'space-between', gap:12,
         flexWrap:'wrap',
+        transition:'padding .14s ease',
       }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{
-            position:'relative', width:38, height:38, borderRadius:10, flexShrink:0,
+            position:'relative',
+            width: condensed ? 28 : 38, height: condensed ? 28 : 38,
+            borderRadius:10, flexShrink:0, transition:'width .14s ease, height .14s ease',
             background:'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
             display:'flex', alignItems:'center', justifyContent:'center',
             boxShadow:'0 0 18px rgba(249,115,22,0.35)',
           }}>
-            <span style={{ fontSize:14, fontWeight:900, color:'#fff', letterSpacing:'-0.05em', fontFamily:NUM_FONT }}>HR</span>
+            <span style={{ fontSize: condensed ? 11 : 14, fontWeight:900, color:'#fff', letterSpacing:'-0.05em', fontFamily:NUM_FONT }}>HR</span>
             <div style={{
               position:'absolute', top:-2, right:-2,
               width:8, height:8, borderRadius:'50%',
@@ -240,7 +294,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                   posts, and the URL all said MOONSHOT while the header still
                   wore the pre-migration Streamlit name. The sport tag stays
                   so an NFL sibling can slot in later as MOONSHOT · NFL. */}
-              <span style={{ fontSize:18, fontWeight:900, letterSpacing:'-0.02em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>MOONSHOT</span>
+              <span style={{ fontSize: condensed ? 15 : 18, fontWeight:900, letterSpacing:'-0.02em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>MOONSHOT</span>
               {/* SPORT SWITCHER (2026-08-08, rewired 2026-08-14). It was going
                   to be a link to a SECOND deployed site — that's off. The asset
                   here is the eighty components in this folder, and forking them
@@ -260,7 +314,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                 >NFL</button>
               </span>
             </div>
-            <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />
+            {!condensed && <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />}
           </div>
         </div>
 
@@ -273,8 +327,12 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
             The two pills that live in this file are threaded into SlateTiles
             as elements so the whole strip renders as one ordered row instead
             of two groups that wrap independently on narrow screens. */}
+        {/* display:none, NOT unmounted — see the condense comment up top.
+            SlateTiles owns polling state; a remount on every scroll reversal
+            would re-derive it, and the facts are one scroll-up away. */}
         <div style={{
-          display:'flex', alignItems:'center', justifyContent:'center',
+          display: condensed ? 'none' : 'flex',
+          alignItems:'center', justifyContent:'center',
           gap:6, flexWrap:'wrap', flex:'1 1 480px', minWidth:0,
         }}>
           <SlateTiles
@@ -329,7 +387,8 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                 key={key}
                 onClick={() => setTab(key)}
                 style={{
-                  padding:'8px 13px', fontSize:11, fontWeight:active ? 800 : 500,
+                  padding: condensed ? '6px 13px' : '8px 13px',
+                  fontSize:11, fontWeight:active ? 800 : 500,
                   cursor:'pointer', border:'none', borderRadius:0,
                   background:'transparent', color:active ? '#f97316' : C.text3,
                   position:'relative', transition:'color .12s', whiteSpace:'nowrap',
