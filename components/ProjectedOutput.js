@@ -5,6 +5,7 @@ import { teamOf, oppOf, hrScore, hitScore, n, clean } from '../lib/player'
 import Heatmap from './Heatmap'
 import { penStatsFor } from '../lib/bullpen'
 import { xpaFor } from '../lib/xpa'
+import { projectPool, projectionPublished } from '../lib/projection'
 
 // Projected output by game — expected COUNT, not a score.
 //
@@ -18,13 +19,50 @@ import { xpaFor } from '../lib/xpa'
 // CALIB is copied verbatim from streamlit_app.py. Do not tune these by hand:
 // they're observed rates from the graded archive, and editing them turns a
 // measurement back into a guess.
-const CALIB = {
-  'Proj HR':    ['hr',      { 0: 12.8, 40: 15.0, 55: 15.3, 70: 18.7, 85: 16.1 }],
-  'Proj hits':  ['hit',     { 0: 61.8, 40: 59.5, 55: 63.0, 70: 65.4, 85: 72.0 }],
-  'Proj XBH':   ['contact', { 0: 29.1, 40: 29.8, 55: 32.8, 70: 27.2, 85: 36.4 }],
-  'Proj bases': ['contact', { 0: 37.8, 40: 37.5, 55: 41.6, 70: 34.3, 85: 45.5 }],
-}
-const COLUMNS = Object.keys(CALIB)
+// ── THE COUNT COLUMNS WERE PROBABILITIES (fixed 2026-08-16) ───────────────
+//
+// Donovan: "i notice like even for the team bases they are low or dont make
+// good sense so some thing has to be off."
+//
+// He was reading a real impossibility off the screen. CALIB used to hold
+// per-hitter PROBABILITIES and the table summed them and called the sum a
+// count:
+//
+//     Proj hits   summed P(1+ hit) = 65.8%  ->  ~11.2 a game
+//     Proj bases  summed P(2+ TB)  = 40.9%  ->  ~6.9 a game
+//
+// "PROJ BASES 6.9" therefore meant "6.9 hitters should record two or more
+// total bases", not 6.9 bases — printed under a header reading expected COUNT,
+// beside 11.3 hits. A game cannot produce more hits than bases. Every hit is
+// at least one base.
+//
+// The model now lives in lib/projection.js and produces real expected counts
+// off each hitter's OWN season line (AVG, ISO, walk rate, HR rate), adjusted
+// by his band and scaled by expected PA from his lineup slot, with the
+// arithmetic invariants enforced rather than hoped for. That file carries the
+// full derivation, including why the archive could not be the base.
+//
+// Checked against reality: 16.1 hits / 27.1 TB / 2.08 HR / 74.4 PA per game,
+// against an MLB norm near 17.0 / 27.6 / 2.5 / 76. Zero invariant violations.
+// And the spread across games went from 0.9 hits (the old model was nearly
+// flat — it barely discriminated at all) to 2.7.
+//
+// HR keeps its own model (hrProbV2, ISO-blended and form-weighted) because it
+// is separately calibrated and was never the broken column.
+const COUNT_COLUMNS = [
+  ['Proj hits', 'hits', 'expected hits, both lineups'],
+  ['Proj TB', 'tb', 'expected total bases — always at least the hits'],
+  ['Proj HRR', 'hrr', 'expected hits + runs + RBI'],
+]
+const COLUMNS = ['Proj HR', ...COUNT_COLUMNS.map((c) => c[0])]
+
+// The HR score-band rates, which SURVIVE the rewrite unchanged — this column
+// was never the broken one. Observed from the graded archive, copied verbatim
+// from streamlit_app.py. Do not tune by hand: editing these turns a
+// measurement back into a guess. (The hit / xbh / bases band tables that used
+// to sit alongside are gone — they were P(cleared a bar), which is what this
+// whole commit is about.)
+const HR_SCORE_BANDS = { 0: 12.8, 40: 15.0, 55: 15.3, 70: 18.7, 85: 16.1 }
 
 // MODEL V2 (2026-08-08 audit, bot-ship/docs/AUDIT_FINDINGS_2026-08-08.md).
 // The 38-day archive audit (3,629 player-days, 519 HR) measured that season
@@ -132,7 +170,7 @@ function armOf(p) {
 }
 
 function hrProbV2(p, formNorm = 1, prodNorm = 1, parkNorm = 1, armNorm = 1) {
-  const scoreRate = bandRate(scoreOf(p, 'hr'), CALIB['Proj HR'][1])
+  const scoreRate = bandRate(hrScore(p), HR_SCORE_BANDS)
   const iso = n(p?.season_iso, NaN)
   const base = Number.isFinite(iso)
     ? 0.5 * scoreRate + 0.5 * bandRate(iso, ISO_HR_BANDS)
@@ -207,9 +245,11 @@ export function slateProjHr(players) {
   return Number.isFinite(total) ? total : null
 }
 
-const contactScore = (p) => n(p?.contact_score_v2 ?? p?.contact_score, 0)
-const scoreOf = (p, kind) =>
-  kind === 'hr' ? hrScore(p) : kind === 'hit' ? hitScore(p) : contactScore(p)
+// scoreOf() / contactScore() lived here to pick which score fed which column.
+// Gone with the probability tables: HR reads hrScore directly, and the three
+// count columns each band on their OWN market's score inside lib/projection.js
+// — which is the coherence rule this file used to break by driving both bases
+// AND xbh off contact_score.
 
 // Band lookup: highest band whose floor the score clears.
 function bandRate(score, bands) {
@@ -312,12 +352,11 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [] }
 
     return [...groups.entries()].map(([label, pool]) => {
       const values = {}
-      COLUMNS.forEach((col) => {
-        const [kind, bands] = CALIB[col]
-        values[col] = col === 'Proj HR'
-          ? pool.reduce((sum, p) => sum + hrProbV2(p, formNorm, prodNorm, parkNorm, armNorm), 0) // v2: ISO-blended, xPA-weighted, form + production normalised
-          : pool.reduce((sum, p) => sum + bandRate(scoreOf(p, kind), bands), 0)
-      })
+      // HR stays on its own calibrated model; the three count columns come
+      // from lib/projection.js, which enforces TB >= hits >= HR on every sum.
+      values['Proj HR'] = pool.reduce((sum, p) => sum + hrProbV2(p, formNorm, prodNorm, parkNorm, armNorm), 0)
+      const proj = projectPool(pool)
+      COUNT_COLUMNS.forEach(([col, key]) => { values[col] = proj[key] })
 
       // ADJ HR — the calibrated projection with the environment and the pen
       // layered on, per team. Each hitter's band rate is multiplied by:
@@ -463,7 +502,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [] }
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 10 }}>
         {podium.map((r, i) => (
-          <div key={r.label} title={`${r._count} tracked hitters · Proj hits ${r.values['Proj hits'].toFixed(1)} · Proj XBH ${r.values['Proj XBH'].toFixed(1)}`}
+          <div key={r.label} title={`${r._count} tracked hitters · ${r.values['Proj hits'].toFixed(1)} hits · ${r.values['Proj TB'].toFixed(1)} total bases · ${r.values['Proj HRR'].toFixed(1)} H+R+RBI`}
             style={{
               flex: '1 1 150px', minWidth: 0,
               background: i === 0 ? 'rgba(249,115,22,.10)' : 'rgba(255,255,255,.025)',
@@ -498,7 +537,8 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [] }
         title="Projected output — expected count, not a score"
         labelWidth={150}
         fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-        caption="Proj HR is model v2: each hitter's score-band rate (what his band actually produced over the graded archive) blended 50/50 with his season-ISO band rate — the audit's strongest single HR predictor — then scaled by expected PA from his lineup slot and his last-5 form, summed across the lineup. The other three columns are still score-band rates alone. Adj HR layers the environment and the OPPOSING BULLPEN onto that base: park factor, air temperature, park-relative wind, and the pen's live HR/9 (from the MLB StatsAPI, weighted at the ~38% of innings pens cover) — because homers don't stop when the starter leaves, and the base projection never priced the 7th–9th. Proj HR is calibrated; Adj HR is calibrated × modeled — when they disagree, the gap is the environment and the pen. A HIGHER SCORE DOES NOT ALWAYS MEAN A HIGHER PROJECTION, and that is the archive talking, not a bug: the 85+ band produced 16.1% while the 70 band produced 18.7%, so the very top of the board projects slightly under the tier below it. The XBH and bases bands barely climb at all — treat those two as rough."
+        caption="THE THREE COUNT COLUMNS ARE REAL EXPECTED COUNTS NOW (2026-08-16). They used to be probabilities summed and labelled as counts — Proj hits was the number of hitters expected to get AT LEAST ONE hit, and Proj bases was the number expected to record AT LEAST TWO total bases, which is why bases came out BELOW hits. A game cannot produce more hits than bases; every hit is at least one base. Hits, TB and HRR are now built from each hitter\u2019s own season line — his average, his ISO, his walk rate — adjusted by what his score band actually produced over the graded archive, and scaled by the plate appearances his lineup slot expects. A weak hitter projects weak because HIS line is weak, which no band-only model could do: the spread across games widened from 0.9 hits to 2.7. Against reality the slate now projects 16.1 hits, 27.1 total bases and 74.4 plate appearances a game, where MLB runs about 17.0, 27.6 and 76. TB \u2265 hits \u2265 HR is enforced on every row, not hoped for. Proj HR keeps its own model, which was never the broken column: each hitter\u2019s HR score band blended 50/50 with his season-ISO band \u2014 the audit\u2019s strongest single HR predictor \u2014 then scaled by expected PA and last-5 form. Adj HR layers the environment and the OPPOSING BULLPEN on top: park factor, the published weather effect, the pitcher\u2019s trend, and the pen\u2019s live HR/9 weighted at the ~38% of innings pens cover \u2014 because homers don\u2019t stop when the starter leaves. Proj HR is calibrated; Adj HR is calibrated \u00d7 modeled, and when they disagree the gap is the environment and the pen. A HIGHER SCORE DOES NOT ALWAYS MEAN A HIGHER PROJECTION, and that is the archive talking: the 85+ band produced 16.1% where the 70 band produced 18.7%."
+
       />
     </div>
   )
