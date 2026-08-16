@@ -245,9 +245,10 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
       </div>
 
       <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 10, maxWidth: 760 }}>
-        A <b style={{ color: C.text2 }}>blank</b> is a game he batted in and got no hit; a pinch-run or walk-only
-        appearance is skipped rather than counted either way. <b style={{ color: C.text2 }}>After a blank</b> counts every
-        game whose previous batted game was a blank — his own record, not the league&apos;s.
+        A <b style={{ color: C.text2 }}>blank</b> is a game he came to the plate in and got no hit — a walk-only
+        night counts, because he batted and did not hit. A pinch-runner who never came to the plate is skipped, not
+        counted either way. <b style={{ color: C.text2 }}>After a blank</b> counts every game whose previous
+        plate-appearance game was a blank — his own record, not the league&apos;s.
         Under {MIN_N} such games no rate is quoted and no edge is claimed, because a 3-for-4 is the most
         confident-looking wrong number on a board like this.
       </div>

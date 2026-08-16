@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { quoteFor, fmtOdds, impliedPct } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
@@ -168,7 +168,37 @@ function MoveBar({ delta, max }) {
   )
 }
 
+// ── WHAT LEADS: HIS CHOICE, REMEMBERED (2026-08-16) ─────────────────────────
+//
+// Asked whether the page should lead on CONVICTION (whichever call stands
+// furthest clear of its own category's field) or always on the HOME RUN call,
+// Donovan said "let me toggle it." Both are defensible: conviction surfaces
+// the night's genuinely clearest read and can put the H+R+RBI call on top,
+// which is right but unpredictable; category order means he always knows where
+// the HR call is. So the page does both and remembers which he picked.
+//
+// The measurement is UNCHANGED either way — convictionOf still runs, and the
+// clearance clause still prints, so choosing category order hides no
+// information, it only stops the order from moving.
+const LEAD_KEY = 'read_lead_mode_v1'
+
+function useLeadMode() {
+  const [mode, setMode] = useState('conviction')
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(LEAD_KEY)
+      if (v === 'category' || v === 'conviction') setMode(v)
+    } catch { /* private mode: the default is fine */ }
+  }, [])
+  const choose = (v) => {
+    setMode(v)
+    try { window.localStorage.setItem(LEAD_KEY, v) } catch { /* not worth failing over */ }
+  }
+  return [mode, choose]
+}
+
 export default function TheRead({ players = [], onPlayerClick, odds = null }) {
+  const [leadMode, setLeadMode] = useLeadMode()
   const read = useMemo(() => {
     const rows = (players || []).filter(Boolean)
     if (!rows.length) return null
@@ -195,7 +225,13 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
     // The lead is the clearest of its own field. Ties and single-name pools
     // (z = 0, no field to be clear of) fall back to source order, which is
     // the categories' own order — HR first.
-    const ordered = [...calls].sort((a, b) => (b.conv?.z ?? -99) - (a.conv?.z ?? -99))
+    // CATEGORY mode leads on the home run call when there is one; CONVICTION
+    // mode leads on whichever call stands furthest clear of its own field.
+    // `calls` is already in CATS order (HR first), so category mode is just
+    // the unsorted head.
+    const ordered = leadMode === 'category'
+      ? [...calls]
+      : [...calls].sort((a, b) => (b.conv?.z ?? -99) - (a.conv?.z ?? -99))
     const hero = ordered[0] || null
     const rest = calls.filter((c) => c !== hero)
 
@@ -235,7 +271,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
       calls, hero, rest, under, over, lens, maxMove, traps,
       games: byGame.size, picks: rows.filter((p) => roleOf(p)).length, helping, hurting,
     }
-  }, [players])
+  }, [players, leadMode])
 
   if (!read) return <Empty>No slate loaded, so there is nothing to read yet.</Empty>
 
@@ -340,8 +376,29 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
             marginBottom: 26, marginTop: 20, maxWidth: 760,
             borderLeft: `3px solid ${hero.color}`, paddingLeft: 14,
           }}>
-            <div style={{ fontSize: 9, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', color: hero.color, marginBottom: 5 }}>
-              The call of the night · {hero.label} · {hero.bar}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
+              <span style={{ fontSize: 9, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', color: hero.color }}>
+                The call of the night · {hero.label} · {hero.bar}
+              </span>
+              {/* His toggle. Nothing is hidden either way — convictionOf still
+                  runs and the clearance clause still prints; this only decides
+                  whether the order is allowed to move. */}
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: 4, alignItems: 'center' }}>
+                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>LEAD ON</span>
+                {[['conviction', 'clearest'], ['category', 'home run']].map(([k, lbl]) => (
+                  <button key={k} onClick={() => setLeadMode(k)}
+                    title={k === 'conviction'
+                      ? 'Lead on whichever call stands furthest clear of its own category\u2019s field, in that category\u2019s own standard deviations. Can put the H+R+RBI call on top.'
+                      : 'Always lead on the home run call. Conviction is still measured and still stated \u2014 it just does not reorder the page.'}
+                    style={{
+                      padding: '2px 8px', borderRadius: 999, cursor: 'pointer',
+                      fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT,
+                      border: `1px solid ${leadMode === k ? hero.color : C.border}`,
+                      background: leadMode === k ? `${hero.color}1f` : 'transparent',
+                      color: leadMode === k ? hero.color : C.text3,
+                    }}>{lbl}</button>
+                ))}
+              </span>
             </div>
             <h2 style={{ margin: '0 0 8px', fontSize: 27, fontWeight: 900, letterSpacing: '-.02em', lineHeight: 1.1 }}>
               <span onClick={() => onPlayerClick?.(p)} style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}>{nameOf(p)}</span>

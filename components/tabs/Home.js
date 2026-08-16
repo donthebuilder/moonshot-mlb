@@ -8,6 +8,7 @@ import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
+import ReadTeaser from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
@@ -46,14 +47,16 @@ import { getPicks, CONVICTION } from '../../lib/myPicks'
 //                        air with its clause, and the bot's graded record.
 //   3. the headliner     the game the hero's last clause just named, so the
 //                        sentence and its subject sit together.
-//   4. your night        your own calls, when you made any.
-//   5. tonight's angles  the narrative lines, air now among them (the tile
+//   4. the call of the   the lead of The Read — the bot's single most convinced
+//      night             pick, in sentences, with a door to the full essay.
+//   5. your night        your own calls, when you made any.
+//   6. tonight's angles  the narrative lines, air now among them (the tile
 //                        row folded into the first one).
-//   6. storylines        the full ledger the angles are cherry-picked from.
-//   7. the top tens      names, ranked.
-//   8. the arms          who they get to attack — read WITH the top tens,
+//   7. storylines        the full ledger the angles are cherry-picked from.
+//   8. the top tens      names, ranked.
+//   9. the arms          who they get to attack — read WITH the top tens,
 //                        which is why it now sits directly under them.
-//   9. the doors         where to go next, onboarding included.
+//  10. the doors         where to go next, onboarding included.
 //
 // TILES → SENTENCES. Two tile rows died here (the four stat tiles, the three
 // best-air tiles). Not one number, caption or tooltip left with them: every
@@ -565,6 +568,22 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
           })()}
         </div>
       )}
+
+      {/* ── 📰 THE CALL OF THE NIGHT — the lead of The Read (2026-08-16) ─────
+             WHY HERE, BELOW THE HEADLINER AND ABOVE YOUR NIGHT.
+             Not above it: the hero paragraph ends "The game to circle is X @ Y,
+             immediately below", and putting a pick between that sentence and
+             its subject would re-open the exact scroll-down-scroll-back-up
+             complaint the flow pass was built to close. Not further down
+             either: this is the most opinionated thing the site says all night
+             and it was buried on a tab. So the page now goes slate → the game
+             → the pick → your own calls, which is descending scope and reads as
+             one thought — and the bot's single best call sits directly above
+             the calls YOU made against it, which is the comparison worth having.
+             It is the lead ONLY. The other three calls, the ISO lens and the
+             traps stay on the Bot page, so Home keeps its shape and The Read
+             keeps its length. Nothing that was on this page moved or left. ── */}
+      <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
 
       {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}
       {mine.length > 0 && (
