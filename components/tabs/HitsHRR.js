@@ -5,13 +5,26 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { btnStyle } from '../ui'
 import RankedBoard from './RankedBoard'
 import Runs from './Runs'
+import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
 import { playerId } from '../../lib/player'
 
-// 📊 BOARDS — the nine ranked lenses, and the streak page they share a roof
-// with.
+// 📊 BOARDS — the nine ranked lenses, plus the power page and the streak page
+// they share a roof with.
+//
+// ── THE CONSOLIDATION (2026-08-16) ───────────────────────────────────────────
+//
+// Boards absorbs the Power tab. The plan named the danger in advance: "The
+// Boards merge is the one that could go wrong. It would put twelve lenses in
+// one row — nine current plus Farthest, Overdue and Parks. Twelve pills is its
+// own kind of mess, and I'd want to group them (by market / by power / by
+// pattern) rather than lay them flat." So the grouping IS the design, not a
+// nicety: the top row is three GROUPS (📊 Boards · 🚀 Power · 🔥 Patterns),
+// and Power keeps its own three-lens row inside its group exactly as Power.js
+// built it. Nothing is flattened into the nine-lens sticky row, which stays
+// exactly as it was within the Boards group.
 //
 // ── THE CHROME PASS (2026-08-15) ─────────────────────────────────────────────
 //
@@ -80,7 +93,7 @@ const PROOF = {
   top: {
     color: C.yellow,
     head: 'The bot’s overall ranking — graded as an HR bet, honestly',
-    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Graded on homers across the 39-day archive TOP delivered 19.2% — decent for an any-HR bet, and the recent locked stretch runs hotter (see the Report Card). Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
+    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Graded on homers across 62 nights and 811 games TOP delivered 21.3% (172/807) — decent for an any-HR bet — and the same man got a hit 70.8% of the time (571/807), which is the bar that actually decides how this board should be read. Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
   },
   hr: {
     color: C.orange,
@@ -90,12 +103,12 @@ const PROOF = {
   hit: {
     color: C.purple,
     head: 'The site’s most reliable product',
-    body: 'HIT picks got their hit 64.5% of the time across 3,973 graded picks, and hit_score separates cleanly (58.3% bottom quartile → 67.0% top). The "When picked" column below is each hitter’s own delivery record in this exact category.',
+    body: 'HIT picks got their hit 69.6% of the time — 968 of 1,391 across 62 graded nights — and hit_score separates cleanly (59.7% bottom quartile → 71.3% top on the full archive). Restated 2026-08-16 from the 62-night sweep; the old banner quoted 64.5% on 3,973 picks over 39 days, and both the rate AND the sample moved. The "When picked" column below is each hitter’s own delivery record in this exact category.',
   },
   hrr: {
     color: C.cyan,
     head: 'The best-calibrated score in the system',
-    body: 'hrr_score has the strongest quartile spread of any score the bot writes (41.2% → 54.5% on its own 2+ H+R+RBI outcome), and HRR picks cleared their bar 48% of the time. When this board says top-quartile, the archive backs it.',
+    body: 'HRR picks cleared their 2+ H+R+RBI bar 50.9% of the time — 709 of 1,392 across 62 graded nights (restated 2026-08-16; the earlier 48% came from the 39-day sample). hrr_score’s calibration claim is under re-measurement on the bigger archive — the v2 extract does not carry hrr_total, so its quartile spread cannot be recomputed yet and the old 41.2→54.5 figure is retired rather than repeated.',
   },
   contact: {
     color: C.blue,
@@ -306,8 +319,24 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
   )
 }
 
-export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null }) {
-  const [bview, setBview] = useState('boards')
+// The three groups the top row can open. Kept as a list so the deep-link
+// guard below and the pill row can never disagree about what exists.
+const GROUPS = [['boards', '📊 Boards'], ['power', '🚀 Power'], ['patterns', '🔥 Patterns']]
+
+/**
+ * New props, all optional so the CURRENT Dashboard mount keeps rendering
+ * unchanged — this lands BEFORE the routes are rewired:
+ *   · results      — passed straight through to PowerTab (LongestBoard wants
+ *                    it). null until the owner rewires the mount to hand over
+ *                    the real resultsForSlate.
+ *   · initialView  — which GROUP opens first, so the old #tab=longest and
+ *                    #tab=due deep links can land on the Power group instead
+ *                    of dying. Anything unrecognized falls back to 'boards'.
+ *   · powerInitial — forwarded as PowerTab's own `initial` prop, so #tab=due
+ *                    can still open Overdue specifically. Power's default.
+ */
+export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest' }) {
+  const [bview, setBview] = useState(() => (GROUPS.some(([k]) => k === initialView) ? initialView : 'boards'))
   const [view, setView] = useState('hr')
   const [proofOpen, setProofOpen] = useState(false)
   const stickTop = useHeaderOffset()
@@ -329,7 +358,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         borderBottom: `1px solid ${C.border}`,
         display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
       }}>
-        {[['boards', '📊 Boards'], ['patterns', '🔥 Patterns']].map(([k, label]) => (
+        {GROUPS.map(([k, label]) => (
           <button key={k} onClick={() => setBview(k)} style={{
             padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
             fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
@@ -359,10 +388,26 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         )}
       </div>
 
-      {!boards ? (
+      {bview === 'patterns' ? (
         /* allPlayers: a streak board silently narrowed by the header's team
            filter reads as the whole board — the audit's wrong-number find. */
         <Runs players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} />
+      ) : bview === 'power' ? (
+        /* 🚀 POWER, mounted whole. Its three lenses (Farthest / Overdue /
+           Parks) stay INSIDE it, on its own row — folding them into the nine-
+           lens row above is exactly the twelve-pill flat mess the plan said
+           it wanted grouped instead. slateDate: Power declares '' as its
+           default where this tab declares null, so null is normalized rather
+           than handed a shape Power never planned for. */
+        <PowerTab
+          players={players}
+          slateDate={slateDate || ''}
+          results={results}
+          onWatch={onWatch}
+          watchIds={watchIds}
+          onPlayerClick={onPlayerClick}
+          initial={powerInitial}
+        />
       ) : (
         <>
           {/* ONE SENTENCE, TWO OLD BLOCKS. The market this board is for, then

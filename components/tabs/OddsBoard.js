@@ -5,6 +5,8 @@ import { nameOf, teamOf, oppOf, n, clean, hrScore, hitScore, prodScore, tbScore 
 import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName } from '../../lib/odds'
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
+import TruePrice from './TruePrice'
+import { btnStyle } from '../ui'
 
 // 💵 THE ODDS PAGE (2026-08-15, Donovan: "we need to see the line the book has
 // them for, esp if it's at like 1.5 or like a plus-money look for the hit.
@@ -129,7 +131,26 @@ const LEAD_MAX_NEED = 40
 
 const one = (v) => (Number.isFinite(v) ? (Math.round(10 * v) / 10).toFixed(1) : '—')
 
-export default function OddsBoard({ players = [], odds = null, onPlayerClick }) {
+// ── 2026-08-16, TRUE PRICE MOVES IN ─────────────────────────────────────────
+//
+// The tab consolidation gave True Price ONE home, and it is this page: both
+// views answer "what does the book charge" — tonight's board is the live
+// quote, True Price is the same quote's season-long archive — while Results
+// answers "was the bot right". It had been living twice, as its own top-level
+// tab AND as a third mode inside Results, which meant two routes to the same
+// table and neither next to the live prices it exists to sanity-check.
+//
+// Same pill idiom as Bot.js's VIEWS row. `initialView` exists so the old
+// #tab=trueprice deep link can open this tab already switched — optional,
+// defaulting to the board, so the current Dashboard mount renders unchanged
+// until routing is rewired.
+const PAGE_VIEWS = [
+  ['board', '💵 Tonight’s board'],
+  ['trueprice', '🏷 True Price'],
+]
+
+export default function OddsBoard({ players = [], odds = null, onPlayerClick, initialView = 'board' }) {
+  const [view, setView] = useState(initialView === 'trueprice' ? 'trueprice' : 'board')
   const [market, setMarket] = useState('batter_home_runs')
   const [plusOnly, setPlusOnly] = useState(false)
   const [offStd, setOffStd] = useState(false)
@@ -363,9 +384,38 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick }) 
   const ls = night?.longshot
   const fd = night?.fade
 
+  // The one row of navigation this tab owns: tonight's live quote, or the
+  // archive of what those quotes have been. It sits ABOVE the page's own
+  // header so the lead — three named calls, then the board — is untouched.
+  const viewBar = (
+    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
+      {PAGE_VIEWS.map(([k, label]) => (
+        <button key={k} onClick={() => setView(k)} style={btnStyle(C.orange, view === k)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+
+  // TruePrice fetches its own season-scale payload on open and wears its own
+  // header, so this branch mounts it whole and adds nothing but the way back.
+  // Sits after every hook above — a conditional return before a hook is the
+  // blank-page class of bug the Results tab already hit once with this exact
+  // component.
+  if (view === 'trueprice') {
+    return (
+      <div>
+        {viewBar}
+        <TruePrice onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
+
   return (
     <div>
       <style>{'@keyframes oddsIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@keyframes oddsDot{0%,100%{opacity:1}50%{opacity:.25}}'}</style>
+
+      {viewBar}
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0 }}>💵 The odds</h2>

@@ -16,6 +16,7 @@ import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
+import AtThePlate from './AtThePlate'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import LineupSlotMatchup from '../LineupSlotMatchup'
@@ -196,7 +197,16 @@ function sidesOf(g) {
   })
 }
 
-export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick }) {
+// slateMode / initialMode (2026-08-16, tab consolidation): both OPTIONAL with
+// safe defaults because this change lands before Dashboard's rewiring does —
+// the current mount passes neither and must keep rendering identically.
+//   · slateMode — threaded through to the Live view's AtThePlate (which needs
+//     it for Today/Tomorrow awareness); 'today' until the owner wires the real
+//     one in.
+//   · initialMode — lets the old #tab=atplate deep link open this tab already
+//     on the Live view once routing lands. First render only: it seeds the
+//     mode state and is never read again, so the pills stay in charge.
+export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateMode = 'today', initialMode }) {
   const [gview, setGview] = useState('games')
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
@@ -249,7 +259,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       return [...cur, p].slice(-2)
     })
   }
-  const [mode, setMode]         = useState('default')
+  // useState's initializer runs once, which is exactly the contract initialMode
+  // wants: it wins over 'default' on FIRST render only, then the buttons own it.
+  const [mode, setMode]         = useState(initialMode || 'default')
   // 2026-08-12, Donovan: "maybe be able to order h/9 or whip and score."
   // Default stays chronological on purpose — GameStrip's own header comment
   // is explicit about why ("you read a slate chronologically -- re-ranking
@@ -312,6 +324,71 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     }
   }, [games])
 
+  /* ── THE MODE ROW (2026-08-16: + ⚾ Live) ─────────────────────────────────
+     One const because it now renders from two returns — the grid page and the
+     Live view below — and two hand-maintained copies of a four-button row is
+     how they drift. The dot on the Live pill reuses the wire's green-dot
+     idiom (LiveWire.js, PitcherChips) and costs nothing new: this tab already
+     polls fetchLiveSlate for the lineup card watch, so "is anything actually
+     in progress" is a read off state we were holding anyway — no extra
+     fetch. */
+  const anyLive = !!live?.games?.some((x) => x.state === 'Live')
+  const modeRow = (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
+      <button onClick={() => setMode('botview')} style={btnStyle(C.cyan,   mode === 'botview')}>Bot Output</button>
+      <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
+      <button onClick={() => setMode('live')} style={{ ...btnStyle(C.green, mode === 'live'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {anyLive && (
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%', background: C.green,
+            boxShadow: `0 0 6px ${C.green}`, flexShrink: 0,
+          }} />
+        )}
+        ⚾ Live
+      </button>
+    </div>
+  )
+
+  /* ── ⚾ LIVE — At the Plate, as a VIEW of this tab (2026-08-16) ────────────
+     Consolidation rule: a tab is a QUESTION you arrive with, a view is an
+     ANSWER. "What does one game look like tonight" and "what does it look
+     like RIGHT NOW" are the same question asked before and during play, so
+     the live room mounts here as a fourth mode instead of holding its own
+     tab. AtThePlate is mounted AS-IS — it keeps its own polling, its own
+     game selection and its charts; this tab just gives it a seat.
+     Above the empty-slate return ON PURPOSE: the live room names its hitters
+     off the league feed, so a blank board (bot not yet published) must not
+     lock the door on games already in progress. gview still wins — the Boxes
+     pill keeps working from any mode. */
+  if (mode === 'live' && gview !== 'boxes') {
+    return (
+      <div>
+        <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <PanelTitle
+          title="Games"
+          sub="the live batter's room — who is standing in right now, the count, every pitch, tonight's zone and spray"
+          right={modeRow}
+        />
+        <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700 }}>
+          <b style={{ color: C.text2 }}>What this answers:</b>{' '}
+          what tonight looks like while it is happening — every live game with the man at the plate, the at-bat pitch by pitch, and where his contact is going. It wakes up at first pitch.
+        </div>
+        {/* allPlayers, not players, same reason as Boxes below: the live room
+            is not subject to the header's team filter — filtering it makes
+            live games appear to lose their hitters. players is the fallback
+            only while allPlayers still defaults to []. */}
+        <AtThePlate
+          players={allPlayers.length ? allPlayers : players}
+          watchIds={watchIds}
+          mode={slateMode}
+          slateMode={slateMode}
+          onPlayerClick={onPlayerClick}
+        />
+      </div>
+    )
+  }
+
   if (!games.length) return <Empty text="No games found yet." />
 
   const scrollTo = (pk) => {
@@ -366,13 +443,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           : mode === 'botview' ? "the picks with the bot's five category bars per card"
           : 'the slate as heat-sized game cards — tap one and switch between its read, its lineups, the head-to-head and the picks in place'
         }`}
-        right={
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
-            <button onClick={() => setMode('botview')} style={btnStyle(C.cyan,   mode === 'botview')}>Bot Output</button>
-            <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
-          </div>
-        }
+        right={modeRow}
       />
 
       {/* ONE PLAIN LINE PER MODE (2026-08-09 spoon-feed pass). The three mode

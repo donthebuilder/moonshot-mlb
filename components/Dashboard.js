@@ -32,6 +32,8 @@ import Backtest from './tabs/Backtest'
 import PlayerBoard from './tabs/PlayerBoard'
 import HitsHRR from './tabs/HitsHRR'
 import Scoreboard from './tabs/Scoreboard'
+import Combos from './tabs/Combos'
+import You from './tabs/You'
 import Pools from './tabs/Pools'
 import Leaders from './tabs/Leaders'
 import Results from './tabs/Results'
@@ -420,31 +422,39 @@ export default function Dashboard() {
                 Ungated, the front page would announce a fortnight-old homer
                 count as tonight's. Every other consumer already uses the
                 date-gated copy. */}
-            {tab === 'home'        && <Home players={allPlayers} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
-            {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
-            {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
-            {tab === 'boxes'       && <Boxes players={allPlayers} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'atplate'     && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
-            {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
-            {/* Power = Longest + Due merged; 'due' kept as alias route. */}
-            {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'due'         && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
-            {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
-            {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
-            {/* 'hitshrr' merged into 'board' — route kept as alias for old links */}
-            {tab === 'hitshrr'     && <HitsHRR players={players} allPlayers={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} mode={mode} slateDate={slateDate} results={resultsForSlate} backtest={backtest} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
-            {tab === 'pools'       && <Pools players={players} results={resultsForSlate} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
-            {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
-            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
-            {tab === 'odds'       && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}
-            {tab === 'mypicks'    && <MyPicks players={allPlayers} results={resultsForSlate} odds={odds} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
-            {tab === 'trueprice'  && <TruePrice onPlayerClick={setModalPlayer} />}
-            {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
+            {/* ── THE NINE TABS (2026-08-16 consolidation) ─────────────────────
+                Rule: a TAB is a question you arrive with; a VIEW is an answer.
+                Every pre-consolidation key below the nine is an ALIAS — it
+                still routes, opening the new host on the right view, or the
+                standalone component where that is the safer render. Nothing
+                was deleted; see lib/theme.js for the map. */}
+            {tab === 'home'        && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
+            {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
+            {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
+            {tab === 'combos'      && <Combos players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
+            {tab === 'odds'        && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}
+            {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'watch'       && <Watchlist items={watchLive} players={allPlayers} pairSummary={pairSummary} results={resultsForSlate} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+
+            {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
+            {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}
+            {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
+            {tab === 'atplate'     && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initialMode="live" />}
+            {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} initialView="power" powerInitial="longest" />}
+            {tab === 'due'         && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} initialView="power" powerInitial="due" />}
+            {tab === 'hitshrr'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
+            {tab === 'pairs'       && <Combos players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pairs" />}
+            {tab === 'pools'       && <Combos players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pools" />}
+            {tab === 'pairhist'    && <Combos players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="history" />}
+            {tab === 'mypicks'     && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="picks" />}
+            {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
+            {tab === 'trueprice'   && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} initialView="trueprice" />}
+            {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
+            {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
+            {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
           </div>

@@ -1,5 +1,5 @@
 'use client'
-import TruePrice from './TruePrice'
+import Leaders from './Leaders'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { gradedResultsUrl } from '../../lib/dataSource'
@@ -961,19 +961,28 @@ export default function Results({ results, backtest, players = [], onPlayerClick
     </div>
   )
 
-  // 🏷 TRUE PRICE. Round one injected this inside the graded-day effect, where
-  // React 18 treats returned JSX as the effect's CLEANUP and calls it on
-  // unmount — a TypeError with no error boundary above it, i.e. a blank page,
-  // found by the render audit before anyone hit it live. The branch sits at
-  // the real return, after every hook. It is FIRST now, before the
-  // nothing-graded guard, because the price archive has nothing to do with
-  // whether tonight has graded.
-  if (mode === 'price') {
+  // 🏷 TRUE PRICE MOVED OUT (2026-08-16, tab consolidation). It lived here as
+  // a third mode for one round, and it was the wrong home: True Price answers
+  // "what does the book charge", which is the Odds tab's question, not "was
+  // the bot right", which is this tab's. One question, one home — it is now a
+  // view inside OddsBoard, next to the live board it exists to sanity-check,
+  // and the component itself is untouched. Nothing else about the mode came
+  // out; its slot went to Leaders below.
+  //
+  // 🏆 LEADERS. Season stats plus the historical strip off the graded archive
+  // — the context for whether any of this has been right, which is why it
+  // belongs inside Results rather than as its own tab. No sub-views: the
+  // component wears its own controls, so the branch mounts it whole. It sits
+  // at the real return, after every hook, and FIRST, before the nothing-graded
+  // guard — the season's leaders have nothing to do with whether tonight has
+  // graded. (Same hazard class as the old True Price branch: a conditional
+  // return above a hook is a blank page.)
+  if (mode === 'leaders') {
     return (
       <div>
-        <PanelTitle title="Results" sub="the archive of prices, not tonight’s grading" />
+        <PanelTitle title="Results" sub="the season’s actual lines — context for every graded night" />
         <ModeBar mode={mode} setMode={setMode} />
-        <TruePrice onPlayerClick={onPlayerClick} />
+        <Leaders players={players} onPlayerClick={onPlayerClick} />
       </div>
     )
   }
@@ -1435,9 +1444,13 @@ export default function Results({ results, backtest, players = [], onPlayerClick
 // you click rather than after. Every one of the seven views is still exactly
 // one click deep.
 const MODES = [
-  ['night',  '🌙 This night',  'how the picks graded'],
-  ['season', '📈 All season',  'is the model any good'],
-  ['price',  '🏷 True Price',  'what the book pays him'],
+  ['night',   '🌙 This night', 'how the picks graded'],
+  ['season',  '📈 All season', 'is the model any good'],
+  // True Price sat third here for one round; it moved to the Odds tab
+  // (2026-08-16) because it answers the book's question, not this tab's —
+  // see the comment at the mode branch above. Leaders took the slot: the
+  // season's real numbers are the context every graded night is read against.
+  ['leaders', '🏆 Leaders',    'the season’s actual numbers'],
 ]
 function ModeBar({ mode, setMode }) {
   return (

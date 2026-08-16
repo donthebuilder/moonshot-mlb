@@ -14,6 +14,9 @@ import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
+import { btnStyle } from '../ui'
+import Scoreboard from './Scoreboard'
+import Boxes from './Boxes'
 
 // HOME — the front porch.
 //
@@ -94,7 +97,61 @@ function Fig({ children, col = C.text, title }) {
   )
 }
 
-export default function Home({ players = [], results, backtest, mode = 'today', slateDate = '', dateLabel = '', onNavigate, onPlayerClick }) {
+// ── TAB CONSOLIDATION (2026-08-16, owner-approved plan) ─────────────────────
+//
+// The rule the plan runs on: a TAB is a question you arrive with; a VIEW is an
+// answer you switch between once you're there. Home, the Scoreboard and the
+// box scores all answer the same question — "what's happening right now" — so
+// they are now ONE tab with three views: Tonight (everything this file always
+// rendered, untouched), The board (the Scoreboard component, mounted as-is)
+// and Box scores (the Boxes component, mounted as-is). Same idiom as the
+// VIEWS pill row on the Bot tab, kept quiet — a bare pill row, not another
+// bordered box, per the Apple-Sports direction for live surfaces.
+//
+// ROUTING LANDS SEPARATELY. The tab bar and the #tab= deep links are being
+// rewired in Dashboard.js by the session owner; this file only makes Home
+// CAPABLE of hosting the three views. That ordering is why every new prop
+// below defaults to null/'tonight': the current Dashboard mount passes none
+// of them, and Home must render exactly as it did yesterday until the wiring
+// arrives. `initial` exists so the old deep links (#tab=scoreboard,
+// #tab=boxes) can open Home on the right view once routing maps them here,
+// and it beats the remembered view because a link the user just clicked is a
+// stronger signal than what he looked at last time.
+const HOME_VIEWS = [
+  { key: 'tonight', label: 'Tonight' },
+  { key: 'board', label: 'The board' },
+  { key: 'boxes', label: 'Box scores' },
+]
+const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))
+
+export default function Home({
+  players = [], results, backtest, mode = 'today', slateDate = '', dateLabel = '',
+  onNavigate, onPlayerClick,
+  // tab-consolidation props (2026-08-16) — every one optional so the current
+  // Dashboard mount, which predates the rewiring, keeps rendering untouched.
+  // filteredPlayers: the globally-FILTERED list The board runs on; Home's own
+  // `players` is allPlayers. Falls back to `players` until Dashboard passes both.
+  odds = null, onWatch = null, watchIds = null, filteredPlayers = null,
+  initial = 'tonight',
+}) {
+  // Which view is showing. Server and first client paint always agree on
+  // 'tonight'; the effect then applies, in order of authority: an explicit
+  // non-default `initial` (a deep link — the user just asked for that view),
+  // else this device's remembered choice. Storage reads/writes are wrapped
+  // because private mode without localStorage must not take the page down.
+  const [view, setView] = useState('tonight')
+  useEffect(() => {
+    if (initial !== 'tonight' && HOME_VIEW_KEYS.has(initial)) { setView(initial); return }
+    try {
+      const saved = localStorage.getItem('home_view')
+      if (saved && HOME_VIEW_KEYS.has(saved)) setView(saved)
+    } catch { /* no storage: open on Tonight */ }
+  }, [initial])
+  const pickView = (k) => {
+    setView(k)
+    try { localStorage.setItem('home_view', k) } catch { /* not remembered, still shown */ }
+  }
+
   // ── "New here?" — SHOWN ON THE FIRST VISIT, NOT EVERY VISIT (2026-08-16) ──
   //
   // It used to render until you clicked "Got it, hide this", which meant a
@@ -377,6 +434,38 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
 
   return (
     <div>
+      {/* ── THE VIEW SWITCHER — three answers to "what's happening right
+             now": Tonight (this page as it always was), The board (the
+             Scoreboard, whole), Box scores (Boxes, whole). Same pill idiom
+             as the Bot tab's VIEWS row; deliberately a bare row, no border,
+             no panel — it's navigation, not content. See the consolidation
+             note above the component for why these live here and why the
+             routing that points at them lands in a separate change. ── */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+        {HOME_VIEWS.map((v) => (
+          <button key={v.key} onClick={() => pickView(v.key)} style={btnStyle(C.orange, view === v.key)}>
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {/* The board runs on the globally-filtered list when Dashboard provides
+          it; Boxes takes the full slate (allPlayers), same as its old mount.
+          Both are mounted unmodified — they carry their own headers, fetches
+          and empty states. */}
+      {view === 'board' && (
+        <Scoreboard
+          players={filteredPlayers ?? players} mode={mode} slateDate={slateDate}
+          results={results} backtest={backtest} odds={odds}
+          onWatch={onWatch} watchIds={watchIds}
+          onPlayerClick={onPlayerClick} onNavigate={onNavigate}
+        />
+      )}
+      {view === 'boxes' && (
+        <Boxes players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+      )}
+
+      {view === 'tonight' && <>
       <style>{`
         @keyframes homePulse { 0%,100%{opacity:1} 50%{opacity:.35} }
         @keyframes homeFade { from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none} }
@@ -1124,6 +1213,7 @@ export default function Home({ players = [], results, backtest, mode = 'today', 
         own published sheet — when a number isn&apos;t built yet, the sentence says so instead of guessing.
         Hover any number for what it is and where it came from.
       </div>
+      </>}
     </div>
   )
 }

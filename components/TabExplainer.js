@@ -12,6 +12,15 @@ import { C } from '../lib/theme'
 // beginner-first — the dense stuff stays untouched underneath.
 
 const TEXTS = {
+  // ── 2026-08-16 consolidation: the two new host tabs. Old keys below are
+  // kept — alias routes still land on them and the explainer follows the
+  // route key, so a #tab=scoreboard visitor still gets the right paragraph.
+  combos: {
+    what: 'Combination bets, all in one place. Pairs and Pools are the bot\u2019s own published combos; History is how past ones actually graded. The ticket builder underneath lets you build your own from the five pick groups, with each leg\u2019s bar and measured rate stated \u2014 and it never multiplies two legs into one percentage, because same-game legs share a park, an arm and a game state.',
+  },
+  you: {
+    what: 'Your side of the site. My Picks is the game \u2014 you against the bot, same slots, same bars, graded overnight, with a running record of where your judgement actually beats it. Watchlist is your saved hitters with their record while you\u2019ve watched them. Both live on this device only \u2014 export from either panel to back them up.',
+  },
   home: {
     what: 'The front porch. A greeting, tonight in four numbers (games on the slate, the bot’s own projected HR range, first pitch, and its graded base-hit record), then a rotating line of real facts about tonight, the best air and weakest arms, and top-10 HR/hit boards. Nothing here is a new number — it’s the same data as every other tab, gathered up front. Pick a door below, or just start scrolling.',
   },
