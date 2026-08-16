@@ -4,7 +4,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fmtOdds } from '../lib/odds'
 import { Empty } from './ui'
 import {
-  BLANK_MARKETS, MIN_N, blankRows, blankPool, blankDataPublished,
+  BLANK_MARKETS, MIN_N, blankRows, blankPool, blankLift,
+  blankDataPublished, controlPublished,
 } from '../lib/blankBoard'
 
 // 🧊 AFTER A BLANK — the board and its chart.
@@ -56,6 +57,7 @@ function Chart({ rows, marketLabel }) {
   const [hover, setHover] = useState(null)
   const plot = rows.slice(0, MAX_ROWS)
   const H = plot.length * ROW_H + 34
+  const hasBase = plot.some((r) => r.baseRate != null)
   if (!plot.length) return null
 
   return (
@@ -67,6 +69,11 @@ function Chart({ rows, marketLabel }) {
         <span><svg width="11" height="11" style={{ verticalAlign: -1 }}><circle cx="5.5" cy="5.5" r="4" fill="none" stroke={C.text3} strokeWidth="1.6" /></svg> what the book&apos;s price needs</span>
         <span><svg width="11" height="11" style={{ verticalAlign: -1 }}><circle cx="5.5" cy="5.5" r="4.5" fill={C.cyan} /></svg> what he does after a blank</span>
         <span><svg width="20" height="11" style={{ verticalAlign: -1 }}><line x1="1" y1="5.5" x2="19" y2="5.5" stroke={C.cyan} strokeWidth="1.5" opacity="0.45" strokeLinecap="round" /></svg> where his true rate plausibly sits</span>
+        {/* Only named when it is actually drawn. A legend entry for a mark
+            that never appears is a promise the chart does not keep — and on a
+            slate from a bot that predates the control cohorts, it never
+            appears. Caught by rendering that state rather than assuming it. */}
+        {hasBase && <span><svg width="11" height="12" style={{ verticalAlign: -2 }}><line x1="5.5" y1="1" x2="5.5" y2="11" stroke={C.text2} strokeWidth="1.6" /></svg> his normal rate, every game</span>}
         <span style={{ color: C.text3 }}>— the coloured segment is the edge that survives his sample size</span>
       </div>
       <svg width={W} height={H} role="img" aria-label={`Measured ${marketLabel} rate after a blank versus the price's implied rate, per hitter`}>
@@ -104,6 +111,7 @@ function Chart({ rows, marketLabel }) {
                 {`${r.name} (${r.team} vs ${r.opp}) — ${r.line} last game${r.streak > 1 ? `, ${r.streak} straight blanks` : ''}\n`
                   + `After a blank he has ${marketLabel} in ${r.count} of ${r.den} games (${Math.round(r.rate)}%)\n`
                   + (r.ci ? `On ${r.den} games the true rate plausibly sits between ${Math.round(r.ci[0])}% and ${Math.round(r.ci[1])}% — the board ranks on the low end\n` : '')
+                  + (r.baseRate != null ? `His normal rate, all ${r.baseN} batted games: ${Math.round(r.baseRate)}%\n` : '')
                   + `Book ${fmtOdds(r.over)} needs ${Math.round(r.need)}%${r.book ? ` · ${r.book}` : ''}\n`
                   + `His true price at that rate: ${fmtOdds(r.fair)}`}
               </title>
@@ -141,6 +149,20 @@ function Chart({ rows, marketLabel }) {
                   stroke={C.cyan} strokeWidth="1.5" opacity="0.45" strokeLinecap="round"
                 />
               )}
+              {/* HIS NORMAL RATE (2026-08-16). A bare vertical tick, no fill,
+                  no hue of its own — it is a second reference like the price
+                  ring, not a third series. Read dot-vs-tick and you have the
+                  blank's effect on this hitter; read dot-vs-ring and you have
+                  the market's. Per-row the first of those is far too noisy to
+                  put a number on, which is why this is a mark and not a
+                  column of deltas — the number only appears pooled, in the
+                  sentence above the chart. */}
+              {r.baseRate != null && (
+                <line
+                  x1={pctX(r.baseRate)} y1={y - 6} x2={pctX(r.baseRate)} y2={y + 6}
+                  stroke={C.text2} strokeWidth="1.6" strokeLinecap="round"
+                />
+              )}
               <circle cx={xRate} cy={y} r="5" fill={C.cyan} stroke={C.bg2} strokeWidth="2" />
               <circle cx={xNeed} cy={y} r="4.5" fill="none" stroke={C.text3} strokeWidth="1.8" />
               <text x={W - PAD_R + 12} y={y + 3.5} fontSize="10.5" fontWeight="800"
@@ -172,7 +194,7 @@ function Row({ r, marketLabel, onPlayerClick }) {
       onClick={() => onPlayerClick?.(r.p)}
       style={{
         display: 'grid', width: '100%', textAlign: 'left', cursor: 'pointer',
-        gridTemplateColumns: 'minmax(0,2.1fr) minmax(0,1.5fr) minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.8fr)',
+        gridTemplateColumns: 'minmax(0,1.9fr) minmax(0,1.3fr) minmax(0,1.6fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,1fr) minmax(0,.8fr)',
         gap: 8, alignItems: 'center', padding: '7px 10px',
         borderTop: `1px solid ${C.border}`, background: 'transparent',
       }}
@@ -200,6 +222,18 @@ function Row({ r, marketLabel, onPlayerClick }) {
           </>
           : <span title={`Fewer than ${MIN_N} games after a blank — too thin to quote a rate off`} style={{ color: C.text3 }}> · thin</span>}
       </span>
+      {/* HIS NORMAL RATE, beside the after-a-blank one. Same bar, same PA
+          gate, every batted game — so the two are directly comparable and the
+          reader can see for himself whether the blank moved anything. No
+          delta printed: per hitter that difference is inside its own noise,
+          and the pooled version is stated once, above the chart. */}
+      <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text3 }}>
+        {r.baseRate != null
+          ? <span title={`His rate over all ${r.baseN} batted games — ${r.baseCount} of ${r.baseN}. The after-a-blank column beside it is the same bar in the same games' worth of chances.`}>
+            {Math.round(r.baseRate)}%<span style={{ opacity: .6 }}> of {r.baseN}</span>
+          </span>
+          : <span title="The bot has not published the all-games baseline yet">—</span>}
+      </span>
       <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2 }}>
         {r.fair != null
           ? <span title={`What ${marketLabel} would have to pay to be worth taking at his own measured rate`}>{fmtOdds(r.fair)}</span>
@@ -225,6 +259,8 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
   const published = useMemo(() => blankDataPublished(players), [players])
   const rows = useMemo(() => blankRows(players, odds, market), [players, odds, market])
   const pool = useMemo(() => blankPool(rows), [rows])
+  const hasControl = useMemo(() => controlPublished(players), [players])
+  const lift = useMemo(() => (hasControl ? blankLift(rows) : null), [hasControl, rows])
 
   // THE BOT MAY NOT HAVE SHIPPED THIS YET. It deploys on its own schedule from
   // another repo, so an honest "not published" beats "0 hitters blanked", which
@@ -275,6 +311,63 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
             the table below is the whole board.</>}
       </p>
 
+      {/* ── THE SECOND COMPARISON (2026-08-16) ─────────────────────────────
+          Donovan: "do the board compare side to the book as well i like that."
+
+          Everything else here measures these hitters against the SPORTSBOOK,
+          which answers "is he mispriced". It leaves the board's own name
+          untested: a 68% after a blank looks like a bounce-back, but 68% may
+          simply be his rate. The control for that is not a book, it is him.
+
+          Stated POOLED and nowhere else. One hitter has ~30 games after a
+          blank against ~90 after a hit, and the interval on that difference is
+          wide enough to swallow the effect — a per-row column would be a noise
+          generator with a heading. Across the whole board the denominators run
+          to thousands, which is where a few points becomes visible.
+
+          The control is after_hit, not overall: `overall` CONTAINS the
+          after-blank games, so testing against it tests a group against a
+          superset of itself. */}
+      {lift && (
+        <p style={{
+          margin: '0 0 14px', fontSize: 12, lineHeight: 1.72, maxWidth: 760,
+          color: C.text2, paddingLeft: 11,
+          borderLeft: `2px solid ${lift.real ? (lift.diff >= 0 ? C.green : C.red) : C.border}`,
+        }}>
+          <b style={{ color: C.text }}>And against themselves:</b> the same hitters have{' '}
+          <b style={{ color: C.cyan }}>{m.label}</b> in{' '}
+          <b style={{ color: C.text }}>{Math.round(lift.afterBlank.pct)}%</b> of the{' '}
+          <b style={{ color: C.text2 }}>{lift.afterBlank.n.toLocaleString()}</b> games that followed a blank,
+          against <b style={{ color: C.text }}>{Math.round(lift.afterHit.pct)}%</b> of the{' '}
+          <b style={{ color: C.text2 }}>{lift.afterHit.n.toLocaleString()}</b> that followed a game they did hit in.
+          {' '}
+          {lift.real ? (
+            <>That is <b style={{ color: lift.diff >= 0 ? C.green : C.red }}>
+              {lift.diff >= 0 ? '+' : '−'}{Math.abs(lift.diff).toFixed(1)} points
+            </b> at <b style={{ color: C.text2, fontFamily: NUM_FONT }}>z&nbsp;=&nbsp;{Math.abs(lift.z).toFixed(2)}</b> —
+            a real difference, not noise.{' '}
+            {lift.diff >= 0
+              ? <><b style={{ color: C.text2 }}>The blank really does precede a better night</b> for these bats,
+                so the bounce-back the board is named for is doing some of the work here, not just the price.</>
+              : <><b style={{ color: C.text2 }}>These bats are WORSE after a blank, not due</b> — whatever the board
+                finds above is the price being wrong, and the blank is an argument against them, not for them.</>}</>
+          ) : (
+            <>A gap of <b style={{ color: C.text2 }}>{lift.diff >= 0 ? '+' : '−'}{Math.abs(lift.diff).toFixed(1)} points</b>{' '}
+            at <b style={{ color: C.text2, fontFamily: NUM_FONT }}>z&nbsp;=&nbsp;{Math.abs(lift.z).toFixed(2)}</b>, which is
+            inside the noise. <b style={{ color: C.text2 }}>On this evidence the blank predicts nothing</b> —
+            so the edges above are a story about the PRICE, not about a bounce-back.</>
+          )}
+        </p>
+      )}
+      {!hasControl && (
+        <p style={{ margin: '0 0 14px', fontSize: 10.5, lineHeight: 1.6, color: C.text3, maxWidth: 760 }}>
+          The against-themselves comparison needs <code style={{ fontFamily: NUM_FONT }}>overall_*</code> and{' '}
+          <code style={{ fontFamily: NUM_FONT }}>after_hit_*</code>, which arrive with the next run of the bot that
+          carries them. Until then this board can say whether these hitters are mispriced, but not whether the blank
+          itself predicts anything.
+        </p>
+      )}
+
       <Chart rows={plotted} marketLabel={m.label} />
       {/* NO SILENT CAPS. Both numbers that the chart leaves out are stated:
           the chartable rows below the top 14, and the rows that could never be
@@ -294,13 +387,14 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
       <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, overflow: 'hidden' }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0,2.1fr) minmax(0,1.5fr) minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.8fr)',
+          gridTemplateColumns: 'minmax(0,1.9fr) minmax(0,1.3fr) minmax(0,1.6fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,1fr) minmax(0,.8fr)',
           gap: 8, padding: '7px 10px', fontSize: 8, letterSpacing: '.09em', textTransform: 'uppercase',
           color: C.text3, fontFamily: NUM_FONT, fontWeight: 900, background: 'rgba(255,255,255,.02)',
         }}>
           <span>hitter</span>
           <span>last game</span>
           <span title={`How often he has ${m.label} in the game after a blank, then the range his true rate plausibly sits in given that many games`}>after a blank</span>
+          <span title={`How often he has ${m.label} in ALL his batted games — the control. If this is the same as the column beside it, the blank did nothing.`}>normally</span>
           <span title="What this bet must pay to be worth taking at his own measured rate">his true price</span>
           <span>book</span>
           <span style={{ textAlign: 'right' }} title="The low end of his rate range minus what the price needs — the edge that survives his sample size. The board is sorted by it.">edge <span style={{ opacity: .6 }}>(worst case)</span></span>
