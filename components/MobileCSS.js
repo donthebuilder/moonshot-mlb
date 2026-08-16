@@ -539,6 +539,45 @@ export default function MobileCSS() {
       .moon-select option { background: #131315; color: #fafafa; font-weight: 500; }
       input.moon-search::-webkit-search-cancel-button { display: none; }
       ::selection { background: rgba(249,115,22,.35); color: #fff; }
+
+      /* ── THE HIGHLIGHTS SHOWING UP EVERYWHERE (2026-08-16) ───────────────
+         Donovan, from an iPhone: "my highlights are showing up thru the
+         site." Two separate artifacts, both of which this file had left to
+         the operating system, and both of which land on nearly every element
+         because this site is built almost entirely out of <button>.
+
+         1. NO -webkit-tap-highlight-color WAS EVER SET, so iOS paints its own
+            translucent grey box over the whole tappable area on every single
+            tap. On a board where each ROW is a button, that is a grey slab
+            flashing across a row of names each time you touch one.
+         2. A slightly-long press, or a drag that starts on text, SELECTS it —
+            and the ::selection rule directly above paints that orange at 35%.
+            Correct for prose, wrong for a button's own label: the highlight
+            sticks around until you tap elsewhere, which is exactly "showing
+            up thru the site."
+
+         The fix removes the OS box and stops buttons being selectable, but
+         DELIBERATELY KEEPS both behaviours where they belong: real text —
+         prose, tables, the box scores, player names inside the modal — stays
+         selectable and still highlights orange, because copying a name is a
+         thing you actually do here.
+
+         Removing the tap highlight without replacing it would leave taps with
+         no feedback at all, so :active gets a real one. It is subtle on
+         purpose: this is confirmation, not decoration. */
+      button, [role="button"], a, summary, .pill, .chip-row > * {
+        -webkit-tap-highlight-color: transparent;
+      }
+      button, [role="button"], summary {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      button:active, [role="button"]:active { opacity: .72; }
+      /* Text you might genuinely want to copy keeps both behaviours. */
+      p, td, th, pre, code, .prose, .selectable {
+        -webkit-user-select: text;
+        user-select: text;
+      }
       :focus-visible { outline: 2px solid rgba(249,115,22,.6); outline-offset: 2px; border-radius: 4px; }
 
       /* Thin dark scrollbars — the stock chrome bars were the last stock

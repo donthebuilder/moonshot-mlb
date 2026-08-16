@@ -134,6 +134,25 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         // gs, one specific stat instead of the blended board score.
         worstHr9: gp.length ? Math.max(...gp.map((x) => nn(x?.pitcher_hr9))) : 0,
         worstWhip: gp.length ? Math.max(...gp.map((x) => nn(x?.pitcher_whip))) : 0,
+        // ── LOWEST K (2026-08-16, Donovan: "low k rate need to be added to
+        // sorts for game") ──────────────────────────────────────────────────
+        //
+        // Every other sort here asks which game is WORST for the arms, so this
+        // one does too, and for strikeouts "worst for the arm" means the
+        // LOWEST rate — a starter who does not miss bats has to let the ball
+        // be put in play, which is the whole premise of the contact markets.
+        // So it is a MIN across the game's arms, not a max, and the label says
+        // "Lowest K" rather than borrowing the "Worst" wording, which would
+        // read backwards next to Worst HR/9.
+        //
+        // Arms with no published K/9 are EXCLUDED rather than counted as 0 —
+        // nn() returns 0 for a missing field, and a zero would make an
+        // unpublished starter the most hittable arm on the board and float his
+        // game straight to the top. A game with nothing published sorts last.
+        lowK: (() => {
+          const ks = gp.map((x) => Number(x?.pitcher_k9)).filter((v) => Number.isFinite(v) && v > 0)
+          return ks.length ? Math.min(...ks) : Infinity
+        })(),
         hrw: med(gp.map((x) => nn(x?.hrw_score))),
         weak: gp.filter((x) => x?.weak_spot_flag).length,
         venue: head?.venue_name || '',
@@ -177,6 +196,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       whip: (a, b) => b.worstWhip - a.worstWhip,
       air: (a, b) => b.air - a.air,
       set: (a, b) => (b.setPct - a.setPct) || (b.gs - a.gs),
+      // ascending — the softest strikeout arm first. Infinity (nothing
+      // published) sorts to the bottom on its own.
+      lowk: (a, b) => a.lowK - b.lowK,
     }
     return SORTERS[sortBy] ? [...withRank].sort(SORTERS[sortBy]) : withRank
   }, [games, sortBy])
@@ -348,6 +370,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               : sortBy === 'air' ? 'Sorted by park factor plus tonight\u2019s weather — the friendliest building first'
               : sortBy === 'set' ? 'Sorted by how much of each lineup is confirmed — the settled games first'
               : sortBy === 'whip' ? "Sorted by the leakier starter's WHIP, worst first"
+              : sortBy === 'lowk' ? "Sorted by the softest starter's K/9, lowest first — the arms that have to let you put it in play. Games with no published K/9 sort last rather than reading as zero."
               : 'First-pitch order'}, heat-tinted and heat-sized.
           </span>
           <button onClick={() => setLegendOpen((v) => !v)} style={{
