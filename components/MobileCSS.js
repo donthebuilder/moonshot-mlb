@@ -2,7 +2,27 @@
 export default function MobileCSS() {
   return (
     <style jsx global>{`
-      html, body { max-width: 100%; overflow-x: hidden; }
+      /* ── THE STICKY HEADER BUG (2026-08-16) ─────────────────────────────
+         This line used to read "overflow-x: hidden" and it silently broke
+         EVERY sticky element on the site, including the main header.
+
+         overflow-x: hidden on <body> makes the body a scroll container. The
+         page still scrolls the viewport, so a position:sticky child resolves
+         against a box that never scrolls — it pins to nothing and rides the
+         document out of view. Measured: scroll the Games tab 1400px and the
+         header's getBoundingClientRect().top is -987, i.e. gone. The Games
+         lineup jump-strip (sticky, top:0) went with it, which is why that
+         strip has never actually stuck.
+
+         overflow-x: clip does the same visual job — it stops the horizontal
+         bleed a wide table causes — WITHOUT establishing a scroll container,
+         so sticky keeps working. Only <html> keeps a hidden fallback for the
+         handful of engines that do not know clip; html is the viewport's own
+         scroller, so it is harmless there.
+
+         Verified by screenshot after the change, not by reasoning about it. */
+      html { max-width: 100%; overflow-x: hidden; }
+      body { max-width: 100%; overflow-x: clip; }
       * { box-sizing: border-box; }
 
       /* ── BUTTONS INHERIT THEIR TEXT COLOUR ──────────────────────────────
@@ -601,6 +621,47 @@ export default function MobileCSS() {
       /* The live dot actually pulses. */
       .live-pulse { animation: livePulse 2s ease-in-out infinite; display: inline-block; }
       @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+      /* ══ THE QUIET LAYER (2026-08-16) ══════════════════════════════════════
+         Donovan, with Apple Sports and ESPN on screen: "just the style feed and
+         then the hover all simplicist look of it. i know we are more in the
+         realm of research and stats but some aspects need to be like this."
+
+         Scoped to the LIVE/SCORES layer — the score rail and the game cards.
+         The research tables are not touched, because a dense table is dense on
+         purpose. Two of the four principles behind that pass need CSS rather
+         than inline styles, so they live here:
+
+           TYPE DOES THE HIERARCHY, NOT BOXES. A tile at rest has a transparent
+           border, not a visible one. It still occupies the same pixels — the
+           layout does not shift when the border appears — but the grouping is
+           done by whitespace, which is what Apple's list does and what our
+           bordered cards did not.
+
+           NO CHROME UNTIL YOU POINT AT IT. The box shows up on hover and only
+           on hover, and only on devices that HAVE a hover (a phone would paint
+           it on every tap and never take it off, which is the sticky-highlight
+           bug from the block above wearing a different hat).
+
+         Any tile that sets its own inline background (the game cards, which
+         need a resting surface inside a grid) keeps it — an inline style beats
+         a class — and still gets the border half of the treatment. Tiles with
+         no inline background (the score rail) get both. */
+      .quiet-tile {
+        border: 1px solid transparent;
+        border-radius: 12px;
+        transition: background-color .13s ease-out, border-color .13s ease-out;
+      }
+      @media (hover: hover) {
+        .quiet-tile:hover {
+          background-color: rgba(255,255,255,0.05);
+          border-color: rgba(255,255,255,0.10);
+        }
+      }
+      /* A rail tile is a tap target on a phone even though it isn't a button. */
+      @media (pointer: coarse) {
+        .quiet-tile { min-height: 34px; }
+      }
 
       /* ══ THE RAIL ══ (2026-08-09, "make it easier to scroll right to left on
          the desktop for the columns things, and tell me what to call it")

@@ -20,6 +20,35 @@ import { pickCleared } from '../lib/liveSlate'
 // It reads the schedule (one request, shared cache with the Boxes tab) and the
 // slate rows already in memory. No new poll on the sitewide timer: it refreshes
 // itself every 45s and only while something is actually live.
+//
+// ── THE APPLE SPORTS PASS (2026-08-16) ──────────────────────────────────────
+//
+// Donovan sent screenshots of the Apple Sports app and ESPN's app: "how can we
+// make have something like these for the site" → "just the style feed and then
+// the hover all simplicist look of it. i know we are more in the realm of
+// research and stats but some aspects need to be like this."
+//
+// Scoped to the LIVE LAYER only — this rail and the game cards. The research
+// tables stay dense, because studying is what they are for; this is where you
+// GLANCE. Four principles, read off his screenshots, and what each one changed
+// here. NOTHING WAS REMOVED — every fact, tooltip and title that rendered
+// before still renders, some of it just smaller and greyer:
+//
+//   1. ONE THING PER ROW, LOTS OF AIR. Each game was a 118px box with a border
+//      around six numbers. It is now a borderless column with real padding
+//      between neighbours, so the eye lands on one game at a time.
+//   2. TYPE DOES THE HIERARCHY, NOT BOXES. The score went 12px → 17px and the
+//      state (inning, first pitch, F) dropped to small grey. Apple's score is
+//      huge and its context is a whisper; the border that used to group the
+//      two teams is now just whitespace, and the hover state (.quiet-tile in
+//      MobileCSS) is the only box that ever appears.
+//   3. COLOUR IS RARE. The live dot is the one piece of colour in the rail.
+//      The green live tint and green border are gone; the winner is now told
+//      by weight and by the loser going grey, the way Apple tells it, instead
+//      of by an orange numeral. The pick record keeps green ONLY when a pick
+//      has actually cleared — colour that means something.
+//   4. NO CHROME. The record pill lost its border (a number needs no ring),
+//      PPD/SUSP lost their colour coding (the word already says it).
 
 const ROLES = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
 const roleOf = (p) => String(p?.game_pick_role || '').split('/').filter(Boolean).map((r) => r.trim().toUpperCase())
@@ -84,15 +113,15 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
   const ordered = [...live, ...rest]
 
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
         <span style={{
           fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
           color: C.text2, fontFamily: NUM_FONT,
         }}>Tonight</span>
         <span style={{ fontSize: 9, color: C.text3 }}>
           {live.length ? `${live.length} live · ` : ''}{games.filter((g) => g.final).length} final
-          {' '}· the number under each score is the bot&apos;s picks in that game
+          {' '}· the x/y beside each game&apos;s state is the bot&apos;s picks in that game
         </span>
         {onNavigate && (
           <button onClick={() => onNavigate('boxes')} style={{
@@ -102,7 +131,10 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
         )}
       </div>
 
-      <div className="dense-scroll rail" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 3 }}>
+      {/* Principle 1 — the air lives in the tiles' own padding rather than in
+          the gap, so a hovered tile is one continuous surface instead of a box
+          floating inside a bigger box. */}
+      <div className="dense-scroll rail" style={{ display: 'flex', gap: 2, overflowX: 'auto', paddingBottom: 4 }}>
         {ordered.map((g) => {
           const rec = byGame.get(g.pk)
           const w = g.final && g.away.score != null && g.home.score != null
@@ -113,38 +145,49 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
               : g.live ? `${/top/i.test(g.inningState) ? '▲' : '▼'}${g.inning ?? ''}`
                 : g.final ? 'F'
                   : g.startTime ? new Date(g.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
-          const stateCol = g.live ? '#4ade80' : g.postponed ? '#a1a1aa' : g.suspended ? '#60A5FA' : C.text3
           return (
             <div key={g.pk}
+              className="quiet-tile"
               onClick={() => onNavigate?.('boxes')}
               title={rec?.names?.length ? rec.names.join('\n') : undefined}
               style={{
-                flex: '0 0 auto', minWidth: 118, cursor: onNavigate ? 'pointer' : 'default',
-                border: `1px solid ${g.live ? 'rgba(74,222,128,.3)' : C.border}`,
-                borderRadius: 10, padding: '6px 9px',
-                background: g.live ? 'rgba(74,222,128,.05)' : C.bg2,
+                flex: '0 0 auto', minWidth: 124, cursor: onNavigate ? 'pointer' : 'default',
+                padding: '5px 12px 6px',
               }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, color: stateCol }}>{stateTxt}</span>
+              {/* Principle 3 + 4 — the dot is the rail's only colour, and the
+                  state text beside it is deliberately the quietest thing on
+                  the tile. minHeight keeps the two team rows on the same
+                  baseline across live and non-live games. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: 13 }}>
+                {g.live && (
+                  <span className="live-pulse" style={{
+                    width: 5, height: 5, borderRadius: '50%', background: C.green, flexShrink: 0,
+                  }} />
+                )}
+                <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 700, color: C.text3 }}>{stateTxt}</span>
                 {rec?.n > 0 && (
                   <span style={{
-                    fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900,
-                    padding: '0 5px', borderRadius: 999,
-                    color: rec.ok ? '#4ade80' : C.text3,
-                    border: `1px solid ${rec.ok ? 'rgba(74,222,128,.35)' : C.border}`,
+                    marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 700,
+                    color: rec.ok ? C.green : C.text3,
                   }}>{rec.ok}/{rec.n}{rec.live ? '·' : ''}</span>
                 )}
               </div>
               {[['away', g.away], ['home', g.home]].map(([side, t]) => (
-                <div key={side} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, alignItems: 'baseline' }}>
+                <div key={side} style={{
+                  display: 'flex', justifyContent: 'space-between', gap: 10,
+                  alignItems: 'baseline', lineHeight: 1.22,
+                }}>
                   <span style={{
-                    fontFamily: NUM_FONT, fontSize: 11,
-                    fontWeight: w === side ? 900 : 600,
-                    color: w && w !== side ? C.text3 : C.text,
+                    fontFamily: NUM_FONT, fontSize: 11.5,
+                    fontWeight: w === side ? 800 : 600,
+                    color: w && w !== side ? C.text3 : C.text2,
                   }}>{t.abbr || t.name}</span>
+                  {/* Principle 2 — the score is the biggest thing here by a
+                      factor the old 12px never gave it. The winner is told by
+                      the loser dimming, not by an accent. */}
                   <span style={{
-                    fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900,
-                    color: t.score == null ? C.text3 : w === side ? C.orange : C.text,
+                    fontFamily: NUM_FONT, fontSize: 17, fontWeight: 700, letterSpacing: '-.02em',
+                    color: t.score == null || (w && w !== side) ? C.text3 : C.text,
                   }}>{t.score ?? '–'}</span>
                 </div>
               ))}

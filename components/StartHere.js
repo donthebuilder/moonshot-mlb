@@ -18,19 +18,27 @@ import { RAMP_CHIPS } from './Heatmap'
 
 const KEY = 'moonshot_start_here_v1'
 
+// 2026-08-16 — FOUR GRADIENT TILES BECAME FOUR SENTENCES.
+//
+// This used to be a flex row of four coloured, gradient-filled cards. It was
+// the last tile row left on the site after the quiet-style pass, and it broke
+// the house rule twice over: tiles lose to sentences, and a panel whose whole
+// job is to say "here is how to read this site" should not itself be the
+// loudest thing on the page. Same four steps, same four destinations, same
+// words — one flowing paragraph per step, the tab name is the link, and the
+// colour is spent on the step name only.
+//
+// Destinations updated for the nine-tab merge at the same time: Track record
+// is a Results view now, not its own tab, so the copy says so.
 const STEPS = [
-  { icon: '🎯', title: 'Tonight’s picks', color: '#f97316',
-    body: 'The Four, right below — the bot’s best bat per category, three deep. Start here if you only have a minute.',
-    tab: null },
-  { icon: '📊', title: 'Rank the slate', color: '#FCD34D',
-    body: 'HR Board ranks every hitter. Brighter cell = stronger for the hitter, every column scaled to tonight. Click any name for his full breakdown.',
-    tab: 'board' },
-  { icon: '⚾', title: 'Check the matchup', color: '#22d3ee',
-    body: 'Games shows each game’s five designated picks. Pitchers ranks every starter by how attackable he is.',
-    tab: 'games' },
-  { icon: '✅', title: 'See what worked', color: '#4ade80',
-    body: 'Results grades every pick against its own job nightly, and Track record shows who actually delivers when picked.',
-    tab: 'results' },
+  { n: 1, title: 'Tonight’s picks', color: '#f97316', link: null,
+    body: 'is The Four, immediately below — the bot’s best bat per category, three deep. If you only have a minute, that is the whole site.' },
+  { n: 2, title: 'Rank the slate', color: '#FCD34D', link: 'board', linkWord: 'Boards',
+    body: 'ranks every hitter tonight, one board per bet type, with Power and Patterns alongside them. A brighter cell is stronger for the hitter, scaled to tonight and nothing else. Click any name for his full breakdown.' },
+  { n: 3, title: 'Check the matchup', color: '#22d3ee', link: 'games', linkWord: 'Games',
+    body: 'opens each game in place — its read, its lineups, the head-to-head and its picks — and Pitchers ranks every starter by how attackable he is.' },
+  { n: 4, title: 'See what worked', color: '#4ade80', link: 'results', linkWord: 'Results',
+    body: 'grades every pick against its own job, night by night, and its Track record view shows who actually delivers when the bot names him.' },
 ]
 
 const LEGEND = [
@@ -77,7 +85,7 @@ export default function StartHere({ onNavigate }) {
 
   return (
     <div style={{
-      background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
+      background: C.bg2,
       border: `1px solid ${C.border}`, borderRadius: 14,
       padding: '13px 15px', marginBottom: 16,
     }}>
@@ -94,32 +102,33 @@ export default function StartHere({ onNavigate }) {
         >Got it — hide this</button>
       </div>
 
-      {/* Flex-grow so the four cards always fill the row, same trick as the
-          Games pick cards. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {STEPS.map((s, i) => (
-          <div
-            key={s.title}
-            onClick={() => s.tab && onNavigate?.(s.tab)}
-            style={{
-              flex: '1 1 210px', minWidth: 0,
-              background: `linear-gradient(155deg, ${s.color}14, ${s.color}05)`,
-              border: `1px solid ${s.color}3d`, borderRadius: 11,
-              padding: '9px 12px',
-              cursor: s.tab ? 'pointer' : 'default',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-              <span style={{
-                width: 17, height: 17, borderRadius: '50%', background: s.color,
-                color: '#1a0d02', fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>{i + 1}</span>
-              <span style={{ fontSize: 12 }}>{s.icon}</span>
-              <span style={{ fontSize: 11.5, fontWeight: 800, color: s.color }}>{s.title}</span>
-              {s.tab && <span style={{ marginLeft: 'auto', fontSize: 10, color: C.text3 }}>→</span>}
+      {/* One line per step. The step number is a small dot of its colour, the
+          destination is a real link inside the sentence, and nothing is
+          boxed — read it top to bottom and it is the site's workflow. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {STEPS.map((s) => (
+          <div key={s.title} style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%', background: `${s.color}22`,
+              border: `1px solid ${s.color}66`, color: s.color,
+              fontSize: 9.5, fontWeight: 900, fontFamily: NUM_FONT,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, transform: 'translateY(2px)',
+            }}>{s.n}</span>
+            <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.65, minWidth: 0 }}>
+              <b style={{ color: s.color, fontWeight: 800 }}>{s.title}</b>{' — '}
+              {s.link ? (
+                <button
+                  onClick={() => onNavigate?.(s.link)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, font: 'inherit',
+                    color: C.text, fontWeight: 800, cursor: 'pointer',
+                    borderBottom: `1px solid ${C.border}`,
+                  }}
+                >{s.linkWord}</button>
+              ) : null}
+              {s.link ? ' ' : ''}{s.body}
             </div>
-            <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.5 }}>{s.body}</div>
           </div>
         ))}
       </div>

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { C, NUM_FONT, TABS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
@@ -182,8 +182,31 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
   // TAP TARGET (2026-08-12): the NFL "coming soon" pill carried its note in a
   // bare title= — invisible on a phone, the same gap fixed elsewhere via the
   // InfoDot pattern (see Explain.js's header comment).
+
+  // ── THE HEADER PUBLISHES ITS OWN HEIGHT (2026-08-16) ───────────────────
+  // Anything else on the site that wants to stick — the Games lineup jump
+  // strip is the first — has to sit BELOW this bar or it pins underneath it
+  // and is never seen. Its height is not a constant: 85px at desktop width,
+  // 133px at 390px where the tab row wraps to its own line, and it changes
+  // again whenever a slate tile is added. So the header measures itself and
+  // writes --hdr-h on <html>; everyone else styles `top: var(--hdr-h, 86px)`
+  // and is correct at every width without a matching media query.
+  const hdrRef = useRef(null)
+  useEffect(() => {
+    const el = hdrRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const write = () => {
+      const h = Math.round(el.getBoundingClientRect().height)
+      if (h > 0) document.documentElement.style.setProperty('--hdr-h', `${h}px`)
+    }
+    write()
+    const ro = new ResizeObserver(write)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
-    <header style={{
+    <header ref={hdrRef} style={{
       position:'sticky', top:0, zIndex:50,
       background:'rgba(9,9,11,0.92)',
       backdropFilter:'blur(14px)',

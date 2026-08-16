@@ -13,6 +13,46 @@ import MobileFold from './MobileFold'
 //
 // First-pitch order, always. You read a slate chronologically -- re-ranking by
 // strength makes you hunt for the 7:05 game you're about to bet.
+//
+// ── THE APPLE SPORTS PASS (2026-08-16) ──────────────────────────────────────
+//
+// Donovan sent Apple Sports and ESPN screenshots: "how can we make have
+// something like these for the site" → "just the style feed and then the hover
+// all simplicist look of it. i know we are more in the realm of research and
+// stats but some aspects need to be like this."
+//
+// Scoped to the live/scores layer — this strip and ScoreRail. The boards keep
+// their density; you STUDY a board and you GLANCE at a game card.
+//
+// The problem this pass fixes is not the content, it is that six things were
+// shouting at once on a 232px card: a heat tint, a heat-coloured border, a
+// heat-scaled GS numeral, a 34px ghost rank watermark, a glow on the main
+// event and a row of three filled colour chips. Nothing led, so the matchup —
+// the one thing you are actually looking for — was the fourth-loudest element
+// on a card about a matchup.
+//
+// NOTHING WAS DELETED. Every number, glyph, chip, tooltip and title that
+// rendered before still renders; the hierarchy changed, not the content:
+//
+//   1. ONE THING LEADS. The matchup goes 14.5px → 16px in full-strength text
+//      and owns its own line; everything else recedes to small grey.
+//   2. TYPE DOES THE HIERARCHY, NOT BOXES. The heat gradient, the heat-tinted
+//      border and the ${band.col}22 divider rule are gone in favour of one
+//      flat surface and spacing. The card's box only appears on hover
+//      (.quiet-tile in MobileCSS) or when it is the open card.
+//   3. COLOUR IS RARE. Heat used to be said four ways at once. It is now ONE
+//      quiet signal: the band glyph (🌋 / 🔥 / 🧊) plus the GS rank, which
+//      moved out of the 34px watermark and into "#3" in small grey on the meta
+//      line — same fact, one twentieth of the volume. The accent is spent on
+//      exactly two things: the MAIN EVENT wordmark (one card a slate) and the
+//      open card's border. GS keeps its ▲/▽ but stops being coloured and
+//      stops changing size.
+//   4. NO CHROME. The chips lose their coloured fill, ring and glow at rest —
+//      only the category tag stays coloured, and the full colour treatment is
+//      the ACTIVE state, i.e. a chip you have added as a pair leg.
+//
+// Also swapped three hardcoded accent hexes and the three chip hexes for their
+// C-palette names, so the mono/steel/regal chromes actually reach this strip.
 
 // "J. Mlodzinski", suffix-aware — surnames alone truncated to "Thornt…" on
 // narrow cards and bare "Lowe" carried no identity (2026-08-07).
@@ -57,7 +97,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
   // Each Games-page mode wears its own accent (2026-08-08): ember for the
   // default read, cyan for Bot Output, green for Lineups — the strip tells
   // you which lens you're in before you read a single card.
-  const accent = botView ? '#22d3ee' : mode === 'lineups' ? '#4ade80' : '#f97316'
+  const accent = botView ? C.cyan : mode === 'lineups' ? C.green : C.orange
   // 2026-08-13, Donovan (screenshot feedback): "packed with too much text" +
   // "the legend paragraph at the bottom" -- this used to always render as a
   // 7-sentence paragraph under every grid. Nothing in it was wrong, there
@@ -185,7 +225,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       gsRank: rankOf.get(c.pk) || 0,
     }))
     // DISPLAY ORDER ONLY (2026-08-12). gsRank/heat/band above still always
-    // mean "vs tonight's GS" — the ghost numeral and the 🌋 MAIN EVENT badge
+    // mean "vs tonight's GS" — the #rank numeral and the 🌋 MAIN EVENT badge
     // don't change meaning when a different sort is active, they just may
     // not read 1,2,3 top-to-bottom anymore. `games` already arrives in
     // chronological order (groupGames sorts it), so 'time' is a no-op here;
@@ -231,9 +271,14 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           (size, tint, ghost numeral) and the cost was a grid you couldn't
           scan. Colour still carries the heat; the geometry stops shouting.
           An even grid also means a card's position now means what the SORT
-          says it means, which is the whole point of the sort control. */}
+          says it means, which is the whole point of the sort control.
+
+          2026-08-16 FINISHES THAT THOUGHT. Colour no longer carries the heat
+          either — the Apple Sports pass in the header comment cut the three
+          remaining shouts (tint, glow, heat-scaled numeral) down to the band
+          glyph and the rank. Same even grid, one flat surface, nothing lost. */}
       <div style={{
-        display: 'grid', gap: 7,
+        display: 'grid', gap: 8,
         gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 232px), 1fr))',
       }}>
         {cards.map((c) => {
@@ -242,82 +287,86 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           // the hottest game on the slate is the MAIN EVENT and burns; cold
           // games freeze quietly. Bands come from heat (GS within tonight's
           // range), so every slate has exactly one main event.
-          const band = c.gsRank === 1 ? { icon: '🌋', word: 'MAIN EVENT', col: accent }
-            : c.heat >= 0.62 ? { icon: '🔥', word: '', col: accent }
-            : c.heat >= 0.3 ? { icon: '', word: '', col: accent }
-            : { icon: '🧊', word: '', col: '#38bdf8' }
+          //
+          // 2026-08-16: the band no longer carries a COLOUR, because the tint,
+          // the border and the glow it used to paint were three of the four
+          // ways this card said "hot". The glyph is now the whole signal
+          // (principle 3) — same three bands, same thresholds, same meaning.
+          const band = c.gsRank === 1 ? { icon: '🌋', word: 'MAIN EVENT' }
+            : c.heat >= 0.62 ? { icon: '🔥', word: '' }
+            : c.heat >= 0.3 ? { icon: '', word: '' }
+            : { icon: '🧊', word: '' }
           return (
             <button
               key={c.pk}
+              className="quiet-tile"
               onClick={() => onSelect(c.pk)}
               style={{
-                textAlign: 'left', cursor: 'pointer', padding: '6px 9px 5px',
-                borderRadius: 11, minWidth: 0, position: 'relative', overflow: 'hidden',
-                // every card the same box — see the grid note above
-                border: `1px solid ${on ? accent : `${band.col}${c.heat >= 0.62 ? '66' : '30'}`}`,
-                background: on
-                  ? 'rgba(249,115,22,0.09)'
-                  : `linear-gradient(160deg, ${band.col}${c.gsRank === 1 ? '1f' : c.heat >= 0.62 ? '12' : '08'} 0%, rgba(17,17,19,1) 62%)`,
-                boxShadow: on ? `0 0 22px -9px ${C.orange}` : c.gsRank === 1 ? `0 0 14px ${band.col}2e` : 'none',
+                textAlign: 'left', cursor: 'pointer', padding: '7px 11px 8px',
+                minWidth: 0, position: 'relative', overflow: 'hidden',
+                // ONE FLAT SURFACE (principle 2). Every card is the same
+                // colour now — the heat lives in the glyph and the rank, not
+                // in the paint. The resting border is transparent and comes
+                // from .quiet-tile, so hover is the only thing that draws a
+                // box; the open card overrides just the border COLOUR, which
+                // an inline longhand does without disturbing the class's
+                // 1px/solid (so nothing reflows when it opens).
+                background: on ? `${accent}14` : C.bg2,
+                borderColor: on ? accent : undefined,
                 opacity: c.past && !on ? 0.45 : 1,
-                transition: 'border-color .12s, background .12s',
               }}
             >
-              {/* GS-rank watermark — the ghost numeral that says where this
-                  game sits on the slate without a legend */}
               <div style={{
-                position: 'absolute', top: -6, right: 2, fontFamily: NUM_FONT,
-                fontSize: 34, fontWeight: 900, color: band.col, opacity: 0.07,
-                lineHeight: 1, pointerEvents: 'none',
-              }}>{c.gsRank}</div>
-
-              <div style={{
-                fontSize: 10, textTransform: 'uppercase', letterSpacing: '.07em',
-                color: on ? C.orange : C.text3, fontWeight: 700,
-                display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap',
+                fontSize: 9.5, letterSpacing: '.05em',
+                color: C.text3, fontWeight: 600, fontFamily: NUM_FONT,
+                display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap',
               }}>
                 <span title={c.confMarks ? c.confMarks.tip : (c.confirmed ? 'lineups confirmed' : 'projected lineups')}>
                   {c.confMarks ? c.confMarks.marks : (c.confirmed ? '✓' : '◻')}
                 </span>
-                <span style={{ fontFamily: NUM_FONT }}>{c.time}</span>
+                <span>{c.time}</span>
+                {band.icon && <span style={{ fontSize: 9.5 }}>{band.icon}</span>}
                 {band.word && (
-                  <span style={{ fontSize: 8.5, fontWeight: 900, color: band.col, letterSpacing: '.1em', fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>
-                    {band.icon} {band.word}
+                  <span style={{ fontSize: 8.5, fontWeight: 900, color: accent, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
+                    {band.word}
                   </span>
                 )}
-                {!band.word && band.icon && <span style={{ fontSize: 9 }}>{band.icon}</span>}
-                {c.weak > 0 && <span style={{ marginLeft: 'auto', color: C.yellow }}>★{c.weak}</span>}
+                {c.weak > 0 && <span title="weak lineup spots in this game">★{c.weak}</span>}
+                {/* THE GHOST NUMERAL, DEMOTED (principle 3). This is the same
+                    GS rank the 34px watermark used to whisper at 7% opacity;
+                    it is now legible, labelled by its tooltip, and no longer
+                    the biggest ink on the card. */}
+                <span title="this game's Game Score rank on tonight's slate" style={{ marginLeft: 'auto' }}>#{c.gsRank}</span>
               </div>
 
+              {/* THE ONE THING THAT LEADS (principle 1). */}
               <div style={{
-                display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2, minWidth: 0,
+                display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 3, minWidth: 0,
               }}>
                 <span style={{
-                  fontFamily: NUM_FONT, fontSize: 14.5, fontWeight: 800,
-                  letterSpacing: '-.02em', color: on ? C.text : C.text2,
+                  fontFamily: NUM_FONT, fontSize: 16, fontWeight: 800,
+                  letterSpacing: '-.02em', color: C.text,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+                  flex: '1 1 auto',
                   textDecoration: c.past ? 'line-through' : 'none',
                 }}>{c.matchup}</span>
                 <span title="Game Score vs tonight's median" style={{
-                  fontFamily: NUM_FONT, fontSize: c.heat >= 0.62 ? 14 : 11.5, fontWeight: 900,
-                  color: band.col, flexShrink: 0,
+                  fontFamily: NUM_FONT, fontSize: 11, fontWeight: 700,
+                  color: C.text3, flexShrink: 0,
                 }}>
-                  {c.gs.toFixed(0)}<span style={{ fontSize: 9, opacity: 0.8 }}>{c.edge}</span>
+                  {c.gs.toFixed(0)}<span style={{ fontSize: 9 }}>{c.edge}</span>
                 </span>
               </div>
 
               {c.arms && (
                 <div title={c.armsFull} style={{
-                  fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
+                  fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 3,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>⚾ {c.arms}</div>
               )}
-              {(c.topBat || c.topPick || c.hrPick || c.altPick) && (
-                <div style={{ borderTop: `1px solid ${band.col}22`, marginTop: 3 }} />
-              )}
               {c.topBat && (
                 <div style={{
-                  fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
+                  fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>🔝 {c.topBat}{c.heat >= 0.55 && c.topHrw ? ` · HRW ${c.topHrw}` : ''}</div>
               )}
@@ -330,29 +379,41 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                   2 + 1 on a narrow one rather than squeezing every name into
                   an ellipsis. The name is the only thing allowed to truncate,
                   and the tag and score never move. */}
+              {/* QUIET AT REST, COLOURED WHEN ACTIVE (2026-08-16, principles
+                  3 and 4). Same three chips, same order, same grammar, same
+                  tap behaviour — but a chip used to spend a ring, a fill, a
+                  coloured tag AND a coloured score on saying "I am a TOP
+                  pick", three times per card, which is most of the noise the
+                  Apple screenshots don't have. Now the only colour at rest is
+                  the three-letter tag (the thing that is genuinely a
+                  category), the surface is a flat bg3 with no border, and the
+                  full colour treatment — fill, ring, glow — is reserved for a
+                  chip you have actually made a pair leg. The category hexes
+                  became C.yellow / C.orange / C.purple so the other chromes
+                  reach them. */}
               {(c.topPick || c.hrPick || c.altPick) && (
-                <div style={{ display: 'flex', gap: 3, marginTop: 3, minWidth: 0, flexWrap: 'wrap' }}>
-                  {[['TOP', c.topPick, '#FCD34D', "The bot's TOP pick in this game"],
-                    ['HR', c.hrPick, '#FB923C', "The bot's HR pick in this game"],
-                    ['ALT', c.altPick, '#A78BFA', c.altWhy || "The bot's secondary HR look in this game"],
+                <div style={{ display: 'flex', gap: 4, marginTop: 5, minWidth: 0, flexWrap: 'wrap' }}>
+                  {[['TOP', c.topPick, C.yellow, "The bot's TOP pick in this game"],
+                    ['HR', c.hrPick, C.orange, "The bot's HR pick in this game"],
+                    ['ALT', c.altPick, C.purple, c.altWhy || "The bot's secondary HR look in this game"],
                   ].map(([tag, pk2, col, tip]) => pk2 && (
                     <span key={tag}
                       title={pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}`}
                       onClick={pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined}
                       style={{
-                      display: 'inline-flex', gap: 3, alignItems: 'baseline',
+                      display: 'inline-flex', gap: 4, alignItems: 'baseline',
                       minWidth: 84, flex: '1 1 31%',
-                      fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text2,
+                      fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text3,
                       cursor: pairing ? 'pointer' : 'inherit',
-                      border: `1px solid ${isLeg(pk2.p) ? col : `${col}40`}`,
-                      background: isLeg(pk2.p) ? `${col}30` : `${col}0d`,
+                      border: `1px solid ${isLeg(pk2.p) ? col : 'transparent'}`,
+                      background: isLeg(pk2.p) ? `${col}30` : C.bg3,
                       boxShadow: isLeg(pk2.p) ? `0 0 10px ${col}55` : 'none',
-                      borderRadius: 6, padding: '1px 5px',
+                      borderRadius: 6, padding: '2px 6px',
                     }}>
                       {isLeg(pk2.p) && <span style={{ fontSize: 8 }}>🔗</span>}
                       <b style={{ color: col, fontSize: 8, letterSpacing: '.06em', flexShrink: 0 }}>{tag}</b>
                       <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0, flex: '1 1 auto' }}>{pk2.name}</span>
-                      <b style={{ color: col, flexShrink: 0 }}>{pk2.score}</b>
+                      <b style={{ color: isLeg(pk2.p) ? col : C.text2, flexShrink: 0 }}>{pk2.score}</b>
                     </span>
                   ))}
                 </div>
@@ -371,7 +432,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               : sortBy === 'set' ? 'Sorted by how much of each lineup is confirmed — the settled games first'
               : sortBy === 'whip' ? "Sorted by the leakier starter's WHIP, worst first"
               : sortBy === 'lowk' ? "Sorted by the softest starter's K/9, lowest first — the arms that have to let you put it in play. Games with no published K/9 sort last rather than reading as zero."
-              : 'First-pitch order'}, heat-tinted and heat-sized.
+              : 'First-pitch order'}. Heat reads as 🌋/🔥/🧊 and the #rank.
           </span>
           <button onClick={() => setLegendOpen((v) => !v)} style={{
             fontSize: 9, fontWeight: 700, color: C.text3, cursor: 'pointer',
@@ -381,16 +442,19 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         </div>
         {legendOpen && (
           <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5, lineHeight: 1.55 }}>
-            🌋 marks tonight's MAIN EVENT (highest GS), 🔥 runs hot, 🧊 runs cold; the ghost numeral is always the game's GS rank, even when sorted by something else. The warmer a card glows and the wider it
-            stretches, the higher its{' '}
+            🌋 marks tonight&apos;s MAIN EVENT (highest GS), 🔥 runs hot, 🧊 runs cold; #3 at the right of
+            the top line is always the game&apos;s GS rank, even when sorted by something else. Those two
+            marks are the whole heat signal now — the cards no longer tint, glow or change size, so a
+            card&apos;s position means what the sort says it means and the matchup is the loudest thing
+            on it. The number beside the matchup is its{' '}
             <strong style={{ color: C.text2 }}>GS</strong> (Game Score: the median of every hitter&apos;s
             four board scores, then the median across the lineup — &ldquo;is this whole lineup
             dangerous&rdquo;, not &ldquo;is there one guy&rdquo;). ▲/▽ = above/below tonight&apos;s median.
             ⚾ the pitching matchup · 🔝 the game&apos;s top bat and his HR score · ★ weak lineup spots
             · ✓✓/✓◻ per-team lineup posted or projected. Every card carries the same three chips —
-            <strong style={{ color: '#FCD34D' }}> TOP</strong>,
-            <strong style={{ color: '#FB923C' }}> HR</strong> and
-            <strong style={{ color: '#A78BFA' }}> ALT</strong> (the bot&apos;s secondary HR lane, hover for
+            <strong style={{ color: C.yellow }}> TOP</strong>,
+            <strong style={{ color: C.orange }}> HR</strong> and
+            <strong style={{ color: C.purple }}> ALT</strong> (the bot&apos;s secondary HR lane, hover for
             the reason) — name and score, so the either/or is one glance. A chip only appears when the
             bot actually published that lane, and never names the same hitter twice on one card.
             {onPairPick ? ' Tap any chip to add him as a pair leg; 🔗 marks the legs you already have.' : ''}

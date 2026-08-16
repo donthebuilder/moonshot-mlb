@@ -441,7 +441,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         sub={`${games.length} games · ${slots.length} time slots · ${
           mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
           : mode === 'botview' ? "the picks with the bot's five category bars per card"
-          : 'the slate as heat-sized game cards — tap one and switch between its read, its lineups, the head-to-head and the picks in place'
+          : 'the slate as game cards in first-pitch order — sort them any way below, tap one and switch between its read, its lineups, the head-to-head and the picks in place'
         }`}
         right={modeRow}
       />
@@ -456,7 +456,16 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
           : mode === 'botview'
           ? 'which hitter the bot designated in each game, and in which market — the five category bars show whether it likes him for power or for contact.'
-          : 'which game to spend your attention on. Bigger, brighter cards are the matchups where the board stacks highest; tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
+          : mode === 'live'
+          ? 'what is happening right now — the hitter at the plate, his zone map and spray, and who is coming up behind him. This is the At the Plate room, in place, so you do not leave the slate to watch it.'
+          // 2026-08-16: this used to say "bigger, brighter cards are the
+          // matchups where the board stacks highest". The quiet-style pass
+          // retired heat-sizing and heat-tinting — the cards are one size on
+          // a flat surface now, and the heat is carried by the band glyph and
+          // the #rank. A page describing an affordance it no longer has is
+          // worse than one describing none, so this says what is actually
+          // true of the grid you are looking at.
+          : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
       </div>
 
       {/* Sort control (2026-08-12) — Default/Bot Output only. Time is the
@@ -481,9 +490,15 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       {/* Lineups keeps the strip as its sticky jump bar; Default and Bot
           Output render the card grid as the page itself, below. */}
       {mode === 'lineups' && (
+        // top: var(--hdr-h) — NOT 0 (2026-08-16). The site header is itself
+        // sticky at top:0 and 85–133px tall depending on width, so a strip
+        // pinned at 0 pins UNDERNEATH it and is never visible; this jump bar
+        // has never actually worked. Header.js measures itself into --hdr-h.
+        // (The same pass fixed body{overflow-x:hidden}, which was breaking
+        // sticky site-wide — see MobileCSS.js. Both verified by screenshot.)
         <div style={{
-          position: 'sticky', top: 0, zIndex: 20, background: '#09090b',
-          paddingTop: 4, paddingBottom: 8, marginBottom: 14,
+          position: 'sticky', top: 'var(--hdr-h, 86px)', zIndex: 20, background: C.bg,
+          paddingTop: 6, paddingBottom: 8, marginBottom: 14,
           borderBottom: `1px solid ${C.border}`,
         }}>
           <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} />
