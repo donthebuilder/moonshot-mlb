@@ -14,6 +14,7 @@ import ScoreAudit from '../ScoreAudit'
 import ReportCard from '../ReportCard'
 import PlayerPickRecord from '../PlayerPickRecord'
 import PLSimulator from '../PLSimulator'
+import ScoreBands from '../ScoreBands'
 
 // SIMPLIFICATION PASS, 2026-08-09 (owner: "everything from Bettable results
 // down is too much, even for me" / "I don't know what I'm looking at").
@@ -977,6 +978,23 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   // guard — the season's leaders have nothing to do with whether tonight has
   // graded. (Same hazard class as the old True Price branch: a conditional
   // return above a hook is a blank page.)
+  // SAME HAZARD CLASS AS 'leaders' — placed at the real return, after every
+  // hook, and BEFORE the nothing-graded guard. The band table is measured off
+  // the season archive and has nothing to do with whether tonight has graded;
+  // a conditional return above a hook is a blank page.
+  if (mode === 'bands') {
+    return (
+      <div>
+        <PanelTitle
+          title="Results"
+          sub="what each 0-100 score is actually worth, measured against every outcome"
+        />
+        <ModeBar mode={mode} setMode={setMode} />
+        <ScoreBands />
+      </div>
+    )
+  }
+
   if (mode === 'leaders') {
     return (
       <div>
@@ -1451,6 +1469,11 @@ const MODES = [
   // see the comment at the mode branch above. Leaders took the slot: the
   // season's real numbers are the context every graded night is read against.
   ['leaders', '🏆 Leaders',    'the season’s actual numbers'],
+  // 2026-08-16, Donovan: "what band of hr score goes yard every... 70 an up,
+  // 70-50, 50-30, 40 or lower, unscored... for each category too". This tab
+  // asks "has any of this been right", and "what is a 74 actually worth" is
+  // the most load-bearing version of that question on the whole site.
+  ['bands',   '📊 Score bands', 'what a 0-100 is actually worth'],
 ]
 function ModeBar({ mode, setMode }) {
   return (
