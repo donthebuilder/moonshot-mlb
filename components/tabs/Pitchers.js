@@ -344,7 +344,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
             ? `${r.ab} relievers this season (StatsAPI, relievers only): ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}.`
             : `No StatsAPI reliever split loaded for ${r.ab}; the pen numbers on this row are the slate's own.`
           const slateLine = r.line
-            ? ` Published pen line: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN }).map((x) => x.text).join(', ')}.`
+            ? ` Published pen line: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN, liveHr9: r.st?.hr9 }).map((x) => x.text).join(', ')}.`
             : ''
           return (
             <div key={r.ab}
@@ -387,7 +387,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   both. Different source from the bar to its left, which is why
                   they sit apart and the caption names each. */}
               <span title={r.line
-                ? `Slate-published bullpen line for ${r.ab}: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN }).map((x) => x.text).join(', ')}.`
+                ? `Slate-published bullpen line for ${r.ab}: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN, liveHr9: r.st?.hr9 }).map((x) => x.text).join(', ')}.`
                 : `No bullpen line published on tonight's slate for ${r.ab}`}
                 style={{
                   fontFamily: NUM_FONT, fontSize: 8.5, width: 128, flexShrink: 0, cursor: 'help',
@@ -444,7 +444,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                 key={r.ab}
                 lead={`${r.ab}${oppOfTeam[r.ab] ? ` vs ${oppOfTeam[r.ab]}` : ''}${arm ? `, behind ${arm.pitcher_name}` : ''}: `}
                 parts={[
-                  ...penLineParts(r.line, { attackRange, fitAvg: r.line?.fitAvg, fitN: r.line?.fitN }),
+                  ...penLineParts(r.line, { attackRange, fitAvg: r.line?.fitAvg, fitN: r.line?.fitN, liveHr9: r.st?.hr9 }),
                   ...penWorkParts(r.fat),
                 ]}
               />
@@ -463,11 +463,13 @@ function BullpenBoard({ pitchers, onTeamClick }) {
         rested, so it is never sorted as if it were. Team records aren&apos;t shown because the slate
         payload doesn&apos;t publish them; everything here is measured. Context lane: this ranks nothing
         else on the site.
-        {' '}<b style={{ color: C.text2 }}>Two sources, on purpose:</b> the bar and the HR/9 beside it
-        are the live StatsAPI reliever-only split, while the grade, ERA and WHIP to their right are the
-        slate&apos;s own published pen line (bullpen_quality, bullpen_era, bullpen_whip). They measure the
-        same relievers and should agree — where they don&apos;t, that difference is a fact about the two
-        feeds, so they are shown side by side rather than averaged into one number you can&apos;t trace.
+        {' '}<b style={{ color: C.text2 }}>One HR/9 (2026-08-16):</b> the bar and the rate beside it are
+        the live StatsAPI reliever-only split, and that is now the ONLY home-run rate on this board — the
+        slate&apos;s own bullpen_hr9 used to print a second time in the sentences below, two numbers for one
+        claim. The live pull wins because it is what the bar is ranked and coloured by, and it is
+        reliever-only by sitCode, which is the population the claim is about. The grade, ERA and WHIP
+        still come from the slate&apos;s published pen line (bullpen_quality, bullpen_era, bullpen_whip),
+        and bullpen_hr9 keeps its labelled column in the full starter table if you want to compare feeds.
         The <b style={{ color: C.text2 }}>attack score</b> in the sentences below is a 0-100 rating of
         how attackable the pen is, quoted against tonight&apos;s real spread; it is a score, not a chance
         of anything.

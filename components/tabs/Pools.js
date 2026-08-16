@@ -214,7 +214,7 @@ export default function Pools({ players = [], results, pairBuilder, pairHistoryS
     <div>
       <PanelTitle
         title="Pools"
-        sub="The bot's group tickets, graded live · build your own from the pick groups below"
+        sub="The bot's group tickets, graded live · build your own below, with a spot reserved for a signal"
       />
 
       {hasGraded
@@ -236,7 +236,18 @@ export default function Pools({ players = [], results, pairBuilder, pairHistoryS
           from the MARKETS — cross the bot's HIT designation with its HRR
           designation, narrowed to the hitters carrying a verified signal — and
           it defaults to three legs here because a pool is what this tab is.
-          Nothing that was on this page has been removed. */}
+          Nothing that was on this page has been removed.
+
+          ROUND TWO, SAME DAY. Donovan: "i feel like a few of the players or
+          spots should be dedicated to those specifically... all three to be
+          honest i want them incorporated because they holding true." So the
+          shared builder now reserves one spot on every pool for a hitter
+          carrying a signal, publishes a second pool built entirely out of
+          them, and ranks legs by how many they carry before it looks at any
+          score. All three live in the shared component and in
+          lib/pairEvidence.js, so this tab and Pairs cannot drift apart on what
+          a signal is or on what it has measured — which for back-to-back is
+          nothing, and the legs say so. */}
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
         <GroupTicketBuilder
           players={players}

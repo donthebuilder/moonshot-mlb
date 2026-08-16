@@ -1383,7 +1383,8 @@ import Rail from '../Rail'
 import {
   buildPairs, PAIR_BASELINE,
   GROUP_ORDER, GROUP_META, GROUP_RATE, GROUP_BACKTEST, TOP_ON_HIT_BAR,
-  LEG_SIGNALS, buildGroupTickets, rateText, slateDateOf, useSlateOdds, spokenSignals,
+  LEG_SIGNALS, ALL_SIGNAL_IDS, buildGroupTickets, buildSignalTickets,
+  rateText, signalRecordText, slateDateOf, useSlateOdds, spokenSignals,
 } from '../../lib/pairEvidence'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { quoteFor, fmtOdds, impliedPct } from '../../lib/odds'
@@ -1462,8 +1463,13 @@ const B = ({ children, color }) => (
  * One leg, stated. Name, where he is, the group he fills, the bar he has to
  * clear, what that bar has measured at, the signals he is carrying, and the
  * price — but only when the book is selling the same bet the bar describes.
+ *
+ * `reserved` marks the leg the ticket held a spot for. It names the signal and
+ * then says what that signal has actually measured, which for back-to-back is
+ * "nothing yet" — the one thing he most believes in is the one with no number,
+ * and a page that hid that would be selling the belief back to him.
  */
-function LegSentence({ leg, odds }) {
+function LegSentence({ leg, odds, reserved = false }) {
   const p = leg.player
   const meta = GROUP_META[leg.group] || {}
   const col = C[meta.tone] || C.text2
@@ -1472,11 +1478,18 @@ function LegSentence({ leg, odds }) {
   const spot = ordinal(p?.lineup_spot)
   const arm = clean(p?.pitcher_name, '')
   // Aligned swallows weak spot and pitch match — see spokenSignals(). The
-  // filter still sees all three; only the sentence collapses them.
-  const spoken = spokenSignals(leg.signals)
+  // filter still sees all three; only the sentence and the count collapse them.
+  const spoken = leg.distinct || spokenSignals(leg.signals)
 
   return (
-    <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.75, marginTop: 6 }}>
+    <div style={{
+      fontSize: 11.5, color: C.text2, lineHeight: 1.85, marginTop: 10,
+      // The reserved leg is marked by a quiet rule down its left edge and
+      // nothing else. A badge or a tile here would be the fifth thing on this
+      // page competing with the sentence that carries the argument.
+      borderLeft: reserved ? `2px solid ${C.green}` : 'none',
+      paddingLeft: reserved ? 10 : 0,
+    }}>
       <B color={col}>{nameOf(p)}</B>
       {' — '}{gamePhrase(p)}
       {spot ? `, batting ${spot}` : ''}
@@ -1523,6 +1536,27 @@ function LegSentence({ leg, odds }) {
         })}</>
       )}
 
+      {/* THE RESERVED LEG, NAMED — and immediately followed by what its signal
+          has actually measured. Back-to-back has never been graded on this
+          archive, so this is where it says so; aligned is the only one that
+          can answer with a k/n. */}
+      {reserved && spoken.length > 0 && (
+        <>
+          {' This is the ticket’s '}<B color={C.green}>reserved signal leg</B>
+          {spoken.map((s, i) => (
+            <span key={s.id}>
+              {i === 0 ? ' — ' : '; '}
+              <B color={C.green}>{s.label}</B>
+              {/* Aligned's own sentence above already quotes its 45 of 154, so
+                  repeating it here would state the same fraction twice in one
+                  paragraph. Every other signal has nothing to repeat. */}
+              {s.sayCarriesRecord ? '' : `, ${signalRecordText(s)}`}
+            </span>
+          ))}
+          {'.'}
+        </>
+      )}
+
       {q && q.matches && (
         <>
           {' The book is '}
@@ -1548,16 +1582,20 @@ function LegSentence({ leg, odds }) {
 }
 
 /** One built ticket, stated as a paragraph rather than laid out as a card. */
-function TicketBlock({ ticket, index, odds, onPlayerClick }) {
+function TicketBlock({ ticket, index, odds, onPlayerClick, word }) {
   const legs = ticket.legs
   // Unique and in the canonical order: a four-leg ticket off two groups is
   // "HIT + HRR", not "HIT + HRR + HIT + HRR", and a game-shape ticket is
   // named in the same order as the buttons rather than in ranked order.
   const named = GROUP_ORDER.filter((g) => ticket.groups.includes(g))
-  const head = `${TICKET_WORD(legs.length)} ${index + 1} — ${named.join(' + ')}`
+  // `word` names a one-off ticket (the signals-only one) — it is the only one
+  // of its kind on the page, so it is not numbered.
+  const head = word
+    ? `${word} — ${named.join(' + ')}`
+    : `${TICKET_WORD(legs.length)} ${index + 1} — ${named.join(' + ')}`
 
   return (
-    <div style={{ padding: '11px 0 4px', borderTop: index ? `1px solid ${C.border}` : 'none' }}>
+    <div style={{ padding: '16px 0 6px', borderTop: index ? `1px solid ${C.border}` : 'none' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>{head}</span>
         <span style={{
@@ -1585,7 +1623,30 @@ function TicketBlock({ ticket, index, odds, onPlayerClick }) {
         </span>
       </div>
 
-      {legs.map((leg) => <LegSentence key={leg.key} leg={leg} odds={odds} />)}
+      {legs.map((leg) => (
+        <LegSentence
+          key={leg.key}
+          leg={leg}
+          odds={odds}
+          reserved={leg.key === ticket.reservedKey}
+        />
+      ))}
+
+      {/* NO RESERVED LEG, SAID OUT LOUD (2026-08-16).
+          The promise is that one spot on every ticket belongs to a hitter
+          carrying a signal. A night where the chosen groups have nobody
+          carrying one is a real outcome, and the ticket that results looks
+          exactly like a reserved one from the outside. So it says so instead:
+          silence here would be the failure mode the whole mechanism exists to
+          avoid. */}
+      {ticket.reserveMissing && (
+        <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.85, marginTop: 10 }}>
+          <B color={C.orange}>No leg on this ticket is carrying a signal.</B>
+          {' Nobody left in these groups is back-to-back, high-confidence, in a weak spot,'}
+          {' on a pitch-type match or aligned, so no spot could be reserved for one and these'}
+          {' legs are here on their group and their score alone.'}
+        </div>
+      )}
 
       {/* THE ONLY COMBINED NUMBER ON THIS PAGE, and it is an inequality.
           P(every leg) ≤ P(the worst leg) is true under any dependence at all,
@@ -1657,15 +1718,53 @@ export function GroupTicketBuilder({
     () => signals.filter((id) => id !== 'b2b' || b2bVerified), [signals, b2bVerified],
   )
 
+  // WHICH SIGNALS CAN HONESTLY BE REQUIRED TONIGHT. Everything except an
+  // unproven back-to-back: a ticket whose premise is that every leg carries a
+  // verified signal must not let an unverified one qualify a leg.
+  const availableSignals = useMemo(
+    () => ALL_SIGNAL_IDS.filter((id) => id !== 'b2b' || b2bVerified), [b2bVerified],
+  )
+
   const built = useMemo(() => buildGroupTickets(players, {
     groups, signals: activeSignals, shape, size, ctx: { b2b: b2bIds }, limit: 4,
   }), [players, groups, activeSignals, shape, size, b2bIds])
+
+  // THE SIGNALS-ONLY TICKET — same groups, same shape, same size, same
+  // machinery, but every leg has to be carrying something. Built alongside the
+  // main tickets rather than instead of them, because the two answer different
+  // questions: "the best of this combination" and "the same combination with
+  // nothing on it that isn't flagged".
+  const signalBuilt = useMemo(() => buildSignalTickets(players, {
+    groups, shape, size, ctx: { b2b: b2bIds }, limit: 1, available: availableSignals,
+  }), [players, groups, shape, size, b2bIds, availableSignals])
+
+  const signalTicket = signalBuilt.tickets[0] || null
+  // When the user's own filter already demands a signal on every leg, this is
+  // the identical ticket. Printing it twice would be the same argument twice,
+  // so it is named as a repeat instead.
+  const signalIsRepeat = !!signalTicket && built.tickets.some((t) => t.key === signalTicket.key)
 
   const toggle = (arr, set, key) => set(arr.includes(key) ? arr.filter((x) => x !== key) : [...arr, key])
 
   const designated = useMemo(
     () => players.filter((p) => String(p?.game_pick_role || '').trim()).length, [players],
   )
+
+  // HOW MANY MEN ARE ACTUALLY CARRYING EACH SIGNAL TONIGHT, counted over the
+  // designated hitters only — those are the only rows this builder can draw a
+  // leg from. By player, not by row, so a hitter designated TOP/HR/CONTACT
+  // counts once rather than three times.
+  const signalCounts = useMemo(() => {
+    const sets = Object.fromEntries(LEG_SIGNALS.map((s) => [s.id, new Set()]))
+    players.forEach((p) => {
+      if (!p || !String(p?.game_pick_role || '').trim()) return
+      const id = String(p?.player_id ?? p?.id ?? nameOf(p))
+      LEG_SIGNALS.forEach((s) => {
+        try { if (s.test(p, { b2b: b2bIds })) sets[s.id].add(id) } catch { /* a broken flag is not a signal */ }
+      })
+    })
+    return Object.fromEntries(Object.entries(sets).map(([k, v]) => [k, v.size]))
+  }, [players, b2bIds])
 
   return (
     <div>
@@ -1712,17 +1811,21 @@ export function GroupTicketBuilder({
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Signals</span>
         {LEG_SIGNALS.map((s) => {
           const off = s.id === 'b2b' && !b2bVerified
+          const carrying = signalCounts[s.id]
           return (
             <button
               key={s.id}
               onClick={() => { if (!off) toggle(signals, setSignals, s.id) }}
               title={off
                 ? 'Last night’s homers aren’t proven yet, so this filter can’t be applied — see lib/b2b.js'
-                : 'Keep only legs carrying at least one of the signals you switch on'}
+                : `Keep only legs carrying at least one of the signals you switch on. What this one has measured: ${signalRecordText(s)}.`}
               style={{ ...btnStyle(C.green, signals.includes(s.id)), opacity: off ? 0.4 : 1, cursor: off ? 'not-allowed' : 'pointer' }}
             >
               {s.label}
-              {s.id === 'b2b' && b2bVerified ? ` ${b2bList.length}` : ''}
+              {/* The count is of DESIGNATED hitters, which is the only pool
+                  this builder can draw from — a signal carried by twenty
+                  hitters nobody designated is worth nothing here. */}
+              {!off && carrying != null ? ` ${carrying}` : ''}
             </button>
           )
         })}
@@ -1757,9 +1860,56 @@ export function GroupTicketBuilder({
         {signals.includes('b2b') && !b2bVerified && (
           <span> The back-to-back proof hasn’t come back yet, so that filter is <b style={{ color: C.text2 }}>not</b> being applied — no proof, no claim.</span>
         )}
+        {/* The button used to carry the slate-wide back-to-back count and now
+            carries the designated count, which is the pool this builder can
+            actually draw from. Both numbers stay — the first one is how big
+            tonight's watch is, the second is how much of it is reachable. */}
+        {b2bVerified && (
+          <span>
+            {' '}<span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{b2bList.length}</span>
+            {` hitter${b2bList.length === 1 ? '' : 's'} on the slate ${b2bList.length === 1 ? 'is' : 'are'} proven back-to-back tonight, `}
+            <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{signalCounts.b2b}</span>
+            {' of them designated in one of the five groups.'}
+          </span>
+        )}
         {shape === 'game' && built.collapsed > 0 && (
           <span> {built.collapsed} game{built.collapsed === 1 ? '' : 's'} couldn’t make a ticket because the groups you picked land on the same hitter there.</span>
         )}
+      </div>
+
+      {/* ── WHAT THE SIGNALS HAVE AND HAVEN'T MEASURED ──────────────────────
+          2026-08-16, Donovan on the signals: "they holding true." Some of them
+          have a number behind that and some of them have never been graded at
+          all, and the difference is the single most important thing on this
+          panel. It is written from LEG_SIGNALS itself so a rate can never
+          drift from the one the library carries, and back-to-back — the one he
+          named first — is the one that has to say it has no rate. */}
+      <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.9, margin: '14px 0 4px', maxWidth: 860 }}>
+        <b style={{ color: C.text2 }}>What each signal has actually measured.</b>{' '}
+        {LEG_SIGNALS.map((s, i) => (
+          <span key={s.id}>
+            {i > 0 ? ' ' : ''}
+            <b style={{ color: C.text2 }}>{s.label.charAt(0).toUpperCase() + s.label.slice(1)}</b>
+            {' — '}
+            <span style={{ fontFamily: s.record ? NUM_FONT : 'inherit' }}>{signalRecordText(s)}</span>.
+          </span>
+        ))}
+      </div>
+
+      <div style={{
+        fontSize: 10.5, color: C.text3, lineHeight: 1.9, maxWidth: 860,
+        marginBottom: 12, display: groups.length < 2 ? 'none' : 'block',
+      }}>
+        Every ticket below <b style={{ color: C.text2 }}>reserves one spot</b> for a hitter carrying one of
+        them, and that leg names which. Legs are then ranked by{' '}
+        <b style={{ color: C.text2 }}>how many signals they carry first</b> and by that group’s own 0-100
+        score second — the signals are tested against outcomes and the score is a model output, so that is
+        the right way round.
+        {' '}Aligned counts as <b style={{ color: C.text2 }}>one</b> signal, not three: it is the weak spot
+        and the pitch-type match by definition, and counting all three would let one man’s single matchup
+        fact outrank a hitter who is back-to-back and high-confidence on two separate ones. Switching{' '}
+        <i>weak spot</i> on still keeps every aligned hitter — the filter sees all three, only the count
+        and the sentence collapse them.
       </div>
 
       {groups.length < 2 ? (
@@ -1786,6 +1936,63 @@ export function GroupTicketBuilder({
         </div>
       )}
 
+      {/* ── THE SIGNALS-ONLY TICKET ─────────────────────────────────────────
+          The third mechanism. Above, one spot per ticket is reserved; here
+          every spot is. Same groups, same shape, same size, same collapse,
+          same ceiling — see buildSignalTickets() — so it is comparable to the
+          tickets above it line for line, and the only thing that changed is
+          that nothing on it is unflagged. */}
+      {groups.length >= 2 && (
+        <div style={{ marginTop: 22, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 12.5, fontWeight: 900, marginBottom: 4 }}>
+            Signals only
+          </div>
+          <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.9, marginBottom: 4, maxWidth: 860 }}>
+            The same {GROUP_ORDER.filter((g) => groups.includes(g)).join(' + ')} combination, built so that{' '}
+            <b style={{ color: C.text2 }}>every</b> leg is carrying a signal rather than just the reserved one.
+            {!b2bVerified && (
+              <> Back-to-back is left out of it until tonight’s setup homers are proven, because a ticket
+              whose whole premise is a verified signal on every leg cannot be built out of an unverified
+              one.</>
+            )}
+          </div>
+
+          {!signalTicket ? (
+            <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.9, padding: '6px 0' }}>
+              {signalBuilt.signalMen > 0 ? (
+                <>
+                  {signalBuilt.signalMen} designated hitter{signalBuilt.signalMen === 1 ? '' : 's'} in these
+                  groups {signalBuilt.signalMen === 1 ? 'is' : 'are'} carrying a signal, but not enough of
+                  them in different games to fill {size} legs
+                  {shape === 'game' ? ' out of one game' : ''}. Try another combination or fewer legs.
+                </>
+              ) : (
+                <>
+                  <b style={{ color: C.orange }}>Nobody designated in these groups is carrying a signal tonight.</b>
+                  {' '}Not one of them is back-to-back, high-confidence, in a weak spot, on a pitch-type match
+                  or aligned, so there is no signals-only ticket to build — and the tickets above have no
+                  reserved leg either, which each of them says.
+                </>
+              )}
+            </div>
+          ) : signalIsRepeat ? (
+            <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.9, padding: '6px 0' }}>
+              Your signal filter already requires one on every leg, so this is the same ticket as{' '}
+              <b style={{ color: C.text2 }}>{TICKET_WORD(signalTicket.legs.length)} 1</b> above rather than a
+              second one. Turn the filters off and the two separate.
+            </div>
+          ) : (
+            <TicketBlock
+              ticket={signalTicket}
+              index={0}
+              odds={odds}
+              onPlayerClick={onPlayerClick}
+              word={`Signals-only ${TICKET_WORD(signalTicket.legs.length).toLowerCase()}`}
+            />
+          )}
+        </div>
+      )}
+
       <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.7, marginTop: 10, maxWidth: 860 }}>
         <b style={{ color: C.text2 }}>No combined percentage is printed here, on purpose.</b>{' '}
         Two legs in the same game share a park, an air, a starting pitcher and a game state, and this
@@ -1795,7 +2002,8 @@ export function GroupTicketBuilder({
         though the legs were independent would be asserting something nobody has checked, so each leg
         keeps its own measured rate and the only combined figure is the ceiling, which is true under
         any dependence at all.
-        {' '}Ranking inside a group is by signals first and then by that group’s own 0-100 score —
+        {' '}Ranking inside a group is by distinct signals first — aligned counting once for the weak spot
+        and pitch match it contains — and then by that group’s own 0-100 score:
         <b style={{ color: C.text2 }}> a score is not a probability</b>, so it is a sort key here and
         nothing else. Prices are the book’s, shown only where the book’s line is the same bet as the
         leg’s bar, and the rate beside a leg is <b style={{ color: C.text2 }}>that group&apos;s</b> record
