@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { quoteFor, fmtOdds, impliedPct } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
 import { isoAdjustedHr, isoMultiplier } from '../lib/scoring_additions'
-import { whyPick, standingPhrase, convictionOf } from '../lib/whyPick'
+import { whyPick, standingPhrase, convictionOf, outClearedBy } from '../lib/whyPick'
 import { Empty } from './ui'
 
 // 📝 THE READ — tonight in sentences, and the one number the site stopped using.
@@ -182,8 +182,15 @@ function MoveBar({ delta, max }) {
 // information, it only stops the order from moving.
 const LEAD_KEY = 'read_lead_mode_v1'
 
+// DEFAULT FLIPPED TO 'category' (2026-08-16, Donovan: "HR leads + further
+// clear line"). The rotating hero was the default for a week and it was wrong
+// twice over — it moved the most important thing on the page night to night,
+// and it ranked four conviction z's that are standardised against four
+// different designated pools. lib/whyPick.js's outClearedBy carries the full
+// argument. A device that already chose 'conviction' keeps it; this only
+// changes what a new visitor sees.
 function useLeadMode() {
-  const [mode, setMode] = useState('conviction')
+  const [mode, setMode] = useState('category')
   useEffect(() => {
     try {
       const v = window.localStorage.getItem(LEAD_KEY)
@@ -235,6 +242,11 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
     const hero = ordered[0] || null
     const rest = calls.filter((c) => c !== hero)
 
+    // Only meaningful in category mode — in conviction mode the challenger IS
+    // the hero by construction. Same helper Home's teaser uses, so the two
+    // surfaces cannot make different claims about who out-cleared whom.
+    const outclear = leadMode === 'category' ? outClearedBy(hero, calls) : null
+
     // ── THE ISO LENS ────────────────────────────────────────────────────
     // raw = what the site actually ranks on. lens = the benched adjustment.
     const lens = rows.map((p) => {
@@ -268,7 +280,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
     const hurting = [...weathers].sort((a, b) => a.eff - b.eff)[0]
 
     return {
-      calls, hero, rest, under, over, lens, maxMove, traps,
+      calls, hero, rest, outclear, under, over, lens, maxMove, traps,
       games: byGame.size, picks: rows.filter((p) => roleOf(p)).length, helping, hurting,
     }
   }, [players, leadMode])
@@ -359,9 +371,14 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
       </Para>
 
       {/* ── THE CALL OF THE NIGHT ────────────────────────────────────────────
-          One pick leads, chosen by conviction rather than by category order.
-          Everything the compact form below carries, it carries too — plus the
-          clearance clause and the bot's own stated reasons at full length. */}
+          THE HOME RUN CALL LEADS BY DEFAULT (2026-08-16). It used to lead on
+          whichever call had the highest conviction z, which rotated the hero
+          nightly and compared four z's standardised against four different
+          designated pools — see lib/whyPick.js's outClearedBy for the full
+          argument. The toggle survives; when another call genuinely stands
+          further clear, the page says so on its own line rather than silently
+          promoting it. Everything the compact form below carries, it carries
+          too — plus the clearance clause and the bot's reasons at full length. */}
       {hero && (() => {
         const p = hero.p
         const r1 = first(p?.simple_reason_1)
@@ -410,6 +427,22 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
               {spot != null && spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
               {clearanceClause(hero)}
             </Para>
+            {/* The honesty valve for a hero that no longer moves. Phrased as
+                "further clear of its own field", never "the better bet" — the
+                two z's come off different pools and the sentence must not
+                dress them as one yardstick. Same helper as Home's teaser. */}
+            {read.outclear && (
+              <Para>
+                <span style={{ color: C.text3 }}>Worth knowing:</span>{' '}
+                <b style={{ color: read.outclear.color }}>{read.outclear.label}</b> is standing further clear
+                of its own field tonight — <Name p={read.outclear.p} /> at{' '}
+                <b style={{ color: read.outclear.color, fontFamily: NUM_FONT }}>{read.outclear.conv.z.toFixed(1)}</b>{' '}
+                standard deviations above the {read.outclear.conv.depth} names tagged for it, against{' '}
+                <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{hero.conv?.z?.toFixed(1) ?? '—'}</b> here.
+                Different pools, so that is not the same yardstick — a reason to read his call below too,
+                not a reason to swap.
+              </Para>
+            )}
             <WhyLine why={hero.why} color={hero.color} />
             <Para>{formClause(p)}</Para>
             {dedupeReasons([r1, r2, r3]).length > 0 && (

@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { oddsPaths } from '../lib/dataSource'
 import { quoteFor, fmtOdds, impliedPct, oddsLooksReal } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
-import { whyPick, standingPhrase, convictionOf } from '../lib/whyPick'
+import { whyPick, standingPhrase, convictionOf, heroCall, outClearedBy } from '../lib/whyPick'
 
 // 📰 THE READ, ON THE PORCH — the lead only, and the same lead.
 //
@@ -102,11 +102,19 @@ export function callOfTheNight(players = []) {
   }).filter(Boolean)
   if (!calls.length) return null
 
-  // Ties and single-name pools (z = 0, no field to be clear of) fall back to
-  // source order, which is the categories' own order — HR first.
-  const ordered = [...calls].sort((a, b) => (b.conv?.z ?? -99) - (a.conv?.z ?? -99))
-  const hero = ordered[0] || null
-  return { calls, hero, rest: calls.filter((c) => c !== hero) }
+  // THE HOME RUN CALL LEADS (2026-08-16). This used to sort by conviction z,
+  // which rotated the hero nightly AND compared four standardised scores built
+  // against four different fields. `heroCall` / `outClearedBy` in lib/whyPick.js
+  // carry the whole argument and the margins; both this teaser and the Bot
+  // page's full read import them, so the two surfaces cannot disagree about
+  // who leads or about whether anybody out-cleared him.
+  const hero = heroCall(calls)
+  return {
+    calls,
+    hero,
+    rest: calls.filter((c) => c !== hero),
+    outclear: outClearedBy(hero, calls),
+  }
 }
 
 export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavigate, onPlayerClick }) {
@@ -130,6 +138,7 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
 
   const read = useMemo(() => callOfTheNight(players), [players])
   const hero = read?.hero
+  const outclear = read?.outclear || null
   if (!hero) return null
 
   const p = hero.p
@@ -166,7 +175,7 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
           📰 The call of the night
         </span>
         <span style={{ fontSize: 9.5, color: C.text3 }}>
-          {hero.label} · {hero.bar} — the one pick standing furthest clear of its own category tonight
+          {hero.label} · {hero.bar} — the bot&rsquo;s strongest name in the market this site is built on
         </span>
       </div>
 
@@ -216,6 +225,27 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
           {priced.best_over != null && priced.best_over !== priced.over && (
             <>; best on the board is <Fig col={C.text2}>{fmtOdds(priced.best_over)}</Fig>{priced.best_book ? ` at ${priced.best_book}` : ''}</>
           )}.
+        </div>
+      )}
+
+      {/* ── WHEN SOMEBODY ELSE OUT-CLEARS THE HOME RUN CALL ────────────────
+          The hero no longer moves, so this is how the page stays honest about
+          it. Fires only when another call is 0.8 sd clear of its own field AND
+          half a standard deviation clear of the hero's — see outClearedBy.
+          Deliberately phrased as "further clear of its own field", not "the
+          better bet": the two z's are standardised against different pools and
+          the sentence must not imply they are the same yardstick. */}
+      {outclear && (
+        <div style={{
+          fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 7,
+          paddingLeft: 9, borderLeft: `2px solid ${outclear.color}`,
+        }}>
+          Worth knowing: <b style={{ color: outclear.color }}>{outclear.label}</b> is standing further
+          clear of its own field tonight — <b style={{ color: C.text, fontFamily: NUM_FONT }}>{nameOf(outclear.p)}</b>
+          {' '}at <Fig col={outclear.color}>{outclear.conv.z.toFixed(1)}</Fig> standard deviations above
+          the <Fig col={C.text2}>{outclear.conv.depth}</Fig> names tagged for it, against{' '}
+          <Fig col={C.text2}>{hero.conv?.z?.toFixed(1) ?? '—'}</Fig> here. Different pools, so that is
+          not the same yardstick — it is a reason to read his call too, not a reason to swap.
         </div>
       )}
 

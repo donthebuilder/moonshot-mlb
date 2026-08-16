@@ -1,6 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { wilson, ciText } from '../lib/interval'
 
 // 🧾 REPORT CARD — the accountability page (2026-08-06).
 //
@@ -30,22 +31,10 @@ const CATS = [
   { tier: 'CONTACT_PICKS', label: 'CONTACT', color: '#A78BFA', bar: '2+ TB', barLabel: '2+ total bases' },
 ]
 
-// Wilson 95% interval (audit #13, 2026-08-08). The season record is a small-n
-// binomial and a bare "48.1%" overstates how settled it is. Wilson over normal
-// approximation because our n's are exactly where the normal one lies (small
-// samples, rates far from 50%). Returns [lo, hi] in percent.
-const wilson = (ok, n) => {
-  if (!n) return null
-  const z = 1.96, p = ok / n, z2 = z * z
-  const den = 1 + z2 / n
-  const mid = (p + z2 / (2 * n)) / den
-  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / den
-  return [Math.max(0, (mid - half) * 100), Math.min(100, (mid + half) * 100)]
-}
-const ciText = (ok, n) => {
-  const ci = wilson(ok, n)
-  return ci ? `${ci[0].toFixed(0)}–${ci[1].toFixed(0)}%` : null
-}
+// Wilson 95% interval (audit #13, 2026-08-08) MOVED TO lib/interval.js on
+// 2026-08-16, when the blank board needed the same maths to rank on. Identical
+// implementation, one home — two copies of a calculation are two answers
+// waiting to diverge. Numbers here are unchanged.
 
 // Rolling form (audit #14): pooled own-bar rate over the trailing 7 and 30
 // graded days, held against the season base. Pooled counts, not an average of

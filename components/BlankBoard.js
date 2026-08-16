@@ -22,6 +22,14 @@ import {
 // between them IS the edge. Sorted by that gap, the board reads top-down as
 // best-priced to worst with no number-hunting.
 //
+// SORTED BY THE GAP THAT SURVIVES THE SAMPLE (2026-08-16). The gap it ranks on
+// is measured from the BOTTOM of each rate's 95% Wilson interval, not from the
+// dot — otherwise a 4-for-12 fluke with a big headline number outranks a
+// 30-for-50 record, which is precisely backwards. The dot still shows the
+// measured rate and the whisker through it shows the interval, so the ordering
+// is legible rather than applied behind the reader's back. lib/interval.js has
+// the arithmetic; lib/blankBoard.js has the sort.
+//
 // Deliberate choices, each of which a bar chart would have got wrong:
 //   · ONE SCALE, both marks. Two y-axes for "his rate" and "implied" would be
 //     the classic dual-axis lie; they are the same unit, so they share an axis.
@@ -58,7 +66,8 @@ function Chart({ rows, marketLabel }) {
       <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 10, color: C.text3, marginBottom: 6, fontFamily: NUM_FONT }}>
         <span><svg width="11" height="11" style={{ verticalAlign: -1 }}><circle cx="5.5" cy="5.5" r="4" fill="none" stroke={C.text3} strokeWidth="1.6" /></svg> what the book&apos;s price needs</span>
         <span><svg width="11" height="11" style={{ verticalAlign: -1 }}><circle cx="5.5" cy="5.5" r="4.5" fill={C.cyan} /></svg> what he does after a blank</span>
-        <span style={{ color: C.text3 }}>— the segment between them is the edge</span>
+        <span><svg width="20" height="11" style={{ verticalAlign: -1 }}><line x1="1" y1="5.5" x2="19" y2="5.5" stroke={C.cyan} strokeWidth="1.5" opacity="0.45" strokeLinecap="round" /></svg> where his true rate plausibly sits</span>
+        <span style={{ color: C.text3 }}>— the coloured segment is the edge that survives his sample size</span>
       </div>
       <svg width={W} height={H} role="img" aria-label={`Measured ${marketLabel} rate after a blank versus the price's implied rate, per hitter`}>
         {/* recessive grid */}
@@ -72,7 +81,21 @@ function Chart({ rows, marketLabel }) {
           const y = 14 + i * ROW_H
           const xNeed = pctX(r.need)
           const xRate = pctX(r.rate)
-          const good = r.edge >= 0
+          // THE SEGMENT AND THE LABEL BOTH SHOW THE *SURVIVING* EDGE, because
+          // that is what the board is sorted by (2026-08-16). The first cut of
+          // this change sorted on the floor but kept drawing and labelling the
+          // point-estimate gap, and the screenshot immediately showed why that
+          // is wrong: the right-hand column read +52, +51, +24, +10, +12, +9,
+          // +13 — visibly unsorted, on a chart whose caption promised order.
+          // A chart ranked by a number it does not draw is a chart that looks
+          // broken. So the drawn gap runs from the price to the NEAR END OF
+          // THE INTERVAL, the label is that gap, and both descend with the
+          // sort. The dot still marks his measured rate, so nothing is lost —
+          // you read "the book needs 44, his worst case is 48, his record says
+          // 69" left to right in one pass.
+          const xFloor = pctX(r.floor)
+          const shown = r.edgeFloor
+          const good = shown >= 0
           const col = good ? C.green : C.red
           const on = hover === r.id
           return (
@@ -80,19 +103,20 @@ function Chart({ rows, marketLabel }) {
               <title>
                 {`${r.name} (${r.team} vs ${r.opp}) — ${r.line} last game${r.streak > 1 ? `, ${r.streak} straight blanks` : ''}\n`
                   + `After a blank he has ${marketLabel} in ${r.count} of ${r.den} games (${Math.round(r.rate)}%)\n`
+                  + (r.ci ? `On ${r.den} games the true rate plausibly sits between ${Math.round(r.ci[0])}% and ${Math.round(r.ci[1])}% — the board ranks on the low end\n` : '')
                   + `Book ${fmtOdds(r.over)} needs ${Math.round(r.need)}%${r.book ? ` · ${r.book}` : ''}\n`
                   + `His true price at that rate: ${fmtOdds(r.fair)}`}
               </title>
               {on && <rect x={0} y={y - 11} width={W} height={ROW_H - 2} fill="rgba(255,255,255,.04)" rx="4" />}
               <text x={PAD_L - 10} y={y + 3.5} textAnchor="end" fontSize="11" fontWeight="700"
                 fill={on ? C.text : C.text2}>{r.name}</text>
-              {/* the gap. 2px, with a surface-coloured gap either side so the
-                  marks never bleed into the connector. */}
+              {/* the gap: price → near end of the interval. 2px, inset either
+                  side so the marks never bleed into the connector. */}
               <line
-                x1={Math.min(xNeed, xRate) + 6} y1={y}
-                x2={Math.max(xNeed, xRate) - 6} y2={y}
+                x1={Math.min(xNeed, xFloor) + 5} y1={y}
+                x2={Math.max(xNeed, xFloor) - 5} y2={y}
                 stroke={col} strokeWidth="2" strokeLinecap="round"
-                opacity={Math.abs(r.edge) < 1 ? 0 : 1}
+                opacity={Math.abs(shown) < 1 ? 0 : 1}
               />
               {/* ORDER MATTERS. The dot carries a 2px surface ring so it never
                   bleeds into the connector — which also means it paints over
@@ -101,11 +125,27 @@ function Chart({ rows, marketLabel }) {
                   first made it disappear entirely: the row rendered as a lone
                   dot claiming nothing. The reference is hollow, so drawing it
                   LAST shows both — the dot fills its centre. */}
+              {/* THE INTERVAL, DRAWN BECAUSE THE BOARD SORTS ON IT
+                  (2026-08-16). Rows are ordered by the BOTTOM of this whisker
+                  minus the price, not by the dot minus the price, so that a
+                  thin 8-for-12 cannot outrank a settled 30-for-50 on a bigger
+                  headline number. Sorting on something invisible is worse than
+                  not sorting on it, so the uncertainty is on the chart: the
+                  dot is still his measured rate, and the line through it is
+                  where his true rate plausibly lives. Drawn UNDER both marks
+                  and at 45% so it recedes — it is context for the dot, not a
+                  third series competing with it. */}
+              {r.ci && (
+                <line
+                  x1={pctX(r.ci[0])} y1={y} x2={pctX(r.ci[1])} y2={y}
+                  stroke={C.cyan} strokeWidth="1.5" opacity="0.45" strokeLinecap="round"
+                />
+              )}
               <circle cx={xRate} cy={y} r="5" fill={C.cyan} stroke={C.bg2} strokeWidth="2" />
               <circle cx={xNeed} cy={y} r="4.5" fill="none" stroke={C.text3} strokeWidth="1.8" />
               <text x={W - PAD_R + 12} y={y + 3.5} fontSize="10.5" fontWeight="800"
-                fill={Math.abs(r.edge) < 0.5 ? C.text3 : col} fontFamily={NUM_FONT}>
-                {Math.abs(r.edge) < 0.5 ? 'level' : `${good ? '+' : '−'}${Math.abs(Math.round(r.edge))} pts`}
+                fill={Math.abs(shown) < 0.5 ? C.text3 : col} fontFamily={NUM_FONT}>
+                {Math.abs(shown) < 0.5 ? 'level' : `${good ? '+' : '−'}${Math.abs(Math.round(shown))} pts`}
               </text>
             </g>
           )
@@ -116,8 +156,17 @@ function Chart({ rows, marketLabel }) {
 }
 
 function Row({ r, marketLabel, onPlayerClick }) {
-  const has = r.edge != null
-  const col = !has ? C.text3 : r.edge >= 0 ? C.green : C.red
+  // THE TABLE QUOTES THE SAME EDGE THE CHART DOES (2026-08-16). For one render
+  // it did not: the chart had moved to the surviving edge while this column
+  // still showed the point-estimate gap, so JJ Wetherholt read +39 on the chart
+  // and +52 in the table, four inches apart, about the same bet. That is the
+  // two-answers disease this repo keeps catching, and a screenshot caught it
+  // again. Both are edgeFloor now. Nothing is hidden -- the raw comparison is
+  // still on the row in full (his 75% beside the price's "needs 24%"), which is
+  // where a reader who wants the point estimate should be reading it anyway.
+  const has = r.edgeFloor != null
+  const shown = r.edgeFloor
+  const col = !has ? C.text3 : shown >= 0 ? C.green : C.red
   return (
     <button
       onClick={() => onPlayerClick?.(r.p)}
@@ -139,7 +188,16 @@ function Row({ r, marketLabel, onPlayerClick }) {
       <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: r.thin ? C.text3 : C.text2 }}>
         <b style={{ color: r.thin ? C.text3 : C.cyan }}>{r.count}</b> of {r.den}
         {r.rate != null
-          ? <span style={{ color: C.text3 }}> · {Math.round(r.rate)}%</span>
+          ? <>
+            <span style={{ color: C.text3 }}> · {Math.round(r.rate)}%</span>
+            {/* The interval, on the row, because the EDGE column is measured
+                from its low end and a reader is entitled to see why a 69% can
+                rank below a 60%. */}
+            {r.ci && (
+              <span title={`On ${r.den} games his true rate plausibly sits in this range. The edge column is measured from the low end.`}
+                style={{ color: C.text3, opacity: .75 }}> ({Math.round(r.ci[0])}–{Math.round(r.ci[1])})</span>
+            )}
+          </>
           : <span title={`Fewer than ${MIN_N} games after a blank — too thin to quote a rate off`} style={{ color: C.text3 }}> · thin</span>}
       </span>
       <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2 }}>
@@ -153,8 +211,8 @@ function Row({ r, marketLabel, onPlayerClick }) {
             {r.need != null && <span style={{ color: C.text3 }}> · needs {Math.round(r.need)}%</span>}</span>
           : <span style={{ color: C.text3 }}>no price</span>}
       </span>
-      <span style={{ fontSize: 11, fontFamily: NUM_FONT, fontWeight: 800, color: has && Math.abs(r.edge) >= 0.5 ? col : C.text3, textAlign: 'right' }}>
-        {!has ? '—' : Math.abs(r.edge) < 0.5 ? 'level' : `${r.edge >= 0 ? '+' : '−'}${Math.abs(Math.round(r.edge))}`}
+      <span style={{ fontSize: 11, fontFamily: NUM_FONT, fontWeight: 800, color: has && Math.abs(shown) >= 0.5 ? col : C.text3, textAlign: 'right' }}>
+        {!has ? '—' : Math.abs(shown) < 0.5 ? 'level' : `${shown >= 0 ? '+' : '−'}${Math.abs(Math.round(shown))}`}
       </span>
     </button>
   )
@@ -179,7 +237,12 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
   }
   if (!rows.length) return <Empty text="Nobody on tonight's slate went hitless in his last game." />
 
-  const plotted = rows.filter((r) => r.edge != null)
+  // edgeFloor, not edge — a row without an interval has nothing the chart can
+  // draw now that the drawn gap runs from the price to the interval's near end.
+  // In practice the two filters select the same rows (both need a rate and a
+  // matching price), but keying on what is actually drawn is what stops the
+  // chart and its caption drifting apart the next time one of them changes.
+  const plotted = rows.filter((r) => r.edgeFloor != null)
   const hidden = rows.length - Math.min(plotted.length, MAX_ROWS)
 
   return (
@@ -219,8 +282,9 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
           coverage of all of them. */}
       {hidden > 0 && (
         <div style={{ fontSize: 10, color: C.text3, marginBottom: 12, lineHeight: 1.6 }}>
-          Charted: the <b style={{ color: C.text2 }}>{Math.min(plotted.length, MAX_ROWS)}</b> widest gaps
-          {plotted.length > MAX_ROWS && <> of the <b style={{ color: C.text2 }}>{plotted.length}</b> comparable rows</>}.
+          Charted: the <b style={{ color: C.text2 }}>{Math.min(plotted.length, MAX_ROWS)}</b> biggest edges
+          {' '}that survive their own sample size
+          {plotted.length > MAX_ROWS && <> — of <b style={{ color: C.text2 }}>{plotted.length}</b> comparable rows</>}.
           {' '}Not charted: <b style={{ color: C.text2 }}>{rows.length - plotted.length}</b> hitter{rows.length - plotted.length === 1 ? '' : 's'}
           {' '}with no comparison to make — no book price on this bar, or fewer than {MIN_N} games after a blank.
           {' '}Every one of the {rows.length} is in the table.
@@ -236,10 +300,10 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
         }}>
           <span>hitter</span>
           <span>last game</span>
-          <span title={`How often he has ${m.label} in the game after a blank`}>after a blank</span>
+          <span title={`How often he has ${m.label} in the game after a blank, then the range his true rate plausibly sits in given that many games`}>after a blank</span>
           <span title="What this bet must pay to be worth taking at his own measured rate">his true price</span>
           <span>book</span>
-          <span style={{ textAlign: 'right' }}>edge</span>
+          <span style={{ textAlign: 'right' }} title="The low end of his rate range minus what the price needs — the edge that survives his sample size. The board is sorted by it.">edge <span style={{ opacity: .6 }}>(worst case)</span></span>
         </div>
         {rows.map((r) => <Row key={r.id} r={r} marketLabel={m.label} onPlayerClick={onPlayerClick} />)}
       </div>
@@ -250,7 +314,12 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
         counted either way. <b style={{ color: C.text2 }}>After a blank</b> counts every game whose previous
         plate-appearance game was a blank — his own record, not the league&apos;s.
         Under {MIN_N} such games no rate is quoted and no edge is claimed, because a 3-for-4 is the most
-        confident-looking wrong number on a board like this.
+        confident-looking wrong number on a board like this.{' '}
+        <b style={{ color: C.text2 }}>Order is by the conservative end of each rate, not the rate itself.</b>{' '}
+        Twelve games is a floor, not a guarantee: 8-for-12 reads 67% but its 95% interval runs 39–86%, while
+        30-for-50 reads 60% on an interval of 46–72%. Ranked by the bottom of those intervals the second one
+        wins, which is the order you would put money in — so that is the order the board is in, and the
+        whisker through each dot on the chart is the interval it was ranked on.
       </div>
     </div>
   )
