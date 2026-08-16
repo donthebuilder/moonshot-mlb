@@ -249,7 +249,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                 title: 'Season ISO ×100 — slugging minus batting average, so it measures extra-base pop with the singles stripped out. Across the graded archive, sub-13 homered 8.2% and 23+ homered 22.2%. Read it WITH the score, not instead of it.' },
             ] : []),
             { key: 'rec',    label: 'When picked', heat: false, w: 82, mono: true,
-              title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that. From ${'3,973'} graded picks over 39 days.` },
+              title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that. From 5,184 judgeable picks over 62 graded nights (2026-08-15 sweep).` },
             { key: 'bestOther', label: 'Best other', heat: false, w: 66, mono: true, dim: true,
               title: 'His strongest OTHER category tonight — if this number dwarfs his score here, he might be the wrong kind of bet' },
             { key: 'hrw',    label: 'HRW', w: 44, dp: 0, primary: true },

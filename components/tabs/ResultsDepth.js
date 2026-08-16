@@ -17,6 +17,42 @@ import DenseTable from '../DenseTable'
 // Confirmed present on all 90 graded slots: pick_type, designed_outcome,
 // designed_hit, got_hr, got_base_hit, got_xbh, actual_*, hrr_total, rank.
 
+// ── WHAT THE ARCHIVE SAYS EACH LANE IS WORTH ────────────────────────────────
+//
+// Measured over this project's own archive (2026-08-16): 62 graded nights,
+// 811 games, 5,184 judgeable designated picks. Every lane is scored on ITS OWN
+// bar — the same bar this page grades tonight against — and VOIDS ARE EXCLUDED
+// throughout, because a man who never batted is not a loss; he is a third
+// outcome, not half of a bad one.
+//
+// It lives here rather than in Results.js because Results already imports this
+// file, so this direction of the dependency is the one that doesn't loop.
+//
+// k AND n, ALWAYS. A bare percentage from somebody else's sample is exactly
+// what this site refuses to print, and the older copy elsewhere in the repo
+// (fit on 9 days and ~648 slots) reads several points off these — anywhere a
+// rate is restated on this page it is restated from this block, with the
+// sample said out loud.
+export const ARCHIVE = {
+  nights: 62,
+  games: 811,
+  picks: 5184,
+  lanes: {
+    HIT:     { k: 968, n: 1391, bar: '1+ hit' },
+    HRR:     { k: 709, n: 1392, bar: '2+ H+R+RBI' },
+    CONTACT: { k: 316, n: 791,  bar: '2+ total bases' },
+    TOP:     { k: 172, n: 807,  bar: '1+ HR' },
+    HR:      { k: 128, n: 803,  bar: '1+ HR' },
+  },
+  // The finding that dominates every other one on the page: the SAME TOP pick,
+  // the same night, judged on the easier bar instead of the HR bar.
+  topOnHits:  { k: 571, n: 807 },
+  // One pick per game, always the top-scored HIT pick.
+  onePerGame: { k: 586, n: 809, voidsAsLossesPct: 69.8 },
+}
+export const archPct = (o) => (100 * o.k) / o.n
+export const archText = (o) => `${o.k.toLocaleString()}/${o.n.toLocaleString()} · ${archPct(o).toFixed(1)}%`
+
 const PICK_META = {
   TOP15:    ['🏆', 'Top 15 Board'],
   TOP:      ['🔥', 'Top Picks'],
@@ -38,26 +74,10 @@ const optScore = (row, getter) => {
   return Number.isFinite(v) && v > 0 ? v : null
 }
 
-function Tile({ label, value, sub, tone = 'flat' }) {
-  const col = tone === 'up' ? '#4ade80' : tone === 'accent' ? C.orange : C.text3
-  return (
-    <div style={{
-      background: `${col}12`, border: `1px solid ${col}30`, borderRadius: 10,
-      padding: '8px 12px', minWidth: 0,
-    }}>
-      <div style={{
-        fontSize: 8.5, textTransform: 'uppercase', letterSpacing: '.08em',
-        color: C.text3, fontWeight: 700, whiteSpace: 'nowrap',
-        overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>{label}</div>
-      <div style={{
-        fontFamily: NUM_FONT, fontSize: 19, fontWeight: 800,
-        color: tone === 'flat' ? C.text : col, letterSpacing: '-.02em',
-      }}>{value}</div>
-      {sub && <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}
-    </div>
-  )
-}
+// The `Tile` component came out 2026-08-16 with its last four callers — the
+// "Homers tonight / Were our picks / Inside our top 15 / Median rank" block in
+// "Home runs vs the model", now the sentence that opens that section. Nothing
+// on this page renders a stat tile any more.
 
 // Horizontal bars. Same ramp as everything else, so length AND brightness both
 // carry the value -- readable even when two bars are nearly the same length.
@@ -144,10 +164,16 @@ export default function ResultsDepth({ results, onPlayerClick }) {
       const hr = list.filter((s) => s?.got_hr).length
       const hit = list.filter((s) => s?.got_base_hit).length
       const xbh = list.filter((s) => s?.got_xbh).length
+      // TONIGHT NEXT TO 62 NIGHTS. A tier that went 2-for-3 means nothing on
+      // its own; against the lane's own archive rate it means something. TOP15
+      // is the night's top-15 board rather than a per-game designation, so it
+      // has no archive row and prints a dash rather than borrowing one.
+      const base = ARCHIVE.lanes[k] || null
       return {
         _key: k,
         icon, label, n: list.length,
         needs: clean(list[0]?.designed_outcome, '—'),
+        base: base ? archText(base) : '—',
         did, didPct: (100 * did) / list.length,
         hr, hrPct: (100 * hr) / list.length,
         hit, hitPct: (100 * hit) / list.length,
@@ -249,6 +275,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
             { key: 'n',      label: 'N',       heat: false, w: 34, mono: true, dim: true },
             { key: 'did',    label: 'Did job', w: 50 },
             { key: 'didPct', label: 'Rate %',  w: 52, dp: 1 },
+            { key: 'base',   label: `${ARCHIVE.nights} nights`, heat: false, w: 108, mono: true, dim: true,
+              title: `What this lane has done on its own bar across the whole archive — ${ARCHIVE.nights} graded nights, ${ARCHIVE.games.toLocaleString()} games, ${ARCHIVE.picks.toLocaleString()} judgeable picks, voids excluded. Tonight is one night against that.` },
             // HR count lives here now. It used to be its own "HRs by pick type"
             // bar chart at the bottom of the page, which drew the same six
             // numbers a second time; one column is the whole chart.
@@ -271,6 +299,29 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           Top Picks are relative — picked as the best play in their game, so one only counts if it
           out-produced our other picks from that same game. We only see our own picks, so that means
           best <i>of the ones we tracked</i>, not best in the game.
+        </div>
+        {/* THE ARCHIVE, IN SENTENCES, UNDER THE ONE TABLE IT GRADES. Restated
+            from the 62-night backtest rather than the older nine-day copy that
+            still sits in the pick scorecard — same lanes, several points apart,
+            mostly because voids used to be counted as losses. */}
+        <div style={{ fontSize: 10.5, color: C.text2, marginTop: 9, lineHeight: 1.65 }}>
+          <b style={{ color: C.text }}>The bar dominates the pick.</b> Over{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.nights}</b> graded nights —{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.games.toLocaleString()}</b> games,{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.picks.toLocaleString()}</b> judgeable
+          designated picks, voids left out — the bot&apos;s TOP pick cleared its own HR bar{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{archText(ARCHIVE.lanes.TOP)}</b>. The identical man on
+          the identical night got a base hit{' '}
+          <b style={{ fontFamily: NUM_FONT, color: C.text }}>{archText(ARCHIVE.topOnHits)}</b> of the
+          time. Choosing what you ask him to do is worth more than choosing who.
+          <div style={{ marginTop: 5, color: C.text3 }}>
+            Lane by lane on their own bars: HIT {archText(ARCHIVE.lanes.HIT)} · HRR{' '}
+            {archText(ARCHIVE.lanes.HRR)} · CONTACT {archText(ARCHIVE.lanes.CONTACT)} · TOP{' '}
+            {archText(ARCHIVE.lanes.TOP)} · HR {archText(ARCHIVE.lanes.HR)}. Taking one pick per game
+            and always the top-scored HIT pick: {archText(ARCHIVE.onePerGame)} — and counting the
+            voids as losses instead of setting them aside drops that to{' '}
+            {ARCHIVE.onePerGame.voidsAsLossesPct}%, which is the floor to quote if anyone asks.
+          </div>
         </div>
       </Section>
 
@@ -364,23 +415,33 @@ export default function ResultsDepth({ results, onPlayerClick }) {
 
           return (
             <>
-              <div style={{
-                display: 'grid', gap: 8, marginBottom: 12,
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              }}>
-                <Tile label="Homers tonight" value={rows.length} />
-                <Tile
-                  label="Were our picks"
-                  value={`${onSheet.length}/${rows.length}`}
-                  sub={rows.length ? `${((100 * onSheet.length) / rows.length).toFixed(0)}%` : null}
-                  tone="up"
-                />
-                <Tile label="Inside our top 15" value={top15} tone="accent" />
-                <Tile
-                  label="Median rank of hits"
-                  value={medRank == null ? '—' : `#${medRank}`}
-                  sub="lower is the model being right"
-                />
+              {/* FOUR TILES BECAME ONE SENTENCE (2026-08-16). Homers tonight /
+                  Were our picks / Inside our top 15 / Median rank all said the
+                  same thing the sentence says, minus the clauses that make the
+                  median rank readable at all. Every number and every sub-line
+                  is still here; tiles lose to sentences. */}
+              <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.65, marginBottom: 12 }}>
+                {rows.length === 0 ? (
+                  'Nobody on the slate has gone deep yet, so there is nothing to check the board against.'
+                ) : (
+                  <>
+                    <b style={{ fontFamily: NUM_FONT, color: C.text }}>{rows.length}</b> homer
+                    {rows.length === 1 ? '' : 's'} tonight, and the sheet had{' '}
+                    <b style={{ fontFamily: NUM_FONT, color: '#4ade80' }}>{onSheet.length} of {rows.length}</b>{' '}
+                    ({((100 * onSheet.length) / rows.length).toFixed(0)}%) of them somewhere.{' '}
+                    <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{top15}</b> came from inside the
+                    ranked top 15
+                    {medRank == null ? (
+                      <>, and none of the ones we had carried a board rank, so there is no median to quote.</>
+                    ) : (
+                      <>, and the median board rank of a homer we did have was{' '}
+                        <b style={{ fontFamily: NUM_FONT, color: C.text }}
+                          title="Lower is the model being right — it means the men who went deep were near the top of the board, not buried at the bottom of a wide net.">
+                          #{medRank}
+                        </b> — lower is the model being right.</>
+                    )}
+                  </>
+                )}
               </div>
 
               <DenseTable

@@ -7,7 +7,7 @@ import { dedupeGraded } from '../../lib/graded'
 import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card } from '../ui'
 import Backtest from './Backtest'
-import ResultsDepth from './ResultsDepth'
+import ResultsDepth, { ARCHIVE, archText } from './ResultsDepth'
 import SignalAudit from '../SignalAudit'
 import PickScorecard, { pickJob } from '../PickScorecard'
 import ScoreAudit from '../ScoreAudit'
@@ -34,8 +34,36 @@ import PLSimulator from '../PLSimulator'
 //     the same per-hitter breakdown is one click away inside a player's card,
 //     where it isn't pretending to be a result.
 //   · "Category Performance" bars came out: pick-type rates are already the
-//     lane chips in Overview §4 and the tier table in ResultsDepth.
+//     lane chips in Overview §3 and the tier table in ResultsDepth.
 //   · The day picker became an archive browser instead of a tenth filter.
+
+// ── 2026-08-16, THE FLOW PASS ───────────────────────────────────────────────
+//
+// Donovan sent this page twice — the overview and the True Price sub-view —
+// with one note across the whole round: "lots of the pages seems all over the
+// palace or scrroll up to scoll back down", things should "flow beetter".
+//
+// Three things were wrong here and all three were navigation or repetition:
+//
+//   1. SEVEN SUB-TABS IN TWO ROWS. THIS NIGHT (3) and ALL SEASON (4) sat as
+//      two labelled rows of pills under a third row (Results / True Price) and
+//      under the day picker. Four rows of chrome before a number. The two
+//      groups are genuinely different questions, so they are now the top-level
+//      control — three modes, one row, each captioned with the question it
+//      answers — and the views inside a mode are one row of at most four pills
+//      under it. Nothing was deleted; each mode remembers where you left it.
+//   2. THE DAY PICKER SAT ABOVE FOUR VIEWS IT DOES NOT MOVE. Report card,
+//      Track record, Signals and P/L all span the archive and ignore it. It
+//      now renders only in This night, where it applies.
+//   3. "THE NIGHT IN NUMBERS" — five tiles restating the five sentences
+//      directly above them. Folded into those sentences, with every number,
+//      every sub-line and every tooltip kept. Tiles lose to sentences; this is
+//      the sixth time that has been recorded in this repo.
+//
+// Also fixed on the way past: the "nothing graded yet" early return used to
+// bail out of the WHOLE tab, so on a pregame morning the season report card,
+// the signal audit and the P/L simulator were unreachable even though none of
+// them depends on tonight. The guard is scoped to This night now.
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -714,12 +742,21 @@ function MultiHitCluster({ slots }) {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function Results({ results, backtest, players = [], onPlayerClick }) {
-  const [rview, setRview] = useState('results')
+  // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
+  // its own last-opened view, so switching to All season and back does not
+  // dump you out of the sub-view you were reading. The seven keys are
+  // unchanged — 'overview', 'pitcher', 'pairs' under night; 'card', 'record',
+  // 'signals', 'pl' under season — so nothing that referenced them by name
+  // had to move.
+  const [mode, setMode] = useState('night')
   // OPENS ON OVERVIEW (2026-08-09, owner: "open up results at Overview").
   // It used to open on the season Report card, which meant the first thing you
   // saw after a slate was a season average rather than last night. Overview is
   // last night; the card is one click away and hasn't moved.
-  const [subTab, setSubTab] = useState('overview')
+  const [nightTab, setNightTab] = useState('overview')
+  const [seasonTab, setSeasonTab] = useState('card')
+  const subTab = mode === 'night' ? nightTab : seasonTab
+  const setSubTab = mode === 'night' ? setNightTab : setSeasonTab
   const [archiveOpen, setArchiveOpen] = useState(false)
 
   // THE ARCHIVE BROWSER (was: the day picker).
@@ -824,7 +861,6 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   // above survives every re-render of the page.
   const archiveBar = (
     <div style={{ marginBottom: 12 }}>
-      <ResultPills view={rview} setView={setRview} />
       {day === 'live' ? (
         <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 900, color: C.text }}>
@@ -925,72 +961,75 @@ export default function Results({ results, backtest, players = [], onPlayerClick
     </div>
   )
 
-  if (!slots.length && !homers.length) {
+  // 🏷 TRUE PRICE. Round one injected this inside the graded-day effect, where
+  // React 18 treats returned JSX as the effect's CLEANUP and calls it on
+  // unmount — a TypeError with no error boundary above it, i.e. a blank page,
+  // found by the render audit before anyone hit it live. The branch sits at
+  // the real return, after every hook. It is FIRST now, before the
+  // nothing-graded guard, because the price archive has nothing to do with
+  // whether tonight has graded.
+  if (mode === 'price') {
+    return (
+      <div>
+        <PanelTitle title="Results" sub="the archive of prices, not tonight’s grading" />
+        <ModeBar mode={mode} setMode={setMode} />
+        <TruePrice onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
+
+  // SCOPED TO THIS NIGHT (2026-08-16). This used to return for the whole tab,
+  // which meant a pregame morning — nothing graded yet — took the season
+  // report card, the signal audit and the P/L simulator down with it, none of
+  // which read tonight's file at all.
+  if (mode === 'night' && !slots.length && !homers.length) {
     return (
       <div>
         <PanelTitle title="Results" sub="Nightly grading" />
+        <ModeBar mode={mode} setMode={setMode} />
         {archiveBar}
         <Empty text={
           dayState === 'loading' ? 'Loading that day…'
             : day !== 'live' ? `No graded file published for ${day}.`
             : 'No graded results yet tonight — games haven’t started or nothing has been graded.'
         } />
+        <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, marginTop: 10, maxWidth: 640 }}>
+          <b style={{ color: C.text2 }}>All season</b> above still works — the report card, the
+          per-player track record, the signal audit and the P/L run off the archive and do not need
+          tonight to have started.
+        </div>
       </div>
     )
   }
 
-  // 🏷 THE FOLD, DONE RIGHT. Round one injected this inside the graded-day
-  // effect, where React 18 treats returned JSX as the effect's CLEANUP and
-  // calls it on unmount — a TypeError with no error boundary above it, i.e.
-  // a blank page, found by the render audit before anyone hit it live. The
-  // branch now sits at the real return, after every hook.
-  if (rview === 'trueprice') {
-    return (
-      <div>
-        <ResultPills view={rview} setView={setRview} />
-        <TruePrice onPlayerClick={onPlayerClick} />
-      </div>
-    )
-  }
   return (
     <div>
       <PanelTitle
         title="Results"
-        sub={`${date} · ${slots.length} slots · ${allRows.length} unique`}
-        right={
+        sub={mode === 'night'
+          ? `${date} · ${slots.length} slots · ${allRows.length} unique`
+          : `every graded night in the archive · ${gradedDays.length} of them`}
+        right={mode === 'night' ? (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <Chip color={C.green}>{homers.length} HRs on sheet</Chip>
             {topHit > 0 && <Chip color={C.orange}>{topHit}/{topBoard.length} Top Board</Chip>}
           </div>
-        }
+        ) : null}
       />
 
-      {archiveBar}
+      <ModeBar mode={mode} setMode={setMode} />
 
-      {/* SUB-NAV, in two labelled groups (2026-08-09). Nine equal-looking
-          pills hid the single most confusing thing about this tab: three of
-          them followed the day picker and four ignored it. The split says it
-          once, up front, instead of nine times in nine captions. */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 8.5, color: C.text3, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
-          THIS NIGHT
-        </span>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <TabBtn active={subTab === 'overview'} onClick={() => setSubTab('overview')}>📊 Overview</TabBtn>
-          <TabBtn active={subTab === 'pitcher'} onClick={() => setSubTab('pitcher')}>⚾ Pitchers</TabBtn>
-          <TabBtn active={subTab === 'pairs'} onClick={() => setSubTab('pairs')}>🔗 Pairs & Pools</TabBtn>
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 8.5, color: C.text3, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
-          ALL SEASON
-        </span>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <TabBtn active={subTab === 'card'} onClick={() => setSubTab('card')}>🧾 Report card</TabBtn>
-          <TabBtn active={subTab === 'record'} onClick={() => setSubTab('record')}>👤 Track record</TabBtn>
-          <TabBtn active={subTab === 'signals'} onClick={() => setSubTab('signals')}>🔬 Signals</TabBtn>
-          <TabBtn active={subTab === 'pl'} onClick={() => setSubTab('pl')}>🌙 P/L</TabBtn>
-        </div>
+      {/* The day picker belongs to This night and nothing else. */}
+      {mode === 'night' && archiveBar}
+
+      {/* ONE ROW OF VIEWS, scoped to the question above it. */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {(mode === 'night'
+          ? [['overview', '📊 Overview'], ['pitcher', '⚾ Pitchers'], ['pairs', '🔗 Pairs & Pools']]
+          : [['card', '🧾 Report card'], ['record', '👤 Track record'], ['signals', '🔬 Signals'], ['pl', '🌙 P/L']]
+        ).map(([k, label]) => (
+          <TabBtn key={k} active={subTab === k} onClick={() => setSubTab(k)}>{label}</TabBtn>
+        ))}
       </div>
 
       {/* One plain-English line for whatever is selected. */}
@@ -1000,7 +1039,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           overview: 'how the night went — did the picks do the jobs they were picked for, who delivered, and what got away.',
           pitcher: 'did the arms we called weak actually give it up — and which arm burned us without a flag.',
           pairs: 'how the bot’s pairs and pools graded out.',
-          card: 'is the model any good, all season — letter grades, records and trust curves. Always the last complete night; the archive browser does not move it.',
+          card: 'is the model any good, all season — letter grades, records and trust curves. Always the last complete night; the night picker in This night does not move it.',
           record: 'which players the bot has been right about over every graded day. Spans the whole archive.',
           signals: 'is each badge on this site worth anything — every flag graded against the archive.',
           pl: 'what the archive would have returned at flat stakes, in moons (1 moon = 1 unit, never dollars).',
@@ -1046,13 +1085,28 @@ export default function Results({ results, backtest, players = [], onPlayerClick
         const runDiff = seasonBase != null && tonightBase != null && judge.length >= 5 ? tonightBase - seasonBase : null
 
         const B = ({ children, col = C.text }) => <b style={{ color: col, fontFamily: NUM_FONT }}>{children}</b>
-        const Take = ({ col, children }) => (
-          <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
+        const Take = ({ col, children, title }) => (
+          <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }} title={title}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: col, flexShrink: 0, position: 'relative', top: -1 }} />
             <span style={{ fontSize: 12, color: C.text2, lineHeight: 1.65, minWidth: 0 }}>{children}</span>
           </div>
         )
-        // The takeaway sentences — each only renders when its data exists.
+
+        // ── THE TAKEAWAYS, NOW CARRYING WHAT THE TILES CARRIED ─────────────
+        //
+        // "2 · The night in numbers" used to sit directly under this block:
+        // five tiles restating, number for number, the sentences above them —
+        // Did its job, Base hit, If graded HR-only, Multi-hit / multi-HR, HR
+        // capture. Tiles lose to sentences, and a sentence is the only shape
+        // that can carry the clause the number needs ("the unfair yardstick",
+        // "of every pick", "slate homers on the sheet"). All five are folded in
+        // below: every value, every sub-line kept as words, every tooltip kept
+        // on the row — and k/n printed on every rate, which a tile never had
+        // room for. Two of them (base hit, HR-only) used to render only under
+        // conditions, so folding them in actually made them MORE reliable.
+        //
+        // Each sentence still only renders when its data exists; a sentence
+        // that would have to say "0 of 0" says nothing instead.
         const takes = []
         if (!judge.length) {
           takes.push(
@@ -1061,61 +1115,111 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             </Take>,
           )
         } else {
+          // ① the "Did its job" tile, plus the sub-line it wore.
           if (withJob.length) {
             const p = (100 * didJob) / withJob.length
             takes.push(
-              <Take key="job" col="#4ade80">
+              <Take key="job" col="#4ade80"
+                title="Every pick against the bar it was designated for — the tile that used to sit below called this “Did its job”.">
                 The picks cleared <B col="#4ade80">{didJob} of {withJob.length}</B> of their own bars
                 (<B col="#4ade80">{p.toFixed(0)}%</B>) — a HIT pick needed a hit, an HRR pick 2+ H+R+RBI;
                 nobody here is graded on homers he wasn&apos;t picked for.
               </Take>,
             )
           }
-          if (runDiff != null) {
-            const hot = runDiff >= 5, cold = runDiff <= -5
+          // ② the "Base hit" tile — now unconditional, with the hot/cold read
+          // it used to be separate from. It only ever appeared when the season
+          // base existed AND five picks had batted, so on a thin night the
+          // page could show the tile and not the sentence.
+          {
+            const p = (100 * baseHit) / judge.length
+            const hot = runDiff != null && runDiff >= 5
+            const cold = runDiff != null && runDiff <= -5
             takes.push(
-              <Take key="run" col={hot ? C.orange : cold ? '#60A5FA' : C.text2}>
-                The model ran <B col={hot ? C.orange : cold ? '#60A5FA' : C.text}>{hot ? 'hot' : cold ? 'cold' : 'right on'}</B>{' '}
-                {hot || cold ? 'against' : ''} its season base — <B>{tonightBase.toFixed(0)}%</B> of picks got a base hit
-                vs <B>{seasonBase.toFixed(1)}%</B> lifetime.
-                {cold ? ' One night, not a verdict — the base is the number to trust.' : ''}
+              <Take key="hit" col="#60A5FA"
+                title="Every graded pick against the plainest bar there is: one base hit. Four of the five lanes are not picked for it, so this is scale, not a grade.">
+                On the plainest bar there is — one base hit — the same picks went{' '}
+                <B col="#60A5FA">{baseHit} of {judge.length}</B> ({p.toFixed(0)}% of every pick that batted)
+                {runDiff == null ? '.' : (
+                  <>
+                    , which is the model running{' '}
+                    <B col={hot ? C.orange : cold ? '#60A5FA' : C.text}>{hot ? 'hot' : cold ? 'cold' : 'right on'}</B>{' '}
+                    against its season base of <B>{seasonBase.toFixed(1)}%</B> lifetime.
+                    {cold ? ' One night, not a verdict — the base is the number to trust.' : ''}
+                  </>
+                )}
+              </Take>,
+            )
+          }
+          // ③ the "If graded HR-only" tile, and the sub-line that made it
+          // readable: the unfair yardstick.
+          {
+            const p = (100 * hrOnly) / judge.length
+            takes.push(
+              <Take key="hronly" col={C.orange}
+                title="Kept because people ask for it, labelled because it is unfair: only the HR and TOP lanes are picked to homer, so this grades three lanes on a bar nobody set them.">
+                Graded on homers alone — the unfair yardstick, since only the HR and TOP lanes are
+                picked for one — the night reads <B col={C.orange}>{hrOnly} of {judge.length}</B>{' '}
+                ({p.toFixed(0)}%).
               </Take>,
             )
           }
           if (bestLane) {
             const p = (100 * bestLane.did) / bestLane.n
+            const a = ARCHIVE.lanes[bestLane.role]
             takes.push(
-              <Take key="best" col={bestLane.color}>
+              <Take key="best" col={bestLane.color}
+                title={a ? `Over ${ARCHIVE.nights} graded nights the ${bestLane.role} lane cleared ${a.bar} ${archText(a)}, voids excluded.` : undefined}>
                 <B col={bestLane.color}>{bestLane.label}</B> picks cleared <B col={bestLane.color}>{bestLane.did} of {bestLane.n}</B>{' '}
-                ({p.toFixed(0)}%) — {p >= 65 ? 'the reliable lane again' : 'the night’s strongest lane'}.
+                ({p.toFixed(0)}%) — {p >= 65 ? 'the reliable lane again' : 'the night’s strongest lane'}
+                {a ? <> ; the lane&apos;s own archive rate is <B>{archText(a)}</B> over {ARCHIVE.nights} graded nights</> : ''}.
               </Take>,
             )
           }
           if (worstLane && (100 * worstLane.did) / worstLane.n < 50 && worstLane.role !== bestLane?.role) {
+            const a = ARCHIVE.lanes[worstLane.role]
             takes.push(
               <Take key="worst" col={C.text3}>
                 <B col={worstLane.color}>{worstLane.label}</B> went <B>{worstLane.did} of {worstLane.n}</B> — the lane to be
-                patient with tonight; its bar is {worstLane.job}.
+                patient with tonight; its bar is {worstLane.job}
+                {a ? <> , and it clears that bar <B>{archText(a)}</B> of the time across the archive</> : ''}.
               </Take>,
             )
           }
+          // ④ the "HR capture" tile. Says so even at zero, because a 0% tile
+          // and "no homer has landed yet" are very different facts.
           if (capTotal > 0) {
             takes.push(
-              <Take key="cap" col="#38bdf8">
+              <Take key="cap" col="#38bdf8"
+                title="Slate homers that were on the sheet somewhere — any lane, any rank. The full caught-vs-missed detail is the fold under this block.">
                 <B col="#38bdf8">{capCaught}</B> of the slate&apos;s <B>{capTotal}</B> home runs were somewhere on the sheet
                 (<B col="#38bdf8">{capPct.toFixed(0)}%</B>) — {capPct >= 70 ? 'a wide net on a night it mattered' : capPct >= 50 ? 'a decent net' : 'a leaky night for the net'}
                 {missedList.length ? <> ; the other <B col="#f87171">{missedList.length}</B> never made it (list below)</> : ''}.
               </Take>,
             )
-          }
-          if (multi > 0) {
+          } else if (captureReport) {
             takes.push(
-              <Take key="multi" col="#FCD34D">
-                <B col="#FCD34D">{multi}</B> pick{multi > 1 ? 's' : ''} put up a multi-hit or multi-HR line — the loudest
-                individual night{multi > 1 ? 's' : ''} on the sheet.
+              <Take key="cap0" col="#38bdf8"
+                title="The capture tile used to print 0% here, which reads as a failed net rather than an empty slate.">
+                Nobody on the slate has gone deep yet, so there is no capture rate to quote — not a
+                miss, just no homers to catch.
               </Take>,
             )
           }
+          // ⑤ the "Multi-hit / multi-HR" tile, which showed a bare count.
+          takes.push(
+            <Take key="multi" col="#FCD34D"
+              title="A pick with 2+ hits or 2+ homers — the big individual nights. Every one of them is named under “Who delivered”.">
+              {multi > 0 ? (
+                <>
+                  <B col="#FCD34D">{multi}</B> of the <B>{judge.length}</B> picks that batted put up a
+                  multi-hit or multi-HR line — the loudest individual night{multi > 1 ? 's' : ''} on the sheet.
+                </>
+              ) : (
+                <>No pick has put up a multi-hit or multi-HR line yet, out of <B>{judge.length}</B> that batted.</>
+              )}
+            </Take>,
+          )
           if (day === 'live' && stillLive > 0) {
             takes.push(
               <Take key="live" col={C.cyan}>
@@ -1133,13 +1237,9 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             <span style={{ fontSize: 9.5, color: C.text3 }}>{note}</span>
           </div>
         )
-        const Tile = ({ label, value, sub, col }) => (
-          <div style={{ flex: '1 1 130px', minWidth: 0, background: C.bg2, border: `1px solid ${C.border}`, borderTop: `2px solid ${col}`, borderRadius: 10, padding: '8px 12px' }}>
-            <div style={{ fontSize: 8, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</div>
-            <div style={{ fontSize: 19, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{value}</div>
-            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
-          </div>
-        )
+        // The `Tile` helper came out 2026-08-16 with the five tiles it drew —
+        // see the takeaways comment above for where each number went.
+        //
         // A demoted panel: closed by default, honest label about what's inside.
         const Fold = ({ label, children }) => (
           <details style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 8 }}>
@@ -1160,30 +1260,59 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             {takes}
           </div>
 
-          {/* 2 · THE NIGHT IN NUMBERS — the tiles, capture detail folded */}
-          <Flow num="2" title="The night in numbers" note="the same story as the sentences, as tiles" />
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <Tile label="Did its job" value={withJob.length ? `${((100 * didJob) / withJob.length).toFixed(0)}%` : '—'} sub={`${didJob}/${withJob.length} picks, own bars`} col="#4ade80" />
-            <Tile label="Base hit" value={judge.length ? `${((100 * baseHit) / judge.length).toFixed(0)}%` : '—'} sub={`${baseHit}/${judge.length} of every pick`} col="#60A5FA" />
-            <Tile label="If graded HR-only" value={judge.length ? `${((100 * hrOnly) / judge.length).toFixed(0)}%` : '—'} sub={`${hrOnly}/${judge.length} — the unfair yardstick`} col={C.orange} />
-            <Tile label="Multi-hit / multi-HR" value={multi} sub="big individual nights" col="#FCD34D" />
-            <Tile label="HR capture" value={`${capPct.toFixed(0)}%`} sub="slate homers on the sheet" col="#38bdf8" />
-          </div>
+          {/* The two folds that belong to the sentences above: the capture
+              detail the capture sentence counts, and the archive the lane
+              sentences are being measured against. Both closed by default —
+              the answer is the block above, these are the receipts. */}
           <Fold label="📡 Capture detail — the full net, caught vs missed">
             <CaptureBanner report={captureReport} uniqueReport={uniqueReport} />
           </Fold>
+          <Fold label={`📐 What ${ARCHIVE.nights} graded nights say each lane is worth`}>
+            {/* Restated from the 2026-08-16 backtest over this project's own
+                archive. Older copy elsewhere in the repo was fit on nine days
+                and counted voids as losses, which is most of the gap. */}
+            <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.7 }}>
+              <B>{ARCHIVE.nights}</B> graded nights, <B>{ARCHIVE.games.toLocaleString()}</B> games,{' '}
+              <B>{ARCHIVE.picks.toLocaleString()}</B> judgeable designated picks. Each lane on its own
+              bar, voids excluded — a man who never batted is a void, not a loss.
+              <div style={{ marginTop: 6 }}>
+                HIT <B col="#a78bfa">{archText(ARCHIVE.lanes.HIT)}</B> ·{' '}
+                HRR <B col={C.cyan}>{archText(ARCHIVE.lanes.HRR)}</B> ·{' '}
+                CONTACT <B col="#4ade80">{archText(ARCHIVE.lanes.CONTACT)}</B> ·{' '}
+                TOP <B col="#FCD34D">{archText(ARCHIVE.lanes.TOP)}</B> on its HR bar ·{' '}
+                HR <B col={C.orange}>{archText(ARCHIVE.lanes.HR)}</B>.
+              </div>
+              <div style={{ marginTop: 6, color: C.text3 }}>
+                The bar matters more than the pick: the same TOP pick, the same night, judged on 1+ hit
+                instead of a homer went <B col={C.text}>{archText(ARCHIVE.topOnHits)}</B>. And taking a
+                single pick per game — always the top-scored HIT pick — returned{' '}
+                <B col={C.text}>{archText(ARCHIVE.onePerGame)}</B>; count the voids as losses instead of
+                setting them aside and that floor is{' '}
+                <B>{ARCHIVE.onePerGame.voidsAsLossesPct}%</B>.
+              </div>
+              <div style={{ marginTop: 6, fontSize: 10, color: C.text3 }}>
+                These are measured frequencies with their denominators, over an archive that is not a
+                random sample of the season — it is whatever survived on disk, 62 nights inside a
+                119-day span. Tonight is one night against them.
+              </div>
+            </div>
+          </Fold>
 
-          {/* 3 · WHO DELIVERED — names stay visible; names are the takeaway */}
-          <Flow num="3" title="Who delivered" note="homers first, then the multi-hit nights" />
+          {/* 2 · WHO DELIVERED — names stay visible; names are the takeaway */}
+          <Flow num="2" title="Who delivered" note="homers first, then the multi-hit nights" />
           <HRHits homers={homers} />
           <MultiHitCluster slots={uniqSlots} />
 
-          {/* 4 · THE LANES — sentence-sized lines, bars folded */}
-          <Flow num="4" title="How each lane did" note="every category against its own bar, smallest samples included" />
+          {/* 3 · THE LANES — sentence-sized lines, bars folded */}
+          <Flow num="3" title="How each lane did" note="every category against its own bar, smallest samples included" />
           {laneList.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {laneList.map((l) => (
-                <span key={l.role} title={`A ${l.label} pick's job is ${l.job}.`} style={{
+                <span key={l.role} title={`A ${l.label} pick's job is ${l.job}.${
+                  ARCHIVE.lanes[l.role]
+                    ? ` Across ${ARCHIVE.nights} graded nights that lane cleared it ${archText(ARCHIVE.lanes[l.role])}, voids excluded.`
+                    : ''
+                }`} style={{
                   display: 'inline-flex', alignItems: 'baseline', gap: 6,
                   border: `1px solid ${l.color}44`, background: `${l.color}10`, borderRadius: 9, padding: '4px 11px',
                 }}>
@@ -1202,16 +1331,16 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             <PickScorecard slots={slots} backtest={backtest} onPlayerClick={onPlayerClick} />
           </Fold>
 
-          {/* 5 · MODEL CHECKS — all receipts, all folded */}
-          <Flow num="5" title="Model checks" note="the receipts — open when you want to audit, skip when you just want the read" />
+          {/* 4 · MODEL CHECKS — all receipts, all folded */}
+          <Flow num="4" title="Model checks" note="the receipts — open when you want to audit, skip when you just want the read" />
           <Fold label="🔬 Flags, slate summary and score audit — did the numbers mean anything tonight">
             <TrackingLegend slots={uniqSlots} />
             <ExpandedStats slots={uniqSlots} players={players} />
             <ScoreAudit slots={uniqSlots} players={players} />
           </Fold>
 
-          {/* 6 · WHAT GOT AWAY — the sentence up top already counted them */}
-          <Flow num="6" title="What got away" note="homers the sheet never had — the model's real misses" />
+          {/* 5 · WHAT GOT AWAY — the sentence up top already counted them */}
+          <Flow num="5" title="What got away" note="homers the sheet never had — the model's real misses" />
           {missedList.length > 0 ? (
             <>
               <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6, marginBottom: 8 }}>
@@ -1234,12 +1363,12 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             </div>
           )}
 
-          {/* 7 · THE FULL GRADING TABLES. These used to render under EVERY
+          {/* 6 · THE FULL GRADING TABLES. These used to render under EVERY
               sub-tab, so the season Report card came with the whole night's
               grading bolted to the bottom of it. They belong to the night, so
               they live inside the night's view — and behind a fold, because
               they are the deep version of everything above. */}
-          <Flow num="7" title="The full tables" note="the same night at full depth — score calibration, every homer vs the board, every pick" />
+          <Flow num="6" title="The full tables" note="the same night at full depth — score calibration, every homer vs the board, every pick" />
           <Fold label="📋 Open the full grading tables">
             <ResultsDepth results={view} onPlayerClick={onPlayerClick} />
           </Fold>
@@ -1293,18 +1422,43 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   )
 }
 
-function ResultPills({ view, setView }) {
+// ── THE THREE QUESTIONS ─────────────────────────────────────────────────────
+//
+// Replaces ResultPills (🧾 Results / 🏷 True Price), which was one of FOUR
+// rows of navigation stacked at the top of this tab. The old second and third
+// rows — THIS NIGHT and ALL SEASON, seven pills between them — are folded in
+// here as the first two questions, because that is what they always were: the
+// labels above those rows were already saying "these are two different
+// questions", they just weren't shaped like it.
+//
+// Each button carries the question it answers, so the split is legible before
+// you click rather than after. Every one of the seven views is still exactly
+// one click deep.
+const MODES = [
+  ['night',  '🌙 This night',  'how the picks graded'],
+  ['season', '📈 All season',  'is the model any good'],
+  ['price',  '🏷 True Price',  'what the book pays him'],
+]
+function ModeBar({ mode, setMode }) {
   return (
-    <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
-      {[['results', '🧾 Results'], ['trueprice', '🏷 True Price']].map(([k, label]) => (
-        <button key={k} onClick={() => setView(k)} style={{
-          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
-          fontWeight: 800, fontFamily: NUM_FONT,
-          border: `1px solid ${view === k ? C.orange : C.border}`,
-          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
-          color: view === k ? C.orange : C.text3,
-        }}>{label}</button>
-      ))}
+    <div style={{ display: 'flex', gap: 6, marginBottom: 11, flexWrap: 'wrap' }}>
+      {MODES.map(([k, label, question]) => {
+        const on = mode === k
+        return (
+          <button
+            key={k} onClick={() => setMode(k)}
+            style={{
+              flex: '1 1 170px', minWidth: 0, textAlign: 'left', cursor: 'pointer',
+              padding: '7px 13px', borderRadius: 11,
+              border: `1px solid ${on ? C.orange : C.border}`,
+              background: on ? 'rgba(249,115,22,.13)' : 'rgba(255,255,255,.03)',
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 900, color: on ? C.orange : C.text2 }}>{label}</div>
+            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 1 }}>{question}</div>
+          </button>
+        )
+      })}
     </div>
   )
 }

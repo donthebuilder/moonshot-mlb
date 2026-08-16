@@ -27,6 +27,23 @@ import {
 // FETCHED ON OPEN, not by the Dashboard. This payload is season-scale and does
 // not change during a slate, so putting it in the poll would re-download a few
 // hundred KB every 60 seconds to show the same numbers.
+//
+// ── 2026-08-16, THE PAGE THAT SHOWED NOTHING ────────────────────────────────
+//
+// Donovan sent a screenshot of this view and the entire page was one grey
+// line: "Nothing at 10+ nights. The history is 1 night old, so no row can
+// clear that bar yet — try 5." MIN NIGHTS was hard-defaulted to 10 against an
+// archive holding one night, so the page loaded its full contents and then
+// filtered every last row away before drawing anything. A default the data
+// cannot satisfy is a BUG, not a strict filter — it shows an empty page while
+// a full one sits one notch down. See MIN_NIGHT_RUNGS below for the fix.
+//
+// The other half of the same screenshot was order: a long explanation, then a
+// money panel, then filters, then (on that night) nothing. The page now leads
+// with its answer — how many priced lines actually clear their own error bar
+// and which one is loudest — and the explanation moved to a fold at the
+// bottom, where a manual belongs. Nothing was deleted; the paragraph is intact
+// inside "How to read this page".
 
 const SORTS = [
   ['gap', 'Biggest gap'],
@@ -35,6 +52,23 @@ const SORTS = [
   ['price', 'Longest true price'],
   ['name', 'Name'],
 ]
+
+// ── MIN NIGHTS ──────────────────────────────────────────────────────────────
+//
+// The rungs now carry their own row counts, and the page picks its OPENING
+// rung from what the archive actually holds: 10 whenever 10 has rows (the
+// shipped behaviour, unchanged on a mature archive), otherwise the highest
+// rung below it that does. It never steps UP on its own — a page that quietly
+// raised its own bar would be hiding rows — and when it steps down it says so
+// in a sentence, with the rung it stepped down from. Touching any rung pins it
+// and the page stops choosing.
+//
+// A 1 rung is new. On a one-night archive every row has n=1, so 5 is just as
+// empty as 10 was; without a rung the data can reach, "pick a sensible default"
+// has nothing to pick. Every row it exposes is labelled 'too thin' by
+// trustOf(), which is the honest reading, not a hidden one.
+const MIN_NIGHT_RUNGS = [1, 5, 10, 20, 40]
+const PREFERRED_MIN = 10
 
 const chip = (on) => ({
   padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
@@ -49,7 +83,9 @@ const th = { fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'upp
 export default function TruePrice({ onPlayerClick }) {
   const [hist, setHist] = useState(undefined)   // undefined = loading, null = absent
   const [market, setMarket] = useState('all')
-  const [minN, setMinN] = useState(10)
+  // null = "the page chooses" (see MIN_NIGHT_RUNGS). A number means the reader
+  // clicked a rung and owns the choice from then on.
+  const [minNPin, setMinNPin] = useState(null)
   const [sort, setSort] = useState('gap')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(null)
@@ -63,7 +99,48 @@ export default function TruePrice({ onPlayerClick }) {
     return () => { alive = false }
   }, [])
 
+  // How many priced lines survive each rung. Counted straight off the payload
+  // rather than off flatten()'s output, because flatten's `minN` argument only
+  // changes each row's TRUST tier — the row set itself is the same at every
+  // rung — and deriving the default from the thing it feeds would be circular.
+  // The `n` guard matches flatten's, so these counts and the table agree.
+  const nightCounts = useMemo(() => {
+    const counts = new Map(MIN_NIGHT_RUNGS.map((v) => [v, 0]))
+    Object.values(hist?.players || {}).forEach((p) => {
+      Object.values(p?.markets || {}).forEach((b) => {
+        const k = Number(b?.n)
+        if (!b || !Number.isFinite(k)) return
+        MIN_NIGHT_RUNGS.forEach((v) => { if (k >= v) counts.set(v, counts.get(v) + 1) })
+      })
+    })
+    return counts
+  }, [hist])
+
+  const autoMin = useMemo(() => {
+    if (nightCounts.get(PREFERRED_MIN)) return PREFERRED_MIN
+    const below = MIN_NIGHT_RUNGS.filter((v) => v < PREFERRED_MIN).sort((a, b) => b - a)
+    for (const v of below) if (nightCounts.get(v)) return v
+    return MIN_NIGHT_RUNGS[0]
+  }, [nightCounts])
+
+  const minN = minNPin ?? autoMin
+  const steppedDown = minNPin == null && autoMin < PREFERRED_MIN && nightCounts.get(autoMin) > 0
+
   const rows = useMemo(() => flatten(hist, { minN }), [hist, minN])
+
+  // THE ANSWER, computed before anything is drawn. Everything in the lead band
+  // is a count over the rows the table is about to show — ignoring the market
+  // filter and the search box on purpose, because the reader has not narrowed
+  // anything yet when they read it.
+  const lead = useMemo(() => {
+    const pool = rows.filter((r) => r.n >= minN)
+    const real = pool.filter((r) => r.trust === 'real')
+    const up = real.filter((r) => r.edge > 0)
+    const down = real.filter((r) => r.edge < 0)
+    const loudest = [...real].sort((a, b) => Math.abs(b.z ?? 0) - Math.abs(a.z ?? 0))[0] || null
+    const best = [...pool].sort((a, b) => (b.edge ?? 0) - (a.edge ?? 0))[0] || null
+    return { pool, real, up, down, loudest, best }
+  }, [rows, minN])
 
   // Rows sort by how much the sample backs them FIRST, so a proven small gap
   // outranks an unproven big one. (Restored 2026-08-15 — the sentences rewrite
@@ -122,6 +199,7 @@ export default function TruePrice({ onPlayerClick }) {
             </div>
           )}
         </div>
+        <HowToRead open />
       </Shell>
     )
   }
@@ -131,6 +209,87 @@ export default function TruePrice({ onPlayerClick }) {
   return (
     <Shell days={hist.days} settled={hist.settled_props} stamp={hist.generated_at_human}>
       <div style={{ marginBottom: 10 }}><OddsStatus status={oddsStatus} /></div>
+
+      {/* ── THE READ, BEFORE ANYTHING ELSE ──────────────────────────────────
+          Sentences, not tiles: every one of these numbers needs a clause after
+          it ("+18 points and still inside its own error bar" is the finding,
+          not "+18"), and a tile cannot carry a clause. */}
+      <div style={{
+        background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
+        border: `1px solid ${C.border}`, borderRadius: 13,
+        padding: '11px 15px', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 11,
+      }}>
+        <Line icon="🏷">
+          {!lead.pool.length ? (
+            <>
+              <B>{hist.days.length}</B> graded night{hist.days.length === 1 ? '' : 's'} of prices are
+              in, and <B>{Number(hist.settled_props) ? Number(hist.settled_props).toLocaleString() : 'zero'}</B> settled
+              props with them, but no player has been priced at the SAME line on <B>{minN}</B> of
+              them — so there is no rate to quote at this rung. A line needs repeats before it has a
+              rate, and this fills in a night at a time.
+            </>
+          ) : lead.real.length ? (
+            <>
+              Of the <B>{lead.pool.length.toLocaleString()}</B> priced lines with{' '}
+              <B>{minN}+</B> graded night{minN === 1 ? '' : 's'} behind them,{' '}
+              <B col="#4ade80">{lead.real.length}</B> clear their own error bar —{' '}
+              <B col="#4ade80">{lead.up.length}</B> where the market has been slow on him,{' '}
+              <B col="#f87171">{lead.down.length}</B> where you have been paying up for the name.
+            </>
+          ) : (
+            <>
+              None of the <B>{lead.pool.length.toLocaleString()}</B> priced line
+              {lead.pool.length === 1 ? '' : 's'} at <B>{minN}+</B> night{minN === 1 ? '' : 's'} clears
+              its own error bar yet, on <B>{hist.days.length}</B> graded night
+              {hist.days.length === 1 ? '' : 's'} of prices. That is the expected answer this early,
+              not a broken page — a ten-point gap against a coin-flip price takes about a hundred
+              nights to separate from luck. The table is sorted best-supported first regardless.
+            </>
+          )}
+        </Line>
+
+        {lead.loudest && (
+          <Line icon="📣">
+            The loudest is{' '}
+            <b
+              onClick={() => onPlayerClick?.({ player_id: lead.loudest.pid, player_name: lead.loudest.name, team: lead.loudest.team })}
+              style={{ color: C.text, cursor: 'pointer', borderBottom: `1px dotted ${C.border2}` }}
+              title="Open his card"
+            >{lead.loudest.name}</b>{lead.loudest.team ? ` (${lead.loudest.team})` : ''} on{' '}
+            <b style={{ color: C.text }}>{lead.loudest.label}</b> — he cleared it{' '}
+            <B>{lead.loudest.hits}/{lead.loudest.n}</B> ({lead.loudest.rate.toFixed(0)}%) while the
+            prices he was actually getting only needed <B>{lead.loudest.avgImplied}%</B>. True price{' '}
+            <B col={C.orange}>{priceText(lead.loudest.truePrice, lead.loudest.rate, lead.loudest.n)}</B>,
+            book price <B>{lead.loudest.avgPrice != null ? fmtOdds(lead.loudest.avgPrice) : '—'}</B>{' '}
+            — a <B col={lead.loudest.edge > 0 ? '#4ade80' : '#f87171'}>
+              {lead.loudest.edge > 0 ? '+' : ''}{lead.loudest.edge.toFixed(0)}
+            </B>-point gap at <B>{lead.loudest.z}σ</B>.
+          </Line>
+        )}
+
+        {!lead.real.length && lead.best && lead.best.edge > 0 && (
+          <Line icon="👀">
+            The biggest raw gap belongs to <b style={{ color: C.text }}>{lead.best.name}</b> on{' '}
+            <b style={{ color: C.text }}>{lead.best.label}</b> — <B>{lead.best.hits}/{lead.best.n}</B>{' '}
+            against prices needing <B>{lead.best.avgImplied}%</B>, <B>+{lead.best.edge.toFixed(0)}</B>{' '}
+            points. Read it as a name to watch: at this sample the gap and no gap are the same claim.
+          </Line>
+        )}
+
+        {/* THE DEFAULT SAYING WHAT IT DID. Never silently show an empty page
+            when there is data one notch down — and never move the bar without
+            printing the move. */}
+        {steppedDown && (
+          <Line icon="⚙️">
+            Opened at <B>{minN}+ nights</B> instead of the usual <B>{PREFERRED_MIN}+</B>:{' '}
+            {nightCounts.get(PREFERRED_MIN)
+              ? <>only <B>{nightCounts.get(PREFERRED_MIN)}</B> line{nightCounts.get(PREFERRED_MIN) === 1 ? '' : 's'} reach ten graded nights at one number</>
+              : <>no line has ten graded nights at one number yet — the archive is <B>{hist.days.length}</B> night{hist.days.length === 1 ? '' : 's'} old</>}
+            , and a filter that hides everything is a broken filter. Click any rung below and the page
+            stops choosing for you.
+          </Line>
+        )}
+      </div>
 
       <RealityCheck hist={hist} />
 
@@ -142,10 +301,26 @@ export default function TruePrice({ onPlayerClick }) {
         ))}
         <span style={{ width: 8 }} />
         <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Min nights</span>
-        {[5, 10, 20, 40].map((v) => (
-          <button key={v} onClick={() => setMinN(v)} style={chip(minN === v)}
-            title={`Only rows with at least ${v} graded nights at that exact line`}>{v}</button>
-        ))}
+        {/* Each rung wears the number of lines that clear it, so an empty rung
+            is visible BEFORE it is clicked rather than after. */}
+        {MIN_NIGHT_RUNGS.map((v) => {
+          const c = nightCounts.get(v) || 0
+          return (
+            <button
+              key={v} onClick={() => setMinNPin(v)}
+              style={{ ...chip(minN === v), opacity: c ? 1 : 0.45 }}
+              title={c
+                ? `${c.toLocaleString()} line${c === 1 ? '' : 's'} have at least ${v} graded night${v === 1 ? '' : 's'} at that exact line${v === 1 ? ' — nothing here can clear its error bar, read the Reads as column' : ''}`
+                : `No line has ${v} graded nights at one number yet`}
+            >{v}<span style={{ opacity: 0.6, marginLeft: 4 }}>{c}</span></button>
+          )
+        })}
+        {minNPin != null && (
+          <button
+            onClick={() => setMinNPin(null)} style={chip(false)}
+            title={`Hand the choice back to the page — it opens at ${PREFERRED_MIN}+ when rows exist there, otherwise the highest rung that has any`}
+          >↺ auto</button>
+        )}
         <span style={{ width: 8 }} />
         {SORTS.map(([k, label]) => (
           <button key={k} onClick={() => setSort(k)} style={chip(sort === k)}>{label}</button>
@@ -161,11 +336,36 @@ export default function TruePrice({ onPlayerClick }) {
       </div>
 
       {!shown.length ? (
+        // AN EMPTY TABLE NOW HAS TO SAY WHOSE FAULT IT IS. The page only opens
+        // on a rung with rows, so getting here means the reader narrowed it —
+        // a pinned rung, a prop filter or the search box — and the line names
+        // which one and offers the click back.
         <div style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.6, padding: '10px 2px' }}>
-          Nothing at {minN}+ nights{market !== 'all' ? ` on ${MARKET_LABEL[market]}` : ''}
-          {q ? ` matching "${q}"` : ''}. {hist.days.length < minN
-            ? `The history is ${hist.days.length} night${hist.days.length === 1 ? '' : 's'} old, so no row can clear that bar yet — try 5.`
-            : 'Try a lower minimum or another prop.'}
+          Nothing at {minN}+ night{minN === 1 ? '' : 's'}{market !== 'all' ? ` on ${MARKET_LABEL[market]}` : ''}
+          {q ? ` matching “${q}”` : ''}.{' '}
+          {(() => {
+            const reachable = MIN_NIGHT_RUNGS.filter((v) => v < minN && nightCounts.get(v)).sort((a, b) => b - a)[0]
+            if (nightCounts.get(minN) && (market !== 'all' || q)) {
+              return <>
+                {nightCounts.get(minN).toLocaleString()} line{nightCounts.get(minN) === 1 ? '' : 's'} clear
+                that many nights across all props, so it is the prop filter or the search box doing this,
+                not the archive.
+              </>
+            }
+            if (reachable) {
+              return <>
+                The archive is {hist.days.length} night{hist.days.length === 1 ? '' : 's'} old, so no line
+                has {minN} graded nights at one number yet —{' '}
+                <b onClick={() => setMinNPin(reachable)} style={{ color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                  drop to {reachable}+
+                </b>, which has {nightCounts.get(reachable).toLocaleString()}.
+              </>
+            }
+            return <>
+              No line in the archive has a graded night at a repeated number yet — this fills in as the
+              odds workflow and the grading workflow both run on the same date.
+            </>
+          })()}
         </div>
       ) : (
         <div className="dense-scroll rail" style={{ overflowX: 'auto' }}>
@@ -258,11 +458,25 @@ export default function TruePrice({ onPlayerClick }) {
           )}
         </div>
       )}
+
+      <HowToRead />
     </Shell>
   )
 }
 
 const cell = { textAlign: 'center', fontSize: 11, padding: '4px 6px', whiteSpace: 'nowrap' }
+
+// The lead band's two atoms. A numeral is always NUM_FONT so a rate and a
+// denominator line up down the block instead of drifting.
+const B = ({ children, col = C.text }) => (
+  <b style={{ color: col, fontFamily: NUM_FONT }}>{children}</b>
+)
+const Line = ({ icon, children }) => (
+  <div style={{ display: 'flex', gap: 9, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.65, color: C.text2 }}>
+    <span style={{ flexShrink: 0 }}>{icon}</span>
+    <span style={{ minWidth: 0 }}>{children}</span>
+  </div>
+)
 
 // 💵 Hit rate is not the finish line. Everything else on this page is a
 // percentage; this is the only band that says whether a unit came back.
@@ -344,14 +558,46 @@ function Shell({ days, settled, stamp, children }) {
           </span>
         )}
       </div>
-      <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, maxWidth: 780, marginBottom: 11 }}>
+      {children}
+    </div>
+  )
+}
+
+// ℹ️ THE MANUAL, MOVED TO THE BOTTOM (2026-08-16). This paragraph used to be
+// the first thing on the page, above the money panel, above the filters and
+// above the table — so the answer was always the fourth thing you reached.
+// Every word of it is still here; it just stopped being the lead. `open` is
+// set when there is nothing else to read, which is the one time an explanation
+// IS the page.
+function HowToRead({ open = false }) {
+  return (
+    <details open={open} style={{
+      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, marginTop: 12,
+    }}>
+      <summary style={{ padding: '9px 14px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>
+        ℹ️ How to read this page — what True and Goes at are, and when a gap counts
+      </summary>
+      <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 780, padding: '0 14px 12px' }}>
         Every price the bot fetched before first pitch, settled against that night&apos;s box score.
         <b style={{ color: C.text }}> True</b> is what his own rate says the bet is worth;
         <b style={{ color: C.text }}> Goes at</b> is what the book has actually been paying him. The
         gap between the two is the point — but a gap is not an edge until it clears its own error
         bar, so rows that haven&apos;t are labelled and sorted below the ones that have.
+        <div style={{ marginTop: 8, color: C.text3, fontSize: 10.5 }}>
+          <b style={{ color: C.text2 }}>Min nights</b> counts graded nights at that exact line, not
+          nights he played. A void — priced, and he never batted — is neither a hit nor a miss and
+          never reaches the denominator. The rung the page opens on is chosen from what the archive
+          holds: <b>{PREFERRED_MIN}+</b> when rows exist there, otherwise the highest rung below it
+          that has any, so the page never opens empty while it has something to show. Every rung is
+          still one click away and the count beside each one is how many lines clear it.
+        </div>
+        <div style={{ marginTop: 8, color: C.text3, fontSize: 10.5 }}>
+          <b style={{ color: C.text2 }}>Why thin samples stay quiet.</b> The error bar is computed at
+          the PRICE&apos;S rate, not his, and two of them is the bar. A ten-point gap against a
+          coin-flip price needs about a hundred graded nights to clear it — 4·p·(1−p)/gap² in
+          nights — which is why a big gap on eleven nights is labelled, not celebrated.
+        </div>
       </div>
-      {children}
-    </div>
+    </details>
   )
 }

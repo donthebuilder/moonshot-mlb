@@ -228,12 +228,21 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
       />
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
+        {/* RESTATED ON A BIGGER ARCHIVE (2026-08-15). These were 3,973 picks
+            over 39 graded days; the sweep now runs on 5,184 judgeable
+            designated picks over 62 nights and 811 games, so every figure
+            below moved. Restating rather than bumping matters — the SAMPLE
+            moved too, and a rate quoted against the wrong n is the thing this
+            panel exists to prevent. Two other surfaces quoted the old numbers
+            and now disagree with this one two panels away; they are corrected
+            in the same commit. */}
         The cards above are this day only. Measured across the full local archive —
-        <b style={{ color: C.text2 }}> 3,973 picks over 39 graded days</b>, roughly six times what
-        the published branch carries — the categories land at: HIT 64.5%, HRR 48.0%, CONTACT 38.2%,
-        TOP 19.2%, HR 15.4%.
+        <b style={{ color: C.text2 }}> 5,184 judgeable picks over 62 graded nights</b>, roughly six
+        times what the published branch carries — the categories land at: HIT 69.6% (968/1391),
+        HRR 50.9% (709/1392), CONTACT 39.9% (316/791), TOP 21.3% (172/807), HR 15.9% (128/803).
+        Voids are excluded throughout: a man who never batted is not a loss.
         <br /><br />
-        On home runs specifically, <b style={{ color: C.text2 }}>TOP 19.2% and HR 15.4%</b>, against
+        On home runs specifically, <b style={{ color: C.text2 }}>TOP 21.3% and HR 15.9%</b>, against
         14.6% across every pick in the archive. That gap is <b style={{ color: C.text2 }}>not
         statistically significant</b> — TOP vs HR is p=0.084, and HR against every other pick is
         p=0.556, which is no difference at all. The 95% intervals overlap heavily: TOP [16.2, 22.6],
