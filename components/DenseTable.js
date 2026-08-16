@@ -342,7 +342,7 @@ export default function DenseTable({
                   // wash is the winning highlight's own color.
                   ...((() => { const l = firstMatch(r._raw ?? r); return l ? washOf(l.color) : {} })()),
                 }}
-                className="dense-row"
+                className={onRowClick ? "dense-row dense-click" : "dense-row"}
               >
                 {columns.map((c) => {
                   const v = r[c.key]
@@ -527,7 +527,17 @@ export default function DenseTable({
         {' '}Blanks always sort to the bottom, whichever way a column points.
       </div>
       <style jsx>{`
-        .dense-row:hover td { filter: brightness(1.22); }
+        /* @media (hover: hover) IS LOAD-BEARING (2026-08-16). Unqualified,
+           this rule is the single worst offender in Donovan's "the highlights
+           are showing on the columns" report: on a touch screen there is no
+           pointer to leave, so iOS keeps :hover asserted on the last thing you
+           tapped. Every row you touched on a board stayed lit at 1.22
+           brightness until you happened to tap somewhere else — a trail of
+           highlighted rows behind you, which is exactly what it looked like.
+           Touch gets a real press state instead, in MobileCSS. */
+        @media (hover: hover) {
+          .dense-row:hover td { filter: brightness(1.22); }
+        }
       `}</style>
     </div>
   )

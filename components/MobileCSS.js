@@ -585,19 +585,66 @@ export default function MobileCSS() {
          Removing the tap highlight without replacing it would leave taps with
          no feedback at all, so :active gets a real one. It is subtle on
          purpose: this is confirmation, not decoration. */
-      button, [role="button"], a, summary, .pill, .chip-row > * {
-        -webkit-tap-highlight-color: transparent;
-      }
+      /* ── ROUND TWO (2026-08-16). THE FIRST FIX ENUMERATED SELECTORS AND
+         THAT WAS THE BUG. ────────────────────────────────────────────────
+         Donovan, still: "the highlights are showing on the columns, things
+         in the game or the boards."
+
+         He was right and the reason is embarrassing in a useful way. The
+         list below used to read: button, [role=button], a, summary, .pill
+         — so every tappable thing that ISN'T one of those kept the OS box.
+         On this site that is a lot: every DenseTable column header is a
+         th with an onClick sort handler, every board row is a tr with an
+         onClick, and the game cards are plain divs with onClick. Measured
+         in a mobile context on the Boards tab, before this change:
+
+             th   tap = rgba(51,181,229,0.4)     <- the OS box
+             td   tap = rgba(51,181,229,0.4)
+             tr   tap = rgba(51,181,229,0.4)
+             button tap = rgba(0,0,0,0)          <- the only one fixed
+
+         -webkit-tap-highlight-color IS AN INHERITED PROPERTY. Setting it
+         once on the root element covers everything on the site, including every
+         one written after today, and cannot fall out of sync with a list
+         of selectors. That is the whole fix, and enumerating was never the
+         right shape for it. */
+      html { -webkit-tap-highlight-color: transparent; }
+
       button, [role="button"], summary {
         -webkit-user-select: none;
         user-select: none;
       }
       button:active, [role="button"]:active { opacity: .72; }
-      /* Text you might genuinely want to copy keeps both behaviours. */
-      p, td, th, pre, code, .prose, .selectable {
+
+      /* Text you might genuinely want to copy keeps selection. A th is NOT
+         on this list any more: on this site every column header is a sort
+         button, so making it selectable meant a drag on a header painted
+         the orange ::selection and left it sitting there — the other half
+         of what he was seeing. Nobody has ever wanted to copy the word
+         "FACING" out of a table head. */
+      p, td, pre, code, .prose, .selectable {
         -webkit-user-select: text;
         user-select: text;
       }
+      th { -webkit-user-select: none; user-select: none; }
+
+      /* A row that is itself a button behaves like one: no text selection
+         on a drag, and a real press state to replace the OS box we just
+         removed. DenseTable tags clickable rows with .dense-row. */
+      /* .dense-click, not .dense-row — EVERY row carries .dense-row whether
+         or not it does anything, and giving a dead row a press state is its
+         own small lie. DenseTable adds .dense-click only when onRowClick is
+         actually wired. Cursor is already set inline and correctly. */
+      .dense-click:active td { background: rgba(255,255,255,.05); }
+      /* Killing selection inside a clickable row is a TOUCH fix, so it is
+         scoped to touch. With a mouse you can always click away to clear a
+         selection, and being able to drag a number out of a board is worth
+         keeping; with a finger the drag is usually a scroll that missed and
+         the leftover orange wash is the complaint. */
+      @media (pointer: coarse) {
+        .dense-click td { -webkit-user-select: none; user-select: none; }
+      }
+      th:active { background: rgba(249,115,22,.10) !important; }
       :focus-visible { outline: 2px solid rgba(249,115,22,.6); outline-offset: 2px; border-radius: 4px; }
 
       /* Thin dark scrollbars — the stock chrome bars were the last stock
@@ -612,10 +659,15 @@ export default function MobileCSS() {
       .tab-fade { animation: tabFade .16s ease-out; }
       @keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-      /* Cards lift a hair on hover — grids that respond feel alive. */
-      .bot-picks-grid > *:hover, .pickstrip > button:hover {
-        transform: translateY(-1px);
-        transition: transform .1s ease-out;
+      /* Cards lift a hair on hover — grids that respond feel alive.
+         GATED (2026-08-16): on touch there is no pointer to leave, so an
+         unqualified :hover stays asserted on the last card you tapped and it
+         sits there raised. Same class of bug as .dense-row:hover. */
+      @media (hover: hover) {
+        .bot-picks-grid > *:hover, .pickstrip > button:hover {
+          transform: translateY(-1px);
+          transition: transform .1s ease-out;
+        }
       }
 
       /* The live dot actually pulses. */
