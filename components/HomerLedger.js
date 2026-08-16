@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, n } from '../lib/player'
+import { nameOf, teamOf, n, clean } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 import { pickSplit } from '../lib/seasonSplit'
 import { hrShapeMeta, hrLine } from '../lib/hrShape'
+import { fetchLiveSlate } from '../lib/liveSlate'
+import NamePatterns from './NamePatterns'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
 // home run people are hitting — like if you notice more people getting their
@@ -138,8 +140,88 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   // prop deletes a redundant network round-trip on every mount for free —
   // the shape is identical (fetchJSON in lib/data.js returns the raw parsed
   // JSON, no transform), so nothing below needed to change to read it.
+  // ── DETECTION: THE LEAGUE, NOT THE BOT (2026-08-16) ─────────────────────
+  //
+  // Donovan: "people are saying they dont see it or i wish i would have seen
+  // it earlier... the detection has to be better and faster updating too."
+  //
+  // Both halves of that were structural, and neither was about polling harder.
+  //
+  // SLOWER THAN THE PAGE IT SITS ON. This panel read tonight's homers out of
+  // the bot's graded file, so a homer only appeared here after the whole
+  // chain: the ball lands, live_results_tracker.py writes the file, the data
+  // branch propagates, and Dashboard's 45s poll picks it up. Minutes, and none
+  // of them ours. Meanwhile lib/liveSlate.js is ALREADY polling the league
+  // boxscore every 35 seconds for MiniWire, off a module-level cache — and
+  // that snapshot carries homeRuns per batter. The fast number was on the page
+  // the whole time; the ledger just wasn't reading it.
+  //
+  // AND IT COULD NOT SEE HALF THE HOMERS. The graded file only holds the ~85
+  // hitters the bot designated. A homer from anyone else — most of a slate —
+  // was invisible to this panel by construction. `lines` in the live snapshot
+  // is EVERY batter in EVERY game, with a name attached, which is why an
+  // off-slate homer can render at all now instead of silently not existing.
+  //
+  // So: the LIVE snapshot decides WHO homered and HOW MANY, because it is
+  // faster and more complete. The GRADED file is still read, for one thing it
+  // uniquely has — hr_events, the launch speed / angle / distance the grader
+  // stamps on each homer, which is what lets a card say what KIND of homer it
+  // was. A homer the live feed has and the grader hasn't reached yet simply
+  // shows no band, which is the same honest gap an older night already had.
+  const [live, setLive] = useState(null)
+  useEffect(() => {
+    if (isTmrw) return undefined
+    let alive = true
+    const pull = () => fetchLiveSlate().then((s) => { if (alive) setLive(s) }).catch(() => {})
+    pull()
+    // 30s, matched to the shared snapshot's own TTL — this does NOT add a
+    // request per tick. fetchLiveSlate hands back the cached snapshot when it
+    // is fresh, so with MiniWire on the page these two callers share one poll.
+    const id = setInterval(() => { if (!document.hidden) pull() }, 30_000)
+    const onVis = () => { if (!document.hidden) pull() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      alive = false
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [isTmrw])
+
   const rows = useMemo(() => {
-    if (isTmrw || !results) return null
+    if (isTmrw) return null
+
+    // hr_events by pid, from the graded file when it is for tonight. This is
+    // the ONLY thing taken from the bot now, and its absence is survivable.
+    const eventsById = new Map()
+    if (results && String(results.date || '') === String(dateKey)) {
+      dedupeGraded(results.graded_slots || results.results || []).forEach((s) => {
+        const pid = Number(s?.player_id)
+        if (pid && Array.isArray(s?.hr_events) && s.hr_events.length) eventsById.set(pid, s.hr_events)
+      })
+    }
+
+    // THE LIVE PATH. Preferred whenever the snapshot has anything at all.
+    const lines = live?.lines
+    if (lines && Object.keys(lines).length) {
+      const out = []
+      Object.entries(lines).forEach(([id, l]) => {
+        const pid = Number(id)
+        const hr = n(l?.hr, 0)
+        if (!pid || hr <= 0) return
+        out.push({ pid, hr, events: eventsById.get(pid) || [], liveName: String(l?.name || ''), fromLive: true })
+      })
+      if (out.length) return out
+      // An empty live slate is a real answer on a night nobody has gone deep
+      // yet — but only if games have actually started. Before first pitch it
+      // is indistinguishable from "not loaded", so fall through to the graded
+      // file rather than asserting zero.
+      const started = Object.values(live?.games || {}).some((g) => g?.state && g.state !== 'Preview')
+      if (started) return []
+    }
+
+    // FALLBACK: the graded file, exactly as before. Reached before first pitch,
+    // when the league call fails, and on any archived night.
+    if (!results) return null
     // date gate — the live file keeps the last graded slate until the next
     // one starts grading, so an ungated read shows a stale night
     if (String(results.date || '') !== String(dateKey)) return null
@@ -157,7 +239,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       // wall-scraper are different claims.
       .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0), events: s?.hr_events || [] }))
       .filter((x) => x.pid && x.hr > 0)
-  }, [results, isTmrw, dateKey])
+  }, [results, isTmrw, dateKey, live])
 
   // ── THE NUMBER HAS TO BE RIGHT, OR THE PANEL IS WORSE THAN NOTHING ───────
   //
@@ -264,7 +346,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     const spots = Array(10).fill(0)          // index 1..9
     const cards = []
     let total = 0
-    rows.forEach(({ pid, hr, events }) => {
+    rows.forEach(({ pid, hr, events, liveName }) => {
       const p = byId.get(pid)
       total += hr
       const spot = Number(p?.lineup_spot)
@@ -281,7 +363,9 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       const jersey = numRec?.jersey ?? null
       cards.push({
         pid, p, hr, events: events || [],
-        name: p ? nameOf(p) : `#${pid}`,
+        // The live feed carries fullName, so a homer from a hitter the bot
+        // never scored renders as a person instead of as "#650968".
+        name: p ? nameOf(p) : (clean(liveName, '') || `#${pid}`),
         team: p ? teamOf(p) : '',
         spot: spot >= 1 && spot <= 9 ? spot : null,
         nth,
@@ -508,6 +592,26 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           </div>
         </div>
       )}
+
+      {/* ── 🔤 NAME ECHOES (2026-08-16) ───────────────────────────────────
+          Donovan: "all track common names or names that vibe together like
+          bobby witt tommy white 2 sylablas or like bryce and brice... maybe
+          all the j names are going... austin riley riley greene or pete
+          alonso pete crow."
+
+          Sibling of the numerology block directly above, and held to the
+          same standard, which for this one is the entire difficulty: with
+          ~25 names you will ALWAYS find some shared initial or rhyme, so a
+          panel that prints whatever it found is a noise generator. It is
+          baselined against everyone who batted tonight and only speaks when
+          a pattern beats chance — three J-names is nothing if a sixth of the
+          league is a J. `population` is not optional dressing: without it the
+          initial family cannot be rated at all and drops out. See
+          lib/namePatterns.js, which measured its own false-positive rate
+          against 300 synthetic nights rather than assuming one.
+
+          Renders nothing when nothing clears. That is the normal state. */}
+      <NamePatterns homers={model.cards} population={players} />
 
       {/* 🔢 THE REPEATS — the number pattern, which is the whole reason this
           panel exists. Same-number clusters first, then the digit root. */}

@@ -8,6 +8,7 @@ import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
+import HomerLedger from '../HomerLedger'
 import ReadTeaser from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
@@ -476,6 +477,27 @@ export default function Home({
           column they can't have. Sits ABOVE the hero because a score is what
           you came to check. */}
       <ScoreRail players={players} results={results} onNavigate={onNavigate} />
+
+      {/* ── 🧾 THE HOMER LEDGER, WHERE PEOPLE ACTUALLY ARE (2026-08-16) ───
+          Donovan: "the home run ledger [needs to be] somewhere else as well —
+          people are saying they dont see it, or 'i wish i would have seen it
+          earlier'."
+
+          It has only ever lived on Home's "The board" view, which is a second
+          click almost nobody makes while a game is on. That is the whole
+          reason for the complaint: not that the panel is bad, that it is one
+          view sideways from where everyone is standing. He picked every
+          surface offered, so it now sits on all of them and the component is
+          the single source — mount it, do not fork it.
+
+          LIVE ONLY here. Before first pitch it has nothing to say and would
+          be an empty box on the busiest screen on the site; the ledger's own
+          date gate already returns null, and this gate means it does not even
+          mount. It appears when the first game starts, which is exactly the
+          moment "I wish I'd seen it earlier" is about. */}
+      {isLive && (
+        <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+      )}
 
       {/* ── HERO ─────────────────────────────────────────────────────── */}
       <div style={{

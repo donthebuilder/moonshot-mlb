@@ -11,6 +11,7 @@ import DueBoard from './DueBoard'
 import LuckReport from '../LuckReport'
 import ParkBoard, { parkRows } from '../ParkBoard'
 import FenceBoard from '../FenceBoard'
+import ShapeBoard from '../ShapeBoard'
 
 // 🚀 POWER — one lead, one board, three lenses (rebuilt 2026-08-15).
 //
@@ -56,6 +57,24 @@ import FenceBoard from '../FenceBoard'
 // Every prop this tab is mounted with (players, slateDate, results, onWatch,
 // watchIds, onPlayerClick, initial) works exactly as before, including the
 // #tab=due deep link that arrives as initial="due".
+//
+// ── 5. 🧬 SHAPE IS THE FOURTH LENS (2026-08-16) ──────────────────────────────
+//
+// Donovan: "hr shape ... needs to be somewhere else on the site for comparison
+// and sorting." Homer shape existed in exactly one place — a panel inside a
+// single player's modal — so you could learn what one hitter's homers look
+// like and never compare two. components/ShapeBoard.js is that comparison, and
+// it belongs HERE rather than as a tab of its own for the reason the nine-tab
+// consolidation states: a tab is a question you arrive with, a lens is an
+// answer you switch between once you are there. "What kind of power is this"
+// is the same arrival as "where is the power hiding tonight".
+//
+// IT IS NOT IN THE LEAD, ON PURPOSE. The three existing lenses all rank on a
+// bot score and the lead argues the strongest of them. Shape ranks on nothing
+// — it is descriptive, ungraded, and feeds no score (see the file header on
+// ShapeBoard.js) — so putting a shape name in the hero paragraph would give an
+// ungraded description the same voice this page uses for measured reads. The
+// lens row is exactly where a fourth lens with nothing to claim should sit.
 
 // The floor under the DUE lead. A drought only means something with power
 // behind it — that is this board's own standing warning — so the lead is
@@ -90,6 +109,10 @@ const LENSES = [
   { k: 'longest', label: '🚀 Farthest', tag: 'who hits it the farthest', color: C.orange },
   { k: 'due', label: '⏳ Overdue', tag: 'who is sitting on one', color: C.purple },
   { k: 'parks', label: '🏟 Parks', tag: 'where the air is helping', color: C.cyan },
+  // The tag says "hits" and not "will hit" because this lens describes homers
+  // already struck; the other three project tonight. One word, and it is the
+  // difference between a description and a claim.
+  { k: 'shape', label: '🧬 Shape', tag: 'what kind of homer he hits', color: C.purple },
 ]
 
 const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
@@ -345,12 +368,29 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
             {l.label}
           </button>
         ))}
+        {/* The count is read off LENSES rather than typed, because "three
+            lenses" survived as a hard-coded word for exactly as long as it
+            took to add a fourth. */}
         <span style={{ fontSize: 10.5, color: C.text3, marginLeft: 2 }}>
-          three lenses on one question — {lens.tag}
+          {LENSES.length === 4 ? 'four' : LENSES.length === 3 ? 'three' : LENSES.length} lenses on one
+          question — {lens.tag}
         </span>
       </div>
 
-      {view === 'parks' ? (
+      {view === 'shape' ? (
+        /* 🧬 SHAPE. Same prop contract as the other two board lenses —
+           showTitle={false} because the pill above IS its title, and the two
+           facts the PanelTitle carried move into the board's own paragraph.
+           It takes no `results` and no venue filter: it ranks nothing against
+           tonight's conditions, it describes homers already hit. */
+        <ShapeBoard
+          players={players}
+          onWatch={onWatch}
+          watchIds={watchIds}
+          onPlayerClick={onPlayerClick}
+          showTitle={false}
+        />
+      ) : view === 'parks' ? (
         <ParkBoard
           players={players}
           slateDate={slateDate}

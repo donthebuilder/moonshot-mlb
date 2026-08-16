@@ -5,6 +5,7 @@ import { btnStyle } from '../ui'
 import Pairs from './Pairs'
 import Pools from './Pools'
 import PairHistory from './PairHistory'
+import HomerLedger from '../HomerLedger'
 
 // 🎟 COMBOS — Pairs, Pools and their history under one roof (2026-08-16).
 //
@@ -61,6 +62,18 @@ export default function Combos({
           </button>
         ))}
       </div>
+
+      {/* 🧾 THE HOMER LEDGER, on the pairs view — his own suggestion ("it
+          can maybe go in the pairs part of the pools page as well"), and it
+          earns the slot for a reason worth writing down: a two-man ticket is
+          the one bet on this site where a homer landing changes your night
+          mid-flight. Watching legs come in is the same act as watching the
+          ledger fill. Live only, same as everywhere else — before first pitch
+          it has nothing to say and Combos is a pregame page most of the time.
+          See the long note at the Home mount for the whole placement story. */}
+      {view === 'pairs' && results?.live_mode === true && (
+        <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+      )}
 
       {view === 'pairs' && (
         <Pairs

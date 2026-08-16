@@ -10,6 +10,7 @@ import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
+import HomerLedger from '../HomerLedger'
 import GameLineup from '../GameLineup'
 import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
@@ -361,6 +362,20 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
      off the league feed, so a blank board (bot not yet published) must not
      lock the door on games already in progress. gview still wins — the Boxes
      pill keeps working from any mode. */
+  // 🧾 THE HOMER LEDGER — see the long note at its mount in
+  // components/tabs/Home.js for the whole placement story.
+  //
+  // DEFINED ONCE AND RENDERED IN BOTH RETURNS, deliberately. The first cut put
+  // it only inside the live-room branch below — and the render check caught
+  // that immediately: #tab=games came back without it, because the live room
+  // is behind the ⚾ Live pill and the default view is the card grid. Hiding
+  // the ledger behind a second pill is the exact complaint he raised, just
+  // relocated. It shows on Games whenever a game is on, whichever view you are
+  // standing in.
+  const ledger = results?.live_mode === true
+    ? <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+    : null
+
   if (mode === 'live' && gview !== 'boxes') {
     return (
       <div>
@@ -374,6 +389,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           <b style={{ color: C.text2 }}>What this answers:</b>{' '}
           what tonight looks like while it is happening — every live game with the man at the plate, the at-bat pitch by pitch, and where his contact is going. It wakes up at first pitch.
         </div>
+
+        {ledger}
         {/* allPlayers, not players, same reason as Boxes below: the live room
             is not subject to the header's team filter — filtering it makes
             live games appear to lose their hitters. players is the fallback
@@ -467,6 +484,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           // true of the grid you are looking at.
           : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
       </div>
+
+      {ledger}
 
       {/* Sort control (2026-08-12) — Default/Bot Output only. Time is the
           default and matches first pitch; the other three re-order the same
