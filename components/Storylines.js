@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, n as num } from '../lib/player'
 import { teamAbbrs } from '../lib/gamelogs'
@@ -176,6 +176,24 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // game logs the props grid already caches, and refuses to crown anybody on a
   // thin number — see that file for the floors and the tie handling.
   //
+  // 🏟 THE PARK FAMILY (2026-08-16, "storyline like top hitters with no hrs in
+  // a park. or things like that can we add something like those too"). Same
+  // lib, four more sentences, all about THIS BUILDING: a power bat who hasn't
+  // gone deep here, a bat who does his damage here, an arm that keeps getting
+  // tagged here, an arm nobody has taken deep here. Every one of them prints
+  // its denominator — "0 HR in 41 PA there" — because two seasons at one park
+  // is a handful of dates. `limit` went 4 → 6 the same day: ten builders
+  // competing for four slots would have quietly retired the older facts on
+  // busy nights, and nothing in this panel is allowed to disappear because
+  // something new arrived.
+  //
+  // `skipPitchers` hands the lib the arms the matchup lines are already
+  // talking about, so the same starter's park record can't appear twice in one
+  // panel. It's part of the fun-facts cache key, so when the matchup lines land
+  // after the facts do, the facts recompute — and that recompute is nearly
+  // free, since every underlying pull is cached per player+park inside
+  // lib/venueHr.js and lib/pitcherVenueHr.js.
+  //
   // SCOPE IS ALWAYS THE SLATE, NEVER THIS MOUNT. Unlike the matchup lines,
   // these carry "most of the N bats we checked tonight", so the pool has to be
   // the same wherever the panel renders — it reads `pullFrom` (the full slate)
@@ -183,19 +201,28 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // all: a slate-wide superlative on a single game's card is a category error.
   const [ffacts, setFfacts] = useState([])
   const fkey = pullFrom.map((p) => Number(p?.player_id ?? p?.id) || 0).join(',')
+  // the arms already spoken for by the matchup lines above
+  const armSkipKey = mlines.map((m) => Number(m?.player?.pitcher_id) || 0).filter(Boolean).join(',')
+  // Which SLATE the on-screen facts belong to. A recompute triggered only by
+  // the arm-skip list is the same slate, so the facts already on screen stay
+  // up while it runs — blanking them would make the section flicker every time
+  // the matchup lines land. A new slate or a new date does clear them, because
+  // then they really are the wrong facts.
+  const ffScope = useRef('')
   useEffect(() => {
     if (compact || !fkey) { setFfacts([]); return undefined }
-    const ck = `${dateKey}|${fkey}`
+    const ck = `${dateKey}|${fkey}|${armSkipKey}`
     const cached = _ffactCache.get(ck)
-    if (cached) { setFfacts(cached); return undefined }
+    if (cached) { ffScope.current = `${dateKey}|${fkey}`; setFfacts(cached); return undefined }
     let alive = true
-    setFfacts([])
-    funFacts(pullFrom, { look: 40, limit: 4, slateDate: dateKey })
+    if (ffScope.current !== `${dateKey}|${fkey}`) setFfacts([])
+    ffScope.current = `${dateKey}|${fkey}`
+    funFacts(pullFrom, { look: 40, limit: 6, slateDate: dateKey, skipPitchers: armSkipKey ? armSkipKey.split(',').map(Number) : [] })
       .then((r) => { const out = r || []; _ffactCache.set(ck, out); if (alive) setFfacts(out) })
       .catch(() => {})
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fkey, dateKey, compact])
+  }, [fkey, dateKey, compact, armSkipKey])
 
   // ── BACK-TO-BACK WATCH (2026-08-07) — pure slate field, no API needed.
   // games_since_last_hr === 0 means he homered in his most recent game;
@@ -599,13 +626,16 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       {/* THE COMPACT FUN FACT — this is the Home-page version. Home renders
           this panel collapsed, so without a peek line the whimsical layer would
           only exist for people who open a shut panel. One fact, the rarest one,
-          no chrome, tap for his card. */}
+          no chrome, tap for his card. A park fact about a starting pitcher has
+          no slate row to open, so that peek line is simply not clickable —
+          `f.player` is null and the tap is skipped rather than opening
+          somebody else's card. */}
       {!open && ffacts.length > 0 && (
         <div
-          onClick={() => onPlayerClick?.(ffacts[0].player)}
-          className="tap-row"
-          title={`Counted from his published game log — ${ffacts[0].sample}. Nothing here is modelled.`}
-          style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: 'pointer' }}
+          onClick={() => ffacts[0].player && onPlayerClick?.(ffacts[0].player)}
+          className={ffacts[0].player ? 'tap-row' : undefined}
+          title={ffacts[0].source || `Counted from his published game log — ${ffacts[0].sample}. Nothing here is modelled.`}
+          style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: ffacts[0].player ? 'pointer' : 'default' }}
         >
           {ffacts[0].icon} <Parts parts={ffacts[0].parts} />
         </div>
@@ -648,7 +678,17 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           tooltip; every "most" claim was checked across the whole set of
           hitters the lib actually computed, and the line says how many that
           was. See lib/funFacts.js for the floors — a two-homer Sunday does not
-          get a nickname. */}
+          get a nickname.
+
+          The park facts (🧊 🏟 💣 🔒) come back through this same list because
+          they are the same kind of thing: one sentence, its denominator said
+          out loud, no causal claim about the building attached. Two details
+          they add — a fact can carry its own `source` string, since "his
+          hitting game log this season" is the wrong provenance for a
+          two-season park record or for a pitcher's log; and a fact can have no
+          `player`, because the two arm facts are about somebody who has no row
+          on the hitters slate. Those rows don't open a card and don't pretend
+          to be tappable. */}
       {ffacts.length > 0 && (
         <div style={{ marginBottom: 5 }}>
           <div style={{
@@ -658,12 +698,12 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           {ffacts.map((f) => (
             <div
               key={`ff${f.key}`}
-              onClick={() => onPlayerClick?.(f.player)}
-              className="tap-row"
-              title={`Counted from his published hitting game log this season — ${f.sample}. Any “most” was checked across every hitter this panel actually computed tonight, and the line names how many that was. Nothing here is modelled or estimated.`}
+              onClick={() => f.player && onPlayerClick?.(f.player)}
+              className={f.player ? 'tap-row' : undefined}
+              title={f.source || `Counted from his published hitting game log this season — ${f.sample}. Any “most” was checked across every hitter this panel actually computed tonight, and the line names how many that was. Nothing here is modelled or estimated.`}
               style={{
                 display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.55,
-                padding: '3px 0', cursor: 'pointer', color: C.text2,
+                padding: '3px 0', cursor: f.player ? 'pointer' : 'default', color: C.text2,
               }}
             >
               <span style={{ flexShrink: 0 }}>{f.icon}</span>
