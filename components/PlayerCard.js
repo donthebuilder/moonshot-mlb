@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { roleBadge } from '../lib/roleBadge'
+import { hrGateVerdict } from '../lib/hrGate'
 import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
@@ -105,7 +106,19 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // "Skip for HR" instead of "Avoid HR" — the old wording read as a verdict
   // on the player when it was only ever a verdict on this market for tonight.
   const isAvoid = isHardAvoid || isSoftCaution || role === 'Skip HR'
-  const avoidLabel = altLook ? altLook.label : (role === 'Skip HR' ? 'Skip for HR' : (bet || 'Skip for HR'))
+  // ⛔ vs 🥇 (2026-08-15). Donovan, twice: "if the top pick is homerun why give
+  // someone a skip hr if that is the bench mark." He is right — the TOP badge
+  // is graded on a home run, so "Skip for HR" beside it is the card issuing two
+  // opposite instructions. It is NOT right that these players should be
+  // filtered out: measured over the archive, TOP picks carrying the flag
+  // homered 18/55 (32.7%) against 124/631 (19.7%) without it. So the flag stops
+  // being phrased as advice on these cards and starts carrying its own record.
+  // See lib/hrGate.js for the full measurement. Every other case — a HIT or
+  // HRR pick with a skip-HR note, which is genuinely useful — is untouched.
+  const gate = hrGateVerdict(p)
+  const avoidLabel = gate ? gate.label
+    : altLook ? altLook.label
+      : (role === 'Skip HR' ? 'Skip for HR' : (bet || 'Skip for HR'))
   const AVOID_COLOR = '#9F3247'
   const color    = altLook ? altLook.color : baseColor
   const aligned  = (p?.top_board_tags || []).some((t) => String(t).includes('🧩'))
@@ -263,7 +276,11 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
             {recency && <Chip color={recency.color}>{recency.label}</Chip>}
             {clean(p?.alt_look_tag, '') && <Chip color={C.purple}>🔄 {clean(p.alt_look_tag)}</Chip>}
-            {isAvoid && !altLook && <Chip color={AVOID_COLOR}>{avoidLabel}</Chip>}
+            {isAvoid && !altLook && (
+              <span title={gate ? gate.title : undefined}>
+                <Chip color={gate ? C.text3 : AVOID_COLOR}>{avoidLabel}</Chip>
+              </span>
+            )}
             {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
           </>
         )}

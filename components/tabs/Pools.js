@@ -3,6 +3,11 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { n, clean, arr } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
 import PairBuilder from '../PairBuilder'
+// Defined in the Pairs tab and shared, not duplicated. The two tabs are asking
+// the same question at two sizes — a pair is a two-leg pool — and a second
+// copy of this logic is how the two would end up disagreeing about what a
+// group's measured rate is. Pairs does not import Pools, so there is no cycle.
+import { GroupTicketBuilder } from './Pairs'
 
 // Pools — the bot's group tickets, plus the pair builder.
 //
@@ -198,14 +203,18 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick }) {
   )
 }
 
-export default function Pools({ players = [], results, pairBuilder, pairHistorySummary, onPlayerClick }) {
+// `odds` and `slateDate` are NEW AND OPTIONAL (2026-08-16) — Dashboard passes
+// neither to this tab, and the group builder falls back to fetching the same
+// odds_latest.json itself and reading the date off the rows. Existing callers
+// are unaffected.
+export default function Pools({ players = [], results, pairBuilder, pairHistorySummary, onPlayerClick, odds = null, slateDate = '' }) {
   const hasGraded = (results?.pair_pool_results?.graded_pools || []).length > 0
 
   return (
     <div>
       <PanelTitle
         title="Pools"
-        sub="The bot's group tickets, graded live · build your own pair below"
+        sub="The bot's group tickets, graded live · build your own from the pick groups below"
       />
 
       {hasGraded
@@ -217,8 +226,29 @@ export default function Pools({ players = [], results, pairBuilder, pairHistoryS
         <Empty text="No pools published for this slate yet." />
       )}
 
-      {/* The pair builder — moved here from the Pairs tab. Pairs is the bot's
-          opinion; this is where you build your own around an anchor, with
+      {/* 🧱 THE GROUP BUILDER (2026-08-16, Donovan: "Pairing logic for pairs
+          and pools using 2 of the groups or more pick based on the high rate
+          signals like the back to back").
+
+          It sits ABOVE the anchor-based PairBuilder rather than replacing it,
+          because the two answer different questions and neither is redundant.
+          PairBuilder starts from a man and finds him a partner; this starts
+          from the MARKETS — cross the bot's HIT designation with its HRR
+          designation, narrowed to the hitters carrying a verified signal — and
+          it defaults to three legs here because a pool is what this tab is.
+          Nothing that was on this page has been removed. */}
+      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+        <GroupTicketBuilder
+          players={players}
+          odds={odds}
+          slateDate={slateDate}
+          defaultSize={3}
+          onPlayerClick={onPlayerClick}
+        />
+      </div>
+
+      {/* The anchor pair builder — moved here from the Pairs tab. Pairs is the
+          bot's opinion; this is where you build your own around an anchor, with
           same-game history on every partner it offers. */}
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
         <PairBuilder summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />

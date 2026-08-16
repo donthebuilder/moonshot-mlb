@@ -17,6 +17,7 @@ import HomerLedger from '../HomerLedger'
 import LiveWire from '../LiveWire'
 import NearMisses from '../NearMisses'
 import { groupPitchers } from '../../lib/data'
+import { airParts, airVerdict } from '../../lib/conditions'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
 //
@@ -30,6 +31,34 @@ import { groupPitchers } from '../../lib/data'
 // null-handling fix in it. DenseTable covers the same case: non-numeric values
 // fall through to a string compare, and a missing lineup spot renders as '—'
 // rather than a sentinel number.
+//
+// ── FLOW PASS (2026-08-16, Donovan: pages "all over the palace or scrroll up
+// to scoll back down") ───────────────────────────────────────────────────────
+//
+// Two things were wrong with the running order, and neither was a missing
+// panel — everything on this page earns its place, it was arranged badly.
+//
+//   1. THE HOMER SECTIONS WERE SPLIT. Pre-game the order ran picks → near
+//      misses → wire → LEDGER → pulse → GONE YARD → weak spots, so the two
+//      panels about tonight's home runs — who has hit one (Gone yard) and what
+//      number it was for him and from which lineup spot (the Ledger) — had
+//      two unrelated sections wedged between them. Reading one meant scrolling
+//      past the other and back. They are one subject and they now sit as one
+//      block, with Near misses (the homers that almost happened) beside them.
+//
+//   2. REFERENCE MATERIAL FLOATED ABOVE THE THING IT EXPLAINS. Weak spots is
+//      the roster behind the board's ★ column; it was stranded mid-page in one
+//      order and above the orientation panel in the other. It is now the last
+//      thing before the 266-row board in both orders — fold it open and the
+//      column it explains is right there.
+//
+// The page also opens on a stated line instead of a symbol code. The header
+// sub used to read "266 batters · ★12 weak spot · ◆9 aligned · ▲41 matchup
+// edge", which is only legible if you already know all three glyphs; the same
+// counts are now a sentence that says what each mark means, plus how tonight's
+// air is playing (lib/conditions, not a fifth private chip strip) and how many
+// balls have already left the yard. Every count is printed with its
+// denominator — k of n — because that is the only honest form for a frequency.
 
 const matchupEdge = (p) => {
   const weak = clean(p?.pitcher_weak_side || p?.weak_side, '')
@@ -204,6 +233,25 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       .filter(Boolean)
   }, [players])
 
+  // ── how the air is playing, one game per game_pk (2026-08-16) ────────────
+  // The Park column at the far right of the board carries the factor per
+  // hitter, and the ranked ladder with weather lives on Power — but the page
+  // opened with no statement of whether tonight is a carrying slate at all.
+  // airVerdict only speaks when temp, wind direction and park agree strongly
+  // enough to claim something, and returns '' otherwise, so a neutral night
+  // counts as neither. Counted, never averaged: k of n, with n stated.
+  const airRead = useMemo(() => {
+    const seen = new Map()
+    players.forEach((p) => {
+      const pk = p?.game_pk ?? `${teamOf(p)}-${oppOf(p)}`
+      if (!seen.has(pk)) seen.set(pk, p)
+    })
+    const rows2 = [...seen.values()]
+    const carrying = rows2.filter((p) => airVerdict(p) === 'carrying')
+    const dead = rows2.filter((p) => airVerdict(p) === 'dead')
+    return { games: rows2.length, carrying, dead }
+  }, [players])
+
   if (!players.length) return <Empty text="No players yet." />
 
   const lit = (k) => rows.filter((r) => r[k]).length
@@ -305,17 +353,37 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
     </Fold>
   )
 
+  // ── RUNNING ORDER (2026-08-16 flow pass; see the note above the imports) ──
+  //
+  // Live — the page is a broadcast, and the lead is what just happened:
+  //   wire → THE HOMER BLOCK (gone yard, the ledger, the near misses that
+  //   nearly joined them) → how to read this → the picks → the picks' own
+  //   clock and what changed since yesterday → weak spots → the board.
+  //
+  // Pre-game — the page is a plan, and the lead is THE FOUR:
+  //   how to read this → THE FOUR → the picks' clock + yesterday's diff →
+  //   near misses → the wire (renders nothing until something is live) →
+  //   the homer block → weak spots → the board.
+  //
+  // Two rules drive both: panels read together sit together (gone yard beside
+  // the ledger; the pick strip beside the unconfirmed countdown that is about
+  // those same picks), and reference sits below what it supports (weak spots
+  // immediately above the board whose ★ column it lists).
+  //
+  // StartHere sits directly above the pick strip in BOTH orders now. It used
+  // to be last in live mode, where its own first step — "The Four, right
+  // below" — pointed at the bottom of the page. It is self-dismissing and
+  // collapses to a single "?" chip once you've read it, so it costs a
+  // returning visitor one line.
   const order = liveNow
-    // broadcast order: the wire, the homers, then tonight's picks, then context
-    ? [secWire, secGone, secLedger, secNear, secPicks, secPulse, secWeak, secStart]
-    // plan order: orientation, the picks, the (quiet) wire, the pulse, context
-    : [secStart, secPicks, secNear, secWire, secLedger, secPulse, secGone, secWeak]
+    ? [secWire, secGone, secLedger, secNear, secStart, secPicks, secPulse, secWeak]
+    : [secStart, secPicks, secPulse, secNear, secWire, secGone, secLedger, secWeak]
 
   return (
     <div>
       <PanelTitle
         title="Scoreboard"
-        sub={`${rows.length} batters · ★${lit('weak')} weak spot · ◆${lit('aligned')} aligned · ▲${lit('edge')} matchup edge${liveNow ? ' · live — sections reordered around the action' : ''}`}
+        sub={`${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}
         right={
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             {alignedCount > 0 && (
@@ -343,6 +411,73 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           </div>
         }
       />
+
+      {/* ── THE SLATE, STATED (2026-08-16) ──────────────────────────────────
+          What stood here was the header's own sub-line: "266 batters · ★12
+          weak spot · ◆9 aligned · ▲41 matchup edge". Four counts in a glyph
+          code you have to already know, above a page that then opened on a
+          four-tile orientation strip. Same four counts, plus the two facts the
+          page never stated out loud — how the air is playing tonight, and how
+          many balls have already gone — as one sentence that names each mark
+          as it uses it. Every mark still has its own column on the board
+          below, and each count keeps its denominator. */}
+      <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.7, margin: '0 0 12px', maxWidth: 760 }}>
+        <b style={{ color: C.text, fontFamily: NUM_FONT }}>{rows.length}</b> hitters
+        {alignedOnly ? ' pass the ◆ aligned filter' : ' are on tonight’s board'}, across{' '}
+        <b style={{ color: C.text, fontFamily: NUM_FONT }}>{airRead.games}</b> games.{' '}
+        <span title="Weak spot: this pitcher has been hurt by the lineup slot this hitter is standing in. The validated flag — 18.0% vs 13.9% — and its own ★ column on the board.">
+          <b style={{ color: C.text, fontFamily: NUM_FONT }}>{lit('weak')}</b> of them stand in a
+          ★ weak lineup spot against tonight&apos;s arm
+        </span>,{' '}
+        <span title="Aligned: weak spot, pitch-type match and real recent contact quality all stacking on the same hitter. Its own ◆ column, and the filter button above.">
+          <b style={{ color: C.purple, fontFamily: NUM_FONT }}>{lit('aligned')}</b> are ◆ aligned
+        </span>{' '}and{' '}
+        <span title="Matchup edge: the hitter bats from the side this pitcher is weakest against. Its own ▲ column on the board.">
+          <b style={{ color: C.text, fontFamily: NUM_FONT }}>{lit('edge')}</b> hold the ▲ handedness edge
+        </span>.{' '}
+        {/* The air, spoken by lib/conditions. Silent when no game is strong
+            enough either way — a neutral slate is a finding, not a gap. */}
+        {(airRead.carrying.length > 0 || airRead.dead.length > 0) && (
+          <>
+            {airRead.carrying.length > 0 && (
+              <>The air is carrying in{' '}
+                <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{airRead.carrying.length} of {airRead.games}</b>{' '}
+                games —{' '}
+                {airRead.carrying.slice(0, 2).map((p, i) => (
+                  <span key={i} title={airParts(p).map((x) => `${x.text} — ${x.title}`).join('\n')} style={{ cursor: 'help' }}>
+                    {i > 0 && '; '}
+                    <b style={{ color: C.text }}>{clean(p?.venue_name, `${teamOf(p)} vs ${oppOf(p)}`)}</b>
+                    {airParts(p).length > 0 && <span style={{ color: C.text3 }}> ({airParts(p).map((x) => x.text).join(', ')})</span>}
+                  </span>
+                ))}
+                {airRead.carrying.length > 2 && <span style={{ color: C.text3 }}> and {airRead.carrying.length - 2} more</span>}
+                {airRead.dead.length > 0 ? ', and ' : '. '}
+              </>
+            )}
+            {airRead.dead.length > 0 && (
+              <>{airRead.carrying.length > 0 ? 'playing dead in ' : 'The air is playing dead in '}
+                <b style={{ color: C.blue, fontFamily: NUM_FONT }}>{airRead.dead.length} of {airRead.games}</b>
+                {airRead.carrying.length > 0 ? '. ' : ' games. '}
+              </>
+            )}
+          </>
+        )}
+        {goneYard.length > 0 && (
+          <>
+            <b style={{ color: C.green, fontFamily: NUM_FONT }}>{goneYard.length}</b> ball
+            {goneYard.length === 1 ? ' has' : 's have'} already left the yard tonight, and{' '}
+            <b style={{ color: C.green, fontFamily: NUM_FONT }}>
+              {goneYard.filter((r) => r.rank && r.rank <= 15).length} of {goneYard.length}
+            </b>{' '}
+            came from the top 15 of this board — Gone yard has the full list against its ranks.{' '}
+          </>
+        )}
+        <span style={{ color: C.text3 }}>
+          {liveNow
+            ? 'Live: the wire and tonight’s homers lead, the picks and the plan sit under them.'
+            : 'The Four — the bot’s headline pick per category, three deep — leads below; the full board is at the foot of the page.'}
+        </span>
+      </div>
 
       {order}
 

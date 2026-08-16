@@ -1380,8 +1380,431 @@ import PairMe from '../PairMe'
 import PartnerWatch from '../PartnerWatch'
 import PairBoard from '../PairBoard'
 import Rail from '../Rail'
-import { buildPairs, PAIR_BASELINE } from '../../lib/pairEvidence'
-import { nameOf, teamOf, n } from '../../lib/player'
+import {
+  buildPairs, PAIR_BASELINE,
+  GROUP_ORDER, GROUP_META, GROUP_RATE, GROUP_BACKTEST, TOP_ON_HIT_BAR,
+  LEG_SIGNALS, buildGroupTickets, rateText, slateDateOf, useSlateOdds, spokenSignals,
+} from '../../lib/pairEvidence'
+import { useSetupHomers, backToBack } from '../../lib/b2b'
+import { quoteFor, fmtOdds, impliedPct } from '../../lib/odds'
+import { nameOf, teamOf, oppOf, clean, n } from '../../lib/player'
+
+// ══ 🧱 BUILD FROM THE GROUPS ═══════════════════════════════════════════════
+//
+// 2026-08-16, Donovan: "Pairing logic for pairs and pools using 2 of the
+// groups or more pick based on the high rate signals like the back to back."
+//
+// Both of this tab's existing pair engines cross HOME RUNS with home runs —
+// the bot's lanes, and the by-the-record rail above. Neither can build the
+// thing he asked for, which is a ticket that CROSSES THE BOT'S DESIGNATIONS:
+// the HIT pick out of one game with the HRR pick out of another, narrowed to
+// the hitters carrying a signal that has held up. The groups are the unit,
+// so they are the control.
+//
+// WHY THIS IS A BLOCK OF SENTENCES AND NOT A GRID. Five separate times the
+// standing instruction on this project has been that tiles lose to sentences.
+// A builder is allowed its controls — there is no way to choose two of five
+// groups in prose — but what it BUILDS has to read as a stated pair, because
+// the output is an argument ("these two, for these reasons, at this ceiling")
+// and an argument in a table is a table.
+//
+// ─── THE THING THIS SCREEN EXISTS TO STOP ───────────────────────────────────
+//
+// A parlay page multiplies its legs. That is the whole genre. Doing it here
+// would be wrong twice over.
+//
+// FIRST, the legs are not independent when they share a game — same park,
+// same air, same starter, same game state, and a rain-shortened seven innings
+// takes both of them down together. lib/pairEvidence.js measured the same-game
+// question for HOME RUNS across 58 nights and got 1.05× the independence
+// expectation, which is chance; that result is about home runs and does NOT
+// transfer to a 1+ hit or a 2+ total-bases bar, which nobody here has ever
+// measured that way. So the honest position is not "independent" and not
+// "correlated" — it is UNMEASURED, and multiplying an unmeasured dependence
+// is how a page ends up confidently wrong.
+//
+// SECOND, even where the product would be defensible it is the wrong thing to
+// show, because it hides the shape of what he is building. Two HR legs is two
+// ~16% events; the product buries that in a single small number, while two
+// rates side by side make it obvious at a glance.
+//
+// So: NO COMBINED PERCENTAGE IS EVER PRINTED HERE. Every leg prints its own
+// measured rate with its own denominator, every ticket says out loud whether
+// its legs share a game, and the one combined number that is safe — the
+// ceiling, P(all) ≤ min(P(leg)), which holds under ANY dependence — is
+// printed as a ceiling in those words.
+
+const TICKET_WORD = (k) => (k === 2 ? 'Pair' : `Pool of ${k}`)
+
+function ordinal(v) {
+  const x = Number(v)
+  if (!Number.isFinite(x) || x < 1) return ''
+  const s = x % 10 === 1 && x % 100 !== 11 ? 'st'
+    : x % 10 === 2 && x % 100 !== 12 ? 'nd'
+      : x % 10 === 3 && x % 100 !== 13 ? 'rd' : 'th'
+  return `${x}${s}`
+}
+
+// "CWS vs DET at Comerica Park" — read off the leg's own row, never inferred.
+function gamePhrase(p) {
+  const t = teamOf(p)
+  const o = oppOf(p)
+  const v = clean(p?.venue_name, '')
+  const teams = t && o ? `${t} vs ${o}` : t || o || 'his game'
+  return v ? `${teams} at ${v}` : teams
+}
+
+const B = ({ children, color }) => (
+  <b style={{ color: color || C.text, fontWeight: 800 }}>{children}</b>
+)
+
+/**
+ * One leg, stated. Name, where he is, the group he fills, the bar he has to
+ * clear, what that bar has measured at, the signals he is carrying, and the
+ * price — but only when the book is selling the same bet the bar describes.
+ */
+function LegSentence({ leg, odds }) {
+  const p = leg.player
+  const meta = GROUP_META[leg.group] || {}
+  const col = C[meta.tone] || C.text2
+  const q = quoteFor(odds, p, leg.group)
+  const need = q ? (q.implied ?? impliedPct(q.over)) : null
+  const spot = ordinal(p?.lineup_spot)
+  const arm = clean(p?.pitcher_name, '')
+  // Aligned swallows weak spot and pitch match — see spokenSignals(). The
+  // filter still sees all three; only the sentence collapses them.
+  const spoken = spokenSignals(leg.signals)
+
+  return (
+    <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.75, marginTop: 6 }}>
+      <B color={col}>{nameOf(p)}</B>
+      {' — '}{gamePhrase(p)}
+      {spot ? `, batting ${spot}` : ''}
+      {arm ? ` against ${arm}` : ''}
+      {' — is the bot’s '}<B color={col}>{leg.group}</B>{' pick in that game and needs '}
+      <B color={col}>{leg.bar}</B>{'. That bar cleared '}
+      <B><span style={{ fontFamily: NUM_FONT }}>{rateText(leg.rate)}</span></B>
+      {` across ${GROUP_BACKTEST.nights} graded nights.`}
+
+      {/* THE TOP CAVEAT. A TOP pick is a very good bat being asked a very hard
+          question: the same 807 slots cleared 1+ hit 571 times. Leaving that
+          out would let a TOP leg read as the best thing on the board when what
+          makes it 21.3% is the bar, not the hitter. */}
+      {leg.group === 'TOP' && (
+        <>
+          {' The same TOP picks graded on the easier 1+ hit bar instead cleared '}
+          <span style={{ fontFamily: NUM_FONT }}>{rateText(TOP_ON_HIT_BAR)}</span>
+          {' — the designation is a good bat, the home-run bar is what makes this a hard leg.'}
+        </>
+      )}
+
+      {leg.alsoGroups.length > 0 && (
+        <>
+          {' He is also the bot’s '}
+          <B color={C.text2}>{leg.alsoGroups.join(' and ')}</B>
+          {' pick in that game, so he counts once here, on the hardest bar he holds — a home run'}
+          {' is already one hit, four total bases and three of hits+runs+RBI, so betting both bars'}
+          {' would be betting the harder one twice.'}
+        </>
+      )}
+
+      {spoken.length > 0 && (
+        <> {spoken.map((s, i) => {
+          const said = s.say(p)
+          return (
+            <span key={s.id}>
+              {i === 0 ? ' ' : '; '}
+              <span style={{ color: C.text }}>
+                {i === 0 ? said.charAt(0).toUpperCase() + said.slice(1) : said}
+              </span>
+              {i === spoken.length - 1 ? '.' : ''}
+            </span>
+          )
+        })}</>
+      )}
+
+      {q && q.matches && (
+        <>
+          {' The book is '}
+          <B color={C.yellow}><span style={{ fontFamily: NUM_FONT }}>{fmtOdds(q.over)}</span></B>
+          {' on that exact bar (over '}
+          <span style={{ fontFamily: NUM_FONT }}>{q.line}</span>
+          {need != null ? `), which needs ${need}% to break even.` : ').'}
+        </>
+      )}
+      {/* A price on a DIFFERENT line is not this leg's price. Saying which
+          line the book is on is useful; pairing that number with this bar's
+          record would be quietly, confidently wrong — the same guard
+          quoteFor()'s `matches` flag exists for. */}
+      {q && !q.matches && (
+        <>
+          {' The book here is on the '}
+          <span style={{ fontFamily: NUM_FONT }}>{q.line}</span>
+          {' line, which is a different bet from this leg’s bar, so no price is shown for it.'}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** One built ticket, stated as a paragraph rather than laid out as a card. */
+function TicketBlock({ ticket, index, odds, onPlayerClick }) {
+  const legs = ticket.legs
+  // Unique and in the canonical order: a four-leg ticket off two groups is
+  // "HIT + HRR", not "HIT + HRR + HIT + HRR", and a game-shape ticket is
+  // named in the same order as the buttons rather than in ranked order.
+  const named = GROUP_ORDER.filter((g) => ticket.groups.includes(g))
+  const head = `${TICKET_WORD(legs.length)} ${index + 1} — ${named.join(' + ')}`
+
+  return (
+    <div style={{ padding: '11px 0 4px', borderTop: index ? `1px solid ${C.border}` : 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 900 }}>{head}</span>
+        <span style={{
+          fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800,
+          color: ticket.sameGame ? C.cyan : C.purple,
+        }}>
+          {ticket.sameGame ? 'same game' : `${ticket.games.length} different games`}
+        </span>
+        {/* The names again, as a line you can tap — the sentences below carry
+            the argument, this is the handle. */}
+        <span style={{ fontSize: 11, color: C.text3 }}>
+          {legs.map((l, i) => (
+            <span key={l.key}>
+              {i > 0 && ' + '}
+              <span
+                onClick={() => onPlayerClick?.(l.player)}
+                title="open his card"
+                style={{
+                  cursor: 'pointer', color: C.text2, fontWeight: 700,
+                  textDecoration: 'underline dotted rgba(255,255,255,.18)', textUnderlineOffset: 3,
+                }}
+              >{nameOf(l.player)}</span>
+            </span>
+          ))}
+        </span>
+      </div>
+
+      {legs.map((leg) => <LegSentence key={leg.key} leg={leg} odds={odds} />)}
+
+      {/* THE ONLY COMBINED NUMBER ON THIS PAGE, and it is an inequality.
+          P(every leg) ≤ P(the worst leg) is true under any dependence at all,
+          which is exactly why it is safe where a product is not. */}
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.7, marginTop: 7 }}>
+        {legs.length === 2 ? 'Both legs' : `All ${legs.length} legs`}{' have to land, so this ticket '}
+        <B color={C.text2}>cannot land more often than its worst leg</B>
+        {ticket.ceiling ? (
+          <>
+            {' — the '}{ticket.ceiling.group}{' bar, '}
+            <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{rateText(ticket.ceiling.rate)}</span>
+            {'. That is a ceiling, not a forecast: the real number is lower and nobody here has measured how much.'}
+          </>
+        ) : '.'}
+        {ticket.sameGame ? (
+          <>
+            {' '}<B color={C.cyan}>Both legs are in the same game</B>
+            {` (${gamePhrase(legs[0].player)}) — one park, one air, one starting pitcher, one game state.`}
+            {' The two rates above are each leg’s own and are '}
+            <B color={C.text2}>not multiplied</B>
+            {', because what a shared game does to these bars has never been measured on this archive.'}
+          </>
+        ) : (
+          <>
+            {' The legs are in '}<B color={C.text2}>{ticket.games.length} different games</B>
+            {' — no shared park, air, starter or game state. Their rates are still not multiplied;'}
+            {' see the note under the builder.'}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function GroupTicketBuilder({
+  players = [],
+  odds: oddsProp = null,
+  slateDate = '',
+  defaultSize = 2,
+  onPlayerClick,
+}) {
+  const [groups, setGroups] = useState(['HIT', 'HRR'])
+  const [signals, setSignals] = useState([])
+  const [shape, setShape] = useState('spread')
+  const [size, setSize] = useState(defaultSize)
+
+  const odds = useSlateOdds(oddsProp)
+
+  // BACK-TO-BACK, THE VERIFIED PATH AND ONLY THE VERIFIED PATH.
+  //
+  // `games_since_last_hr === 0` is on every slate row and it is a trap: on a
+  // slate rebuilt after the afternoon window it means "he homered TODAY", so
+  // filtering on it would hand back hitters chasing an encore they already
+  // had. That bug shipped three times on this site. lib/b2b.js proves the
+  // setup homer from a graded file or the league's own boxscores, keeps the
+  // raw field as a veto only, and returns `verified` so an empty list can be
+  // told apart from an unchecked one. Until it comes back proven, the filter
+  // is unavailable rather than unproven.
+  const dateKey = slateDate || slateDateOf(players) || new Date().toLocaleDateString('en-CA')
+  const setupHr = useSetupHomers(dateKey)
+  const { list: b2bList, verified: b2bVerified } = useMemo(
+    () => backToBack(players, setupHr), [players, setupHr],
+  )
+  const b2bIds = useMemo(
+    () => new Set(b2bList.map((p) => Number(p?.player_id ?? p?.id))), [b2bList],
+  )
+
+  const activeSignals = useMemo(
+    () => signals.filter((id) => id !== 'b2b' || b2bVerified), [signals, b2bVerified],
+  )
+
+  const built = useMemo(() => buildGroupTickets(players, {
+    groups, signals: activeSignals, shape, size, ctx: { b2b: b2bIds }, limit: 4,
+  }), [players, groups, activeSignals, shape, size, b2bIds])
+
+  const toggle = (arr, set, key) => set(arr.includes(key) ? arr.filter((x) => x !== key) : [...arr, key])
+
+  const designated = useMemo(
+    () => players.filter((p) => String(p?.game_pick_role || '').trim()).length, [players],
+  )
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+        <span style={{ fontSize: 13, fontWeight: 900 }}>🧱 Build from the groups</span>
+        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+          two or more of the bot’s five designations, crossed
+        </span>
+      </div>
+
+      <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.7, marginBottom: 9, maxWidth: 860 }}>
+        The bot designates exactly one hitter per group per game, so a combination of groups is a
+        real object: pick two and you are choosing between one candidate per game on each side.
+        {' '}Each bar is what it is regardless of whose name is on it — measured over{' '}
+        <b style={{ color: C.text2 }}>{GROUP_BACKTEST.nights} graded nights and {GROUP_BACKTEST.games} games</b>
+        {' '}of this project’s own archive:{' '}
+        <span style={{ fontFamily: NUM_FONT }}>
+          1+ hit {rateText(GROUP_RATE.HIT)} · 2+ of hits, runs and RBI {rateText(GROUP_RATE.HRR)} ·
+          {' '}2+ total bases {rateText(GROUP_RATE.CONTACT)} · 1+ home run {rateText(GROUP_RATE.TOP)} as a
+          {' '}TOP pick and {rateText(GROUP_RATE.HR)} as an HR pick
+        </span>.
+        {' '}That spread is far wider than anything a signal moves, which is why every leg below states
+        its own bar first.
+      </div>
+
+      {/* ── controls ── */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Groups</span>
+        {GROUP_ORDER.map((g) => {
+          const meta = GROUP_META[g]
+          const col = C[meta.tone] || C.orange
+          return (
+            <button
+              key={g}
+              onClick={() => toggle(groups, setGroups, g)}
+              title={`${meta.bar} — ${rateText(GROUP_RATE[g])} over ${GROUP_BACKTEST.nights} nights. ${meta.blurb}.`}
+              style={btnStyle(col, groups.includes(g))}
+            >{g}</button>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Signals</span>
+        {LEG_SIGNALS.map((s) => {
+          const off = s.id === 'b2b' && !b2bVerified
+          return (
+            <button
+              key={s.id}
+              onClick={() => { if (!off) toggle(signals, setSignals, s.id) }}
+              title={off
+                ? 'Last night’s homers aren’t proven yet, so this filter can’t be applied — see lib/b2b.js'
+                : 'Keep only legs carrying at least one of the signals you switch on'}
+              style={{ ...btnStyle(C.green, signals.includes(s.id)), opacity: off ? 0.4 : 1, cursor: off ? 'not-allowed' : 'pointer' }}
+            >
+              {s.label}
+              {s.id === 'b2b' && b2bVerified ? ` ${b2bList.length}` : ''}
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Shape</span>
+        <button onClick={() => setShape('spread')} style={btnStyle(C.purple, shape === 'spread')}>Across games</button>
+        <button onClick={() => setShape('game')} style={btnStyle(C.cyan, shape === 'game')}>All in one game</button>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 6 }}>Legs</span>
+        {[2, 3, 4].map((k) => (
+          <button key={k} onClick={() => setSize(k)} style={btnStyle(C.orange, size === k)}>
+            {k === 2 ? '2 legs · pair' : `${k} legs · pool`}
+          </button>
+        ))}
+      </div>
+
+      {/* What the controls actually did, in a sentence — a count nobody can
+          see is a filter nobody can trust. */}
+      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.7, marginBottom: 4 }}>
+        {designated} hitters carry a designation on this slate.
+        {GROUP_ORDER.filter((g) => groups.includes(g)).map((g) => {
+          const c = built.counts[g]
+          if (!c) return null
+          return (
+            <span key={g}>
+              {' '}{g}: <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{c.total}</span> designated
+              {activeSignals.length ? <>, <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{c.kept}</span> carrying a signal you asked for</> : ''}.
+            </span>
+          )
+        })}
+        {signals.includes('b2b') && !b2bVerified && (
+          <span> The back-to-back proof hasn’t come back yet, so that filter is <b style={{ color: C.text2 }}>not</b> being applied — no proof, no claim.</span>
+        )}
+        {shape === 'game' && built.collapsed > 0 && (
+          <span> {built.collapsed} game{built.collapsed === 1 ? '' : 's'} couldn’t make a ticket because the groups you picked land on the same hitter there.</span>
+        )}
+      </div>
+
+      {groups.length < 2 ? (
+        <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.7, padding: '10px 0' }}>
+          Pick <b style={{ color: C.text2 }}>at least two groups</b> — crossing them is the whole idea.
+          One group on its own is the Picks tab, which already lists it in full.
+        </div>
+      ) : !built.tickets.length ? (
+        <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.7, padding: '10px 0' }}>
+          Nothing to build from that combination tonight
+          {built.emptyGroups.length
+            ? ` — ${built.emptyGroups.join(' and ')} ${built.emptyGroups.length === 1 ? 'has' : 'have'} no candidate${activeSignals.length ? ' left once the signal filter is applied' : ' on this slate'}`
+            : ''}
+          .{activeSignals.length ? ' Drop a signal,' : ''}
+          {shape === 'game'
+            ? ' one game only supplies one hitter per group, so try building across games instead.'
+            : ' or try a different pair of groups.'}
+        </div>
+      ) : (
+        <div>
+          {built.tickets.map((t, i) => (
+            <TicketBlock key={t.key} ticket={t} index={i} odds={odds} onPlayerClick={onPlayerClick} />
+          ))}
+        </div>
+      )}
+
+      <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.7, marginTop: 10, maxWidth: 860 }}>
+        <b style={{ color: C.text2 }}>No combined percentage is printed here, on purpose.</b>{' '}
+        Two legs in the same game share a park, an air, a starting pitcher and a game state, and this
+        archive has never measured what that does to a 1+ hit or a 2+ total-bases bar — the one
+        same-game result it does have is for home runs (1.05× the independence expectation over 58
+        nights, see the Pair History note), and that does not transfer. Multiplying two rates as
+        though the legs were independent would be asserting something nobody has checked, so each leg
+        keeps its own measured rate and the only combined figure is the ceiling, which is true under
+        any dependence at all.
+        {' '}Ranking inside a group is by signals first and then by that group’s own 0-100 score —
+        <b style={{ color: C.text2 }}> a score is not a probability</b>, so it is a sort key here and
+        nothing else. Prices are the book’s, shown only where the book’s line is the same bet as the
+        leg’s bar, and the rate beside a leg is <b style={{ color: C.text2 }}>that group&apos;s</b> record
+        over the backtest, not this hitter&apos;s — the two sitting next to each other is a comparison to
+        make yourself, not an edge this page is claiming.
+      </div>
+    </div>
+  )
+}
 
 // SLIMMED TO TWO VIEWS (2026-08-04). Build a Pair moved to the Pools tab —
 // the two builders were on different tabs doing sibling jobs, and one home
@@ -1393,7 +1816,13 @@ const VIEWS = [
   { key:'live',    label:'⚡ Live HR Pairs' },
 ]
 
-export default function Pairs({ players=[], pairBuilder, pairHistorySummary, results, focusPlayerId, onClearFocus, onPlayerClick }) {
+// `odds` and `slateDate` are NEW AND OPTIONAL (2026-08-16). Dashboard doesn't
+// pass either to this tab and adding them there would mean editing a file two
+// other agents are in tonight, so the builder falls back to fetching the same
+// odds_latest.json itself and to reading the slate date off the rows. Every
+// existing caller keeps working unchanged; a caller that has them can hand
+// them over and skip the extra fetch.
+export default function Pairs({ players=[], pairBuilder, pairHistorySummary, results, focusPlayerId, onClearFocus, onPlayerClick, odds=null, slateDate='' }) {
   const [pview, setPview] = useState('pairs')
   const [view, setView] = useState('today')
 
@@ -1498,6 +1927,20 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
         <PairBoard pairBuilder={pairBuilder} results={results} onPlayerClick={onPlayerClick} />
       )}
       {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />}
+
+      {/* The bot's pairs are above and nothing about them changed. This is the
+          one below them he builds himself, out of two or more of the five
+          designations. Same placement rule Pools already uses for its own
+          builder — the bot's opinion first, your construction under it. */}
+      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+        <GroupTicketBuilder
+          players={players}
+          odds={odds}
+          slateDate={slateDate}
+          defaultSize={2}
+          onPlayerClick={onPlayerClick}
+        />
+      </div>
     </div>
   )
 }
