@@ -12,6 +12,7 @@ import PitcherField from './PitcherField'
 import SlotDamage from './SlotDamage'
 import TeamVsStarter from './TeamVsStarter'
 import PitcherRead from './PitcherRead'
+import GameLineup from './GameLineup'
 
 // The pitcher's own modal.
 //
@@ -314,29 +315,17 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
                     pitcherThrows={throws}
                     onPlayerClick={onPlayerClick}
                   />
-                  <DenseTable
-                    rows={rows}
-                    columns={[
-                      { key:'spot',    label:'#',      w:34,
-                        title:'Lineup spot. A label, not a score — shaded like the rest but it means nothing on its own.' },
-                      { key:'batter',  label:'Batter', heat:false, w:150, bold:true, sticky:true },
-                      { key:'bats',    label:'B',      heat:false, w:30, mono:true, dim:true },
-                      { key:'hr',      label:'HR',     w:48, dp:1 },
-                      { key:'hrw',     label:'HRW',    w:46, dp:0 },
-                      { key:'hit',     label:'Hit',    w:44, dp:1 },
-                      { key:'ev',      label:'EV',     w:46, dp:1 },
-                      { key:'ihr',     label:'IHR%',   w:48, dp:1 },
-                      { key:'l5hr',    label:'L5 HR',  w:48 },
-                      { key:'seasonHr',label:'Szn HR', w:52 },
-                      { key:'weak',    label:'★',      flag:true, mark:'★', w:30, title:'Weak-spot flag' },
-                      { key:'match',   label:'🎯',      flag:true, mark:'●', w:30, title:'Pitch-type match edge' },
-                      { key:'spotDmg', label:'Spot dmg', w:58, dp:0,
-                        title:'What this pitcher has allowed in this lineup slot' },
-                    ]}
-                    onRowClick={onPlayerClick}
-                    initialSort="hr"
-                    maxHeight={420}
-                    caption="Click a header to sort, a row to open that hitter. Sorted by HR score by default — sort by # to read it as an actual batting order. Spot damage is thin by construction: it splits one season nine ways."
+                  {/* ── THE FULL TABLE, THE SAME ONE (2026-08-17) ────────────
+                      Donovan: "the full table of players should be shown in
+                      the pitcher as well." This tab had a 13-column summary of
+                      its own; the Games page has the full ~35-column lineup
+                      table. Two tables for one lineup drift, and the smaller
+                      one always loses. GameLineup mounts here now — identical
+                      component, identical columns, table-first default, the
+                      spot read one pill over. */}
+                  <GameLineup
+                    players={lineup.map((b) => b?.raw).filter(Boolean)}
+                    onPlayerClick={onPlayerClick}
                   />
                   <PitcherSpots pitcher={pitcher} onPlayerClick={onPlayerClick} />
                 </>

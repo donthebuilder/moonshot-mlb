@@ -207,10 +207,13 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   // was. A homer the live feed has and the grader hasn't reached yet simply
   // shows no band, which is the same honest gap an older night already had.
   const [live, setLive] = useState(null)
+  const [liveErr, setLiveErr] = useState(null)   // last league-call failure, surfaced
   useEffect(() => {
     if (isTmrw) return undefined
     let alive = true
-    const pull = () => fetchLiveSlate().then((s) => { if (alive) setLive(s) }).catch(() => {})
+    const pull = () => fetchLiveSlate()
+      .then((s) => { if (alive) { setLive(s); setLiveErr(null) } })
+      .catch((e) => { if (alive) setLiveErr(String(e?.message || e || 'league call failed')) })
     pull()
     // 30s, matched to the shared snapshot's own TTL — this does NOT add a
     // request per tick. fetchLiveSlate hands back the cached snapshot when it
@@ -607,6 +610,26 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           <span style={{ fontSize: 9.5, color: C.text3 }}>
             no homers yet tonight — it fills as they land, on its own, every few seconds
           </span>
+          {/* ── THE BLANK EXPLAINS ITSELF (2026-08-17) ─────────────────────
+              Donovan: "one person went yard and the hr ledger has not
+              populated with anything." A blank that might mean "no homers",
+              "league call failing", or "still waiting on the first pull" is
+              three different problems wearing one face. Say which. */}
+          {(() => {
+            if (liveErr) {
+              return <span style={{ fontSize: 9, color: C.yellow }} title={liveErr}>⚠ league feed failing — retrying</span>
+            }
+            if (!live) return <span style={{ fontSize: 9, color: C.text3 }}>· first check pending…</span>
+            const games = Object.values(live?.games || {})
+            const started = games.filter((g) => g?.state && g.state !== 'Preview').length
+            const lines = Object.keys(live?.lines || {}).length
+            return (
+              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}
+                title="What the league feed is showing this panel right now. If a homer has landed and this still reads 0, the boxscore has not caught up yet — it usually lags the broadcast by under a minute.">
+                · watching {started}/{games.length} games · {lines} live batting lines
+              </span>
+            )
+          })()}
           <Chevron />
         </div>
         {!open ? null : !pre ? (

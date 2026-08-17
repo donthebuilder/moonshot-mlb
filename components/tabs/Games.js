@@ -1079,14 +1079,22 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         <GamePanelPills
                           panel={panel}
                           setPanel={setPanel}
+                          gamePk={g.game_pk}
                           weakSpots={(g.players || []).filter((p) => p?.weak_spot_flag).length}
                           pickCount={sorted.length}
                           arm={sides.map((s) => s.arm).filter(Boolean).join(' / ')}
                         />
 
-                        {panel === 'read' && (
-                          <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
-                        )}
+                        {/* ── EVERYTHING OPENS AT ONCE (2026-08-17) ────────
+                            Donovan: "honestly just have everything open up
+                            when you click on the game instead. it's a lot of
+                            clicking thru to look at the stats." The four
+                            panels were a switcher; now they stack — read,
+                            lineups (table first), head-to-head, picks — and
+                            the pills scroll to their section instead of
+                            swapping content. One click opens the whole game. */}
+                        <div id={`gp-read-${g.game_pk}`} />
+                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
 
                         {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component
                             the Lineups mode uses — it now opens on its spot
@@ -1094,15 +1102,16 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             in sentences) with the full dense table one pill
                             further in. Nothing about it is a Games-tab-only
                             copy, so the two surfaces cannot drift. */}
-                        {panel === 'lineups' && (
+                        <div id={`gp-lineups-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
-                        )}
+                        </div>
 
-                        {panel === 'h2h' && (
+                        <div id={`gp-h2h-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
-                        )}
+                        </div>
 
-                        {panel === 'picks' && (<>
+                        <div id={`gp-picks-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }} />
+                        {(<>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
                           <span style={{ fontSize: 11.5, fontWeight: 800 }}>
                             {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
@@ -1315,8 +1324,18 @@ const PANEL_SUB = {
   h2h: 'what these hitters have done against tonight’s starter across their careers, both sides.',
   picks: 'the bot’s designated slots for this game as full cards — score bars, pills, add to slip.',
 }
-function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '' }) {
+// JUMP LINKS NOW, NOT A SWITCHER (2026-08-17). All four sections render
+// stacked — "just have everything open up when you click on the game" — so a
+// pill's job is to scroll you there, not to swap content. gamePk scopes the
+// anchor ids so two open cards can't collide.
+function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '', gamePk = '' }) {
   const badge = { lineups: weakSpots ? `★${weakSpots}` : '', picks: pickCount ? String(pickCount) : '' }
+  const jump = (k) => {
+    setPanel(k)
+    try {
+      document.getElementById(`gp-${k}-${gamePk}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } catch { /* ignore */ }
+  }
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -1325,7 +1344,7 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
           return (
             <button
               key={k}
-              onClick={(e) => { e.stopPropagation(); setPanel(k) }}
+              onClick={(e) => { e.stopPropagation(); jump(k) }}
               title={PANEL_SUB[k]}
               style={{
                 padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
