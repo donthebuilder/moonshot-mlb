@@ -453,26 +453,25 @@ function BullpenBoard({ pitchers, onTeamClick }) {
         </div>
       )}
 
+      {/* ── FOLDED (2026-08-17) ─────────────────────────────────────────────
+          Donovan, for the third time: "the pitchers page still has all them
+          fucking words." This was a nine-sentence paragraph pinned under the
+          bullpen board. One line stays visible — the two symbols you need to
+          scan the bars — and every other sentence is one tap behind it.
+          Nothing deleted; the form condensed, every fact kept. */}
       <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        Red bar = a pen surrendering 1.30+ HR/9 — the late innings there are a live power window,
-        doubly so with a 🥵 tag (they threw heavy yesterday). <b style={{ color: C.text2 }}>vs</b> is who
-        those relievers pitch to tonight; click a row to open that club&apos;s own starter.
-        {' '}HR/9 is season reliever-only (sitCode rp) and the HR / IP beside it is what the rate is
-        built from. <b style={{ color: C.text2 }}>&ldquo;no log&rdquo;</b> means nothing was recorded for
-        them yesterday — an off day or a boxscore that hasn&apos;t landed — which is not the same as
-        rested, so it is never sorted as if it were. Team records aren&apos;t shown because the slate
-        payload doesn&apos;t publish them; everything here is measured. Context lane: this ranks nothing
-        else on the site.
-        {' '}<b style={{ color: C.text2 }}>One HR/9 (2026-08-16):</b> the bar and the rate beside it are
-        the live StatsAPI reliever-only split, and that is now the ONLY home-run rate on this board — the
-        slate&apos;s own bullpen_hr9 used to print a second time in the sentences below, two numbers for one
-        claim. The live pull wins because it is what the bar is ranked and coloured by, and it is
-        reliever-only by sitCode, which is the population the claim is about. The grade, ERA and WHIP
-        still come from the slate&apos;s published pen line (bullpen_quality, bullpen_era, bullpen_whip),
-        and bullpen_hr9 keeps its labelled column in the full starter table if you want to compare feeds.
-        The <b style={{ color: C.text2 }}>attack score</b> in the sentences below is a 0-100 rating of
-        how attackable the pen is, quoted against tonight&apos;s real spread; it is a score, not a chance
-        of anything.
+        Red bar = pen giving up 1.30+ HR/9 · 🥵 = threw heavy yesterday · click a row for that club&apos;s starter.
+        <details style={{ display: 'inline', marginLeft: 6 }}>
+          <summary style={{ display: 'inline', cursor: 'pointer', color: C.orange }}>the fine print</summary>
+          {' '}<b style={{ color: C.text2 }}>vs</b> is who those relievers pitch to tonight.
+          HR/9 is season reliever-only (sitCode rp); the HR / IP beside it is what the rate is built from.
+          <b style={{ color: C.text2 }}> &ldquo;no log&rdquo;</b> means nothing was recorded yesterday — not the
+          same as rested, so never sorted as if it were. The bar&apos;s rate is the live StatsAPI reliever-only
+          split and is the only HR rate on this board; grade, ERA and WHIP come from the slate&apos;s published
+          pen line, and bullpen_hr9 keeps its labelled column in the full starter table. The attack score is a
+          0-100 rating against tonight&apos;s real spread — a score, not a chance of anything. Context lane:
+          this ranks nothing else on the site.
+        </details>
       </div>
     </div>
   )
@@ -927,14 +926,17 @@ export default function Pitchers({ players, onPlayerClick }) {
               )
             })}
           </div>
+          {/* One visible line; the rest folds. Same rule as the bullpen note. */}
           <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-            Ember is air that helps the ball, blue is air that kills it. The park clause is spoken
-            rather than printed as a multiplier — hover it for the raw
-            <b style={{ color: C.text2 }}> park HR factor</b>. A closed roof takes the weather out of the
-            game, which is why it is said even though it moves nothing by itself. The
-            <b style={{ color: C.text2 }}> +% on home runs</b> at the end is the bot&apos;s own published
-            weather effect, a swing on the home-run rate rather than anybody&apos;s chance of hitting one.
-            Games with no weather published get no line here instead of a plausible-looking default.
+            Ember = air that helps the ball, blue = air that kills it.
+            <details style={{ display: 'inline', marginLeft: 6 }}>
+              <summary style={{ display: 'inline', cursor: 'pointer', color: C.orange }}>the fine print</summary>
+              {' '}Hover the park clause for the raw <b style={{ color: C.text2 }}>park HR factor</b>. A closed
+              roof takes the weather out of the game, which is why it is said even though it moves nothing by
+              itself. The <b style={{ color: C.text2 }}>+% on home runs</b> is the bot&apos;s own published
+              weather effect — a swing on the HR rate, not anybody&apos;s chance of hitting one. Games with no
+              weather published get no line instead of a plausible-looking default.
+            </details>
           </div>
         </div>
       )}
@@ -1314,16 +1316,10 @@ export default function Pitchers({ players, onPlayerClick }) {
           it held (weak spots, order-zone damage, arsenal, the vs-side and
           zone reads) lives in the modal a row-click opens, where it's
           organized instead of stacked. One table, one click, one deep view. */}
+      {/* The column-group buttons already carry their own labels; a paragraph
+          re-describing each one was words for words' sake. One sentence. */}
       <div style={{ fontSize: 10, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
-        Click any starter above for the full breakdown — order-zone damage, arsenal, weak spots,
-        situational splits and the damage field all live in his card.
-        {' '}The column buttons over the table hold the rest: <b style={{ color: C.text2 }}>Recent form</b> is
-        his last three starts against his season line plus the velocity he is carrying,
-        {' '}<b style={{ color: C.text2 }}>Command</b> is how he beats hitters rather than how he leaks,
-        {' '}<b style={{ color: C.text2 }}>His pen</b> is the relievers who finish the game he starts, and
-        {' '}<b style={{ color: C.text2 }}>The air</b> is the park and weather he is throwing into. Every
-        one of those numbers is a published slate field — where a field has not published, the cell is a
-        dash rather than a zero.
+        Click any starter for his full card. A dash means the field has not published — never a zero.
       </div>
 
       {modalPitcher && (

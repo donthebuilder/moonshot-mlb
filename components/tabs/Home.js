@@ -517,7 +517,9 @@ export default function Home({
           The ledger owns an honest waiting state now ("no homers yet tonight",
           plus what it will show and when) and still refuses on tomorrow's
           slate, so there is no empty box to protect against. */}
-      <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+      {/* The ledger no longer leads the page — see the mount after the hero.
+          (2026-08-17, Donovan: "it doesnt need to be at the top of the page on
+          the home page, the welcome thing needs to.") */}
 
       {/* ── HERO ─────────────────────────────────────────────────────── */}
       <div style={{
@@ -628,6 +630,11 @@ export default function Home({
           }}>{pulse}</div>
         )}
       </div>
+
+      {/* 🧾 THE LEDGER — directly under the welcome, per his ordering: the
+          greeting owns the top of the page, the ledger is the first thing
+          after it. Foldable, and it remembers being closed. */}
+      <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
 
       {/* ── THE HEADLINE GAME — lifted here 2026-08-16 ───────────────
              The hero's last clause names this game; it used to be three

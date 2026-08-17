@@ -300,6 +300,19 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
             : c.heat >= 0.62 ? { icon: '🔥', word: '' }
             : c.heat >= 0.3 ? { icon: '', word: '' }
             : { icon: '🧊', word: '' }
+          // ── THE TINT IS BACK (2026-08-17) ─────────────────────────────────
+          // Donovan, after living with the flat cards: "i still want the game
+          // chips to different color by game score like before."
+          // The 08-16 quiet pass took the tint away along with the glow, the
+          // size-scaling and the heat numeral, on the argument that four
+          // signals was three too many. He agreed about the other three and
+          // has now said twice that the TINT was the one he used — colour by
+          // game score is how he scans the grid. So: one alpha channel on one
+          // colour, scaled by tonight's GS range. No glow, no size change, no
+          // border — the geometry stays quiet, the paint says the score.
+          // Alpha runs 0 → 0.16: visible next to a cold card, never loud
+          // enough to fight the text, and the open-card accent still wins.
+          const heatBg = `rgba(249, 115, 22, ${(0.16 * c.heat).toFixed(3)})`
           return (
             <button
               key={c.pk}
@@ -308,14 +321,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               style={{
                 textAlign: 'left', cursor: 'pointer', padding: '7px 11px 8px',
                 minWidth: 0, position: 'relative', overflow: 'hidden',
-                // ONE FLAT SURFACE (principle 2). Every card is the same
-                // colour now — the heat lives in the glyph and the rank, not
-                // in the paint. The resting border is transparent and comes
-                // from .quiet-tile, so hover is the only thing that draws a
-                // box; the open card overrides just the border COLOUR, which
-                // an inline longhand does without disturbing the class's
-                // 1px/solid (so nothing reflows when it opens).
-                background: on ? `${accent}14` : C.bg2,
+                background: on ? `${accent}14` : `linear-gradient(0deg, ${heatBg}, ${heatBg}), ${C.bg2}`,
                 borderColor: on ? accent : undefined,
                 opacity: c.past && !on ? 0.45 : 1,
               }}

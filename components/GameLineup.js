@@ -360,10 +360,15 @@ function SideRead({ team, rows, onPlayerClick }) {
 
 export default function GameLineup({ players, onPlayerClick }) {
   const [team, setTeam] = useState('Both')
-  // Read first, table behind a pill. Both are one click apart and neither can
-  // be reached only by scrolling past the other — which is the whole point of
-  // the change (Donovan: "i keep having to scroll up to scroll back down").
-  const [shape, setShape] = useState('read')
+  // ── THE TABLE LEADS (2026-08-17) ──────────────────────────────────────────
+  // Donovan: "lineups need stats not reading", "i liked when you click on the
+  // games and it opened the full table", "on the games you gotta do all this
+  // clicking to just see everything". The spot read defaulted first and the
+  // table sat behind a pill, which meant the thing he opens a game FOR was
+  // always one click away. Reversed: the full stat table is what opening a
+  // game shows, the read is the pill. Nothing removed — same two views, the
+  // other default.
+  const [shape, setShape] = useState('table')
 
   const teams = useMemo(
     () => Array.from(new Set(players.map(teamOf).filter(Boolean))).sort(),
@@ -465,10 +470,11 @@ export default function GameLineup({ players, onPlayerClick }) {
           </div>
         )}
         <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={(e) => { e.stopPropagation(); setShape('read') }} style={pill(shape === 'read')}
-            title="One line per hitter: what this arm has done to the spot he stands in">Spot read</button>
+          {/* Table first in the row too — the pill order matches the default. */}
           <button onClick={(e) => { e.stopPropagation(); setShape('table') }} style={pill(shape === 'table')}
             title="The full dense lineup table — every column, sortable">Full table</button>
+          <button onClick={(e) => { e.stopPropagation(); setShape('read') }} style={pill(shape === 'read')}
+            title="One line per hitter: what this arm has done to the spot he stands in">Spot read</button>
         </div>
         <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
           {rows.length} hitters · ★{lit('weak')} weak · ◆{lit('aligned')} aligned · ▲{lit('edge')} edge

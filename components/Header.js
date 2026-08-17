@@ -379,7 +379,12 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
         maxWidth:1300, margin:'0 auto', padding:'0 16px',
         overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
       }}>
-        <div style={{ display:'flex', gap:2, paddingBottom:0, minWidth:'max-content' }}>
+        {/* EVEN TABS (2026-08-17, "i dont like how the tabs arent evenly
+            aligned"). Each button flexes to an equal share of the rail and
+            centres its label, so the row reads as one measured strip instead
+            of ragged word-width chips. minWidth keeps the horizontal scroll
+            working on phones, where equal shares would crush the labels. */}
+        <div style={{ display:'flex', gap:0, paddingBottom:0, minWidth:'max-content', width:'100%' }}>
           {TABS.map(([key,label]) => {
             const active = tab === key
             return (
@@ -392,6 +397,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                   cursor:'pointer', border:'none', borderRadius:0,
                   background:'transparent', color:active ? '#f97316' : C.text3,
                   position:'relative', transition:'color .12s', whiteSpace:'nowrap',
+                  flex:'1 0 auto', textAlign:'center',
                 }}
               >
                 {label}

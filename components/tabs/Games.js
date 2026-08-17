@@ -1308,7 +1308,10 @@ const GAME_PANELS = [
 ]
 const PANEL_SUB = {
   read: 'tonight’s air, both starters written out, and this game’s storylines.',
-  lineups: 'both batting orders 1 through 9, and what this arm has done to each spot — the weak spots said in words, with the full table one pill further in.',
+  // Caption updated 2026-08-17 with the default flip: the table leads now, the
+  // spot read is the pill. A caption promising the old order would send people
+  // hunting for a click that no longer exists.
+  lineups: 'both batting orders 1 through 9 as the full stat table — every column sortable, with the spot read (what this arm has done to each slot, in words) one pill over.',
   h2h: 'what these hitters have done against tonight’s starter across their careers, both sides.',
   picks: 'the bot’s designated slots for this game as full cards — score bars, pills, add to slip.',
 }

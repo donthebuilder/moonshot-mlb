@@ -64,6 +64,72 @@ const TABS = [
   { key: 'profile', label: '📊 Command + splits' },
 ]
 
+// ── THE SPLITS GRID (2026-08-17) ────────────────────────────────────────────
+// Donovan sent a reference tool whose pitcher view LEADS with one grid:
+// Season / vsLHB / vsRHB rows, the core rates as columns, shaded by which side
+// of the matchup each number favours. Ours had the same facts scattered over
+// three tabs — the modal was "fix the pitcher modal, bring up to speed,
+// intuitive and usable" because the first screen answered nothing at a glance.
+//
+// Columns are ONLY what the slate publishes per side (HR, HR/9, WHIP, XBH, and
+// his pitch mix on that side); the season row adds the season-only quality
+// rates. A cell the bot has not published is a dash, never a zero. Shading
+// follows the house tone rule — hot = good for the BAT — and the words carry
+// it too, so colour is never the only encoding.
+function SplitsGrid({ src }) {
+  const g = (k) => src(k)
+  const num = (k) => { const v = Number(g(k)); return Number.isFinite(v) ? v : null }
+  const f2 = (v) => (v == null ? '—' : v.toFixed(2))
+  const f0 = (v) => (v == null ? '—' : String(Math.round(v)))
+  const rows = [
+    { split: 'Season', hr: num('pitcher_hr_allowed'), hr9: num('pitcher_hr9'), whip: num('pitcher_whip'), xbh: null, mix: '' },
+    { split: 'vs LHB', hr: num('pitcher_hr_vs_lhb'), hr9: num('pitcher_hr9_vs_lhb'), whip: num('pitcher_whip_vs_lhb'), xbh: num('pitcher_xbh_vs_lhb'), mix: String(g('pitcher_primary_mix_vs_lhb') || '') },
+    { split: 'vs RHB', hr: num('pitcher_hr_vs_rhb'), hr9: num('pitcher_hr9_vs_rhb'), whip: num('pitcher_whip_vs_rhb'), xbh: num('pitcher_xbh_vs_rhb'), mix: String(g('pitcher_primary_mix_vs_rhb') || '') },
+  ]
+  if (rows.slice(1).every((r) => r.hr9 == null && r.whip == null)) return null
+  const toneHr9 = (v) => (v == null ? null : v >= 1.3 ? 'hot' : v <= 0.85 ? 'cold' : null)
+  const toneWhip = (v) => (v == null ? null : v >= 1.4 ? 'hot' : v <= 1.1 ? 'cold' : null)
+  const cell = (txt, tone, tip) => (
+    <td key={tip} title={tip} style={{
+      padding: '4px 10px', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 700, textAlign: 'right',
+      color: tone === 'hot' ? '#f87171' : tone === 'cold' ? '#4ade80' : C.text2,
+      borderBottom: `1px solid ${C.bg}`,
+    }}>{txt}</td>
+  )
+  return (
+    <div style={{ margin: '2px 0 12px', overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', minWidth: 460 }}>
+        <thead>
+          <tr>
+            {['SPLIT', 'HR', 'HR/9', 'WHIP', 'XBH', 'HIS MIX THAT SIDE'].map((h, i) => (
+              <th key={h} style={{
+                padding: '3px 10px', fontSize: 8.5, color: C.text3, letterSpacing: '.07em',
+                textAlign: i === 0 ? 'left' : i === 5 ? 'left' : 'right', fontFamily: NUM_FONT,
+                borderBottom: `1px solid ${C.border}`,
+              }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.split}>
+              <td style={{ padding: '4px 10px', fontSize: 10.5, fontWeight: 800, color: C.text, borderBottom: `1px solid ${C.bg}` }}>{r.split}</td>
+              {cell(f0(r.hr), null, `${r.split}: home runs allowed`)}
+              {cell(f2(r.hr9), toneHr9(r.hr9), `${r.split}: HR per 9 — red is a leak (good for the bat), green is a wall`)}
+              {cell(f2(r.whip), toneWhip(r.whip), `${r.split}: walks+hits per inning — red is traffic`)}
+              {cell(r.xbh == null ? '—' : f0(r.xbh), null, `${r.split}: extra-base hits allowed`)}
+              <td style={{ padding: '4px 10px', fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, whiteSpace: 'nowrap', borderBottom: `1px solid ${C.bg}` }}>{r.mix || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 3 }}>
+        red = good news for the bat on that side · green = his wall · season quality rates are the tiles above
+      </div>
+    </div>
+  )
+}
+
 export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClick }) {
   const [tab, setTab] = useState('matchup')
 
@@ -191,10 +257,13 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 6 }}>
             {tiles.map((t) => <Tile key={t.label} {...t} />)}
           </div>
-          <div style={{ fontSize: 8.5, color: C.text3, marginBottom: 12 }}>
+          <div style={{ fontSize: 8.5, color: C.text3, marginBottom: 10 }}>
             <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
             <b style={{ color: '#60a5fa' }}>blue</b> = his strength — hover any tile for what it means
           </div>
+
+          {/* Season / vsLHB / vsRHB, the reference-tool grid — see SplitsGrid. */}
+          <SplitsGrid src={src} />
 
           {/* 🧭 the story in sentences — same flow pass the batter modal got
               (2026-08-15). All from fields already resolved above. */}
