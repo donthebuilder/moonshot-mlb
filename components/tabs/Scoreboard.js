@@ -413,9 +413,20 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // below" — pointed at the bottom of the page. It is self-dismissing and
   // collapses to a single "?" chip once you've read it, so it costs a
   // returning visitor one line.
+  // ── THE FOUR LEADS. ASKED FOR REPEATEDLY (2026-08-17) ─────────────────────
+  // Donovan: "how hard is it to put the four at the top of the scoreboard like
+  // ive asked you to rearrange alot of the site to flow better you didnt do
+  // that."
+  //
+  // It was second in both orders, behind StartHere — a self-dismissing
+  // explainer — and in live mode behind three more blocks. The page's own
+  // StartHere text says "Tonight's picks is The Four, immediately below", so
+  // the explainer was pointing at something that was not immediately below.
+  // The picks go first. StartHere follows them, which is also where an
+  // explainer belongs: after the thing it explains, for the reader who wants it.
   const order = liveNow
-    ? [secWire, secGone, secLedger, secNear, secStart, secPicks, secPulse, secWeak]
-    : [secStart, secPicks, secPulse, secNear, secWire, secGone, secLedger, secWeak]
+    ? [secPicks, secWire, secGone, secLedger, secNear, secStart, secPulse, secWeak]
+    : [secPicks, secStart, secPulse, secNear, secWire, secGone, secLedger, secWeak]
 
   return (
     <div>

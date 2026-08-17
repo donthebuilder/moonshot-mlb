@@ -321,7 +321,12 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 
 // The three groups the top row can open. Kept as a list so the deep-link
 // guard below and the pill row can never disagree about what exists.
+// 'scoreboard' and 'boxes' joined this row on 2026-08-17, when Home lost its own
+// pill row. They are boards, so they belong in the Boards group rather than as a
+// second navigation row on the front page. They route out to the existing
+// #tab= handlers rather than mounting here, so there is exactly one copy of each.
 const GROUPS = [['boards', '📊 Boards'], ['power', '🚀 Power'], ['patterns', '🔥 Patterns']]
+const GROUP_LINKS = [['scoreboard', '🧮 Full slate'], ['boxes', '📋 Box scores']]
 
 /**
  * New props, all optional so the CURRENT Dashboard mount keeps rendering
@@ -335,7 +340,7 @@ const GROUPS = [['boards', '📊 Boards'], ['power', '🚀 Power'], ['patterns',
  *   · powerInitial — forwarded as PowerTab's own `initial` prop, so #tab=due
  *                    can still open Overdue specifically. Power's default.
  */
-export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest' }) {
+export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest', onNavigate = null }) {
   const [bview, setBview] = useState(() => (GROUPS.some(([k]) => k === initialView) ? initialView : 'boards'))
   const [view, setView] = useState('hr')
   const [proofOpen, setProofOpen] = useState(false)
@@ -365,6 +370,15 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             border: `1px solid ${bview === k ? C.orange : C.border}`,
             background: bview === k ? 'rgba(249,115,22,.14)' : 'transparent',
             color: bview === k ? C.orange : C.text3,
+          }}>{label}</button>
+        ))}
+        {/* The two views Home used to host in its own pill row. Links, not
+            mounts — each still lives in exactly one place. */}
+        {onNavigate && GROUP_LINKS.map(([k, label]) => (
+          <button key={k} onClick={() => onNavigate(k)} style={{
+            padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+            fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+            border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
           }}>{label}</button>
         ))}
         {boards && (

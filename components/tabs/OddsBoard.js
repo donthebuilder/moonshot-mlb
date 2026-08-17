@@ -434,8 +434,28 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           off the board, the break-even off the price, the rate off hr_per_pa
           and the lineup spot. The only thing the page adds is the subtraction,
           and it only performs it where a real rate exists. */}
+      {/* ── FOLDED BY DEFAULT (2026-08-17) ──────────────────────────────────
+          Donovan: "ODDDSS PAGE HAS THIS BIG READ on the top its dumb i dont
+          like" — and separately, repeatedly: too many words site-wide.
+          He is right that this was the wrong default. The lead is four prose
+          blocks and it stood between the reader and the board they came for.
+          NOTHING IS DELETED — every sentence, link and number is still here,
+          one tap away, per the house rule that information is never removed and
+          only the FORM is condensed. The summary line carries the two figures
+          worth seeing without opening anything: how many prices, and the widest
+          shopping gap. The board is now the first thing on the page. */}
       {night && (
-        <div style={{ margin: '14px 0 26px', animation: 'oddsIn .35s ease both' }}>
+        <details style={{ margin: '12px 0 18px' }}>
+          <summary style={{
+            cursor: 'pointer', fontSize: 11.5, color: C.text3, lineHeight: 1.6,
+            listStyle: 'revert',
+          }}>
+            <b style={{ color: C.text2 }}>{night.priced} prices</b> across {night.markets} market
+            {night.markets === 1 ? '' : 's'}, {night.plus} paying plus money
+            {night.shop ? <> · widest shopping gap {one(night.shop.gain)} pts on {nameOf(night.shop.p)}</> : null}
+            {' '}— <span style={{ color: C.orange }}>the full read</span>
+          </summary>
+        <div style={{ margin: '10px 0 8px', animation: 'oddsIn .35s ease both' }}>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: C.text2, maxWidth: 660 }}>
             <Num size={14} color={C.text}>{night.priced}</Num> prices on tonight&apos;s hitters across{' '}
             <Num size={14} color={C.text}>{night.markets}</Num> market{night.markets === 1 ? '' : 's'},{' '}
@@ -602,6 +622,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
             </Para>
           </div>
         </div>
+        </details>
       )}
 
       {/* ── THE BOARD ────────────────────────────────────────────────────────

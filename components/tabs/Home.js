@@ -442,13 +442,25 @@ export default function Home({
              no panel — it's navigation, not content. See the consolidation
              note above the component for why these live here and why the
              routing that points at them lands in a separate change. ── */}
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        {HOME_VIEWS.map((v) => (
-          <button key={v.key} onClick={() => pickView(v.key)} style={btnStyle(C.orange, view === v.key)}>
-            {v.label}
+      {/* ── NO PILL ROW ON THE FRONT PAGE (2026-08-17) ────────────────────────
+          Donovan: "the read on the home page is good. i just dont like how the
+          home page has tabs aals wtf."
+          The landing page carried a second row of navigation directly beneath
+          the main tab bar — the same duplication as the double Pair History row
+          on Combos. Home is one page now.
+          The `view` state and the `initial` prop STAY, because Dashboard routes
+          #tab=scoreboard and #tab=boxes through this component; those links
+          still land on the right view. The pills are reached from the Boards
+          group's existing row instead, so nothing became unreachable and no new
+          row was created to replace this one. Only when a deep link put us on a
+          sub-view does a single way back appear, below. */}
+      {view !== 'tonight' && (
+        <div style={{ marginBottom: 12 }}>
+          <button onClick={() => pickView('tonight')} style={btnStyle(C.orange, false)}>
+            ← Home
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* The board runs on the globally-filtered list when Dashboard provides
           it; Boxes takes the full slate (allPlayers), same as its old mount.

@@ -116,18 +116,15 @@ const COLUMNS = [
     title: 'Signals aligned across boards' },
   { key: 'edge',   label: 'Edge',  flag: true, mark: '▲', w: 40,
     title: 'Bats into the pitcher’s weak side' },
-  // ── SPOT DAMAGE, IN THE TABLE TOO (2026-08-15) ────────────────────────────
-  // The read above states these in words; here they are as numbers you can
-  // sort a card by. Same four fields, same row — one of them is for scanning
-  // and one is for ranking, and neither is a summary of the other.
-  { key: 'sdmg',   label: 'Spot dmg', w: 56, dp: 1,
-    explain: 'How much damage hitters have done to TONIGHT’S STARTER in this batting-order spot, 0-100. His vulnerability in the slot, not the hitter’s own damage rate — and not a probability.' },
-  { key: 'spa',    label: 'Spot PA',  w: 52,
-    title: 'Plate appearances behind that spot number. Under 10 the read is too thin to lean on, which is why the sentence above says so instead of grading it.' },
-  { key: 'sslg',   label: 'Spot SLG', w: 56, dp: 3,
-    title: 'Slugging this starter has allowed to this batting-order spot' },
-  { key: 'zdmg',   label: 'Zone dmg', w: 56, dp: 1,
-    explain: 'Damage against this third of the order — 1-3, 4-6 or 7-9 — on the same 0-100 scale. Wider sample than one spot, so it is the steadier of the two.' },
+  // ── THE HITTER'S OWN SCORES COME FIRST (2026-08-17) ───────────────────────
+  // Donovan: "its all rearaged wrong twhy fuck is spot damage fist."
+  //
+  // Correct, and it was my doing on 08-15. Spot damage got inserted ahead of
+  // HR/Hit/HRR/TB, so the first four numbers on a hitter's row described the
+  // PITCHER'S vulnerability in that batting slot, not the hitter. You open a
+  // lineup table to find out about the bats; the slot read is context for that
+  // answer, not the answer. Restored: the four bot scores lead, the spot
+  // cluster sits after them where it was before.
   { key: 'hr',     label: 'HR',    w: 40, dp: 1 },
   { key: 'hit',    label: 'Hit',   w: 40, dp: 1 },
   { key: 'hrr',    label: 'HRR',   w: 40, dp: 1 },
@@ -139,6 +136,16 @@ const COLUMNS = [
   { key: 'barrel', label: 'Brl%',  w: 42, dp: 1 },
   { key: 'ihr',    label: 'IHR',   w: 42, dp: 3 },
   { key: 'd375',   label: '375+',  w: 40 },
+  // The spot cluster — the STARTER's record against this batting slot. Kept in
+  // full (nothing is removed), just no longer occupying the first four columns.
+  { key: 'sdmg',   label: 'Spot dmg', w: 56, dp: 1,
+    explain: 'How much damage hitters have done to TONIGHT’S STARTER in this batting-order spot, 0-100. His vulnerability in the slot, not the hitter’s own damage rate — and not a probability.' },
+  { key: 'spa',    label: 'Spot PA',  w: 52,
+    title: 'Plate appearances behind that spot number. Under 10 the read is too thin to lean on.' },
+  { key: 'sslg',   label: 'Spot SLG', w: 56, dp: 3,
+    title: 'Slugging this starter has allowed to this batting-order spot' },
+  { key: 'zdmg',   label: 'Zone dmg', w: 56, dp: 1,
+    explain: 'Damage against this third of the order — 1-3, 4-6 or 7-9 — on the same 0-100 scale. Wider sample than one spot, so it is the steadier of the two.' },
   // FORM CLUSTER (2026-08-06, on request): what he's actually hitting lately,
   // next to what the model thinks of him. All published slate fields.
   { key: 'a5',     label: 'L5 AVG',  w: 50, dp: 3,

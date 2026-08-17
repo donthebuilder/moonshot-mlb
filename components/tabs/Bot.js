@@ -479,15 +479,27 @@ function SheetViewer({ url, label }) {
 // difference. Section 3 of The Read shows that gap directly, so nothing was
 // lost by dropping it. The sheets stay, unedited, because they are the
 // receipt.
+// ── THE READ NO LONGER LEADS THIS TAB (2026-08-17) ──────────────────────────
+// Donovan: "honestly remove the read from the bot page its dumb", alongside
+// "the read on the home page is good".
+//
+// So the read itself is fine — landing on a page of prose when you opened the
+// bot's tab to see its PICKS is what is wrong. Shortlist leads now and The Read
+// sits last in the row.
+//
+// Not deleted outright, for one concrete reason: Home's ReadTeaser links here
+// for the full version, and that link is the thing he says he likes. Removing
+// the view would break it. If he wants it gone entirely, the teaser moves to an
+// inline expand on Home first — one change, not a dangling link.
 const VIEWS = [
-  { key: 'read',     label: '📝 The Read' },
   { key: 'short',    label: '🎯 Shortlist' },
   { key: 'sheet',    label: '📄 Today’s Sheet' },
   { key: 'tomorrow', label: '📄 Tomorrow' },
+  { key: 'read',     label: '📝 The Read' },
 ]
 
 export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = null }) {
-  const [view, setView] = useState('read')
+  const [view, setView] = useState('short')
 
   return (
     <div>
