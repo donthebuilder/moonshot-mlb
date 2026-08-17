@@ -2,6 +2,9 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { activeStops, activeChips, inkOn, edgeOn, subscribe } from '../lib/palette'
+import {
+  useSpotlight, cellTint, cellEdge, cellMark, SPOT_MARK,
+} from '../lib/spotlight'
 import PaletteToggle from './PaletteToggle'
 
 // Heatmap — the chart the Streamlit build leans on hardest, ported.
@@ -96,6 +99,9 @@ export default function Heatmap({
   maxHeight = null,
 }) {
   const [hover, setHover] = useState(null)
+  // The user's named highlight rules, so a chart lights the same rows a board
+  // does. Same hook DenseTable uses — one source, so the two cannot disagree.
+  const { firstMatch } = useSpotlight()
   // Caption fold (2026-08-12), ported from DenseTable — see its header
   // comment for why: the first sentence stays visible, the rest (plus the
   // sort hint) folds behind "why ▸" so this chart's fine print matches every
@@ -224,11 +230,27 @@ export default function Heatmap({
             </tr>
           </thead>
           <tbody>
-            {view.map((r, ri) => (
+            {view.map((r, ri) => {
+              // ✨ HIGHLIGHTS REACH THE CHARTS NOW (2026-08-17).
+              //
+              // Donovan: "the highlight worked for the cards and not the columns
+              // or the spreadsheets excel things charts."
+              //
+              // This component had ZERO spotlight support — not a broken
+              // implementation, an absent one. Every cell here is a heat cell
+              // whose background IS its value, so the light cannot be a
+              // background: it lands on the sticky label cell as a bar, a tint
+              // and a glyph. Rows carrying a `_raw` slate record can match;
+              // rows built from something else (a game, a park) simply don't,
+              // which is the same rule DenseTable uses.
+              const light = r._raw ? firstMatch(r._raw) : null
+              return (
               <tr
                 key={r.label ?? ri}
                 onClick={onRowClick ? () => onRowClick(r, ri) : undefined}
-                title={onRowClick ? `Open ${r.label}` : undefined}
+                title={light
+                  ? `Highlight: ${light.name || 'match'}${onRowClick ? ` · open ${r.label}` : ''}`
+                  : (onRowClick ? `Open ${r.label}` : undefined)}
                 style={{ cursor: onRowClick ? 'pointer' : 'default' }}
               >
                 <td style={{
@@ -241,7 +263,16 @@ export default function Heatmap({
                   textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   borderRight: `1px solid ${C.border}`,
                   transition: 'background .1s',
-                }}>{r.label}</td>
+                  // Order matters: the tint must come AFTER the hover
+                  // background or hovering a lit row would blank its light.
+                  ...(light ? cellTint(light.color) : {}),
+                  ...(light ? cellEdge(light.color) : {}),
+                }}>
+                  {light && (
+                    <span style={cellMark(light.color)}>{SPOT_MARK}</span>
+                  )}
+                  {r.label}
+                </td>
 
                 {columns.map((c) => {
                   const raw = r.values?.[c]
@@ -270,7 +301,8 @@ export default function Heatmap({
                   )
                 })}
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

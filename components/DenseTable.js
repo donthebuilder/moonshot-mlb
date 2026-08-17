@@ -1,7 +1,9 @@
 'use client'
 import { useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { useSpotlight, washOf } from '../lib/spotlight'
+import {
+  useSpotlight, washOf, cellTint, cellEdge, cellMark, SPOT_MARK,
+} from '../lib/spotlight'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
 import { explainFor, InfoDot, ExplainBanner } from './Explain'
@@ -92,6 +94,16 @@ export default function DenseTable({
   const [capOpen, setCapOpen] = useState(false)
 
   const heatCols = useMemo(() => columns.filter((c) => c.heat !== false && !c.flag && !c.action), [columns])
+
+  // The first text column — where a lit row wears its bar and its glyph. Falls
+  // back to the first non-action column so a table with no sticky column still
+  // marks something rather than nothing.
+  const firstTextKey = useMemo(() => {
+    const sticky = columns.find((c) => c.sticky && c.heat === false)
+    if (sticky) return sticky.key
+    const text = columns.find((c) => c.heat === false && !c.action && !c.flag)
+    return text ? text.key : null
+  }, [columns])
 
   const ranges = useMemo(() => {
     const out = {}
@@ -330,17 +342,33 @@ export default function DenseTable({
             </tr>
           </thead>
           <tbody>
-            {view.map((r, ri) => (
+            {view.map((r, ri) => {
+              // ✨ THE WINNING HIGHLIGHT, RESOLVED ONCE PER ROW.
+              //
+              // It used to be computed inline inside the <tr> style and applied
+              // ONLY there, as an inset box-shadow — which every <td> then
+              // painted over with its own opaque background. See the comment on
+              // cellTint in lib/spotlight.js: the wash was correct and
+              // invisible, on every board, which is why "the highlights don't
+              // work on the columns" outlived three fixes.
+              //
+              // Now the row resolves its light once and each cell decides how to
+              // wear it: text cells take a tint, the first cell takes the bar
+              // and a glyph, and heat cells are left alone because their
+              // background already means their own value.
+              const light = firstMatch(r._raw ?? r)
+              return (
               <tr
                 key={r._key ?? ri}
                 onClick={onRowClick ? () => onRowClick(r._raw ?? r) : undefined}
+                title={light ? `Highlight: ${light.name || 'match'}` : undefined}
                 style={{
                   cursor: onRowClick ? 'pointer' : 'default',
                   opacity: dimRow?.(r) ? 0.42 : 1,
-                  // ✨ the site-wide spotlight — inset so it can't collide
-                  // with the row borders, and it never changes layout. The
-                  // wash is the winning highlight's own color.
-                  ...((() => { const l = firstMatch(r._raw ?? r); return l ? washOf(l.color) : {} })()),
+                  // Kept for the case where a row has no cells of its own to
+                  // paint (an empty or single-cell table), and because it costs
+                  // nothing when it is covered.
+                  ...(light ? washOf(light.color) : {}),
                 }}
                 className={onRowClick ? "dense-row dense-click" : "dense-row"}
               >
@@ -397,6 +425,12 @@ export default function DenseTable({
                   }
 
                   if (c.heat === false) {
+                    // A TEXT CELL CAN CARRY THE LIGHT, because its background is
+                    // a flat surface colour rather than a measurement. This is
+                    // where the highlight actually becomes visible in a table —
+                    // the <tr>'s inset shadow was always painted over by
+                    // exactly this `background: C.bg2`.
+                    const isFirstText = c.sticky || c.key === firstTextKey
                     return (
                       <td key={c.key} className={c.sticky ? 'dense-sticky' : undefined} style={{
                         position: c.sticky ? 'sticky' : undefined,
@@ -409,7 +443,19 @@ export default function DenseTable({
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         maxWidth: c.w, borderRight: `1px solid ${C.border}`,
                         borderBottom: `1px solid ${C.bg}`,
-                      }}>{c.fmt ? c.fmt(v, r) : (v ?? '—')}</td>
+                        ...(light ? cellTint(light.color) : {}),
+                        // The 3px bar belongs on the row's first cell, which is
+                        // the element that actually paints there.
+                        ...(light && isFirstText ? cellEdge(light.color) : {}),
+                      }}>
+                        {light && isFirstText && (
+                          <span
+                            title={`Highlight: ${light.name || 'match'}`}
+                            style={cellMark(light.color)}
+                          >{SPOT_MARK}</span>
+                        )}
+                        {c.fmt ? c.fmt(v, r) : (v ?? '—')}
+                      </td>
                     )
                   }
 
@@ -442,7 +488,8 @@ export default function DenseTable({
                   )
                 })}
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

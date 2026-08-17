@@ -12,6 +12,7 @@ import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
 import { heatModeFromUrl } from '../../lib/heatMode'
+import { uniqueByPerson } from '../../lib/doubleheader'
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
@@ -268,9 +269,16 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           WHO is on top; the profile says WHY -- which input is actually
           carrying each name. The score is its first column, so the ranking
           isn't lost. Ported from the Streamlit build. */}
+      {/* TOP 15 MEANS 15 DIFFERENT MEN (2026-08-17). On a doubleheader slate
+          `ranked` carries a hitter twice, so slice(0,15) spent two rows on Alec
+          Burleson with identical numbers — a Top 15 that is really a top 14,
+          under a heading that says 15. uniqueByPerson collapses to one row per
+          man and tags how many games he has, so the fact survives as "2×"
+          rather than as a wasted slot. The FULL board below keeps both rows;
+          there the two games are the point and the G column separates them. */}
       {viewMode === 'cards' && <Heatmap
-        rows={ranked.slice(0, 15).map((p) => ({
-          label: nameOf(p),
+        rows={uniqueByPerson(ranked).slice(0, 15).map((p) => ({
+          label: p?._slateGames > 1 ? `${nameOf(p)} · ${p._slateGames}×` : nameOf(p),
           _raw: p,
           values: {
             // THE RANKING NUMBER LEADS. The chart's first column has to be the
