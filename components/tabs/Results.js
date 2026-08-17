@@ -1366,6 +1366,65 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             <ScoreAudit slots={uniqSlots} players={players} />
           </Fold>
 
+          {/* 4½ · WHY THE HITS DIDN'T COME (2026-08-17) ──────────────────────
+              Donovan: "thinking about the hit — a batter's form on why they
+              should NOT get a hit since they're hitting at a 70ish clip. there
+              should be data supporting why players didn't get hit."
+              Every high-hit-score man who went hitless, with the EVIDENCE the
+              slate already carried against him: his 0-for-N, the arm's
+              strikeout rates, his own K%, his average against that hand, his
+              L5 form. Where nothing in the data flagged him, it says so —
+              a 70 clip means three in ten miss with no excuse available, and
+              pretending otherwise would be inventing a story. */}
+          {(() => {
+            const byId = new Map(players.map((pl) => [Number(pl?.player_id ?? pl?.id), pl]))
+            const misses = uniqSlots
+              .filter((r) => (r.actual_ab || 0) > 0 && (r.actual_hits || 0) === 0)
+              .filter((r) => Number(r.hit_score || 0) >= 60
+                || /HIT/i.test(String(r.pick_type || r.slot_type || '')))
+              .map((r) => ({ r, sl: byId.get(Number(r.player_id)) || null }))
+              .sort((a, b) => Number(b.r.hit_score || 0) - Number(a.r.hit_score || 0))
+            if (!misses.length) return null
+            const pct = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? `${(Number(v) * 100).toFixed(0)}%` : null)
+            const av = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v).toFixed(3).replace(/^0\./, '.') : null)
+            return (
+              <>
+                <Flow num="4½" title="Why the hits didn’t come" note="every 60+ hit score that went hitless, with the evidence the slate carried against him — or an honest shrug" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
+                  {misses.slice(0, 8).map(({ r, sl }) => {
+                    const throwsL = String(sl?.pitcher_throws || '').toUpperCase().startsWith('L')
+                    const vsHand = throwsL ? sl?.avg_vs_lhp : sl?.avg_vs_rhp
+                    const clues = []
+                    const k9 = Number(sl?.pitcher_k9)
+                    const pk = Number(sl?.pitcher_k_rate)
+                    const myK = Number(sl?.season_k_rate)
+                    if (Number.isFinite(k9) && k9 >= 9) clues.push(`the arm strikes out ${k9.toFixed(1)}/9${pct(pk) ? ` (${pct(pk)} of hitters)` : ''}`)
+                    if (Number.isFinite(myK) && myK >= 0.24) clues.push(`his own K rate is ${pct(myK)}`)
+                    if (av(vsHand) && Number(vsHand) < 0.24) clues.push(`he hits ${av(vsHand)} vs ${throwsL ? 'LHP' : 'RHP'} — the hand he saw`)
+                    const l5h = Number(sl?.last5_hits)
+                    if (Number.isFinite(l5h) && l5h <= 3) clues.push(`only ${l5h} hits over his last 5`)
+                    return (
+                      <div key={`${r.player_id}-miss`} style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+                        <b onClick={() => sl && onPlayerClick?.(sl)}
+                          style={{ color: C.text, cursor: sl ? 'pointer' : 'default' }}>{r.name || sl?.name}</b>
+                        <span style={{ fontFamily: NUM_FONT, color: C.text3 }}>
+                          {' '}hit score {Number(r.hit_score || 0).toFixed(0)} · went 0-for-{r.actual_ab}
+                        </span>
+                        {' — '}
+                        {clues.length
+                          ? <span style={{ color: C.text3 }}>{clues.join('; ')}.</span>
+                          : <span style={{ color: C.text3 }}>nothing in the slate flagged this one — a {Number(r.hit_score || 0).toFixed(0)} clip still misses roughly {(100 - Number(r.hit_score || 0)).toFixed(0)} nights in 100, and this was one.</span>}
+                      </div>
+                    )
+                  })}
+                  {misses.length > 8 && (
+                    <div style={{ fontSize: 9.5, color: C.text3 }}>+ {misses.length - 8} more hitless 60+ scores — the full table below has every one.</div>
+                  )}
+                </div>
+              </>
+            )
+          })()}
+
           {/* 5 · WHAT GOT AWAY — the sentence up top already counted them */}
           <Flow num="5" title="What got away" note="homers the sheet never had — the model's real misses" />
           {missedList.length > 0 ? (

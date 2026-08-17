@@ -601,7 +601,41 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       .filter((c) => c.tags.length >= 2 || c.tags.some((t) => t.k === 'own'))
       .sort((a, b) => b.tags.length - a.tags.length)
 
-    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot }
+    // ── WHO LINES UP NEXT (2026-08-17) ─────────────────────────────────────
+    // Donovan: "i need the ledger to have some prediction of players that
+    // align as well." The alignment strip only ever looked BACKWARD — it
+    // tagged men after they homered. This looks at the same three numbers the
+    // night is landing on and asks who on the slate, not yet in the ledger,
+    // is standing on one of them:
+    //   · his NEXT homer (season_hr + 1) reduces to tonight's leading root
+    //   · his next homer is a number several hitters already reached tonight
+    //   · he bats in the spot leading the night (3+ homers)
+    //   · his jersey reduces to tonight's leading root
+    // Every reason is stated on the chip. This is the same pattern-watching
+    // the strip above discloses — counted, never scored, and the panel says
+    // so. Ranked by the bot's HR score among the aligned, because if the
+    // night's numbers are calling somebody, the bat still has to answer.
+    const homered = new Set(cards.map((c) => c.pid))
+    const nextUp = []
+    if (rootNum || hotSpot || repeatNums.size) {
+      players.forEach((pl) => {
+        const pid = Number(pl?.player_id)
+        if (!pid || homered.has(pid)) return
+        const nextHr = n(pl?.season_hr, 0) + 1
+        const spot = Number(pl?.lineup_spot)
+        const jersey = n(pl?.jersey_number, 0)
+        const why = []
+        if (rootNum && digitRoot(nextHr) === rootNum) why.push(`his next homer (#${nextHr}) lands on tonight's root ${rootNum}`)
+        if (repeatNums.has(nextHr)) why.push(`his next is #${nextHr} — a number already hit ${(repeats.find((r) => r.num === nextHr)?.list.length) || 2}× tonight`)
+        if (hotSpot && spot === hotSpot) why.push(`bats ${ord(hotSpot)} — the spot leading the night with ${spots[hotSpot]}`)
+        if (rootNum && jersey > 0 && digitRoot(jersey) === rootNum) why.push(`jersey #${jersey} reduces to tonight's root ${rootNum}`)
+        if (!why.length) return
+        nextUp.push({ p: pl, pid, name: nameOf(pl), why, count: why.length, hrScore: n(pl?.hr_score, 0) })
+      })
+      nextUp.sort((a, b) => (b.count - a.count) || (b.hrScore - a.hrScore))
+    }
+
+    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot, nextUp: nextUp.slice(0, 5) }
   }, [rows, players, seasonHr])
 
   // ── WHY THIS NOW RENDERS BEFORE THE FIRST HOMER (2026-08-17) ──────────────
@@ -761,7 +795,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       </div>
     )
   }
-  const { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned } = model
+  const { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, nextUp = [] } = model
   const milestones = cards.filter((c) => c.milestone)
 
   return (
@@ -921,6 +955,38 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
 
           Renders nothing when nothing clears. That is the normal state. */}
       <NamePatterns homers={model.cards} population={players} />
+
+      {/* 🔮 WHO LINES UP NEXT — the forward half of the alignment strip.
+          "i need the ledger to have some prediction of players that align as
+          well." Same three numbers the night is landing on, asked forward:
+          who has NOT homered yet and is standing on one of them. Each chip
+          carries its reasons in the tooltip and the strongest one inline.
+          Pattern-watching, counted and disclosed — never fed to a score. */}
+      {nextUp.length > 0 && (
+        <div style={{
+          background: 'rgba(34,211,238,.06)', border: '1px solid rgba(34,211,238,.28)',
+          borderRadius: 10, padding: '7px 11px', marginBottom: 9,
+        }}>
+          <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.7 }}>
+            🔮 <b style={{ color: C.cyan }}>Lines up next:</b>{' '}
+            {nextUp.map((x, i) => (
+              <span key={x.pid}>
+                {i > 0 && ' · '}
+                <b
+                  onClick={() => onPlayerClick?.(x.p)}
+                  title={`${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`}
+                  style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}
+                >{x.name}</b>
+                <span style={{ color: C.text3, fontSize: 9.5 }}> — {x.why[0]}</span>
+              </span>
+            ))}
+            <span style={{ color: C.text3, fontSize: 9.5 }}>
+              {' '}· hitters not yet in the ledger whose numbers sit on tonight&apos;s pattern,
+              ranked by HR score. A watch, not a prediction — nothing here is graded or scored.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* 🔢 THE REPEATS — the number pattern, which is the whole reason this
           panel exists. Same-number clusters first, then the digit root. */}

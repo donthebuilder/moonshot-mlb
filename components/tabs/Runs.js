@@ -5,7 +5,12 @@ import { fetchJSON, groupGames } from '../../lib/data'
 import { clean, teamOf } from '../../lib/player'
 import { Empty } from '../ui'
 import Sparkline, { GameStrip } from '../Sparkline'
-import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS } from '../../lib/runs'
+// H and HRR are the game-log column indices donutStats reads. They were NOT in
+// this import when DonutLine first shipped — the build compiled clean, and the
+// ReferenceError at render killed the ENTIRE Patterns page. Caught by the
+// harness reading the body text ("Application error"), not by the build, and
+// not even by the pageerror listener. A compile is never evidence.
+import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS, H, HRR } from '../../lib/runs'
 
 // 🔥 RUNS — who is hot, at the bar YOU pick.
 //
@@ -191,6 +196,90 @@ function MatchupLine({ row }) {
       ) : arm ? (
         <span title="No plate appearances against this pitcher on record">{' · '}never faced him</span>
       ) : null}
+    </div>
+  )
+}
+
+
+// ── 🍩 THE DONUT LINE (2026-08-17) ──────────────────────────────────────────
+// Donovan: "Stat needed: last zero game where player recorded no stats — H, R,
+// RBI. and seeing the distance from the donut game to them getting a hit and
+// or 1+ HRR."
+//
+// A DONUT is stricter than the blank board's blank: not just hitless, but a
+// game with NOTHING — no hit AND no run AND no RBI (H = 0 and the combined
+// H+R+RBI count = 0 in the same game). The blank board asks "did he get a hit
+// after an 0-fer"; this asks the emptier question and measures the BOUNCE:
+// after each of his donuts this window, how many games until a hit landed, and
+// until a 1+ H+R+RBI game landed.
+//
+// Everything is counted off the same game log the streaks already run on
+// (newest first; H at index 2, the combined HRR count at index 4). Distances
+// are in GAMES HE PLAYED, denominators always shown, and a donut with no
+// bounce yet inside the window is counted as unresolved rather than dropped —
+// "2/3 bounced" with one still open is the honest read.
+function donutStats(g) {
+  const log = Array.isArray(g) ? g : []
+  if (!log.length) return null
+  const isDonut = (row) => Number(row?.[H]) === 0 && Number(row?.[HRR]) === 0
+  let last = -1
+  const donuts = []
+  log.forEach((row, i) => {
+    if (!isDonut(row)) return
+    if (last < 0) last = i
+    donuts.push(i)
+  })
+  if (!donuts.length) return { last: null, n: 0 }
+  // Bounce: from each donut, walk toward NOW (lower index = newer game).
+  let hitBounced = 0; let hitDistSum = 0; let hitResolved = 0
+  let hrrBounced = 0; let hrrDistSum = 0; let hrrResolved = 0
+  donuts.forEach((i) => {
+    let hd = null; let rd = null
+    for (let j = i - 1; j >= 0; j -= 1) {
+      if (hd == null && Number(log[j]?.[H]) >= 1) hd = i - j
+      if (rd == null && Number(log[j]?.[HRR]) >= 1) rd = i - j
+      if (hd != null && rd != null) break
+    }
+    if (hd != null) { hitBounced += 1; hitDistSum += hd; hitResolved += 1 }
+    else if (i > 0) hitResolved += 1          // newer games exist and none had a hit
+    if (rd != null) { hrrBounced += 1; hrrDistSum += rd; hrrResolved += 1 }
+    else if (i > 0) hrrResolved += 1
+  })
+  return {
+    last,                          // games since his most recent donut (index = distance)
+    n: donuts.length,
+    hit: { bounced: hitBounced, resolved: hitResolved, avg: hitBounced ? hitDistSum / hitBounced : null },
+    hrr: { bounced: hrrBounced, resolved: hrrResolved, avg: hrrBounced ? hrrDistSum / hrrBounced : null },
+  }
+}
+
+function DonutLine({ g }) {
+  const d = donutStats(g)
+  if (!d) return null
+  if (!d.n) {
+    return (
+      <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginTop: 2 }}
+        title="A donut is a game with no hit, no run and no RBI — emptier than the blank board's 0-fer, which only requires no hit.">
+        🍩 no donut games in this window
+      </div>
+    )
+  }
+  const f1 = (v) => (v == null ? '—' : (Math.round(v * 10) / 10).toString())
+  return (
+    <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginTop: 2, lineHeight: 1.55 }}
+      title={`A donut is a game with no hit, no run and no RBI. He has ${d.n} in this window. After each one: how many games he took to record a hit, and to record a 1+ hits+runs+RBI game. A donut with no bounce yet in the window counts as unresolved, not dropped.`}>
+      🍩 last donut <b style={{ color: d.last === 0 ? C.red : C.text2 }}>{d.last === 0 ? 'his most recent game' : `${d.last} game${d.last === 1 ? '' : 's'} ago`}</b>
+      {' · '}{d.n} in window
+      {d.hit.resolved > 0 && (
+        <> · hit after <b style={{ color: C.text2 }}>{d.hit.bounced}/{d.hit.resolved}</b>
+          {d.hit.avg != null && <> in <b style={{ color: C.text2 }}>{f1(d.hit.avg)}</b> gm avg</>}
+        </>
+      )}
+      {d.hrr.resolved > 0 && (
+        <> · 1+HRR after <b style={{ color: C.text2 }}>{d.hrr.bounced}/{d.hrr.resolved}</b>
+          {d.hrr.avg != null && <> in <b style={{ color: C.text2 }}>{f1(d.hrr.avg)}</b> gm avg</>}
+        </>
+      )}
     </div>
   )
 }
@@ -461,6 +550,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                       print. */}
                   <RunOddsLine run={r.run} base={r.l30 || r.l15} size={9.5} />
                   <MatchupLine row={slateRow(players, p)} />
+                  <DonutLine g={p.g} />
                 </div>
               )
             })}
