@@ -372,9 +372,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // the ledger behind a second pill is the exact complaint he raised, just
   // relocated. It shows on Games whenever a game is on, whichever view you are
   // standing in.
-  const ledger = results?.live_mode === true
-    ? <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
-    : null
+  // NO live_mode GATE (2026-08-17). It was the second half of why nobody could
+  // find this — see the long note in components/HomerLedger.js. The component
+  // now owns its own empty state and refuses on tomorrow's slate, so gating the
+  // mount as well only ever hid it during the hours people are looking.
+  const ledger = <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
 
   if (mode === 'live' && gview !== 'boxes') {
     return (

@@ -71,7 +71,10 @@ export default function Combos({
           ledger fill. Live only, same as everywhere else — before first pitch
           it has nothing to say and Combos is a pregame page most of the time.
           See the long note at the Home mount for the whole placement story. */}
-      {view === 'pairs' && results?.live_mode === true && (
+      {/* live_mode gate removed 2026-08-17 — the ledger owns its own empty
+          state now, and gating the mount hid it during exactly the hours
+          someone would be looking for it. See components/HomerLedger.js. */}
+      {view === 'pairs' && (
         <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
       )}
 

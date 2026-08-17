@@ -6,6 +6,8 @@ import { dedupeGraded } from '../lib/graded'
 import { pickSplit } from '../lib/seasonSplit'
 import { hrShapeMeta, hrLine } from '../lib/hrShape'
 import { fetchLiveSlate } from '../lib/liveSlate'
+import { easternToday } from '../lib/data'
+import { pregameLedger } from '../lib/pregameLedger'
 import NamePatterns from './NamePatterns'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
@@ -126,8 +128,16 @@ const seasonHrCache = new Map()   // pid -> { hr, jersey, dayRoot, lifePath, atC
 const SEASON_HR_TTL = 10 * 60 * 1000
 
 export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick }) {
-  const dateKey = slateDate || new Date().toLocaleDateString('en-CA')
-  const isTmrw = slateDate && slateDate > new Date().toLocaleDateString('en-CA')
+  const dateKey = slateDate || easternToday()
+  // COMPARED IN THE SAME FRAME THE SLATE DATE IS BUILT IN (2026-08-17).
+  // This read `> new Date().toLocaleDateString('en-CA')` — the viewer's local
+  // day — against a slateDate that lib/data.js derives from the games. With the
+  // old max-game_time-in-local-time rule, tonight's slate came back as tomorrow
+  // for anyone at UTC or east of it, so this was true all day and the component
+  // returned null before doing anything. Both sides are US Eastern now, which
+  // is the only frame in which "is this slate tomorrow's" has one answer for
+  // every viewer.
+  const isTmrw = slateDate && slateDate > easternToday()
 
   // SOURCED FROM THE PROP NOW, NOT ITS OWN FETCH (2026-08-13, Donovan: "it
   // need to load faster"). Scoreboard.js already holds this exact payload —
@@ -518,7 +528,141 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot }
   }, [rows, players, seasonHr])
 
-  if (isTmrw || !model || !model.total) return null
+  // ── WHY THIS NOW RENDERS BEFORE THE FIRST HOMER (2026-08-17) ──────────────
+  //
+  // Donovan, for the third time: "im also looking for that home run ledger
+  // thing maybe it will show during the slate". His guess was exactly right,
+  // and that WAS the bug. Earlier: "people are saying they dont see it or i
+  // wish i would have seen it earlier."
+  //
+  // Two gates were hiding it, and moving it onto five surfaces fixed neither:
+  //   1. Every mount site required `results?.live_mode === true`, so during the
+  //      day the component was not on the page at all.
+  //   2. This line returned null whenever the night's homer count was 0 — so
+  //      even once live, it stayed invisible until the first ball left the yard.
+  //
+  // Between them, the ledger only existed in the window after the first homer
+  // of the night. Nobody can learn that a feature exists inside a window they
+  // have to already be watching to see. A thing you cannot find before it has
+  // content is a thing you never find.
+  //
+  // So: tomorrow still returns null, because there is nothing to say about a
+  // slate that has not happened. But today with zero homers renders a WAITING
+  // strip — it names itself, says what it will show, and says when. That is
+  // information, not decoration: "no homers yet" is a fact about tonight.
+  if (isTmrw) return null
+
+  if (!model || !model.total) {
+    // ── PREGAME: THE LEDGER'S OWN QUESTIONS, ASKED FORWARD ──────────────────
+    // Donovan: "pregame numerology suggestions like the storylines would be
+    // helpful for the ledger, that way i can see where it lies even when slate
+    // hasnt fully kicked off."
+    //
+    // Not a placeholder. The same three things the ledger reports after a homer
+    // — what number it was, which lineup spot it came from, whether the names
+    // rhyme — stated about tonight's board before anything has happened. Every
+    // line is a countable fact with its denominator on it, and the header says
+    // outright that none of it is graded or fed into a score, because numerology
+    // presented without that sentence is the most misleading thing here.
+    const pre = pregameLedger(players)
+    return (
+      <div style={{
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+        padding: '9px 14px 11px', marginBottom: 14,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 900 }}>💥 Homer ledger</span>
+          <span style={{ fontSize: 9.5, color: C.text3 }}>
+            no homers yet tonight — it fills as they land, on its own, every 30 seconds
+          </span>
+        </div>
+        {!pre ? (
+          <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.6 }}>
+            When one goes, this is where it shows up: who hit it, what number home
+            run it was for him, which lineup spot it came from, whether the bot had
+            him, and the shape of the swing.
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 9.5, color: C.text3, margin: '5px 0 6px', lineHeight: 1.6, maxWidth: 820 }}>
+              <b style={{ color: C.text2 }}>Until then — what it is watching.</b>{' '}
+              Countable facts about tonight&apos;s board, not forecasts:{' '}
+              <b style={{ color: C.text2 }}>none of this is graded and none of it feeds any score.</b>{' '}
+              Read it as where the interesting numbers already sit.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {pre.milestones.length > 0 && (
+                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+                  <b style={{ color: '#FCD34D' }}>One away from a round number.</b>{' '}
+                  {pre.milestones.length} of tonight&apos;s {pre.total} hitters — closest to the
+                  bot&apos;s picks:{' '}
+                  {pre.milestones.slice(0, 4).map((m, i) => (
+                    <span key={`${m.name}-${m.next}`}>
+                      {i > 0 && ' · '}
+                      <span
+                        onClick={onPlayerClick ? () => onPlayerClick(m._raw) : undefined}
+                        style={{ cursor: onPlayerClick ? 'pointer' : 'default', color: C.text, fontWeight: 700 }}
+                      >{m.name}</span>
+                      <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
+                        {' '}{m.at}→{m.next}{m.designated ? ' ★' : ''}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {pre.jerseys.length > 0 && (
+                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+                  <b style={{ color: '#38bdf8' }}>Number meets number.</b>{' '}
+                  {pre.jerseys.length} hitters whose home run count is level with their
+                  shirt or one short of it:{' '}
+                  {pre.jerseys.slice(0, 3).map((j, i) => (
+                    <span key={`${j.name}-${j.jersey}`}>
+                      {i > 0 && ' · '}
+                      <span
+                        onClick={onPlayerClick ? () => onPlayerClick(j._raw) : undefined}
+                        style={{ cursor: onPlayerClick ? 'pointer' : 'default', color: C.text, fontWeight: 700 }}
+                      >{j.name}</span>
+                      <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
+                        {' '}#{j.jersey}, {j.hr} HR{j.kind === 'reaches' ? ' — one to match' : ' — level'}
+                      </span>
+                    </span>
+                  ))}
+                  <span style={{ color: C.text3 }}> · coincidence, and labelled as one.</span>
+                </div>
+              )}
+              {pre.stack && (
+                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+                  <b style={{ color: '#f97316' }}>Where the picks are batting.</b>{' '}
+                  The <span style={{ fontFamily: NUM_FONT }}>#{pre.stack.spot}</span> hole holds{' '}
+                  <span style={{ fontFamily: NUM_FONT }}>{pre.stack.count}</span> of the{' '}
+                  <span style={{ fontFamily: NUM_FONT }}>{pre.stack.placed}</span> designated
+                  hitters with a confirmed spot — the ledger reports the spot every homer
+                  came from, so this is the same column, before the fact.
+                </div>
+              )}
+              {pre.echoes.length > 0 && (
+                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+                  <b style={{ color: '#c084fc' }}>Names that rhyme tonight.</b>{' '}
+                  {pre.echoes.map((e, i) => (
+                    <span key={`${e.kind}-${e.key}`}>
+                      {i > 0 && ' · '}
+                      <span style={{ color: C.text, fontWeight: 700 }}>{e.names.join(' + ')}</span>
+                      <span style={{ color: C.text3 }}>{` (same ${e.kind === 'first' ? 'first name' : 'surname'})`}</span>
+                    </span>
+                  ))}
+                  <span style={{ color: C.text3 }}>
+                    {' '}· raw counts among the {pre.picks} picks. No significance test is
+                    possible before the fact — the sample and the population would be the
+                    same people — so this claims nothing about likelihood.
+                  </span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
   const { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned } = model
   const milestones = cards.filter((c) => c.milestone)
 

@@ -495,9 +495,17 @@ export default function Home({
           date gate already returns null, and this gate means it does not even
           mount. It appears when the first game starts, which is exactly the
           moment "I wish I'd seen it earlier" is about. */}
-      {isLive && (
-        <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
-      )}
+      {/* ── THE GATE ABOVE WAS THE BUG, AND ITS COMMENT WAS THE ARGUMENT FOR IT.
+          The reasoning was: don't mount an empty box, it appears when the first
+          game starts, "which is exactly the moment 'I wish I'd seen it earlier'
+          is about". That is backwards. Nobody can discover a feature inside a
+          window they must already be watching to see. Donovan asked where this
+          thing is THREE separate times, most recently guessing "maybe it will
+          show during the slate" — which was correct, and was the problem.
+          The ledger owns an honest waiting state now ("no homers yet tonight",
+          plus what it will show and when) and still refuses on tomorrow's
+          slate, so there is no empty box to protect against. */}
+      <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
 
       {/* ── HERO ─────────────────────────────────────────────────────── */}
       <div style={{
