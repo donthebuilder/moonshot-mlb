@@ -2031,7 +2031,29 @@ const VIEWS = [
 // existing caller keeps working unchanged; a caller that has them can hand
 // them over and skip the extra fetch.
 export default function Pairs({ players=[], pairBuilder, pairHistorySummary, results, focusPlayerId, onClearFocus, onPlayerClick, odds=null, slateDate='' }) {
-  const [pview, setPview] = useState('pairs')
+  // ── THE SECOND PILL ROW IS GONE (2026-08-17) ──────────────────────────────
+  // Donovan: "LOOK AT THE DOUBLE PAIR HISTORY."
+  //
+  // This tab rendered TWO navigation rows stacked on each other. The outer one
+  // (🤝 Pairs / 🎱 Pools / 📜 History) belongs to components/tabs/Combos.js,
+  // the shell built in the 08-16 tab consolidation. The inner one (👥 Pairs /
+  // 📜 Pair History) was this file's own pre-merge switcher, which the merge
+  // left in place because it wrapped rather than rewrote.
+  //
+  // So Pair History was reachable by two paths, down two separate useState
+  // atoms that could not see each other — meaning the outer row could say
+  // "Pairs" while the inner row said "Pair History", and the page would obey
+  // the inner one. A duplicated control that can contradict its own twin.
+  //
+  // Combos already routes `history` to <PairHistory> itself, so the whole
+  // pview branch here was dead weight the moment the shell existed. Deleted:
+  // the state, both PairPills mounts, the history early-return, and the
+  // PairPills component. `pairHistorySummary` stays in the signature because
+  // Combos hands it down and other callers pass it.
+  //
+  // THE RULE THIS EARNED: when two surfaces stack, check whether the top one
+  // repeats the bottom one — and after a consolidation, grep the WRAPPED
+  // component for the navigation it used to own.
   const [view, setView] = useState('today')
 
   const homers = useMemo(() => {
@@ -2045,17 +2067,8 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
   // is to say it landed at chance.
   const evPairs = useMemo(() => buildPairs(players, { limit: 6 }), [players])
 
-  if (pview === 'history') {
-    return (
-      <div>
-      <PairPills view={pview} setView={setPview} />
-        <PairHistory summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />
-      </div>
-    )
-  }
   return (
     <div>
-      <PairPills view={pview} setView={setPview} />
       {evPairs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
@@ -2153,18 +2166,6 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
   )
 }
 
-function PairPills({ view, setView }) {
-  return (
-    <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
-      {[['pairs', '👥 Pairs'], ['history', '📜 Pair History']].map(([k, label]) => (
-        <button key={k} onClick={() => setView(k)} style={{
-          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
-          fontWeight: 800, fontFamily: NUM_FONT,
-          border: `1px solid ${view === k ? C.orange : C.border}`,
-          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
-          color: view === k ? C.orange : C.text3,
-        }}>{label}</button>
-      ))}
-    </div>
-  )
-}
+// PairPills lived here — the second, duplicated navigation row. Removed
+// 2026-08-17; components/tabs/Combos.js owns the only pill row this tab has.
+// See the note on `view` above before reintroducing anything like it.

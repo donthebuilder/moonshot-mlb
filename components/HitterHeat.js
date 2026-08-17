@@ -6,6 +6,7 @@ import {
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
 import { tierRole, shortRole, scoreFor, isAligned } from '../lib/scoring'
+import { gameNumbers, gameNumOf, doubleheaderNote } from '../lib/doubleheader'
 import Heatmap from './Heatmap'
 import DenseTable from './DenseTable'
 
@@ -21,6 +22,25 @@ const matchupEdge = (p) => {
   const bats = clean(p?.bats || p?.handedness, '')
   if (!weak || !bats) return 0
   return (weak === 'LHB' && bats === 'L') || (weak === 'RHB' && bats === 'R') ? 1 : 0
+}
+
+// ── THE G COLUMN (2026-08-17) ────────────────────────────────────────────────
+// Present ONLY on a slate with a doubleheader — see lib/doubleheader.js for why
+// two identical-looking rows were the honest answer and still read as a bug.
+// It is a real column rather than a glyph on the name so it can be sorted on:
+// "show me only the nightcap" is a question this board could not previously be
+// asked. On every ordinary slate it is spliced out entirely, so nobody pays a
+// column for a situation that is not happening.
+const DH_COLUMN = {
+  key: 'g',
+  label: 'G',
+  heat: false,
+  w: 26,
+  mono: true,
+  dim: true,
+  explain: 'Which game of a doubleheader this row is. G1 is the earlier first '
+    + 'pitch, G2 the later one. A hitter whose team plays twice appears once per '
+    + 'game and both rows are real.',
 }
 
 const COLUMNS = [
@@ -61,12 +81,27 @@ export default function HitterHeat({
     [players, type],
   )
 
+  // Computed off `players` rather than `ranked`: the doubleheader is a fact
+  // about the slate, not about this board's sort order.
+  const dh = useMemo(() => gameNumbers(players), [players])
+  const dhNote = useMemo(() => doubleheaderNote(players), [players])
+  const columns = useMemo(
+    () => (dh.size
+      ? [...COLUMNS.slice(0, 4), DH_COLUMN, ...COLUMNS.slice(4)]
+      : COLUMNS),
+    [dh],
+  )
+
   const rows = useMemo(() => ranked.map((p, i) => ({
-    _key: `${p?.player_id ?? nameOf(p)}-${i}`,
+    // game_pk is in the key because on a doubleheader the same player_id is
+    // legitimately two rows, and a duplicate React key silently drops one of
+    // them — which would have "fixed" the complaint by deleting a real game.
+    _key: `${p?.player_id ?? nameOf(p)}-${p?.game_pk ?? ''}-${i}`,
     _raw: p,
     name: nameOf(p),
     team: teamOf(p),
     opp: oppOf(p),
+    g: gameNumOf(p, dh) || '',
     spot: p?.lineup_spot ?? '—',
     role: shortRole(p),
     weak: p?.weak_spot_flag ? 1 : 0,
@@ -85,7 +120,7 @@ export default function HitterHeat({
     ihr: ihrVal(p),
     d375: recent375(p),
     hr9: nn(p?.pitcher_hr9),
-  })), [ranked])
+  })), [ranked, dh])
 
   if (!ranked.length) return null
 
@@ -124,9 +159,20 @@ export default function HitterHeat({
               {rows.length} hitters · ★{lit('weak')} weak · ◆{lit('aligned')} aligned · ▲{lit('edge')} edge
             </span>
           </div>
+          {/* Why a name is here twice, answered before it is asked. Sentence,
+              not a symbol legend — the reader's question is about the schedule.
+              Empty string on every ordinary slate, so nothing renders. */}
+          {dhNote && (
+            <div style={{
+              fontSize: 10, color: C.text3, lineHeight: 1.6, maxWidth: 780,
+              margin: '0 0 7px',
+            }}>
+              ⚾⚾ {dhNote}
+            </div>
+          )}
           <DenseTable
             rows={rows}
-            columns={COLUMNS}
+            columns={columns}
             onRowClick={onPlayerClick}
             maxHeight={460}
           />

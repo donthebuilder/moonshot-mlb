@@ -7,6 +7,7 @@ import {
   hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId, mlbId,
 } from '../../lib/player'
 import { tierRole, shortRole, isAligned, hrRank } from '../../lib/scoring'
+import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore } from '../../lib/scoring_additions'
@@ -67,11 +68,38 @@ const matchupEdge = (p) => {
   return (weak === 'LHB' && bats === 'L') || (weak === 'RHB' && bats === 'R') ? 1 : 0
 }
 
-const buildColumns = (onWatch) => [
+// ── THE G COLUMN (2026-08-17) ────────────────────────────────────────────────
+// Donovan: "names also duplicated idk whats thats about."
+//
+// They were not duplicated. On 08-17, STL @ CIN was a DOUBLEHEADER — two
+// game_pks, 17:40 and 22:40 — so all 17 twice-listed player_ids were St. Louis
+// and Cincinnati bats appearing once per game. Alec Burleson genuinely hits
+// twice. Deduping would have deleted a real plate appearance and halved a
+// team's presence on the board on precisely the day they play most.
+//
+// The reason it read as a bug is that the two rows were IDENTICAL on screen:
+// this board has no first-pitch column, so nothing distinguished them. So the
+// fix is a label, not a filter. Injected only when a matchup actually repeats —
+// see lib/doubleheader.js, including why sorting on game_pk would have numbered
+// this particular doubleheader backwards.
+const DH_COLUMN = {
+  key: 'g',
+  label: 'G',
+  heat: false,
+  w: 28,
+  mono: true,
+  dim: true,
+  fmt: (v) => (v ? `G${v}` : '—'),
+  title: 'Which game of a doubleheader. G1 is the earlier first pitch. A hitter '
+    + 'whose team plays twice appears once per game and both rows are real.',
+}
+
+const buildColumns = (onWatch, dhOn = false) => [
   { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
   { key: 'name',    label: 'Player', heat: false, w: 168, bold: true, sticky: true },
   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
+  ...(dhOn ? [DH_COLUMN] : []),
   { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true },
   { key: 'role',    label: 'Role',   heat: false, w: 76, dim: true },
   { key: 'spot',    label: 'Spot',   heat: false, w: 40, mono: true, dim: true,
@@ -141,13 +169,23 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
 
+  // Off the FULL slate, not the filtered pool: whether a matchup repeats is a
+  // fact about tonight's schedule, and it must not switch off because the
+  // aligned-only toggle happened to hide one half of the doubleheader.
+  const dh = useMemo(() => gameNumbers(players), [players])
+  const dhNote = useMemo(() => doubleheaderNote(players), [players])
+
   const rows = useMemo(() => {
     const pool = alignedOnly ? players.filter(isAligned) : players
     return pool.map((p, i) => ({
-      _key: `${p?.player_id ?? nameOf(p)}-${i}`,
+      // game_pk in the key: on a doubleheader one player_id is legitimately two
+      // rows, and a duplicate React key drops one of them silently — which
+      // would "fix" the complaint by deleting a game.
+      _key: `${p?.player_id ?? nameOf(p)}-${p?.game_pk ?? ''}-${i}`,
       _raw: p,
       name: nameOf(p),
       team: teamOf(p),
+      g: gameNumOf(p, dh),
       opp: oppOf(p),
       role: shortRole(p),
       spot: p?.lineup_spot == null || p?.lineup_spot === '' ? null : n(p.lineup_spot, null),
@@ -177,7 +215,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       kRisk: kRiskScore(p),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }))
-  }, [players, alignedOnly, watchIds])
+  }, [players, alignedOnly, watchIds, dh])
 
   // Who has already homered tonight, matched back to where the board had him.
   // The board rank is the point: a scoreboard that only lists the homers tells
@@ -491,9 +529,22 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         name</b> — it says so in plain English, no baseball background needed.
       </div>
 
+      {/* Why a name is on this board twice, answered before it is asked.
+          A sentence, not a symbol legend — the question is about the schedule.
+          Empty on every ordinary slate, so nothing renders and nothing is
+          explained that isn't happening. */}
+      {dhNote && (
+        <div style={{
+          fontSize: 10.5, color: C.text3, lineHeight: 1.65, maxWidth: 820,
+          margin: '0 0 8px',
+        }}>
+          ⚾⚾ {dhNote}
+        </div>
+      )}
+
       <DenseTable
         rows={rows}
-        columns={buildColumns(onWatch)}
+        columns={buildColumns(onWatch, dh.size > 0)}
         onRowClick={onPlayerClick}
         initialSort="hr"
         maxHeight={640}

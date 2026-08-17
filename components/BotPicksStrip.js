@@ -143,7 +143,28 @@ export const CATEGORIES = [
     blurb: 'Total bases',    score: tbScore },
 ]
 
-/** The buckets, three deep, ranked on each category's own scale. */
+/**
+ * The buckets, three deep, ranked on each category's own scale.
+ *
+ * ── THREE DEEP MEANS THREE DIFFERENT MEN (2026-08-17) ───────────────────────
+ * Donovan: "i like it repeats the top pick twice it's no need too."
+ *
+ * On the 08-17 slate the CONTACT card listed Alec Burleson at #2 AND #3, both
+ * reading 4XBH / 89.0. Not a data fault: STL @ CIN was a doubleheader, so
+ * Burleson is on the slate as two rows, and "sort by score, take three" handed
+ * him two of the three slots. A three-deep card that names two of the same man
+ * is two picks wide, and the second one tells the reader nothing they did not
+ * already have.
+ *
+ * So the slice is now by PERSON, not by row. First appearance wins — that is
+ * his better game by this category's own score, since the pool is already
+ * sorted — and the row is tagged with how many of his games are on the slate so
+ * the information is condensed rather than removed. Everything else about the
+ * ranking is untouched.
+ *
+ * Keyed on player_id with a name fallback: a row with no id is not silently
+ * merged with every other row that also has no id.
+ */
 export function pickBuckets(players = []) {
   return CATEGORIES.map((cat) => {
     // A player can now carry more than one role (2026-08-12: TOP allowed to
@@ -152,7 +173,36 @@ export function pickBuckets(players = []) {
     const pool = players.filter(
       (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim()).includes(cat.role),
     )
-    return { ...cat, picks: [...pool].sort((a, b) => cat.score(b) - cat.score(a)).slice(0, 3), poolSize: pool.length }
+    const sorted = [...pool].sort((a, b) => cat.score(b) - cat.score(a))
+
+    const keyOf = (p) => (p?.player_id != null && p.player_id !== ''
+      ? `id:${p.player_id}`
+      : `nm:${String(p?.name || '').toLowerCase()}|${String(p?.team || '')}`)
+
+    // How many slate rows each man has, so a collapsed entry can say so.
+    const games = new Map()
+    for (const p of sorted) {
+      const k = keyOf(p)
+      if (!k || k === 'nm:|') continue
+      games.set(k, (games.get(k) || 0) + 1)
+    }
+
+    const seen = new Set()
+    const picks = []
+    for (const p of sorted) {
+      if (picks.length >= 3) break
+      const k = keyOf(p)
+      if (seen.has(k)) continue
+      seen.add(k)
+      // _slateGames > 1 means his team plays more than once tonight; the card
+      // renders it as a quiet "×2 today" rather than as a second row.
+      picks.push(Object.assign(Object.create(Object.getPrototypeOf(p) || Object.prototype), p, {
+        _slateGames: games.get(k) || 1,
+      }))
+    }
+    // poolSize stays the ROW count — it is quoted as "of N designated" and the
+    // bot really did designate that many rows.
+    return { ...cat, picks, poolSize: pool.length, peopleSize: seen.size ? games.size : 0 }
   })
 }
 
@@ -233,6 +283,12 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
                     }}>
                       {teamOf(lead)} · vs {clean(lead?.pitcher_name, 'TBD')}
                       {lead?.pitcher_throws ? ` (${lead.pitcher_throws}HP)` : ''}
+                      {lead?._slateGames > 1 && (
+                        <span
+                          title={`His team plays ${lead._slateGames} times today. This card shows his best game by this category's score; the full board lists both, split by the G column.`}
+                          style={{ color: f.color, opacity: .85 }}
+                        >{` · plays ${lead._slateGames}×`}</span>
+                      )}
                     </div>
                   </div>
 
@@ -264,6 +320,12 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
                           {p?.weak_spot_flag === true && <span style={{ fontSize: 9 }}>⭐</span>}
                           <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
                             {teamOf(p)}
+                            {p?._slateGames > 1 && (
+                              <span
+                                title={`His team plays ${p._slateGames} times today — this is his best game by this category's score. Both games are on the full board, split by the G column.`}
+                                style={{ color: f.color, opacity: .85 }}
+                              >{` ${p._slateGames}×`}</span>
+                            )}
                           </span>
                           {microStat(p, f.role) && (
                             <span style={{
