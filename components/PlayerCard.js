@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { useSpot } from '../lib/spotlight'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { roleBadge } from '../lib/roleBadge'
@@ -147,12 +148,22 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   if (isSoftCaution) emojisAll.push(['⚠️', 'HR caution'])
   const emojis = emojisAll.slice(0, 2).map(([e]) => e)
   const emojiTitle = emojisAll.map(([e, why]) => `${e} ${why}`).join(' · ')
+  const { chipSpot, spotTitle } = useSpot()
+  const spotStyle = chipSpot(p)
+  const spotWhy = spotTitle(p)
+
   const weakSpotReason = p?.weak_spot_flag === true
     ? (p?.weak_spot_reason || 'Weak lineup spot vs this pitcher.')
     : null
 
+  // A HIGHLIGHT REACHES PLAYER CARDS NOW (2026-08-17). PlayerCard is the most
+  // rendered hitter surface on the site — the boards, the Four, the top-tens,
+  // Pitchers, the watchlist all draw it — and the highlight wash used to stop
+  // at DenseTable rows, so a matching hitter looked identical to a
+  // non-matching one everywhere except a table. Card already forwards `style`,
+  // so this is one spread. See lib/spotlight.js's note above chipWashOf.
   return (
-    <Card color={color + '55'} onClick={onClick}>
+    <Card color={color + '55'} onClick={onClick} style={spotStyle} title={spotWhy || undefined}>
 
       {/* name + score */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>

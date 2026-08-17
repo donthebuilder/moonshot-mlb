@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { useSpot } from '../lib/spotlight'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
 import MobileFold from './MobileFold'
 
@@ -92,6 +93,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
   // page holds the pair. Tapping a chip must NOT open the game card, so
   // every chip stops propagation.
   const pairing = typeof onPairPick === 'function'
+  // One hook, and every chip below opts in by spreading chipSpot(p). See the
+  // long note above chipWashOf() in lib/spotlight.js for why this had to exist.
+  const { chipSpot, spotTitle } = useSpot()
   const isLeg = (pl) => pairing && pl && pairIds?.has(Number(pl?.player_id ?? pl?.id))
   const botView = mode === 'botview'
   // Each Games-page mode wears its own accent (2026-08-08): ember for the
@@ -398,7 +402,10 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                     ['ALT', c.altPick, C.purple, c.altWhy || "The bot's secondary HR look in this game"],
                   ].map(([tag, pk2, col, tip]) => pk2 && (
                     <span key={tag}
-                      title={pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}`}
+                      title={[
+                        pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}`,
+                        spotTitle(pk2.p),
+                      ].filter(Boolean).join('\n')}
                       onClick={pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined}
                       style={{
                       display: 'inline-flex', gap: 4, alignItems: 'baseline',
@@ -409,6 +416,13 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                       background: isLeg(pk2.p) ? `${col}30` : C.bg3,
                       boxShadow: isLeg(pk2.p) ? `0 0 10px ${col}55` : 'none',
                       borderRadius: 6, padding: '2px 6px',
+                      // A HIGHLIGHT LIGHTS UP HERE TOO (2026-08-17). The wash
+                      // used to reach DenseTable rows and nothing else, so a
+                      // rule matching 18 hitters showed nothing on the Games
+                      // cards and the feature read as broken. A pair leg still
+                      // wins the chip — that is a selection you just made, and
+                      // it must not be overpainted by a standing rule.
+                      ...(isLeg(pk2.p) ? {} : chipSpot(pk2.p)),
                     }}>
                       {isLeg(pk2.p) && <span style={{ fontSize: 8 }}>🔗</span>}
                       <b style={{ color: col, fontSize: 8, letterSpacing: '.06em', flexShrink: 0 }}>{tag}</b>

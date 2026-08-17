@@ -116,10 +116,11 @@ export function Empty({ text }) {
   )
 }
 
-export function Card({ children, color = C.border, onClick, style }) {
+export function Card({ children, color = C.border, onClick, style, title }) {
   return (
     <div
       onClick={onClick}
+      title={title}
       style={{
         background: C.bg2,
         border: `1px solid ${color}`,
