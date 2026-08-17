@@ -231,6 +231,36 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     }
   }, [isTmrw])
 
+  // ── THE LEDGER REMEMBERS (2026-08-17) ─────────────────────────────────────
+  // Donovan, diagnosing his own bug correctly: "the ledger is live and when
+  // the game goes off the player disappears. i dont want it like that."
+  //
+  // He was right. The ledger rebuilt itself from the CURRENT snapshot every
+  // tick, and a player was only "a homer tonight" for as long as his game was
+  // in that snapshot. Three ways out of it: his game goes Final past the
+  // viewer's midnight (the viewer-local date filter in liveSlate — fixed
+  // there too), his game's single boxscore call fails one tick, or the feed
+  // hiccups entirely. Each one silently un-homered a man who had homered.
+  //
+  // A ledger is a RECORD. Once a homer is seen it is written down — keyed by
+  // slate date, max-HR-per-player so a late correction can only add, persisted
+  // to localStorage so a page reload mid-slate does not start the night over.
+  // Nothing is ever removed until the date key changes. Yesterday's entries
+  // are dropped by key, not by feed behaviour.
+  const seenRef = useMemo(() => {
+    const store = { key: `ms_ledger_seen_${dateKey}`, map: new Map() }
+    try {
+      // prune any other night's record while loading tonight's
+      for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+        const k = window.localStorage.key(i)
+        if (k && k.startsWith('ms_ledger_seen_') && k !== store.key) window.localStorage.removeItem(k)
+      }
+      const raw = window.localStorage.getItem(store.key)
+      if (raw) Object.entries(JSON.parse(raw)).forEach(([pid, rec]) => store.map.set(Number(pid), rec))
+    } catch { /* private mode: memory-only, still sticky for the session */ }
+    return store
+  }, [dateKey])
+
   const rows = useMemo(() => {
     if (isTmrw) return null
 
@@ -244,21 +274,33 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       })
     }
 
-    // THE LIVE PATH. Preferred whenever the snapshot has anything at all.
+    // THE LIVE PATH — write what the snapshot shows into the record, then
+    // RENDER THE RECORD. The snapshot can only ever add or raise; a player
+    // missing from this tick keeps last tick's entry.
     const lines = live?.lines
     if (lines && Object.keys(lines).length) {
-      const out = []
       Object.entries(lines).forEach(([id, l]) => {
         const pid = Number(id)
         const hr = n(l?.hr, 0)
         if (!pid || hr <= 0) return
-        out.push({ pid, hr, events: eventsById.get(pid) || [], liveName: String(l?.name || ''), fromLive: true })
+        const prev = seenRef.map.get(pid)
+        if (!prev || hr > prev.hr) {
+          seenRef.map.set(pid, { hr, name: String(l?.name || prev?.name || '') })
+        }
       })
-      if (out.length) return out
-      // An empty live slate is a real answer on a night nobody has gone deep
-      // yet — but only if games have actually started. Before first pitch it
-      // is indistinguishable from "not loaded", so fall through to the graded
-      // file rather than asserting zero.
+      try {
+        window.localStorage.setItem(seenRef.key,
+          JSON.stringify(Object.fromEntries([...seenRef.map].map(([k, v]) => [k, v]))))
+      } catch { /* full or private: the in-memory record still holds */ }
+    }
+    if (seenRef.map.size) {
+      return [...seenRef.map].map(([pid, rec]) => ({
+        pid, hr: rec.hr, events: eventsById.get(pid) || [], liveName: rec.name, fromLive: true,
+      }))
+    }
+    if (lines && Object.keys(lines).length) {
+      // Snapshot loaded, record empty: a real zero once games have started;
+      // indistinguishable from "not loaded" before first pitch.
       const started = Object.values(live?.games || {}).some((g) => g?.state && g.state !== 'Preview')
       if (started) return []
     }
@@ -283,7 +325,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       // wall-scraper are different claims.
       .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0), events: s?.hr_events || [] }))
       .filter((x) => x.pid && x.hr > 0)
-  }, [results, isTmrw, dateKey, live])
+  }, [results, isTmrw, dateKey, live, seenRef])
 
   // ── THE NUMBER HAS TO BE RIGHT, OR THE PANEL IS WORSE THAN NOTHING ───────
   //
