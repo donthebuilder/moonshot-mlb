@@ -1687,6 +1687,13 @@ export function GroupTicketBuilder({
   slateDate = '',
   defaultSize = 2,
   onPlayerClick,
+  // ── THE ANCHOR, HANDED IN (2026-08-17) ──────────────────────────────────
+  // Donovan: "why cant buuld from groups enging and the pair builder engine
+  // wokr on the same build". They can. When Builder.js has a named hitter, it
+  // passes his id here and lib/pairEvidence.js pins him into a leg of every
+  // ticket it returns. Null = the behaviour this component always had.
+  pinnedId = null,
+  pinnedName = '',
 }) {
   const [groups, setGroups] = useState(['HIT', 'HRR'])
   const [signals, setSignals] = useState([])
@@ -1727,7 +1734,17 @@ export function GroupTicketBuilder({
 
   const built = useMemo(() => buildGroupTickets(players, {
     groups, signals: activeSignals, shape, size, ctx: { b2b: b2bIds }, limit: 4,
-  }), [players, groups, activeSignals, shape, size, b2bIds])
+    pinnedId,
+  }), [players, groups, activeSignals, shape, size, b2bIds, pinnedId])
+
+  // What to say when an anchor is set. Stated, not implied — and it reports the
+  // failure case, because "build around Alonso" returning nothing must explain
+  // itself rather than look like a broken panel.
+  const pinNote = !pinnedId ? '' : (
+    built.tickets.length
+      ? `Every ticket below holds ${pinnedName || 'your hitter'} — the rest of each one is filled by the group engine under its normal rules.`
+      : `${pinnedName || 'That hitter'} is not designated in the groups you picked, so no ticket can be built around him. Add the group he holds, or clear him to build from the board alone.`
+  )
 
   // THE SIGNALS-ONLY TICKET — same groups, same shape, same size, same
   // machinery, but every leg has to be carrying something. Built alongside the
@@ -1769,11 +1786,21 @@ export function GroupTicketBuilder({
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-        <span style={{ fontSize: 13, fontWeight: 900 }}>🧱 Build from the groups</span>
+        <span style={{ fontSize: 13, fontWeight: 900 }}>
+          🧱 {pinnedId ? `Build around ${pinnedName || 'your hitter'}` : 'Build from the groups'}
+        </span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           two or more of the bot’s five designations, crossed
         </span>
       </div>
+      {pinNote && (
+        <div style={{
+          fontSize: 10.5, lineHeight: 1.6, marginBottom: 8, maxWidth: 820,
+          color: built.tickets.length ? C.text2 : C.yellow,
+        }}>
+          {built.tickets.length ? '📌 ' : '⚠️ '}{pinNote}
+        </div>
+      )}
 
       <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.7, marginBottom: 9, maxWidth: 860 }}>
         The bot designates exactly one hitter per group per game, so a combination of groups is a

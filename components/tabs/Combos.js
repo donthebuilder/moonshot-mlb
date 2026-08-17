@@ -29,9 +29,16 @@ import HomerLedger from '../HomerLedger'
 // OWN TAB ONCE THE MERGE HAPPENS IN SIDE OF COMBOS." It sits between the bot's
 // opinion (Pairs, Pools) and the archive (History), which is the order the work
 // happens in: see what the bot says, build your own, check the record.
+// ── POOLS LOST ITS PILL (2026-08-17) ────────────────────────────────────────
+// Donovan: "pools can sit on the top of pairs oor somewhere on the pairs page so
+// pools tab van be removed."
+// Both are the bot's published combination bets off the same builder payload —
+// two pills for one idea. Pools now sits ABOVE Pairs on the same view, which is
+// the order he asked for and the right one anyway: pools are the bigger tickets,
+// pairs the two-man cut. Three pills instead of four.
+// #tab=pools still routes here and still lands on this view.
 const VIEWS = [
-  ['pairs', '🤝 Pairs'],
-  ['pools', '🎱 Pools'],
+  ['pairs', '🤝 Pairs & Pools'],
   ['builder', '🧱 Builder'],
   ['history', '📜 History'],
 ]
@@ -57,7 +64,12 @@ export default function Combos({
   slateDate = '',
   initial = 'pairs',
 }) {
-  const [view, setView] = useState(VIEWS.some(([k]) => k === initial) ? initial : 'pairs')
+  // 'pools' is no longer a view of its own — the alias maps onto the combined
+  // one rather than 404ing into the default silently.
+  const [view, setView] = useState(() => {
+    const want = initial === 'pools' ? 'pairs' : initial
+    return VIEWS.some(([k]) => k === want) ? want : 'pairs'
+  })
 
   return (
     <div>
@@ -84,7 +96,20 @@ export default function Combos({
         <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
       )}
 
+      {/* Pools first — the bigger tickets — then the two-man cut under it. */}
       {view === 'pairs' && (
+        <Pools
+          players={players}
+          results={results}
+          pairBuilder={pairBuilder}
+          pairHistorySummary={pairSummary}
+          onPlayerClick={onPlayerClick}
+          odds={odds}
+          slateDate={slateDate}
+        />
+      )}
+      {view === 'pairs' && (
+        <div style={{ marginTop: 22, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
         <Pairs
           players={allPlayers}
           pairBuilder={pairBuilder}
@@ -96,17 +121,7 @@ export default function Combos({
           odds={odds}
           slateDate={slateDate}
         />
-      )}
-      {view === 'pools' && (
-        <Pools
-          players={players}
-          results={results}
-          pairBuilder={pairBuilder}
-          pairHistorySummary={pairSummary}
-          onPlayerClick={onPlayerClick}
-          odds={odds}
-          slateDate={slateDate}
-        />
+        </div>
       )}
       {view === 'builder' && (
         <Builder

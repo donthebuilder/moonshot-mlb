@@ -128,6 +128,34 @@ const seasonHrCache = new Map()   // pid -> { hr, jersey, dayRoot, lifePath, atC
 const SEASON_HR_TTL = 10 * 60 * 1000
 
 export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick }) {
+  // ── CLOSEABLE, AND IT REMEMBERS (2026-08-17) ──────────────────────────────
+  // Donovan, twice: "hr ledger on home page should be close able just like a
+  // the other things", "yeah like the ledger need to be colasbple".
+  // It sits at the top of Home, which is where he wants it — so on the nights
+  // he does not want it there, it has to fold. Stored per device like the other
+  // dismissibles, so closing it once is closing it for good.
+  const [open, setOpen] = useState(true)
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem('ms_ledger_open')
+      if (v === '0') setOpen(false)
+    } catch { /* private mode */ }
+  }, [])
+  const toggle = () => {
+    setOpen((v) => {
+      const next = !v
+      try { window.localStorage.setItem('ms_ledger_open', next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }
+  const Chevron = () => (
+    <span
+      onClick={(e) => { e.stopPropagation(); toggle() }}
+      title={open ? 'Hide the ledger' : 'Show the ledger'}
+      style={{ marginLeft: 'auto', cursor: 'pointer', color: C.text3, fontSize: 11, padding: '0 2px' }}
+    >{open ? '▾' : '▸'}</span>
+  )
+
   const dateKey = slateDate || easternToday()
   // COMPARED IN THE SAME FRAME THE SLATE DATE IS BUILT IN (2026-08-17).
   // This read `> new Date().toLocaleDateString('en-CA')` — the viewer's local
@@ -570,13 +598,15 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
         padding: '9px 14px 11px', marginBottom: 14,
       }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', cursor: 'pointer' }}
+          onClick={toggle}>
           <span style={{ fontSize: 12.5, fontWeight: 900 }}>💥 Homer ledger</span>
           <span style={{ fontSize: 9.5, color: C.text3 }}>
             no homers yet tonight — it fills as they land, on its own, every 30 seconds
           </span>
+          <Chevron />
         </div>
-        {!pre ? (
+        {!open ? null : !pre ? (
           <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.6 }}>
             When one goes, this is where it shows up: who hit it, what number home
             run it was for him, which lineup spot it came from, whether the bot had
@@ -671,13 +701,19 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
       border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14,
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2, cursor: 'pointer' }}
+        onClick={toggle}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>🧾 Homer ledger</span>
         <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>
           {total} tonight
         </span>
         <span style={{ fontSize: 9, color: C.text3 }}>builds as the slate plays</span>
+        <Chevron />
       </div>
+      {/* Everything below the header folds. The count stays visible closed, so
+          a shut ledger still tells you how many have landed. */}
+      {open && (
+      <>
       <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.55, marginBottom: 8, maxWidth: 640 }}>
         <b style={{ color: C.text2 }}>What this answers:</b> which homer of the season each one was, and
         where in the order tonight&apos;s power is coming from.
@@ -696,6 +732,67 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           ))}
         </div>
       )}
+
+      {/* ── DID TONIGHT'S HOMERS HIT THE PREGAME WATCHLIST? (2026-08-17) ─────
+          Donovan: "home rundegler sshould also knwo todals numeroldy and see if
+          any player algin with them ass well."
+          The pregame panel names who is one homer from a round number, whose
+          shirt matches his homer count, and which names rhyme. When the slate
+          starts, that list stops being visible — so the ledger never checked
+          its own predictions against what actually happened. It does now.
+          This is a HIT/MISS on a list stated in advance, which makes it the one
+          numerology claim on the site that is falsifiable. It says the miss
+          count too, because a watchlist that only reports its hits is a horoscope. */}
+      {(() => {
+        const pre = pregameLedger(players)
+        if (!pre) return null
+        const homered = new Map()
+        cards.forEach((c) => { if (c.pid != null) homered.set(String(c.pid), c) })
+        const nameHit = new Set(cards.map((c) => String(c.name || '').toLowerCase()))
+        const hitMs = pre.milestones.filter((m) => homered.has(String(m._raw?.player_id)))
+        const hitJs = pre.jerseys.filter((j) => homered.has(String(j._raw?.player_id)))
+        const hitEch = pre.echoes.filter((e) => e.names.some((nm) => nameHit.has(String(nm).toLowerCase())))
+        const hits = hitMs.length + hitJs.length + hitEch.length
+        const watched = pre.milestones.length + pre.jerseys.length + pre.echoes.length
+        if (!watched) return null
+        return (
+          <div style={{
+            background: 'rgba(192,132,252,.06)', border: '1px solid rgba(192,132,252,.25)',
+            borderRadius: 10, padding: '7px 11px', marginBottom: 9,
+          }}>
+            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+              🔮 <b style={{ color: '#c084fc' }}>Tonight&apos;s watchlist:</b>{' '}
+              <b style={{ color: hits ? C.text : C.text3, fontFamily: NUM_FONT }}>{hits}</b>
+              <span style={{ color: C.text3, fontFamily: NUM_FONT }}>/{watched}</span>{' '}
+              <span style={{ color: C.text3 }}>
+                {hits === 0
+                  ? 'landed so far — stated before first pitch, and none of it has come in yet.'
+                  : 'landed so far, off a list written before first pitch.'}
+              </span>
+              {hitMs.map((m) => (
+                <span key={`m-${m.name}`}>
+                  {' · '}<b onClick={() => m._raw && onPlayerClick?.(m._raw)}
+                    style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}>{m.name}</b>
+                  <span style={{ color: C.text3, fontFamily: NUM_FONT }}> got his {ord(m.next)}</span>
+                </span>
+              ))}
+              {hitJs.map((j) => (
+                <span key={`j-${j.name}`}>
+                  {' · '}<b onClick={() => j._raw && onPlayerClick?.(j._raw)}
+                    style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}>{j.name}</b>
+                  <span style={{ color: C.text3, fontFamily: NUM_FONT }}> #{j.jersey}, now level</span>
+                </span>
+              ))}
+              {hitEch.map((e) => (
+                <span key={`e-${e.key}`}>
+                  {' · '}<span style={{ color: C.text }}>{e.names.join(' + ')}</span>
+                  <span style={{ color: C.text3 }}> — one of the rhyme went</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 🧲 ALIGNING WITH THE NIGHT — the lead, because it's the question.
           Everything below this is the raw material; this is the answer. */}
@@ -873,6 +970,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             not a finding about baseball — read it as texture, never as a signal to chase.
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   )
