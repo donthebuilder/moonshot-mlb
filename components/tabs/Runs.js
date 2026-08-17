@@ -141,6 +141,60 @@ function Picker({ label, value, onChange, options, title }) {
   )
 }
 
+
+// ── THE MATCHUP LINE (2026-08-17) ────────────────────────────────────────────
+// Donovan: "i see no upgrades to the streaks page. add more stats to the streaks
+// page look at the streaks page i sent as reference just add some of the stats
+// to ours."
+//
+// His reference had five columns this page never showed: the opposing pitcher,
+// the hitter's average against that pitcher's HAND, and his record against that
+// specific arm. Every one of them is already on the slate row — avg_vs_rhp /
+// avg_vs_lhp, and the whole bvp_* set — so this was published data the page
+// simply never read.
+//
+// Rendered as one line under the run, not as four columns, because these cards
+// are 240px wide. Same rule as everywhere else: the denominator travels with the
+// number, so a 1-for-2 against an arm reads as "2 AB" and never as ".500".
+const av = (v) => {
+  const x = Number(v)
+  if (!Number.isFinite(x) || x <= 0) return ''
+  return x.toFixed(3).replace(/^0\./, '.')
+}
+
+function MatchupLine({ row }) {
+  if (!row) return null
+  const arm = clean(row.pitcher_name, '')
+  const throws = String(row.pitcher_throws || '').toUpperCase().startsWith('L') ? 'L' : 'R'
+  const side = throws === 'L' ? row.avg_vs_lhp : row.avg_vs_rhp
+  const sideTxt = av(side)
+  const ab = Number(row.bvp_ab) || 0
+  const hits = Number(row.bvp_hits) || 0
+  const hr = Number(row.bvp_hr) || 0
+  if (!arm && !sideTxt && !ab) return null
+  return (
+    <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginTop: 3, lineHeight: 1.5 }}>
+      {arm && (
+        <span title={`Tonight's starter${throws ? ` — throws ${throws}HP` : ''}`}>
+          vs <b style={{ color: C.text2 }}>{arm}</b>{throws ? ` (${throws})` : ''}
+        </span>
+      )}
+      {sideTxt && (
+        <span title={`His season average against ${throws}HP — the side this arm throws from`}>
+          {arm ? ' · ' : ''}<b style={{ color: C.text2 }}>{sideTxt}</b> vs {throws}HP
+        </span>
+      )}
+      {ab > 0 ? (
+        <span title={`Career against this pitcher: ${hits} for ${ab}${hr ? `, ${hr} HR` : ''}. Small samples are the norm here — the raw fraction is shown instead of an average for exactly that reason.`}>
+          {' · '}<b style={{ color: C.text2 }}>{hits}/{ab}</b> off him{hr ? `, ${hr} HR` : ''}
+        </span>
+      ) : arm ? (
+        <span title="No plate appearances against this pitcher on record">{' · '}never faced him</span>
+      ) : null}
+    </div>
+  )
+}
+
 export default function Runs({ players = [], onPlayerClick }) {
   const [data, setData] = useState(undefined)
   const [mk, setMk] = useState('hit')
@@ -406,6 +460,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                       number directly above it, so it should not read as fine
                       print. */}
                   <RunOddsLine run={r.run} base={r.l30 || r.l15} size={9.5} />
+                  <MatchupLine row={slateRow(players, p)} />
                 </div>
               )
             })}

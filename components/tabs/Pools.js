@@ -248,22 +248,13 @@ export default function Pools({ players = [], results, pairBuilder, pairHistoryS
           lib/pairEvidence.js, so this tab and Pairs cannot drift apart on what
           a signal is or on what it has measured — which for back-to-back is
           nothing, and the legs say so. */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-        <GroupTicketBuilder
-          players={players}
-          odds={odds}
-          slateDate={slateDate}
-          defaultSize={3}
-          onPlayerClick={onPlayerClick}
-        />
-      </div>
-
-      {/* The anchor pair builder — moved here from the Pairs tab. Pairs is the
-          bot's opinion; this is where you build your own around an anchor, with
-          same-game history on every partner it offers. */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-        <PairBuilder summary={pairHistorySummary} players={players} onPlayerClick={onPlayerClick} />
-      </div>
+      {/* ── BOTH BUILDERS LEFT THIS PAGE (2026-08-17) ───────────────────────
+          They are one component now — components/Builder.js — living on its own
+          🧱 Builder tab inside Combos. GroupTicketBuilder was mounted here AND
+          on Pairs, which meant two copies of one widget that could not see each
+          other; PairBuilder was buried under both. Nothing was deleted: both
+          are in the Builder tab, as its two modes.
+          This page is what it says it is again — the bot's published pools. */}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { btnStyle } from '../ui'
 import Pairs from './Pairs'
 import Pools from './Pools'
 import PairHistory from './PairHistory'
+import Builder from '../Builder'
 import HomerLedger from '../HomerLedger'
 
 // 🎟 COMBOS — Pairs, Pools and their history under one roof (2026-08-16).
@@ -24,9 +25,14 @@ import HomerLedger from '../HomerLedger'
 // changed in the merge. Old deep links (#tab=pairs / #tab=pools /
 // #tab=pairhist) land here via alias routes carrying `initial`.
 
+// 🧱 BUILDER IS ITS OWN VIEW (2026-08-17). Donovan: "MAKE THE PAIR UILDER ITS
+// OWN TAB ONCE THE MERGE HAPPENS IN SIDE OF COMBOS." It sits between the bot's
+// opinion (Pairs, Pools) and the archive (History), which is the order the work
+// happens in: see what the bot says, build your own, check the record.
 const VIEWS = [
   ['pairs', '🤝 Pairs'],
   ['pools', '🎱 Pools'],
+  ['builder', '🧱 Builder'],
   ['history', '📜 History'],
 ]
 
@@ -100,6 +106,16 @@ export default function Combos({
           onPlayerClick={onPlayerClick}
           odds={odds}
           slateDate={slateDate}
+        />
+      )}
+      {view === 'builder' && (
+        <Builder
+          players={players}
+          allPlayers={allPlayers}
+          pairHistorySummary={pairSummary}
+          odds={odds}
+          slateDate={slateDate}
+          onPlayerClick={onPlayerClick}
         />
       )}
       {view === 'history' && (

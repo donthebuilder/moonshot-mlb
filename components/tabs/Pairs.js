@@ -2149,19 +2149,13 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
       )}
       {view === 'live' && <LiveHRPairs results={results} pairBuilder={pairBuilder} players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />}
 
-      {/* The bot's pairs are above and nothing about them changed. This is the
-          one below them he builds himself, out of two or more of the five
-          designations. Same placement rule Pools already uses for its own
-          builder — the bot's opinion first, your construction under it. */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-        <GroupTicketBuilder
-          players={players}
-          odds={odds}
-          slateDate={slateDate}
-          defaultSize={2}
-          onPlayerClick={onPlayerClick}
-        />
-      </div>
+      {/* ── THE GROUP BUILDER LEFT THIS PAGE TOO (2026-08-17) ────────────────
+          It was mounted here AND on Pools — one component, two copies, neither
+          aware of the other. It now lives once, in components/Builder.js, on
+          the 🧱 Builder tab in Combos, merged with the anchor pair builder as
+          its two modes. GroupTicketBuilder is still EXPORTED from this file
+          because that is where its logic lives; only the mount moved.
+          This page is the bot's pairs. Building your own is one tab over. */}
     </div>
   )
 }

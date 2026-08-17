@@ -12,7 +12,7 @@ import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
 import { heatModeFromUrl } from '../../lib/heatMode'
-import { uniqueByPerson } from '../../lib/doubleheader'
+import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
@@ -104,6 +104,16 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // real board positions. Enforced by scripts/check-rank-lock.mjs.
   const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : null), [players, type])
 
+  // ── THE DOUBLEHEADER, ON THIS LIST TOO (2026-08-17) ────────────────────────
+  // The G column shipped to the Scoreboard and HitterHeat and MISSED this
+  // board — which is the one Donovan reads. His screenshot shows Alec Burleson
+  // twice, both rows numbered "10", the only difference being the Facing column
+  // (Rhett Lowder vs Kent Emanuel) and a reader would have to know the pitchers
+  // to spot it. Both rows are real and neither is a duplicate; the rank is his
+  // slate rank, which is genuinely the same in both games.
+  const dh = useMemo(() => gameNumbers(players), [players])
+  const dhNote = useMemo(() => doubleheaderNote(players), [players])
+
   return (
     <div>
       <BoardFilters state={state} total={players.length} shown={filtered.length} />
@@ -150,6 +160,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
         height: 2, marginBottom: 10, borderRadius: 1,
         background: 'linear-gradient(90deg, #f97316, rgba(252,211,77,.5) 45%, transparent)',
       }} />
+      {/* One line, only on a doubleheader slate. Empty string otherwise. */}
+      {dhNote && (
+        <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, maxWidth: 800, marginBottom: 8 }}>
+          ⚾⚾ {dhNote}
+        </div>
+      )}
 
       {/* THE RANKED LIST — rank number first, then the exact score the sort
           uses, then why. "When picked" is his archive record in THIS
@@ -173,11 +189,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // spent on the wrong bet.
             const wantRole = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type]
             return {
-              _key: `${playerId(p)}-${i}`,
+              _key: `${playerId(p)}-${p?.game_pk ?? ''}-${i}`,
               _raw: p,
               rank: slateRank ? (slateRank.get(mlbId(p)) ?? i + 1) : i + 1,
               name: nameOf(p),
               team: teamOf(p),
+              g: gameNumOf(p, dh),
               facing: clean(p?.pitcher_name, 'TBD'),
               isPick: pick && pick === wantRole ? 1 : 0,
               otherPick: pick && pick !== wantRole ? pick : '',
@@ -209,6 +226,10 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: 'His rank on this board — the thing the cards never showed' },
             { key: 'name',   label: 'Player', heat: false, w: 150, bold: true, sticky: true },
             { key: 'team',   label: 'Tm', heat: false, w: 34, mono: true, dim: true },
+            // Only present when a matchup actually repeats tonight.
+            ...(dh.size ? [{ key: 'g', label: 'G', heat: false, w: 28, mono: true, dim: true,
+              fmt: (v) => (v ? `G${v}` : '—'),
+              title: 'Which game of a doubleheader. G1 is the earlier first pitch. A hitter whose team plays twice appears once per game and both rows are real — his board rank is the same in both.' }] : []),
             { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true },
             { key: 'isPick', label: '🤖', flag: true, mark: '●', w: 30,
               title: `The bot's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
