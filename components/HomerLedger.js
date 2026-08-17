@@ -215,7 +215,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     // 30s, matched to the shared snapshot's own TTL — this does NOT add a
     // request per tick. fetchLiveSlate hands back the cached snapshot when it
     // is fresh, so with MiniWire on the page these two callers share one poll.
-    const id = setInterval(() => { if (!document.hidden) pull() }, 30_000)
+    // 12s, was 30 (2026-08-17, "the hr ledger is not updating fast enough").
+    // One slim boxscore sweep per tick; 12s keeps a homer's appearance inside
+    // half an at-bat without hammering statsapi.
+    const id = setInterval(() => { if (!document.hidden) pull() }, 12_000)
     const onVis = () => { if (!document.hidden) pull() }
     document.addEventListener('visibilitychange', onVis)
     return () => {
@@ -602,7 +605,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           onClick={toggle}>
           <span style={{ fontSize: 12.5, fontWeight: 900 }}>💥 Homer ledger</span>
           <span style={{ fontSize: 9.5, color: C.text3 }}>
-            no homers yet tonight — it fills as they land, on its own, every 30 seconds
+            no homers yet tonight — it fills as they land, on its own, every few seconds
           </span>
           <Chevron />
         </div>

@@ -286,6 +286,15 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
               </Para>
             )}
 
+            {/* ── EVERYTHING PAST THE FIRST PARAGRAPH FOLDS (2026-08-17) ────
+                "power section needs to be cleaned up." The lead ran four
+                paragraphs before the lenses. First paragraph — the claim and
+                its numbers — stays; the park, the other lens and the extremes
+                sit one tap behind it. Nothing deleted. */}
+            <details>
+            <summary style={{ cursor: 'pointer', fontSize: 10.5, color: C.orange, listStyle: 'revert', margin: '2px 0 4px' }}>
+              the park, the other lens, tonight&apos;s extremes
+            </summary>
             {/* THE BUILDING — the park read, attached to the name it matters
                 for. This is where the ranked park board used to live. */}
             <Para>
@@ -353,6 +362,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
                 >All {parks.count} parks, ranked →</button>
               </Para>
             )}
+            </details>
           </section>
         )
       })()}

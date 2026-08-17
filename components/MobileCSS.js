@@ -169,6 +169,13 @@ export default function MobileCSS() {
       @media (pointer: coarse) {
         .dense-scroll td button { min-height: 34px !important; }
         button { touch-action: manipulation; }
+        /* The boards pill row pinned itself mid-screen on phones — the
+           condensed header animates its height, so its computed stickTop is
+           wrong for part of every scroll and the row floats over content
+           ("the page like breaks or follows when you scroll down",
+           2026-08-17, with a screenshot of it sitting across the Power
+           lead). Phones just don't pin it. */
+        .board-pill-row { position: static !important; top: auto !important; }
       }
 
       /* 2026-08-06 live-layer surfaces. The lineup pick strip is one row of

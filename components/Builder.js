@@ -6,36 +6,25 @@ import { GroupTicketBuilder } from './tabs/Pairs'
 import PairBuilder from './PairBuilder'
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 🧱 ONE BUILDER, ONE ENGINE
+// 🧱 ONE BUILDER, ONE ENGINE — now with ONE OR MORE anchors, from ANYONE
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Donovan, first asking for the merge in capitals — "BUILD FROM GROUPS AND PAIR
-// BUILDER SUPPOSED TO BE MERGED INTO ONE THING WTF" — and then, when the first
-// pass gave him two MODES to switch between, asking the better question:
+// The history, in his words:
+//   1. "BUILD FROM GROUPS AND PAIR BUILDER SUPPOSED TO BE MERGED INTO ONE
+//      THING WTF" → they merged, badly: two modes behind a toggle.
+//   2. "why cant buuld from groups enging and the pair builder engine wokr on
+//      the same build" → one engine, one pin.
+//   3. (2026-08-17) "pair buiulder should be ables to build around one player
+//      or more then also buulding around bot picks only or any one ony site."
 //
-//   "why cant buuld from groups enging and the pair builder engine wokr on the
-//    same build does that make isnes"
-//
-// It makes complete sense, and two modes was a half-answer. The engines were
-// never in conflict: both read the same slate rows, build the same leg objects,
-// collapse a two-designation hitter the same way and honour the same
-// one-leg-per-game rule. The only difference was which END you started from —
-// a name, or the markets. The site was making him choose an end.
-//
-// So there is ONE build now. Name a hitter or don't:
-//
-//   · No name           → the group engine as it always was.
-//   · A name            → lib/pairEvidence.js pins him into a leg and the group
-//                         engine fills the rest around him, under every one of
-//                         its normal rules. Any ticket that fails to contain him
-//                         is dropped, not shown.
-//
-// The anchor-partner explorer (PairBuilder) is still here, one click down, for
-// the different question it answers — "who has HISTORY with this man" rather
-// than "what ticket holds him". That is a genuinely separate question and
-// deleting it would lose the same-game history it carries. It is no longer a
-// mode you have to pick between; it is a second look at the man you already
-// named.
+// So now: pick as many hitters as you want, from the WHOLE slate. The pool
+// toggle decides who the search offers — the bot's designated picks, or every
+// hitter on the board. The engine (lib/pairEvidence.js) pins every DESIGNATED
+// anchor into a leg; an undesignated anchor cannot hold a group leg, because
+// group tickets are built out of the bot's own designations and inventing a
+// designation for him would be a lie — so he is carried into the partner
+// explorer below instead, and the panel says exactly that split out loud
+// rather than silently dropping him.
 
 export default function Builder({
   players = [],
@@ -46,145 +35,182 @@ export default function Builder({
   onPlayerClick = null,
 }) {
   const [q, setQ] = useState('')
-  const [pinned, setPinned] = useState(null)   // the slate row, or null
+  const [pins, setPins] = useState([])          // slate rows, any number
+  const [poolMode, setPoolMode] = useState('picks')   // 'picks' | 'anyone'
   const [showPartners, setShowPartners] = useState(false)
 
   const pool = players.length ? players : allPlayers
 
-  // Only DESIGNATED hitters can anchor a group ticket — the engine builds out of
-  // the bot's designations, so offering an undesignated name would produce the
-  // "no ticket can be built" message every time and read as a bug.
+  const pinnedKeys = useMemo(() => new Set(pins.map((p) => String(mlbId(p)))), [pins])
+
   const candidates = useMemo(() => {
     const needle = q.trim().toLowerCase()
     if (!needle) return []
     return pool
-      .filter((p) => clean(p?.game_pick_role, ''))
+      .filter((p) => (poolMode === 'anyone' ? true : clean(p?.game_pick_role, '')))
+      .filter((p) => !pinnedKeys.has(String(mlbId(p))))
       .filter((p) => `${nameOf(p)} ${teamOf(p)}`.toLowerCase().includes(needle))
       .sort((a, b) => n(b?.hr_score, 0) - n(a?.hr_score, 0))
-      .slice(0, 6)
-  }, [pool, q])
+      .slice(0, 8)
+  }, [pool, q, poolMode, pinnedKeys])
 
-  // ── mlbId, NOT playerId (2026-08-17) ──────────────────────────────────────
-  // These are two different keys and mixing them is why the first pin silently
-  // matched nothing. playerId() is a COMPOSITE — `${player_id}-${game_pk|team}`,
-  // e.g. "669016-STL" — built for React keys, while lib/pairEvidence.js keys its
-  // legs on legId() = mlbId() = the bare league number, 669016. So the pin was
-  // compared against a string it could never equal, every ticket failed the
-  // contains-him filter, and the panel confidently reported that a
-  // HIT-designated hitter was "not designated in the groups you picked".
-  // Two ID helpers, one comparison: always check which one the other side uses.
-  const pinnedId = pinned ? mlbId(pinned) : null
+  // The split the engine needs: designated anchors pin group legs; the rest
+  // ride the partner explorer.
+  const designatedPins = useMemo(() => pins.filter((p) => clean(p?.game_pick_role, '')), [pins])
+  const freePins = useMemo(() => pins.filter((p) => !clean(p?.game_pick_role, '')), [pins])
+  // mlbId, NOT the composite playerId — see the 08-17 ID-mismatch note in git.
+  const pinnedIds = useMemo(() => designatedPins.map((p) => mlbId(p)).filter(Boolean), [designatedPins])
+  const pinnedName = pins.length === 1 ? nameOf(pins[0])
+    : pins.length > 1 ? `${nameOf(pins[0])} +${pins.length - 1}` : ''
+
+  const addPin = (p) => { setPins((v) => [...v, p]); setQ('') }
+  const dropPin = (p) => setPins((v) => v.filter((x) => String(mlbId(x)) !== String(mlbId(p))))
 
   return (
     <div>
-      {/* ── THE ONE CONTROL THAT MATTERS: a name, or nothing ─────────────── */}
+      {/* ── THE ANCHORS: none, one, or several ───────────────────────────── */}
       <div style={{
-        border: `1px solid ${pinned ? C.orange : C.border}`, borderRadius: 10,
-        background: pinned ? 'rgba(249,115,22,.06)' : C.bg2,
+        border: `1px solid ${pins.length ? C.orange : C.border}`, borderRadius: 10,
+        background: pins.length ? 'rgba(249,115,22,.06)' : C.bg2,
         padding: '8px 11px', marginBottom: 12,
       }}>
-        {pinned ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>BUILDING AROUND</span>
-            <b
-              onClick={() => onPlayerClick?.(pinned)}
-              style={{ fontSize: 13, cursor: onPlayerClick ? 'pointer' : 'default' }}
-            >{nameOf(pinned)}</b>
-            <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-              {teamOf(pinned)} · {clean(pinned?.game_pick_role, '')}
-            </span>
-            <button
-              onClick={() => { setPinned(null); setQ('') }}
-              style={{
-                marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, cursor: 'pointer',
-                fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
-                border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
-              }}
-            >clear</button>
-          </div>
-        ) : (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                BUILD AROUND SOMEONE
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+            BUILD AROUND {pins.length ? `${pins.length} HITTER${pins.length === 1 ? '' : 'S'}` : 'SOMEONE'}
+          </span>
+          {!pins.length && (
+            <span style={{ fontSize: 9.5, color: C.text3 }}>optional — leave it blank to build off the board</span>
+          )}
+          {/* Who the search offers. Two honest pools, stated. */}
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+            {[['picks', 'Bot picks'], ['anyone', 'Anyone on the slate']].map(([k, label]) => (
+              <button key={k} onClick={() => setPoolMode(k)} style={{
+                padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+                fontWeight: 800, fontFamily: NUM_FONT,
+                border: `1px solid ${poolMode === k ? C.orange : C.border}`,
+                background: poolMode === k ? 'rgba(249,115,22,.14)' : 'transparent',
+                color: poolMode === k ? C.orange : C.text3,
+              }}>{label}</button>
+            ))}
+          </span>
+        </div>
+
+        {pins.length > 0 && (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
+            {pins.map((p) => (
+              <span key={playerId(p)} style={{
+                display: 'inline-flex', alignItems: 'baseline', gap: 6,
+                border: `1px solid ${clean(p?.game_pick_role, '') ? C.orange : C.border2}`,
+                background: 'rgba(249,115,22,.10)', borderRadius: 999, padding: '3px 6px 3px 11px',
+              }}>
+                <b
+                  onClick={() => onPlayerClick?.(p)}
+                  style={{ fontSize: 11.5, cursor: onPlayerClick ? 'pointer' : 'default' }}
+                >{nameOf(p)}</b>
+                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+                  {teamOf(p)}{clean(p?.game_pick_role, '') ? ` · ${clean(p.game_pick_role, '')}` : ' · not a bot pick'}
+                </span>
+                <button onClick={() => dropPin(p)} title={`Remove ${nameOf(p)}`} style={{
+                  border: 'none', background: 'transparent', color: C.text3, cursor: 'pointer',
+                  fontSize: 11, padding: '0 3px', lineHeight: 1,
+                }}>✕</button>
               </span>
-              <span style={{ fontSize: 9.5, color: C.text3 }}>optional — leave it blank to build off the board</span>
-            </div>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Who's your guy tonight?"
-              style={{
-                marginTop: 6, width: '100%', maxWidth: 320, padding: '6px 10px',
-                borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg,
-                color: C.text, fontSize: 12, outline: 'none',
-              }}
-            />
-            {candidates.length > 0 && (
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
-                {candidates.map((p) => (
-                  <button
-                    key={playerId(p)}
-                    onClick={() => setPinned(p)}
-                    style={{
-                      padding: '4px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
-                      fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent',
-                      color: C.text2,
-                    }}
-                  >
-                    {nameOf(p)}
-                    <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
-                      {' '}{teamOf(p)} · {clean(p?.game_pick_role, '')}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {q.trim() && !candidates.length && (
-              <div style={{ fontSize: 10, color: C.yellow, marginTop: 5, lineHeight: 1.55 }}>
-                No designated hitter matches that. The group engine builds out of the
-                bot&apos;s own designations, so only a designated bat can anchor a ticket.
-              </div>
-            )}
+            ))}
+            <button onClick={() => setPins([])} style={{
+              padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+              fontWeight: 800, fontFamily: NUM_FONT,
+              border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+            }}>clear all</button>
+          </div>
+        )}
+
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={pins.length ? 'Add another…' : "Who's your guy tonight?"}
+          style={{
+            marginTop: 7, width: '100%', maxWidth: 320, padding: '6px 10px',
+            borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg,
+            color: C.text, fontSize: 12, outline: 'none',
+          }}
+        />
+        {candidates.length > 0 && (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
+            {candidates.map((p) => (
+              <button key={playerId(p)} onClick={() => addPin(p)} style={{
+                padding: '4px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+                fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent',
+                color: C.text2,
+              }}>
+                {nameOf(p)}
+                <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
+                  {' '}{teamOf(p)}{clean(p?.game_pick_role, '') ? ` · ${clean(p.game_pick_role, '')}` : ` · HR ${n(p?.hr_score, 0).toFixed(0)}`}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {q.trim() && !candidates.length && (
+          <div style={{ fontSize: 10, color: C.yellow, marginTop: 5, lineHeight: 1.55 }}>
+            {poolMode === 'picks'
+              ? <>No designated hitter matches that. Switch the pool to <b>Anyone on the slate</b> to search all of tonight&apos;s bats.</>
+              : 'Nobody on tonight’s slate matches that.'}
+          </div>
+        )}
+
+        {/* The honest split, said before the tickets rather than discovered in them. */}
+        {freePins.length > 0 && (
+          <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
+            {freePins.map(nameOf).join(', ')} {freePins.length === 1 ? 'is' : 'are'} not among the
+            bot&apos;s designations, so {freePins.length === 1 ? 'he' : 'they'} can&apos;t hold a leg in a
+            group ticket — group tickets are built out of the bot&apos;s own picks. {freePins.length === 1 ? 'He is' : 'They are'} loaded
+            into <b style={{ color: C.text2 }}>Who has history with them</b> below instead.
           </div>
         )}
       </div>
 
-      {/* ── THE BUILD. One engine, with or without the anchor. ───────────── */}
+      {/* ── THE BUILD ─────────────────────────────────────────────────────── */}
+      {/* KEYED ON THE ANCHOR SET (2026-08-17). defaultSize is only read at
+          mount, so without the key two same-group anchors landed in a builder
+          whose size was still 2 — one HIT slot for two HIT pins — and every
+          ticket was dropped with a message blaming the wrong thing. The
+          remount makes the leg count grow with the pins. */}
       <GroupTicketBuilder
+        key={`pins-${pinnedIds.join('.') || 'none'}`}
         players={pool}
         odds={odds}
         slateDate={slateDate}
-        defaultSize={pinned ? 3 : 2}
-        pinnedId={pinnedId}
-        pinnedName={pinned ? nameOf(pinned) : ''}
+        defaultSize={Math.max(2, Math.min(4, designatedPins.length + 1))}
+        pinnedIds={pinnedIds}
+        pinnedName={pinnedName}
         onPlayerClick={onPlayerClick}
       />
 
-      {/* ── THE OTHER QUESTION, one click down ───────────────────────────── */}
+      {/* ── THE OTHER QUESTION, seeded with every anchor ──────────────────── */}
       <div style={{ marginTop: 20, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
         <button
           onClick={() => setShowPartners((v) => !v)}
           style={{
             padding: '5px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
             fontWeight: 800, fontFamily: NUM_FONT,
-            border: `1px solid ${showPartners ? C.orange : C.border}`,
-            background: showPartners ? 'rgba(249,115,22,.14)' : 'transparent',
-            color: showPartners ? C.orange : C.text3,
+            border: `1px solid ${(showPartners || freePins.length) ? C.orange : C.border}`,
+            background: (showPartners || freePins.length) ? 'rgba(249,115,22,.14)' : 'transparent',
+            color: (showPartners || freePins.length) ? C.orange : C.text3,
           }}
         >
-          {showPartners ? '▾' : '▸'} Who has history with him
+          {(showPartners || freePins.length > 0) ? '▾' : '▸'} Who has history with {pins.length > 1 ? 'them' : 'him'}
         </button>
         <span style={{ fontSize: 9.5, color: C.text3, marginLeft: 8 }}>
-          same-game record on every partner — a different question from what ticket holds him
+          same-game record on every partner — works for ANY hitter, designated or not
         </span>
-        {showPartners && (
+        {(showPartners || freePins.length > 0) && (
           <div style={{ marginTop: 12 }}>
             <PairBuilder
+              key={pins.map((p) => playerId(p)).join('|') || 'none'}
               summary={pairHistorySummary}
               players={pool}
               onPlayerClick={onPlayerClick}
-              initialAnchors={pinned ? [playerId(pinned)] : []}
+              initialAnchors={pins.map((p) => playerId(p))}
             />
           </div>
         )}

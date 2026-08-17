@@ -326,7 +326,6 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 // second navigation row on the front page. They route out to the existing
 // #tab= handlers rather than mounting here, so there is exactly one copy of each.
 const GROUPS = [['boards', '📊 Boards'], ['power', '🚀 Power'], ['patterns', '🔥 Patterns']]
-const GROUP_LINKS = [['scoreboard', '🧮 Full slate'], ['boxes', '📋 Box scores']]
 
 /**
  * New props, all optional so the CURRENT Dashboard mount keeps rendering
@@ -357,7 +356,15 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           and never one scroll up — that is the "scroll up to scroll back
           down" complaint, answered. It pins BELOW the app header rather than
           at 0; see useHeaderOffset above for why that distinction matters. */}
-      <div style={{
+      {/* ── NOT STICKY ON PHONES (2026-08-17) ────────────────────────────────
+          Donovan's screenshot: this pill row pinned itself mid-screen on
+          mobile and the page scrolled behind it, cutting the Power lead in
+          half — "the page like breaks or follows when you scroll down". On a
+          phone the condensed header animates its height, so any fixed
+          stickTop is wrong for part of every scroll; and a 3-pill row is not
+          worth pinning on a 6-inch screen anyway. The class carries the
+          coarse-pointer override in MobileCSS; desktop keeps the sticky. */}
+      <div className="board-pill-row" style={{
         position: 'sticky', top: stickTop, zIndex: 20, background: C.bg,
         paddingTop: 4, paddingBottom: 7, marginBottom: 10,
         borderBottom: `1px solid ${C.border}`,
@@ -372,15 +379,12 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             color: bview === k ? C.orange : C.text3,
           }}>{label}</button>
         ))}
-        {/* The two views Home used to host in its own pill row. Links, not
-            mounts — each still lives in exactly one place. */}
-        {onNavigate && GROUP_LINKS.map(([k, label]) => (
-          <button key={k} onClick={() => onNavigate(k)} style={{
-            padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
-            fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-            border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
-          }}>{label}</button>
-        ))}
+        {/* The 'Full slate' / 'Box scores' LINKS that used to sit here are gone
+            (2026-08-17, "when you click on certain it navigates you out of the
+            area — it's bad"). They silently jumped you to another tab, which
+            reads as the page throwing you somewhere. Slate is a top-level tab
+            now and Boxes is one tap from Home, so nothing became unreachable —
+            this row just stopped teleporting people. */}
         {boards && (
           <>
             <span style={{ width: 1, alignSelf: 'stretch', background: C.border, margin: '0 3px' }} />

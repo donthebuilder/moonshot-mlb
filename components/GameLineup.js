@@ -295,32 +295,42 @@ function SideRead({ team, rows, onPlayerClick }) {
                 fontSize: 11.5, lineHeight: 1.65, color: C.text2,
               }}
             >
+              {/* ── STATS FIRST (2026-08-17) ─────────────────────────────────
+                  Donovan: "lineups should be spot read AND the actual pitcher
+                  lineup data plus the batters data in that spot. the spot read
+                  is missing a little while having too much words."
+                  Both fair. The sentence carried the arm's slot numbers buried
+                  in clauses and the BATTER'S own numbers not at all. Now: one
+                  verdict word, then the arm's slot line as bare figures, then
+                  the hitter's own line — HR/Hit score and season average — so
+                  the collision this row is about has both halves on it. The
+                  connecting prose lives in the tooltips; every fact is kept. */}
               <b style={{ fontFamily: NUM_FONT, color: C.text3 }}>#{s.spot}</b>{' '}
               <b style={{ color: C.text, fontSize: 12 }}>{s.name}</b>
               <span style={{ color: C.text3 }}> ({s.bats})</span>
-              {' — '}
-              <span style={{ color: s.verdict.color, fontWeight: 700 }}>{s.verdict.text}</span>
-              {s.dmg != null && (
-                <span title="Spot damage, 0-100 — how hard hitters have hit this arm from this slot. A score, never a chance.">
-                  {': '}<b style={{ fontFamily: NUM_FONT, color: s.verdict.color }}>{s.dmg.toFixed(1)}</b> damage
-                  {hottest && <span style={{ color: C.red }}>, the hardest-hit slot on this card</span>}
-                </span>
-              )}
-              {s.pa != null ? (
-                <>
-                  {s.dmg != null ? ' off ' : ': off '}<b style={{ fontFamily: NUM_FONT }}>{s.pa}</b> plate appearances
-                  {s.slg != null && <>, in which he allowed <b style={{ fontFamily: NUM_FONT }}>{sl(s.slg)}</b> slugging</>}
-                  {s.hrRate != null && <> and homered on <b style={{ fontFamily: NUM_FONT }}>{s.hrRate.toFixed(1)}%</b> of them</>}
-                  {/* The tail of the bot's published line — kept, because the
-                      rule here is condense the FORM, never drop a fact. */}
-                  {tail.length > 0 && (
-                    <span style={{ color: C.text3 }} title="The rest of the bot's published line for this spot">
-                      {` (${tail.join(', ')})`}
-                    </span>
-                  )}
-                  .
-                </>
-              ) : '.'}
+              {' '}
+              <span style={{ color: s.verdict.color, fontWeight: 800, fontSize: 10.5 }}>{s.verdict.text}</span>
+              {hottest && <span style={{ color: C.red, fontSize: 10 }} title="The hardest-hit slot on this card"> · hottest</span>}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5 }}>
+                {s.dmg != null && (
+                  <span title="Spot damage 0-100 — how hard hitters have hit this arm from this slot. A score, never a chance.">
+                    {' · '}<b style={{ color: s.verdict.color }}>{s.dmg.toFixed(0)}</b>
+                    <span style={{ color: C.text3 }}> dmg</span>
+                  </span>
+                )}
+                {s.pa != null && <span style={{ color: C.text3 }} title="Plate appearances this arm has faced in this slot">{' · '}{s.pa} PA</span>}
+                {s.slg != null && <span title="Slugging this arm has allowed to this slot">{' · '}<b style={{ color: C.text2 }}>{sl(s.slg)}</b><span style={{ color: C.text3 }}> SLG ag</span></span>}
+                {s.hrRate != null && <span title="How often a PA in this slot has left the yard against him">{' · '}<b style={{ color: C.text2 }}>{s.hrRate.toFixed(1)}%</b><span style={{ color: C.text3 }}> HR</span></span>}
+                {tail.length > 0 && <span style={{ color: C.text3 }} title="The rest of the bot's published line for this spot">{' · '}{tail.join(' · ')}</span>}
+              </span>
+              {/* the batter's half — his own numbers, in the same breath */}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5 }} title={`${s.name}'s own numbers tonight: bot HR score, bot Hit score, season average`}>
+                <span style={{ color: C.text3 }}>{'  ·  him: '}</span>
+                <b style={{ color: C.orange }}>{n(s.p?.hr_score, 0).toFixed(0)}</b><span style={{ color: C.text3 }}> HR</span>
+                {' '}<b style={{ color: '#a78bfa' }}>{n(s.p?.hit_score, 0).toFixed(0)}</b><span style={{ color: C.text3 }}> Hit</span>
+                {n(s.p?.season_avg, 0) > 0 && <>{' '}<b style={{ color: C.text2 }}>{sl(n(s.p.season_avg, 0))}</b><span style={{ color: C.text3 }}> AVG</span></>}
+                {n(s.p?.last5_hits, -1) >= 0 && <span style={{ color: C.text3 }} title="Hits and homers over his last five games">{` · L5 ${n(s.p.last5_hits, 0)}H/${n(s.p.last5_hr, 0)}HR`}</span>}
+              </span>
               {/* THE ★, SPELLED OUT. The bot's own weak-spot sentence, verbatim
                   — it already carries the count and the slugging, so
                   paraphrasing it would only risk saying something the grader

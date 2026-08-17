@@ -774,20 +774,52 @@ export default function Pitchers({ players, onPlayerClick }) {
                 comes in AFTER him, and what AIR is he throwing it in — three
                 sentences, each with its numbers inside it, each clause
                 hoverable for the field behind it. */}
-            <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Clauses lead="Lately: "
-                parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })} />
-              <Clauses lead="Behind him: "
-                parts={penLineParts(penFrom(rawOf(p)), {
-                  attackRange: penAtkRange,
-                  fitAvg: (() => {
-                    const f = (p.lineup || []).map((b) => Number(b?.raw?.bullpen_pitch_fit)).filter((v) => Number.isFinite(v))
-                    return f.length ? f.reduce((a, b) => a + b, 0) / f.length : null
-                  })(),
-                  fitN: (p.lineup || []).filter((b) => Number.isFinite(Number(b?.raw?.bullpen_pitch_fit))).length,
-                })} />
-              <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} />
-            </div>
+            {/* ── STATS VISIBLE, SENTENCES FOLDED (2026-08-17) ────────────────
+                Donovan: "the attack pitcher cards stay too much words, we need
+                to actually see the stats. the actual words and reads can be
+                somewhere else. it's just a lot of colors everywhere as well."
+                The three prose lines (Lately / Behind him / The air) each
+                carried their numbers INSIDE sentences, in four colours. Now one
+                monochrome stat strip shows the figures bare — L3 vs season,
+                pen ERA/WHIP/attack, park swing — and the full written clauses
+                sit one tap behind it, unchanged. Facts kept, colours cut. */}
+            {(() => {
+              const raw = rawOf(p)
+              const l3 = Number(raw?.pitcher_l3_hr9)
+              const l3n = n(raw?.pitcher_l3_starts_found, 0)
+              const penEra = Number(raw?.bullpen_era)
+              const penAtk = Number(raw?.bullpen_attack_score)
+              const airPct = Number(raw?.weather_hr_effect_pct ?? raw?.weather_hr_pct)
+              return (
+                <div style={{ marginTop: 5, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
+                  {Number.isFinite(l3) && l3n > 0 && (
+                    <span title={`Last ${l3n} starts HR/9 against season ${n(p.pitcher_hr9, 0).toFixed(2)}`}>
+                      L{l3n} HR/9 <b style={{ color: l3 > n(p.pitcher_hr9, 0) ? C.orange : C.text2 }}>{l3.toFixed(2)}</b>
+                    </span>
+                  )}
+                  {Number.isFinite(penEra) && <span title="The bullpen behind him — season ERA">{' · '}pen ERA <b style={{ color: C.text2 }}>{penEra.toFixed(2)}</b></span>}
+                  {Number.isFinite(penAtk) && <span title="Bullpen attack score, 0-100 on tonight's spread">{' · '}pen atk <b style={{ color: C.text2 }}>{penAtk.toFixed(0)}</b></span>}
+                  {Number.isFinite(airPct) && <span title="The bot's published weather swing on home runs in this park tonight">{' · '}air <b style={{ color: airPct > 0 ? C.orange : C.text2 }}>{airPct > 0 ? '+' : ''}{airPct.toFixed(0)}%</b> HR</span>}
+                </div>
+              )
+            })()}
+            <details style={{ marginTop: 3 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 9, color: C.orange, listStyle: 'revert' }}>the read — lately, his pen, the air</summary>
+              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Clauses lead="Lately: "
+                  parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })} />
+                <Clauses lead="Behind him: "
+                  parts={penLineParts(penFrom(rawOf(p)), {
+                    attackRange: penAtkRange,
+                    fitAvg: (() => {
+                      const f = (p.lineup || []).map((b) => Number(b?.raw?.bullpen_pitch_fit)).filter((v) => Number.isFinite(v))
+                      return f.length ? f.reduce((a, b) => a + b, 0) / f.length : null
+                    })(),
+                    fitN: (p.lineup || []).filter((b) => Number.isFinite(Number(b?.raw?.bullpen_pitch_fit))).length,
+                  })} />
+                <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} />
+              </div>
+            </details>
             {/* the point of the card: attack WITH these bats */}
             <div style={{ marginTop: 7, paddingTop: 6, borderTop: '1px solid rgba(249,115,22,.2)' }}>
               <div style={{ fontSize: 8.5, fontWeight: 800, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>Attack with</div>
@@ -843,10 +875,15 @@ export default function Pitchers({ players, onPlayerClick }) {
                     coming apart this month — so the same recent-form read the
                     attack cards get is here, where it is most likely to change
                     somebody's mind. */}
-                <Clauses lead="Lately: "
-                  parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })}
-                  size={9} style={{ marginTop: 3 }} />
-                <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} size={9} style={{ marginTop: 1 }} />
+                {/* Folded, same as the attack cards — stats are in the line
+                    above, the sentences one tap behind. */}
+                <details style={{ marginTop: 3 }}>
+                  <summary style={{ cursor: 'pointer', fontSize: 8.5, color: '#60a5fa', listStyle: 'revert' }}>the read</summary>
+                  <Clauses lead="Lately: "
+                    parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })}
+                    size={9} style={{ marginTop: 3 }} />
+                  <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} size={9} style={{ marginTop: 1 }} />
+                </details>
                 {best && (
                   <div style={{ fontSize: 9, color: C.text3, marginTop: 3 }}>
                     If you must:{' '}

@@ -1693,6 +1693,7 @@ export function GroupTicketBuilder({
   // passes his id here and lib/pairEvidence.js pins him into a leg of every
   // ticket it returns. Null = the behaviour this component always had.
   pinnedId = null,
+  pinnedIds = null,
   pinnedName = '',
 }) {
   const [groups, setGroups] = useState(['HIT', 'HRR'])
@@ -1734,16 +1735,17 @@ export function GroupTicketBuilder({
 
   const built = useMemo(() => buildGroupTickets(players, {
     groups, signals: activeSignals, shape, size, ctx: { b2b: b2bIds }, limit: 4,
-    pinnedId,
-  }), [players, groups, activeSignals, shape, size, b2bIds, pinnedId])
+    pinnedId, pinnedIds,
+  }), [players, groups, activeSignals, shape, size, b2bIds, pinnedId, pinnedIds])
 
   // What to say when an anchor is set. Stated, not implied — and it reports the
   // failure case, because "build around Alonso" returning nothing must explain
   // itself rather than look like a broken panel.
-  const pinNote = !pinnedId ? '' : (
+  const anyPin = pinnedIds?.length || pinnedId
+  const pinNote = !anyPin ? '' : (
     built.tickets.length
       ? `Every ticket below holds ${pinnedName || 'your hitter'} — the rest of each one is filled by the group engine under its normal rules.`
-      : `${pinnedName || 'That hitter'} is not designated in the groups you picked, so no ticket can be built around him. Add the group he holds, or clear him to build from the board alone.`
+      : `No ticket can hold ${pinnedName || 'your hitters'} with the current groups and leg count — either a hitter is not designated in a group you picked, or there are more anchors than matching slots. Add the group he holds, raise the legs, or clear an anchor.`
   )
 
   // THE SIGNALS-ONLY TICKET — same groups, same shape, same size, same
@@ -1787,7 +1789,7 @@ export function GroupTicketBuilder({
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>
-          🧱 {pinnedId ? `Build around ${pinnedName || 'your hitter'}` : 'Build from the groups'}
+          🧱 {(pinnedIds?.length || pinnedId) ? `Build around ${pinnedName || 'your hitters'}` : 'Build from the groups'}
         </span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           two or more of the bot’s five designations, crossed
