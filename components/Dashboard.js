@@ -442,6 +442,17 @@ export default function Dashboard() {
             {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}
             {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
             {tab === 'atplate'     && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initialMode="live" />}
+            {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17
+                by an audit that opened each route and looked for the feature's
+                own text, rather than only asking whether the page threw).
+                `longest` and `due` route into the Power group but the group's
+                own name did not, so #tab=power rendered the header and nothing
+                under it — a dead URL that the 0-crashing smoke could not see,
+                because a page rendering nothing does not throw. Both are group
+                names people will type and link to. */}
+            {tab === 'power'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} initialView="power" />}
+            {tab === 'shape'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} initialView="power" powerInitial="shape" />}
+            {tab === 'patterns'    && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} initialView="patterns" />}
             {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} initialView="power" powerInitial="longest" />}
             {tab === 'due'         && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} initialView="power" powerInitial="due" />}
             {tab === 'hitshrr'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} />}
