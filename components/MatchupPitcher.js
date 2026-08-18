@@ -172,11 +172,23 @@ function Stat({ label, value, note, tone, meter, meterKey, title }) {
 // One group of tiles with a header that says what the group is FOR. The header
 // is the whole fix: "🎯 Attackable — the case for the bat" tells you how to
 // read the five numbers under it before you read any of them.
+//
+// ── THE ARSENAL+DAMAGE RESTYLE (2026-08-18) ─────────────────────────────────
+// Same principle as GameStrip's 2026-08-16 Apple pass, applied here: three
+// groups used to each spend a tinted background fill AND a coloured border
+// AND a coloured left-edge AND a coloured title on saying "I am this group" —
+// four ways to say one thing, stacked on top of the REAL colour underneath
+// (the meters, the hot/cold tones on individual stats), which is the signal
+// that actually changes read from row to row. Down to one mark — the left
+// edge — plus the coloured title text, which was already doing the real
+// labelling work ("🎯 Attackable" in orange reads as attackable without the
+// tile behind it needing to glow too). Nothing here changes WHAT a stat says;
+// every number, meter and note is untouched.
 function StatGroup({ icon, title, blurb, color, children }) {
   return (
     <div style={{
-      border: `1px solid ${color}2e`, borderLeft: `3px solid ${color}`,
-      background: `${color}07`, borderRadius: 11, padding: '9px 11px 11px', marginBottom: 9,
+      border: `1px solid ${C.border}`, borderLeft: `3px solid ${color}`,
+      borderRadius: 11, padding: '9px 11px 11px', marginBottom: 9,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', marginBottom: 7 }}>
         <span style={{ fontSize: 12 }}>{icon}</span>

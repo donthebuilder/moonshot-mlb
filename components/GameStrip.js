@@ -85,7 +85,7 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time' }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null }) {
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -213,6 +213,19 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           return (pf > 0 ? (pf - 1) * 100 : 0) + wx
         })(),
         setPct: gp.length ? gp.filter((x) => x?.lineup_confirmed === true).length / gp.length : 0,
+        // ── THE LIVE JOIN (2026-08-18) ──────────────────────────────────────
+        // Donovan sent Apple/ESPN/MLB screenshots asking for a real
+        // "live-game" pass; in every one of them a game in progress leads
+        // with its score and inning, not its first-pitch time. This card
+        // never had that — groupGames() builds it from the pregame slate
+        // rows, which have no live score on them. `live` is the same
+        // fetchLiveSlate() snapshot AtThePlate/GameCockpit/Boxes already
+        // poll, joined on here for free. String(pk) both sides: groupGames'
+        // key can be a bot-composed string on a game the slate never
+        // resolved a real gamePk for, while the live snapshot's pk is
+        // always the league's numeric one — a loose match would silently
+        // pair nothing on exactly the nights this is for.
+        liveG: live?.get ? live.get(String(g.game_pk)) || null : null,
       }
     })
     const slateMed = med(built.map((c) => c.gs))
@@ -245,7 +258,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       lowk: (a, b) => a.lowK - b.lowK,
     }
     return SORTERS[sortBy] ? [...withRank].sort(SORTERS[sortBy]) : withRank
-  }, [games, sortBy])
+  }, [games, sortBy, live])
 
   if (!cards.length) return null
 
@@ -281,6 +294,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           either — the Apple Sports pass in the header comment cut the three
           remaining shouts (tint, glow, heat-scaled numeral) down to the band
           glyph and the rank. Same even grid, one flat surface, nothing lost. */}
+      <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
       <div style={{
         display: 'grid', gap: 8,
         gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 232px), 1fr))',
@@ -334,7 +348,23 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                 <span title={c.confMarks ? c.confMarks.tip : (c.confirmed ? 'lineups confirmed' : 'projected lineups')}>
                   {c.confMarks ? c.confMarks.marks : (c.confirmed ? '✓' : '◻')}
                 </span>
-                <span>{c.time}</span>
+                {/* LIVE / FINAL REPLACES FIRST-PITCH TIME (2026-08-18) — see
+                    the liveG note above. A time that already happened is not
+                    the fact worth a glance once the game is actually on. */}
+                {c.liveG?.state === 'Live' ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#4ade80', fontWeight: 800 }}>
+                    <span style={{
+                      width: 5, height: 5, borderRadius: '50%', background: '#4ade80',
+                      boxShadow: '0 0 5px #4ade80', animation: 'gsLivePulse 1.8s ease-in-out infinite', flexShrink: 0,
+                    }} />
+                    {String(c.liveG.half || '').slice(0, 3)}{c.liveG.inning ?? ''}
+                    {c.liveG.outs != null ? ` · ${c.liveG.outs}o` : ''}
+                  </span>
+                ) : c.liveG?.state === 'Final' ? (
+                  <span style={{ fontWeight: 800 }}>FINAL</span>
+                ) : (
+                  <span>{c.time}</span>
+                )}
                 {band.icon && <span style={{ fontSize: 9.5 }}>{band.icon}</span>}
                 {band.word && (
                   <span style={{ fontSize: 8.5, fontWeight: 900, color: accent, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
@@ -367,6 +397,29 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                   {c.gs.toFixed(0)}<span style={{ fontSize: 9 }}>{c.edge}</span>
                 </span>
               </div>
+
+              {/* THE SCORE, WHEN THERE IS ONE (2026-08-18) — see the liveG
+                  join note above. Score sits directly under the matchup, the
+                  next-most-important fact once a game has actually started,
+                  same placement Apple/ESPN/MLB all use. Away/home order
+                  parsed off c.matchup rather than re-fetching team names —
+                  it's already "AWAY @ HOME" by construction. */}
+              {c.liveG && (c.liveG.awayScore != null || c.liveG.homeScore != null) && (() => {
+                const [awayAbbr, homeAbbr] = c.matchup.split(' @ ')
+                const aS = c.liveG.awayScore ?? 0, hS = c.liveG.homeScore ?? 0
+                const awayLead = aS > hS, homeLead = hS > aS
+                return (
+                  <div style={{
+                    fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, marginTop: 2,
+                    color: c.liveG.state === 'Live' ? '#4ade80' : C.text2,
+                    display: 'flex', gap: 5, alignItems: 'baseline',
+                  }}>
+                    <span style={{ color: awayLead ? undefined : C.text3 }}>{awayAbbr}</span>
+                    <span>{aS}–{hS}</span>
+                    <span style={{ color: homeLead ? undefined : C.text3 }}>{homeAbbr}</span>
+                  </div>
+                )
+              })()}
 
               {c.arms && (
                 <div title={c.armsFull} style={{

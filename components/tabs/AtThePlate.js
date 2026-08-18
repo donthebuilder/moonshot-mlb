@@ -356,13 +356,30 @@ function Timeline({ feed, g, abbrs, onPick }) {
   )
 }
 
+// Last name only, so "1B Ramírez" fits beside two other bases without
+// wrapping the whole header row. '·' means the base is occupied but the feed
+// didn't carry a name (see the liveSlate.js comment on the same fallback) —
+// shown as-is rather than invented into a blank.
+const lastOf = (full) => {
+  const t = String(full || '').trim()
+  return t === '·' ? t : (t.split(/\s+/).pop() || t)
+}
+
 /** The situation, broadcast-style (2026-08-14, Donovan: "i dont see the
  * outs like if its two outs or one"). A mini base diamond (2B top, 3B left,
- * 1B right — filled yellow when occupied, tooltip names the runner) and two
- * out dots. Renders nothing when outs is null — that means the linescore
- * detail didn't come through, and an empty diamond you'd be guessing at is
- * worse than none (bases-empty and data-stripped would look identical
- * otherwise; outs being a real number is the proof the block arrived). */
+ * 1B right — filled yellow when occupied) and two out dots.
+ *
+ * 2026-08-18, Donovan: "id like to know who on the base if there are
+ * runners on." The names were always THERE — on1/on2/on3 arrive as full
+ * names off the same verified feed as everything else on this page — but
+ * they only ever showed up in a `title` tooltip, which is exactly nothing on
+ * a phone. Now they print as a small line under the diamond whenever anyone
+ * is actually on: no runners, no line — the diamond alone already says that.
+ *
+ * Renders nothing when outs is null — that means the linescore detail didn't
+ * come through, and an empty diamond you'd be guessing at is worse than none
+ * (bases-empty and data-stripped would look identical otherwise; outs being
+ * a real number is the proof the block arrived). */
 function Situation({ outs, on1, on2, on3 }) {
   if (outs == null) return null
   const bases = [
@@ -370,31 +387,40 @@ function Situation({ outs, on1, on2, on3 }) {
     ['3B', on3, { left: 0, top: 8 }],
     ['1B', on1, { left: 17, top: 8 }],
   ]
-  const who = [on1 && `1B ${on1}`, on2 && `2B ${on2}`, on3 && `3B ${on3}`].filter(Boolean).join(' · ')
+  const runners = [on1 && ['1B', on1], on2 && ['2B', on2], on3 && ['3B', on3]].filter(Boolean)
+  const who = runners.map(([b, name]) => `${b} ${name}`).join(' · ')
   return (
-    <span title={`${outs} out${outs === 1 ? '' : 's'}${who ? ` · on base: ${who}` : ' · bases empty'}`}
-      style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'help', flexShrink: 0 }}>
-      <span style={{ position: 'relative', width: 25, height: 16, display: 'inline-block' }}>
-        {bases.map(([k, name, pos]) => (
-          <span key={k} style={{
-            position: 'absolute', ...pos, width: 7, height: 7,
-            transform: 'rotate(45deg)',
-            background: name ? '#FCD34D' : 'transparent',
-            border: `1px solid ${name ? '#FCD34D' : 'rgba(255,255,255,.28)'}`,
-            boxShadow: name ? '0 0 5px rgba(252,211,77,.4)' : 'none',
-          }} />
-        ))}
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start', flexShrink: 0 }}>
+      <span title={`${outs} out${outs === 1 ? '' : 's'}${who ? ` · on base: ${who}` : ' · bases empty'}`}
+        style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'help' }}>
+        <span style={{ position: 'relative', width: 25, height: 16, display: 'inline-block' }}>
+          {bases.map(([k, name, pos]) => (
+            <span key={k} style={{
+              position: 'absolute', ...pos, width: 7, height: 7,
+              transform: 'rotate(45deg)',
+              background: name ? '#FCD34D' : 'transparent',
+              border: `1px solid ${name ? '#FCD34D' : 'rgba(255,255,255,.28)'}`,
+              boxShadow: name ? '0 0 5px rgba(252,211,77,.4)' : 'none',
+            }} />
+          ))}
+        </span>
+        <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+          {[0, 1].map((i) => (
+            <span key={i} style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: outs > i ? '#f87171' : 'transparent',
+              border: `1px solid ${outs > i ? '#f87171' : 'rgba(255,255,255,.28)'}`,
+            }} />
+          ))}
+          <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.06em', fontWeight: 800 }}>OUT</span>
+        </span>
       </span>
-      <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-        {[0, 1].map((i) => (
-          <span key={i} style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: outs > i ? '#f87171' : 'transparent',
-            border: `1px solid ${outs > i ? '#f87171' : 'rgba(255,255,255,.28)'}`,
-          }} />
-        ))}
-        <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.06em', fontWeight: 800 }}>OUT</span>
-      </span>
+      {/* THE NAMES, ON SCREEN (2026-08-18) — see header note above. */}
+      {runners.length > 0 && (
+        <span style={{ fontSize: 8, color: '#FCD34D', fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700 }}>
+          {runners.map(([b, name]) => `${b} ${lastOf(name)}`).join(' · ')}
+        </span>
+      )}
     </span>
   )
 }

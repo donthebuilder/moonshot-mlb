@@ -300,6 +300,25 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
 
   const games = useMemo(() => groupGames(players), [players])
 
+  // ── LIVE STATE, JOINED ONTO THE CARDS (2026-08-18) ────────────────────────
+  // Donovan: "the box-score and live-game design pass against your MLB/ESPN/
+  // Apple screenshots." The single biggest gap next to those three: every one
+  // of them leads a live game's card with the score and the inning. This site's
+  // GameStrip cards always showed first-pitch TIME, live or not, because the
+  // pregame `players` rows groupGames() builds cards from have no live score
+  // on them at all — the `live` snapshot above already carries it (state,
+  // awayScore/homeScore, inning, half, outs, on1/on2/on3), it just never got
+  // handed to the strip. Keyed by String(pk) since groupGames' game_pk can be
+  // a bot-composed string key on an unpublished game while the live snapshot's
+  // pk is always the league's numeric gamePk — comparing them loosely would
+  // silently match nothing on exactly the slates where "is anyone in mid-game
+  // right now" matters most.
+  const liveByPk = useMemo(() => {
+    const m = new Map()
+    ;(live?.games || []).forEach((g) => { if (g?.pk != null) m.set(String(g.pk), g) })
+    return m
+  }, [live])
+
   // Group games by time slot
   const slots = useMemo(() => {
     const map = {}
@@ -522,7 +541,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           paddingTop: 6, paddingBottom: 8, marginBottom: 14,
           borderBottom: `1px solid ${C.border}`,
         }}>
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} />
+          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} />
         </div>
       )}
 
@@ -938,7 +957,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           the grid; clicking the card (or its header) again closes it. */}
       {mode !== 'lineups' && (
         <>
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} />
+          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {games.filter((g) => g.game_pk === activeGame).map((g) => {
                 const picks = picksFor(g)

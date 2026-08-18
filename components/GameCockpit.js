@@ -41,19 +41,48 @@ const styleFor = (event) => {
   return { icon: '·', word: String(event || '').toLowerCase().replace(/_/g, ' '), col: null }
 }
 
+// Last name only — keeps a loaded-bases line short next to the score and
+// count. Same helper as AtThePlate.js's Situation, kept local since the two
+// files don't share a component module for this.
+const lastOf = (full) => {
+  const t = String(full || '').trim()
+  return t.split(/\s+/).pop() || t
+}
+
 // ◆ = runner on. Second base sits on top — it reads like the field.
+//
+// 2026-08-18, Donovan: "id like to know who on the base if there are
+// runners on." off.first/second/third already carry fullName straight off
+// the verified live feed (same object the due-up alert reads) — the diamond
+// said THAT a base was occupied but only a hover tooltip ever said WHO. Now
+// a small line prints the names beneath the diamond whenever anyone's on;
+// nothing prints when the bases are empty, same as before.
 function Bases({ off }) {
   const on = (b) => !!(off?.[b]?.id)
+  const nameOn = (b) => off?.[b]?.fullName || ''
   const d = (filled) => ({
     width: 7, height: 7, transform: 'rotate(45deg)', borderRadius: 1.5,
     background: filled ? '#FCD34D' : 'transparent',
     border: `1.5px solid ${filled ? '#FCD34D' : 'rgba(255,255,255,.25)'}`,
   })
+  const runners = [
+    on('first') && ['1B', nameOn('first')],
+    on('second') && ['2B', nameOn('second')],
+    on('third') && ['3B', nameOn('third')],
+  ].filter(Boolean)
+  const who = runners.map(([b, nm]) => `${b} ${nm || '?'}`).join(' · ')
   return (
-    <span title={`Bases: ${['first', 'second', 'third'].filter(on).join(', ') || 'empty'}`}
-      style={{ display: 'inline-grid', gridTemplateColumns: '9px 9px 9px', gridTemplateRows: '9px 9px', alignItems: 'center', justifyItems: 'center', verticalAlign: 'middle' }}>
-      <span /><span style={d(on('second'))} /><span />
-      <span style={d(on('third'))} /><span /><span style={d(on('first'))} />
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
+      <span title={`Bases: ${who || 'empty'}`}
+        style={{ display: 'inline-grid', gridTemplateColumns: '9px 9px 9px', gridTemplateRows: '9px 9px', alignItems: 'center', justifyItems: 'center', verticalAlign: 'middle' }}>
+        <span /><span style={d(on('second'))} /><span />
+        <span style={d(on('third'))} /><span /><span style={d(on('first'))} />
+      </span>
+      {runners.length > 0 && (
+        <span style={{ fontSize: 7.5, color: '#FCD34D', fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700, lineHeight: 1.2 }}>
+          {runners.map(([b, nm]) => `${b} ${nm ? lastOf(nm) : '?'}`).join(' · ')}
+        </span>
+      )}
     </span>
   )
 }
