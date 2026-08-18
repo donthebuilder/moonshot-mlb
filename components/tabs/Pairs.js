@@ -1388,7 +1388,7 @@ import {
 } from '../../lib/pairEvidence'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { quoteFor, fmtOdds, impliedPct } from '../../lib/odds'
-import { nameOf, teamOf, oppOf, clean, n } from '../../lib/player'
+import { nameOf, teamOf, oppOf, clean, n, mlbId } from '../../lib/player'
 
 // ══ 🧱 BUILD FROM THE GROUPS ═══════════════════════════════════════════════
 //
@@ -1696,7 +1696,35 @@ export function GroupTicketBuilder({
   pinnedIds = null,
   pinnedName = '',
 }) {
-  const [groups, setGroups] = useState(['HIT', 'HRR'])
+  // GROUPS DEFAULT TO THE PIN'S OWN DESIGNATIONS (2026-08-18). Without this,
+  // handing someone in here — from Alignments' "Build a ticket around" or
+  // Builder's own search — landed on the hardcoded HIT+HRR pair regardless of
+  // what he's actually designated for, so a TOP/HR/CONTACT pick like Miguel
+  // Vargas hit an immediate "no ticket can hold him" wall the moment the
+  // hand-off finished. His own role string already IS a list of valid GROUP_
+  // ORDER tokens ("TOP/HR/CONTACT" splits clean) — read it back instead of
+  // guessing. Union across every pinned man when there's more than one, so a
+  // combo of anchors from different groups still starts somewhere they can
+  // both land; pad to two with the old default if a single pin only carries
+  // one designation, since "two or more" is the floor the engine requires.
+  const [groups, setGroups] = useState(() => {
+    const pinSet = pinnedIds?.length ? new Set(pinnedIds.map(String)) : (pinnedId ? new Set([String(pinnedId)]) : null)
+    if (!pinSet) return ['HIT', 'HRR']
+    const roles = new Set()
+    players.forEach((p) => {
+      if (!pinSet.has(String(mlbId(p)))) return
+      String(p?.game_pick_role || '').split('/').forEach((r) => {
+        const g = r.trim().toUpperCase()
+        if (GROUP_ORDER.includes(g)) roles.add(g)
+      })
+    })
+    if (!roles.size) return ['HIT', 'HRR']
+    const ordered = GROUP_ORDER.filter((g) => roles.has(g))
+    if (ordered.length < 2) {
+      ['HIT', 'HRR'].forEach((g) => { if (ordered.length < 2 && !ordered.includes(g)) ordered.push(g) })
+    }
+    return ordered
+  })
   const [signals, setSignals] = useState([])
   const [shape, setShape] = useState('spread')
   const [size, setSize] = useState(defaultSize)

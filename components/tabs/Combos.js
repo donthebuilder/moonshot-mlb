@@ -7,6 +7,7 @@ import Pools from './Pools'
 import PairHistory from './PairHistory'
 import Builder from '../Builder'
 import HomerLedger from '../HomerLedger'
+import Alignments from '../Alignments'
 
 // 🎟 COMBOS — Pairs, Pools and their history under one roof (2026-08-16).
 //
@@ -37,8 +38,15 @@ import HomerLedger from '../HomerLedger'
 // the order he asked for and the right one anyway: pools are the bigger tickets,
 // pairs the two-man cut. Three pills instead of four.
 // #tab=pools still routes here and still lands on this view.
+// ── ALIGNMENTS GETS ITS OWN PILL (2026-08-18) ───────────────────────────────
+// Donovan: "esply in combos i think thats whewer it should fully live and and
+// breath." Not a strip bolted onto Pairs — its own view, same tier as the
+// other three, because it's the whole slate's numerology in one place and
+// deserves the room. Its "Build a ticket around these →" button hands
+// checked names to the Builder view below (see seedPins/onSeedConsumed).
 const VIEWS = [
   ['pairs', '🤝 Pairs & Pools'],
+  ['align', '🔮 Alignments'],
   ['builder', '🧱 Builder'],
   ['history', '📜 History'],
 ]
@@ -70,6 +78,16 @@ export default function Combos({
     const want = initial === 'pools' ? 'pairs' : initial
     return VIEWS.some(([k]) => k === want) ? want : 'pairs'
   })
+
+  // Alignments hands checked names here, then this jumps to the Builder view
+  // with them pre-pinned. Cleared once Builder has consumed it so the SAME
+  // pick set can be sent again later without going stale.
+  const [seedPins, setSeedPins] = useState(null)
+  const handleBuildAround = (rows) => {
+    if (!rows?.length) return
+    setSeedPins(rows)
+    setView('builder')
+  }
 
   return (
     <div>
@@ -123,6 +141,13 @@ export default function Combos({
         />
         </div>
       )}
+      {view === 'align' && (
+        <Alignments
+          players={allPlayers}
+          onPlayerClick={onPlayerClick}
+          onBuildAround={handleBuildAround}
+        />
+      )}
       {view === 'builder' && (
         <Builder
           players={players}
@@ -131,6 +156,8 @@ export default function Combos({
           odds={odds}
           slateDate={slateDate}
           onPlayerClick={onPlayerClick}
+          seedPins={seedPins}
+          onSeedConsumed={() => setSeedPins(null)}
         />
       )}
       {view === 'history' && (

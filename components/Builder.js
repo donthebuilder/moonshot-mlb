@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, playerId, mlbId, clean, n } from '../lib/player'
 import { GroupTicketBuilder } from './tabs/Pairs'
@@ -33,6 +33,18 @@ export default function Builder({
   odds = null,
   slateDate = '',
   onPlayerClick = null,
+  // 🔮 HAND-OFF FROM ALIGNMENTS (2026-08-18). Donovan: "especially in combos,
+  // i think that's where it should fully live and breathe" — and the payoff
+  // of a pattern page is being able to act on it. Alignments' "Build a ticket
+  // around these →" button hands slate rows here. seedPins is a fresh array
+  // reference each time the button fires (even re-picking the same names), so
+  // it can't be compared for equality — a signature of the ids is instead. The
+  // names are ADDED to whatever's already pinned, not swapped in, since
+  // arriving from Alignments mid-build shouldn't discard work already done.
+  // onSeedConsumed lets the parent clear its copy so navigating back to
+  // Alignments and hitting the button again with the SAME picks still fires.
+  seedPins = null,
+  onSeedConsumed = null,
 }) {
   const [q, setQ] = useState('')
   const [pins, setPins] = useState([])          // slate rows, any number
@@ -40,6 +52,21 @@ export default function Builder({
   const [showPartners, setShowPartners] = useState(false)
 
   const pool = players.length ? players : allPlayers
+
+  const lastSeedSig = useRef('')
+  useEffect(() => {
+    if (!seedPins || !seedPins.length) return
+    const sig = seedPins.map((p) => mlbId(p)).filter(Boolean).join('.')
+    if (!sig || sig === lastSeedSig.current) return
+    lastSeedSig.current = sig
+    setPins((v) => {
+      const have = new Set(v.map((p) => String(mlbId(p))))
+      const add = seedPins.filter((p) => mlbId(p) && !have.has(String(mlbId(p))))
+      return add.length ? [...v, ...add] : v
+    })
+    setPoolMode('anyone')   // Alignments draws from the whole slate, not just picks
+    onSeedConsumed?.()
+  }, [seedPins, onSeedConsumed])
 
   const pinnedKeys = useMemo(() => new Set(pins.map((p) => String(mlbId(p)))), [pins])
 
