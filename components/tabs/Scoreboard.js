@@ -16,8 +16,8 @@ import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
 import HomerLedger from '../HomerLedger'
 import LiveWire from '../LiveWire'
-import NearMisses from '../NearMisses'
-import ProjectedOutput from '../ProjectedOutput'
+import NearMisses, { nearMissRows } from '../NearMisses'
+import ProjectedOutput, { slateProjHr } from '../ProjectedOutput'
 import { groupPitchers, groupGames } from '../../lib/data'
 import { airParts, airVerdict } from '../../lib/conditions'
 
@@ -345,8 +345,21 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // inside Boards. This page is the one you watch between innings, and the
   // between-innings question is who's been hitting homers without getting
   // one — that's the drought most likely to end tonight.
+  // ── CLOSED BY DEFAULT ON THIS PAGE (2026-08-18, second flow pass) ────────
+  // Donovan, again, today: "rearrange the rundown page to flow better."
+  // These two used to force `open` — reasonable back when they were a few
+  // lines each, wrong now: the SAME day's earlier work gave Near Misses a
+  // distance bar and an expandable spray chart per hitter, and gave Projected
+  // Output a full sorted bar chart on top of its podium and heat table. Two
+  // small panels became two tall ones, and the page's own stated headline
+  // — "every hitter, one sortable table" — was buried under both of them
+  // PLUS the wire, the homer block and the picks before a reader ever saw a
+  // single row of the actual board. Nothing is removed — see the counts
+  // below, computed off the same helpers the open panels use, so a closed
+  // fold still states its headline fact instead of hiding it behind a click.
+  const nearCount = useMemo(() => nearMissRows(players).length, [players])
   const secNear = (
-    <Fold key="near" label="🧱 Near misses — the contact that says one's coming" open>
+    <Fold key="near" label={`🧱 Near misses (${nearCount}) — the contact that says one's coming`}>
       <NearMisses players={players} onPlayerClick={onPlayerClick} />
     </Fold>
   )
@@ -360,8 +373,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // Scoreboard already receives the flat `players` list this page is built
   // from and grouping it is a one-line memo, not new data.
   const projGames = useMemo(() => groupGames(players), [players])
+  const projHr = useMemo(() => slateProjHr(players), [players])
   const secProjected = (
-    <Fold key="projected" label="📈 Projected output — the slate's expected count" open>
+    <Fold key="projected" label={`📈 Projected output — ${projHr != null ? `${projHr.toFixed(1)} HR projected slate-wide` : "the slate's expected count"}`}>
       <ProjectedOutput games={projGames} players={players} />
     </Fold>
   )
@@ -462,6 +476,19 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // the explainer was pointing at something that was not immediately below.
   // The picks go first. StartHere follows them, which is also where an
   // explainer belongs: after the thing it explains, for the reader who wants it.
+  //
+  // ── THIRD FLOW PASS (2026-08-18): THE ORDER WASN'T THE PROBLEM ANYMORE ──
+  // Donovan, again: "rearrange the rundown page to flow better." The order
+  // below already matches the two rules stated above and hasn't changed
+  // this round — what changed is that Near Misses and Projected Output each
+  // grew a real chart earlier today (a distance bar + expandable spray field;
+  // a full sorted bar chart), so the SAME order now reads as a much longer
+  // wall before the page's own promised centerpiece — "every hitter, one
+  // sortable table" — at the foot of the page. Reordering again would have
+  // been the fourth attempt at the same knob; the actual fix was weight, so
+  // those two now default CLOSED with their headline number stated right on
+  // the fold (see where they're built, above) instead of force-open. Gone
+  // yard stays open live — it's the moment's actual news, not analysis.
   const order = liveNow
     ? [secPicks, secWire, secGone, secLedger, secNear, secProjected, secStart, secPulse, secWeak]
     : [secPicks, secStart, secPulse, secNear, secProjected, secWire, secGone, secLedger, secWeak]

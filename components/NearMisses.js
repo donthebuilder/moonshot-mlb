@@ -54,29 +54,36 @@ const DIST_LO = 340
 const DIST_HI = 430
 const barPct = (d) => Math.max(0, Math.min(1, (d - DIST_LO) / (DIST_HI - DIST_LO)))
 
+// Hoisted out of the component (2026-08-18) so Scoreboard.js can put a real
+// count in the Rundown's collapsed-fold label ("Near misses (11)") instead of
+// a generic one — without a second, drifting copy of the "close >= 2" bar.
+// One function, two callers; see the Rundown flow-pass note for why the
+// count needed to exist at all.
+export function nearMissRows(players) {
+  return (players || [])
+    .map((p) => {
+      const d = dist(p)
+      const e = ev(p)
+      const w = scrapers(p)
+      // How close has he actually come? Distance is the honest core of it:
+      // 380+ reaches seats in most parks. Wall scrapers are literal near
+      // misses. EV 108+ is homer contact whatever the angle did. Barrels
+      // keep a live bat from being outranked by one lucky poke.
+      const close = (d >= 400 ? 3 : d >= 385 ? 2 : d >= 372 ? 1 : 0)
+        + w * 2
+        + (e >= 110 ? 2 : e >= 106 ? 1 : 0)
+        + (barrels(p) >= 0.12 ? 1 : 0)
+      return { p, d, e, w, close, since: n(p?.games_since_last_hr, 0) }
+    })
+    .filter((r) => r.close >= 2)
+    .sort((a, b) => b.close - a.close || b.d - a.d)
+    .slice(0, 14)
+}
+
 export default function NearMisses({ players = [], onPlayerClick }) {
   const [expanded, setExpanded] = useState(null) // player_id-game_pk key, or null
 
-  const rows = useMemo(() => {
-    return (players || [])
-      .map((p) => {
-        const d = dist(p)
-        const e = ev(p)
-        const w = scrapers(p)
-        // How close has he actually come? Distance is the honest core of it:
-        // 380+ reaches seats in most parks. Wall scrapers are literal near
-        // misses. EV 108+ is homer contact whatever the angle did. Barrels
-        // keep a live bat from being outranked by one lucky poke.
-        const close = (d >= 400 ? 3 : d >= 385 ? 2 : d >= 372 ? 1 : 0)
-          + w * 2
-          + (e >= 110 ? 2 : e >= 106 ? 1 : 0)
-          + (barrels(p) >= 0.12 ? 1 : 0)
-        return { p, d, e, w, close, since: n(p?.games_since_last_hr, 0) }
-      })
-      .filter((r) => r.close >= 2)
-      .sort((a, b) => b.close - a.close || b.d - a.d)
-      .slice(0, 14)
-  }, [players])
+  const rows = useMemo(() => nearMissRows(players), [players])
 
   if (!rows.length) {
     return (
