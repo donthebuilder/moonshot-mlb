@@ -13,6 +13,7 @@ import DenseTable from '../DenseTable'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import PlayerCard from '../PlayerCard'
 import { downloadShareCard } from '../shareCard'
+import WatchlistAlignLedger from '../WatchlistAlignLedger'
 
 // The bot's designated category for tonight, straight off the slate row —
 // "HR", "HIT", "TOP/HR", or '' when he isn't one of the ~105 designated
@@ -628,6 +629,10 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
   //
   // Hooks run before the empty-list early return on purpose — an empty
   // watchlist is a render path, not an excuse to change the hook order.
+  // Same composite key the alignment engine and every other watchlist reader
+  // use (see the WatchlistAlignLedger mount below) — items IS the watchlist,
+  // so this is just it recast as a Set, not a new source of truth.
+  const watchIds = useMemo(() => new Set(items.map((p) => playerId(p))), [items])
   const slateIds = useMemo(() => new Set(players.map((p) => String(playerId(p)))), [players])
   const onSlate = useMemo(
     () => items.filter((p) => slateIds.has(String(playerId(p)))),
@@ -795,6 +800,14 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
         })()}
       </div>
 
+      {/* MINI ALIGNMENT LEDGER (2026-08-18, on request) — "if we can get a
+          mini ledger to help show if any of my watchlist are starting to
+          align that would be fire." Same cross-check Alignments.js runs in
+          Combos, surfaced here so it's visible without leaving the tab. See
+          WatchlistAlignLedger.js for the full story; it renders nothing when
+          there's no watchlist or no slate to check it against. */}
+      <WatchlistAlignLedger players={players} watchIds={watchIds} slateDate={slateDate} onPlayerClick={onPlayerClick} />
+
       {/* TONIGHT — each saved hitter's live line, worn as a chip. Green =
           homered, purple = hit(s), dim = nothing yet / not graded. */}
       {(() => {
@@ -868,6 +881,18 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                   track_t: trackText(track),
                   weak: p?.weak_spot_flag ? 1 : 0,
                   l5: `${n(p?.last5_hits, 0)}H/${n(p?.last5_hr, 0)}HR/${n(p?.last5_xbh, 0)}X`,
+                  // ── FOUR MORE COLUMNS (2026-08-18, on request) ──────────────
+                  // Donovan: "add more stat columns... i want to be able to sort
+                  // more stats for my watchlist player." All four are fields the
+                  // slate already publishes and the site already reads elsewhere
+                  // (park board, near misses) — no new fetch, just not pulled
+                  // into this table before. See the column defs below for what
+                  // each one means; naming them here so a future "call it X"
+                  // request has one place to match against.
+                  park: n(p?.park_hr_factor, null),
+                  drought: n(p?.games_since_last_hr, null),
+                  dist: n(p?.hr_shape_components?.max_distance, null) || null,
+                  wall: n(p?.hr_shape_profile?.wall_scraper, 0),
                   hr: hrScore(p),
                   hrw: nn(p?.hrw_score),
                   dc: nn(p?.damage_conversion_score),
@@ -907,6 +932,17 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                   title: 'Weak lineup spot against tonight’s starter' },
                 { key: 'l5',    label: 'L5',   heat: false, w: 76, mono: true, dim: true,
                   title: 'Last five games — hits / homers / extra-base hits' },
+                // ── PARK, DROUGHT, DIST, WALL (2026-08-18) ──────────────────
+                // Park and Drought are context, not heat — a bigger park factor
+                // isn't "better" the way an HR score is, and Drought reading hot
+                // would read as "overdue," which this site doesn't claim. Dist
+                // and Wall DO heat: they're the same near-miss read NearMisses
+                // gives its own cards (closer contact = more orange), just as
+                // columns here so they sort.
+                { key: 'park',  label: 'Park', heat: false, w: 46, mono: true, dim: true, dp: 2,
+                  title: 'Tonight’s park HR factor — 1.00 is neutral, 1.20 means the park itself adds about 20% more home runs. Same number ProjectedOutput and the Park board read. Dash = not published yet.' },
+                { key: 'drought', label: 'Drought', heat: false, w: 58, mono: true, dim: true, dp: 0,
+                  title: 'Games since his last home run. Information, not a signal — this site doesn’t score a hitter as "due."' },
                 { key: 'hr',    label: 'HR',   w: 44, dp: 1, title: 'HR score' },
                 { key: 'hrw',   label: 'HRW',  w: 46, dp: 0,
                   title: 'HR Watch — the bot’s heat/recency read, 0–100' },
@@ -915,6 +951,10 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                 { key: 'iso',   label: 'ISO',  w: 44, dp: 0,
                   title: 'Season ISO ×100. The strongest HR predictor in the graded archive.' },
                 { key: 'brl',   label: 'Brl%', w: 46, dp: 1, title: 'Recent barrel rate' },
+                { key: 'dist',  label: 'Dist', w: 48, dp: 0,
+                  title: 'His best recent batted ball, in feet — the same near-miss read as the Near Misses panel. 400+ is homer distance in most parks. Dash = no recent shape data.' },
+                { key: 'wall',  label: 'Wall', w: 46, dp: 0,
+                  title: 'Wall-scrapers in his recent hard contact — balls that reached the track without going out. Literal near misses.' },
                 { key: 'ev',    label: 'EV',   w: 46, dp: 1, title: 'Average exit velocity' },
                 { key: 'pmix',  label: 'PMix', w: 46, dp: 0,
                   title: 'Pitch-mix fit vs tonight’s starter' },
