@@ -5,7 +5,22 @@ import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
 import SlateTiles from './SlateTiles'
 import PaletteButton from './PaletteButton'
+import ThemeModeButton from './ThemeModeButton'
 import { slateProjHr } from './ProjectedOutput'
+
+// The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
+// literal copy of ember's C.bg — so even the four EXISTING dark palettes
+// (mono/steel/regal) never actually changed the one bar that's on screen
+// every tab, every scroll position. Not caught before because all four are
+// dark enough that the mismatch reads as "fine." Light mode made it a dark
+// bar sitting above a white page. Fixed generically: derive the translucent
+// background from whichever C.bg is actually active, for every theme, not
+// just this one. (2026-08-18)
+const hexToRgba = (hex, a) => {
+  const h = String(hex).replace('#', '')
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
 
 
 // ── live capture ticker ───────────────────────────────────────────────────────
@@ -259,9 +274,9 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
   return (
     <header ref={hdrRef} style={{
       position:'sticky', top:0, zIndex:50,
-      background:'rgba(9,9,11,0.92)',
+      background: hexToRgba(C.bg, 0.92),
       backdropFilter:'blur(14px)',
-      borderBottom:'1px solid rgba(255,255,255,0.07)',
+      borderBottom:`1px solid ${C.border}`,
     }}>
       <div style={{
         maxWidth:1300, margin:'0 auto',
@@ -379,6 +394,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
               are squinting at. It is a view setting, so it sits with the other
               one. */}
           <PaletteButton />
+          <ThemeModeButton />
           <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1px solid ${C.border}` }}>
             <button
               onClick={() => setMode('today')}
