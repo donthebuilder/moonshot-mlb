@@ -91,6 +91,29 @@ function barColor(p) {
   return p >= 70 ? C.green : p >= 50 ? C.yellow : C.red
 }
 
+// ── Flow / Fold, hoisted to module scope (2026-08-18) ──────────────────────
+// Used inside the "overview" sub-tab's render (an IIFE that re-runs on every
+// Results render). Same bug and same fix as Scoreboard.js's Fold and this
+// file's own Row/Group above PitcherWeaknessDigest: a component declared
+// INSIDE a render gets a new identity every render, and React unmounts the
+// old one — which throws away a native <details>'s open/closed state. A
+// panel you opened to check the numbers was closing itself the next time the
+// results silently refreshed.
+const Flow = ({ num, title, note }) => (
+  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '20px 0 8px', paddingBottom: 5, borderBottom: `1px solid ${C.border}` }}>
+    <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 999, padding: '1px 8px' }}>{num}</span>
+    <span style={{ fontSize: 12.5, fontWeight: 900 }}>{title}</span>
+    <span style={{ fontSize: 9.5, color: C.text3 }}>{note}</span>
+  </div>
+)
+// A demoted panel: closed by default, honest label about what's inside.
+const Fold = ({ label, children }) => (
+  <details style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 8 }}>
+    <summary style={{ padding: '8px 13px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
+    <div style={{ padding: '4px 10px 10px' }}>{children}</div>
+  </details>
+)
+
 // ── micro components ────────────────────────────────────────────────────────
 
 function TabBtn({ active, onClick, children }) {
@@ -376,6 +399,64 @@ function HRHits({ homers }) {
 // graded player who isn't on tonight's slate, which happens after a lineup
 // change — falls back to the fields that are on the slot, and is labelled
 // rather than dropped silently the way it was before.
+// Row and Group used to be declared INSIDE PitcherWeaknessDigest — fixed
+// 2026-08-18 alongside Scoreboard.js's Fold (see its long comment for the
+// full diagnosis). Group's collapsed lists use a native <details>, which is
+// uncontrolled DOM state: a fresh function identity for Group on every
+// PitcherWeaknessDigest render silently unmounted and remounted it, so an
+// arm list you had expanded snapped back shut on the next poll tick. Hoisted
+// to module scope so their identity is stable across renders; both take
+// everything they need as props (plus si(), already module-level below).
+const Row = ({ p, accent }) => {
+  const hitPicks = p.picks.filter((r) => si(r.actual_hr) > 0).length
+  return (
+    <div style={{ padding: '7px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{p.name}</span>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.throws}HP</span>
+          {p.weak_side && <span style={{ fontSize: 9.5, color: '#a78bfa', fontFamily: NUM_FONT }}>bleeds vs {p.weak_side}</span>}
+        </div>
+        <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
+          our picks vs him: <b style={{ color: hitPicks ? accent : C.text3 }}>{hitPicks}/{p.picks.length} homered</b>
+          {p.hr9 > 0 && <> · HR/9 <span style={{ color: p.hr9 >= 1.2 ? '#f87171' : C.text2 }}>{p.hr9.toFixed(2)}</span></>}
+          {p.whip > 0 && <> · WHIP <span style={{ color: p.whip >= 1.30 ? '#f87171' : C.text2 }}>{p.whip.toFixed(2)}</span></>}
+        </div>
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontSize: 16, fontWeight: 900, fontFamily: NUM_FONT, color: p.hr_allowed_today > 0 ? accent : C.text3 }}>
+          {p.hr_allowed_today} HR
+        </div>
+        <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+          {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? '#f87171' : C.text3, cursor: 'help' }}>{p.k_today} K</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const Group = ({ icon, label, note, list, accent, collapsed }) => {
+  if (!list.length) return null
+  const body = list.map((p, i) => <Row key={i} p={p} accent={accent} />)
+  return (
+    <div style={{ borderLeft: `3px solid ${accent}`, margin: '8px 10px', borderRadius: 8, background: `${accent}06`, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '7px 14px 5px' }}>
+        <span style={{ fontSize: 11 }}>{icon}</span>
+        <span style={{ fontSize: 10, fontWeight: 900, color: accent, letterSpacing: '.08em', fontFamily: NUM_FONT }}>{label}</span>
+        <span style={{ fontSize: 9, color: C.text3 }}>{note}</span>
+      </div>
+      {collapsed ? (
+        <details>
+          <summary style={{ fontSize: 9.5, color: C.text3, padding: '0 14px 8px', cursor: 'pointer', fontFamily: NUM_FONT }}>
+            {list.length} arm{list.length > 1 ? 's' : ''} — expand
+          </summary>
+          {body}
+        </details>
+      ) : body}
+    </div>
+  )
+}
+
 function PitcherWeaknessDigest({ slots, players = [] }) {
   const slateById = useMemo(() => {
     const m = new Map()
@@ -456,55 +537,9 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
   const flaggedN = buckets.called.length + buckets.noCash.length
   const unflaggedHr = buckets.missedArm.reduce((a, p) => a + p.hr_allowed_today, 0)
 
-  const Row = ({ p, accent }) => {
-    const hitPicks = p.picks.filter(r => si(r.actual_hr) > 0).length
-    return (
-      <div style={{ padding: '7px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{p.name}</span>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.throws}HP</span>
-            {p.weak_side && <span style={{ fontSize: 9.5, color: '#a78bfa', fontFamily: NUM_FONT }}>bleeds vs {p.weak_side}</span>}
-          </div>
-          <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
-            our picks vs him: <b style={{ color: hitPicks ? accent : C.text3 }}>{hitPicks}/{p.picks.length} homered</b>
-            {p.hr9 > 0 && <> · HR/9 <span style={{ color: p.hr9 >= 1.2 ? '#f87171' : C.text2 }}>{p.hr9.toFixed(2)}</span></>}
-            {p.whip > 0 && <> · WHIP <span style={{ color: p.whip >= 1.30 ? '#f87171' : C.text2 }}>{p.whip.toFixed(2)}</span></>}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, fontFamily: NUM_FONT, color: p.hr_allowed_today > 0 ? accent : C.text3 }}>
-            {p.hr_allowed_today} HR
-          </div>
-          <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-            {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? '#f87171' : C.text3, cursor: 'help' }}>{p.k_today} K</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const Group = ({ icon, label, note, list, accent, collapsed }) => {
-    if (!list.length) return null
-    const body = list.map((p, i) => <Row key={i} p={p} accent={accent} />)
-    return (
-      <div style={{ borderLeft: `3px solid ${accent}`, margin: '8px 10px', borderRadius: 8, background: `${accent}06`, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '7px 14px 5px' }}>
-          <span style={{ fontSize: 11 }}>{icon}</span>
-          <span style={{ fontSize: 10, fontWeight: 900, color: accent, letterSpacing: '.08em', fontFamily: NUM_FONT }}>{label}</span>
-          <span style={{ fontSize: 9, color: C.text3 }}>{note}</span>
-        </div>
-        {collapsed ? (
-          <details>
-            <summary style={{ fontSize: 9.5, color: C.text3, padding: '0 14px 8px', cursor: 'pointer', fontFamily: NUM_FONT }}>
-              {list.length} arm{list.length > 1 ? 's' : ''} — expand
-            </summary>
-            {body}
-          </details>
-        ) : body}
-      </div>
-    )
-  }
+  // Row and Group now live at module scope, above this function — see the
+  // comment there for why (native <details> state was getting wiped by a
+  // fresh component identity on every poll-driven re-render).
 
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
@@ -1257,23 +1292,11 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           }
         }
 
-        const Flow = ({ num, title, note }) => (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '20px 0 8px', paddingBottom: 5, borderBottom: `1px solid ${C.border}` }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 999, padding: '1px 8px' }}>{num}</span>
-            <span style={{ fontSize: 12.5, fontWeight: 900 }}>{title}</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>{note}</span>
-          </div>
-        )
-        // The `Tile` helper came out 2026-08-16 with the five tiles it drew —
-        // see the takeaways comment above for where each number went.
-        //
-        // A demoted panel: closed by default, honest label about what's inside.
-        const Fold = ({ label, children }) => (
-          <details style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 8 }}>
-            <summary style={{ padding: '8px 13px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
-            <div style={{ padding: '4px 10px 10px' }}>{children}</div>
-          </details>
-        )
+        // Flow and Fold now live at module scope (2026-08-18) — this whole
+        // block is an IIFE inside Results' JSX, re-run on every render, so
+        // these were getting a fresh identity even more often than the other
+        // two instances of this bug. See Scoreboard.js's Fold for the full
+        // diagnosis of why that silently closes an opened <details>.
 
         return (
         <>

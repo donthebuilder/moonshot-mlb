@@ -21,6 +21,32 @@ import ProjectedOutput from '../ProjectedOutput'
 import { groupPitchers, groupGames } from '../../lib/data'
 import { airParts, airVerdict } from '../../lib/conditions'
 
+// ── FOLD LIVES AT MODULE SCOPE, NOT INSIDE Scoreboard() (fixed 2026-08-18) ──
+//
+// Donovan: "the projected output is glitching... a lot of the site with the
+// stuff that refreshes its glitches or closes when open and refreshes."
+//
+// This was it. `Fold` used to be declared INSIDE the Scoreboard function
+// body, which means every render created a BRAND NEW function — and React
+// treats a JSX element's `type` by function identity, not by what the
+// function does. A new identity for <Fold> every render is a different
+// component as far as React is concerned, so it unmounted the old <details>
+// and mounted a fresh one — on every single re-render, including the silent
+// background poll (every 45s live, 5min idle; see Dashboard.js). A user-
+// opened <details> is native, uncontrolled DOM state, and unmounting it
+// throws that state away. The "open" fold you were reading would slam shut
+// the next time the slate silently refreshed underneath you — not a data
+// problem, a component-identity problem. Same bug, hoisted the same way, in
+// Results.js (PitcherWeaknessDigest's Group/Row, and the overview tab's
+// Fold/Flow) — grep the codebase for "const Fold = (" or similar nested
+// component declarations before adding another one anywhere on the site.
+const Fold = ({ label, open = false, children }) => (
+  <details open={open} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 10 }}>
+    <summary style={{ padding: '8px 13px', fontSize: 11, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
+    <div style={{ padding: '2px 12px 10px' }}>{children}</div>
+  </details>
+)
+
 // Scoreboard — every hitter on the slate, every column, sortable.
 //
 // This page was already a sortable table; what it lacked was colour. At 15+
@@ -304,12 +330,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // nothing is gone.
   const liveNow = results?.live_mode === true
 
-  const Fold = ({ label, open = false, children }) => (
-    <details open={open} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 10 }}>
-      <summary style={{ padding: '8px 13px', fontSize: 11, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
-      <div style={{ padding: '2px 12px 10px' }}>{children}</div>
-    </details>
-  )
+  // Fold now lives at module scope, above this function — see the long
+  // comment there for why that fixes the "closes when it refreshes" bug.
 
   const secStart = <StartHere key="start" onNavigate={onNavigate} />
   const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />
