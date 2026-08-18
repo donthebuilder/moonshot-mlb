@@ -17,7 +17,8 @@ import SlatePulse from '../SlatePulse'
 import HomerLedger from '../HomerLedger'
 import LiveWire from '../LiveWire'
 import NearMisses from '../NearMisses'
-import { groupPitchers } from '../../lib/data'
+import ProjectedOutput from '../ProjectedOutput'
+import { groupPitchers, groupGames } from '../../lib/data'
 import { airParts, airVerdict } from '../../lib/conditions'
 
 // Scoreboard — every hitter on the slate, every column, sortable.
@@ -323,8 +324,23 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // between-innings question is who's been hitting homers without getting
   // one — that's the drought most likely to end tonight.
   const secNear = (
-    <Fold key="near" label="🧱 Near misses — homer contact, no homer, 2+ games" open>
+    <Fold key="near" label="🧱 Near misses — the contact that says one's coming" open>
       <NearMisses players={players} onPlayerClick={onPlayerClick} />
+    </Fold>
+  )
+  // 📈 PROJECTED OUTPUT, MOVED HERE FROM GAMES (2026-08-18). Donovan: "put the
+  // projected output on the scoreboard page" — Games is a per-game browsing
+  // tool, and this is a slate-wide check ("did the model see what I'm looking
+  // at"), which belongs beside the rest of this page's whole-board panels
+  // rather than at the foot of a card grid it has nothing to do with.
+  // groupGames() is the same helper Games.js used to build its own `games`
+  // prop — imported fresh here rather than threaded through as a prop, since
+  // Scoreboard already receives the flat `players` list this page is built
+  // from and grouping it is a one-line memo, not new data.
+  const projGames = useMemo(() => groupGames(players), [players])
+  const secProjected = (
+    <Fold key="projected" label="📈 Projected output — the slate's expected count" open>
+      <ProjectedOutput games={projGames} players={players} />
     </Fold>
   )
   // 🧾 the ledger builds through the night — lives with the live layer.
@@ -425,13 +441,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // The picks go first. StartHere follows them, which is also where an
   // explainer belongs: after the thing it explains, for the reader who wants it.
   const order = liveNow
-    ? [secPicks, secWire, secGone, secLedger, secNear, secStart, secPulse, secWeak]
-    : [secPicks, secStart, secPulse, secNear, secWire, secGone, secLedger, secWeak]
+    ? [secPicks, secWire, secGone, secLedger, secNear, secProjected, secStart, secPulse, secWeak]
+    : [secPicks, secStart, secPulse, secNear, secProjected, secWire, secGone, secLedger, secWeak]
 
   return (
     <div>
       <PanelTitle
-        title="Scoreboard"
+        title="Rundown"
         sub={`${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}
         right={
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>

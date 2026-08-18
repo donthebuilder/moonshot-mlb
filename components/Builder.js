@@ -49,7 +49,16 @@ export default function Builder({
   const [q, setQ] = useState('')
   const [pins, setPins] = useState([])          // slate rows, any number
   const [poolMode, setPoolMode] = useState('picks')   // 'picks' | 'anyone'
-  const [showPartners, setShowPartners] = useState(false)
+  // ── PAIR BUILDER, PROMOTED (2026-08-18) ───────────────────────────────────
+  // Donovan: "the pair builder thing i'm looking for it to be like the pair
+  // builder the first picture at the top or the base of the builder." It used
+  // to default CLOSED behind a "▸ Who has history with them" toggle unless an
+  // undesignated pin forced it open — so on a normal visit (a bot-designated
+  // anchor, the common case) it was invisible until you went looking for it.
+  // Defaulting it open puts it at the base of the page on every visit, which
+  // is the "at the base of the builder" half of the ask; the collapse button
+  // stays for anyone who wants the room back.
+  const [showPartners, setShowPartners] = useState(true)
 
   const pool = players.length ? players : allPlayers
 
@@ -225,7 +234,7 @@ export default function Builder({
             color: (showPartners || freePins.length) ? C.orange : C.text3,
           }}
         >
-          {(showPartners || freePins.length > 0) ? '▾' : '▸'} Who has history with {pins.length > 1 ? 'them' : 'him'}
+          {(showPartners || freePins.length > 0) ? '▾' : '▸'} 🤝 Pair Builder — who has history with {pins.length > 1 ? 'them' : 'him'}
         </button>
         <span style={{ fontSize: 9.5, color: C.text3, marginLeft: 8 }}>
           same-game record on every partner — works for ANY hitter, designated or not

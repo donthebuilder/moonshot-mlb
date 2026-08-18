@@ -46,6 +46,44 @@ const MARKETS = [
 
 const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '')
 
+// ── GROUP + SHAPE TAGS (2026-08-18) ─────────────────────────────────────────
+// Donovan: "it should have the ability to just build around player and use
+// filter tags like groups singles or shape." Two tag rows, both off fields
+// already on the slate row — no new fetch, same rule every other pass this
+// round followed.
+//
+//   GROUP — the bot's own designation (TOP/HR/HIT/HRR/CONTACT), the same five
+//   slots Results grades and GroupTicketBuilder builds legs from. Narrows the
+//   partner table to hitters the bot actually singled out tonight, in a
+//   specific role — not just "on the slate".
+//
+//   SHAPE — his recent batted-ball shape, the same three buckets NearMisses
+//   reads off hr_shape_profile: a no-doubter/moonshot bat, a wall-scraper
+//   (contact that's been JUST missing), or neither published/neutral. Lets
+//   you ask "who pairs with him AND has been hitting them deep lately" versus
+//   "...AND has had a lot of near misses" without reading every row's shape
+//   column by eye.
+const GROUP_TAGS = [
+  { key: 'TOP',     label: 'Top',     color: '#FCD34D' },
+  { key: 'HR',      label: 'HR',      color: '#FB923C' },
+  { key: 'HIT',     label: 'Hit',     color: '#60A5FA' },
+  { key: 'HRR',     label: 'HRR',     color: '#22d3ee' },
+  { key: 'CONTACT', label: 'Contact', color: '#A78BFA' },
+]
+const groupTagsOf = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
+
+const SHAPE_TAGS = [
+  { key: 'moonshot', label: '💣 Moonshot', title: 'Recent contact includes a moonshot (well past the fence) — hr_shape_profile.moonshot' },
+  { key: 'wall',      label: '🧱 Wall scraper', title: 'Recent contact includes a wall-scraper — a real near miss — hr_shape_profile.wall_scraper' },
+]
+const shapeTagsOf = (raw) => {
+  const prof = raw?.hr_shape_profile || {}
+  const out = []
+  if (n(prof?.moonshot, 0) + n(prof?.no_doubter, 0) > 0) out.push('moonshot')
+  if (n(prof?.wall_scraper, 0) > 0) out.push('wall')
+  return out
+}
+
 // WHY THIS PARTNER — the sentence the table made you assemble yourself
 // (2026-08-09). Nothing new is computed: every clause below is a column that
 // was already on the row, said in words and ordered by how much it actually
@@ -185,6 +223,10 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
   // user clicks it, the click wins on every market.
   const [histOverride, setHistOverride] = useState(null)
   const histOnly = histOverride == null ? marketKey === 'hr' : histOverride
+  // GROUP + SHAPE filters (2026-08-18, see the note above GROUP_TAGS). Both
+  // null means "no filter" — off by default, same pattern as histOverride.
+  const [groupFilter, setGroupFilter] = useState(null)
+  const [shapeFilter, setShapeFilter] = useState(null)
 
   // partnerKey -> { today, per: [{ anchorKey, anchorName, fit, sameGame, ... }] }
   //
@@ -324,8 +366,15 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
     // requireAll stays strict — it's an explicit click, and its empty state
     // below says exactly why it's empty.
     if (requireAll && total > 1) filtered = filtered.filter((r) => r.all)
+    // GROUP / SHAPE. Unlike histOnly, these stay strict when they empty the
+    // list — same choice as requireAll just above — because "no partner
+    // tonight is BOTH a bot HR pick AND a wall-scraper" is itself a real,
+    // useful answer, not a filter to silently drop. The empty state below
+    // names whichever tag is on so it's obvious what to loosen.
+    if (groupFilter) filtered = filtered.filter((r) => groupTagsOf(r._raw).includes(groupFilter))
+    if (shapeFilter) filtered = filtered.filter((r) => shapeTagsOf(r._raw).includes(shapeFilter))
     return filtered.sort((a, b) => (b.matched - a.matched) || (b.fit - a.fit))
-  }, [active, activeKeys, players, pairs, slate, requireAll, histOnly, mScore, marketKey])
+  }, [active, activeKeys, players, pairs, slate, requireAll, histOnly, mScore, marketKey, groupFilter, shapeFilter])
 
   const shown = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -518,6 +567,54 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         </div>
       )}
 
+      {/* GROUP + SHAPE TAGS (2026-08-18) — see the note above GROUP_TAGS.
+          Two independent rows, AND'd together with everything above: narrow
+          the partner table to a bot-designated role, a recent contact shape,
+          or both. Off by default — the table is every hitter on the slate
+          until you tag it down. */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6, alignItems: 'center' }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Group</span>
+        {GROUP_TAGS.map((t) => {
+          const on = groupFilter === t.key
+          return (
+            <button key={t.key} onClick={() => setGroupFilter(on ? null : t.key)}
+              title={`Only partners the bot designated tonight's ${t.label} pick`}
+              style={{
+                padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                fontFamily: NUM_FONT,
+                border: `1px solid ${on ? t.color : C.border}`,
+                background: on ? `${t.color}22` : 'transparent',
+                color: on ? t.color : C.text3,
+              }}
+            >{t.label}</button>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Shape</span>
+        {SHAPE_TAGS.map((t) => {
+          const on = shapeFilter === t.key
+          return (
+            <button key={t.key} onClick={() => setShapeFilter(on ? null : t.key)}
+              title={t.title}
+              style={{
+                padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+                fontFamily: NUM_FONT,
+                border: `1px solid ${on ? C.orange : C.border}`,
+                background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                color: on ? C.orange : C.text3,
+              }}
+            >{t.label}</button>
+          )
+        })}
+        {(groupFilter || shapeFilter) && (
+          <button onClick={() => { setGroupFilter(null); setShapeFilter(null) }} style={{
+            padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+            border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, fontFamily: NUM_FONT,
+          }}>clear tags</button>
+        )}
+      </div>
+
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `4px solid ${C.orange}`,
         borderRadius: 12, padding: '11px 15px', marginBottom: 12,
@@ -553,7 +650,11 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
 
       {!partners.length ? (
         <div style={{ fontSize: 11.5, color: C.text3 }}>
-          {multi && requireAll
+          {groupFilter || shapeFilter
+            ? <>Nobody left matches{groupFilter ? ` the ${GROUP_TAGS.find((t) => t.key === groupFilter)?.label} group` : ''}
+                {groupFilter && shapeFilter ? ' and' : ''}{shapeFilter ? ` the ${SHAPE_TAGS.find((t) => t.key === shapeFilter)?.label.replace(/^\S+\s/, '')} shape` : ''} tag
+                {(groupFilter && shapeFilter) ? 's' : ''} tonight — clear the tag{(groupFilter && shapeFilter) ? 's' : ''} above to see everyone again.</>
+            : multi && requireAll
             ? `No single hitter on tonight's slate shares homer history with all ${active.length} of them. Turn off "shared by all ${active.length}" to see partial matches.`
             : 'Nobody else is on tonight’s slate to pair with.'}
         </div>

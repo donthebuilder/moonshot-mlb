@@ -1,8 +1,12 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, mlbId } from '../lib/player'
-import { usePeople, slateAlignments, AXIS_META } from '../lib/alignments'
+import { nameOf, mlbId, playerId } from '../lib/player'
+import { easternToday } from '../lib/data'
+import {
+  usePeople, slateAlignments, AXIS_META,
+  readAlignArchive, shiftDateKey, dateDigitRoot,
+} from '../lib/alignments'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔮 ALIGNMENTS — where the numerology fully lives and breathes
@@ -23,13 +27,50 @@ import { usePeople, slateAlignments, AXIS_META } from '../lib/alignments'
 
 const ROOT_COLORS = ['', '#f97316', '#f59e0b', '#22d3ee', '#4ade80', '#a78bfa', '#f87171', '#60a5fa', '#FCD34D', '#c084fc']
 
-export default function Alignments({ players = [], onPlayerClick, onBuildAround }) {
+export default function Alignments({ players = [], watchIds = null, slateDate = '', onPlayerClick, onBuildAround }) {
   const { people, loaded } = usePeople(players)
   const [picked, setPicked] = useState(() => new Set())
   const [openRoot, setOpenRoot] = useState(null)
 
   const model = useMemo(() => slateAlignments(players, people), [players, people, loaded])
   const { rows, clubs, totalMemberships, braids, names } = model
+
+  // ── THE ARCHIVE, READ (2026-08-18) ────────────────────────────────────────
+  // Donovan: "show daily number for today and yesterday['s] number that hit a
+  // lot or aligned the most the night before... help see if the players on
+  // watch list are aligned or aligning number for today yesterday and the
+  // next day." HomerLedger.js is the WRITER (it's the only place with real
+  // graded homers to learn from); this reads back what it wrote. Polled
+  // rather than read once, because HomerLedger keeps updating today's key all
+  // night and this view has no other way to know that happened — it's a
+  // localStorage read, not a subscription. 60s matches the cadence of the
+  // site's other soft pollers (Games.js's lineup watch).
+  const todayKey = slateDate || easternToday()
+  const yesterdayKey = shiftDateKey(todayKey, -1)
+  const tomorrowKey = shiftDateKey(todayKey, 1)
+  const [archiveTick, setArchiveTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setArchiveTick((t) => t + 1), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  const yesterdayArchive = useMemo(() => readAlignArchive(yesterdayKey), [yesterdayKey, archiveTick])
+  const todayArchive = useMemo(() => readAlignArchive(todayKey), [todayKey, archiveTick])
+  const tomorrowRoot = useMemo(() => dateDigitRoot(tomorrowKey), [tomorrowKey])
+
+  // Every watched hitter who's actually on tonight's slate, with the three
+  // day-roots checked against his OWN axes (jersey/birthday/life-path — none
+  // of which change day to day, so "does he line up with tomorrow" is
+  // answerable before tomorrow's roster even exists).
+  const watchedRows = useMemo(() => {
+    if (!watchIds || !watchIds.size) return []
+    return rows.filter((a) => watchIds.has(playerId(a.p))).map((a) => {
+      const ownRoots = new Set(Object.values(a.axes).filter((v) => v != null))
+      const hitsYesterday = yesterdayArchive?.topRoot && ownRoots.has(yesterdayArchive.topRoot.root)
+      const hitsToday = todayArchive?.topRoot && ownRoots.has(todayArchive.topRoot.root)
+      const hitsTomorrow = tomorrowRoot != null && ownRoots.has(tomorrowRoot)
+      return { a, hitsYesterday, hitsToday, hitsTomorrow, any: hitsYesterday || hitsToday || hitsTomorrow }
+    })
+  }, [watchIds, rows, yesterdayArchive, todayArchive, tomorrowRoot])
 
   const toggle = (pid) => setPicked((v) => {
     const next = new Set(v)
@@ -62,6 +103,113 @@ export default function Alignments({ players = [], onPlayerClick, onBuildAround 
         in every club by arithmetic alone, so read the <b style={{ color: C.text2 }}>×</b> against that share, not the raw count.
         Fun to track, never a reason to bet — nothing here feeds any score. Check names as you go and hand them to the builder.
       </div>
+
+      {/* ── THE DAYS — yesterday's actual root, today's so far, tomorrow's
+          date (2026-08-18). Everything above this is the PREGAME slate,
+          projecting who might align before a single ball has flown. This is
+          the only place on the page looking at what actually happened —
+          yesterday and tonight-so-far both come from HomerLedger's real
+          graded homers, archived by date (see lib/alignments.js). Per-browser
+          storage, said plainly rather than implied. */}
+      <div style={{
+        border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2,
+        padding: '9px 13px', marginBottom: 10,
+      }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, color: C.text2, marginBottom: 6 }}>
+          📅 Yesterday · Today · Tomorrow
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Yesterday, actually</div>
+            {yesterdayArchive?.topRoot ? (
+              <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
+                Root <b style={{ color: ROOT_COLORS[yesterdayArchive.topRoot.root], fontFamily: NUM_FONT, fontSize: 13 }}>{yesterdayArchive.topRoot.root}</b> hit
+                the most — {yesterdayArchive.topRoot.names.slice(0, 6).join(', ')}
+                {yesterdayArchive.topRoot.names.length > 6 && ` +${yesterdayArchive.topRoot.names.length - 6} more`}.
+                {yesterdayArchive.aligned?.length > 0 && (
+                  <> {yesterdayArchive.aligned.length} hitter{yesterdayArchive.aligned.length === 1 ? '' : 's'} aligned two ways or more.</>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: 10, color: C.text3, marginTop: 2, lineHeight: 1.5 }}>
+                No archive from yesterday on this browser — either nothing cleared the bar, or this browser
+                wasn&apos;t open for it. It fills in on its own once a night runs with this tab open.
+              </div>
+            )}
+          </div>
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Tonight, so far</div>
+            {todayArchive?.topRoot ? (
+              <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
+                Root <b style={{ color: ROOT_COLORS[todayArchive.topRoot.root], fontFamily: NUM_FONT, fontSize: 13 }}>{todayArchive.topRoot.root}</b> leads
+                so far — {todayArchive.topRoot.names.slice(0, 6).join(', ')}
+                {todayArchive.topRoot.names.length > 6 && ` +${todayArchive.topRoot.names.length - 6} more`}.
+                {' '}(off {todayArchive.total} homer{todayArchive.total === 1 ? '' : 's'} — the HR Ledger has the live count.)
+              </div>
+            ) : (
+              <div style={{ fontSize: 10, color: C.text3, marginTop: 2, lineHeight: 1.5 }}>
+                Nothing&apos;s landed yet tonight — this fills in the moment the first ball leaves the yard
+                (the HR Ledger, in Pairs &amp; Pools, tracks it live).
+              </div>
+            )}
+          </div>
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Tomorrow&apos;s date</div>
+            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
+              {tomorrowKey} reduces to root <b style={{ color: ROOT_COLORS[tomorrowRoot], fontFamily: NUM_FONT, fontSize: 13 }}>{tomorrowRoot}</b>.
+              A hitter&apos;s jersey, birthday and life path don&apos;t change day to day, so anyone whose own
+              numbers land on {tomorrowRoot} is worth a glance once tomorrow&apos;s slate loads — see your
+              watchlist below.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── YOUR WATCHLIST, CROSS-CHECKED (2026-08-18) ─────────────────────
+          Donovan: "it also helps to see if the players on watch list are
+          aligned or aligning number for today yesterday and the next day."
+          Only renders with a watchlist AND at least one of those names on
+          tonight's slate — an empty watchlist has nothing to cross-check. */}
+      {watchIds && watchIds.size > 0 && (
+        <div style={{
+          border: `1px solid ${watchedRows.some((w) => w.any) ? C.orange + '77' : C.border}`,
+          background: watchedRows.some((w) => w.any) ? 'rgba(249,115,22,.06)' : C.bg2,
+          borderRadius: 10, padding: '9px 13px', marginBottom: 10,
+        }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: C.text2, marginBottom: 4 }}>
+            ⭐ Your watchlist, aligning
+          </div>
+          {watchedRows.length === 0 ? (
+            <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.5 }}>
+              None of your starred hitters are on tonight&apos;s slate.
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, marginBottom: 6 }}>
+                Checked against his own jersey / birthday / life-path roots — <b style={{ color: C.orange }}>Y</b> = matches
+                yesterday&apos;s leading root, <b style={{ color: C.orange }}>T</b> = today&apos;s so far, <b style={{ color: C.orange }}>+1</b> = tomorrow&apos;s date.
+              </div>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {watchedRows.map(({ a, hitsYesterday, hitsToday, hitsTomorrow, any }) => (
+                  <button key={a.pid} onClick={() => toggle(a.pid)}
+                    title={`click to ${picked.has(a.pid) ? 'remove from' : 'add to'} your build list`}
+                    style={{
+                      padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+                      border: `1px solid ${picked.has(a.pid) ? C.orange : any ? C.orange + '55' : C.border}`,
+                      background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
+                    }}>
+                    {a.name}
+                    {hitsYesterday && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>Y</span>}
+                    {hitsToday && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>T</span>}
+                    {hitsTomorrow && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>+1</span>}
+                    {!any && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>·</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── THE CLUBS — nine roots, concentration stated ─────────────────── */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>

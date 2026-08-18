@@ -327,9 +327,37 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
             The two pills that live in this file are threaded into SlateTiles
             as elements so the whole strip renders as one ordered row instead
             of two groups that wrap independently on narrow screens. */}
-        {/* display:none, NOT unmounted — see the condense comment up top.
-            SlateTiles owns polling state; a remount on every scroll reversal
-            would re-derive it, and the facts are one scroll-up away. */}
+        {/* ── THE "PAGE BREAK" — DIAGNOSED 2026-08-18, FIXED AT THE CONSUMER ──
+            Donovan, on the Lineups page: "when scroll down it does the dumb
+            page break thing." Traced it: this block toggling `display:
+            condensed ? 'none' : 'flex'` shrinks the header's real in-flow
+            height by ~110px in one frame, --hdr-h (written from this block's
+            measured height, see the top of this file) drops the same amount
+            the next frame, and the Games/Lineups jump strip — the only thing
+            on the site that reads --hdr-h — teleports upward by however much
+            you'd scrolled PLUS that whole block's height, all at once.
+            Confirmed on a 390px viewport: scrolling 30px (y 170→200) moved
+            the jump strip's screen position by 127px.
+            An EARLIER version of this fix tried animating this block's own
+            height (max-height transition instead of display:none). That
+            traded one bug for a worse one: shrinking the header's real
+            layout height, even gradually, shrinks the page's total
+            scrollHeight while it happens, which can force the browser to
+            clamp window.scrollY down mid-animation on a page that isn't much
+            taller than the viewport — which flipped `condensed` back to
+            false mid-collapse, which let the "record the expanded height"
+            effect below capture a mid-transition (small) height into
+            expandedH.current, which permanently failed the `> TALL` guard
+            and disabled condensing for the rest of the session. Reproduced
+            with real wheel-scroll events, not just programmatic jumps.
+            So this block is back to the original instant toggle — the
+            header's own layout is not a safe thing to animate — and the fix
+            lives where the actual jump is felt: the jump strip itself
+            (components/tabs/Games.js) now transitions its `top` property, so
+            IT glides to the new offset instead of snapping, without the
+            header's own height ever changing gradually. display:none, NOT
+            unmounted — SlateTiles owns polling state and a remount would
+            re-derive it; the facts are one scroll-up away. */}
         <div style={{
           display: condensed ? 'none' : 'flex',
           alignItems:'center', justifyContent:'center',

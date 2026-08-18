@@ -10,9 +10,7 @@ import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
-import HomerLedger from '../HomerLedger'
 import GameLineup from '../GameLineup'
-import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
@@ -290,6 +288,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // spot damage down the slate, the next game should open on spot damage
   // rather than making you re-pick the pill twelve times.
   const [panel, setPanel] = useState('read')
+  // ── BOT OUTPUT, MERGED INTO DEFAULT (2026-08-18) ──────────────────────────
+  // Donovan: "remove the bot output thing like how it has the bars just merge
+  // that with the default somehow but do it suitable to like just a clickable
+  // [on] the picks to see that look." Bot Output used to be a fourth whole-page
+  // mode — its own button up top, its own copy of the grid — that differed
+  // from Default in exactly one place: the open game's pick cards rendered as
+  // five colour bars instead of the normal PlayerCard. That's a one-card
+  // decision, not a whole-page one, so it's now a toggle that lives where the
+  // picks actually are (the "This game's bot picks" header) instead of a mode
+  // button at the top that reloads the entire grid to change one section of
+  // it. `barsOn` replaces every `mode === 'botview'` check below.
+  const [barsOn, setBarsOn] = useState(false)
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
   // page to a card buried under ten others — "flies all the way to the
   // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
@@ -356,7 +366,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   const modeRow = (
     <div style={{ display: 'flex', gap: 6 }}>
       <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
-      <button onClick={() => setMode('botview')} style={btnStyle(C.cyan,   mode === 'botview')}>Bot Output</button>
       <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
       <button onClick={() => setMode('live')} style={{ ...btnStyle(C.green, mode === 'live'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         {anyLive && (
@@ -381,28 +390,23 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
      off the league feed, so a blank board (bot not yet published) must not
      lock the door on games already in progress. gview still wins — the Boxes
      pill keeps working from any mode. */
-  // 🧾 THE HOMER LEDGER — see the long note at its mount in
-  // components/tabs/Home.js for the whole placement story.
+  // 🧾 THE HOMER LEDGER — REMOVED FROM THIS TAB (2026-08-18).
   //
-  // DEFINED ONCE AND RENDERED IN BOTH RETURNS, deliberately. The first cut put
-  // it only inside the live-room branch below — and the render check caught
-  // that immediately: #tab=games came back without it, because the live room
-  // is behind the ⚾ Live pill and the default view is the card grid. Hiding
-  // the ledger behind a second pill is the exact complaint he raised, just
-  // relocated. It shows on Games whenever a game is on, whichever view you are
-  // standing in.
-  // NO live_mode GATE (2026-08-17). It was the second half of why nobody could
-  // find this — see the long note in components/HomerLedger.js. The component
-  // now owns its own empty state and refuses on tomorrow's slate, so gating the
-  // mount as well only ever hid it during the hours people are looking.
-  const ledger = <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+  // Donovan: "tka eht hr ledger form the games page tooi doens need to be
+  // there" — take the HR ledger off the Games page too, it doesn't need to
+  // be there. It stays mounted on Home.js and on Combos.js (the Pairs &
+  // Pools view) — see the long placement note at the Home.js mount for why
+  // those two earned the slot. Games is a per-game browsing tool; the
+  // ledger's job (what already happened, running the whole night) doesn't
+  // belong stapled above a card grid that's mid-scroll toward a specific
+  // game.
 
   if (mode === 'live' && gview !== 'boxes') {
     return (
       <div>
         <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
         <PanelTitle
-          title="Games"
+          title="Slate"
           sub="the live batter's room — who is standing in right now, the count, every pitch, tonight's zone and spray"
           right={modeRow}
         />
@@ -411,7 +415,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           what tonight looks like while it is happening — every live game with the man at the plate, the at-bat pitch by pitch, and where his contact is going. It wakes up at first pitch.
         </div>
 
-        {ledger}
         {/* allPlayers, not players, same reason as Boxes below: the live room
             is not subject to the header's team filter — filtering it makes
             live games appear to lose their hitters. players is the fallback
@@ -475,10 +478,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           repo keeps finding; Donovan's own screenshots surfaced it within
           the hour. Park-factor work goes in ParkBoard. */}
       <PanelTitle
-        title="Games"
+        title="Slate"
         sub={`${games.length} games · ${slots.length} time slots · ${
           mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
-          : mode === 'botview' ? "the picks with the bot's five category bars per card"
           : 'the slate as game cards in first-pitch order — sort them any way below, tap one and switch between its read, its lineups, the head-to-head and the picks in place'
         }`}
         right={modeRow}
@@ -492,8 +494,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         <b style={{ color: C.text2 }}>What this answers:</b>{' '}
         {mode === 'lineups'
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
-          : mode === 'botview'
-          ? 'which hitter the bot designated in each game, and in which market — the five category bars show whether it likes him for power or for contact.'
           : mode === 'live'
           ? 'what is happening right now — the hitter at the plate, his zone map and spray, and who is coming up behind him. This is the At the Plate room, in place, so you do not leave the slate to watch it.'
           // 2026-08-16: this used to say "bigger, brighter cards are the
@@ -506,13 +506,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
       </div>
 
-      {ledger}
-
-      {/* Sort control (2026-08-12) — Default/Bot Output only. Time is the
-          default and matches first pitch; the other three re-order the same
-          cards by a single number instead of leaving you to eyeball the
-          heat-sizing. Not shown in Lineups mode, where the strip is a jump
-          bar, not the thing you're reading. */}
+      {/* Sort control (2026-08-12) — not shown in Lineups mode, where the strip
+          is a jump bar, not the thing you're reading. Time is the default and
+          matches first pitch; the other options re-order the same cards by a
+          single number instead of leaving you to eyeball the heat-sizing. */}
       {mode !== 'lineups' && (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
           <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
@@ -540,6 +537,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           position: 'sticky', top: 'var(--hdr-h, 86px)', zIndex: 20, background: C.bg,
           paddingTop: 6, paddingBottom: 8, marginBottom: 14,
           borderBottom: `1px solid ${C.border}`,
+          // ── THE "PAGE BREAK" FIX (2026-08-18) ────────────────────────────
+          // Donovan: "when scroll down it does the dumb page break thing."
+          // Header.js condenses on scroll and its own height (--hdr-h) drops
+          // by ~110px in a single frame when it does — this strip's `top`
+          // reads that variable, so it used to teleport up by 110px+ in one
+          // frame too, which is the jump he's describing. A `top` transition
+          // glides this strip to its new offset over the same beat instead
+          // of snapping to it. See Header.js's own note on why the animation
+          // lives here and not on the header's height itself (that path was
+          // tried first and had a worse bug: it could disable condensing
+          // entirely on a short page).
+          transition: 'top .18s ease',
         }}>
           <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} />
         </div>
@@ -665,7 +674,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           {lineupFocus && (
-            <button onClick={() => setLineupFocus(null)} style={{
+            <button onClick={() => { setLineupFocus(null); setActive(null) }} style={{
               flex: '1 1 100%', textAlign: 'left', cursor: 'pointer',
               background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 9,
               padding: '6px 12px', fontSize: 11, fontWeight: 700, color: C.text3,
@@ -732,10 +741,34 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                 border: `1px solid ${isSel ? C.orange : C.border}`, borderRadius: 13, overflow: 'hidden',
                 boxShadow: isSel ? `0 0 24px -8px ${C.orange}` : 'none', scrollMarginTop: 160,
               }}>
-                {/* header: matchup + conditions, PF-style but ours */}
-                <div style={{
+                {/* ── HEADER IS NOW THE FOCUS HANDLE (2026-08-18) ────────────
+                    Donovan: "make the lineup click side more intuitive." Before
+                    this, the ONLY way to zero in on one game's lineup card was
+                    the sticky bubble strip pinned to the top of the page — if
+                    you were already three cards down and wanted this one full
+                    width, you had to scroll all the way back up to click its
+                    bubble. Default mode never had that problem: its card
+                    header is the click target, right where your eyes already
+                    are. Lineups mode now works the same way — click this bar
+                    to bring this card to full width, click it again (or the
+                    "← All lineups" link above) to go back to the grid. The
+                    strip still works too; both paths land on the same state. */}
+                <div
+                  onClick={() => {
+                    // Mirrors scrollTo()'s bubble-click branch (line ~436),
+                    // minus the scroll-to-top — you're already looking at the
+                    // card, so keep it in view. Setting activeGame too keeps
+                    // the sticky strip's highlighted bubble in sync with
+                    // whichever card is actually focused below it.
+                    const next = lineupFocus === g.game_pk ? null : g.game_pk
+                    setLineupFocus(next)
+                    setActive(next)
+                  }}
+                  title={isSel ? 'Back to every lineup' : 'Focus this game — full width, slot by slot'}
+                  style={{
                   display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
                   padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
+                  cursor: 'pointer',
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
                   {/* ── THE SCORE, WHILE IT IS HAPPENING (2026-08-10) ──────
@@ -784,10 +817,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     )
                   })()}
                   <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
-                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 9, fontSize: 10, fontFamily: NUM_FONT }}>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT }}>
                     {temp > 0 && <span style={{ color: temp >= 82 ? C.orange : C.text2 }}>{Math.round(temp)}°</span>}
                     {wind > 0 && <span style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}mph</span>}
                     {parkF > 0 && <span style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>park ×{parkF.toFixed(2)}</span>}
+                    {/* Same caret language as Default mode's card header —
+                        one visual grammar for "this bar opens/focuses
+                        something," everywhere it's true on the site. */}
+                    <span style={{ color: isSel ? C.orange : C.text3, fontWeight: 800 }}>{isSel ? '▾' : '▸'}</span>
                   </span>
                 </div>
                 <div className="lineup-cols" style={{ display: 'flex', gap: 0 }}>
@@ -1044,10 +1081,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                   {s.hr9.toFixed(2)} HR/9
                                 </span>
                               )}
-                              {/* Bot Output speaks in bars (owner feedback
-                                  2026-08-08): the duel's HR/9 gets one too,
-                                  scaled 0–2.00 like the pen board reads. */}
-                              {mode === 'botview' && s.hr9 != null && (
+                              {/* Bars speak (owner feedback 2026-08-08): the
+                                  duel's HR/9 gets one too, scaled 0–2.00 like
+                                  the pen board reads, when the bar toggle
+                                  (below, on the picks) is on. */}
+                              {barsOn && s.hr9 != null && (
                                 <span style={{ width: 44, height: 5, background: 'rgba(255,255,255,.07)', borderRadius: 3, overflow: 'hidden', alignSelf: 'center' }}>
                                   <span style={{ display: 'block', width: `${Math.min(100, (s.hr9 / 2) * 100)}%`, height: '100%', background: s.hr9 >= 1.3 ? '#f87171' : s.hr9 >= 1.05 ? '#22d3ee' : '#4ade80' }} />
                                 </span>
@@ -1131,7 +1169,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
 
                         <div id={`gp-picks-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }} />
                         {(<>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11.5, fontWeight: 800 }}>
                             {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
                           </span>
@@ -1140,6 +1178,22 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               ? 'one per category, the same five slots Results grades'
                               : 'no designated picks published for this game yet'}
                           </span>
+                          {/* THE BAR TOGGLE (2026-08-18) — replaces the old
+                              Bot Output mode button. Click it to flip these
+                              cards to the five-category bar view in place;
+                              click again for the normal card back. Lives on
+                              the picks themselves, not a page-wide mode. */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setBarsOn((v) => !v) }}
+                            title={barsOn ? 'Back to the normal pick cards' : "See the bot's five category bars per card"}
+                            style={{
+                              marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, cursor: 'pointer',
+                              fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+                              border: `1px solid ${barsOn ? C.cyan : C.border}`,
+                              background: barsOn ? 'rgba(34,211,238,.14)' : 'transparent',
+                              color: barsOn ? C.cyan : C.text3,
+                            }}
+                          >📊 {barsOn ? 'Bars on' : 'Bars'}</button>
                         </div>
 
                         {/* FLEX, NOT GRID, on purpose — the last row stretches to
@@ -1182,7 +1236,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                 }}>{inner}</div>
                               </div>
                             )
-                            if (mode === 'botview') {
+                            if (barsOn) {
                   const { color: lcolor } = getRoleDisplay(p)
                   const pills = Array.isArray(p?.signal_pills) ? p.signal_pills : []
                   // Each bar in its category's site-wide colour, and the bar
@@ -1299,10 +1353,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         </>
       )}
 
-      {/* Bottom of the page on purpose. The strip and the game panel are the
-          task; this is the check you read afterwards to see whether the slate
-          agreed with what you just looked at. */}
-      <ProjectedOutput games={games} players={players} />
+      {/* ProjectedOutput moved to the Scoreboard/Rundown tab 2026-08-18 — see
+          components/tabs/Scoreboard.js for the note. Donovan: "put the
+          projected output on the scoreboard page." */}
 
       {/* sticky at the bottom while you shop the grid */}
       <PairTray

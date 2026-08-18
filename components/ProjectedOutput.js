@@ -531,6 +531,72 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [] }
         </div>
       </div>
 
+      {/* ── THE BAR CHART (2026-08-18) ────────────────────────────────────
+          Donovan: "if you can make the projected output chart any better do
+          it." Everything below this point has been a heat TABLE since it was
+          ported from Streamlit — a real chart (Heatmap.js literally says so
+          in its own header comment), but one you read cell by cell, not one
+          you can scan top to bottom in a glance. This adds an actual bar per
+          game, sorted the same as the table beneath it, so "where's the
+          power tonight" answers itself without reading a single number —
+          length alone tells you. Nothing is removed: the table, the podium
+          and every column still carry the full precision:  this is a second,
+          faster way IN to the same numbers, not a replacement for them.
+          The yellow tick is Adj HR — park, weather, pitcher trend and the
+          opposing pen layered on — drawn as a tick rather than a second bar
+          so it reads as a mark ON the projection, the same paired-dot
+          grammar the blank-board chart uses elsewhere on the site, not a
+          second series competing for the same axis. */}
+      {(() => {
+        const maxHr = rows.reduce((m, r) => {
+          const v = r.values['Proj HR']
+          const a = r.values['Adj HR']
+          return Math.max(m, Number.isFinite(v) ? v : 0, Number.isFinite(a) ? a : 0)
+        }, 0.0001)
+        return (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+              Proj HR by {by === 'game' ? 'game' : 'team'} — tonight&apos;s power, top to bottom
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {rows.map((r) => {
+                const val = r.values['Proj HR']
+                const adj = r.values['Adj HR']
+                const pct = Math.max(0, Math.min(100, (val / maxHr) * 100))
+                const adjPct = Number.isFinite(adj) ? Math.max(0, Math.min(100, (adj / maxHr) * 100)) : null
+                return (
+                  <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{
+                      width: 150, flexShrink: 0, fontSize: 10, color: C.text2, fontWeight: 700,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }} title={r.label}>{r.label}</span>
+                    <span style={{ flex: 1, position: 'relative', height: 13, background: 'rgba(255,255,255,.04)', borderRadius: 4, overflow: 'visible', minWidth: 0 }}>
+                      <span style={{
+                        position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, borderRadius: 4,
+                        background: 'linear-gradient(90deg, rgba(249,115,22,.4), rgba(249,115,22,.9))',
+                      }} />
+                      {adjPct != null && (
+                        <span title={`Adj HR ${adj.toFixed(1)} — park, weather, pitcher trend and the pen layered on`} style={{
+                          position: 'absolute', left: `${adjPct}%`, top: -2, bottom: -2, width: 2,
+                          background: '#FCD34D', borderRadius: 1,
+                        }} />
+                      )}
+                    </span>
+                    <span style={{ width: 84, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, color: C.text, textAlign: 'right' }}>
+                      {val.toFixed(1)}
+                      {adjPct != null && <span style={{ color: '#FCD34D', fontWeight: 700 }}> · {adj.toFixed(1)}</span>}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 9, color: C.text3, marginTop: 5 }}>
+              Bar length is Proj HR{pens ? <>; the <span style={{ color: '#FCD34D' }}>tick</span> marks Adj HR once the opposing pens load</> : ''} — same numbers as the table below, ordered top to bottom instead of read cell by cell.
+            </div>
+          </div>
+        )
+      })()}
+
       <Heatmap
         rows={rows}
         columns={[...COLUMNS, ...(pens ? ['Adj HR'] : [])]}

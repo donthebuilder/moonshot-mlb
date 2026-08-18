@@ -8,6 +8,7 @@ import { hrShapeMeta, hrLine } from '../lib/hrShape'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { easternToday } from '../lib/data'
 import { pregameLedger } from '../lib/pregameLedger'
+import { writeAlignArchive } from '../lib/alignments'
 import NamePatterns from './NamePatterns'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
@@ -635,8 +636,39 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       nextUp.sort((a, b) => (b.count - a.count) || (b.hrScore - a.hrScore))
     }
 
-    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot, nextUp: nextUp.slice(0, 5) }
+    // topJerseyRoot/topDayRoot/topLifePath carried into the return (2026-08-18)
+    // — they used to be local to this memo, only feeding the per-card `tags`
+    // above. The archive effect below needs them too, so today's numerology
+    // leaders (not just the homer-count root) can be written out for
+    // Alignments to read back tomorrow.
+    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot, nextUp: nextUp.slice(0, 5), topJerseyRoot, topDayRoot, topLifePath }
   }, [rows, players, seasonHr])
+
+  // ── THE ARCHIVE WRITE (2026-08-18) ────────────────────────────────────────
+  // Donovan: "the data can be stored in alignment for use, if need have the
+  // data for archive as well." This is the one place on the site that knows
+  // what ACTUALLY happened numerology-wise tonight — everywhere else
+  // (Alignments.js) only ever sees the pregame slate. So this writes a small
+  // summary under today's date every time the model changes with real homers
+  // in it; Alignments reads it back as "today's number so far" live, and as
+  // "yesterday's number" the next day, once this key stops being touched and
+  // is effectively frozen. Guarded to the REAL live date — a look at a past
+  // slateDate must never overwrite that day's own already-frozen archive.
+  useEffect(() => {
+    if (dateKey !== easternToday() || !model || !model.total) return
+    writeAlignArchive(dateKey, {
+      total: model.total,
+      topRoot: model.topRoot ? { root: model.topRoot.root, names: model.topRoot.list.map((c) => c.name) } : null,
+      topJerseyRoot: model.topJerseyRoot ? { root: model.topJerseyRoot.root, names: model.topJerseyRoot.list.map((c) => c.name) } : null,
+      topDayRoot: model.topDayRoot ? { root: model.topDayRoot.root, names: model.topDayRoot.list.map((c) => c.name) } : null,
+      topLifePath: model.topLifePath ? { root: model.topLifePath.root, names: model.topLifePath.list.map((c) => c.name) } : null,
+      roots: model.roots.map((r) => ({ root: r.root, n: r.list.length })),
+      aligned: model.aligned.slice(0, 15).map((c) => ({
+        pid: c.pid, name: c.name, team: c.team,
+        tags: c.tags.map((t) => t.label),
+      })),
+    })
+  }, [model, dateKey])
 
   // ── WHY THIS NOW RENDERS BEFORE THE FIRST HOMER (2026-08-17) ──────────────
   //

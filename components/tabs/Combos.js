@@ -70,6 +70,10 @@ export default function Combos({
   // fallbacks stay in place — nothing depends on these being supplied.
   odds = null,
   slateDate = '',
+  // 2026-08-18: threaded through for Alignments' watchlist cross-check —
+  // "help see if the players on watch list are aligning" — Combos never
+  // needed it before now, so it wasn't wired.
+  watchIds = null,
   initial = 'pairs',
 }) {
   // 'pools' is no longer a view of its own — the alias maps onto the combined
@@ -144,6 +148,8 @@ export default function Combos({
       {view === 'align' && (
         <Alignments
           players={allPlayers}
+          watchIds={watchIds}
+          slateDate={slateDate}
           onPlayerClick={onPlayerClick}
           onBuildAround={handleBuildAround}
         />

@@ -25,7 +25,12 @@ const TEXTS = {
     what: 'The front porch. A greeting, tonight in four numbers (games on the slate, the bot’s own projected HR range, first pitch, and its graded base-hit record), then a rotating line of real facts about tonight, the best air and weakest arms, and top-10 HR/hit boards. Nothing here is a new number — it’s the same data as every other tab, gathered up front. Pick a door below, or just start scrolling.',
   },
   scoreboard: {
-    what: 'This is tonight at a glance. The Four are the bot’s headline picks — one hitter per bet type (going deep, getting a hit, runs+RBI, total bases). During games the green Live wire at the top grades those picks in real time. Start here, click any name to open their full page.',
+    // ── REWRITTEN 2026-08-18 alongside the Rundown/Slate rename ─────────────
+    // The old text described only the top of the page (The Four + the live
+    // wire) as if that were the whole tab. It's the entry point into a full
+    // sortable every-hitter table — the thing the rename is trying to name —
+    // plus gone yard, near misses and projected output now live here too.
+    what: 'Every hitter on tonight’s slate, one sortable table — this is the Rundown. The Four (the bot’s headline pick per bet type) lead, then what’s already happened: the live wire, home runs already hit matched back to where the board had that hitter ranked, and the near misses that almost joined them. Projected output gives the slate’s expected home run count. Sort any column to ask a different question — Hit for contact plays, Park for launch pads — and click any name to open their full page.',
   },
   board: {
     what: 'Ranked lists of tonight’s hitters, one board per bet type, plus two lenses that sit alongside them: Power (distance, due bats and the luck report) and Patterns (the repeatable shapes — streaks, splits, after-a-blank). The score is the bot’s confidence on THAT bet — a 70 on the HR board and a 70 on the Hits board are different scales. 🤖 marks the bot’s official pick for that category, ★ means the pitcher is weak against this lineup spot, and “When picked” shows how this hitter has actually delivered before.',
@@ -59,6 +64,18 @@ const TEXTS = {
   },
   runs: {
     what: 'Every hitter on tonight’s card sorted by how many games running he has cleared the bar you pick — market and number are both chips, so 1+ Hit and 2+ Hits are different boards. The strip is his last games with the newest on the right and the active run lit up. Cold flips it to the drought board, because nine misses in a row is a position too. Each card also says how ordinary the streak is at his own rate: five in a row for a 60% hitter comes up about one stretch in thirteen.',
+  },
+  // ── ADDED 2026-08-18 ──────────────────────────────────────────────────
+  // Donovan: "still don't really know how to use the true price page kinda
+  // same with tonight's board the odds page — i like them both just don't
+  // know what to do on them." Root cause: this tab's route key is 'odds'
+  // (see lib/theme.js's TABS), and TEXTS had no 'odds' entry — only the old
+  // pre-consolidation 'trueprice' key below, which describes just its ONE
+  // sub-view. So the explainer silently rendered NOTHING (`if (!info) return
+  // null`) on the tab as everyone actually reaches it from the nav bar. Not
+  // a vague "make it clearer" ask — the explainer was never showing up.
+  odds: {
+    what: 'What the book is actually paying, tonight — two views. 💵 Tonight’s board is every live quote: the line, whether it’s plus money (the book thinks it’s unlikely — if your own read disagrees, that’s where the value is), and whether the book moved off the standard bar (1+ hit, 1+ homer) so you’re not reading a hit rate against a bet nobody’s offering. Home run is the only market with a real edge number, because hr_per_pa is the only per-game rate the slate publishes — everywhere else the price and the score sit side by side and you draw the line yourself. 🏷 True Price settles those same prices against the season: TRUE is what a hitter’s own rate says the bet is worth, GOES AT is what the book actually pays him, and the gap between them is the point — once it clears its own error bar. Start on the board for tonight’s live numbers; switch to True Price to see which gaps are backed by a real sample.',
   },
   trueprice: {
     what: 'Every price the bot fetched before first pitch, settled against that night’s box score. Two prices per row: TRUE is what a hitter’s own rate says the bet is worth, GOES AT is what the book has actually been paying him. The gap between them is the whole point — but a gap is not an edge until it beats its own error bar, so each row says how much the sample actually backs it. Click any row for the nights behind the numbers.',
