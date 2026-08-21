@@ -88,13 +88,21 @@ function ZoneMatchStrip({ zp, pzp }) {
   )
 }
 
-function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHover, hoverKey }) {
+function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHover, hoverKey, open }) {
   const [v, h] = align || ['center', 'center']
   const base = red ? '248,113,113' : '249,115,22'
   return (
     <div title={title}
       onMouseEnter={onHover ? () => onHover(hoverKey) : undefined}
       onMouseLeave={onHover ? () => onHover(null) : undefined}
+      /* tap-to-toggle (touch has no hover, but mobile browsers fire a
+         synthetic mouseenter right before click on a tap — reusing that
+         plus a naive functional toggle here would see its own mouseenter
+         update and instantly cancel it out. `open` is this cell's
+         hover-state from the LAST completed render, captured before that
+         synthetic mouseenter's update lands, so the first tap opens
+         cleanly and a second tap on an already-open cell closes it) */
+      onClick={onHover ? () => onHover(open ? null : hoverKey) : undefined}
       style={{
       display: 'flex', flexDirection: 'column',
       alignItems: h === 'left' ? 'flex-start' : h === 'right' ? 'flex-end' : 'center',
@@ -564,10 +572,10 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           position: 'relative', height: ZG.h,
           display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 3,
         }}>
-          <Cell {...cells['11']} align={['top', 'left']} onHover={setHover} hoverKey="11" />
-          <Cell {...cells['12']} align={['top', 'right']} onHover={setHover} hoverKey="12" />
-          <Cell {...cells['13']} align={['bottom', 'left']} onHover={setHover} hoverKey="13" />
-          <Cell {...cells['14']} align={['bottom', 'right']} onHover={setHover} hoverKey="14" />
+          <Cell {...cells['11']} align={['top', 'left']} onHover={setHover} hoverKey="11" open={hover === '11'} />
+          <Cell {...cells['12']} align={['top', 'right']} onHover={setHover} hoverKey="12" open={hover === '12'} />
+          <Cell {...cells['13']} align={['bottom', 'left']} onHover={setHover} hoverKey="13" open={hover === '13'} />
+          <Cell {...cells['14']} align={['bottom', 'right']} onHover={setHover} hoverKey="14" open={hover === '14'} />
           <div style={{
             position: 'absolute', inset: 44,
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)',
@@ -575,7 +583,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
             border: `1px solid ${C.border2}`,
           }}>
             {['01', '02', '03', '04', '05', '06', '07', '08', '09'].map((k) => (
-              <Cell key={k} {...cells[k]} big onHover={setHover} hoverKey={k} />
+              <Cell key={k} {...cells[k]} big onHover={setHover} hoverKey={k} open={hover === k} />
             ))}
           </div>
 
@@ -598,6 +606,11 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                     key={`${p.pi}-${p.seq}`}
                     onMouseEnter={() => setHoverP(i)}
                     onMouseLeave={() => setHoverP((v) => (v === i ? null : v))}
+                    /* tap-to-toggle, same touch fix as Cell above: `on` is this
+                       dot's hover-state from the last completed render, read
+                       before a tap's synthetic mouseenter update lands, so the
+                       toggle doesn't race its own mouseenter and cancel out */
+                    onClick={() => setHoverP(on ? null : i)}
                     style={{
                       position: 'absolute', left: pos.left, top: pos.top,
                       width: 20, height: 20, transform: 'translate(-50%,-50%)',
