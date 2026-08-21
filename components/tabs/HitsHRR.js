@@ -11,6 +11,12 @@ import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
 import { playerId } from '../../lib/player'
 
+// Which BoardFilters score-slider a view means by "Score" — mirrors the keys
+// BoardFilters.js's own SCORE_FOR_TYPE understands. weakspot/aligned/
+// matchupedge/blank aren't single-score rankings, so they fall through to
+// null and the Score slider simply doesn't render for them.
+const SCORE_TYPE_FOR_VIEW = { top: 'top', hr: 'hr', hit: 'hit', hrr: 'hrr', contact: 'contact' }
+
 // 📊 BOARDS — the nine ranked lenses, plus the power page and the streak page
 // they share a roof with.
 //
@@ -344,7 +350,13 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   const [view, setView] = useState('hr')
   const [proofOpen, setProofOpen] = useState(false)
   const stickTop = useHeaderOffset()
-  const { filtered, state } = useBoardFilter(players)
+  // Scoped to whichever lens is open (view), so the Score slider in
+  // BoardFilters reads hr_score on the HR board, hit_score on Hits, etc.,
+  // rather than guessing. Lifted here (not left inside RankedBoard) so the
+  // filter panel — bar, band, score range, games, chips — survives a lens
+  // switch instead of silently resetting every time view changes.
+  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[view] || null)
+  const { filtered, state } = filterState
 
   const boards = bview === 'boards'
   const pr = PROOF[view]
@@ -471,7 +483,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-            : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} />
+            : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} filterState={filterState} />
           }
         </>
       )}

@@ -39,7 +39,7 @@ function fetchMatrix() {
 // Which archive category answers for each board type.
 const ARCHIVE_CAT = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }
 
-export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60, slateDate = null }) {
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60, slateDate = null, filterState = null }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
   // his most recent game", and on a slate rebuilt after the 12:05 window that
@@ -56,7 +56,15 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   const setupHr = useSetupHomers(slateDate)
   const b2bIds = useMemo(() => (setupHr instanceof Set ? setupHr : null), [setupHr])
   const [title, sub] = TITLES[type] || TITLES.hr
-  const { filtered, state } = useBoardFilter(players)
+  // filterState: when the owning tab lifts the filter bar (so it survives a
+  // lens switch instead of resetting), it hands down its own {filtered,
+  // state} pair here. useBoardFilter is still called unconditionally below
+  // (React's rules of hooks — no calling a hook only on some renders); its
+  // result is just ignored when a filterState prop won the pick. That keeps
+  // every OTHER mount of this board (there are several) working exactly as
+  // before, unchanged, with no filterState prop at all.
+  const ownFilter = useBoardFilter(players)
+  const { filtered, state } = filterState || ownFilter
   // LIST IS THE DEFAULT (2026-08-04). The card grid is pretty but ranking-
   // opaque — nothing on it says who's #4 vs #14, which made "where is this
   // player ranked" a real complaint. The list leads with the rank number and
