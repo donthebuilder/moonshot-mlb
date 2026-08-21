@@ -29,6 +29,7 @@ import { downloadPlayerCard } from './shareCard'
 import BvP from './BvP'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
+import PlayerCompare from './PlayerCompare'
 
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
 // verified live; percentile computed from the same payload. Switch hitters
@@ -344,6 +345,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   const [tab, setTab] = useState('overview')
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
+  const [compareOpen, setCompareOpen] = useState(false)
 
   // THE MODAL HAS TO FETCH THE DETAIL FILE ITSELF.
   //
@@ -469,6 +471,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
     : 900
 
   return (
+    <>
     <Shell inline={inline} onClose={onClose} width={modalWidth}>
 
           {/* header */}
@@ -506,6 +509,20 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                     borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
                     cursor: 'pointer', minHeight: 26,
                   }}>📸</button>
+              )}
+              {/* ⚖ COMPARE (2026-08-21, Phase 4) — nothing in the codebase let
+                  you put two hitters' numbers next to each other before this;
+                  the Navigator right beside it only ever holds one player at
+                  a time, and its own comment names that exact gap. Gated the
+                  same way the watchlist/slip actions are: an api-only search
+                  hit has no model scores to compare. */}
+              {!apiOnly && peers.length > 1 && (
+                <button onClick={() => setCompareOpen(true)} title="Compare this hitter against another on tonight's slate"
+                  style={{
+                    background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
+                    borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
+                    cursor: 'pointer', minHeight: 26,
+                  }}>⚖</button>
               )}
               {onNavigate && peers.length > 1 && (
                 <Navigator peers={peers} cur={player} onNavigate={onNavigate} />
@@ -868,5 +885,9 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
           )}
 
     </Shell>
+    {compareOpen && (
+      <PlayerCompare anchor={p} peers={peers} onClose={() => setCompareOpen(false)} />
+    )}
+    </>
   )
 }
