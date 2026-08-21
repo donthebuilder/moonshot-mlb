@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { n, clean, arr } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
@@ -141,10 +142,69 @@ function LivePools({ results, players = [], onPlayerClick }) {
   )
 }
 
+// ── PRE-LOCK POOL CHANGE TRACKING (2026-08-19, Donovan: "the pools should
+// show who changed around if they changed before the firstpitch lock...
+// [I saw a] picture of the page in action same day [and] you see how they
+// are different[.] that cant happen. how and why[?] then fix.") ───────────
+//
+// It CAN happen, and here's the why: SlatePools renders whatever
+// pair_builder_latest.json says RIGHT NOW. The bot re-picks these pools as
+// its own inputs move pre-lock — odds shift, a lineup posts, a signal flips
+// — and Dashboard.js polls that same "latest" file every 45s while a game
+// is live and every 5 minutes otherwise (plus fresh on every page load). So
+// two honest screenshots of "today's pools," taken minutes apart before
+// first pitch, can legitimately show different rosters because the bot
+// changed its own pick, not because anything here is broken or stale.
+//
+// What was actually missing was any SIGN that had happened — a card just
+// silently swapped names between one look and the next, which reads exactly
+// like a bug even though the data behind it is correct at every instant.
+// This remembers each pool's last-seen roster (localStorage, keyed by date
+// + pool_key so yesterday's snapshot can never be compared against today's)
+// and flags a card the moment a poll brings back a different lineup for the
+// same slot — with the old names shown struck through, so "how it's
+// different" is answered right on the card instead of requiring two
+// screenshots side by side. Stops mattering once a pool grades — LivePools
+// takes over after lock, when rosters can no longer move.
+const POOL_SNAPSHOT_KEY = 'ms_pool_snapshot_v1'
+const rosterSig = (pl) => arr(pl.players).map((mb) => _pnorm(mb?.name)).sort().join(',')
+
+function usePoolSnapshots(all, dayKey) {
+  // null = "haven't checked localStorage yet" — deliberately distinct from
+  // {} ("checked, nothing saved yet") so the very first render of a brand
+  // new day never flags every pool as "changed" against nothing.
+  const [prevByKey, setPrevByKey] = useState(null)
+  const sig = all.map((pl, i) => `${pl.pool_key || `${pl.kind}-${i}`}=${rosterSig(pl)}`).join('|')
+
+  useEffect(() => {
+    if (!all.length || !dayKey) return
+    let store = {}
+    try { store = JSON.parse(localStorage.getItem(POOL_SNAPSHOT_KEY) || '{}') } catch { /* ignore */ }
+    const dayStore = store[dayKey] || {}
+    const prev = {}
+    const next = {}
+    all.forEach((pl, i) => {
+      const k = String(pl.pool_key || `${pl.kind}-${i}`)
+      prev[k] = dayStore[k]
+      next[k] = { sig: rosterSig(pl), names: arr(pl.players).map((mb) => mb?.name).filter(Boolean) }
+    })
+    setPrevByKey(prev)
+    try {
+      // Only today's key is rewritten; older days already sitting in the
+      // blob are left alone rather than pruned — same "small enough to keep
+      // forever" call Alignments' own archive makes (ms_align_archive_*).
+      localStorage.setItem(POOL_SNAPSHOT_KEY, JSON.stringify({ ...store, [dayKey]: next }))
+    } catch { /* storage full or unavailable — page still works, just won't flag */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `sig` IS the content of `all`
+  }, [sig, dayKey])
+
+  return prevByKey
+}
+
 // Pre-game fallback: before anything grades, show the same pools from the
 // pair-builder file so the page never reads empty. Ungraded on purpose — no
 // fake 0/4 progress before first pitch, just the rosters.
-function SlatePools({ pairBuilder, players = [], onPlayerClick }) {
+function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }) {
   const resolve = makeResolver(players)
   const all = [
     ...arr(pairBuilder?.recommended_3mans).map((p) => ({ ...p, kind: '3-man' })),
@@ -155,26 +215,44 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick }) {
     ...arr(pairBuilder?.pools_3man).map((p) => ({ ...p, kind: '3-man' })),
     ...arr(pairBuilder?.pools_6man).map((p) => ({ ...p, kind: '6-man (retired)' })),
   ]
+  const prevByKey = usePoolSnapshots(all, slateDate || 'unknown')
   if (!all.length) return null
 
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>Tonight&apos;s pools</div>
-      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8 }}>
+      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
         The bot&apos;s group tickets for the slate. Grading appears here live once games start.
+        {' '}These re-pick as the bot&apos;s own inputs move before lock — odds, lineups, signals —
+        so a name can change here between two visits on the same day. If a pool below has changed
+        since you last had this page open, it&apos;s marked <b style={{ color: C.orange }}>🔄 changed</b> with
+        who came out.
       </div>
       <div style={{
         display: 'grid', gap: 8,
         gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
       }}>
-        {all.map((pl, i) => (
+        {all.map((pl, i) => {
+          const k = String(pl.pool_key || `${pl.kind}-${i}`)
+          const prevSnap = prevByKey?.[k]
+          const changed = !!(prevSnap && prevSnap.sig !== undefined && prevSnap.sig !== rosterSig(pl))
+          const currNorm = new Set(arr(pl.players).map((mb) => _pnorm(mb?.name)))
+          const droppedOut = changed ? (prevSnap.names || []).filter((nm) => !currNorm.has(_pnorm(nm))) : []
+          return (
           <div key={pl.pool_key || i} style={{
-            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 12px',
+            background: changed ? `linear-gradient(155deg, ${C.orange}12, ${C.bg2})` : C.bg2,
+            border: `1px solid ${changed ? C.orange + '66' : C.border}`, borderRadius: 10, padding: '9px 12px',
           }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2 }}>
                 {clean(pl.name || pl.label, `${pl.kind} pool`)}
               </span>
+              {changed && (
+                <span title={droppedOut.length ? `Since you last looked, out: ${droppedOut.join(', ')}` : 'Roster changed since you last looked'}
+                  style={{ fontSize: 9, fontWeight: 900, color: C.orange }}>
+                  🔄 changed
+                </span>
+              )}
               <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
                 {pl.kind}
               </span>
@@ -196,8 +274,16 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick }) {
                 )
               })}
             </div>
+            {droppedOut.length > 0 && (
+              <div style={{ marginTop: 5, fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>
+                was also: {droppedOut.map((nm, j) => (
+                  <span key={j} style={{ textDecoration: 'line-through', marginRight: 6 }}>{nm}</span>
+                ))}
+              </div>
+            )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -219,7 +305,7 @@ export default function Pools({ players = [], results, pairBuilder, pairHistoryS
 
       {hasGraded
         ? <LivePools results={results} players={players} onPlayerClick={onPlayerClick} />
-        : <SlatePools pairBuilder={pairBuilder} players={players} onPlayerClick={onPlayerClick} />}
+        : <SlatePools pairBuilder={pairBuilder} players={players} onPlayerClick={onPlayerClick} slateDate={slateDate} />}
 
       {!hasGraded && !arr(pairBuilder?.pools_4man).length && !arr(pairBuilder?.pools_3man).length
         && !arr(pairBuilder?.pools_6man).length && !arr(pairBuilder?.recommended_3mans).length && (
