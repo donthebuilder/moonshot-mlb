@@ -14,6 +14,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import PlayerCard from '../PlayerCard'
 import { downloadShareCard } from '../shareCard'
 import WatchlistAlignLedger from '../WatchlistAlignLedger'
+import { matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
 
 // The bot's designated category for tonight, straight off the slate row —
 // "HR", "HIT", "TOP/HR", or '' when he isn't one of the ~105 designated
@@ -903,6 +904,20 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                   hrr: prodScore(p),
                   hitS: hitScore(p),
                   hr9: n(p?.pitcher_hr9, null),
+                  // ── SPLITS, AVERAGES, RBI/RUN SCORE (2026-08-21, on request)
+                  // Donovan: "batter splits and avgs... I like all those stats
+                  // to sort by" plus "what do you think of player run and rbi
+                  // scoring." avg/obp are the season rates the Park/Drought
+                  // pass never added; vsHand and the two scores are the same
+                  // ones landing on the Rundown board today — see
+                  // lib/scoring_additions.js for the matchup + weighting
+                  // notes, so this table and Rundown can't drift on what
+                  // either number means.
+                  avg: n(p?.season_avg, null),
+                  obp: n(p?.season_obp, null),
+                  vsHand: matchupAvg(p),
+                  rbiScore: rbiScore(p),
+                  runScore: runScore(p),
                 }
               })}
               columns={[
@@ -962,6 +977,14 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                 { key: 'hitS',  label: 'Hit',  w: 44, dp: 1 },
                 { key: 'hr9',   label: 'P HR/9', w: 50, dp: 2,
                   title: 'The starter he faces — homers allowed per nine' },
+                { key: 'avg',   label: 'AVG',  w: 46, dp: 3, title: 'Season batting average.' },
+                { key: 'obp',   label: 'OBP',  w: 46, dp: 3, title: 'Season on-base percentage.' },
+                { key: 'vsHand', label: 'vs Hand', w: 50, dp: 3,
+                  title: "His own average against the hand tonight's starter throws (avg_vs_lhp or avg_vs_rhp). Falls back to season AVG when that split or the pitcher's hand is missing." },
+                { key: 'rbiScore', label: 'RBI', w: 44, dp: 1,
+                  title: 'A composite RBI-production read: season RBI rate, lineup spot, tonight\'s matchup average, and recent RBI form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
+                { key: 'runScore', label: 'Run', w: 44, dp: 1,
+                  title: 'A composite run-production read: season run rate, lineup spot, season OBP, and recent run form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
               ]}
               onRowClick={(r) => r && onPlayerClick?.(r)}
               initialSort="hr"

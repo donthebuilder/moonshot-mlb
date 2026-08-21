@@ -865,6 +865,20 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               {lu.scratched && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: '#f87171', marginLeft: 4 }}>OUT</span>}
                               {lu.moved && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.orange, marginLeft: 4 }}>was #{p?.lineup_spot}</span>}
                               <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>{p?.bats}</span>
+                              {/* AVG, inline (2026-08-21, on request: "batter
+                                  splits and avgs... I like all those stats to
+                                  sort by"). This card is a per-game lineup
+                                  view, not a table — nothing here sorts by
+                                  header click, so a real sortable AVG column
+                                  lives on the Rundown board and the Watchlist
+                                  (same season_avg field). This is the same
+                                  number, glanceable right on the man's row
+                                  without leaving the game card. */}
+                              {Number(p?.season_avg) > 0 && (
+                                <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>
+                                  {Number(p.season_avg).toFixed(3).replace(/^0/, '')}
+                                </span>
+                              )}
                               {String(p?.game_pick_role || '').trim() && <span style={{ fontSize: 9, marginLeft: 3 }}>🤖</span>}
                               {p?.weak_spot_flag && <span style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
                               {Number(p?.last5_hits) >= 6 && <span style={{ fontSize: 9, marginLeft: 2 }}>🧨</span>}

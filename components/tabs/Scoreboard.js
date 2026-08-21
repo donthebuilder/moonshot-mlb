@@ -10,7 +10,7 @@ import { tierRole, shortRole, isAligned, hrRank } from '../../lib/scoring'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
-import { kRiskScore } from '../../lib/scoring_additions'
+import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
@@ -139,6 +139,31 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'pmatch',  label: 'PMatch', w: 50, dp: 1 },
   { key: 'hrr',     label: 'HRR',    w: 44, dp: 1 },
   { key: 'hit',     label: 'Hit',    w: 44, dp: 1 },
+  // ── SPLITS & AVERAGES (2026-08-21, Donovan: "stats like the batter splits
+  // and avgs... I like all those stats to sort by") ─────────────────────────
+  // The board had fifteen columns of HR-family scores and not one plain
+  // batting average — the raw rate every one of those scores is trying to
+  // predict never got its own sortable column. AVG and OBP are season rates,
+  // already on every slate row. vs Hand resolves to a real matchup number —
+  // the hitter's own average against LHP or RHP, picked by the hand tonight's
+  // actual starter throws (lib/scoring_additions.js matchupAvg) — instead of
+  // a generic split pair nobody's chosen between.
+  { key: 'avg',     label: 'AVG',    w: 46, dp: 3,
+    title: "Season batting average." },
+  { key: 'obp',     label: 'OBP',    w: 46, dp: 3,
+    title: 'Season on-base percentage.' },
+  { key: 'vsHand',  label: 'vs Hand', w: 50, dp: 3,
+    title: "The hitter's own average against the hand tonight's starter actually throws (avg_vs_lhp or avg_vs_rhp). Falls back to season AVG when that split or the pitcher's hand is missing." },
+  // RBI / RUN SCORE (same request, "what do you think of player run and rbi
+  // scoring same with hit scoring"). Composites, not bot fields — same
+  // "not calibrated" status as K risk below: a transparent blend of
+  // published rates (opportunity × ability × tonight's matchup × recent
+  // form), not yet walk-forward tested against the graded archive's own
+  // actual_rbi/actual_runs. See lib/scoring_additions.js for the weights.
+  { key: 'rbiScore', label: 'RBI',   w: 44, dp: 1,
+    title: 'A composite RBI-production read: season RBI rate, lineup spot (peaks at the 4-hole), tonight\'s matchup average, and recent RBI form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
+  { key: 'runScore', label: 'Run',   w: 44, dp: 1,
+    title: 'A composite run-production read: season run rate, lineup spot (peaks at the 1-2 hole), season OBP, and recent run form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
   { key: 'tb',      label: 'TB',     w: 44, dp: 1 },
   { key: 'hrw',     label: 'HRW',    w: 44, dp: 1 },
   { key: 'due',     label: 'Due',    w: 44, dp: 1 },
@@ -224,6 +249,11 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       pmatch: n(p?.pitch_type_match_score, 0),
       hrr: prodScore(p),
       hit: hitScore(p),
+      avg: n(p?.season_avg, 0),
+      obp: n(p?.season_obp, 0),
+      vsHand: matchupAvg(p) ?? 0,
+      rbiScore: rbiScore(p),
+      runScore: runScore(p),
       tb: tbScore(p),
       hrw: n(p?.hrw_score, 0),
       due: n(p?.hr_due_score, 0),
