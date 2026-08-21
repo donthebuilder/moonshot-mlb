@@ -506,6 +506,15 @@ export default function Dashboard() {
         peers={players}
         onNavigate={setModalPlayer}
         odds={odds}
+        // ⚖ PAIR HISTORY, THREADED IN (2026-08-21, Phase 5). PlayerModal had
+        // no way to reach pair_history_summary at all before this — Compare
+        // (Phase 4) reads it to show co-HR history for whichever two hitters
+        // are on screen, with "Full pair history" routing to the SAME History
+        // destination Combos already owns (tab=pairhist), not a second one —
+        // see Pairs.js's own 2026-08-17 "double pair history" postmortem for
+        // why that rule matters.
+        pairSummary={pairSummary}
+        onOpenPairHistory={() => setTab('pairhist')}
       />
     </SlateScaleProvider>
   )

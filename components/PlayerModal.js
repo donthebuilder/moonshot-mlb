@@ -341,7 +341,7 @@ function Navigator({ peers, cur, onNavigate }) {
   )
 }
 
-export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null }) {
+export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
   const [tab, setTab] = useState('overview')
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
@@ -886,7 +886,16 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
 
     </Shell>
     {compareOpen && (
-      <PlayerCompare anchor={p} peers={peers} onClose={() => setCompareOpen(false)} />
+      <PlayerCompare
+        anchor={p}
+        peers={peers}
+        pairHistorySummary={pairSummary}
+        onClose={() => setCompareOpen(false)}
+        // Closes BOTH layers (Compare, then this modal) before handing off
+        // to the tab switch, rather than leaving a stale player card open
+        // behind the History page.
+        onOpenPairHistory={onOpenPairHistory ? () => { setCompareOpen(false); onClose?.(); onOpenPairHistory() } : null}
+      />
     )}
     </>
   )

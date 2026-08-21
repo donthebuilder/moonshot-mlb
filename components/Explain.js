@@ -192,6 +192,13 @@ export const GLOSSARY = {
   'park factor': 'How much this ballpark helps home runs. 1.00 is neutral; ×1.10 means about 10% more homers than an average park.',
   'gs': 'Game Score — how dangerous the whole lineup in this game looks tonight, not one hitter. Higher is better.',
   'spot': 'Where he bats in the order, 1 through 9. Batting higher means more trips to the plate.',
+  // 2026-08-21 (Phase 5): the Pair History table's "Tonight" column carried
+  // this explanation only as a bare title= — invisible on touch, same gap
+  // as everywhere else this glossary exists to close. Adding the entry is
+  // the whole fix: DenseTable's own explainFor(term, key, label) already
+  // checks the column's key ('playable') against this glossary for every
+  // table on the site, so nothing in PairHistory.js itself needs to change.
+  'playable': '2 means both hitters in this pair are on tonight’s slate. 1 means only one is; 0 means neither is playing tonight.',
   'role': 'Which category the bot designated him in tonight — its HR pick, hit pick, and so on.',
 
   // ── season / recent form ──────────────────────────────────────────────

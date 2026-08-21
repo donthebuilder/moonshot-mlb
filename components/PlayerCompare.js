@@ -8,6 +8,7 @@ import {
   recent375, recent400, ihrVal, avgVsRHP, avgVsLHP,
 } from '../lib/player'
 import Explain from './Explain'
+import { findPairHistory } from '../lib/pairHistory'
 
 // ⚖ PLAYER COMPARE (2026-08-21, Phase 4).
 //
@@ -132,8 +133,10 @@ function Picker({ peers, exclude, onPick }) {
   )
 }
 
-export default function PlayerCompare({ anchor, peers = [], onClose }) {
+export default function PlayerCompare({ anchor, peers = [], pairHistorySummary = null, onClose, onOpenPairHistory = null }) {
   const [other, setOther] = useState(null)
+  const hist = other ? findPairHistory(pairHistorySummary, anchor, other) : null
+  const together = n(hist?.repeat_count, 0)
 
   return (
     <div
@@ -209,6 +212,40 @@ export default function PlayerCompare({ anchor, peers = [], onClose }) {
               {(avgVsLHP(anchor) > 0 || avgVsLHP(other) > 0) && (
                 <CompareStat label="vs LHP" a={avgVsLHP(anchor) || null} b={avgVsLHP(other) || null}
                   fmt={(v) => (v == null ? '—' : v.toFixed(3))} />
+              )}
+
+              {/* 🔗 PAIR HISTORY (2026-08-21, Phase 5). This is the one gap
+                  recon found: pair_history_summary was never reachable from
+                  ANY two-hitter view, including this one, which lands on
+                  exactly "hitter A vs hitter B" already. Read-only via the
+                  new shared findPairHistory() helper — no new fetch, same
+                  already-loaded payload the Games page's Pair Tray reads.
+                  DELIBERATELY NOT a lift/edge claim: the archive (see
+                  lib/pairEvidence.js) found same-day co-HR is 1.00 to within
+                  noise — two independent coin flips — so this states the
+                  raw count as history, never as a forecast. */}
+              {pairHistorySummary && (
+                <>
+                  <SectionLabel>Pair History</SectionLabel>
+                  <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, padding: '2px 4px 4px', textAlign: 'center' }}>
+                    {together > 0 ? (
+                      <>Both homered the same day <b style={{ color: C.text }}>{together}×</b> this season
+                        {hist?.last_hit_date ? ` (last ${String(hist.last_hit_date).slice(5)})` : ''}. History, not
+                        a forecast — the archive found same-day co-HR runs at about the same rate as two
+                        unrelated hitters, so this counts what happened rather than predicting it happens again.</>
+                    ) : (
+                      <>No recorded co-HR history for these two — true of most pairs, and not itself a signal
+                        either way.</>
+                    )}
+                  </div>
+                  {onOpenPairHistory && (
+                    <button onClick={onOpenPairHistory} style={{
+                      display: 'block', margin: '6px auto 0', background: 'transparent',
+                      border: `1px dashed ${C.border2}`, borderRadius: 999, padding: '4px 12px',
+                      color: C.text2, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                    }}>Full pair history →</button>
+                  )}
+                </>
               )}
 
               <div style={{ fontSize: 9, color: C.text3, marginTop: 12, lineHeight: 1.5 }}>
