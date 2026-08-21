@@ -1151,6 +1151,15 @@ export default function SprayField({
                   fill="transparent"
                   onMouseEnter={() => setHover(i)}
                   onMouseLeave={() => setHover((v) => (v === i ? null : v))}
+                  /* tap-to-toggle: `on` is this dot's hover-state from the last
+                     completed render — a touch tap fires a synthetic mouseenter
+                     immediately before click, both landing in the same React
+                     batch, so reading `on` here (rather than a functional
+                     setState toggle, which would see its own mouseenter update
+                     and cancel out) is what makes tap-1 open, tap-2-same-dot
+                     close, and tap-a-different-dot switch directly. Same fix as
+                     ZoneMap.js's Phase 6 pass. */
+                  onClick={() => setHover(on ? null : i)}
                   style={{ cursor: 'crosshair' }}
                 />
               </g>
@@ -1179,6 +1188,8 @@ export default function SprayField({
                   cx={x} cy={y} r="9" fill="transparent"
                   onMouseEnter={() => setHoverLive(i)}
                   onMouseLeave={() => setHoverLive((v) => (v === i ? null : v))}
+                  /* tap-to-toggle, same fix as the season dots above */
+                  onClick={() => setHoverLive(on ? null : i)}
                   style={{ cursor: 'crosshair' }}
                 />
               </g>
@@ -1289,11 +1300,11 @@ export default function SprayField({
           ) : (
             <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
               {liveOnly ? <>
-                Hover a ball for the hitter, exit velo and result.
+                Hover or tap a ball for the hitter, exit velo and result.
                 {' '}Showing <b style={{ color: C.text2 }}>{liveN}</b> ball{liveN === 1 ? '' : 's'} in play
                 from this game — nothing from any other night.
               </> : <>
-                Hover a ball for pitch, exit velo and carry.
+                Hover or tap a ball for pitch, exit velo and carry.
                 {' '}Showing <b style={{ color: C.text2 }}>{shown.length}</b> of {hits.length} batted balls.
               </>}
             </div>
