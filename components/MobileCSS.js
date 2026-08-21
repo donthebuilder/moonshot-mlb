@@ -62,10 +62,6 @@ export default function MobileCSS() {
         .scoreboard-table { min-width: 1100px !important; }
         .scoreboard-player-col { position: sticky !important; left: 0 !important; z-index: 3 !important; background: #111113 !important; box-shadow: 8px 0 12px rgba(0,0,0,.22); }
         .scoreboard-player-cell { max-width: 138px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
-        /* PlayerModal's combined Pitch+Spray view: stack to one column once
-           the modal itself is forced to near-full-width above -- two full
-           tables side by side at this width would squeeze each to illegible. */
-        .pitch-spray-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
       }
 
       @media (max-width: 700px) {

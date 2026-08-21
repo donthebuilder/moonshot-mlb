@@ -49,10 +49,14 @@ function PullWallRow({ bats, venueName }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
       {/* CLEANED (2026-08-08, Donovan): no emoji, one line — the full
-          sentence lives in the tooltip. */}
-      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}
-        title={`His pull side (${w.side}) at ${venueName}: ${w.line} ft down the line${w.gap ? `, ${w.gap} ft to the gap` : ''}. Percentile is vs all 30 parks' same-side line from the league's own fieldInfo — ${w.linePct}% of parks are shorter. Context, not a score input.`}>
-        Pull-side wall
+          sentence lives behind a tap.
+          TAP-TO-EXPLAIN (2026-08-21, Phase 2): this used to be a bare
+          title= — invisible on a phone, which is most of the audience per
+          Explain.js's own rationale. Same Explain component Row already
+          uses everywhere else in this modal, just with an explicit text=
+          since this line isn't in the glossary. */}
+      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>
+        <Explain label="Pull-side wall" text={`His pull side (${w.side}) at ${venueName}: ${w.line} ft down the line${w.gap ? `, ${w.gap} ft to the gap` : ''}. Percentile is vs all 30 parks' same-side line from the league's own fieldInfo — ${w.linePct}% of parks are shorter. Context, not a score input.`} />
       </span>
       <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {w.side} {w.line}′{w.gap ? `/${w.gap}′` : ''}{w.word ? ` · ${w.word}` : ''}
@@ -95,9 +99,9 @@ function VenueHrRow({ pid, venueName, gamePk }) {
   const hot = vs != null ? vs >= 1.25 : rec.hr >= 2
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}
-        title={`${venueName}, ${rec.seasons}: ${rec.hr} HR in ${rec.games} games here vs ${rec.hrAll} in ${rec.gamesAll} everywhere — same two seasons of game logs, so the comparison is apples to apples. Rules of thumb: 1 HR per 4 games = elite pace, 1 per 5–6 = real power, 1 per 8+ = average. Under 8 games here the vs-himself read is hidden — small samples lie.`}>
-        At tonight&apos;s park
+      {/* TAP-TO-EXPLAIN (2026-08-21, Phase 2) — see PullWallRow above. */}
+      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>
+        <Explain label="At tonight's park" text={`${venueName}, ${rec.seasons}: ${rec.hr} HR in ${rec.games} games here vs ${rec.hrAll} in ${rec.gamesAll} everywhere — same two seasons of game logs, so the comparison is apples to apples. Rules of thumb: 1 HR per 4 games = elite pace, 1 per 5–6 = real power, 1 per 8+ = average. Under 8 games here the vs-himself read is hidden — small samples lie.`} />
       </span>
       <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: hot ? C.orange : C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {rec.hr} HR / {rec.games} gm{rec.games !== 1 ? 's' : ''}
@@ -128,9 +132,9 @@ function OppDefenseRow({ opp }) {
   const col = d.pct >= 80 ? C.orange : d.pct <= 20 ? '#38bdf8' : C.text
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}
-        title={`${opp}'s BABIP-against: how often a ball in play against them becomes a hit, from the league's season totals. Percentile vs all 30 teams — high = leaky defense, good news for HIT/TB props. Context only; not folded into any score.`}>
-        Opp defense
+      {/* TAP-TO-EXPLAIN (2026-08-21, Phase 2) — see PullWallRow above. */}
+      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>
+        <Explain label="Opp defense" text={`${opp}'s BABIP-against: how often a ball in play against them becomes a hit, from the league's season totals. Percentile vs all 30 teams — high = leaky defense, good news for HIT/TB props. Context only; not folded into any score.`} />
       </span>
       <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
         .{String(Math.round(d.babip * 1000)).padStart(3, '0')} BABIP · {d.word}
@@ -496,6 +500,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               {!apiOnly && (
                 <button onClick={() => downloadPlayerCard(p, { jersey })}
                   title="Download his card as a PNG for posting — the bot's call, his scores, the bat vs the arm, and his homer signature"
+                  aria-label="Download player card as image"
                   style={{
                     background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
                     borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
