@@ -331,8 +331,17 @@ function BullpenBoard({ pitchers, onTeamClick }) {
         </div>
       </div>
       {/* SINGLE-COLUMN, RANKED (owner feedback 2026-08-08): the two-column
-          grid read as noise — one pen per row, top to bottom, is the list. */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          grid read as noise — one pen per row, top to bottom, is the list.
+          MOBILE OVERFLOW FIX (2026-08-21, Phase 3): each row's fixed-width
+          spans (rank/team/opp/HR9 value/raw counts/pen line, none of them
+          allowed to shrink) sum to roughly 400px before the HR/9 bar or any
+          gap is even counted — wider than a 390px phone. Nothing here was
+          wrapping, so that overflow had nowhere to go but the page itself.
+          overflowX makes THIS box scroll sideways on a narrow phone, same
+          pattern the dense tables already use elsewhere, instead of forcing
+          the whole page wider than the viewport. Desktop is unaffected —
+          the row already fits with room to spare above ~460px. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflowX: 'auto' }}>
         {shown.map((r, i) => {
           const opp = oppOfTeam[r.ab] || ''
           const arm = starterOfTeam[r.ab] || null

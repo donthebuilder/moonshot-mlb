@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj, arr, nameOf } from '../lib/player'
 import { pitcherDetailUrl } from '../lib/dataSource'
+import Explain from './Explain'
 import DenseTable from './DenseTable'
 import { rampColor, inkFor } from './Heatmap'
 import { armFormParts } from '../lib/armLeak'
@@ -153,15 +154,31 @@ function ReadLine({ lead, parts, tail }) {
 
 function Stat({ label, value, note, tone, meter, meterKey, title }) {
   const spec = meterKey ? METERS[meterKey] : null
-  const tip = title || (spec
+  const meterTip = spec
     ? `${label}. Bar runs ${spec.lo}–${spec.hi}${spec.unit}; the pale tick is roughly league average (${spec.mid}). Fixed display scale, not a percentile.`
-    : label)
+    : null
+  // TAP-TO-EXPLAIN (2026-08-21, Phase 3). This whole 16-tile grid carried its
+  // explanation in a bare title= on the outer div -- hover-only, invisible on
+  // a phone, and the single largest such surface found in the Pitcher Page
+  // (Explain.js's own rationale for why the site converted everything else
+  // 2026-08-09). One override here fixes every tile that uses Stat, current
+  // and future. Custom copy (a meter's exact bar range, or an explicit title=
+  // override like WHIP's "traffic, not damage") is passed through verbatim
+  // via text= so nothing here changes what a tile actually says -- Explain
+  // falls back to the shared glossary for the plain-label tiles (HR/9, K%,
+  // BABIP, etc.) that have no custom sentence, and renders no dot at all for
+  // the few that match nothing there. Outer div keeps its own title= too, so
+  // desktop hover behaves exactly as before.
+  const explainText = title || meterTip
+  const tip = explainText || label
   return (
     <div title={tip} style={{
       background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
       padding: '8px 11px', minWidth: 104, flex: '1 1 104px',
     }}>
-      <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+      <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+        <Explain label={label} text={explainText} />
+      </div>
       <div style={{ fontSize: 16, fontWeight: 800, fontFamily: NUM_FONT, color: tone || C.text, marginTop: 2 }}>{value}</div>
       {note && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 1 }}>{note}</div>}
       {spec && <Meter v={meter} spec={spec} />}
