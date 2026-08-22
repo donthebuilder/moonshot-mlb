@@ -52,7 +52,7 @@ const COLUMNS = [
   { key: 'weak',    label: '★ Spot',  flag: true, mark: '★', w: 44 },
   { key: 'aligned', label: 'Align',   flag: true, mark: '◆', w: 40 },
   { key: 'edge',    label: 'Edge',    flag: true, mark: '▲', w: 40 },
-  { key: 'hr',      label: 'HR',      w: 40, dp: 1 },
+  { key: 'hr',      label: 'HR',      w: 40, dp: 1, primary: true },
   { key: 'hit',     label: 'Hit',     w: 40, dp: 1 },
   { key: 'hrr',     label: 'HRR',     w: 40, dp: 1 },
   { key: 'tb',      label: 'TB',      w: 40, dp: 1 },
@@ -171,7 +171,8 @@ export default function HitterHeat({
             </div>
           )}
           <DenseTable
-            rows={rows}
+            heatMode="sorted"
+rows={rows}
             columns={columns}
             onRowClick={onPlayerClick}
             maxHeight={460}

@@ -267,7 +267,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
         sub="A Hit pick that produced a single did its job; grading it on HR would call that a failure."
       >
         <DenseTable
-          rows={tiers}
+          heatMode="sorted"
+rows={tiers}
           columns={[
             { key: 'icon',   label: '',        heat: false, w: 26 },
             { key: 'label',  label: 'Pick type', heat: false, w: 118, bold: true, sticky: true },
@@ -445,7 +446,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
               </div>
 
               <DenseTable
-                rows={rows}
+                heatMode="sorted"
+rows={rows}
                 columns={[
                   { key: 'name',    label: 'Player', heat: false, w: 150, bold: true, sticky: true },
                   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
@@ -514,7 +516,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
         </div>
 
         <DenseTable
-          rows={everyPick}
+          heatMode="sorted"
+rows={everyPick}
           columns={[
             { key: 'icon',  label: '',       heat: false, w: 24 },
             { key: 'name',  label: 'Player', heat: false, w: 142, bold: true, sticky: true },

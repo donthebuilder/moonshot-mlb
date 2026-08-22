@@ -1042,7 +1042,8 @@ export default function Pitchers({ players, onPlayerClick }) {
           _l3_starts_found are on 143 of 143 slate rows. Season K/9 is here too
           — there is no L3 K/9 published, so it isn't invented. */}
       <DenseTable
-        rows={(() => {
+        heatMode="sorted"
+rows={(() => {
         // Built over the FULL slate even when the dropdowns narrow the view:
         // the HR-luck column percentiles each arm against tonight's other
         // starters, and a percentile against one filtered opponent is

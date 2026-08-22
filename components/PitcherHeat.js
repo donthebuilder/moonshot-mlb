@@ -129,7 +129,8 @@ export default function PitcherHeat({ pitchers = [], onSelect }) {
       </div>
 
       <DenseTable
-        rows={rows}
+        heatMode="sorted"
+rows={rows}
         columns={COLUMNS}
         onRowClick={onSelect}
         initialSort="hr9"

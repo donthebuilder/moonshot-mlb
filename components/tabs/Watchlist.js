@@ -258,7 +258,8 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
             })()}
           </div>
           <DenseTable
-            rows={parsed.map((r, i) => {
+            heatMode="sorted"
+rows={parsed.map((r, i) => {
               const p = r.hit
               return {
                 _key: `${r.line}-${i}`,
@@ -856,7 +857,8 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
               <Empty text="None of your saved hitters clear this filter. Reset it above — the categories are rarer than they look, and a band set for one stat means nothing in another's units." />
             ) : (
             <DenseTable
-              rows={filteredOnSlate.map((p) => {
+              heatMode="sorted"
+rows={filteredOnSlate.map((p) => {
                 const track = trackOf(nameOf(p))
                 const mine = mineOf(p)
                 return {
@@ -1188,13 +1190,14 @@ function WatchlistPairs({ items, pairSummary, onPlayerClick }) {
         beyond this list, use the builder on Pools.
       </div>
       <DenseTable
-        rows={rows}
+        heatMode="sorted"
+rows={rows}
         columns={[
           { key: 'pair',    label: 'Pair', heat: false, w: 230, bold: true, sticky: true },
           { key: 'teams',   label: 'Teams', heat: false, w: 76, mono: true, dim: true },
           { key: 'sameGm',  label: 'Same gm', flag: true, mark: '⚡', w: 52,
             title: 'Both hitters are in the SAME GAME tonight — correlated, higher variance' },
-          { key: 'fit',     label: 'Fit', w: 46, dp: 0,
+          { key: 'fit',     label: 'Fit', w: 46, dp: 0, primary: true,
             title: 'Weaker side + same-game history (12/ea, cap 30) + same-day (2/ea, cap 12) + recency nudge',
             // 2026-08-12: same GLOSSARY['fit'] collision as PairBuilder's Fit
             // column — different formula (this one starts from the WEAKER

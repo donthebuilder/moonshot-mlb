@@ -681,7 +681,8 @@ export default function Leaders({ players = [], onPlayerClick }) {
         <Empty text={`Nobody clears ${minPA} plate appearances with this filter.`} />
       ) : (
         <DenseTable
-          key={lens}
+          heatMode="sorted"
+key={lens}
           rows={rows}
           columns={COLUMNS}
           onRowClick={onPlayerClick}

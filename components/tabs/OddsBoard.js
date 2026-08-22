@@ -708,7 +708,8 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
         </div>
       ) : (
         <DenseTable
-          key={`${market}-${plusOnly}-${offStd}-${need}`}
+          heatMode="sorted"
+key={`${market}-${plusOnly}-${offStd}-${need}`}
           rows={shown}
           columns={[
             { key: 'player', label: 'Hitter', heat: false, w: 152, bold: true, sticky: true },

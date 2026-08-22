@@ -685,7 +685,8 @@ export default function MatchupPitcher({ player, slateMode }) {
             subColor={side === 'overall' ? C.text3 : C.orange}
           />
           <DenseTable
-            rows={arsenal}
+            heatMode="sorted"
+rows={arsenal}
             columns={[
               { key: 'pitch',  label: 'Pitch',  heat: false, w: 92, bold: true, sticky: true },
               { key: 'usage',  label: 'Usage', w: 58, dp: 1, fmt: (v) => `${Number(v).toFixed(1)}%`,
@@ -722,7 +723,8 @@ export default function MatchupPitcher({ player, slateMode }) {
             <div style={{ flex: '1 1 380px', minWidth: 0 }}>
               <SectionTitle label="Damage by order third" sub="the sturdier read — three spots pooled" />
               <DenseTable
-                rows={zones}
+                heatMode="sorted"
+rows={zones}
                 columns={[
                   { key: 'zone',   label: 'Order',  heat: false, w: 100, bold: true, sticky: true },
                   { key: 'pa',     label: 'PA',     w: 40 },
@@ -756,7 +758,8 @@ export default function MatchupPitcher({ player, slateMode }) {
                 subColor={spot != null ? C.orange : C.text3}
               />
               <DenseTable
-                rows={spots}
+                heatMode="sorted"
+rows={spots}
                 columns={[
                   { key: 'spot',   label: '#',      w: 30 },
                   { key: 'mine',   label: 'Him',    flag: true, mark: '●', w: 32 },

@@ -125,7 +125,7 @@ const COLUMNS = [
   // lineup table to find out about the bats; the slot read is context for that
   // answer, not the answer. Restored: the four bot scores lead, the spot
   // cluster sits after them where it was before.
-  { key: 'hr',     label: 'HR',    w: 40, dp: 1 },
+  { key: 'hr',     label: 'HR',    w: 40, dp: 1, primary: true },
   { key: 'hit',    label: 'Hit',   w: 40, dp: 1 },
   { key: 'hrr',    label: 'HRR',   w: 40, dp: 1 },
   { key: 'tb',     label: 'TB',    w: 40, dp: 1 },
@@ -506,7 +506,8 @@ export default function GameLineup({ players, onPlayerClick }) {
         </>
       ) : (
         <DenseTable
-          rows={rows}
+          heatMode="sorted"
+rows={rows}
           columns={cols}
           onRowClick={onPlayerClick}
           maxHeight={420}

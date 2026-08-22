@@ -778,7 +778,8 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
           )}
 
           <DenseTable
-            rows={partners.map((p) => ({
+            heatMode="sorted"
+rows={partners.map((p) => ({
               ...p,
               iso: n(p._raw?.season_iso, 0) * 100,
               hrw: n(p._raw?.hrw_score, 0),
