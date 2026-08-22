@@ -22,38 +22,6 @@ import { explainFor, InfoDot, ExplainBanner } from './Explain'
 //   invert:true -> low is good, so the ramp runs the other way
 //   flag:true   -> boolean-ish; lit if truthy, dark if not
 //
-// ── FOLDING, FOR THE PHONE (2026-08-22, pass 2) ────────────────────────────
-//   fold: true   on a TEXT column -> at phone width it leaves the row and
-//                becomes part of the sticky name cell's sub-line instead.
-//                On a FLAG column -> its mark joins a glyph run after the
-//                name, and only when lit. Three flag columns at 32px each is
-//                96px spent showing mostly '·'; the same information is four
-//                characters when it only draws the ones that are on.
-//   foldLabel    what to call it on the fold line. Defaults to `label`; pass
-//                false to print the value bare (a team abbreviation does not
-//                need to be told it is a team), or a string to prefix it.
-//   blankWhen(v) -> true means THIS VALUE IS AN ABSENCE, not a low number.
-//                The cell prints (via fmt) with no fill at all.
-//
-// blankWhen exists because of one column. pitch_type_match_score is 0 for the
-// median hitter on the slate, and a 0 there means "no pitch match was found",
-// not "the worst match on the board". Painted at the bottom of the ramp it
-// made half the column read as a wall of failure. lib/scales.js already says
-// a blank is not a zero and must never be painted like one; this is the case
-// where a zero is a blank.
-//
-// Why this exists. Rundown is the page Donovan opens first and calls the
-// most-used on the site. At 430px it spends every one of those 430 pixels on
-// ☆ + Player + Tm + Opp + Role + Spot — 382px of chrome and identity — and
-// shows ZERO numeric columns. The board's entire answer is off-screen, and
-// the colour work is invisible with it. The furthest tracker had the same
-// defect and got a ladder above the table; a 269-row board cannot have a
-// ladder, so the fix has to be in the table.
-//
-// Folding, not hiding: every folded value still renders, in the same row, one
-// line down, with its label. Nothing is lost and about 180px comes back —
-// enough for four numeric columns on a phone instead of none.
-
 // ── THE SCALE FIELDS (2026-08-22, the colour-system pass) ──────────────────
 //   scale:  'seq' | 'div' | 'none'    which of the three scales this column is
 //   domain: [lo, hi] | 'auto'         SEQUENTIAL ONLY — the ramp's ends.
@@ -81,8 +49,7 @@ import { explainFor, InfoDot, ExplainBanner } from './Explain'
  *   full        every numeric column, every row — what shipped
  *   standouts   only the top and bottom slice of each column
  *   primary     only columns marked `primary: true`; the rest go neutral
- *   sorted      the column(s) you are actually ranking by, plus `primary`,
- *               plus anything that declares a `scale` of its own
+ *   sorted      the column(s) you are actually ranking by, plus `primary`
  *   none        no cell colour at all
  *
  * 'sorted' (2026-08-22) is the one the colour audit argues for on wide boards.
@@ -90,30 +57,12 @@ import { explainFor, InfoDot, ExplainBanner } from './Explain'
  * high" for twenty-four different questions at once — it just means "there is
  * a number here". Following the sort makes the colour mean something the
  * reader chose, which is the difference between information and decoration.
- * A column with its own declared scale (a diverging gap, a fixed-domain score)
- * still paints, because it was chosen deliberately rather than by default.
  *
  * Default stays 'full' so nothing changes until it's chosen deliberately.
  */
 export const HEAT_MODES = ['full', 'standouts', 'primary', 'sorted', 'none']
 
 const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
-
-/**
- * The unit marker a column's own scale implies, or '' for one that implies
- * none. Derived from the spec rather than typed per column, so a board cannot
- * declare a 0-100 domain and then forget to say so in the header.
- */
-export function scaleSuffix(c) {
-  if (!c || c.scale !== 'seq' || !Array.isArray(c.domain)) return ''
-  const [lo, hi] = c.domain
-  // ANY zero-based score domain, not just 0-100. The first version of this
-  // hard-coded /100 and would have printed nothing for the one column on the
-  // Rundown that most needed a unit: pitch_type_match_score runs 0 to 120 with
-  // a MEDIAN OF ZERO, sat between six genuine 0-100 scores, and read as one.
-  // Measured on the live slate, 2026-08-22: 25 of 269 rows above 100.
-  return lo === 0 && Number.isFinite(hi) && hi >= 1 ? ` /${hi}` : ''
-}
 
 export default function DenseTable({
   rows = [],
@@ -166,14 +115,6 @@ export default function DenseTable({
 
   const heatCols = useMemo(() => columns.filter((c) => c.heat !== false && !c.flag && !c.action), [columns])
 
-  // Text columns that collapse into the name cell on a phone. Only ever text:
-  // folding a heat cell would fold its colour away with it, which is the
-  // opposite of the point.
-  const foldCols = useMemo(
-    () => columns.filter((c) => c.fold && c.heat === false && !c.action && !c.flag),
-    [columns],
-  )
-  const foldFlags = useMemo(() => columns.filter((c) => c.fold && c.flag), [columns])
 
   // The first text column — where a lit row wears its bar and its glyph. Falls
   // back to the first non-action column so a table with no sticky column still
@@ -217,9 +158,12 @@ export default function DenseTable({
     if (heatMode === 'full') return true
     if (heatMode === 'primary') return c.primary === true
     if (heatMode === 'sorted') {
-      // A declared scale is a deliberate choice and always paints; otherwise
-      // colour follows what the reader asked to rank by.
-      if (c.scale === 'seq' || c.scale === 'div') return true
+      // WHAT YOU SORTED BY, PLUS `primary`. An earlier version also painted
+      // anything carrying a declared scale, which quietly undid the whole
+      // point the moment a board declared twenty of them — the Rundown's
+      // stat-column pass would have put it straight back to a wash. A scale
+      // says HOW a column is drawn when it is drawn; `primary` is what says
+      // it is always worth drawing.
       if (c.primary === true) return true
       return sort.some((s) => s.key === c.key)
     }
@@ -367,28 +311,6 @@ export default function DenseTable({
           maxHeight, background: C.bg2, outline: 'none',
         }}>
         <style>{`
-          /* Folding is a PHONE behaviour only — above 860px the whole table
-             fits and a sub-line under every name would just be noise. Same
-             breakpoint MobileCSS uses for the swipe hint, deliberately: they
-             are two halves of the same "this table is wider than your screen"
-             problem. */
-          .dense-fold, .dense-fold-flags { display: none; }
-          @media (max-width: 860px) {
-            .dense-folded { display: none !important; }
-            .dense-fold-flags {
-              display: inline; margin-left: 4px; font-size: 9px;
-              color: ${C.orange}; letter-spacing: 1px;
-            }
-            /* WRAPS RATHER THAN TRUNCATES. Ellipsised, "CHC · vs SEA · HR
-               Bet · #1" lost the role and the lineup spot — which is deleting
-               information to save eleven pixels of row height, and the rule
-               is condense the form, keep every fact. */
-            .dense-fold {
-              display: block; font-family: ${NUM_FONT}; font-size: 8.5px;
-              font-weight: 500; color: ${C.text3}; letter-spacing: .01em;
-              margin-top: 1px; white-space: normal; line-height: 1.35;
-            }
-          }
           .kb-rail::-webkit-scrollbar { height: 7px; width: 7px; display: block; }
           .kb-rail::-webkit-scrollbar-thumb { background: rgba(249,115,22,.35); border-radius: 4px; }
           .kb-rail::-webkit-scrollbar-track { background: rgba(255,255,255,.03); }
@@ -408,7 +330,7 @@ export default function DenseTable({
                 return (
                   <th
                     key={c.key}
-                    className={[c.sticky ? 'dense-sticky' : '', c.fold ? 'dense-folded' : ''].filter(Boolean).join(' ') || undefined}
+                    className={c.sticky ? 'dense-sticky' : undefined}
                     onClick={(e) => toggle(c.key, e.shiftKey)}
                     title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
                     style={{
@@ -429,26 +351,6 @@ export default function DenseTable({
                     }}
                   >
                     {c.label}
-                    {/* ── THE UNIT, IN THE HEADER (2026-08-22) ──────────────
-                        Donovan's constraint: "A 0-100 score is not a
-                        probability; a measured frequency with its denominator
-                        is. Never blur the two."
-
-                        A score column now carries `/100` where someone looks
-                        for a unit. It reads at 8.5px, costs no cell width, and
-                        it is the half of the distinction that goes on the
-                        SCORE — the other half is a frequency printing its
-                        denominator, which is a different treatment on purpose
-                        so the two can never be mistaken for each other.
-
-                        Tooltips already said this. On a phone nobody sees a
-                        tooltip, which is how the confusion started. */}
-                    {scaleSuffix(c) && (
-                      <span style={{
-                        fontWeight: 600, opacity: 0.6, letterSpacing: 0,
-                        textTransform: 'none', marginLeft: 1,
-                      }}>{scaleSuffix(c)}</span>
-                    )}
                     {plain && (
                       <InfoDot
                         on={explain?.key === c.key}
@@ -540,7 +442,7 @@ export default function DenseTable({
                   if (c.flag) {
                     const lit = !!v && v !== 0 && v !== '—'
                     return (
-                      <td key={c.key} className={c.fold ? 'dense-folded' : undefined} style={{
+                      <td key={c.key} style={{
                         textAlign: 'center', padding: pad,
                         // Same reasoning as the star above: a flag is on or
                         // off, not high or low, so it takes the site accent
@@ -561,10 +463,7 @@ export default function DenseTable({
                     // exactly this `background: C.bg2`.
                     const isFirstText = c.sticky || c.key === firstTextKey
                     return (
-                      <td key={c.key} className={[
-                        c.sticky ? 'dense-sticky' : '',
-                        c.fold ? 'dense-folded' : '',
-                      ].filter(Boolean).join(' ') || undefined} style={{
+                      <td key={c.key} className={c.sticky ? 'dense-sticky' : undefined} style={{
                         position: c.sticky ? 'sticky' : undefined,
                         left: c.sticky ? 0 : undefined,
                         zIndex: c.sticky ? 1 : undefined,
@@ -590,39 +489,6 @@ export default function DenseTable({
                         {/* THE FOLDED VALUES, on the phone only. Same row,
                             same data, one line down — see the note at the top
                             of this file on why Rundown needed it. */}
-                        {isFirstText && foldFlags.length > 0 && (() => {
-                          const on = foldFlags.filter((fc) => {
-                            const fv = r[fc.key]
-                            return !!fv && fv !== 0 && fv !== '—'
-                          })
-                          if (!on.length) return null
-                          return (
-                            <span
-                              className="dense-fold-flags"
-                              title={on.map((fc) => `${fc.mark || '\u25cf'} ${fc.title || fc.label}`).join(' \u00b7 ')}
-                            >{on.map((fc) => fc.mark || '\u25cf').join('')}</span>
-                          )
-                        })()}
-                        {isFirstText && foldCols.length > 0 && (
-                          <span className="dense-fold">
-                            {foldCols.map((fc, i) => {
-                              const fv = r[fc.key]
-                              const txt = fc.fmt ? fc.fmt(fv, r) : (fv ?? '\u2014')
-                              const lab = fc.foldLabel === undefined ? fc.label : fc.foldLabel
-                              return (
-                                <span key={fc.key}>
-                                  {i > 0 && <span style={{ opacity: 0.45 }}> · </span>}
-                                  {lab && (
-                                    <span style={{ opacity: 0.55 }}>
-                                      {lab}{/[A-Za-z0-9]$/.test(String(lab)) ? ' ' : ''}
-                                    </span>
-                                  )}
-                                  {txt}
-                                </span>
-                              )
-                            })}
-                          </span>
-                        )}
                       </td>
                     )
                   }
