@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { tierTone } from '../../lib/roleBadge'
+import { hrwRead } from '../../lib/hrwBand'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import TheRead from '../TheRead'
 import Shortlist from '../Shortlist'
@@ -33,14 +34,12 @@ import { pillMeta } from '../../lib/pills'
 // The old "Picks" view is gone: The Four (Scoreboard) and the per-game pick
 // cards (Games) show the same designations with more context.
 
-function hrwEmoji(s) {
-  const v = Number(s || 0)
-  if (v > 80) return '🌋'
-  if (v > 70) return '🚀'
-  if (v >= 55) return '⚡'
-  if (v >= 45) return '🌤️'
-  return '🧊'
-}
+// The HRW ladder used to live here as a local function with its own cuts
+// (80 / 70 / 55 / 45) while components/PlayerCard.js keyed the SAME five
+// glyphs off the hrw_zone STRING. Two ladders for one thing, and nothing
+// guaranteed they agreed. Donovan said commit to the emojis, so they are part
+// of the system now and get one definition: lib/hrwBand.js. See the note there.
+
 
 // Colour by TOKEN, not by glyph. This used to sniff the pictograph out of the
 // role string, which quietly made the emoji load-bearing: strip it for the
@@ -142,7 +141,24 @@ function BoardRow({ p, i, onPlayerClick }) {
             L5 {p.last5_hr}HR
           </span>
         )}
-        <span title={`HRW ${Math.round(p.hrw_score || 0)}`} style={{ fontSize: 11 }}>{hrwEmoji(p.hrw_score || 0)}</span>
+        {(() => {
+          // THE GLYPH NOW SITS BESIDE ITS NUMBER, wears the ramp stop for its
+          // own band, and simply does not render when there is no HRW read —
+          // "cold" and "not measured" are different claims and only one of
+          // them is about the hitter.
+          const hw = hrwRead(p)
+          if (!hw) return null
+          return (
+            <span title={hw.title} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
+              <span style={{ fontSize: 11 }}>{hw.glyph}</span>
+              {hw.score != null && (
+                <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: hw.color || C.text3 }}>
+                  {hw.score.toFixed(0)}
+                </span>
+              )}
+            </span>
+          )
+        })()}
         <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 16, color: scoreCol, width: 34, textAlign: 'right' }}>
           {Math.round(p.hr_score || 0)}
         </span>

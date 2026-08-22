@@ -5,6 +5,7 @@ import { useSpot } from '../lib/spotlight'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { roleBadge } from '../lib/roleBadge'
+import { hrwRead } from '../lib/hrwBand'
 import { hrGateVerdict } from '../lib/hrGate'
 import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
@@ -34,13 +35,13 @@ function lastHrRecency(p) {
   return { label: 'No HR', color: '#52525b' }
 }
 
-const HRW_EMOJI = {
-  volatile_hot:  '🌋',
-  strong_capped: '🚀',
-  sweet_spot:    '⚡',
-  watch:         '🌤️',
-  cold:          '🧊',
-}
+// The five-glyph HRW ladder used to be declared here, keyed on the hrw_zone
+// STRING, while tabs/Bot.js declared the same five glyphs keyed on numeric cuts
+// of hrw_score. One idea, two ladders, and no guarantee they agreed. It now
+// lives in lib/hrwBand.js — score first, zone as the fallback — and it comes
+// with the printed number, because on this card the emoji was the SOLE
+// encoding of a five-state read whose score never appeared anywhere.
+
 
 // WAS: pulled the leading pictograph off final_hr_role and rendered it as the
 // badge — emoji-as-UI in its purest form, and the reason the card's tier was
@@ -141,8 +142,8 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // truncated the NAME — the one thing a card can't lose. Two emojis max,
   // the full stack lives in the tooltip.
   const emojisAll = []
-  const hrwE = HRW_EMOJI[(p?.hrw_zone || '').trim()]
-  if (hrwE) emojisAll.push([hrwE, 'HRW zone'])
+  const hrw = hrwRead(p)
+  if (hrw) emojisAll.push([hrw.glyph, hrw.title])
   if (p?.high_confidence_hr_flag === true) emojisAll.push(['🔒', 'high confidence'])
   if (Number(p?.pitch_type_match_score || 0) > 0) emojisAll.push(['🎯', 'pitch match'])
   if (isSoftCaution) emojisAll.push(['⚠️', 'HR caution'])
@@ -176,6 +177,23 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
                 style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'pointer' }}
               >
                 {emojis.join('')}
+                {/* THE GLYPH GETS ITS NUMBER (2026-08-22). The HRW band was
+                    five states carried entirely by a pictograph — hrw_score
+                    appeared nowhere on this card, so the emoji was not
+                    decorating an encoding, it WAS the encoding. Two digits in
+                    the band's own ramp colour, which is as small as it can be
+                    and still be a number. Donovan said commit to the emojis;
+                    committing means holding them to the same rule as a colour
+                    scale, and that rule is that the value is printed. */}
+                {hrw && hrw.score != null && (
+                  <span
+                    title={hrw.title}
+                    style={{
+                      fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800,
+                      color: hrw.color || C.text3, marginLeft: 1, lineHeight: 1,
+                    }}
+                  >{hrw.score.toFixed(0)}</span>
+                )}
                 <InfoDot on={openEmoji} onClick={() => setOpenEmoji((v) => !v)} />
               </span>
             )}

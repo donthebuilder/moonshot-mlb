@@ -5,6 +5,7 @@ import { activeStops, activeChips, inkOn, edgeOn, subscribe } from '../lib/palet
 import {
   useSpotlight, cellTint, cellEdge, cellMark, SPOT_MARK,
 } from '../lib/spotlight'
+import { divTone, seqColor } from '../lib/scales'
 import PaletteToggle from './PaletteToggle'
 
 // Heatmap — the chart the Streamlit build leans on hardest, ported.
@@ -97,6 +98,26 @@ export default function Heatmap({
   labelWidth = 150,
   onRowClick = null,
   maxHeight = null,
+  // ── PER-COLUMN SCALES (2026-08-22, the colour-system pass) ───────────────
+  //
+  // `scales` is { [columnName]: spec }, where spec is one of
+  //     { kind: 'seq', domain: [lo, hi] }        a magnitude on a stated scale
+  //     { kind: 'div', anchor, ceiling, deadband, invert }   a signed distance
+  //     { kind: 'none' }                          a number, drawn as a number
+  //
+  // WHY THIS EXISTS. The lineup × damage grid put ten columns on one ramp:
+  // two 0-100 model scores, a SIGNED DIFFERENCE ("vs own") on a
+  // one-directional scale, a raw PA count, and SLG/ISO multiplied by 1000 to
+  // make them share the ramp's range. Donovan: "great info, visually off."
+  // Every one of those is a different kind of number and only one kind of
+  // colour was available. Now there are three.
+  //
+  // A column with no spec keeps the old per-column auto-normalised ramp, so
+  // every existing Heatmap on the site renders exactly as it did.
+  scales = null,
+  // Per-column formatters, so a column can print .913 instead of 913 without
+  // the whole grid changing precision.
+  fmts = null,
 }) {
   const [hover, setHover] = useState(null)
   // The user's named highlight rules, so a chart lights the same rows a board
@@ -277,14 +298,76 @@ export default function Heatmap({
                 {columns.map((c) => {
                   const raw = r.values?.[c]
                   const [lo, hi] = ranges[c]
-                  const bg = rampColor(raw, lo, hi)
+                  const spec = scales?.[c]
                   const on = hover?.row === ri || hover?.col === c
+                  const show = (fmts && fmts[c]) ? fmts[c](raw) : fmt(raw)
+
+                  // A signed distance from a stated zero: tint + arrow, never
+                  // a solid fill. The two constructions look different on
+                  // purpose — see lib/scales.js.
+                  if (spec?.kind === 'div') {
+                    const d = divTone(raw, {
+                      anchor: spec.anchor ?? 0,
+                      ceiling: spec.ceiling ?? 1,
+                      deadband: spec.deadband ?? 0.08,
+                      invert: spec.invert === true,
+                    })
+                    return (
+                      <td
+                        key={c}
+                        onMouseEnter={() => setHover({ row: ri, col: c })}
+                        onMouseLeave={() => setHover(null)}
+                        title={`${r.label} · ${c}: ${show} — against ${spec.anchorLabel ?? spec.anchor ?? 0}`}
+                        style={{
+                          background: d.bg, color: d.fg,
+                          fontFamily: NUM_FONT, fontSize: 11, fontWeight: 700,
+                          textAlign: 'center', padding: '7px 5px',
+                          borderRight: `1px solid ${C.bg}`,
+                          borderBottom: `1px solid ${C.bg}`,
+                          outline: on ? `1px solid ${C.border2}` : 'none',
+                          outlineOffset: -1,
+                          minWidth: 46,
+                        }}
+                      >
+                        {show}
+                        {d.glyph && <span style={{ marginLeft: 2, fontSize: 8, opacity: 0.85 }}>{d.glyph}</span>}
+                      </td>
+                    )
+                  }
+
+                  // 'none' — a number that is simply a number. A raw count
+                  // with no ceiling is the commonest case and it was being
+                  // painted like a score.
+                  if (spec?.kind === 'none') {
+                    return (
+                      <td
+                        key={c}
+                        onMouseEnter={() => setHover({ row: ri, col: c })}
+                        onMouseLeave={() => setHover(null)}
+                        title={`${r.label} · ${c}: ${show}`}
+                        style={{
+                          background: C.bg3, color: C.text2,
+                          fontFamily: NUM_FONT, fontSize: 11, fontWeight: 700,
+                          textAlign: 'center', padding: '7px 5px',
+                          borderRight: `1px solid ${C.bg}`,
+                          borderBottom: `1px solid ${C.bg}`,
+                          outline: on ? `1px solid ${C.border2}` : 'none',
+                          outlineOffset: -1,
+                          minWidth: 46,
+                        }}
+                      >{show}</td>
+                    )
+                  }
+
+                  const bg = spec?.kind === 'seq' && spec.domain
+                    ? seqColor(raw, spec.domain)
+                    : rampColor(raw, lo, hi)
                   return (
                     <td
                       key={c}
                       onMouseEnter={() => setHover({ row: ri, col: c })}
                       onMouseLeave={() => setHover(null)}
-                      title={`${r.label} · ${c}: ${fmt(raw)}`}
+                      title={`${r.label} · ${c}: ${show}${spec?.domain ? ` — on ${spec.domain[0]}–${spec.domain[1]}` : ''}`}
                       style={{
                         background: bg || C.bg3,
                         color: bg ? inkFor(bg) : C.text3,
@@ -297,7 +380,7 @@ export default function Heatmap({
                         outlineOffset: -1,
                         minWidth: 46,
                       }}
-                    >{fmt(raw)}</td>
+                    >{show}</td>
                   )
                 })}
               </tr>

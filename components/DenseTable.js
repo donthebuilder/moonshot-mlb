@@ -6,6 +6,7 @@ import {
 } from '../lib/spotlight'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
+import { seqColor, divTone, SEQ_AUTO } from '../lib/scales'
 import { explainFor, InfoDot, ExplainBanner } from './Explain'
 
 // DenseTable — the PropFinder table pattern.
@@ -20,6 +21,18 @@ import { explainFor, InfoDot, ExplainBanner } from './Explain'
 //   heat:false  -> plain cell (names, teams, handedness)
 //   invert:true -> low is good, so the ramp runs the other way
 //   flag:true   -> boolean-ish; lit if truthy, dark if not
+//
+// ── THE SCALE FIELDS (2026-08-22, the colour-system pass) ──────────────────
+//   scale:  'seq' | 'div' | 'none'    which of the three scales this column is
+//   domain: [lo, hi] | 'auto'         SEQUENTIAL ONLY — the ramp's ends.
+//   anchor / ceiling / deadband       DIVERGING ONLY — see lib/scales.js
+//
+// A column that says nothing keeps the OLD behaviour exactly, so this is
+// additive and no existing board moves until it opts in. The direction of
+// travel, though, is stated here so the next person does not have to guess:
+// heat should be OPT-IN. Today it is opt-out (`c.heat !== false`), which is
+// why the Due board paints twenty-four columns on one ramp and reads as a
+// wash — see heatMode 'sorted' below, which is the opt-in version.
 
 /**
  * HEAT MODE — how much of the table is coloured.
@@ -36,11 +49,21 @@ import { explainFor, InfoDot, ExplainBanner } from './Explain'
  *   full        every numeric column, every row — what shipped
  *   standouts   only the top and bottom slice of each column
  *   primary     only columns marked `primary: true`; the rest go neutral
+ *   sorted      the column(s) you are actually ranking by, plus `primary`,
+ *               plus anything that declares a `scale` of its own
  *   none        no cell colour at all
+ *
+ * 'sorted' (2026-08-22) is the one the colour audit argues for on wide boards.
+ * The reasoning: on a 24-column table, colour cannot mean "this number is
+ * high" for twenty-four different questions at once — it just means "there is
+ * a number here". Following the sort makes the colour mean something the
+ * reader chose, which is the difference between information and decoration.
+ * A column with its own declared scale (a diverging gap, a fixed-domain score)
+ * still paints, because it was chosen deliberately rather than by default.
  *
  * Default stays 'full' so nothing changes until it's chosen deliberately.
  */
-export const HEAT_MODES = ['full', 'standouts', 'primary', 'none']
+export const HEAT_MODES = ['full', 'standouts', 'primary', 'sorted', 'none']
 
 const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
 
@@ -136,6 +159,13 @@ export default function DenseTable({
     if (!Number.isFinite(num)) return false
     if (heatMode === 'full') return true
     if (heatMode === 'primary') return c.primary === true
+    if (heatMode === 'sorted') {
+      // A declared scale is a deliberate choice and always paints; otherwise
+      // colour follows what the reader asked to rank by.
+      if (c.scale === 'seq' || c.scale === 'div') return true
+      if (c.primary === true) return true
+      return sort.some((s) => s.key === c.key)
+    }
     const k = cuts[c.key]
     if (!k) return false
     return c.invert ? (num <= k[0] || num >= k[1]) : (num >= k[1] || num <= k[0])
@@ -461,8 +491,47 @@ export default function DenseTable({
 
                   const [lo, hi] = ranges[c.key] || [0, 1]
                   const num = Number(v)
+
+                  // ── DIVERGING COLUMN ───────────────────────────────────
+                  // A signed distance from a stated zero: a tint, quiet ink,
+                  // and an arrow. The arrow is not decoration — a diverging
+                  // ramp's luminance is a V and a V cannot be ordered by
+                  // lightness, so the sign has to be carried by something
+                  // that is not colour at all. See lib/scales.js.
+                  if (c.scale === 'div') {
+                    const on = lit(c, num)
+                    const d = on
+                      ? divTone(num, {
+                          anchor: c.anchor ?? 0,
+                          ceiling: c.ceiling ?? 1,
+                          deadband: c.deadband ?? 0.08,
+                          invert: c.invert === true,
+                        })
+                      : { bg: 'transparent', fg: C.text3, glyph: '' }
+                    const shown = c.fmt ? c.fmt(v, r)
+                      : (Number.isFinite(num) ? num.toFixed(c.dp ?? 0) : '—')
+                    return (
+                      <td key={c.key}
+                        title={`${c.label}: ${Number.isFinite(num) ? num.toFixed(c.dp ?? 2) : '—'} · against ${c.anchorLabel || (c.anchor ?? 0)}`}
+                        style={{
+                          background: d.bg, color: d.fg,
+                          fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700,
+                          textAlign: 'center', padding: pad,
+                          borderRight: `1px solid ${C.bg}`, borderBottom: `1px solid ${C.bg}`,
+                          minWidth: c.w || 40,
+                        }}>
+                        {shown}
+                        {d.glyph && (
+                          <span style={{ marginLeft: 3, fontSize: 8, opacity: 0.85 }}>{d.glyph}</span>
+                        )}
+                      </td>
+                    )
+                  }
+
                   const bg = lit(c, num)
-                    ? (c.invert ? rampColor(hi - (num - lo), lo, hi) : rampColor(num, lo, hi))
+                    ? (c.scale === 'seq' && c.domain && c.domain !== SEQ_AUTO
+                        ? seqColor(num, c.domain)
+                        : c.invert ? rampColor(hi - (num - lo), lo, hi) : rampColor(num, lo, hi))
                     : null
                   // ROUNDED TOOLTIP. This used to print the raw float, so
                   // hovering a Fit cell read "Fit: 38.36650000000001" — a

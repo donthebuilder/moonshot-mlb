@@ -8,6 +8,7 @@ import {
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore } from '../../lib/scoring_additions'
+import { SEQ_AUTO } from '../../lib/scales'
 
 // Due — hitters overdue for a homer.
 //
@@ -22,20 +23,62 @@ import { kRiskScore } from '../../lib/scoring_additions'
 // Fields checked against the published slate: hr_due_score, hr_due_ratio,
 // hr_due_tag, games_since_last_hr and hr_per_pa are all present on 268/268.
 
+// ── THE COLOUR PASS (2026-08-22) ────────────────────────────────────────────
+//
+// Donovan: the Due chart "seems lazy". He was right, and the reason is
+// mechanical rather than aesthetic.
+//
+// Every one of these twenty-four columns used to be heat-painted, each
+// normalised against its OWN min and max. That construction GUARANTEES a black
+// end and a bright end in every column whether or not anything interesting
+// happened in it — the colour is generated, not earned. And it put a 0-100
+// model score (`due`), a unitless ratio (`ratio`), a raw count (`drought`) and
+// a measured rate (`hrPA`) on one identical amber ramp, which quietly invites
+// you to compare them.
+//
+// Three changes, and they are the whole fix:
+//
+//   1. `due` gets a STATED DOMAIN of [0, 100]. A score drawn against its own
+//      scale can come out entirely dim, and on a weak night it should.
+//   2. `ratio` and `gap` move to the DIVERGING scale anchored at 1.0. This is
+//      the honest reading and the page's own prose already says so: "a ratio
+//      board, not a drought board". Above 1.0 is overdue on his own rate;
+//      below is not; and 1.0 is the only number on this board that means
+//      anything on its own.
+//   3. Everything else prints plain, and heat follows the sort. Colour now
+//      says "this is the column you asked to rank by" instead of "there is a
+//      number here."
+//
+// Nothing is removed — every column, every value, every tooltip survives.
 const buildColumns = (onWatch) => [
   { key: 'watched', label: '☆',       action: true, w: 30, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
   { key: 'name',    label: 'Batter',  heat: false, w: 148, bold: true, sticky: true },
   { key: 'weak',    label: '★',       flag: true, mark: '★', w: 30 },
-  { key: 'due',     label: 'Due',     w: 44, dp: 1 },
-  { key: 'ratio',   label: 'Ratio',   w: 46, dp: 2,
+  // `due` IS SHADED AGAINST TONIGHT'S RANGE, ON PURPOSE, AND THE PAGE SAYS SO.
+  //
+  // The first version of this pass drew it against a stated [0, 100], which is
+  // the right instinct and the wrong answer here: hr_due_score is not
+  // calibrated to 100. Tonight it runs 0.0 to 33.6 with a median of 4.4, so
+  // [0, 100] threw away two thirds of the ramp and flattened every real
+  // difference into three near-black stops — a column that looked switched
+  // off. Auto is genuinely correct for "who is most overdue tonight", which is
+  // a relative question.
+  //
+  // The rule the audit actually cares about is not "never auto". It is "an
+  // auto domain must be ASKED FOR and its ends must be PRINTED", so the reader
+  // knows the bright end means "brightest tonight" rather than "high". The
+  // caption under the filters carries the numbers.
+  { key: 'due',     label: 'Due',     w: 44, dp: 1, scale: 'seq', domain: SEQ_AUTO, primary: true,
+    title: 'The bot’s due score. A score, not a probability — it orders hitters, it does not predict one. Shaded against tonight’s range, not against 100.' },
+  { key: 'ratio',   label: 'Ratio',   w: 46, dp: 2, scale: 'div', anchor: 1, ceiling: 3, anchorLabel: '1.00×',
     title: 'Expected HR rate against the actual drought — above 1 means overdue on his own rate' },
   { key: 'drought', label: 'Drought', w: 50,
     title: 'Games since his last home run' },
   { key: 'hrPA',    label: 'HR/PA',   w: 50, dp: 3,
-    title: 'Season HR per plate appearance — the power that makes a drought mean anything' },
-  { key: 'gap',     label: 'HR gap',  w: 48, dp: 2,
-    title: 'Drought minus what his own rate would predict' },
+    title: 'Season HR per plate appearance — the power that makes a drought mean anything. Its denominator is the PA column.' },
+  { key: 'gap',     label: 'HR gap',  w: 48, dp: 2, scale: 'div', anchor: 1, ceiling: 4, anchorLabel: '1.00× (his own rate)',
+    title: 'Drought against what his own rate would predict. 1.00× is exactly on schedule; above it is the actual due claim.' },
   { key: 'hr',      label: 'HR scr',  w: 48, dp: 1 },
   { key: 'barrel',  label: 'Brl%',    w: 44, dp: 1 },
   { key: 'dc',      label: 'DC',      w: 44, dp: 1 },
@@ -386,11 +429,41 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
       ) : (
         <>
 
+          {/* THE CUT, SAID OUT LOUD (2026-08-22). This board sorts by `due`
+              and slices to `limit` BEFORE DenseTable sees a row, so
+              re-sorting by Brl% only re-orders the top-N-by-due. That was
+              true before and invisible; it is still true and now stated. */}
+          <div style={{ fontSize: 10, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
+            Showing the <b style={{ color: C.text2, fontFamily: NUM_FONT }}>top {limit}</b> by
+            Due out of <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{all.length}</b> —
+            sorting a column re-orders <i>these {Math.min(limit, all.length)}</i>, it does not
+            re-pick them. Raise <b style={{ color: C.text2 }}>Show</b> above to widen the pool.
+          </div>
+          <div style={{ fontSize: 10, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
+            <b style={{ color: C.text2 }}>Reading the colour.</b>{' '}
+            <b style={{ color: C.text2 }}>Due</b> is shaded against{' '}
+            <i>tonight&apos;s</i> range —{' '}
+            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>
+              {Math.min(...rows.map((r) => r.due)).toFixed(1)}–{Math.max(...rows.map((r) => r.due)).toFixed(1)}
+            </b>{' '}
+            on this board, median{' '}
+            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{medDue.toFixed(1)}</b> across all{' '}
+            {all.length} — so the brightest cell means <i>brightest tonight</i>, not{' '}
+            <i>high</i>. It is a <b style={{ color: C.text2 }}>score, not a probability</b>.{' '}
+            <b style={{ color: C.text2 }}>Ratio</b> and <b style={{ color: C.text2 }}>HR gap</b>{' '}
+            are drawn against <b style={{ color: C.text2, fontFamily: NUM_FONT }}>1.00×</b> —{' '}
+            <span style={{ fontFamily: NUM_FONT }}>▲</span> overdue on his own rate,{' '}
+            <span style={{ fontFamily: NUM_FONT }}>▼</span> not, and blank in the middle because a
+            hitter on schedule is not a finding. Every other column prints plain until you sort
+            by it.
+          </div>
+
           <DenseTable
             rows={rows}
             columns={buildColumns(onWatch)}
             onRowClick={onPlayerClick}
             initialSort="due"
+            heatMode="sorted"
             maxHeight={480}
           />
         </>

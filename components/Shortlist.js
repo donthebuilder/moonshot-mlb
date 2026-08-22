@@ -127,25 +127,39 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick }) 
         rows={rows}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
         initialSort={null}
+        heatMode="sorted"
         maxHeight={560}
         columns={[
           { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
           { key: 'opp', label: 'Opp', heat: false, w: 40, mono: true, dim: true },
-          { key: 'score', label: 'HR score', w: 64,
-            title: 'The bot’s 0-100 HR score — the profile. Not a probability.' },
-          { key: 'rate', label: 'His rate', w: 58, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
-            title: 'His real per-game 1+ HR probability: hr_per_pa through his lineup spot’s plate appearances. This IS a probability, which is why it’s the only column the price gets compared to.' },
+          // ── A SCORE AND A PROBABILITY STOPPED SHARING A RAMP (2026-08-22)
+          //
+          // These two columns sat side by side on one auto-normalised ramp:
+          // an 83 in the same amber as a 23.7%. The tooltips already said the
+          // right thing — "the bot's 0-100 HR score… NOT a probability" — and
+          // the colour said the opposite, which is the louder of the two.
+          //
+          // The score keeps the sequential ramp, on a STATED 0-100 so it
+          // cannot borrow a probability's grammar. `rate` and `assume` — both
+          // real probabilities — print plain, and the DIFFERENCE between them
+          // (Room) carries the diverging scale, because the comparison is the
+          // finding and the two inputs are just the inputs.
+          { key: 'score', label: 'HR score', w: 64, scale: 'seq', domain: [0, 100], primary: true,
+            title: 'The bot’s 0-100 HR score — the profile. Not a probability, and drawn against 0–100 so it cannot look like one.' },
+          { key: 'rate', label: 'His rate', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
+            title: 'His real per-game 1+ HR probability: hr_per_pa through his lineup spot’s plate appearances. This IS a probability, which is why it’s the only column the price gets compared to — and why it is not painted on the same scale as the score.' },
           { key: 'price', label: 'Price', heat: false, w: 56, mono: true,
             fmt: (v, r) => r.priceTxt,
             title: 'The book’s 1+ HR price. ≠ means the book is on a different line — a multi-homer bet, not this one.' },
-          { key: 'assume', label: 'Odds assume', w: 74, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
-            title: 'The HR rate required to break even at that price — what the market thinks his number is.' },
+          { key: 'assume', label: 'Odds assume', w: 74, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
+            title: 'The HR rate required to break even at that price — what the market thinks his number is. A probability, printed plain: the comparison against His rate is the Room column.' },
           { key: 'fair', label: 'His fair px', heat: false, w: 62, mono: true, dim: true,
             fmt: (v) => (v == null ? '—' : fmtOdds(v)),
             title: 'The price his own rate deserves — anything longer is value.' },
-          { key: 'room', label: 'Room', w: 52, fmt: (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`),
-            title: 'His rate minus what the odds assume, in points. Positive: the book is paying more than his rate says it should.' },
+          { key: 'room', label: 'Room', w: 52, scale: 'div', anchor: 0, ceiling: 8, anchorLabel: 'the break-even price',
+            fmt: (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`),
+            title: 'His rate minus what the odds assume, in points. ▲ the book is paying more than his rate says it should; ▼ less; blank in the middle, because a fair price is not a finding.' },
           { key: '_readRank', label: 'Read', heat: false, w: 108,
             // fmt returns JSX — DenseTable renders it inside the cell, which
             // is how the verdict gets its colour without a cellStyle hook.

@@ -7,6 +7,8 @@ import {
   KIND_LABEL, PITCH_NAMES as LIVE_PITCH_NAMES, pitchColor, pitchSummary,
   pitchTypes, zoneBox, zoneCell, zoneFrac, inZone as pitchInZone,
 } from '../lib/livePitches'
+import { divTone, seqColor } from '../lib/scales'
+import { inkOn } from '../lib/palette'
 
 // STRIKE-ZONE MAP v3 — one map for both players.
 //
@@ -25,7 +27,11 @@ import {
 // The four API stat views (EV/SLG/OPS/AVG, season, MLB-graded) stay as the
 // batter-only fallback and are all the map shows when no zones file exists.
 
+// MLB's own five-band grade, cold -> hot. TEMP_ALPHA is the pre-2026-08-22
+// fallback (one hue, five opacities) and is kept only for the case where a
+// band comes back that TEMP_ORDER does not know.
 const TEMP_ALPHA = { hot: 0.8, warm: 0.5, lukewarm: 0.26, cool: 0.12, cold: 0.05 }
+const TEMP_ORDER = ['cold', 'cool', 'lukewarm', 'warm', 'hot']
 
 const API_STATS = [
   { key: 'ev', label: 'Exit velo', hint: 'His average EV on balls from this zone — season, live API' },
@@ -88,7 +94,29 @@ function ZoneMatchStrip({ zp, pzp }) {
   )
 }
 
-function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHover, hoverKey, open }) {
+// ── THE CELL (2026-08-22, the colour-system pass) ───────────────────────────
+//
+// It used to take `alpha` + `red` and build its own `rgba(...)` from one of two
+// hard-coded literals — #f87171 for "the starter owns this" and #f97316 for
+// "he does" — at a continuous opacity normalised PER MAP. Three problems, and
+// Donovan only had to say "needs to be easier to read" to name all of them:
+//
+//   1. TWO SCALES ON ONE GRID. Each side was normalised to its own maximum, so
+//      the brightest orange and the brightest red were each "the best of their
+//      kind tonight" and neither told you which of the two was bigger. The
+//      grid looked like a comparison and was two separate rankings overlaid.
+//   2. PER-MAP NORMALISATION. The top cell always landed near alpha .72
+//      whether the night was a genuine collision or nothing at all — the map
+//      could not draw a quiet matchup.
+//   3. RED VS ORANGE, at similar luminance, on a dark ground. Two warm hues a
+//      few degrees apart is the hardest possible pair to separate on a phone,
+//      and it is exactly the pair that fails for red/green colour blindness.
+//
+// It now takes a resolved `bg` / `ink` / `ring` from the ONE diverging scale,
+// so a cool cell is the starter's, a warm cell is his, and a cell near the
+// middle is genuinely near the middle. `alpha` + `red` still work for the
+// non-matchup modes, unchanged.
+function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHover, hoverKey, open, bg, ink, ring }) {
   const [v, h] = align || ['center', 'center']
   const base = red ? '248,113,113' : '249,115,22'
   return (
@@ -107,16 +135,21 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
       display: 'flex', flexDirection: 'column',
       alignItems: h === 'left' ? 'flex-start' : h === 'right' ? 'flex-end' : 'center',
       justifyContent: v === 'top' ? 'flex-start' : v === 'bottom' ? 'flex-end' : 'center',
-      background: `rgba(${base},${(alpha || 0).toFixed(2)})`,
-      border: `1px solid ${glow ? `rgba(${base},.75)` : C.border}`,
+      background: bg || `rgba(${base},${(alpha || 0).toFixed(2)})`,
+      border: `1px solid ${ring || (glow ? `rgba(${base},.75)` : C.border)}`,
       borderRadius: 4, height: '100%', minHeight: 0, minWidth: 0,
-      boxShadow: glow ? `0 0 10px rgba(${base},.4)` : 'none',
+      // The glow is gone on the matchup grid: an additive bloom reads as
+      // emphasis on a dark page and as a smudge on a light one, and the ring
+      // does the same job in both.
+      boxShadow: (!bg && glow) ? `0 0 10px rgba(${base},.4)` : 'none',
       padding: align ? '5px 7px' : 0, overflow: 'hidden',
       opacity: dim ? 0.45 : 1,
     }}>
       <span style={{
         fontFamily: NUM_FONT, fontSize: big ? 11 : 9, lineHeight: 1.25,
-        fontWeight: glow ? 900 : 600, color: glow ? '#fff' : C.text2,
+        fontWeight: glow ? 900 : 600,
+        // `#fff` was hard-coded here, which is invisible on a light theme.
+        color: ink || (glow ? C.text : C.text2),
       }}>{mark ? `${mark} ` : ''}{main}</span>
       {sub != null && (
         <span style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3 }}>{sub}</span>
@@ -329,11 +362,19 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   const apiZs = api?.[stat === 'matchup' ? 'ev' : stat] || {}
 
   if (!isMatch) {
+    // MLB's own five temp bands are ORDINAL — cold to hot — so they belong on
+    // the sequential ramp rather than on five opacities of one hue. Same five
+    // states, same order, but now they share the site's one magnitude scale
+    // and follow the palette toggle like every other heat cell.
     ZONES.forEach((k) => {
       const z = apiZs[k] || apiZs[String(Number(k))]
-      cells[k] = z
-        ? { main: z.value, alpha: TEMP_ALPHA[z.temp] ?? 0.15, glow: z.temp === 'hot' }
-        : { main: '—', alpha: 0 }
+      if (!z) { cells[k] = { main: '—', alpha: 0 }; return }
+      const idx = TEMP_ORDER.indexOf(z.temp)
+      const bg = idx >= 0 ? seqColor(idx, [0, TEMP_ORDER.length - 1]) : null
+      cells[k] = bg
+        ? { main: z.value, bg, ink: inkOn(bg), ring: C.border, glow: z.temp === 'hot',
+            title: `${ZONE_NAME[Number(k)] || `zone ${k}`} — ${z.value}, graded ${z.temp} by MLB` }
+        : { main: z.value, alpha: TEMP_ALPHA[z.temp] ?? 0.15, glow: z.temp === 'hot' }
     })
   } else {
     const hasP = !!pzp
@@ -351,24 +392,75 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
       hE[k] = (b.xslg ?? 0) * u * pBleed
       pE[k] = Math.max(0, 0.4 - (b.xwoba ?? 0.4)) * u
     })
-    const hMax = Math.max(...Object.values(hE), 1e-9)
-    const pMax = Math.max(...Object.values(pE), 1e-9)
+
+    // ── ONE SCALE, WITH AN ABSOLUTE DOMAIN (2026-08-22) ──────────────────
+    //
+    // hE and pE are on different units, so they cannot be subtracted raw.
+    // Each is divided by ITS OWN DEFINITIONAL FULL POINT first — the value it
+    // reaches when this component's own absolute collision gate is satisfied
+    // at heavy usage. Those gates are already stated forty lines below and are
+    // already the thing the ⓘ tooltip claims the count uses: a zone is a real
+    // collision when the starter throws there ≥7% AND the hitter slugs ≥.500
+    // (his) or runs ≤.280 xwOBA (theirs).
+    //
+    //   H_FULL = .500 xSLG × 20% usage           = 0.100
+    //   P_FULL = (.400 − .280) xwOBA × 20% usage = 0.024
+    //
+    // So a cell reaching 1.0 on either side is "a full-strength collision of
+    // that kind", not "the best cell on this particular map". THAT IS THE
+    // WHOLE POINT of the change: the old per-side normalisation crowned a
+    // brightest cell of each colour every single night, so a matchup where
+    // nothing collides looked exactly like one where everything did. The
+    // component knew this — the collision tally below was added precisely
+    // because the shading could not be trusted, and its tooltip says so out
+    // loud: "the map's colors are normalized per side; this count is
+    // absolute." Now the map is absolute too, and the tally is a count of
+    // what the map is already showing rather than a correction to it.
+    //
+    // edge = his − the starter's, in [−1, 1], anchored at zero. Warm is his,
+    // cool is the starter's, and the middle is genuinely the middle.
+    const H_FULL = 0.100
+    const P_FULL = 0.024
 
     ZONES.forEach((k) => {
       const zn = Number(k); const b = bz[zn]
       if (!b) { cells[k] = { main: '—', alpha: 0 }; return }
-      const h = hE[k] / hMax, p = pE[k] / pMax
-      const hitterWins = h >= p
-      const strength = hitterWins ? h : p
-      // native title dropped — the hover popout carries all of it, instantly
+      const h = Math.min(1, hE[k] / H_FULL)
+      const p = Math.min(1, pE[k] / P_FULL)
+      const edge = h - p
+      const t = divTone(edge, { anchor: 0, ceiling: 1, deadband: 0.10, floor: 0.10, max: 0.66 })
+      const hitterWins = edge >= 0
+      const strength = Math.abs(edge)
+      // ⚡ and ⚠ are kept for the extremes — they are Donovan's own language
+      // for this grid and they earn their place. Every OTHER cell now carries
+      // ▲ / ▼ / ·, because a diverging ramp's luminance is a V and a V cannot
+      // be ordered by lightness: without a glyph on every cell the two sides
+      // are indistinguishable in greyscale and for red/green colour blindness.
+      const mark = strength >= 0.7 ? (hitterWins ? '⚡' : '⚠') : t.glyph
+      // HR SCORING, IN THE CELL (2026-08-22). Donovan asked for it by name:
+      // "Strike Zone Match Up needs to be easier to read, and should
+      // incorporate HR scoring." It goes in as a MEASURED FREQUENCY WITH ITS
+      // DENOMINATOR — n HR in m PA — not as a rate floating free, because a
+      // 100% HR rate on one plate appearance is not a fact about a hitter.
+      const hrN = Number(b.hr)
+      const paN = Number(b.pa)
+      const hrTxt = Number.isFinite(hrN) && Number.isFinite(paN) && paN > 0
+        ? `${hrN}HR/${paN}` : null
+      const useTxt = hasP && use[zn] != null ? fmtPct(use[zn]) : null
       cells[k] = {
         main: fmt3(b.xslg),
-        sub: hasP && use[zn] != null ? fmtPct(use[zn]) : null,
-        mark: hitterWins ? (h >= 0.7 ? '⚡' : '') : (p >= 0.7 ? '⚠' : ''),
-        alpha: 0.04 + strength * 0.68,
-        red: !hitterWins,
+        sub: [useTxt, hrTxt].filter(Boolean).join(' · ') || null,
+        mark,
+        bg: t.bg === 'transparent' ? C.bg3 : t.bg,
+        ink: t.fg,
+        ring: strength >= 0.7 ? t.fg : C.border,
         glow: strength >= 0.7,
         dim: b.low_sample,
+        title: `${ZONE_NAME[zn] || `zone ${zn}`} — he slugs ${fmt3(b.xslg)} here (xwOBA ${fmt3(b.xwoba)})`
+          + (useTxt ? `, the starter goes there ${useTxt} of the time` : '')
+          + (hrTxt ? `, ${hrN} HR in ${paN} PA` : '')
+          + `. Edge ${edge >= 0 ? '+' : ''}${edge.toFixed(2)} of a full collision — ${hitterWins ? 'his' : "the starter's"}.`
+          + (b.low_sample ? ' Small sample — read lightly.' : ''),
       }
     })
 
@@ -395,7 +487,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
         {hisZones.length + theirZones.length > 0 ? <>
           {' — '}<b style={{ color: C.orange }}>{hisZones.length} his</b>
           {hisZones.length > 0 && <span style={{ color: C.text3 }}> ({hisZones.map((z) => ZONE_NAME[z]).join(', ')})</span>}
-          {' · '}<b style={{ color: '#f87171' }}>{theirZones.length} the starter&apos;s</b>
+          {' · '}<b style={{ color: C.blue }}>{theirZones.length} the starter&apos;s</b>
           {theirZones.length > 0 && <span style={{ color: C.text3 }}> ({theirZones.map((z) => ZONE_NAME[z]).join(', ')})</span>}
         </> : <span style={{ color: C.text3 }}> — his zones and the starter&apos;s traffic barely overlap; the map below is relative shading only</span>}
         <span title="A zone counts only when the starter throws there ≥7% AND the hitter slugs ≥.500 (his) or runs ≤.280 xwOBA (theirs), with a real sample. The map's colors are normalized per side; this count is absolute." style={{ cursor: 'help', color: C.text3 }}> ⓘ</span>
@@ -410,7 +502,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           {pzp && use[Number(bestH)] != null && <> and the starter goes there <b style={{ fontFamily: NUM_FONT }}>{fmtPct(use[Number(bestH)])}</b> of the time</>}.
         </>}
         {bp && pE[bestP] > 0 && <>
-          {' '}<b style={{ color: '#f87171' }}>⚠ Danger:</b> {ZONE_NAME[Number(bestP)]} —{' '}
+          {' '}<b style={{ color: C.blue }}>⚠ Danger:</b> {ZONE_NAME[Number(bestP)]} —{' '}
           <b style={{ fontFamily: NUM_FONT }}>{fmt3(bp.xwoba)}</b> xwOBA
           {pzp && use[Number(bestP)] != null && <> on <b style={{ fontFamily: NUM_FONT }}>{fmtPct(use[Number(bestP)])}</b> of the starter&apos;s pitches</>}.
         </>}
@@ -422,8 +514,21 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   // background; drop the season VALUE and the ⚡/⚠ marks so tonight's dots are
   // the only markers on the grid. The hover popout is untouched — the number is
   // still one gesture away, it just isn't painted over the picture.
+  // ── THE NUMBER ALWAYS PRINTS (2026-08-22) ────────────────────────────────
+  //
+  // This block used to blank `main` and `mark` on the At the Plate page, which
+  // left COLOUR AS THE ONLY ENCODING of a quantity — the one place on the site
+  // where that was true by design, and the exact thing "colours as
+  // information, not decoration" rules out. The footer even conceded it: "the
+  // cells carry colour and percentage only on this page."
+  //
+  // The original reason was real — tonight's live pitch dots were competing
+  // with the season number for the same 40px cell. So the number stays and
+  // shrinks instead: the sub-line (the starter's usage and his HR-per-PA in
+  // that zone) folds away in live mode, which frees the room the dots needed
+  // without deleting the reading.
   if (liveOnly) {
-    Object.keys(cells).forEach((k) => { cells[k] = { ...cells[k], main: '', mark: null } })
+    Object.keys(cells).forEach((k) => { cells[k] = { ...cells[k], sub: null } })
   }
 
   const pills = [...(hasBot ? [{ key: 'matchup', label: '⚔ Matchup', hint: 'Both players on one map — where his zones and the starter’s pitches collide, and who wins each collision' }] : []), ...API_STATS]
@@ -521,7 +626,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
             ].map(([k, v, col, tip]) => (
               <span key={k} title={tip} style={{
                 display: 'inline-flex', gap: 5, alignItems: 'baseline', fontFamily: NUM_FONT,
-                border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
+                border: `1px solid ${C.border}`, background: C.glass,
                 borderRadius: 7, padding: '2px 8px',
               }}>
                 <b style={{ fontSize: 7.5, letterSpacing: '.09em', color: C.text3 }}>{k}</b>
@@ -535,7 +640,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
                 borderRadius: 999, padding: '2px 9px',
                 border: `1px solid ${liveType ? C.border : C.border2}`,
-                background: liveType ? 'transparent' : 'rgba(255,255,255,.05)',
+                background: liveType ? 'transparent' : C.glass,
                 color: liveType ? C.text3 : C.text2,
               }}>all tonight</button>
               {liveTypes.map((t) => {
@@ -579,7 +684,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           <div style={{
             position: 'absolute', inset: 44,
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)',
-            gap: 3, background: '#0b0b0d', borderRadius: 6, padding: 3,
+            gap: 3, background: C.bg, borderRadius: 6, padding: 3,
             border: `1px solid ${C.border2}`,
           }}>
             {['01', '02', '03', '04', '05', '06', '07', '08', '09'].map((k) => (
@@ -596,7 +701,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                   dots have the box they were actually judged against */}
               <div style={{
                 position: 'absolute', left: ZG.pad, right: ZG.pad, top: ZG.pad, bottom: ZG.pad,
-                border: '1px dashed rgba(255,255,255,.28)', borderRadius: 3,
+                border: `1px dashed ${C.border2}`, borderRadius: 3,
               }} />
               {live.map((p, i) => {
                 const pos = livePos(zoneFrac(p, lbox))
@@ -639,8 +744,8 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 position: 'absolute', zIndex: 7, pointerEvents: 'none', width: 170,
                 ...(f.fx > 0.5 ? { right: '62%' } : { left: '62%' }),
                 ...(f.fz > 0.66 ? { bottom: 0 } : f.fz > 0.33 ? { top: '28%' } : { top: 0 }),
-                background: '#0b0b0d', border: `1px solid ${col}88`,
-                borderRadius: 8, padding: '7px 10px', boxShadow: '0 6px 20px rgba(0,0,0,.55)',
+                background: C.bg2, border: `1px solid ${col}88`,
+                borderRadius: 8, padding: '7px 10px', boxShadow: `0 6px 20px ${C.glass}`,
               }}>
                 <div style={{ fontSize: 9.5, fontWeight: 900, color: col, marginBottom: 2, whiteSpace: 'nowrap' }}>
                   {p.typeName || LIVE_PITCH_NAMES[p.type] || p.type || 'pitch'}
@@ -675,8 +780,8 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 position: 'absolute', zIndex: 6, pointerEvents: 'none', width: 158,
                 ...(col === 2 ? { right: '62%' } : { left: '62%' }),
                 ...(row === 2 ? { bottom: 0 } : row === 1 ? { top: '28%' } : { top: 0 }),
-                background: '#0b0b0d', border: `1px solid ${isKill ? 'rgba(248,113,113,.55)' : C.border2}`,
-                borderRadius: 8, padding: '7px 10px', boxShadow: '0 6px 20px rgba(0,0,0,.55)',
+                background: C.bg2, border: `1px solid ${isKill ? C.orange : C.border2}`,
+                borderRadius: 8, padding: '7px 10px', boxShadow: `0 6px 20px ${C.glass}`,
               }}>
                 <div style={{ fontSize: 9.5, fontWeight: 900, color: isKill ? '#f87171' : C.text, marginBottom: 2, whiteSpace: 'nowrap' }}>
                   {ZONE_NAME[zn]}{isKill ? ' · KILL ZONE' : ''}
@@ -789,22 +894,32 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           in the shadow corners. Hover a dot for the pitch, the call and the count; hover a cell for what was
           thrown there tonight on top of his season line.{liveNote ? ` ${liveNote}` : ''}{' '}
         </>}
-        {liveOnly
-          ? <>The cells carry <b style={{ color: C.text2 }}>colour and percentage only</b> on this page —
-            the season value that normally sits in each cell is off, so tonight&apos;s pitches are the only
-            markers drawn. <span style={{ color: C.orange }}>Orange = his damage meets the starter&apos;s
-            traffic</span> · <span style={{ color: '#f87171' }}>red = his hole meets it</span> · dim =
-            nothing collides there{isMatch ? '' : ' (brighter orange = hotter for the hitter)'}. Hover any
-            cell for his full line there and what was thrown into it tonight.</>
-          : isMatch
-          ? <>One map, both players. The number is HIS xSLG in that zone; the small number is how often
-            tonight&apos;s starter throws there. <span style={{ color: C.orange }}>Orange = his damage meets
-            their traffic</span> (⚡ strongest edge) · <span style={{ color: '#f87171' }}>red = his hole meets
-            their traffic</span> (⚠ biggest danger) · dim = nothing collides there. Hover any cell for both
-            sides of it.</>
-          : (api || hasBot)
-            ? <>{active?.label} by pitch location, MLB-graded hot/cold — brighter orange is hotter for the hitter.</>
-            : <>No season zone file for this hitter yet, so the cells are empty on purpose — only tonight&apos;s dots are real here.</>}
+        {/* ── ONE STRIP INSTEAD OF FIVE LINES OF PROSE (2026-08-22) ─────
+            The legend was a paragraph describing two colours that were hard
+            to tell apart. It is now the scale itself, drawn, with its anchor
+            and its ends named — and it says the same thing in both modes
+            because there is only one scale now. */}
+        {isMatch ? (
+          <>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginRight: 7, verticalAlign: 'middle' }}>
+              <b style={{ color: C.blue }}>▼ the starter&apos;s</b>
+              <span style={{
+                display: 'inline-block', width: 74, height: 7, borderRadius: 2,
+                background: `linear-gradient(90deg, ${C.blue}, ${C.bg3} 45%, ${C.bg3} 55%, ${C.orange})`,
+              }} />
+              <b style={{ color: C.orange }}>his ▲</b>
+            </span>
+            One map, both players, on <b style={{ color: C.text2 }}>one scale</b>: how far this zone
+            leans to him or to the arm, against a full-strength collision either way — so a night
+            where nothing collides reads as nothing. The big number is <b style={{ color: C.text2 }}>his
+            xSLG</b> there; the small line is how often the starter goes there and his{' '}
+            <b style={{ color: C.text2 }}>home runs over plate appearances</b> in that zone.
+            ⚡ / ⚠ mark the two strongest cells; every other cell carries ▲ ▼ or ·, so the map reads
+            with the colour taken out.
+          </>
+        ) : (api || hasBot)
+          ? <>{active?.label} by pitch location, MLB-graded cold → hot on the site&apos;s own heat ramp — brighter is hotter for the hitter.</>
+          : <>No season zone file for this hitter yet, so the cells are empty on purpose — only tonight&apos;s dots are real here.</>}
         {' '}Catcher&apos;s view{bats === 'L' ? ' — for this lefty, inside is the right column' : bats === 'R' ? ' — for this righty, inside is the left column' : ''}. Corners are out-of-zone. Faded = small sample.
       </div>
     </div>

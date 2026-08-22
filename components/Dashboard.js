@@ -190,7 +190,29 @@ export default function Dashboard() {
     const found = allPlayers.find((x) => String(x?.player_id ?? x?.id) === pid2)
     if (found) { setModalPlayer(found); hashAppliedRef.current = true }
   }, [allPlayers])
+  // ── EVERY DEEP LINK WAS LOST ON A NON-DEFAULT THEME (fixed 2026-08-22) ────
+  //
+  // Found while checking the colour work in light mode: `?theme=light#tab=due`
+  // landed on HOME. Every #tab= and #p= link did, for anyone not on ember.
+  //
+  // The race. Two effects run in the same commit. The one above READS
+  // #tab=due and calls setTabRaw — but this one, in that same commit, still
+  // closes over the render's `tab`, which is 'home', so `if (tab !== 'home')`
+  // is false and it REBUILDS THE HASH WITHOUT the tab. The hash is gone
+  // before the next render can write it back.
+  //
+  // On ember that is invisible: nothing remounts, the re-render fires
+  // immediately and puts #tab=due straight back. On any other theme
+  // SportRoot's applyTheme flips `pass`, Dashboard REMOUNTS, and the fresh
+  // mount reads a hash that has already been wiped. So the bug only ever
+  // appeared on the themes nobody had deep-linked into.
+  //
+  // The fix is one line: this effect does not write on its FIRST run. There
+  // is nothing to write on mount anyway — the URL is already whatever the
+  // reader asked for — and skipping it lets the read effect land first.
+  const hashWroteRef = useRef(false)
   useEffect(() => {
+    if (!hashWroteRef.current) { hashWroteRef.current = true; return }
     const h = new URLSearchParams()
     // KEEP THE SPORT KEY. This effect rebuilds the hash from scratch, so it
     // used to delete #sport= on mount — which broke every NFL deep link before

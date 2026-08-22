@@ -6,6 +6,8 @@ import { teamAbbrs } from '../lib/gamelogs'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
 import { fetchRestTravel } from '../lib/restTravel'
 import { dataUrl } from '../lib/dataSource'
+import { divChip, seqChip, SEQ_AUTO } from '../lib/scales'
+import { projectPool, projectionPublished } from '../lib/projection'
 import MobileFold from './MobileFold'
 
 // WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
@@ -232,21 +234,97 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   // a different number of hooks between the two renders and threw the tree
   // away. Both moved above the guard; neither changed otherwise.
   const [lens, setLens] = useState('both')
-  const lensVal = (g) => (lens === 'park' ? g.parkTerm : lens === 'wx' ? g.wxTerm : g.edge)
-  const ranked = useMemo(() => [...parks].sort((a, b) => lensVal(b) - lensVal(a)), [parks, lens])
+
+  // ── THE PROJECTED-OUTCOME LENS (2026-08-22) ──────────────────────────────
+  //
+  // Donovan: "Parks is cool but needs to be more based around the projected
+  // outcome — weather-driven, mixed with a park/hitter table, or something
+  // using projected output data: bases, HR, R, team K's."
+  //
+  // Every other lens on this board answers "what does the BUILDING do",
+  // which is a property of the venue and identical every night. This one
+  // answers "what is tonight's game projected to PRODUCE in it", which is the
+  // question he is actually asking — and it needs the lineups, not the park.
+  //
+  // lib/projection.js already owns this and enforces the invariants (a game
+  // cannot produce fewer bases than hits, or more homers than hits), so this
+  // is a call rather than a new model.
+  const proj = useMemo(() => {
+    const out = {}
+    parks.forEach((g) => { out[g.pk] = projectPool(g.bats) })
+    return out
+  }, [parks])
+  const hasProj = useMemo(() => projectionPublished(parks.flatMap((g) => g.bats)), [parks])
+
+  const lensVal = (g) => (
+    lens === 'park' ? g.parkTerm
+      : lens === 'wx' ? g.wxTerm
+        : lens === 'proj' ? (proj[g.pk]?.hr ?? 0)
+          : g.edge
+  )
+  const ranked = useMemo(() => [...parks].sort((a, b) => lensVal(b) - lensVal(a)), [parks, lens, proj])
+
+  // The slate's own middle, so the projected lens has a real anchor rather
+  // than an invented one. A projection is only interesting against the other
+  // fourteen games tonight.
+  const projMid = useMemo(() => {
+    const v = parks.map((g) => proj[g.pk]?.hr ?? 0).filter((x) => x > 0).sort((a, b) => a - b)
+    return v.length ? v[Math.floor(v.length / 2)] : 0
+  }, [parks, proj])
+
+  // The distance-threat range, for the pills. A hitter's score is HIS number
+  // and it now wears HIS colour instead of the park's.
+  const threatRange = useMemo(() => {
+    const v = parks.flatMap((g) => g.threats.map((p) => n(p?.longest_hr_score, 0))).filter((x) => x > 0)
+    return v.length ? [Math.min(...v), Math.max(...v)] : [0, 1]
+  }, [parks])
 
   if (!parks.length) return null
 
   const visibleParks = showAllParks ? ranked : ranked.slice(0, DEFAULT_SHOWN)
 
-  // Visual bands (2026-08-07, "this need to be cooler"): the edge number
-  // decides the card's whole personality — launch pads burn, ice boxes
-  // freeze, the middle stays quiet. Top three glow.
-  const bandOf = (edge) => edge >= 10 ? { icon: '🌋', col: '#f97316', word: 'LAUNCH PAD' }
-    : edge >= 5 ? { icon: '🔥', col: '#fb923c', word: 'CARRIES' }
-    : edge >= 0 ? { icon: '🌤', col: '#FCD34D', word: 'FAIR' }
-    : edge >= -8 ? { icon: '🌬', col: '#7dd3fc', word: 'HEAVY AIR' }
-    : { icon: '🧊', col: '#38bdf8', word: 'ICE BOX' }
+  // ── THE BAND, NOW ON THE ONE DIVERGING SCALE (2026-08-22) ────────────────
+  //
+  // The icon ladder and the words are unchanged — they are the redundant,
+  // colour-blind-safe half of this encoding and they were always the good
+  // part. What changed is the colour underneath them.
+  //
+  // Before: five hard-coded hexes (#f97316 #fb923c #FCD34D #7dd3fc #38bdf8)
+  // that no theme could reach, on a scale that was *shaped* like a diverging
+  // scale without being one — the two warm bands and the amber middle sat at
+  // three different hues, so "fair" read as a third verdict rather than as
+  // the absence of one.
+  //
+  // Now: `edge` is what it always was — a signed percentage against a NEUTRAL
+  // PARK IN NEUTRAL AIR — so it gets the diverging scale, anchored at 0,
+  // saturating at ±12%, with a dead band that renders the middle quiet. Warm
+  // = the building and the air are adding homers; cool = taking them away;
+  // neutral = neither, and it should look like neither.
+  const EDGE_CEIL = 12
+  const bandOf = (edge) => {
+    const meta = edge >= 10 ? { icon: '🌋', word: 'LAUNCH PAD' }
+      : edge >= 5 ? { icon: '🔥', word: 'CARRIES' }
+      : edge >= 0 ? { icon: '🌤', word: 'FAIR' }
+      : edge >= -8 ? { icon: '🌬', word: 'HEAVY AIR' }
+      : { icon: '🧊', word: 'ICE BOX' }
+    return { ...meta, col: divChip(edge, { anchor: 0, ceiling: EDGE_CEIL, deadband: 0.08 }) }
+  }
+
+  // The projected lens is a COUNT, not a percentage, so it cannot share the
+  // edge ladder — a count has no neutral at zero. Its anchor is the slate's
+  // own median game, which is the only honest middle for "is this game
+  // projected to produce more than the others tonight".
+  const projBandOf = (hr) => {
+    const d = projMid > 0 ? (hr - projMid) / projMid : 0
+    const meta = d >= 0.30 ? { icon: '🌋', word: 'BIGGEST SLATE' }
+      : d >= 0.12 ? { icon: '🔥', word: 'ABOVE SLATE' }
+      : d >= -0.12 ? { icon: '🌤', word: 'SLATE AVERAGE' }
+        : d >= -0.30 ? { icon: '🌬', word: 'BELOW SLATE' }
+          : { icon: '🧊', word: 'QUIETEST' }
+    return { ...meta, col: divChip(hr, { anchor: projMid, ceiling: Math.max(0.35, projMid * 0.6), deadband: 0.12 }) }
+  }
+
+  const bandFor = (g) => (lens === 'proj' ? projBandOf(lensVal(g)) : bandOf(lensVal(g)))
 
   // 📱 THE PHONE FOLD (2026-08-09, Donovan: "tonight's parks could be a drop
   // down on mobile, it's too long to scroll"). Fifteen cards are three tidy
@@ -269,7 +347,8 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
           🌋 launch pads → 🧊 ice boxes · tap to filter
         </span>
         <span style={{ display: 'inline-flex', gap: 4, marginLeft: 'auto' }}>
-          {[['both', 'Combined'], ['park', 'Stadium only'], ['wx', 'Weather only']].map(([k, label]) => (
+          {[['both', 'Combined'], ['park', 'Stadium only'], ['wx', 'Weather only'],
+            ...(hasProj ? [['proj', 'Projected HR']] : [])].map(([k, label]) => (
             <button key={k} onClick={() => setLens(k)} style={{
               fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer',
               padding: '2px 8px', borderRadius: 999, letterSpacing: '.04em',
@@ -300,7 +379,8 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
       }</style>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {visibleParks.map((g, i2) => {
-          const band = bandOf(lensVal(g))
+          const band = bandFor(g)
+          const pj = proj[g.pk]
           const isActive = activeVenue && g.venue === activeVenue
           const isTop = i2 < 3 && g.edge > 0
           const out = /out/i.test(g.windLabel)
@@ -348,10 +428,12 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span style={{ fontSize: 15 }}>{band.icon}</span>
                 <span style={{ fontSize: 18, fontWeight: 900, fontFamily: NUM_FONT, color: band.col, letterSpacing: '-0.03em' }}>
-                  {lensVal(g) > 0 ? '+' : ''}{lensVal(g).toFixed(0)}%
+                  {lens === 'proj'
+                    ? lensVal(g).toFixed(1)
+                    : `${lensVal(g) > 0 ? '+' : ''}${lensVal(g).toFixed(0)}%`}
                 </span>
                 <span style={{ fontSize: 7.5, fontWeight: 900, color: band.col, letterSpacing: '.08em', fontFamily: NUM_FONT, opacity: 0.85 }}>
-                  {band.word}
+                  {lens === 'proj' ? 'PROJ HR' : band.word}
                 </span>
               </div>
 
@@ -361,6 +443,52 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
               <div style={{ display: 'flex', gap: 7, alignItems: 'baseline', marginTop: 2, fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
                 <span style={{ fontWeight: 800, color: C.text2 }}>{g.matchup}</span>
               </div>
+
+              {/* ── 📐 WHAT IT IS PROJECTED TO PRODUCE (2026-08-22) ──────────
+                  Donovan: Parks "needs to be more based around the projected
+                  outcome… projected output data: bases, HR, R, team K's."
+
+                  Everything above this line is a property of the BUILDING and
+                  is the same every night. This line is a property of TONIGHT'S
+                  TWO LINEUPS in it, which is what he is actually asking the
+                  board. Counts, from lib/projection.js, which enforces that a
+                  game cannot project fewer bases than hits.
+
+                  Each figure is drawn against the SLATE MEDIAN — the only
+                  honest anchor for "is this game bigger than the others
+                  tonight" — with ▲/▼ carrying the sign so the read survives
+                  greyscale. `pj.n` is the denominator and it is printed. */}
+              {pj && pj.n > 0 && (
+                <div
+                  title={`Projected from ${pj.n} tracked bats across both lineups, ${pj.pa.toFixed(0)} expected plate appearances. Counts, not probabilities — and not park-adjusted, so read them next to the park number rather than through it.`}
+                  style={{
+                    display: 'flex', gap: 9, alignItems: 'baseline', marginTop: 4,
+                    fontFamily: NUM_FONT, fontSize: 9, flexWrap: 'wrap',
+                    borderTop: `1px solid ${C.border}`, paddingTop: 4,
+                  }}
+                >
+                  <span style={{ color: C.text3, fontWeight: 800, letterSpacing: '.05em' }}>📐 PROJ</span>
+                  {[
+                    ['HR', pj.hr, projMid, Math.max(0.35, projMid * 0.6), 1],
+                    ['bases', pj.tb, null, null, 0],
+                    ['hits', pj.hits, null, null, 0],
+                    ['HRR', pj.hrr, null, null, 0],
+                  ].map(([label, v, anchor, ceil, dp]) => {
+                    const col = anchor == null ? C.text2 : divChip(v, { anchor, ceiling: ceil, deadband: 0.12 })
+                    const arrow = anchor == null ? '' : v > anchor * 1.12 ? '▲' : v < anchor * 0.88 ? '▼' : '·'
+                    return (
+                      <span key={label} style={{ color: C.text3, whiteSpace: 'nowrap' }}>
+                        <b style={{ color: col, fontWeight: 800 }}>{v.toFixed(dp)}</b>
+                        {arrow && arrow !== '·' && (
+                          <span style={{ color: col, fontSize: 7.5, marginLeft: 1 }}>{arrow}</span>
+                        )}
+                        {' '}{label}
+                      </span>
+                    )
+                  })}
+                  <span style={{ color: C.text3, opacity: 0.8 }}>from {pj.n} bats</span>
+                </div>
+              )}
 
               {/* ── 🌦 CONDITIONS (2026-08-09) ────────────────────────────────
                   Donovan: "parks should be more focused on the weather and
@@ -600,7 +728,19 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
 
               {/* threats as clean pills — the 💪 read as clip-art (Donovan).
                   Top-3 parks get a matchup hook instead: THE bat vs THE arm,
-                  which is the sentence you'd actually say out loud. */}
+                  which is the sentence you'd actually say out loud.
+
+                  ── THE PILL NO LONGER WEARS THE PARK'S COLOUR (2026-08-22).
+                  These print `longest_hr_score`, a property of the HITTER, and
+                  used to paint it in `band.col`, a property of the BUILDING.
+                  So an 81 in a cold park was drawn ice-blue and a 45 in a
+                  launch pad was drawn burning orange — the colour said one
+                  thing and the number beside it said another. That is the
+                  purest form of "colour as decoration" in the audit and it
+                  was actively misleading. The score now wears its own value on
+                  the sequential ramp, against tonight's threat range; only the
+                  pill's border still borrows the card's band, because the
+                  border is chrome and the number is data. */}
               {g.threats.length > 0 && (isTop ? (
                 <div style={{ marginTop: 5, borderTop: `1px solid ${band.col}22`, paddingTop: 4 }}>
                   <span
@@ -608,7 +748,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                     style={{ fontSize: 10, fontWeight: 800, color: C.text, cursor: 'pointer' }}
                   >
                     {surname(nameOf(g.threats[0]))}
-                    <b style={{ fontFamily: NUM_FONT, color: band.col }}> {n(g.threats[0]?.longest_hr_score, 0).toFixed(0)}</b>
+                    <b style={{ fontFamily: NUM_FONT, color: seqChip(n(g.threats[0]?.longest_hr_score, 0), SEQ_AUTO, threatRange) || C.text2 }}> {n(g.threats[0]?.longest_hr_score, 0).toFixed(0)}</b>
                     <span style={{ color: C.text3, fontWeight: 600 }}> vs {surname(clean(g.threats[0]?.pitcher_name, 'TBD'))}</span>
                   </span>
                   {g.threats[1] && (
@@ -616,7 +756,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                       onClick={(e) => { e.stopPropagation(); onPlayerClick?.(g.threats[1]) }}
                       style={{ fontSize: 9, color: C.text3, cursor: 'pointer', marginLeft: 8 }}
                     >
-                      + {surname(nameOf(g.threats[1]))} <b style={{ fontFamily: NUM_FONT, color: band.col }}>{n(g.threats[1]?.longest_hr_score, 0).toFixed(0)}</b>
+                      + {surname(nameOf(g.threats[1]))} <b style={{ fontFamily: NUM_FONT, color: seqChip(n(g.threats[1]?.longest_hr_score, 0), SEQ_AUTO, threatRange) || C.text2 }}>{n(g.threats[1]?.longest_hr_score, 0).toFixed(0)}</b>
                     </span>
                   )}
                 </div>
@@ -633,7 +773,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                         background: `${band.col}0a`,
                       }}
                     >
-                      {surname(nameOf(p))} <b style={{ fontFamily: NUM_FONT, color: band.col }}>{n(p?.longest_hr_score, 0).toFixed(0)}</b>
+                      {surname(nameOf(p))} <b style={{ fontFamily: NUM_FONT, color: seqChip(n(p?.longest_hr_score, 0), SEQ_AUTO, threatRange) || C.text2 }}>{n(p?.longest_hr_score, 0).toFixed(0)}</b>
                     </span>
                   ))}
                 </div>
@@ -660,7 +800,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                           key={p?.player_id}
                           onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }}
                           title={`${nameOf(p)} in this building, ${vh.seasons}: ${vh.hr} HR in ${vh.games} games${vh.vs_self != null ? ` — ${(vh.vs_self).toFixed(2)}× his overall HR rate` : ''}${up ? '. The park plays UP for him.' : ''}`}
-                          style={{ color: up ? band.col : C.text2, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          style={{ color: up ? C.orange : C.text2, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
                         >
                           {surname(nameOf(p))} <b>{vh.hr}</b><span style={{ color: C.text3, fontWeight: 500 }}>/{vh.games}g</span>{up ? '▲' : ''}
                         </span>

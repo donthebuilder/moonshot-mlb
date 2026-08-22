@@ -8,6 +8,7 @@ import {
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import Rail from '../Rail'
 import DenseTable from '../DenseTable'
+import { seqChip, divChip, SEQ_AUTO } from '../../lib/scales'
 
 // Longest — who hits the FARTHEST ball tonight.
 //
@@ -61,9 +62,15 @@ const buildColumns = (onWatch) => [
   { key: 'team',    label: 'Tm',      heat: false, w: 34, mono: true, dim: true },
   { key: 'opp',     label: 'Opp',     heat: false, w: 34, mono: true, dim: true },
   { key: 'venue',   label: 'Park',    heat: false, w: 150, dim: true },
-  { key: 'adj',     label: 'Adjusted', w: 54, dp: 1 },
-  { key: 'raw',     label: 'Raw',     w: 46, dp: 1 },
-  { key: 'parkD',   label: 'Park×',   w: 46, dp: 2 },
+  // The two columns that decide the order. `primary` so they keep their colour
+  // under heatMode 'sorted' whichever of the two you are ranking by — the
+  // whole argument of this board is that Adjusted and Raw disagree, and you
+  // cannot see a disagreement if only one side is drawn.
+  { key: 'adj',     label: 'Adjusted', w: 54, dp: 1, primary: true },
+  { key: 'raw',     label: 'Raw',     w: 46, dp: 1, primary: true },
+  // A multiplier around 1.00 is a signed distance from neutral, not a
+  // magnitude — it was on the sequential ramp and it never belonged there.
+  { key: 'parkD',   label: 'Park×',   w: 46, dp: 2, scale: 'div', anchor: 1, ceiling: 0.25, anchorLabel: '1.00 (neutral park)' },
   { key: 'temp',    label: 'Temp',    w: 44, dp: 0 },
   { key: 'wind',    label: 'Wind',    w: 44, dp: 0 },
   { key: 'maxEV',   label: 'Max EV',  w: 50, dp: 1 },
@@ -113,8 +120,11 @@ const buildColumns = (onWatch) => [
     title: 'Recent sweet-spot rate — batted balls in the 8–32° launch window where distance lives' },
   // Conditions. Distance is the one board where air and park do real work, so
   // the game environment belongs on the row rather than a tooltip away.
-  { key: 'hrEff',   label: 'Wx HR%',  w: 52, dp: 0,
-    title: 'The bot’s own estimate of how much tonight’s weather moves home runs at this park' },
+  // The weather's own signed effect, against a neutral night. It was on the
+  // sequential ramp with `invert` doing the work a diverging scale should do —
+  // inversion is a diverging idea wearing a sequential coat.
+  { key: 'hrEff',   label: 'Wx HR%',  w: 52, dp: 0, scale: 'div', anchor: 0, ceiling: 12, anchorLabel: '0% (neutral air)',
+    title: 'The bot’s own estimate of how much tonight’s weather moves home runs at this park. Drawn against a neutral night: ▲ air is adding homers, ▼ taking them away.' },
   { key: 'humid',   label: 'Humid%',  w: 50, dp: 0,
     title: 'Humid air is less dense, so the ball carries slightly further — the opposite of what most people assume' },
   { key: 'feels',   label: 'Feels',   w: 46, dp: 0,
@@ -285,7 +295,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
                     <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>ft</span>
                     <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{h.name}</span>
                     {rk && rk <= 25 && (
-                      <span title={`This board ranked him #${rk} for distance BEFORE the game`} style={{ fontSize: 9, fontWeight: 900, color: rk <= 5 ? '#4ade80' : C.text3, fontFamily: NUM_FONT }}>🎯#{rk}</span>
+                      <span title={`This board ranked him #${rk} for distance BEFORE the game`} style={{ fontSize: 9, fontWeight: 900, color: rk <= 5 ? C.orange : C.text3, fontFamily: NUM_FONT }}>🎯#{rk}</span>
                     )}
                     {Number(h?.max_ev_mph) > 0 && <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{Number(h.max_ev_mph).toFixed(0)}mph</span>}
                   </div>
@@ -352,11 +362,91 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
       ) : (
         <>
 
+          {/* ── 🚀 THE DISTANCE LADDER (2026-08-22) ────────────────────────
+              Donovan: "the furthest and Due charts need work."
+
+              The defect was not the colour, it was the FORM, and a phone
+              screenshot settles it: this table is 33 columns wide, and at
+              430px you see Batter / Tm / Opp / Park and then the heat begins
+              off-screen. Every coloured cell on the board — including the two
+              columns that decide the order — was reachable only by horizontal
+              scrolling. A chart whose encoding you cannot see is not a chart.
+
+              So the two numbers that rank the board are drawn where a phone
+              can see them, as a bar: Adjusted is the length AND the sequential
+              fill, Raw is a tick on the same axis, and the gap between them IS
+              the park-and-air carry — which is the whole argument of this
+              board made visible instead of asserted. The `carry` multiplier
+              was previously hidden inside `adj` and is now printed.
+
+              THE TABLE BELOW IS UNCHANGED AND STILL CARRIES ALL 33 COLUMNS.
+              Condense the form, keep every fact. */}
+          {(() => {
+            const ladder = rows.slice(0, 10)
+            if (!ladder.length) return null
+            const hi = Math.max(...ladder.map((r) => Math.max(r.adj, r.raw)), 1)
+            return (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 10, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
+                  <b style={{ color: C.text2 }}>Top 10 by {rankBy === 'adj' ? 'Adjusted' : 'Raw'}.</b>{' '}
+                  Bar and fill are <b style={{ color: C.text2 }}>Adjusted</b>, shaded against
+                  tonight&apos;s top of{' '}
+                  <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{hi.toFixed(1)}</b>; the tick
+                  is <b style={{ color: C.text2 }}>Raw</b>, before park and air. The distance
+                  between them is the carry, printed on the right. These are{' '}
+                  <b style={{ color: C.text2 }}>distance scores, not probabilities</b> — the full
+                  33-column board is underneath, unchanged.
+                </div>
+                {ladder.map((r, i) => {
+                  const w = Math.max(3, (100 * r.adj) / hi)
+                  const tick = Math.max(0, Math.min(100, (100 * r.raw) / hi))
+                  const fill = seqChip(r.adj, SEQ_AUTO, [0, hi]) || C.orange
+                  return (
+                    <div
+                      key={r._key}
+                      onClick={() => onPlayerClick?.(r)}
+                      title={`${r.name} — adjusted ${r.adj.toFixed(1)}, raw ${r.raw.toFixed(1)}, carry ×${(r.raw > 0 ? r.adj / r.raw : 1).toFixed(3)} at ${r.venue || 'TBD'}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+                        padding: '3px 0', borderBottom: `1px solid ${C.border}`,
+                      }}
+                    >
+                      <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16, flexShrink: 0, textAlign: 'right' }}>{i + 1}</span>
+                      <span style={{
+                        fontSize: 10.5, fontWeight: 700, width: 96, flexShrink: 0,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>{r.name}</span>
+                      <span style={{ position: 'relative', flex: 1, minWidth: 60, height: 13, background: C.bg3, borderRadius: 3 }}>
+                        <span style={{ position: 'absolute', inset: 0, width: `${w}%`, background: fill, borderRadius: 3 }} />
+                        {/* Raw, as a tick on the same axis — so "the park did
+                            this much of it" is a distance you can see rather
+                            than a subtraction you have to do. */}
+                        <span
+                          title={`Raw ${r.raw.toFixed(1)} — before park and air`}
+                          style={{
+                            position: 'absolute', left: `${tick}%`, top: -2, bottom: -2, width: 2,
+                            background: C.text, opacity: 0.85,
+                          }}
+                        />
+                      </span>
+                      <span style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, width: 34, flexShrink: 0, textAlign: 'right' }}>{r.adj.toFixed(1)}</span>
+                      <span style={{
+                        fontFamily: NUM_FONT, fontSize: 8.5, width: 42, flexShrink: 0, textAlign: 'right',
+                        color: divChip(r.raw > 0 ? r.adj / r.raw : 1, { anchor: 1, ceiling: 0.2, deadband: 0.1 }),
+                      }}>×{(r.raw > 0 ? r.adj / r.raw : 1).toFixed(2)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+
           <DenseTable
             rows={rows}
             columns={columns}
             onRowClick={onPlayerClick}
             initialSort={rankBy}
+            heatMode="sorted"
             maxHeight={480}
           />
         </>
