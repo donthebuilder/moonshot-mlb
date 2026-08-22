@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
-import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows } from '../lib/data'
+import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
 import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
@@ -97,6 +97,11 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [backtest, setBacktest] = useState(null)
 
+  // Which slate the last payload was for. The regression guard below must only
+  // compare like with like: today -> tomorrow legitimately moves the date
+  // forward, and tomorrow -> today legitimately moves it back.
+  const slateModeRef = useRef(mode)
+
   useEffect(() => {
     let alive = true
     // Only show the loading spinner on the FIRST load and on a manual,
@@ -108,6 +113,8 @@ export default function Dashboard() {
     // Data is fetched from the Streamlit repo's `data` branch, not from this
     // app's own /public -- moonshot ships no data of its own.
     setSlateMode(mode)
+    const sameMode = slateModeRef.current === mode
+    slateModeRef.current = mode
     const paths = slatePaths(mode)
     // fetchJSON already cache-busts with a ?t=Date.now() query param (see
     // lib/data.js), so re-running this effect always hits the network for
@@ -116,7 +123,13 @@ export default function Dashboard() {
       // The slate is the one payload with a validity test: a 200 carrying six
       // rows from a game two weeks ago must not beat the real slate sitting
       // behind it in the fallback list. See lib/data.js.
-      fetchJSON(paths, slateLooksReal).then((j) => { if (alive) setData(j) }),
+      // ...and a second test, on ORDER: a payload dated earlier than the board
+      // already on screen is a regression, not an update, and is dropped.
+      // 2026-08-22, when the data branch spent the day alternating between
+      // tonight's slate and last night's. See keepNewerSlate in lib/data.js.
+      fetchJSON(paths, slateLooksReal).then((j) => {
+        if (alive) setData((prev) => (sameMode ? keepNewerSlate(prev, j) : j))
+      }),
       fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
       // No validator: no odds file is the normal state until a key is set.
       fetchJSON(oddsPaths()).then((j) => { if (alive) setOdds(j) }),
