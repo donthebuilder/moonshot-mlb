@@ -8,6 +8,7 @@ import {
   leagueLeaders, LEADER_CATS,
   gradedHistory, HIST_FIRST, HIST_MAX, HIST_MIN_PICKS, HIST_MIN_NIGHTS,
 } from '../../lib/leaders'
+import { tone, alpha } from '../../lib/scales'
 
 // League Leaders — SEASON STATS ONLY.
 //
@@ -517,16 +518,21 @@ export default function Leaders({ players = [], onPlayerClick }) {
   // Both halves are published fields: his season ISO, the starter's HR/9.
   // No model, no weighting — just the two numbers that, when both are high,
   // are the reason you'd open his card next.
-  const collisions = [...rows]
-    .filter((r) => r.iso >= 0.200 && n(r._raw?.pitcher_hr9, 0) >= 1.3)
-    .sort((a, b) => (b.iso * n(b._raw?.pitcher_hr9, 0)) - (a.iso * n(a._raw?.pitcher_hr9, 0)))
+  // THE PRODUCT IS WHAT ORDERS THEM, so the product is now on the chip. Both
+  // factors were already printed and the thing that ranked them was not, which
+  // reads as "sorted by ISO" and is not — a .205 bat facing a 1.9 HR/9 arm
+  // outranks a .260 bat facing a 1.31.
+  const collisionPool = [...rows].filter((r) => r.iso >= 0.200 && n(r._raw?.pitcher_hr9, 0) >= 1.3)
+  const collisions = collisionPool
+    .map((r) => ({ ...r, collide: r.iso * n(r._raw?.pitcher_hr9, 0) }))
+    .sort((a, b) => b.collide - a.collide)
     .slice(0, 8)
 
   const chip = (on) => ({
     padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
     fontFamily: NUM_FONT,
     border: `1px solid ${on ? C.orange : C.border}`,
-    background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+    background: on ? alpha(C.orange, 0.12) : 'transparent',
     color: on ? C.orange : C.text3,
   })
   const lbl = {
@@ -617,7 +623,9 @@ export default function Leaders({ players = [], onPlayerClick }) {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             <span style={{ fontSize: 11.5, fontWeight: 900 }}>⚡ Season power, homer-prone arm</span>
             <span style={{ fontSize: 9.5, color: C.text3 }}>
-              .200+ ISO facing a starter allowing 1.30+ HR/9 tonight — two published numbers, no model
+              .200+ ISO facing a starter allowing 1.30+ HR/9 tonight — two published numbers, no
+              model. Ordered by <b style={{ color: C.text2 }}>ISO × HR/9</b>, printed on each chip;
+              top {collisions.length} of {collisionPool.length} who clear both bars.
             </span>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -628,13 +636,17 @@ export default function Leaders({ players = [], onPlayerClick }) {
                   title={`${r.name} — season ISO ${r.iso.toFixed(3)} (${r.pa} PA). Faces ${clean(r._raw?.pitcher_name, 'TBD')} tonight, ${hr9.toFixed(2)} HR/9 allowed.`}
                   style={{
                     display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
-                    border: `1px solid ${C.orange}44`, background: 'rgba(249,115,22,.08)',
+                    border: `1px solid ${alpha(C.orange, 0.27)}`, background: alpha(C.orange, 0.08),
                     borderRadius: 8, padding: '4px 10px',
                   }}>
                   <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{r.name}</span>
-                  <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: '#4ade80', fontWeight: 800 }}>ISO {r.iso.toFixed(3)}</span>
+                  <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: tone('green'), fontWeight: 800 }}>ISO {r.iso.toFixed(3)}</span>
                   <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.orange, fontWeight: 800 }}>
                     vs {String(clean(r._raw?.pitcher_name, '?')).split(' ').slice(-1)[0]} {hr9.toFixed(2)} HR/9
+                  </span>
+                  <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, fontWeight: 800 }}
+                    title="ISO × HR/9 — the product these chips are ordered by. Not a rate and not a score: it is the two published numbers multiplied, and it exists so the order is visible rather than implied.">
+                    = {r.collide.toFixed(2)}
                   </span>
                 </button>
               )

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf, hrScore, playerId } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
+import { tone } from '../../lib/scales'
 
 // 🏆 MOONSHOT DERBY (2026-08-08, "yuhhh. yeah do it. i love the idea").
 //
@@ -214,21 +215,30 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
       {/* scoreboard — you vs the bot, live feet */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
         {[{ label: 'YOU', squad: roster, r: mine, col: C.orange },
-          { label: 'THE BOT', squad: botSquad, r: bots, col: '#22d3ee' }].map(({ label, squad, r, col }) => (
+          { label: 'THE BOT', squad: botSquad, r: bots, col: tone('cyan') }].map(({ label, squad, r, col }) => (
           <div key={label} style={{
             flex: '1 1 260px', minWidth: 0, background: C.bg2,
             border: `1px solid ${mine.ft !== bots.ft && ((label === 'YOU') === (mine.ft > bots.ft)) ? col : C.border}`,
             borderTop: `2px solid ${col}`, borderRadius: 11, padding: '9px 13px',
           }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.09em', color: col, fontFamily: NUM_FONT }}>{label}</span>
+              {/* HOW THE BOT DRAFTED, SAID ONCE. Its squad is greedy by HR
+                  score under the same cap you have — the number on each chip
+                  IS that score (floored at 20), so the order is already on
+                  screen; what was missing was the rule that used it. */}
+              <span
+                title={label === 'THE BOT'
+                  ? `The bot drafts greedily: highest HR score first, taking any hitter it can still afford, until it has ${SQUAD} or the ${CAP} cap runs out. The number on each chip is his cost — his HR score, floored at 20 — so the order you see is the order it picked in.`
+                  : `Your squad. Same ${CAP} cap, same costs; a hitter costs his HR score, floored at 20.`}
+                style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.09em', color: col, fontFamily: NUM_FONT, cursor: 'help' }}
+              >{label}</span>
               <span style={{ fontSize: 22, fontWeight: 900, fontFamily: NUM_FONT, color: r.ft ? col : C.text3 }}>
                 {Math.round(r.ft).toLocaleString()} <span style={{ fontSize: 10 }}>ft</span>
               </span>
               {label === 'YOU' && !locked && roster.length > 0 && (
                 <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>drafting… {spent}/{CAP} spent</span>
               )}
-              {label === 'YOU' && locked && <span style={{ fontSize: 9, color: '#4ade80', fontFamily: NUM_FONT }}>🔒 locked</span>}
+              {label === 'YOU' && locked && <span style={{ fontSize: 9, color: tone('green'), fontFamily: NUM_FONT }}>🔒 locked</span>}
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
               {squad.map((p) => (

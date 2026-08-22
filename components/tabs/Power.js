@@ -149,6 +149,28 @@ function AirClause({ p }) {
   )
 }
 
+// ── THE NUMBER THAT PICKS THE LEAD, ALWAYS SPOKEN ───────────────────────────
+//
+// `lead` sorts its candidates by conviction z and takes the top one. The page
+// then printed that z only when it cleared 0.8 — so on a night when the
+// winner was 0.3 clear of the runner-up, the reader got a confident headline
+// and no way to see that the two were a coin flip. The lead is a ranking
+// claim; the strength of the ranking belongs in the sentence either way.
+function ConvictionClause({ conv, field }) {
+  if (!conv || !Number.isFinite(conv.z)) return null
+  const strong = conv.z >= 0.8
+  return (
+    <>
+      , <Num>{conv.z.toFixed(1)}</Num> standard deviation{conv.z === 1 ? '' : 's'}{' '}
+      {strong ? 'clear of' : 'above'} {field}
+      {strong && conv.gap != null && <> and <Num>{conv.gap.toFixed(1)}</Num> points clear of the next name</>}
+      {!strong && (
+        <span style={{ color: C.text3 }}> — close enough to the next name that this is an ordering, not a separation</span>
+      )}
+    </>
+  )
+}
+
 export default function PowerTab({ players, slateDate = '', results = null, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
   const [view, setView] = useState(initial)
   // Park click → filter the Farthest board to that game (2026-08-07). Clicking
@@ -198,6 +220,10 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
     }
     if (!cands.length) return null
 
+    // THE HERO IS PICKED BY z, so z is printed unconditionally below — see
+    // the ConvictionClause note. It used to be spoken only when it cleared
+    // 0.8, which meant the page hid the number precisely on the nights when
+    // the lead was weakest and the reader most needed to know it.
     const hero = [...cands].sort((a, b) => (b.conv?.z ?? -99) - (a.conv?.z ?? -99))[0]
     const other = cands.find((c) => c !== hero) || null
     return { hero, other }
@@ -261,11 +287,8 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
                 Nobody on the slate projects to hit one farther. His longest-HR score is{' '}
                 <Num color={h.color}>{distOf(p).toFixed(0)}</Num>
                 {h.pct != null && <> — <b style={{ color: C.text2 }}>{standingPhrase(h.pct)}</b></>}
-                {conv && conv.z >= 0.8 && (
-                  <>, <Num>{conv.z.toFixed(1)}</Num> standard deviations clear of tonight&apos;s field
-                    {conv.gap != null && <> and <Num>{conv.gap.toFixed(1)}</Num> points clear of the next name</>}
-                  </>
-                )}. That is a <b style={{ color: C.text2 }}>distance</b> read, not a chance of a homer.
+                <ConvictionClause conv={conv} field="tonight&apos;s field" />. That is a{' '}
+                <b style={{ color: C.text2 }}>distance</b> read, not a chance of a homer.
                 {maxDist > 0 && <> He has already put a ball <Num color={h.color}>{Math.round(maxDist)} ft</Num> in the tracked window
                   {d375 > 0 && den > 0 && <>, with <Num>{d375}</Num> of <Num>{den}</Num> tracked balls past 375</>}.</>}
               </Para>
@@ -278,7 +301,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
                   in a given game, which is the number the drought has to be read against.</>}
                 {' '}The bot&apos;s due score has him at <Num>{dueOf(p).toFixed(1)}</Num>
                 {h.pct != null && <> — <b style={{ color: C.text2 }}>{standingPhrase(h.pct)}</b></>}
-                {conv && conv.z >= 0.8 && <>, <Num>{conv.z.toFixed(1)}</Num> standard deviations clear of the field</>}
+                <ConvictionClause conv={conv} field="the field" />
                 {ratio > 0 && <>, and its ratio puts him <Num>{ratio.toFixed(1)}×</Num> past what his own rate predicts</>}.
                 {' '}A long drought <b style={{ color: C.text2 }}>without</b> that rate behind it is just a
                 hitter who does not homer, which is why this lead is picked on the rate and not on the

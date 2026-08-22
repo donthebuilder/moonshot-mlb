@@ -318,11 +318,34 @@ function pairReason(a, b, type) {
   return parts.join(' · ')
 }
 
-function eligiblePairPlayers(players=[]) {
-  return dedupePlayers(players)
+// ── THE POOL EVERY VARIANT PAIR IS BUILT FROM ───────────────────────────────
+//
+// Two invisible decisions used to live inside this one function: a bar that
+// admits a hitter to the pool at all, and a hard cut to the strongest 64 by a
+// number that appears nowhere on the page. Both are real editorial choices —
+// a hitter can be missing from every variant pair on the site and the page
+// never said why — so both are named now, and `eligiblePairInfo` hands the
+// counts to the UI so it can say them out loud.
+export const PAIR_POOL_SIZE = 64
+export const PAIR_POOL_KEY = 'HR score + HRW'
+
+export function eligiblePairInfo(players = []) {
+  const all = dedupePlayers(players)
+  const eligible = all
     .filter(p => !p.true_avoid_hr && (num(p.hr_score) >= 45 || hrwScore(p) >= 55 || num(p.hrr_score) >= 58))
-    .sort((a,b) => (num(b.hr_score) + hrwScore(b)) - (num(a.hr_score) + hrwScore(a)))
-    .slice(0, 64)
+    .sort((a, b) => (num(b.hr_score) + hrwScore(b)) - (num(a.hr_score) + hrwScore(a)))
+  const pool = eligible.slice(0, PAIR_POOL_SIZE)
+  // The rank key at the cut line — the number a hitter had to beat to be in
+  // the pool at all. Printing it turns "he isn't here" into a fact you can
+  // check on the Rundown.
+  const cutAt = eligible.length > PAIR_POOL_SIZE
+    ? num(eligible[PAIR_POOL_SIZE - 1]?.hr_score) + hrwScore(eligible[PAIR_POOL_SIZE - 1])
+    : null
+  return { pool, eligible: eligible.length, considered: all.length, cutAt }
+}
+
+function eligiblePairPlayers(players=[]) {
+  return eligiblePairInfo(players).pool
 }
 
 function buildVariantPairs(players, relation='cross') {
@@ -660,6 +683,7 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
 
   const crossPairs = useMemo(() => buildVariantPairs(sourcePlayers, 'cross'), [sourcePlayers])
   const samePairs = useMemo(() => buildVariantPairs(sourcePlayers, 'same'), [sourcePlayers])
+  const poolInfo = useMemo(() => eligiblePairInfo(sourcePlayers), [sourcePlayers])
 
   const scopedPairs = scope === 'bot' ? botPairs : scope === 'same' ? samePairs : crossPairs
   const types = useMemo(() => ['All', ...new Set(scopedPairs.map(p => p.type).filter(Boolean))], [scopedPairs])
@@ -714,6 +738,28 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
         {scope === 'bot' && 'Exact pair-builder output, grouped by the bot’s own lanes. Nothing dropped.'}
         {scope === 'same' && 'Same-game stack variants, cleaned to one appearance per player.'}
       </div>
+
+      {/* THE POOL, SAID OUT LOUD. Both variant scopes are built from a cut
+          this page never mentioned: the strongest 64 by HR score + HRW, out of
+          everyone who clears the entry bar. A hitter can be absent from every
+          pair on the page for that reason alone, and "he isn't here" should be
+          a fact you can check rather than something you have to infer. */}
+      {scope !== 'bot' && (
+        <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 10, maxWidth: 780 }}>
+          Built from the strongest{' '}
+          <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.min(PAIR_POOL_SIZE, poolInfo.eligible)}</b>{' '}
+          bats by <b style={{ color: C.text2 }}>{PAIR_POOL_KEY}</b>, out of{' '}
+          <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{poolInfo.eligible}</b> who clear the
+          entry bar (HR 45+, or HRW 55+, or HRR 58+, and not a bot avoid) from{' '}
+          <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{poolInfo.considered}</b> on the slate.
+          {poolInfo.cutAt != null && <>
+            {' '}The cut line tonight is{' '}
+            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{poolInfo.cutAt.toFixed(0)}</b>{' '}
+            combined — a hitter below it is missing from every variant pair for that reason and no
+            other.
+          </>}
+        </div>
+      )}
 
       {/* Bot picks get the bot's own structure. The cross/same variants are
           this site's constructions, so they keep the flat type filter. */}

@@ -85,7 +85,7 @@ const EXEMPT = new Set([
 //   1161  the audit
 //    875  after the colour/chart pass (five charts + the system)
 //    871  after the Rundown pass
-const HEX_BUDGET = 871
+const HEX_BUDGET = 854
 
 let hexTotal = 0
 const perFile = []

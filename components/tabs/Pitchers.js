@@ -406,6 +406,27 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   ? `${r.line.quality || '—'} · ${r.line.era != null ? r.line.era.toFixed(2) : '—'} ERA · ${r.line.whip != null ? r.line.whip.toFixed(2) : '—'} WHIP`
                   : 'no pen line'}
               </span>
+              {/* ATTACK SCORE, ON THE ROW (2026-08-22). This board offers an
+                  "Attack" sort and then never drew the number it sorted by —
+                  the order changed and nothing on screen explained it. It was
+                  spoken only in the two or three `notable` sentences below,
+                  which is exactly the wrong two or three: the rows you cannot
+                  read are the ones further down. Narrow, quiet, and always
+                  present when the slate publishes one. */}
+              {anyAttack && (
+                <span
+                  title={r.line?.attack != null
+                    ? `Bullpen attack score ${r.line.attack.toFixed(0)} — the bot's 0-100 rating of how attackable this pen is against the bats it faces tonight, on a slate spread of ${attackRange ? `${attackRange[0].toFixed(0)}–${attackRange[1].toFixed(0)}` : 'n/a'}. A score, not a chance of anything. This is the number the Attack sort uses.`
+                    : `No bullpen attack score published for ${r.ab} tonight — a blank, not a zero, so the Attack sort puts it last.`}
+                  style={{
+                    fontFamily: NUM_FONT, fontSize: 9, width: 44, flexShrink: 0, cursor: 'help',
+                    textAlign: 'right',
+                    fontWeight: sortKey === 'attack' ? 900 : 700,
+                    color: sortKey === 'attack' ? C.orange : C.text3,
+                  }}>
+                  {r.line?.attack != null ? `atk ${r.line.attack.toFixed(0)}` : 'atk —'}
+                </span>
+              )}
               {/* The workload tag keeps its exact three states — the third one
                   ("no log") is the honesty case and is never spoken as rest.
                   What is new is that the tooltips now name the arms that were

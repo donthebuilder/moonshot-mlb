@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, n, clean } from '../lib/player'
 import SprayField from './SprayField'
+import { tone, seqChip, seqInk } from '../lib/scales'
 
 // 🧱 NEAR MISSES — the homers that almost happened, from the bats that
 // haven't had one lately.
@@ -69,11 +70,19 @@ export function nearMissRows(players) {
       // 380+ reaches seats in most parks. Wall scrapers are literal near
       // misses. EV 108+ is homer contact whatever the angle did. Barrels
       // keep a live bat from being outranked by one lucky poke.
-      const close = (d >= 400 ? 3 : d >= 385 ? 2 : d >= 372 ? 1 : 0)
-        + w * 2
-        + (e >= 110 ? 2 : e >= 106 ? 1 : 0)
-        + (barrels(p) >= 0.12 ? 1 : 0)
-      return { p, d, e, w, close, since: n(p?.games_since_last_hr, 0) }
+      // ── THE RANKING NUMBER, KEPT IN PIECES ─────────────────────────────
+      // This list ordered by `close` and never printed it: the row showed a
+      // distance bar, so the obvious reading was "ranked by distance", and it
+      // is not — two wall scrapers outweigh fifteen feet. The terms are kept
+      // so the chip can say which one is carrying each hitter.
+      const closeTerms = {
+        distance: d >= 400 ? 3 : d >= 385 ? 2 : d >= 372 ? 1 : 0,
+        'wall scrapers': w * 2,
+        'exit velo': e >= 110 ? 2 : e >= 106 ? 1 : 0,
+        'barrel rate': barrels(p) >= 0.12 ? 1 : 0,
+      }
+      const close = Object.values(closeTerms).reduce((a, b) => a + b, 0)
+      return { p, d, e, w, close, closeTerms, since: n(p?.games_since_last_hr, 0) }
     })
     .filter((r) => r.close >= 2)
     .sort((a, b) => b.close - a.close || b.d - a.d)
@@ -84,6 +93,12 @@ export default function NearMisses({ players = [], onPlayerClick }) {
   const [expanded, setExpanded] = useState(null) // player_id-game_pk key, or null
 
   const rows = useMemo(() => nearMissRows(players), [players])
+  // `close` HAS NO FIXED CEILING and the first version of this chip pretended
+  // it did. Wall scrapers are a COUNT scored at ×2, so eight of them is 16 on
+  // their own — a [0,8] domain clipped most of the list at full brightness and
+  // the tooltip said "out of 8", which was simply wrong. Shade against the top
+  // of tonight's list instead, and say that is what it is.
+  const topClose = rows.length ? Math.max(...rows.map((r) => r.close), 1) : 1
 
   if (!rows.length) {
     return (
@@ -98,7 +113,12 @@ export default function NearMisses({ players = [], onPlayerClick }) {
   return (
     <div>
       <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.55, marginBottom: 8, maxWidth: 740 }}>
-        Every hitter whose recent contact says a homer was close — ranked by how close, no drought
+        Every hitter whose recent contact says a homer was close — <b style={{ color: C.text2 }}>ranked
+        by the number in the chip</b>, not by distance: distance tier (up to 3) + wall scrapers ×2 +
+        exit-velo tier (up to 2) + a barrel-rate point. No fixed ceiling — wall scrapers are a
+        count, so eight of them is 16 from that term alone — and the chip is shaded against
+        tonight&apos;s highest, <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{topClose}</b>.
+        Anyone under 2 is not on the list at all, and it stops at the top 14. Tap a chip for that hitter&apos;s own terms. No drought
         required. Distance and exit velo are his best recent batted ball (statcast, off the bot&apos;s
         own shape data); <b style={{ color: C.text2 }}>wall</b> counts literal warning-track scrapers
         in his recent hard contact. Bar shows that distance against a 340ft flyout (empty) to a
@@ -106,7 +126,7 @@ export default function NearMisses({ players = [], onPlayerClick }) {
         chart in place; tap the row to open his full page.
       </div>
       <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
-        {rows.map(({ p, d, e, w, since }) => {
+        {rows.map(({ p, d, e, w, close, closeTerms, since }) => {
           const key = `${p.player_id}-${p.game_pk}`
           const isOpen = expanded === key
           const pct = barPct(d)
@@ -131,9 +151,22 @@ export default function NearMisses({ players = [], onPlayerClick }) {
                     display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left', cursor: 'pointer',
                     background: 'transparent', border: 'none', padding: 0, flex: 1, minWidth: 0,
                   }}>
+                  {/* CLOSE, DRAWN. It is the only thing that decided this
+                      order, so it leads the row — and it says which term got
+                      him here, because "two wall scrapers" and "one 400-foot
+                      out" are the same 3 and read nothing alike. */}
+                  <span
+                    title={`Close ${close} — the number that ranked this list: ${Object.entries(closeTerms).filter(([, v]) => v).map(([k, v]) => `${k} +${v}`).join(', ') || 'nothing'}. No fixed ceiling: wall scrapers are a count scored at ×2, so a hitter with eight of them carries 16 from that term alone. Shaded against tonight's highest, ${topClose}. Anything under 2 is left off the list entirely.`}
+                    style={{
+                      fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, flexShrink: 0,
+                      background: seqChip(close, [0, topClose]) || C.bg3,
+                      color: seqInk(seqChip(close, [0, topClose]) || C.bg3),
+                      borderRadius: 5, padding: '1px 5px', minWidth: 18, textAlign: 'center',
+                    }}
+                  >{close}</span>
                   <span style={{
                     fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, flexShrink: 0,
-                    color: since >= 10 ? '#f87171' : since >= 5 ? C.orange : C.text2, minWidth: 30,
+                    color: since >= 10 ? tone('yellow') : since >= 5 ? C.orange : C.text2, minWidth: 30,
                   }} title={`${since} game${since === 1 ? '' : 's'} since his last homer`}>{since}g</span>
                   <span style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                     {nameOf(p)}
@@ -143,7 +176,7 @@ export default function NearMisses({ players = [], onPlayerClick }) {
                     title={`Best recent batted ball: ${d ? `${Math.round(d)} ft` : '—'}${e ? ` at ${e.toFixed(1)} mph` : ''}${w ? ` · ${w} wall scraper${w > 1 ? 's' : ''} in his recent hard contact` : ''}`}>
                     {d ? <b style={{ color: d >= 390 ? C.orange : C.text }}>{Math.round(d)}ft</b> : '—'}
                     {e ? <span style={{ color: C.text3 }}> · {e.toFixed(0)}mph</span> : null}
-                    {w > 0 && <b style={{ color: '#FCD34D' }}> · {w} wall</b>}
+                    {w > 0 && <b style={{ color: tone('yellow') }}> · {w} wall</b>}
                   </span>
                 </button>
               </div>
@@ -156,7 +189,10 @@ export default function NearMisses({ players = [], onPlayerClick }) {
               }} title={`${d ? Math.round(d) : '?'}ft of a 340–430ft range`}>
                 <div style={{
                   height: '100%', width: `${(pct * 100).toFixed(0)}%`, borderRadius: 999,
-                  background: pct >= 0.85 ? '#f87171' : pct >= 0.5 ? C.orange : '#FCD34D',
+                  // The distance bar now takes its colour off the site's own
+                  // sequential ramp instead of a private three-step one, so it
+                  // themes and switches palette with everything else.
+                  background: seqChip(d || 0, [DIST_LO, DIST_HI]) || C.bg3,
                 }} />
               </div>
               {isOpen && (
