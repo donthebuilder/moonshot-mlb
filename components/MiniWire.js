@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { notify, requestPermission, ensureWorker, installHint, canNotify } from '../lib/notify'
 import { nameOf, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../lib/liveSlate'
+import LiveWire from './LiveWire'
 
 // 📡 MINI WIRE + TOASTS — the live layer that follows you (2026-08-06).
 //
@@ -24,7 +25,27 @@ import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../li
 
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
 
-export default function MiniWire({ players = [], watchIds, tab, mode = 'today', onGo, onPlayerClick }) {
+// ── CLICKING THE WIRE STOPS MOVING YOU (2026-08-22, pass 2) ────────────────
+//
+// Donovan: "Live Wire: clicking it takes you back to Rundown — I don't like
+// that. It should stay where it is."
+//
+// The strip's one button called onGo, which is setTab('scoreboard'). So the
+// live layer that exists precisely BECAUSE it follows you around the site
+// answered a click by leaving the page you were on — and there was no way
+// back except the tab bar. If you were mid-read on Combos, the wire cost you
+// your place to tell you one thing.
+//
+// It now OPENS IN PLACE: the same full <LiveWire> panel, rendered under the
+// strip, on whatever tab you are standing on. `onGo` survives as a secondary
+// link for when Rundown is genuinely where you want to be — nothing was
+// removed, the default just stopped being the destructive one.
+export default function MiniWire({
+  players = [], watchIds, tab, mode = 'today', onGo, onPlayerClick,
+  // Passed through to the in-place panel so it renders the same wire the
+  // Rundown does rather than a degraded copy of it.
+  results = null, odds = null,
+}) {
   // TOMORROW MODE (2026-08-08): the wire is a TONIGHT instrument. Grading
   // tomorrow's picks against tonight's boxscores by shared player_id would
   // be silent nonsense — dark is the honest state.
@@ -53,6 +74,9 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
   // the server and the first client render agree"). This one didn't. Same
   // pattern now: start 'off', correct it after mount.
   const [notif, setNotif] = useState('off')
+  // Open-in-place, per session. Not persisted: the wire opening itself on
+  // every tab change would be the same intrusion as navigating away.
+  const [wireOpen, setWireOpen] = useState(false)
   useEffect(() => {
     try {
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted'
@@ -443,14 +467,41 @@ export default function MiniWire({ players = [], watchIds, tab, mode = 'today', 
             style={{ marginLeft: 'auto', fontSize: 12, cursor: 'pointer', opacity: notif === 'on' ? 1 : 0.55 }}
           >{notif === 'on' ? '🔔' : '🔕'}</span>
           <button
-            onClick={onGo}
-            title="Open the full Live Wire on the Scoreboard"
+            onClick={(e) => { e.stopPropagation(); setWireOpen((v) => !v) }}
+            title={wireOpen
+              ? 'Close the wire — it keeps running either way'
+              : 'Open the full Live Wire here, without leaving this tab'}
             style={{
-              fontSize: 9, color: '#4ade80', fontFamily: NUM_FONT, fontWeight: 800,
+              fontSize: 9, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800,
               cursor: 'pointer', background: 'transparent',
-              border: '1px solid rgba(74,222,128,.3)', borderRadius: 6, padding: '2px 8px',
+              border: `1px solid ${C.orange}55`, borderRadius: 6, padding: '2px 8px',
             }}
-          >open wire →</button>
+          >{wireOpen ? 'close ▴' : 'open wire ▾'}</button>
+          {onGo && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onGo() }}
+              title="Open the wire on the Rundown instead — this one does move you"
+              style={{
+                fontSize: 9, color: C.text3, fontFamily: NUM_FONT, fontWeight: 700,
+                cursor: 'pointer', background: 'transparent', border: 'none',
+                padding: '2px 2px', textDecoration: 'underline dotted',
+              }}
+            >on Rundown →</button>
+          )}
+        </div>
+      )}
+
+      {/* The wire, in place. Same component the Rundown mounts. */}
+      {tab !== 'scoreboard' && wireOpen && live.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <LiveWire
+            players={players}
+            results={results}
+            watchIds={watchIds}
+            mode={mode}
+            odds={odds}
+            onPlayerClick={onPlayerClick}
+          />
         </div>
       )}
     </>

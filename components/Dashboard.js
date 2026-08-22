@@ -417,7 +417,7 @@ export default function Dashboard() {
         {/* Loudest thing on the page when it fires, and silent otherwise:
             "you are looking at a slate that already happened". */}
         <StaleBanner slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} />
-        <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
+        <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} results={resultsForSlate} odds={odds} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice
             but I don't know what I'm looking at." */}

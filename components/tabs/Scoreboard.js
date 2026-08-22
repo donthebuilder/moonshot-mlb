@@ -121,24 +121,99 @@ const DH_COLUMN = {
     + 'whose team plays twice appears once per game and both rows are real.',
 }
 
+// ── LEAGUE ANCHORS (2026-08-22) ─────────────────────────────────────────────
+//
+// A batting average is not a magnitude; it is a distance from what everybody
+// else does. Drawn on the sequential ramp against the slate's own min/max, a
+// .251 hitter on a night of good bats came out black and a .251 hitter on a
+// night of bad ones came out bright — the same number, two opposite readings,
+// and neither of them the one that matters.
+//
+// These are the 2026 league marks the diverging columns are anchored on. Stated
+// here rather than inline so they are arguable: if the league moves, one edit
+// moves every board that reads them.
+const LG = {
+  avg: 0.245,
+  obp: 0.315,
+  kRate: 22.0,     // %
+  hr9: 1.15,       // homers allowed per nine
+  whip: 1.28,      // walks + hits per inning
+  hardHit: 39.0,   // % of batted balls hit hard
+  k9: 8.60,        // strikeouts per nine
+  park: 1.00,      // a neutral building
+}
+
+// ── THE RUNDOWN'S COLOUR (2026-08-22, pass 2) ───────────────────────────────
+//
+// Donovan: "Rundown is the most-used page. Make it visually better."
+//
+// Thirty numeric columns, every one of them heat-painted against its own
+// min/max. On the page you open first. The problem is not that thirty columns
+// is too many — you sort by all of them, which is the point of the page — it is
+// that thirty columns coloured at once means colour has stopped saying
+// anything except "there is a number here".
+//
+// So the board keeps every column and every value, and the colour goes onto
+// the three questions the numbers actually answer:
+//
+//   SEQUENTIAL, on a stated 0-100 — the model scores. Their header now says
+//     /100, so a score can never be misread as a percentage.
+//   DIVERGING, against a league mark — AVG, OBP, vs Hand, K%, the arm's HR/9
+//     and the park factor. Every one of those is a distance from a normal, and
+//     was being drawn as a magnitude.
+//   PLAIN — counts (375+, P375, P400) and IHR. A count has no ceiling and no
+//     midpoint; painting one is decoration.
+//
+// Everything else follows the sort. Nothing was removed.
 const buildColumns = (onWatch, dhOn = false) => [
   { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
   { key: 'name',    label: 'Player', heat: false, w: 168, bold: true, sticky: true },
-  { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
-  ...(dhOn ? [DH_COLUMN] : []),
-  { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true },
-  { key: 'role',    label: 'Role',   heat: false, w: 76, dim: true },
-  { key: 'spot',    label: 'Spot',   heat: false, w: 40, mono: true, dim: true,
+  // ── FOLDED ON A PHONE (2026-08-22) ──────────────────────────────────────
+  // Tm, Opp, Role and Spot are 184px of identity, and together with the star
+  // and the name they used to fill a 430px screen edge to edge — so the most-
+  // used board on the site showed a phone no numbers at all. They now drop to
+  // a sub-line under the player's name below 860px. Same values, same row,
+  // same labels; about four numeric columns' worth of screen back.
+  // Bare on the fold line: "CHC · vs SEA · HR Bet · #1" reads as a sentence,
+  // where "Tm CHC · Opp SEA · Role HR Bet · Spot 1" is 40% labels and ran off
+  // the end of a 168px name cell.
+  { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true, fold: true, foldLabel: false },
+  ...(dhOn ? [{ ...DH_COLUMN, fold: true, foldLabel: false }] : []),
+  { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true, fold: true, foldLabel: 'vs' },
+  { key: 'role',    label: 'Role',   heat: false, w: 76, dim: true, fold: true, foldLabel: false },
+  { key: 'spot',    label: 'Spot',   heat: false, w: 40, mono: true, dim: true, fold: true, foldLabel: '#',
     fmt: (v) => (v == null ? '—' : String(v)) },
-  { key: 'weak',    label: '★',      flag: true, mark: '★', w: 32 },
-  { key: 'aligned', label: '◆',      flag: true, mark: '◆', w: 32 },
-  { key: 'edge',    label: '▲',      flag: true, mark: '▲', w: 32 },
-  { key: 'hr',      label: 'HR',     w: 44, dp: 1 },
-  { key: 'dmg',     label: 'Damage', w: 50, dp: 1 },
-  { key: 'pmatch',  label: 'PMatch', w: 50, dp: 1 },
-  { key: 'hrr',     label: 'HRR',    w: 44, dp: 1 },
-  { key: 'hit',     label: 'Hit',    w: 44, dp: 1 },
+  // The three marks fold to a glyph run beside the name. They were 96px of
+  // column showing '·' on most rows; lit, they are three characters.
+  { key: 'weak',    label: '★',      flag: true, mark: '★', w: 32, fold: true,
+    title: 'Weak spot — the arm has a hole in this lineup slot' },
+  { key: 'aligned', label: '◆',      flag: true, mark: '◆', w: 32, fold: true,
+    title: 'Aligned with tonight’s numbers' },
+  { key: 'edge',    label: '▲',      flag: true, mark: '▲', w: 32, fold: true,
+    title: 'Matchup edge' },
+  // The board's lead. `primary` keeps it lit whatever you sort by, because
+  // "how does this hitter's HR score compare" is the question the page is for
+  // and losing it while you sort by something else would cost the through-line.
+  { key: 'hr',      label: 'HR',     w: 48, dp: 1, scale: 'seq', domain: [0, 100], primary: true },
+  { key: 'dmg',     label: 'Damage', w: 54, dp: 1, scale: 'seq', domain: [0, 100] },
+  // NOT A 0-100 SCORE, and it was sitting between six that are. Measured on
+  // the live slate 2026-08-22: pitch_type_match_score runs 0 to 120 with a
+  // MEDIAN OF ZERO — 25 of 269 rows clear 100 outright. Drawn against [0,100]
+  // it would clip a fifth of the column at full brightness and read as "these
+  // are maxed", and drawn against the slate min/max it would make the median
+  // hitter's ZERO look like a low score rather than an absence. So: its own
+  // stated domain, its own /120 in the header, and the tooltip says the zero
+  // out loud.
+  { key: 'pmatch',  label: 'PMatch', w: 58, dp: 1, scale: 'seq', domain: [0, 120],
+    // A zero here is an ABSENCE — no pitch match was found — not the worst
+    // match on the board, and the median hitter has one. Painted, it turned
+    // half the column into a wall of near-black that read as failure.
+    blankWhen: (v) => !(v > 0),
+    fmt: (v) => (Number(v) > 0 ? Number(v).toFixed(1) : '—'),
+    title: 'Pitch-type match: how well tonight’s starter’s mix lines up with what this hitter punishes. Runs 0–120, not 0–100. A dash means no match was found — which is most of the slate — not a bad match.' },
+  { key: 'hrr',     label: 'HRR',    w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'hit',     label: 'Hit',    w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
   // ── SPLITS & AVERAGES (2026-08-21, Donovan: "stats like the batter splits
   // and avgs... I like all those stats to sort by") ─────────────────────────
   // The board had fifteen columns of HR-family scores and not one plain
@@ -148,46 +223,61 @@ const buildColumns = (onWatch, dhOn = false) => [
   // the hitter's own average against LHP or RHP, picked by the hand tonight's
   // actual starter throws (lib/scoring_additions.js matchupAvg) — instead of
   // a generic split pair nobody's chosen between.
-  { key: 'avg',     label: 'AVG',    w: 46, dp: 3,
-    title: "Season batting average." },
-  { key: 'obp',     label: 'OBP',    w: 46, dp: 3,
-    title: 'Season on-base percentage.' },
-  { key: 'vsHand',  label: 'vs Hand', w: 50, dp: 3,
-    title: "The hitter's own average against the hand tonight's starter actually throws (avg_vs_lhp or avg_vs_rhp). Falls back to season AVG when that split or the pitcher's hand is missing." },
+  { key: 'avg',     label: 'AVG',    w: 50, dp: 3, scale: 'div', anchor: LG.avg, ceiling: 0.080,
+    anchorLabel: `league ${LG.avg.toFixed(3).replace(/^0/, '')}`,
+    title: `Season batting average, against a league mark of ${LG.avg.toFixed(3).replace(/^0/, '')}. ▲ above it, ▼ below, blank when he is league-average — which is a fact about him, not a finding.` },
+  { key: 'obp',     label: 'OBP',    w: 50, dp: 3, scale: 'div', anchor: LG.obp, ceiling: 0.080,
+    anchorLabel: `league ${LG.obp.toFixed(3).replace(/^0/, '')}`,
+    title: `Season on-base percentage, against a league mark of ${LG.obp.toFixed(3).replace(/^0/, '')}.` },
+  { key: 'vsHand',  label: 'vs Hand', w: 54, dp: 3, scale: 'div', anchor: LG.avg, ceiling: 0.080,
+    anchorLabel: `league ${LG.avg.toFixed(3).replace(/^0/, '')}`,
+    title: "The hitter's own average against the hand tonight's starter actually throws (avg_vs_lhp or avg_vs_rhp), drawn against the same league mark as AVG so the two columns can be read side by side. Falls back to season AVG when that split or the pitcher's hand is missing." },
   // RBI / RUN SCORE (same request, "what do you think of player run and rbi
   // scoring same with hit scoring"). Composites, not bot fields — same
   // "not calibrated" status as K risk below: a transparent blend of
   // published rates (opportunity × ability × tonight's matchup × recent
   // form), not yet walk-forward tested against the graded archive's own
   // actual_rbi/actual_runs. See lib/scoring_additions.js for the weights.
-  { key: 'rbiScore', label: 'RBI',   w: 44, dp: 1,
+  { key: 'rbiScore', label: 'RBI',   w: 48, dp: 1, scale: 'seq', domain: [0, 100],
     title: 'A composite RBI-production read: season RBI rate, lineup spot (peaks at the 4-hole), tonight\'s matchup average, and recent RBI form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
-  { key: 'runScore', label: 'Run',   w: 44, dp: 1,
+  { key: 'runScore', label: 'Run',   w: 48, dp: 1, scale: 'seq', domain: [0, 100],
     title: 'A composite run-production read: season run rate, lineup spot (peaks at the 1-2 hole), season OBP, and recent run form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
-  { key: 'tb',      label: 'TB',     w: 44, dp: 1 },
-  { key: 'hrw',     label: 'HRW',    w: 44, dp: 1 },
-  { key: 'due',     label: 'Due',    w: 44, dp: 1 },
-  { key: 'longest', label: 'Long',   w: 44, dp: 1 },
-  { key: 'pmix',    label: 'PMix',   w: 44, dp: 1 },
-  { key: 'd375',    label: '375+',   w: 42 },
+  { key: 'tb',      label: 'TB',     w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'hrw',     label: 'HRW',    w: 48, dp: 1, scale: 'seq', domain: [0, 100],
+    title: 'The HR-window score. The 🌋 🚀 ⚡ 🌤️ 🧊 band on a hitter card is this number — see lib/hrwBand.js.' },
+  { key: 'due',     label: 'Due',    w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'longest', label: 'Long',   w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'pmix',    label: 'PMix',   w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
+  // Counts. No ceiling, no midpoint — a number, drawn as a number.
+  { key: 'd375',    label: '375+',   w: 42,
+    title: 'Count of 375ft+ batted balls in his recent tracked window. A count, so it prints plain — colour follows it only when you sort by it.' },
   { key: 'p375',    label: 'P375 ag', w: 50,
     title: 'Balls of 375ft+ this pitcher has allowed' },
   { key: 'p400',    label: 'P400 ag', w: 50,
     title: 'Balls of 400ft+ this pitcher has allowed' },
-  { key: 'ihr',     label: 'IHR',    w: 46, dp: 3 },
+  { key: 'ihr',     label: 'IHR',    w: 46, dp: 3,
+    title: 'Ideal HR contact rate — the EV/launch window that produces homers.' },
   // A high strikeout rate is bad for the hitter, so this column runs the other
   // way. Left alone, the most strikeout-prone bats on the slate glow brightest.
-  { key: 'k',       label: 'K%',     w: 42, dp: 1, invert: true },
-  { key: 'kRisk',  label: 'K risk', w: 50, dp: 0, invert: true,
+  // K% was `invert: true` on the sequential ramp, which is a diverging idea
+  // wearing a sequential coat: the reason to invert is that there IS a normal
+  // and being above it is bad. So say so — league K%, ▲ worse for the bat.
+  { key: 'k',       label: 'K%',     w: 46, dp: 1, scale: 'div', anchor: LG.kRate, ceiling: 10, invert: true,
+    anchorLabel: `league ${LG.kRate.toFixed(1)}%`,
+    title: `Season strikeout rate against a league mark of ${LG.kRate.toFixed(1)}%. Inverted — cool is good for the bat, because striking out more than league is the bad side of this line.` },
+  { key: 'kRisk',  label: 'K risk', w: 54, dp: 0, invert: true, scale: 'seq', domain: [0, 100],
     title: 'Strikeout risk: hitter K% 40%, pitcher K% 25%, SwStr 20%, putaway 15%. Inverted — low is good for the bat. Composite, not a bot field, and not calibrated: the graded archive has no strikeout outcome to check it against.' },
-  { key: 'hr9',     label: 'P HR/9', w: 46, dp: 2 },
+  { key: 'hr9',     label: 'P HR/9', w: 50, dp: 2, scale: 'div', anchor: LG.hr9, ceiling: 0.80,
+    anchorLabel: `league ${LG.hr9.toFixed(2)}`,
+    title: `Homers allowed per nine by tonight's starter, against a league mark of ${LG.hr9.toFixed(2)}. ▲ he gives up more than league — good for the bat.` },
   // PARK (2026-08-09). The one piece of tonight's context this table never
   // carried. The Park board ranks buildings and every board on the site talks
   // about carry, but the sheet with all 268 hitters on it had no way to ask
   // "who's in a launch pad tonight" — you had to read the park board, memorise
   // the venues, then come back and scan by opponent. It's park_hr_factor, the
   // same field the park board ranks on, already stamped on every slate row.
-  { key: 'park',    label: 'Park',   w: 46, dp: 2,
+  { key: 'park',    label: 'Park',   w: 50, dp: 2, scale: 'div', anchor: LG.park, ceiling: 0.25,
+    anchorLabel: '1.00 (a neutral building)',
     fmt: (v) => (v == null || !Number.isFinite(Number(v)) ? '—' : `×${Number(v).toFixed(2)}`),
     title: "The bot's park HR factor for tonight's building. 1.00 is neutral, ×1.10 means the park adds about 10% of home-run rate. Bright is hitter-friendly, same as every other column. Park only — the weather adjustment lives on the Park board, not in this number. A dash means no factor was published for that game." },
 ]
@@ -306,6 +396,36 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         hr: Number.isFinite(Number(h?.hr)) ? Number(h.hr) : null,
         score: p ? hrScore(p) : 0,
         role: p ? tierRole(p) : '—',
+        // ── THE PITCHER LINE (2026-08-22) ────────────────────────────────
+        // Donovan: "'GONE YARD' on the Rundown carries the pitcher line:
+        // HR/9, H9, L3 H/9, WHIP weakness, HH, K/9, L3 K/9, HR luck ± —
+        // just presented well."
+        //
+        // Seven of the eight are published on every slate row and are read
+        // straight off it. THE EIGHTH IS NOT: there is no pitcher_l3_k9 in
+        // the payload (l3 covers era, whip and hr9 only), so that column
+        // does not render rather than being faked from the season figure.
+        // The caption says which one is missing and why.
+        //
+        // "WHIP weakness" is read as the SIDE split — his WHIP against the
+        // hand this hitter bats from, which is the number that was actually
+        // weak for this homer, not the aggregate.
+        pName: p ? clean(p.pitcher_name, 'TBD') : '—',
+        pHr9: p ? n(p.pitcher_hr9, null) : null,
+        pWhip: p ? n(p.pitcher_whip, null) : null,
+        pL3Whip: p ? n(p.pitcher_l3_whip, null) : null,
+        pL3Hr9: p ? n(p.pitcher_l3_hr9, null) : null,
+        pWhipSide: p
+          ? (String(p.bats || '').toUpperCase().startsWith('L')
+              ? n(p.pitcher_whip_vs_lhb, n(p.pitcher_whip, null))
+              : n(p.pitcher_whip_vs_rhb, n(p.pitcher_whip, null)))
+          : null,
+        pHH: p ? (() => {
+          const v = n(p.pitcher_hardhit_allowed, null)
+          return v == null ? null : (v <= 1 ? v * 100 : v)
+        })() : null,
+        pK9: p ? n(p.pitcher_k9, null) : null,
+        pLuck: p ? n(p.pitcher_hr_luck, null) : null,
       }
     })
   }, [results, players])
@@ -413,6 +533,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // 2026-08-13: passes `results` now instead of HomerLedger fetching its own
   // copy of the identical payload — see the note in HomerLedger.js.
   const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+  // Does the slate carry an HR-luck reading at all tonight? See the note on
+  // the column below — the field ships zero-filled and a zero-filled column
+  // reads as a finding.
+  const hasLuck = goneYard.some((r) => Number.isFinite(r.pLuck) && r.pLuck !== 0)
   const goneTable = goneYard.length > 0 && (
     <Tracker
       title="💥 Gone yard"
@@ -424,20 +548,64 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         rows={goneYard}
         columns={[
           { key: 'rank', label: 'Board', heat: false, w: 46, mono: true, dim: true,
+            fold: true, foldLabel: 'board',
             fmt: (v) => (v == null ? '—' : `#${v}`) },
-          { key: 'name', label: 'Player', heat: false, w: 132, bold: true },
-          { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
+          { key: 'name', label: 'Player', heat: false, w: 132, bold: true, sticky: true },
+          { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true,
+            fold: true, foldLabel: false },
           // explicit: here "HR" is homers hit TONIGHT, not the HR score the
           // glossary would otherwise attach to that label
           { key: 'hr',   label: 'HR',     w: 34,
             explain: 'How many home runs he has already hit tonight.' },
-          { key: 'score', label: 'HR score', w: 54, dp: 1 },
-          { key: 'role', label: 'Role',   heat: false, w: 78, dim: true },
+          { key: 'score', label: 'HR score', w: 58, dp: 1, scale: 'seq', domain: [0, 100], primary: true },
+          { key: 'role', label: 'Role',   heat: false, w: 78, dim: true,
+            fold: true, foldLabel: false },
+          // ── the arm he did it against ──────────────────────────────────
+          { key: 'pName',  label: 'Arm',     heat: false, w: 120, dim: true,
+            fold: true, foldLabel: 'off' },
+          { key: 'pHr9',   label: 'HR/9',    w: 50, dp: 2, scale: 'div', anchor: LG.hr9, ceiling: 0.80,
+            anchorLabel: `league ${LG.hr9.toFixed(2)}`,
+            title: `Homers allowed per nine, against a league mark of ${LG.hr9.toFixed(2)}. ▲ he was already giving them up.` },
+          { key: 'pL3Hr9', label: 'L3 HR/9', w: 58, dp: 2, scale: 'div', anchor: LG.hr9, ceiling: 0.80,
+            anchorLabel: `league ${LG.hr9.toFixed(2)}`,
+            title: 'Homers per nine over his last three starts — the recent version of the column beside it. Where it runs above the season figure, the arm was trending into this.' },
+          { key: 'pWhip',  label: 'WHIP',    w: 50, dp: 2, scale: 'div', anchor: LG.whip, ceiling: 0.35,
+            blankWhen: (v) => !(v > 0), fmt: (v) => (Number(v) > 0 ? Number(v).toFixed(2) : '—'),
+            anchorLabel: `league ${LG.whip.toFixed(2)}`,
+            title: `Walks and hits per inning, against a league mark of ${LG.whip.toFixed(2)}.` },
+          // A WHIP of exactly 0.00 over three starts is not a measurement,
+          // it is a gap in the feed — one starter on tonight's slate carries
+          // it. Blank rather than drawn as the best WHIP on the board.
+          { key: 'pL3Whip', label: 'L3 WHIP', w: 58, dp: 2, scale: 'div', anchor: LG.whip, ceiling: 0.35,
+            blankWhen: (v) => !(v > 0), fmt: (v) => (Number(v) > 0 ? Number(v).toFixed(2) : '—'),
+            anchorLabel: `league ${LG.whip.toFixed(2)}`,
+            title: 'WHIP over his last three starts.' },
+          { key: 'pWhipSide', label: 'WHIP side', w: 64, dp: 2, scale: 'div', anchor: LG.whip, ceiling: 0.35,
+            blankWhen: (v) => !(v > 0), fmt: (v) => (Number(v) > 0 ? Number(v).toFixed(2) : '—'),
+            anchorLabel: `league ${LG.whip.toFixed(2)}`,
+            title: 'His WHIP against the hand THIS hitter bats from — the weakness that was actually on the field for this homer, rather than the aggregate. Falls back to overall WHIP when the split is not published.' },
+          { key: 'pHH',    label: 'HH%',     w: 50, dp: 1, scale: 'div', anchor: LG.hardHit, ceiling: 12,
+            anchorLabel: `league ${LG.hardHit.toFixed(1)}%`,
+            title: `Hard-hit rate allowed, against a league mark of ${LG.hardHit.toFixed(1)}%.` },
+          { key: 'pK9',    label: 'K/9',     w: 48, dp: 2, scale: 'div', anchor: LG.k9, ceiling: 3, invert: true,
+            anchorLabel: `league ${LG.k9.toFixed(2)}`,
+            title: `Strikeouts per nine, against a league mark of ${LG.k9.toFixed(2)}. Inverted — cool is the dangerous arm, because missing bats is what stops this from happening.` },
+          // ── HR LUCK RENDERS ONLY IF IT HAS ANYTHING TO SAY ──────────────
+          // pitcher_hr_luck is published on every row and is 0.00 for ALL 30
+          // starters on tonight's slate — the field exists, the data does not.
+          // A column of "0.00 ·" is worse than no column: it looks measured.
+          // It appears the day the bot starts filling it and not before.
+          ...(hasLuck ? [{
+            key: 'pLuck', label: 'HR luck', w: 58, dp: 2, scale: 'div', anchor: 0, ceiling: 6,
+            anchorLabel: '0 (homers matching contact)',
+            title: 'Homers allowed against what his contact profile deserved. ▲ he had been giving up more than his contact says he should; ▼ he had been getting away with it, and tonight is the correction.',
+          }] : []),
         ]}
         onRowClick={onPlayerClick}
         initialSort="score"
-        maxHeight={260}
-        caption=""
+        heatMode="sorted"
+        maxHeight={280}
+        caption="Every homer already hit tonight, next to where this board had the hitter — and the line the arm was carrying into it. The pitcher columns are drawn against league marks, so ▲ means he was already worse than average at that and ▼ means he was better. Two columns from the ask are not here, and both on purpose: there is no last-three-starts K/9 in the payload (L3 covers ERA, WHIP and HR/9 only), and HR luck ships zero-filled for every starter tonight — it appears the day it carries a reading. Inventing either from the season figure would be a number that looks measured and is not."
       />
     </Tracker>
   )
@@ -653,8 +821,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         columns={buildColumns(onWatch, dh.size > 0)}
         onRowClick={onPlayerClick}
         initialSort="hr"
+        heatMode="sorted"
         maxHeight={640}
-        caption="Every numeric column coloured against its own range. K% is inverted — a high strikeout rate is bad for the hitter, so it reads dark. Park is tonight's park HR factor (1.00 neutral), so sorting by it pulls every hitter in a launch pad to the top; it's the park term only, with no weather in it. Click a header to sort, a row to open the hitter."
+        caption={"Colour answers three questions here and nothing else. Model scores — HR, Damage, PMatch, HRR, Hit, RBI, Run, TB, HRW, Due, Long, PMix, K risk — are drawn on a stated 0–100, which is why their headers say /100: they order hitters, they are not probabilities. AVG, OBP, vs Hand, K%, P HR/9 and Park are drawn against a league mark, so ▲ means above it and ▼ below, and a hitter sitting on league reads blank because that is not a finding. Counts (375+, P375, P400) and IHR print plain. Every other column lights up when you sort by it. K% and K risk run cool-is-good, because striking out more than league is the bad side of that line. Click a header to sort, a row to open the hitter."}
       />
     </div>
   )

@@ -81,7 +81,11 @@ const EXEMPT = new Set([
   'components/shareCard.js', // a PNG poster: 32 team colours, dark by construction
 ])
 
-const HEX_BUDGET = 1161
+// 1161 was the audit's count on 2026-08-22. Ratcheted after each pass:
+//   1161  the audit
+//    875  after the colour/chart pass (five charts + the system)
+//    871  after the Rundown pass
+const HEX_BUDGET = 871
 
 let hexTotal = 0
 const perFile = []
@@ -130,34 +134,85 @@ for (const concept of ['role', 'pitch', 'result']) {
 }
 
 // ── 3 & 4. declared scales declare their parameters ─────────────────────────
+//
+// ── THE FIRST VERSION OF THIS CHECK COULD NOT SEE A MULTI-LINE SPEC ─────────
+//
+// It matched `\{[^{}\n]*scale:\s*'div'[^{}\n]*\}` — one object literal, on one
+// line. Every column spec written across two or three lines (which is most of
+// the interesting ones, because they carry a `title`) was invisible to it. The
+// Rundown pass declared six diverging columns and the count went from 2 to 2.
+//
+// A check that silently sees less than it claims to is worse than no check,
+// because it reports OK. So the spec is now found by BRACE MATCHING: locate
+// the marker, walk back to the object literal that owns it, walk forward to
+// its close, and test that whole slice. Slower and correct.
 console.log('\ndeclared scales')
 let divCount = 0, divBad = []
 let seqCount = 0, seqBad = []
-// Comments are stripped first. The first version of this check flagged the
-// DOC COMMENT in components/Heatmap.js that describes the spec shape — a
-// checker that cannot tell code from prose is the same failure check-palette
-// hit when its first spec test matched a paragraph instead of the table.
+// Comments are stripped first. An earlier version flagged the DOC COMMENT in
+// components/Heatmap.js that describes the spec shape — a checker that cannot
+// tell code from prose is the same failure check-palette hit when its first
+// spec test matched a paragraph instead of the table.
 const decomment = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+/** The object literal enclosing `at`, or null if the braces don't balance. */
+function enclosingObject(src, at) {
+  let depth = 0
+  let open = -1
+  for (let i = at; i >= 0; i--) {
+    const ch = src[i]
+    if (ch === '}') depth++
+    else if (ch === '{') {
+      if (depth === 0) { open = i; break }
+      depth--
+    }
+  }
+  if (open < 0) return null
+  depth = 0
+  for (let i = open; i < src.length; i++) {
+    const ch = src[i]
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return src.slice(open, i + 1)
+    }
+  }
+  return null
+}
+
 for (const f of files) {
   const rel = f.slice(ROOT.length).replace(/^\/+/, '')
   const src = decomment(readFileSync(f, 'utf8'))
-  // Column specs: { ... scale: 'div' ... } on one logical line, and the
-  // Heatmap `scales={{...}}` entries: { kind: 'div', ... }.
-  for (const m of src.matchAll(/\{[^{}\n]*\b(?:scale|kind):\s*'div'[^{}\n]*\}/g)) {
-    divCount++
-    const spec = m[0]
-    if (!/\banchor\s*:/.test(spec) || !/\bceiling\s*:/.test(spec)) divBad.push(`${rel}: ${spec.slice(0, 90)}`)
-  }
-  for (const m of src.matchAll(/\{[^{}\n]*\b(?:scale|kind):\s*'seq'[^{}\n]*\}/g)) {
-    seqCount++
-    const spec = m[0]
-    if (!/\bdomain\s*:/.test(spec)) seqBad.push(`${rel}: ${spec.slice(0, 90)}`)
+  for (const m of src.matchAll(/\b(?:scale|kind):\s*'(div|seq)'/g)) {
+    const spec = enclosingObject(src, m.index)
+    if (!spec) continue
+    const where = `${rel}: ${spec.replace(/\s+/g, ' ').slice(0, 100)}`
+    if (m[1] === 'div') {
+      divCount++
+      if (!/\banchor\s*:/.test(spec) || !/\bceiling\s*:/.test(spec)) divBad.push(where)
+    } else {
+      seqCount++
+      if (!/\bdomain\s*:/.test(spec)) seqBad.push(where)
+    }
   }
 }
 say(divBad.length === 0,
   `${divCount} diverging scales, each with a stated anchor and ceiling${divBad.length ? `\n         ${divBad.join('\n         ')}` : ''}`)
 say(seqBad.length === 0,
   `${seqCount} sequential columns, each with a stated domain${seqBad.length ? `\n         ${seqBad.join('\n         ')}` : ''}`)
+
+// A diverging column should also SAY what its anchor is in words, so the
+// tooltip can name it. Not fatal — a nudge with a count, because an anchor the
+// reader cannot find is an anchor they cannot argue with.
+let noLabel = 0
+for (const f of files) {
+  const src = decomment(readFileSync(f, 'utf8'))
+  for (const m of src.matchAll(/\b(?:scale|kind):\s*'div'/g)) {
+    const spec = enclosingObject(src, m.index)
+    if (spec && !/\banchorLabel\s*:/.test(spec)) noLabel++
+  }
+}
+console.log(`   note  ${divCount - noLabel} of ${divCount} diverging scales name their anchor in words`)
 
 // ── 5. the ink that ships is the ink that is asserted ───────────────────────
 console.log('\nink')
