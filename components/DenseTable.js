@@ -6,7 +6,7 @@ import {
 } from '../lib/spotlight'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
-import { seqColor, divTone, SEQ_AUTO } from '../lib/scales'
+import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, fieldAnchor, fieldLabel } from '../lib/scales'
 import { explainFor, InfoDot, ExplainBanner } from './Explain'
 
 // DenseTable — the PropFinder table pattern.
@@ -131,6 +131,25 @@ export default function DenseTable({
     heatCols.forEach((c) => {
       const vals = rows.map((r) => Number(r[c.key])).filter(Number.isFinite)
       out[c.key] = vals.length ? [Math.min(...vals), Math.max(...vals)] : [0, 1]
+    })
+    return out
+  }, [rows, heatCols])
+
+  // ── FIELD ANCHORS ─────────────────────────────────────────────────────────
+  // A column that asked for `anchor: DIV_FIELD` gets its zero from the rows on
+  // screen — the middle of tonight's slate — and its ceiling from the wider of
+  // the two tails. `fieldAnchor` returns null when the column cannot support
+  // one (too few rows, no spread), and a null here is not a fallback to
+  // something approximate: the cell falls all the way back to its plain
+  // sequential fill and draws no arrow at all. See lib/scales.js.
+  const fields = useMemo(() => {
+    const out = {}
+    heatCols.forEach((c) => {
+      if (c.scale !== 'div' || c.anchor !== DIV_FIELD) return
+      const blank = typeof c.blankWhen === 'function' ? c.blankWhen : null
+      out[c.key] = fieldAnchor(rows
+        .filter((r) => !blank || !blank(Number(r[c.key]), r))
+        .map((r) => r[c.key]))
     })
     return out
   }, [rows, heatCols])
@@ -502,12 +521,27 @@ export default function DenseTable({
                   // ramp's luminance is a V and a V cannot be ordered by
                   // lightness, so the sign has to be carried by something
                   // that is not colour at all. See lib/scales.js.
-                  if (c.scale === 'div') {
-                    const on = lit(c, num)
+                  // A field-anchored column resolves its zero from the rows;
+                  // when it can't, `fld` is null and the column falls through
+                  // to the sequential branch below rather than diverging
+                  // against a number nobody measured.
+                  const fld = c.anchor === DIV_FIELD ? fields[c.key] : null
+                  const divOK = c.scale === 'div' && (c.anchor !== DIV_FIELD || !!fld)
+                  if (divOK) {
+                    // `blankWhen` used to be read only by the sequential
+                    // branch, so a diverging column with one would have drawn
+                    // a tint and an arrow on a value it had already declared
+                    // absent. An absence has no side of the line.
+                    const gone = typeof c.blankWhen === 'function' && c.blankWhen(num, r)
+                    const on = !gone && lit(c, num)
+                    const anchor = fld ? fld.anchor : (c.anchor ?? 0)
+                    const ceiling = fld ? fld.ceiling : (c.ceiling ?? 1)
+                    const zero = fld ? fieldLabel(fld, c.dp ?? 1)
+                      : (c.anchorLabel || String(c.anchor ?? 0))
                     const d = on
                       ? divTone(num, {
-                          anchor: c.anchor ?? 0,
-                          ceiling: c.ceiling ?? 1,
+                          anchor,
+                          ceiling,
                           deadband: c.deadband ?? 0.08,
                           invert: c.invert === true,
                         })
@@ -516,7 +550,7 @@ export default function DenseTable({
                       : (Number.isFinite(num) ? num.toFixed(c.dp ?? 0) : '—')
                     return (
                       <td key={c.key}
-                        title={`${c.label}: ${Number.isFinite(num) ? num.toFixed(c.dp ?? 2) : '—'} · against ${c.anchorLabel || (c.anchor ?? 0)}`}
+                        title={`${c.label}: ${Number.isFinite(num) ? num.toFixed(c.dp ?? 2) : '—'} · against ${zero}`}
                         style={{
                           background: d.bg, color: d.fg,
                           fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700,
@@ -605,7 +639,12 @@ export default function DenseTable({
           </span>
         )}
         {(() => {
-          const full = caption || 'Every column is colored against its own range. Click a header to sort, a row to open the hitter.'
+          // The old default said "every column is colored against its own
+          // range", which stopped being true when colour started following the
+          // sort and stopped again when scores took a stated anchor. A default
+          // caption that describes a behaviour the table no longer has is a
+          // caption that teaches the reader the wrong thing.
+          const full = caption || 'Colour follows what you sort by. Scores are drawn against the middle of the rows on screen — ▲ above it, ▼ below, blank in the middle. Click a header to sort, a row to open the hitter.'
           // Split on the first sentence end that's followed by a space and a
           // capital — so "1.5 runs" and "e.g." don't get treated as the end.
           const m = String(full).match(/^([\s\S]*?[.!?])\s+(?=[A-Z“"])/)

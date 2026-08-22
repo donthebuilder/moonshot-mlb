@@ -20,6 +20,7 @@ import NearMisses, { nearMissRows } from '../NearMisses'
 import ProjectedOutput, { slateProjHr } from '../ProjectedOutput'
 import { groupPitchers, groupGames } from '../../lib/data'
 import { airParts, airVerdict } from '../../lib/conditions'
+import { DIV_FIELD } from '../../lib/scales'
 
 // ── FOLD LIVES AT MODULE SCOPE, NOT INSIDE Scoreboard() (fixed 2026-08-18) ──
 //
@@ -234,11 +235,32 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'weak',    label: '★',      flag: true, mark: '★', w: 32 },
   { key: 'aligned', label: '◆',      flag: true, mark: '◆', w: 32 },
   { key: 'edge',    label: '▲',      flag: true, mark: '▲', w: 32 },
+
+// ── WHY EVERY SCORE COLUMN DIVERGES AGAINST TONIGHT'S FIELD ─────────────────
+//
+// Donovan, 2026-08-22, pointing at the AVG column: make that the site's
+// colour scheme, put it on all the other scoring, and show the arrows on the
+// scoring too "when it's valid."
+//
+// AVG could diverge because it has a stated zero — the league mark. A 0-100
+// model score has no league mark and never will; the only honest zero it has
+// is the middle of the slate you are actually choosing from tonight. That is
+// what `anchor: DIV_FIELD` resolves to, from the rows on screen, and it is
+// still not a probability: it says "above the middle of tonight's board",
+// which is a comparison, not a claim about how often the ball leaves.
+//
+// `domain` stays declared on every one of them. It is the fallback: when the
+// field is too small or too flat to anchor honestly (fewer than eight rows, a
+// dead spread), lib/scales.js hands back null, the column paints its plain
+// sequential fill and NO ARROW IS DRAWN. That is the "when it's valid".
+//
+// The arrow always points the way the number went. `invert` flips which end
+// is warm, never the arrow — see the WHICH WAY IS WARM block below.
   // The board's lead. `primary` keeps it lit whatever you sort by, because
   // "how does this hitter's HR score compare" is the question the page is for
   // and losing it while you sort by something else would cost the through-line.
-  { key: 'hr',      label: 'HR',     w: 48, dp: 1, scale: 'seq', domain: [0, 100], primary: true },
-  { key: 'dmg',     label: 'Damage', w: 54, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'hr',      label: 'HR',     w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true },
+  { key: 'dmg',     label: 'Damage', w: 54, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
   // NOT A 0-100 SCORE, and it was sitting between six that are. Measured on
   // the live slate 2026-08-22: pitch_type_match_score runs 0 to 120 with a
   // MEDIAN OF ZERO — 25 of 269 rows clear 100 outright. Drawn against [0,100]
@@ -247,15 +269,15 @@ const buildColumns = (onWatch, dhOn = false) => [
   // hitter's ZERO look like a low score rather than an absence. So: its own
   // stated domain, its own /120 in the header, and the tooltip says the zero
   // out loud.
-  { key: 'pmatch',  label: 'PMatch', w: 58, dp: 1, scale: 'seq', domain: [0, 120],
+  { key: 'pmatch',  label: 'PMatch', w: 58, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 120],
     // A zero here is an ABSENCE — no pitch match was found — not the worst
     // match on the board, and the median hitter has one. Painted, it turned
     // half the column into a wall of near-black that read as failure.
     blankWhen: (v) => !(v > 0),
     fmt: (v) => (Number(v) > 0 ? Number(v).toFixed(1) : '—'),
     title: 'Pitch-type match: how well tonight’s starter’s mix lines up with what this hitter punishes. Runs 0–120, not 0–100. A dash means no match was found — which is most of the slate — not a bad match.' },
-  { key: 'hrr',     label: 'HRR',    w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
-  { key: 'hit',     label: 'Hit',    w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'hrr',     label: 'HRR',    w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
+  { key: 'hit',     label: 'Hit',    w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
   // ── SPLITS & AVERAGES (2026-08-21, Donovan: "stats like the batter splits
   // and avgs... I like all those stats to sort by") ─────────────────────────
   // The board had fifteen columns of HR-family scores and not one plain
@@ -280,16 +302,16 @@ const buildColumns = (onWatch, dhOn = false) => [
   // published rates (opportunity × ability × tonight's matchup × recent
   // form), not yet walk-forward tested against the graded archive's own
   // actual_rbi/actual_runs. See lib/scoring_additions.js for the weights.
-  { key: 'rbiScore', label: 'RBI',   w: 48, dp: 1, scale: 'seq', domain: [0, 100],
+  { key: 'rbiScore', label: 'RBI',   w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100],
     title: 'A composite RBI-production read: season RBI rate, lineup spot (peaks at the 4-hole), tonight\'s matchup average, and recent RBI form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
-  { key: 'runScore', label: 'Run',   w: 48, dp: 1, scale: 'seq', domain: [0, 100],
+  { key: 'runScore', label: 'Run',   w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100],
     title: 'A composite run-production read: season run rate, lineup spot (peaks at the 1-2 hole), season OBP, and recent run form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
-  { key: 'tb',      label: 'TB',     w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
-  { key: 'hrw',     label: 'HRW',    w: 48, dp: 1, scale: 'seq', domain: [0, 100],
+  { key: 'tb',      label: 'TB',     w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
+  { key: 'hrw',     label: 'HRW',    w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100],
     title: 'The HR-window score. The 🌋 🚀 ⚡ 🌤️ 🧊 band on a hitter card is this number — see lib/hrwBand.js.' },
-  { key: 'due',     label: 'Due',    w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
-  { key: 'longest', label: 'Long',   w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
-  { key: 'pmix',    label: 'PMix',   w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'due',     label: 'Due',    w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
+  { key: 'longest', label: 'Long',   w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
+  { key: 'pmix',    label: 'PMix',   w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
   // Counts. No ceiling, no midpoint — a number, drawn as a number.
   { key: 'd375',    label: '375+',   w: 42,
     title: 'Count of 375ft+ batted balls in his recent tracked window. A count, so it prints plain — colour follows it only when you sort by it.' },
@@ -307,7 +329,7 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'k',       label: 'K%',     w: 46, dp: 1, scale: 'div', anchor: LG.kRate, ceiling: 10, invert: true,
     anchorLabel: `league ${LG.kRate.toFixed(1)}%`,
     title: `Season strikeout rate against a league mark of ${LG.kRate.toFixed(1)}%. Inverted — cool is good for the bat, because striking out more than league is the bad side of this line.` },
-  { key: 'kRisk',  label: 'K risk', w: 54, dp: 0, invert: true, scale: 'seq', domain: [0, 100],
+  { key: 'kRisk',  label: 'K risk', w: 54, dp: 0, invert: true, scale: 'div', anchor: DIV_FIELD, domain: [0, 100],
     title: 'Strikeout risk: hitter K% 40%, pitcher K% 25%, SwStr 20%, putaway 15%. Inverted — low is good for the bat. Composite, not a bot field, and not calibrated: the graded archive has no strikeout outcome to check it against.' },
   { key: 'hr9',     label: 'P HR/9', w: 50, dp: 2, scale: 'div', anchor: LG.hr9, ceiling: 0.80,
     anchorLabel: `league ${LG.hr9.toFixed(2)}`,
@@ -736,7 +758,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           // glossary would otherwise attach to that label
           { key: 'hr',   label: 'HR',     w: 34,
             explain: 'How many home runs he has already hit tonight.' },
-          { key: 'score', label: 'HR score', w: 58, dp: 1, scale: 'seq', domain: [0, 100], primary: true },
+          { key: 'score', label: 'HR score', w: 58, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true },
           { key: 'role', label: 'Role',   heat: false, w: 78, dim: true },
           // ── the arm he did it against ──────────────────────────────────
           { key: 'pName',  label: 'Arm',     heat: false, w: 120, dim: true },

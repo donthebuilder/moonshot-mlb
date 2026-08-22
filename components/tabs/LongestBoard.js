@@ -8,7 +8,7 @@ import {
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import Rail from '../Rail'
 import DenseTable from '../DenseTable'
-import { seqChip, divChip, SEQ_AUTO } from '../../lib/scales'
+import { seqChip, divChip, SEQ_AUTO, SCORE } from '../../lib/scales'
 
 // Longest — who hits the FARTHEST ball tonight.
 //
@@ -94,7 +94,7 @@ const buildColumns = (onWatch) => [
     title: 'How many 375+ ft balls this pitcher has allowed' },
   { key: 'p400',    label: 'P 400+',  w: 50,
     title: 'How many 400+ ft balls this pitcher has allowed — the closest thing to “he gives up real distance”' },
-  { key: 'hr',      label: 'HR scr',  w: 48, dp: 1 },
+  { key: 'hr',      label: 'HR scr',  w: 48, dp: 1, ...SCORE },
   { key: 'hr9',     label: 'P HR/9',  w: 48, dp: 2 },
   // Room freed up by dropping the top-15 heatmap, which showed a subset of
   // these same columns for a subset of these same hitters.

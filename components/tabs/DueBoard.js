@@ -8,7 +8,7 @@ import {
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore } from '../../lib/scoring_additions'
-import { SEQ_AUTO } from '../../lib/scales'
+import { DIV_FIELD, SCORE } from '../../lib/scales'
 
 // Due — hitters overdue for a homer.
 //
@@ -69,8 +69,13 @@ const buildColumns = (onWatch) => [
   // auto domain must be ASKED FOR and its ends must be PRINTED", so the reader
   // knows the bright end means "brightest tonight" rather than "high". The
   // caption under the filters carries the numbers.
-  { key: 'due',     label: 'Due',     w: 44, dp: 1, scale: 'seq', domain: SEQ_AUTO, primary: true,
-    title: 'The bot’s due score. A score, not a probability — it orders hitters, it does not predict one. Shaded against tonight’s range, not against 100.' },
+  // 2026-08-22: this was the site's one auto-domain column, drawn against
+  // tonight's min and max. `DIV_FIELD` is the same idea done properly — the
+  // zero is the MIDDLE of tonight's field rather than its floor, so the colour
+  // says which side of the board he is on and the arrow says which way. Falls
+  // back to the stated 0-100 fill if the board is too thin to anchor.
+  { key: 'due',     label: 'Due',     w: 44, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true,
+    title: 'The bot’s due score. A score, not a probability — it orders hitters, it does not predict one. Drawn against the middle of tonight’s field: ▲ above it, ▼ below.' },
   { key: 'ratio',   label: 'Ratio',   w: 46, dp: 2, scale: 'div', anchor: 1, ceiling: 3, anchorLabel: '1.00×', primary: true,
     title: 'Expected HR rate against the actual drought — above 1 means overdue on his own rate' },
   { key: 'drought', label: 'Drought', w: 50,
@@ -79,7 +84,7 @@ const buildColumns = (onWatch) => [
     title: 'Season HR per plate appearance — the power that makes a drought mean anything. Its denominator is the PA column.' },
   { key: 'gap',     label: 'HR gap',  w: 48, dp: 2, scale: 'div', anchor: 1, ceiling: 4, anchorLabel: '1.00× (his own rate)', primary: true,
     title: 'Drought against what his own rate would predict. 1.00× is exactly on schedule; above it is the actual due claim.' },
-  { key: 'hr',      label: 'HR scr',  w: 48, dp: 1 },
+  { key: 'hr',      label: 'HR scr',  w: 48, dp: 1, ...SCORE },
   { key: 'barrel',  label: 'Brl%',    w: 44, dp: 1 },
   { key: 'dc',      label: 'DC',      w: 44, dp: 1 },
   { key: 'hr9',     label: 'P HR/9',  w: 48, dp: 2 },
@@ -237,8 +242,8 @@ function RecentBombers({ all = [], onPlayerClick }) {
               title: 'Season home runs — is the recent one part of a pattern or a surprise' },
             { key: 'hrPA100', label: 'HR/PA', w: 48, dp: 1,
               title: 'Season HR per 100 PA. 4+ is a true power bat; a recent bomb from a 1.5 is much more likely a one-off.' },
-            { key: 'hr',      label: 'HR scr', w: 48, dp: 1 },
-            { key: 'hrw',     label: 'HRW', w: 46, dp: 0 },
+            { key: 'hr',      label: 'HR scr', w: 48, dp: 1, ...SCORE },
+            { key: 'hrw',     label: 'HRW', w: 46, dp: 0, ...SCORE },
             { key: 'iso',     label: 'ISO', w: 44, dp: 0,
               title: 'Season ISO ×100 — the archive’s strongest HR predictor: sub-13 homered 8.2%, 23+ homered 22.2%' },
             { key: 'barrel',  label: 'Brl%', w: 46, dp: 1,
@@ -441,15 +446,16 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
           </div>
           <div style={{ fontSize: 10, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
             <b style={{ color: C.text2 }}>Reading the colour.</b>{' '}
-            <b style={{ color: C.text2 }}>Due</b> is shaded against{' '}
-            <i>tonight&apos;s</i> range —{' '}
+            <b style={{ color: C.text2 }}>Due</b> is drawn against the{' '}
+            <i>middle of tonight&apos;s field</i> — median{' '}
+            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{medDue.toFixed(1)}</b> across all{' '}
+            {all.length}, with this board running{' '}
             <b style={{ color: C.text2, fontFamily: NUM_FONT }}>
               {Math.min(...rows.map((r) => r.due)).toFixed(1)}–{Math.max(...rows.map((r) => r.due)).toFixed(1)}
-            </b>{' '}
-            on this board, median{' '}
-            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{medDue.toFixed(1)}</b> across all{' '}
-            {all.length} — so the brightest cell means <i>brightest tonight</i>, not{' '}
-            <i>high</i>. It is a <b style={{ color: C.text2 }}>score, not a probability</b>.{' '}
+            </b>. <span style={{ fontFamily: NUM_FONT }}>▲</span> above the middle,{' '}
+            <span style={{ fontFamily: NUM_FONT }}>▼</span> below, blank in the middle — so the
+            colour means <i>which side of tonight&apos;s board</i>, not <i>high</i>. It is a{' '}
+            <b style={{ color: C.text2 }}>score, not a probability</b>.{' '}
             <b style={{ color: C.text2 }}>Ratio</b> and <b style={{ color: C.text2 }}>HR gap</b>{' '}
             are drawn against <b style={{ color: C.text2, fontFamily: NUM_FONT }}>1.00×</b> —{' '}
             <span style={{ fontFamily: NUM_FONT }}>▲</span> overdue on his own rate,{' '}

@@ -85,6 +85,14 @@ const COLUMNS = [
   // HITTER's own damage-conversion rate ("when HE hits it hard..."). This is
   // the opposite side of the ball — how much damage HITTERS have done TO
   // THIS PITCHER in this lineup spot.
+  // THE ONE SCORE TABLE THAT DOES NOT DIVERGE AGAINST ITS FIELD (2026-08-22).
+  // Every other 0-100 score on the site is now anchored on the middle of the
+  // rows on screen. This table has NINE rows — a pitcher's nine lineup spots —
+  // and nine is not a field: the tenth and ninetieth percentile are the min
+  // and max, so the "ceiling" would be the range and the scale would be a
+  // min/max stretch wearing a diverging coat. lib/scales.js refuses anything
+  // under twelve for exactly that reason. The diverging read this table wants
+  // already exists and is honest: `vs own`, below, against his other eight.
   { key: 'damage',  label: 'Damage', w: 52, dp: 1, scale: 'seq', domain: [0, 100], primary: true,
     explain: 'How much damage hitters have done against this pitcher specifically in this lineup spot — his vulnerability here, not a hitter\'s own damage-conversion rate.' },
   { key: 'vsOwn',   label: 'vs own', w: 52, dp: 1, scale: 'div', anchor: 0, ceiling: 40, anchorLabel: 'his other eight spots',

@@ -5,6 +5,7 @@ import { arr, obj, n, clean, hitScore, prodScore, tbScore } from '../../lib/play
 import { dedupeGraded } from '../../lib/graded'
 import { rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
+import { SCORE } from '../../lib/scales'
 
 // Results depth — the grading half of the Streamlit Results tab.
 //
@@ -455,13 +456,13 @@ rows={rows}
                   { key: 'pick',    label: 'Pick type', heat: false, w: 124, dim: true },
                   { key: 'rank',    label: 'Board rank', heat: false, w: 62, mono: true, dim: true,
                     fmt: (v) => (v == null ? '—' : `#${v}`) },
-                  { key: 'score',   label: 'HR score', w: 56, dp: 1,
+                  { key: 'score',   label: 'HR score', w: 56, dp: 1, ...SCORE,
                     title: 'The home-run lane — what the board thought of his chance to go deep.' },
-                  { key: 'hitSc',   label: 'Hit', w: 46, dp: 1,
+                  { key: 'hitSc',   label: 'Hit', w: 46, dp: 1, ...SCORE,
                     title: 'Hit-shape score — the board’s read on him getting a base hit, independent of power. A dash means the graded row doesn’t carry it.' },
-                  { key: 'hrrSc',   label: 'HRR', w: 46, dp: 1,
+                  { key: 'hrrSc',   label: 'HRR', w: 46, dp: 1, ...SCORE,
                     title: 'Production score — hits + runs + RBI. A dash means the graded row doesn’t carry it.' },
-                  { key: 'tbSc',    label: 'TB', w: 44, dp: 1,
+                  { key: 'tbSc',    label: 'TB', w: 44, dp: 1, ...SCORE,
                     title: 'Contact / total-base score — extra-base shape. A dash means the graded row doesn’t carry it.' },
                   { key: 'hits',    label: 'H', w: 34, dp: 0,
                     title: 'Actual hits tonight. A homer is a hit, so a picked homer is always at least 1 — the number worth seeing is 2+.' },
@@ -528,7 +529,7 @@ rows={everyPick}
             { key: 'weak',  label: '★',      flag: true, mark: '★', w: 30 },
             { key: 'rank',  label: 'Rank',   heat: false, w: 44, mono: true, dim: true,
               fmt: (v) => (v == null ? '—' : `#${v}`) },
-            { key: 'score', label: 'HR score', w: 54, dp: 1 },
+            { key: 'score', label: 'HR score', w: 54, dp: 1, ...SCORE },
             { key: 'hr',    label: 'HR',     w: 34 },
             { key: 'h',     label: 'H',      w: 32 },
             { key: 'tb',    label: 'TB',     w: 34 },

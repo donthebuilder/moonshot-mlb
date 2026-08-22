@@ -7,6 +7,7 @@ import {
 } from '../lib/player'
 import { tierRole, shortRole, isAligned } from '../lib/scoring'
 import DenseTable from './DenseTable'
+import { SCORE } from '../lib/scales'
 
 // The full lineup, dense and colored — not the top-8 card grid.
 //
@@ -125,14 +126,14 @@ const COLUMNS = [
   // lineup table to find out about the bats; the slot read is context for that
   // answer, not the answer. Restored: the four bot scores lead, the spot
   // cluster sits after them where it was before.
-  { key: 'hr',     label: 'HR',    w: 40, dp: 1, primary: true },
-  { key: 'hit',    label: 'Hit',   w: 40, dp: 1 },
-  { key: 'hrr',    label: 'HRR',   w: 40, dp: 1 },
-  { key: 'tb',     label: 'TB',    w: 40, dp: 1 },
-  { key: 'hrw',    label: 'HRW',   w: 40, dp: 1 },
+  { key: 'hr',     label: 'HR',    w: 40, dp: 1, ...SCORE, primary: true },
+  { key: 'hit',    label: 'Hit',   w: 40, dp: 1, ...SCORE },
+  { key: 'hrr',    label: 'HRR',   w: 40, dp: 1, ...SCORE },
+  { key: 'tb',     label: 'TB',    w: 40, dp: 1, ...SCORE },
+  { key: 'hrw',    label: 'HRW',   w: 40, dp: 1, ...SCORE },
   { key: 'dc',     label: 'DC',    w: 40, dp: 1 },
-  { key: 'due',    label: 'Due',   w: 40, dp: 1 },
-  { key: 'pmix',   label: 'PMix',  w: 42, dp: 1 },
+  { key: 'due',    label: 'Due',   w: 40, dp: 1, ...SCORE },
+  { key: 'pmix',   label: 'PMix',  w: 42, dp: 1, ...SCORE },
   { key: 'barrel', label: 'Brl%',  w: 42, dp: 1 },
   { key: 'ihr',    label: 'IHR',   w: 42, dp: 3 },
   { key: 'd375',   label: '375+',  w: 40 },

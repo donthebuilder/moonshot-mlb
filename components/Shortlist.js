@@ -6,6 +6,7 @@ import { hrScore } from '../lib/player'
 import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
+import { DIV_FIELD } from '../lib/scales'
 
 // 🎯 THE SHORTLIST — who stands out tonight, and whether the number is right.
 //
@@ -140,13 +141,15 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick }) 
           // right thing — "the bot's 0-100 HR score… NOT a probability" — and
           // the colour said the opposite, which is the louder of the two.
           //
-          // The score keeps the sequential ramp, on a STATED 0-100 so it
-          // cannot borrow a probability's grammar. `rate` and `assume` — both
-          // real probabilities — print plain, and the DIFFERENCE between them
-          // (Room) carries the diverging scale, because the comparison is the
-          // finding and the two inputs are just the inputs.
-          { key: 'score', label: 'HR score', w: 64, scale: 'seq', domain: [0, 100], primary: true,
-            title: 'The bot’s 0-100 HR score — the profile. Not a probability, and drawn against 0–100 so it cannot look like one.' },
+          // 2026-08-22: the score now diverges against the MIDDLE OF THIS
+          // SHORTLIST, like every other score on the site. That does not undo
+          // the point above — the thing that keeps a score from borrowing a
+          // probability's grammar is that its anchor is a rank, not a rate.
+          // "Above the middle of this list" is a comparison; `rate` and
+          // `assume` are probabilities and still print plain, unpainted, so
+          // the two kinds of number never share a treatment.
+          { key: 'score', label: 'HR score', w: 64, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true,
+            title: 'The bot’s 0-100 HR score — the profile. Not a probability. Drawn against the middle of this shortlist: ▲ above it, ▼ below.' },
           { key: 'rate', label: 'His rate', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
             title: 'His real per-game 1+ HR probability: hr_per_pa through his lineup spot’s plate appearances. This IS a probability, which is why it’s the only column the price gets compared to — and why it is not painted on the same scale as the score.' },
           { key: 'price', label: 'Price', heat: false, w: 56, mono: true,

@@ -15,6 +15,7 @@ import PlayerCard from '../PlayerCard'
 import { downloadShareCard } from '../shareCard'
 import WatchlistAlignLedger from '../WatchlistAlignLedger'
 import { matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
+import { SCORE } from '../../lib/scales'
 
 // The bot's designated category for tonight, straight off the slate row —
 // "HR", "HIT", "TOP/HR", or '' when he isn't one of the ~105 designated
@@ -307,9 +308,9 @@ rows={parsed.map((r, i) => {
                 title: 'Weak lineup spot against tonight’s starter' },
               { key: 'l5',    label: 'L5',   heat: false, w: 76, mono: true, dim: true,
                 title: 'Last five games — hits / homers / extra-base hits' },
-              { key: 'hr',    label: 'HR',   w: 44, dp: 1,
+              { key: 'hr',    label: 'HR',   w: 44, dp: 1, ...SCORE,
                 title: 'HR score' },
-              { key: 'hrw',   label: 'HRW',  w: 46, dp: 0,
+              { key: 'hrw',   label: 'HRW',  w: 46, dp: 0, ...SCORE,
                 title: 'HR Watch — the bot’s heat/recency read, 0–100' },
               { key: 'dc',    label: 'DC',   w: 42, dp: 0,
                 title: 'Damage conversion — how often his hard contact becomes damage' },
@@ -319,10 +320,10 @@ rows={parsed.map((r, i) => {
                 title: 'Recent barrel rate' },
               { key: 'ev',    label: 'EV',   w: 46, dp: 1,
                 title: 'Average exit velocity' },
-              { key: 'pmix',  label: 'PMix', w: 46, dp: 0,
+              { key: 'pmix',  label: 'PMix', w: 46, dp: 0, ...SCORE,
                 title: 'Pitch-mix fit vs tonight’s starter' },
-              { key: 'hrr',   label: 'HRR',  w: 44, dp: 1 },
-              { key: 'hitS',  label: 'Hit',  w: 44, dp: 1 },
+              { key: 'hrr',   label: 'HRR',  w: 44, dp: 1, ...SCORE },
+              { key: 'hitS',  label: 'Hit',  w: 44, dp: 1, ...SCORE },
               { key: 'hr9',   label: 'P HR/9', w: 50, dp: 2,
                 title: 'The starter he faces — homers allowed per nine' },
             ]}
@@ -960,8 +961,8 @@ rows={filteredOnSlate.map((p) => {
                   title: 'Tonight’s park HR factor — 1.00 is neutral, 1.20 means the park itself adds about 20% more home runs. Same number ProjectedOutput and the Park board read. Dash = not published yet.' },
                 { key: 'drought', label: 'Drought', heat: false, w: 58, mono: true, dim: true, dp: 0,
                   title: 'Games since his last home run. Information, not a signal — this site doesn’t score a hitter as "due."' },
-                { key: 'hr',    label: 'HR',   w: 44, dp: 1, title: 'HR score' },
-                { key: 'hrw',   label: 'HRW',  w: 46, dp: 0,
+                { key: 'hr',    label: 'HR',   w: 44, dp: 1, ...SCORE, title: 'HR score' },
+                { key: 'hrw',   label: 'HRW',  w: 46, dp: 0, ...SCORE,
                   title: 'HR Watch — the bot’s heat/recency read, 0–100' },
                 { key: 'dc',    label: 'DC',   w: 42, dp: 0,
                   title: 'Damage conversion — how often his hard contact becomes damage' },
@@ -973,10 +974,10 @@ rows={filteredOnSlate.map((p) => {
                 { key: 'wall',  label: 'Wall', w: 46, dp: 0,
                   title: 'Wall-scrapers in his recent hard contact — balls that reached the track without going out. Literal near misses.' },
                 { key: 'ev',    label: 'EV',   w: 46, dp: 1, title: 'Average exit velocity' },
-                { key: 'pmix',  label: 'PMix', w: 46, dp: 0,
+                { key: 'pmix',  label: 'PMix', w: 46, dp: 0, ...SCORE,
                   title: 'Pitch-mix fit vs tonight’s starter' },
-                { key: 'hrr',   label: 'HRR',  w: 44, dp: 1 },
-                { key: 'hitS',  label: 'Hit',  w: 44, dp: 1 },
+                { key: 'hrr',   label: 'HRR',  w: 44, dp: 1, ...SCORE },
+                { key: 'hitS',  label: 'Hit',  w: 44, dp: 1, ...SCORE },
                 { key: 'hr9',   label: 'P HR/9', w: 50, dp: 2,
                   title: 'The starter he faces — homers allowed per nine' },
                 { key: 'avg',   label: 'AVG',  w: 46, dp: 3, title: 'Season batting average.' },

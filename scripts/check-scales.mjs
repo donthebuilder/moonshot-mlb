@@ -155,6 +155,9 @@ let seqCount = 0, seqBad = []
 // spec test matched a paragraph instead of the table.
 const decomment = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
 
+/** Does this spec take its zero from the rows rather than from a stated number? */
+const fieldAnchored = (spec) => /\.\.\.SCORE\b/.test(spec) || /\banchor\s*:\s*DIV_FIELD\b/.test(spec)
+
 /** The object literal enclosing `at`, or null if the braces don't balance. */
 function enclosingObject(src, at) {
   let depth = 0
@@ -183,19 +186,49 @@ function enclosingObject(src, at) {
 for (const f of files) {
   const rel = f.slice(ROOT.length).replace(/^\/+/, '')
   const src = decomment(readFileSync(f, 'utf8'))
-  for (const m of src.matchAll(/\b(?:scale|kind):\s*'(div|seq)'/g)) {
+  // `...SCORE` counts as a declaration of `scale: 'div'`, because it is one —
+  // lib/scales.js exports it precisely so a score's treatment lives in one
+  // place. A checker that only recognised the literal would have gone blind to
+  // every score column the moment the spread was introduced, which is the same
+  // failure as the single-line regex above, arriving from the other direction.
+  for (const m of src.matchAll(/\b(?:scale|kind):\s*'(div|seq)'|\.\.\.SCORE\b/g)) {
     const spec = enclosingObject(src, m.index)
     if (!spec) continue
+    const kind = m[1] || 'div'
     const where = `${rel}: ${spec.replace(/\s+/g, ' ').slice(0, 100)}`
-    if (m[1] === 'div') {
+    if (kind === 'div') {
       divCount++
-      if (!/\banchor\s*:/.test(spec) || !/\bceiling\s*:/.test(spec)) divBad.push(where)
+      // A FIELD-ANCHORED COLUMN STATES ITS FALLBACK INSTEAD.
+      // Its anchor and ceiling are resolved from the rows on screen and cannot
+      // be written down at declaration time — but what happens when they
+      // CANNOT be resolved must be. `domain` is that statement: the plain
+      // sequential fill the column drops to, with no arrow, when tonight's
+      // field is too small or too flat to anchor honestly.
+      if (fieldAnchored(spec)) {
+        // `...SCORE` carries the fallback domain itself — that is the whole
+        // reason it exists, and it is asserted once, below, against
+        // lib/scales.js. A hand-written `anchor: DIV_FIELD` has to say it.
+        if (!/\.\.\.SCORE\b/.test(spec) && !/\bdomain\s*:/.test(spec)) {
+          divBad.push(`${where}   (field-anchored, no fallback domain)`)
+        }
+      } else if (!/\banchor\s*:/.test(spec) || !/\bceiling\s*:/.test(spec)) {
+        divBad.push(where)
+      }
     } else {
       seqCount++
       if (!/\bdomain\s*:/.test(spec)) seqBad.push(where)
     }
   }
 }
+// THE SPREAD ITSELF, ASSERTED ONCE. Every `...SCORE` column above is trusted
+// to carry a diverging scale, a field anchor and a fallback domain because
+// this is true; if someone edits it out, one line fails here instead of
+// eighteen columns going quietly unchecked.
+const scoreSpec = (readFileSync(join(ROOT, 'lib/scales.js'), 'utf8')
+  .match(/export const SCORE\s*=\s*(\{[^}]*\})/) || [])[1] || ''
+say(/scale:\s*'div'/.test(scoreSpec) && /anchor:\s*DIV_FIELD/.test(scoreSpec) && /domain:\s*\[/.test(scoreSpec),
+  `SCORE is a diverging, field-anchored scale with a stated fallback domain — ${scoreSpec.replace(/\s+/g, ' ') || 'NOT FOUND'}`)
+
 say(divBad.length === 0,
   `${divCount} diverging scales, each with a stated anchor and ceiling${divBad.length ? `\n         ${divBad.join('\n         ')}` : ''}`)
 say(seqBad.length === 0,
@@ -207,9 +240,13 @@ say(seqBad.length === 0,
 let noLabel = 0
 for (const f of files) {
   const src = decomment(readFileSync(f, 'utf8'))
-  for (const m of src.matchAll(/\b(?:scale|kind):\s*'div'/g)) {
+  for (const m of src.matchAll(/\b(?:scale|kind):\s*'div'|\.\.\.SCORE\b/g)) {
     const spec = enclosingObject(src, m.index)
-    if (spec && !/\banchorLabel\s*:/.test(spec)) noLabel++
+    // A field-anchored column names its anchor in words at RENDER time —
+    // `fieldLabel` prints "tonight's field — middle 54.2 of 268" into the
+    // tooltip, with the number it actually used. It cannot carry a static
+    // anchorLabel and it does not need one.
+    if (spec && !fieldAnchored(spec) && !/\banchorLabel\s*:/.test(spec)) noLabel++
   }
 }
 console.log(`   note  ${divCount - noLabel} of ${divCount} diverging scales name their anchor in words`)
