@@ -41,6 +41,12 @@ const TEXTS = {
   games: {
     what: 'Tonight’s slate, game by game, in first-pitch order. Every card is the same size on the same flat surface — the heat is written, not painted: the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it say where the board stacks highest, and the sort row reorders the grid by score, air, worst HR/9, worst WHIP or lowest K. Tap a card to open it in place and flip between its read, its lineups, the head-to-head and its picks. The Lineups mode shows every batting order at once with the bot’s pick chips underneath; click a game there and you get slot-by-slot — what the pitcher gives up to each lineup spot vs what the hitter standing there does. ⚾ Live is the At the Plate room, in place, once first pitch has gone.',
   },
+  // PROPS (2026-08-23) — the page had no entry, so the redesign carried its
+  // own paragraph inline, above the cards, on every visit. That is what this
+  // component exists to stop: one paragraph, first visit, then a pill.
+  props: {
+    what: 'The decision page, built for a phone: one card per bat the bot designated tonight, and the verdict comes first. The ring is that pick’s score in ITS OWN market — a home-run card shows the home-run score, a 1+ hit card shows the hit score — so nothing is ever ranked against a number measured a different way. Under it, one plain sentence saying why this one, then the L5 / L10 / season tiles, which double as the streak. Cards are grouped by market with the market’s name in English above each block. Tap any card for the full read: props grid, splits, zone map, everything. 👀 WATCH is coverage, not a pick — the next power bats in each game, there so the slate is covered, never there to be backed.',
+  },
   atplate: {
     what: 'Whoever is at the plate, right now, live. The count and every pitch of the at-bat build from tonight’s feed as it happens, with the batter’s zone map and spray chart switching to tonight-only dots — no season data mixed in. Tap anyone in the lineup or box score below to point the charts at them without leaving the page. Only live during games; it wakes up at first pitch.',
   },
