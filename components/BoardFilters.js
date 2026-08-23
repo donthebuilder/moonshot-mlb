@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, nameOf, teamOf, oppOf, clean, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
 import { isAligned } from '../lib/scoring'
+import { STATE, alpha } from '../lib/scales'
 
 // Shared filter bar for the ranked boards.
 //
@@ -228,13 +229,24 @@ export function useBoardFilter(players, scoreType = null) {
 }
 
 const lbl = { fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }
-const chip = (on, col = C.orange) => ({
-  padding: '4px 11px', fontSize: 11, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
-  fontFamily: NUM_FONT,
-  border: `1px solid ${on ? col : C.border}`,
-  background: on ? `${col}20` : 'transparent',
-  color: on ? col : C.text3,
-})
+// UNIVERSAL FILTER RECIPE (2026-08-23). This was one of the five chip()
+// factories the survey found, radius 7 with ember's orange baked into a
+// `${col}20` tint — on light/mono/steel/regal the "active" tint was simply
+// the wrong colour. It now resolves through STATE.on()/off() and alpha()
+// like components/Filters.js: a filter is STATE, drawn in the theme accent,
+// never in a data hue. The col parameter is kept for its call sites and
+// deliberately ignored — the cyan game/time chips were wearing a data hue
+// for what is a selection.
+const chip = (on) => {
+  const s = on ? STATE.on() : STATE.off()
+  return {
+    padding: '4px 11px', fontSize: 11, fontWeight: s.fontWeight, borderRadius: 999,
+    cursor: 'pointer', fontFamily: NUM_FONT,
+    border: `1px solid ${s.borderColor}`,
+    background: on ? alpha(s.color, 0.14) : 'transparent',
+    color: s.color,
+  }
+}
 
 // Compact trigger + panel, same mechanism PaletteButton already uses site-
 // wide (fixed-position panel, pinned to the viewport edges rather than the
@@ -288,7 +300,7 @@ export default function BoardFilters({ state, total, shown }) {
               display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
               padding: '6px 12px', borderRadius: 8,
               border: `1px solid ${open || active ? C.orange : C.border}`,
-              background: open ? C.bg3 : active ? 'rgba(249,115,22,.08)' : 'transparent',
+              background: open ? C.bg3 : active ? alpha(STATE.on().color, 0.08) : 'transparent',
               color: active ? C.orange : C.text2, fontSize: 11.5, fontWeight: 800, fontFamily: NUM_FONT,
             }}
           >

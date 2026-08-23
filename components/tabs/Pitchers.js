@@ -1,6 +1,13 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { FilterPill, FilterLabel, FilterSelect } from '../Filters'
+import { STATE, alpha } from '../../lib/scales'
+
+// NOTE (2026-08-23): the accent tint is computed AT RENDER, never hoisted —
+// applyTheme() mutates C in place after hydration, so a module-scope
+// computed colour freezes the pre-hydration theme (the earned trap in the
+// handoff doc).
 import { penStatsFor, fetchPenFatigue, penTier, penFrom, penLineParts, penWorkParts, penWorkSentence } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import { groupPitchers } from '../../lib/data'
@@ -319,10 +326,10 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                       : 'No bullpen attack score published on tonight\'s slate')
                     : 'Season reliever-only HR/9, leakiest first'}
                 style={{
-                  padding: '2px 9px', borderRadius: 6, fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
+                  padding: '2px 9px', borderRadius: 999, fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
                   cursor: dead ? 'not-allowed' : 'pointer',
                   border: `1px solid ${sortKey === k ? C.orange : C.border}`,
-                  background: sortKey === k ? 'rgba(249,115,22,.14)' : 'transparent',
+                  background: sortKey === k ? alpha(STATE.on().color, 0.14) : 'transparent',
                   color: dead ? C.text3 : sortKey === k ? C.orange : C.text2,
                   opacity: dead ? 0.45 : 1,
                 }}>{label}</button>
@@ -1011,14 +1018,12 @@ export default function Pitchers({ players, onPlayerClick }) {
       {/* Column groups — the other half of the usability fix. Thirty columns
           at once was a wall; each group is one question. */}
       <div ref={tableRef} style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center', scrollMarginTop: 130 }}>
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Columns</span>
+        {/* UNIVERSAL FILTER (2026-08-23): this row was the ninth hand-rolled
+            chip recipe on the site — radius 7, ember's orange in an rgba
+            literal. Same control as the modal's tabs now. */}
+        <FilterLabel>Columns</FilterLabel>
         {[['core', 'Core'], ['recent', 'Recent form'], ['cmd', 'Command'], ['bot', 'Bot scores'], ['bb', 'Batted ball'], ['pen', 'His pen'], ['air', 'The air'], ['all', 'Everything']].map(([k, label]) => (
-          <button key={k} onClick={() => setColGroup(k)} style={{
-            padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
-            border: `1px solid ${colGroup === k ? C.orange : C.border}`,
-            background: colGroup === k ? 'rgba(249,115,22,.12)' : 'transparent',
-            color: colGroup === k ? C.orange : C.text3,
-          }}>{label}</button>
+          <FilterPill key={k} active={colGroup === k} onClick={() => setColGroup(k)}>{label}</FilterPill>
         ))}
         {/* the space-saving dropdowns (2026-08-14) — see the state block */}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>

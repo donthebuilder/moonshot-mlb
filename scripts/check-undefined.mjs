@@ -46,6 +46,27 @@ for (const f of execSync('ls components/*.js components/tabs/*.js').toString().t
   }
   const local = new Set()
   for (const m of src.matchAll(/(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) local.add(m[1])
+  // DESTRUCTURED BINDINGS (2026-08-23; the fix from the lost 08-22 pass).
+  // The set above only saw `const x = ...`-shaped declarations, so a name
+  // bound by destructuring — `.map(({ title, col, score, door }) => ...)`,
+  // `const { score } = props`, `function F({ score })` — read as
+  // un-imported, and Home.js sat PERMANENTLY RED on correct code. A checker
+  // that is always red is a checker nobody reads. Bind every identifier
+  // that appears inside {...} or (...) parameter/pattern positions,
+  // including `key: alias` renames and defaults.
+  for (const m of src.matchAll(/[({,]\s*\{([^{}]*)\}/g)) {
+    for (const part of m[1].split(',')) {
+      const alias = part.split(':').pop().split('=')[0].trim().replace(/^\.\.\./, '')
+      if (/^[A-Za-z_$][\w$]*$/.test(alias)) local.add(alias)
+    }
+  }
+  // arrow/function params without braces: (a, b = 1) => …
+  for (const m of src.matchAll(/\(([^()]*)\)\s*=>/g)) {
+    for (const part of m[1].split(',')) {
+      const alias = part.split('=')[0].trim().replace(/^\.\.\./, '')
+      if (/^[A-Za-z_$][\w$]*$/.test(alias)) local.add(alias)
+    }
+  }
   const missing = new Set()
     // NO WHITESPACE before the paren. `pick (🌙)` is JSX prose; `pick(x)` is a
   // call. Allowing the space made the label "Stake / pick (🌙)" look like an

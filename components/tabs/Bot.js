@@ -4,6 +4,8 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { tierTone } from '../../lib/roleBadge'
 import { hrwRead } from '../../lib/hrwBand'
 import { PanelTitle, Empty, btnStyle } from '../ui'
+import { PillRow } from '../Filters'
+import { catColor } from '../../lib/scales'
 import TheRead from '../TheRead'
 import Shortlist from '../Shortlist'
 import { logUrl } from '../../lib/dataSource'
@@ -74,8 +76,10 @@ function BoardRow({ p, i, onPlayerClick }) {
   // double-up shows as TOP here; it still surfaces in the HR tab/count below.
   const pick = String(p.game_pick_role || '').split('/')[0].trim()
   const pills = Array.isArray(p.signal_pills) ? p.signal_pills.slice(0, 3) : []
-  const pickColors = { TOP: '#FCD34D', HR: '#FB923C', HRR: '#22d3ee', HIT: '#38bdf8', CONTACT: '#a78bfa' }
-  const pickCol = pickColors[pick] || C.text3
+  // catColor('role', ...) is the registry these five hexes were duplicating —
+  // the exact hex-budget giveback the universal-filter pass called out
+  // (2026-08-23).
+  const pickCol = catColor('role', pick) || C.text3
   const isTrap = p.trap_flag && !p.got_hr
 
   // DE-TACKIFIED (2026-08-07, "the raw board looks tacky"): the full-height
@@ -523,13 +527,14 @@ export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = nul
         title="The Bot"
         sub="Tonight read back in sentences · its sheet, in its own sections"
         right={
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {VIEWS.map((v) => (
-              <button key={v.key} onClick={() => setView(v.key)} style={btnStyle(C.orange, view === v.key)}>
-                {v.label}
-              </button>
-            ))}
-          </div>
+          // UNIVERSAL FILTER (2026-08-23): the VIEWS row rode on btnStyle
+          // with ember passed by hand — a view switch is STATE and draws in
+          // the theme accent like every other filter row now.
+          <PillRow
+            value={view}
+            options={VIEWS.map((v) => ({ key: v.key, label: v.label }))}
+            onChange={setView}
+          />
         }
       />
 

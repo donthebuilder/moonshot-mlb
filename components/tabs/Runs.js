@@ -1,6 +1,7 @@
 'use client'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { STATE, alpha } from '../../lib/scales'
 import { fetchJSON, groupGames } from '../../lib/data'
 import { clean, teamOf } from '../../lib/player'
 import { Empty } from '../ui'
@@ -63,13 +64,18 @@ import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS, H, HRR }
 // The free-text box survives untouched — it answers a different question
 // (find one man) than the pickers do (show me this slate slice).
 
-const chip = (on) => ({
-  padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
-  fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-  border: `1px solid ${on ? C.orange : C.border}`,
-  background: on ? 'rgba(249,115,22,.14)' : 'transparent',
-  color: on ? C.orange : C.text3,
-})
+// UNIVERSAL FILTER RECIPE (2026-08-23): tint through the theme accent via
+// STATE/alpha, not a baked ember rgba — see components/Filters.js.
+const chip = (on) => {
+  const st = on ? STATE.on() : STATE.off()
+  return {
+    padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+    fontWeight: st.fontWeight, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+    border: `1px solid ${st.borderColor}`,
+    background: on ? alpha(st.color, 0.14) : 'transparent',
+    color: st.color,
+  }
+}
 
 const SPLITS = [['all', 'All games'], ['D', 'Day'], ['N', 'Night'], ['H', 'Home'], ['A', 'Road']]
 const ORDERS = [['run', 'Run length'], ['team', 'Team'], ['game', 'Game']]
@@ -126,8 +132,8 @@ function Picker({ label, value, onChange, options, title }) {
         className="moon-select"
         style={{
           appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
-          background: on ? 'rgba(249,115,22,.14)' : 'transparent',
-          border: `1px solid ${on ? C.orange : C.border}`,
+          background: on ? alpha(STATE.on().color, 0.14) : 'transparent',
+          border: `1px solid ${on ? STATE.on().borderColor : C.border}`,
           color: on ? C.orange : C.text3,
           fontWeight: on ? 800 : 700,
           borderRadius: 999, padding: '3px 21px 3px 10px',
