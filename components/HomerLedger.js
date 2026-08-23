@@ -836,6 +836,17 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       if (sh) shapeShare.set(sh, (shapeShare.get(sh) || 0) + 1)
     })
     const rareShape = (sh) => !!sh && (shapeShare.get(sh) || 0) <= Math.max(2, Math.floor(players.length / 8))
+    // "↔ Jr." IS NOT A NAME (2026-08-23). The chip took the last word of the
+    // partner's name, which for Fernando Tatis Jr. and Luis Robert Jr. is the
+    // suffix — so a row of matches all read "↔ Jr." and named nobody. Suffixes
+    // are dropped, and a hyphenated surname keeps its first half so
+    // Crow-Armstrong does not push the row onto three lines.
+    const SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i
+    const shortName = (full) => {
+      const words = String(full || '').trim().split(/\s+/).filter((w) => !SUFFIX.test(w))
+      const last = words[words.length - 1] || String(full || '')
+      return last.split('-')[0]
+    }
     const homerTwins = cards.map((c) => ({ card: c, parts: nameParts(c.name) })).filter((h) => h.parts)
 
     // ── WHO LINES UP NEXT (2026-08-17, widened 2026-08-23) ─────────────────
@@ -877,7 +888,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           const shared = pairEcho(h.parts, a.parts, { cadenceOk: rareShape(cadenceShape(a.parts)) })
           if (shared) {
             twins += 1
-            chips.push(`↔ ${h.card.name.split(' ').slice(-1)[0]}`)
+            chips.push(`↔ ${shortName(h.card.name)}`)
             why.push(`${h.card.name} went deep tonight and they share ${shared}`)
             return
           }
@@ -1308,38 +1319,58 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             background: 'rgba(34,211,238,.06)', border: '1px solid rgba(34,211,238,.28)',
             borderRadius: 10, padding: '7px 11px', marginBottom: 9,
           }}>
-            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.9 }}>
-              🔮 <b style={{ color: C.cyan }}>Fits tonight&apos;s pattern, hasn&apos;t gone yet:</b>{' '}
-              {upcoming.map((x, i) => (
-                <span key={x.pid}>
-                  {i > 0 && ' · '}
+            {/* ONE MAN PER ROW (2026-08-23). This was a single wrapping
+                paragraph — eight names, their state and up to five chips each,
+                all separated by middots. On a desktop that is a dense line; on
+                a phone it was a green wall where names, chips and separators
+                ran together and nothing could be scanned. A row per hitter
+                costs the vertical space it was already taking and gives the
+                eye a left edge to run down. */}
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: C.cyan, marginBottom: 5 }}>
+              🔮 Fits tonight&apos;s pattern, hasn&apos;t gone yet
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {upcoming.map((x) => (
+                <div key={x.pid} style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10, flexShrink: 0 }}
+                    title={x.when === 'now' ? 'his game is live' : 'first pitch still ahead'}>
+                    {x.when === 'now' ? '⚡' : '⏳'}
+                  </span>
                   <b
                     onClick={() => onPlayerClick?.(x.p)}
                     title={`${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`}
-                    style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}
+                    style={{ fontSize: 11, color: C.text, cursor: onPlayerClick ? 'pointer' : 'default', flexShrink: 0 }}
                   >{x.name}</b>
-                  <span style={{
-                    fontSize: 8.5, fontFamily: NUM_FONT, marginLeft: 4,
-                    color: x.when === 'now' ? '#4ade80' : C.text3,
-                  }}>{x.when === 'now' ? '⚡ batting' : '⏳ later'}</span>
-                  {x.chips.map((c) => (
+                  {x.chips.slice(0, 4).map((c) => (
                     <span key={c} style={{
-                      fontSize: 8.5, fontFamily: NUM_FONT, marginLeft: 4, padding: '1px 5px',
+                      fontSize: 8.5, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
                       borderRadius: 5, border: `1px solid ${C.cyan}44`, color: C.cyan,
                     }}>{c}</span>
                   ))}
-                </span>
+                  {x.chips.length > 4 && (
+                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}
+                      title={x.why.join('. ')}>+{x.chips.length - 4}</span>
+                  )}
+                </div>
               ))}
             </div>
-            <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: 4 }}>
-              Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a
-              repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo
-              running tonight, or a straight match with somebody who already went: the same first name,
-              the same surname, a name one letter apart, an odd syllable shape they share, or the same
-              number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how
-              many of those he sits on, then by HR score. A watch, not a prediction — nothing here is graded,
-              scored, or fed to a pick.
-            </div>
+            {/* THE CAPTION FOLDS. Six lines of prose under an eight-row list is
+                most of a phone screen spent on a caption. One tap away, and it
+                still says everything it said. */}
+            <details style={{ marginTop: 6 }}>
+              <summary style={{ fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>
+                what this is
+              </summary>
+              <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: 4 }}>
+                Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a
+                repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo
+                running tonight, or a straight match with somebody who already went: the same first name,
+                the same surname, a name one letter apart, an odd syllable shape they share, or the same
+                number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first
+                pitch is still ahead. Ranked by how many of those he sits on, then by HR score. A watch,
+                not a prediction — nothing here is graded, scored, or fed to a pick.
+              </div>
+            </details>
           </div>
         )
       })()}
