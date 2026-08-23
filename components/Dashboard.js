@@ -42,6 +42,7 @@ import Pairs from './tabs/Pairs'
 import Bot from './tabs/Bot'
 import OddsBoard from './tabs/OddsBoard'
 import Pitchers from './tabs/Pitchers'
+import PropsGrid from './tabs/PropsGrid'
 import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
 
@@ -467,6 +468,10 @@ export default function Dashboard() {
             {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} />}
             {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
+            {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
+                per Donovan's sequencing call: the grid stays an entry point,
+                the drill-down is the existing player modal on top of it. */}
+            {tab === 'props'       && <PropsGrid players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
             {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}
