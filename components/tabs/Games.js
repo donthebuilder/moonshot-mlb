@@ -23,7 +23,6 @@ import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import GameSwitcher from '../GameSwitcher'
-import GamePitcherRead from '../GamePitcherRead'
 import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
 import { downloadGameCard } from '../shareCard'
 
@@ -1195,14 +1194,15 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         all still render the same components with the same
                         props — they are simply no longer stacked four screens
                         deep. See the `panel` state above for why. */}
-                    {/* ── THE ARMS, IN WORDS (2026-08-23) ──────────────
-                        Donovan: "the words for the pitcher and watch stats i
-                        wanted to be shown for them." Both starters, each with
-                        the attack dial, one sentence, and the four stats worth
-                        watching on him — the same block the pitcher modal
-                        opens with, at game scale, so the numbers cannot read
-                        one way here and another way one tap in. */}
-                    {isActive && <GamePitcherRead sides={sides} />}
+                    {/* The arms used to get their own block here — the dial,
+                        a sentence and four tiles per starter, directly above
+                        the panel pills. GameDeepDive's side panels then said
+                        the same thing about the same two arms one screen
+                        lower, and Donovan's read on the result was "this does
+                        not look good … its all uneven". It was ONE block too
+                        many, not a layout problem. The dial, the sentence and
+                        the (now five, now even) tiles all live in the side
+                        panel, once. */}
 
                     {isActive && (
                       <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>

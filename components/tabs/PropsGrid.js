@@ -8,6 +8,8 @@ import {
   verdictFor, sentenceFor, chipsFor,
 } from '../../lib/verdict'
 import VerdictHero, { PeriodTiles } from '../VerdictHero'
+import PropsSheet from '../PropsSheet'
+import { useIsPhone } from '../MobileFold'
 import { FilterPill } from '../Filters'
 
 // ══ PROPS GRID — THE MOBILE PILOT PAGE ══════════════════════════════════════
@@ -130,6 +132,20 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick }) 
   const [market, setMarket] = useState('picks')
   const [all, setAll] = useState(false)
 
+  // ── THE FULL-PAGE SHEET (2026-08-23) ──────────────────────────────────────
+  // Donovan: "i like how the props is but possible have the open up to the
+  // props grid as a full page that is clickable — thats what i've been trying
+  // to have done, a full props grid page for mobile that is simple."
+  //
+  // On a phone a tapped card opens components/PropsSheet.js — one player,
+  // whole screen, one market at a time, his real hit rates and splits — and
+  // "full research →" in its top bar hands off to the desktop modal for
+  // anyone who wants the zone map and the rest. On anything wider the modal
+  // was already the right answer and still opens directly.
+  const isPhone = useIsPhone(760)
+  const [sheet, setSheet] = useState(null)
+  const openCard = (p) => { if (isPhone) setSheet(p); else onPlayerClick?.(p) }
+
   const rows = useMemo(() => (players || []).filter((p) => p && p.player_id), [players])
 
   const counts = useMemo(() => {
@@ -232,7 +248,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick }) 
                 gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))',
               }}>
                 {g.rows.map((r) => (
-                  <Card key={`${r.player_id}-${r.game_pk}`} r={r} role={g.key} odds={odds} onPlayerClick={onPlayerClick} />
+                  <Card key={`${r.player_id}-${r.game_pk}`} r={r} role={g.key} odds={odds} onPlayerClick={openCard} />
                 ))}
               </div>
             </div>
@@ -243,6 +259,15 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick }) 
             </div>
           )}
         </>
+      )}
+
+      {sheet && (
+        <PropsSheet
+          player={sheet}
+          odds={odds}
+          onClose={() => setSheet(null)}
+          onFullResearch={(p) => { setSheet(null); onPlayerClick?.(p) }}
+        />
       )}
     </div>
   )

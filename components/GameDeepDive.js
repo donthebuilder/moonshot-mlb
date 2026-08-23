@@ -1,9 +1,10 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
-import { alpha } from '../lib/scales'
+import { alpha, verdictInk } from '../lib/scales'
 import { n, nn, clean, nameOf, hrScore } from '../lib/player'
 import { airParts, airVerdict } from '../lib/conditions'
 import { quoteFor, fmtOdds, CATEGORY_LINE } from '../lib/odds'
+import { Dial } from './VerdictHero'
 import GameCockpit from './GameCockpit'
 import Storylines from './Storylines'
 import TeamVsStarter from './TeamVsStarter'
@@ -180,21 +181,21 @@ function PickCard({ p, role, alsoRoles = [], odds, onPlayerClick }) {
 // ── THE ARM, AS STATS (2026-08-23) ──────────────────────────────────────────
 // Donovan, on the "STL bats / PHI bats" paragraphs: "the area with the words
 // make them just stats please look into older style wherer it showed the
-// pitcher and recent tats plus hr luck plus or minus."
+// pitcher and recent tats plus hr luck plus or minus." Then, on the first
+// attempt: "this does not look good the stacking is off … dont add lineup hrw,
+// stat text is cool for those, just do era, recent whip, recent hr9, hr luck
+// and hr/9 season. keep it clean. its all uneven."
 //
-// The prose version (2026-08-15) took the seven tiles this panel used to carry
-// and dissolved them into a sentence, on the theory that a number next to the
-// thing that makes it a read is worth more than a number in a box. On a phone
-// it is four wrapped lines you have to READ to find 0.72, and the whole point
-// of this panel is that you are scanning two arms side by side and comparing
-// them. Prose cannot be compared at a glance; a column of tiles can.
+// Both notes are the same note. Seven tiles plus two lineup tiles wrapped
+// 5 + 1 + 2 on a phone — three ragged rows pretending to be a grid. FIVE, in a
+// fixed five-column grid, always render (a missing one prints "—" rather than
+// collapsing the row), so it is one even line at every width. The lineup
+// numbers go back to being a sentence, which is what he said they should be.
 //
-// So the tiles come back — the same seven, the same tooltips, the same
-// thresholds, including HR LUCK signed (−3.3 = three fewer homers than his
-// contact deserved, so regression is on the hitters' side). They come back in
-// the CURRENT tile language rather than the 2026-08-06 one: rounded, tinted
-// by meaning, and a grid so they wrap into even rows on a narrow screen
-// instead of a ragged flex line.
+// The five, in his order: ERA · WHIP L3 · HR/9 L3 · HR LUCK · HR/9 SZN. Two of
+// them are the RECENT window (pitcher_l3_*) because that is what "recent" was
+// asking for, and HR LUCK keeps its sign: −3.3 means three fewer homers than
+// his contact deserved, so regression is on the hitters' side.
 function ArmStat({ label, value, tone, title }) {
   if (value == null || value === '' || value === '—') return null
   const col = tone === 'hot' ? C.orange : tone === 'cold' ? C.blue : C.text
@@ -238,6 +239,32 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
   const trend = clean(src('pitcher_trend_direction'), '')
   const xluck = n(src('pitcher_hr_luck'), 0)
   const xbbe = n(src('pitcher_xhr_bbe'), 0)
+  const l3whip = n(src('pitcher_l3_whip'), null)
+  const l3n = n(src('pitcher_l3_starts_found'), 0)
+  const attack = n(src('pitcher_attack_score'), null)
+  const brl = n(src('pitcher_barrel_allowed'), null)
+  const fb = n(src('pitcher_fb_rate'), null)
+  // Warm = good for the BATS, the site-wide verdict pair. 30+ is the
+  // "genuinely high" line MatchupPitcher.js already draws on this field; 12
+  // and under is the bottom fifth of a slate's starters.
+  const armInk = verdictInk(attack == null ? null : attack >= 30 ? true : attack <= 12 ? false : null)
+  // ONE SENTENCE, then the numbers. This is the "words for the pitcher" ask,
+  // and it lives HERE rather than in a second block above the panel pills —
+  // that block said the same thing about the same two arms one screen higher,
+  // which is most of why the area read as cluttered.
+  const armWords = (() => {
+    const bits = []
+    if (hr9 != null && hr9 > 0) bits.push(`${hr9.toFixed(2)} HR/9`)
+    if (brl != null) bits.push(`${(brl * 100).toFixed(0)}% barrels`)
+    if (fb != null) bits.push(`${(fb * 100).toFixed(0)}% fly balls`)
+    if (weakSide) bits.push(`weakest vs ${weakSide}`)
+    if (!bits.length) return 'No season line published for this arm yet.'
+    const lead = attack == null ? ''
+      : attack >= 30 ? 'A live window for the bats — '
+      : attack <= 12 ? 'A hard arm to attack — '
+      : ''
+    return `${lead}${bits.join(' · ')}.`
+  })()
   const projected = rows.some((r) => r?.pitcher_projected)
 
   const weakCount = rows.filter((p) => p?.weak_spot_flag).length
@@ -289,44 +316,39 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
         )}
       </div>
 
-      {/* THE SEVEN — scannable, comparable side by side, and each one still
-          carries the sentence it used to be, in its tooltip. */}
-      <div style={{
-        display: 'grid', gap: 6, marginBottom: 8,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(56px, 1fr))',
-      }}>
-        <ArmStat label="HR/9" value={hr9 != null && hr9 > 0 ? hr9.toFixed(2) : null}
-          tone={hr9 == null ? null : hr9 >= 1.4 ? 'hot' : hr9 <= 1.0 ? 'cold' : null}
-          title={`Home runs allowed per nine innings. The league line is ${LEAGUE_HR9.toFixed(2)} — warm is over it, and over it is good for the bats.`} />
-        <ArmStat label="L3 HR/9" value={l3hr9 != null && l3hr9 > 0 ? l3hr9.toFixed(2) : null}
-          tone={bleeding ? 'hot' : null}
-          title="His last three starts. Above his season number means he is bleeding lately — three outings is a direction, not a rate." />
-        <ArmStat label="ERA" value={era != null ? era.toFixed(2) : null}
-          tone={era == null ? null : era >= 5 ? 'hot' : era <= 3.2 ? 'cold' : null}
-          title="Season earned-run average." />
-        <ArmStat label="WHIP" value={whip != null ? whip.toFixed(2) : null}
-          tone={whip == null ? null : whip >= 1.4 ? 'hot' : whip <= 1.1 ? 'cold' : null}
-          title="Walks + hits per inning — traffic. High traffic means more RBI chances for the bats." />
-        <ArmStat label="K/9" value={k9 != null && k9 > 0 ? k9.toFixed(1) : null}
-          tone={k9 == null ? null : k9 <= 7 ? 'hot' : k9 >= 9.5 ? 'cold' : null}
-          title="Strikeouts per nine. LOW is good for the bats — more balls in play. High is his strength and the hitter's enemy." />
-        {weakSide && (
-          <ArmStat label="Weak vs" value={`${weakSide}${wsScore ? ` ${wsScore.toFixed(0)}` : ''}`} tone="hot"
-            title="The batter side this arm bleeds against, and how hard (0-100)." />
-        )}
-        {xbbe >= 50 && xluck !== 0 && (
-          <ArmStat label="HR luck" value={`${xluck > 0 ? '+' : '−'}${Math.abs(xluck).toFixed(1)}`}
-            tone={xluck < 0 ? 'hot' : 'cold'}
-            title="Actual homers allowed minus expected-from-contact (calibrated xHR). NEGATIVE means fewer than his contact deserved — regression is on the hitters' side. Positive means he has been unlucky rather than hittable." />
-        )}
+      {/* the dial and the one sentence */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 9, minWidth: 0 }}>
+        <Dial value={attack} col={armInk.color} size={44} max={55}
+          dp={attack != null && attack < 10 ? 1 : 0}
+          title={`Attack score ${attack == null ? '—' : attack.toFixed(1)} — how much this arm gives the bats. The slate runs about 0–55 with a median near 18, so the ring is drawn against 55, not 100.`} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 11, color: C.text2, lineHeight: 1.5 }}>{armWords}</span>
       </div>
 
-      {/* the lineup, as its own two numbers */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 9 }}>
-        <ArmStat label="Lineup HRW" value={avgHrw.toFixed(0)} tone={avgHrw >= 55 ? 'hot' : null}
-          title="Average HR-watch score across this side." />
-        <ArmStat label="Weak spots" value={String(weakCount)} tone={weakCount ? 'hot' : null}
-          title="How many of these hitters bat in a lineup spot this arm has already been beaten in." />
+      {/* THE FIVE — fixed five columns, so it is one even line at every width.
+          A missing number prints "—" rather than dropping its tile, because a
+          tile that disappears is what made the old row ragged. */}
+      <div style={{ display: 'grid', gap: 5, gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', marginBottom: 8 }}>
+        <ArmStat label="ERA" value={era != null ? era.toFixed(2) : '—'}
+          tone={era == null ? null : era >= 5 ? 'hot' : era <= 3.2 ? 'cold' : null}
+          title="Season earned-run average." />
+        <ArmStat label={l3n > 0 ? `WHIP L${l3n}` : 'WHIP L3'} value={l3whip != null ? l3whip.toFixed(2) : '—'}
+          tone={l3whip == null ? null : l3whip >= 1.4 ? 'hot' : l3whip <= 1.1 ? 'cold' : null}
+          title="Walks + hits per inning over his last three starts — recent traffic. High traffic means more RBI chances for the bats. Three outings is a direction, not a rate." />
+        <ArmStat label={l3n > 0 ? `HR/9 L${l3n}` : 'HR/9 L3'} value={l3hr9 != null && l3hr9 > 0 ? l3hr9.toFixed(2) : '—'}
+          tone={l3hr9 == null ? null : bleeding || l3hr9 >= 1.4 ? 'hot' : l3hr9 <= 0.85 ? 'cold' : null}
+          title="Homers per nine over his last three starts. Above his season number means he is bleeding lately." />
+        <ArmStat label="HR luck" value={xbbe >= 50 && xluck !== 0 ? `${xluck > 0 ? '+' : '−'}${Math.abs(xluck).toFixed(1)}` : '—'}
+          tone={xbbe < 50 || xluck === 0 ? null : xluck < 0 ? 'hot' : 'cold'}
+          title="Actual homers allowed minus expected-from-contact (calibrated xHR). NEGATIVE means fewer than his contact deserved — regression is on the hitters' side. Positive means he has been unlucky rather than hittable. Blank under 50 batted balls." />
+        <ArmStat label="HR/9 szn" value={hr9 != null && hr9 > 0 ? hr9.toFixed(2) : '—'}
+          tone={hr9 == null ? null : hr9 >= 1.4 ? 'hot' : hr9 <= 1.0 ? 'cold' : null}
+          title={`Season homers allowed per nine. The league line is ${LEAGUE_HR9.toFixed(2)} — warm is over it, and over it is good for the bats.`} />
+      </div>
+
+      {/* the lineup stays a sentence — "stat text is cool for those" */}
+      <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 9 }}>
+        lineup avg HRW <b style={{ color: avgHrw >= 55 ? C.orange : C.text2 }}>{avgHrw.toFixed(0)}</b>
+        {' · '}<b style={{ color: weakCount ? C.yellow : C.text3 }}>{weakCount}</b> weak spot{weakCount === 1 ? '' : 's'}
       </div>
 
       {picks.length > 0 ? (
