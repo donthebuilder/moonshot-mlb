@@ -85,6 +85,65 @@ function Tile({ label, value, sub, pct, wide }) {
   )
 }
 
+// ── THE BAR (2026-08-23) ────────────────────────────────────────────────────
+// Donovan: "i want to see the actuall grid like visually full bars if possoible
+// for the props grid."
+//
+// A rate in a box is a number you have to read and then rank in your head. A
+// bar is the ranking, already done — which is the whole reason this page exists
+// on a phone. Same lesson the arm tiles taught this morning: prose loses to
+// tiles for a comparison, and tiles lose to bars.
+//
+// The track is always the full width, so 20% and 70% are read against the SAME
+// zero and the SAME hundred. A bar that scales its own track — "relative to the
+// best one here" — flatters a bad row into looking like a good one, which on a
+// props page is the difference between a bet and a mistake.
+function Bar({ label, pct, sub, n = null, thin = false, active, onClick }) {
+  const ink = thin ? C.text2 : rateInk(pct)
+  const w = pct == null ? 0 : Math.max(0, Math.min(100, pct))
+  return (
+    <button
+      onClick={onClick}
+      disabled={!onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0,
+        padding: '6px 8px', borderRadius: 10, textAlign: 'left',
+        cursor: onClick ? 'pointer' : 'default',
+        border: `1px solid ${active ? alpha(C.orange, 0.55) : 'transparent'}`,
+        background: active ? alpha(C.orange, 0.08) : 'transparent',
+      }}
+    >
+      <span style={{
+        flexShrink: 0, width: 58, fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
+        color: active ? C.orange : C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>{label}</span>
+      <span style={{
+        flex: 1, minWidth: 0, height: 12, borderRadius: 999, overflow: 'hidden',
+        background: C.glass, border: `1px solid ${C.border}`, position: 'relative',
+      }}>
+        {/* the 50% mark — a bar with no reference is a shape, not a reading */}
+        <span style={{
+          position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1,
+          background: C.border2,
+        }} />
+        <span style={{
+          display: 'block', height: '100%', width: `${w}%`,
+          background: pct == null ? 'transparent' : alpha(ink, thin ? 0.28 : 0.55),
+          borderRight: w > 0 ? `2px solid ${ink}` : 'none',
+        }} />
+      </span>
+      <span style={{
+        flexShrink: 0, width: 34, textAlign: 'right', fontSize: 12, fontWeight: 900,
+        fontFamily: NUM_FONT, color: pct == null ? C.text3 : ink,
+      }}>{pct == null ? '—' : `${pct.toFixed(0)}%`}</span>
+      <span style={{
+        flexShrink: 0, width: 42, textAlign: 'right', fontSize: 8.5,
+        fontFamily: NUM_FONT, color: C.text3, whiteSpace: 'nowrap',
+      }}>{sub || (n != null ? `${n}g` : '')}</span>
+    </button>
+  )
+}
+
 function Section({ title, note, children }) {
   return (
     <div style={{ marginTop: 16 }}>
@@ -103,6 +162,7 @@ function Section({ title, note, children }) {
 
 export default function PropsSheet({ player, odds = null, onClose, onFullResearch }) {
   const [market, setMarket] = useState(null)
+  const [win, setWin] = useState('Szn')
   const [data, setData] = useState(undefined)   // undefined = loading, null = none
   const [hands, setHands] = useState(null)
 
@@ -161,6 +221,18 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
 
   const last10 = useMemo(() => (data?.logAll || []).slice(0, 10), [data])
 
+  // THE GRID, as bars: every market at once in one window. The desktop version
+  // is eight markets × four windows on a heat matrix; a phone gets one window
+  // at a time and a full-width track, which is the same comparison without the
+  // forty numbers.
+  const gridRows = useMemo(() => {
+    if (!data?.markets) return []
+    return MARKETS.map((m) => {
+      const w = data.markets[m.key]?.[win]
+      return { key: m.key, label: m.label, pct: pctOf(w), n: w?.n || 0, ok: w?.ok || 0 }
+    })
+  }, [data, win])
+
   // The book, only when it is quoting this exact bar. A 2+ TB price beside a
   // 1+ HR rate would be scoring a different bet.
   const q = gridQuote(odds, player, mk, BAR[mk] ?? 1)
@@ -180,19 +252,6 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
 
   const arm = txt(player?.pitcher_name).trim()
   const hand = txt(player?.pitcher_throws).trim()
-
-  const splitTile = (label, t) => {
-    if (!t) return <Tile key={label} label={label} value="—" sub="no data" pct={null} />
-    const p = pctOf(t)
-    // Under five games is not a split, it is a rumour. It prints its sample
-    // and stays uncoloured rather than shading a 2-for-2 as a pattern.
-    const thin = t.n < 5
-    return (
-      <Tile key={label} label={label} value={t.n ? fmtPct(p) : '—'}
-        sub={t.n ? `${t.ok}/${t.n}${thin ? ' · thin' : ''}` : 'none'}
-        pct={thin ? null : p} />
-    )
-  }
 
   return (
     <div style={{
@@ -254,15 +313,13 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
         ) : (
           <>
             <Section title={`${meta.label} — how often`} note={`${data.games} games logged`}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {WINDOWS.map(([k, label]) => {
-                  const w = row?.[k]
-                  const p = pctOf(w)
-                  return <Tile key={k} label={label} value={fmtPct(p)} sub={w ? `${w.ok}/${w.n}` : '—'} pct={p} />
-                })}
-              </div>
+              {WINDOWS.map(([k, label]) => {
+                const w = row?.[k]
+                const p = pctOf(w)
+                return <Bar key={k} label={label} pct={p} sub={w ? `${w.ok}/${w.n}` : '—'} />
+              })}
               {row?.streak ? (
-                <div style={{ marginTop: 8, fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT }}>
+                <div style={{ marginTop: 6, paddingLeft: 8, fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT }}>
                   <b style={{ color: row.streak > 0 ? verdictInk(true).color : verdictInk(false).color }}>
                     {row.streak > 0 ? `hit ${row.streak} straight` : `missed ${Math.abs(row.streak)} straight`}
                   </b>
@@ -290,14 +347,15 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
             </Section>
 
             <Section title="splits" note={hands ? 'home/away · arm side' : 'arm side loading…'}>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                {splitTile('Home', splits?.home)}
-                {splitTile('Away', splits?.away)}
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {splitTile('vs LHP', splits?.vsL)}
-                {splitTile('vs RHP', splits?.vsR)}
-              </div>
+              {[['Home', splits?.home], ['Away', splits?.away], ['vs LHP', splits?.vsL], ['vs RHP', splits?.vsR]]
+                .map(([label, t]) => {
+                  // Under five games is not a split, it is a rumour. It prints
+                  // its sample and keeps a washed-out bar rather than shading a
+                  // 2-for-2 like a pattern.
+                  const thin = !t || t.n < 5
+                  return <Bar key={label} label={label} pct={t && t.n ? pctOf(t) : null}
+                    thin={thin} sub={t && t.n ? `${t.ok}/${t.n}${t.n < 5 ? '·thin' : ''}` : '—'} />
+                })}
             </Section>
 
             <Section title="the price" note={priced ? 'same bar' : 'not quoted'}>
@@ -318,11 +376,23 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
               )}
             </Section>
 
+            <Section title="the whole grid" note="tap a row">
+              <div className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                {WINDOWS.map(([k, label]) => (
+                  <FilterPill key={k} active={win === k} onClick={() => setWin(k)}>{label}</FilterPill>
+                ))}
+              </div>
+              {gridRows.map((g) => (
+                <Bar key={g.key} label={g.label} pct={g.pct} sub={g.n ? `${g.ok}/${g.n}` : '—'}
+                  active={g.key === mk} onClick={() => setMarket(g.key)} />
+              ))}
+            </Section>
+
             <div style={{ marginTop: 16, fontSize: 9.5, color: C.text3, lineHeight: 1.65 }}>
               Rates are his own game log this season — measured, not modelled. A rate is not
               a prediction and the score above is not a probability; they answer different
               questions and are never mixed. Splits under five games print their sample and
-              stay uncoloured.
+              keep a washed-out bar. Every track is the full 0–100% with a mark at 50, so two bars are always read against the same scale.
             </div>
           </>
         )}
