@@ -2,8 +2,9 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf } from '../lib/player'
-import { divTone, sampleDim } from '../lib/scales'
+import { divTone, sampleDim, verdictInk } from '../lib/scales'
 import { PillRow } from './Filters'
+import VerdictHero from './VerdictHero'
 import PitcherTags from './PitcherTags'
 import DenseTable from './DenseTable'
 import MatchupPitcher from './MatchupPitcher'
@@ -248,6 +249,31 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
   const l3n = n(src('pitcher_l3_starts_found'), 0)
   const fmt2 = (v) => (v == null ? '—' : v.toFixed(2))
   const fmtPct = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
+
+  // ── the hero's numbers and its sentence ───────────────────────────────────
+  // "the words for the pitcher ... i wanted to be shown" — this is the line
+  // that says, in plain English, what kind of arm this is before any table
+  // does. It only ever states fields the bot actually published; a missing
+  // one drops out of the sentence rather than printing a zero.
+  const attack = n(src('pitcher_attack_score'), null)
+  const attackTag = clean(src('pitcher_attack_tag'), '')
+  // Warm = good for the BATS, the site-wide verdict pair. 30+ is the "genuinely
+  // high" line MatchupPitcher.js already draws on this same field; under 12 is
+  // the bottom fifth of tonight's starters.
+  const attackInk = verdictInk(attack == null ? null : attack >= 30 ? true : attack <= 12 ? false : null)
+  const heroLine = (() => {
+    const bits = []
+    if (hr9 != null) bits.push(`${hr9.toFixed(2)} HR/9 allowed`)
+    if (brlAllowed != null) bits.push(`${(brlAllowed * 100).toFixed(0)}% barrels`)
+    if (fbAllowed != null) bits.push(`${(fbAllowed * 100).toFixed(0)}% fly balls`)
+    if (weakSide) bits.push(`weakest vs ${weakSide}`)
+    if (!bits.length) return 'No season line published for this arm yet — the panels below are pulled live.'
+    const lead = attack == null ? ''
+      : attack >= 30 ? 'A live window for the bats — '
+      : attack <= 12 ? 'A hard arm to attack — '
+      : ''
+    return `${lead}${bits.join(' · ')}.`
+  })()
   const tiles = [
     { label: 'ERA', value: fmt2(era), tone: era == null ? null : era >= 5 ? 'hot' : era <= 3.2 ? 'cold' : null,
       tip: 'Season earned-run average.' },
@@ -286,29 +312,59 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
         }}
       >
         <div className="modal-content" style={{ padding: '18px 20px 22px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 19, fontWeight: 900 }}>{name}</div>
-              <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}>
-                {throws}HP · {team}{opp ? ` vs ${opp}` : ''} · facing {lineup.length} tracked hitter{lineup.length === 1 ? '' : 's'}
-                {' · '}ERA {clean(pitcher?.pitcher_era ?? src('pitcher_era'), '—')} · WHIP {clean(pitcher?.pitcher_whip ?? src('pitcher_whip'), '—')}
-                {pitcher?.lineup_confirmed === false ? ' · projected lineup' : ''}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-              {/* 📸 SHARE (2026-08-23) — his card as a PNG, zero backend, the
-                  same tiles this modal already drew above. */}
-              <button onClick={() => downloadPitcherCard({ name, team, opp, throws, weakSide, tiles, topBat: anchor })}
-                title="Download his card as a PNG for posting — the at-a-glance tiles and his toughest lineup matchup"
-                aria-label="Download pitcher card as image"
-                style={{
-                  background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
-                  borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
-                  cursor: 'pointer', minHeight: 26,
-                }}>📸</button>
-              <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.text3, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
-            </div>
+          {/* THE TOOLBAR, ON ITS OWN LINE (2026-08-23) — same reason as the
+              hitter modal: controls plus a tag badge left almost nothing for
+              the pitcher's NAME on a 430px phone, and the name has an
+              ellipsis. 📸 keeps every argument it had. */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
+            {/* 📸 SHARE (2026-08-23) — his card as a PNG, zero backend, the
+                same tiles this modal already drew above. */}
+            <button onClick={() => downloadPitcherCard({ name, team, opp, throws, weakSide, tiles, topBat: anchor })}
+              title="Download his card as a PNG for posting — the at-a-glance tiles and his toughest lineup matchup"
+              aria-label="Download pitcher card as image"
+              style={{
+                background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
+                borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
+                cursor: 'pointer', minHeight: 26,
+              }}>📸</button>
           </div>
+
+          {/* ── THE HERO (2026-08-23) ─────────────────────────────────────
+              Same block the Props cards and the hitter modal open with, per
+              Donovan's "upgrade both pitcher and player modals like this too".
+              Hero only: the tag row, the tabs, the arsenal, the splits control
+              and the lineup table below are all untouched.
+
+              THE DIAL IS NOT OUT OF 100 HERE, and that is deliberate.
+              `pitcher_attack_score` is not a 0-100 board score —
+              MatchupPitcher.js has it measured at 0–53.9 with a median of
+              19.5, and tonight's slate agrees (30 starters: 1.8 low, 17.8
+              median, 66.9 high). Drawn against 100 a genuinely leaky arm would
+              fill a fifth of the ring and read as harmless. The ring fills
+              against a stated 55, the PRINTED number is the real score, and
+              the tooltip says both. Warm/cool follows the site-wide verdict
+              pair: warm = good for the bats. */}
+          <VerdictHero
+            style={{ marginBottom: 12 }}
+            col={attackInk.color}
+            score={attack}
+            max={55}
+            dp={attack != null && attack < 10 ? 1 : 0}
+            dialTitle={`Attack score ${attack == null ? '—' : attack.toFixed(1)} — how much this arm gives the bats. The slate runs about 0–55 with a median near 18, and the ring is drawn against 55, not 100.`}
+            title={name}
+            badge={attackTag && attackTag !== 'Neutral' ? attackTag : `${throws}HP`}
+            badgeQuiet={!attackTag || attackTag === 'Neutral'}
+            meta={`${throws}HP · ${team}${opp ? ` vs ${opp}` : ''} · facing ${lineup.length} tracked hitter${lineup.length === 1 ? '' : 's'}${pitcher?.lineup_confirmed === false ? ' · projected lineup' : ''}`}
+            market="attack score"
+            line={heroLine}
+            right={(
+              <button onClick={onClose} aria-label="Close" style={{
+                background: 'transparent', border: 'none', color: C.text3, fontSize: 20,
+                cursor: 'pointer', lineHeight: 1, padding: '2px 6px', margin: '0 -6px 0 0',
+                flexShrink: 0,
+              }}>✕</button>
+            )}
+          />
 
           {/* THE TAG ROW (rebuilt 2026-08-23) — the finding, above the
               evidence. The old chip row (attack tag / Low K / Weak arm)

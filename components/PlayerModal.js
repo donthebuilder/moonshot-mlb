@@ -10,6 +10,15 @@ import {
   babipVal, pitcherBabipVal, avgVsRHP, avgVsLHP, whiffProfile,
 } from '../lib/player'
 import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/scoring'
+// Aliased: lib/scoring exports a roleColor of its own for the chip row, and
+// two different functions of the same name in one file is how a colour quietly
+// starts meaning two things.
+import {
+  primaryRole, verdictFor, sentenceFor, chipsFor,
+  roleColor as verdictRoleColor,
+} from '../lib/verdict'
+import { quoteFor, fmtOdds } from '../lib/odds'
+import VerdictHero from './VerdictHero'
 import { Chip } from './ui'
 import Explain from './Explain'
 import StatStrip, { HitRateBoxes, SlashLine } from './StatStrip'
@@ -459,6 +468,25 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   // across 22 days / 241 picks -- the single largest gap found in that analysis.
   const hasMatchupEdge = n(p?.pitch_type_match_score, 0) > 0
 
+  // ── the hero's four values ────────────────────────────────────────────────
+  // One registry (lib/verdict.js) decides which score is HIS score, so the
+  // modal and the Props card can never disagree about what a hitter's number
+  // is. The price is the same subtle treatment the cards got — dimmed, at the
+  // end of the matchup line, and only when the book is quoting the same bar
+  // the pick has to clear.
+  const heroRole = apiOnly ? 'NONE' : (primaryRole(p) || 'NONE')
+  const heroCol = apiOnly ? C.text3 : verdictRoleColor(heroRole)
+  const heroScore = apiOnly ? null : verdictFor(heroRole).score(p)
+  const heroPrice = (() => {
+    if (apiOnly || !odds) return null
+    const cat = heroRole === 'WATCH' ? 'HR' : heroRole === 'NONE' ? null : heroRole
+    if (!cat) return null
+    const q = quoteFor(odds, p, cat)
+    if (!q || !q.matches) return null
+    const price = fmtOdds(q.over)
+    return price === '—' ? null : price
+  })()
+
   // Width follows the widest table on the tab. Pitch and Pitcher carry ten-plus
   // stat columns; Spray is a fixed-size chart and gets cramped, not helped, by
   // extra width.
@@ -474,29 +502,17 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
     <>
     <Shell inline={inline} onClose={onClose} width={modalWidth}>
 
-          {/* header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 19, fontWeight: 900 }}>
-                {jersey != null && (
-                  <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{jersey} </span>
-                )}
-                {nameOf(p)}
-              </div>
-              <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}>
-                {apiOnly ? (
-                  <>{clean(p?.team, '—')}{p?.position ? ` · ${p.position}` : ''} · {clean(p?.bats, '?')}HB
-                    <span style={{ color: C.orange }}> · not on tonight&apos;s bot slate — everything here is live API</span></>
-                ) : (
-                  <>{teamOf(p)} vs {oppOf(p)} · Lineup #{clean(p?.lineup_spot, '?')} · {clean(p?.handedness || p?.bats, '?')}HB
-                    {p?.pitcher_name && <span> · vs {p.pitcher_name} ({p.pitcher_throws}HP){p?.pitcher_projected ? <span title="No probable announced — rotation projection, not an official listing" style={{ color: C.yellow }}> ≈</span> : null}</span>}</>
-                )}
-              </div>
-            </div>
+          {/* THE TOOLBAR, ON ITS OWN LINE (2026-08-23). These five controls
+              plus the badge left about 90px for the hitter's NAME on a 430px
+              phone, and the name has an ellipsis, so it collapsed to nothing —
+              caught in the render, not in review. A toolbar is not part of the
+              verdict; it goes above it, right-aligned, and the name gets the
+              whole width of the line it deserves. */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
+
             {/* the ✕ was a bare 22px glyph — about a 22px square to hit with a
                 thumb on a modal that now covers the whole phone screen. The
                 padding makes it a real target without moving it a pixel. */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
               {/* 🎴 his card as a PNG — the single-player twin of the
                   watchlist share card (2026-08-15). Bot fields only, so an
                   API-only player has no card to print. */}
@@ -527,15 +543,50 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               {onNavigate && peers.length > 1 && (
                 <Navigator peers={peers} cur={player} onNavigate={onNavigate} />
               )}
-            {!inline && (
+          </div>
+
+          {/* ── THE HERO (2026-08-23) ─────────────────────────────────────
+              Donovan, after the Props redraw: "i .ike how the props pages
+              looks. please up grade both pitcher and player moadlas like this
+              too". Scope, asked and answered: THE HERO ONLY. This block
+              replaces the 19px name and its grey line; every panel below is
+              untouched, because a look change is not worth risking the zone
+              map, the arsenal or the splits.
+
+              The dial reads HIS market's score, out of lib/verdict.js — the
+              same registry the Props cards use, so a hitter cannot show 74 on
+              the board and 80 in his own modal. An api-only hitter has no
+              model score at all, so his dial is empty and says so rather than
+              drawing a zero. */}
+          <VerdictHero
+            style={{ marginBottom: 12 }}
+            col={heroCol}
+            score={heroScore}
+            title={<>
+              {jersey != null && (
+                <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{jersey} </span>
+              )}
+              {nameOf(p)}
+            </>}
+            badge={apiOnly ? 'LIVE API' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
+            badgeQuiet={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH'}
+            meta={apiOnly
+              ? `${clean(p?.team, '—')}${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · not on tonight's slate`
+              : `${teamOf(p)} vs ${oppOf(p)} · #${clean(p?.lineup_spot, '?')} · ${clean(p?.handedness || p?.bats, '?')}HB${p?.pitcher_name ? ` · vs ${p.pitcher_name} (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}` : ''}`}
+            metaRight={heroPrice}
+            market={apiOnly ? 'live API only' : verdictFor(heroRole).market}
+            line={apiOnly
+              ? 'Found through the league-wide search, not on the bot slate — every panel here is pulled live, and none of it carries a model score.'
+              : sentenceFor(p, heroRole)}
+            chips={apiOnly ? null : chipsFor(p, heroRole)}
+            right={!inline && (
               <button onClick={onClose} aria-label="Close" style={{
-                background: 'transparent', border: 'none', color: C.text3, fontSize: 22,
-                cursor: 'pointer', lineHeight: 1, padding: '4px 10px', margin: '-4px -10px 0 0',
-                minWidth: 40, flexShrink: 0,
+                background: 'transparent', border: 'none', color: C.text3, fontSize: 20,
+                cursor: 'pointer', lineHeight: 1, padding: '2px 6px', margin: '0 -6px 0 0',
+                flexShrink: 0,
               }}>✕</button>
             )}
-            </div>
-          </div>
+          />
 
           {/* STAT-FIRST HEADER (2026-08-09). The card used to open on chips,
               then model scores. The two sites people call easier to read both
