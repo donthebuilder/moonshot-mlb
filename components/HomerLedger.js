@@ -7,6 +7,7 @@ import { pickSplit } from '../lib/seasonSplit'
 import { hrShapeMeta, hrLine } from '../lib/hrShape'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { easternToday } from '../lib/data'
+import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive } from '../lib/alignments'
 import NamePatterns from './NamePatterns'
@@ -127,6 +128,108 @@ const joinNames = (names) => {
 // come back to it.
 const seasonHrCache = new Map()   // pid -> { hr, jersey, dayRoot, lifePath, atCount, ts }
 const SEASON_HR_TTL = 10 * 60 * 1000
+
+
+// ══ THE LOOK-OUT (rebuilt 2026-08-23; the 08-22 build was lost) ═════════════
+// Donovan reframed the ledger as "both recap and predictive, read as a live
+// look-out": WHO NEEDS WHAT (milestones), WHICH ARMS ARE TIRING (the tag
+// rules, live), and pool load. Pool load needs pair/pool membership the
+// slate rows don't carry — deliberately absent rather than faked; it lands
+// when the bot publishes pool membership per row (rule: no data, no panel).
+// Everything here is a LOOKUP, not a statistical claim — the pair-rhythm
+// null test (claude/moonshot-pair-rhythm-null-test.md) is why this panel
+// makes no per-night rate claims.
+function LookOut({ players }) {
+  const model = useMemo(() => {
+    // one row per distinct starter, carrying the pitcher_* stat fields
+    const byArm = new Map()
+    for (const p of players) {
+      const pid = Number(p?.pitcher_id)
+      if (!pid || byArm.has(pid)) continue
+      if (p?.pitcher_hr9 == null) continue
+      byArm.set(pid, p)
+    }
+    const arms = []
+    for (const [pid, row] of byArm) {
+      const t = pitcherTags(row)
+      const wear = t.tags.filter((x) => x.key === 'velo_down' || x.key === 'getting_hit' || x.key === 'era_spiking')
+      if (t.leaks >= 2 || wear.length) {
+        arms.push({
+          pid,
+          name: clean(row.pitcher_name, 'Unknown'),
+          team: clean(row.pitcher_team, ''),
+          opp: clean(row.team, ''),
+          leaks: t.leaks,
+          blowup: t.blowup,
+          tiring: wear.length > 0,
+          evidence: (wear[0] || t.tags.find((x) => x.tone === 'leak'))
+            ? `${(wear[0] || t.tags.find((x) => x.tone === 'leak')).label} ${(wear[0] || t.tags.find((x) => x.tone === 'leak')).evidence}`
+            : '',
+        })
+      }
+    }
+    arms.sort((a, b) => b.leaks - a.leaks)
+
+    // WHO NEEDS WHAT — a bat one homer from a round number tonight.
+    const seen = new Set()
+    const milestones = []
+    for (const p of players) {
+      const pid = Number(p?.player_id)
+      if (!pid || seen.has(pid)) continue
+      seen.add(pid)
+      const hr = n(p?.season_hr, null)
+      if (hr == null) continue
+      const next = Math.ceil((hr + 1) / 10) * 10
+      if (next - hr === 1) {
+        milestones.push({ pid, name: nameOf(p), team: teamOf(p), hr, next })
+      }
+    }
+    milestones.sort((a, b) => b.hr - a.hr)
+    return { arms: arms.slice(0, 8), milestones: milestones.slice(0, 8) }
+  }, [players])
+
+  if (!model.arms.length && !model.milestones.length) return null
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,.02)', border: `1px solid ${C.border}`,
+      borderRadius: 10, padding: '8px 11px', marginBottom: 9,
+    }}>
+      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.07em', color: C.text3, textTransform: 'uppercase', marginBottom: 5 }}>
+        👀 The look-out — tonight, before it happens
+      </div>
+      {model.arms.length > 0 && (
+        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.7 }}>
+          <b style={{ color: C.text }}>Arms to watch:</b>{' '}
+          {model.arms.map((a, i) => (
+            <span key={a.pid} title={`${a.leaks} independent alarms${a.tiring ? ' · wear signal live' : ''}`}>
+              {i > 0 && ' · '}
+              <b style={{ color: a.blowup ? C.orange : C.text }}>{a.name}</b>
+              {a.team ? ` (${a.team}${a.opp ? ` vs ${a.opp}` : ''})` : ''}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
+                {' '}— {a.blowup ? `BLOWUP RISK, ${a.leaks} alarms` : a.evidence}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+      {model.milestones.length > 0 && (
+        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.7, marginTop: model.arms.length ? 4 : 0 }}>
+          <b style={{ color: C.text }}>Who needs what:</b>{' '}
+          {model.milestones.map((m, i) => (
+            <span key={m.pid}>
+              {i > 0 && ' · '}
+              {m.name}{m.team ? ` (${m.team})` : ''}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}> sits on {m.hr} — one swing from {m.next}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>
+        lookups, not predictions — the arms row is the tag rules run live (hover for the alarm count); pool load arrives when the bot publishes pool membership
+      </div>
+    </div>
+  )
+}
 
 export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick }) {
   // ── CLOSEABLE, AND IT REMEMBERS (2026-08-17) ──────────────────────────────
@@ -755,6 +858,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
               Read it as where the interesting numbers already sit.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <LookOut players={players} />
               {pre.milestones.length > 0 && (
                 <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
                   <b style={{ color: '#FCD34D' }}>One away from a round number.</b>{' '}
@@ -986,6 +1090,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           against 300 synthetic nights rather than assuming one.
 
           Renders nothing when nothing clears. That is the normal state. */}
+      <LookOut players={players} />
+
       <NamePatterns homers={model.cards} population={players} />
 
       {/* 🔮 WHO LINES UP NEXT — the forward half of the alignment strip.
