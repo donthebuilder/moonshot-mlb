@@ -9,6 +9,7 @@ import PairBuilder from '../PairBuilder'
 // copy of this logic is how the two would end up disagreeing about what a
 // group's measured rate is. Pairs does not import Pools, so there is no cycle.
 import { GroupTicketBuilder } from './Pairs'
+import { downloadPoolsCard } from '../shareCard'
 
 // Pools — the bot's group tickets, plus the pair builder.
 //
@@ -43,7 +44,19 @@ function LivePools({ results, players = [], onPlayerClick }) {
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>Live pools</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>Live pools</div>
+        {/* 📸 SHARE (2026-08-23) — zero-backend PNG export, same canvas
+            mechanism as the Watchlist/Player cards. */}
+        <button onClick={() => downloadPoolsCard(pools, { title: 'LIVE POOLS', graded: true })}
+          title="Download the live pools as a PNG for posting"
+          aria-label="Download pools as image"
+          style={{
+            marginLeft: 'auto', background: 'rgba(249,115,22,.10)', border: `1px solid ${C.border}`,
+            color: C.orange, borderRadius: 7, padding: '2px 9px', fontSize: 10.5, fontWeight: 700,
+            cursor: 'pointer',
+          }}>📸</button>
+      </div>
       {/* 2026-08-09. This blurb used to explain that a pool "clears only when
           every member goes deep" and that most end unfinished. That was true
           and it was also hiding the number: across 40 graded nights, all-or-
@@ -220,7 +233,18 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>Tonight&apos;s pools</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>Tonight&apos;s pools</div>
+        {/* 📸 SHARE (2026-08-23) — zero-backend PNG export. */}
+        <button onClick={() => downloadPoolsCard(all, { title: "TONIGHT'S POOLS" })}
+          title="Download tonight's pools as a PNG for posting"
+          aria-label="Download pools as image"
+          style={{
+            marginLeft: 'auto', background: 'rgba(249,115,22,.10)', border: `1px solid ${C.border}`,
+            color: C.orange, borderRadius: 7, padding: '2px 9px', fontSize: 10.5, fontWeight: 700,
+            cursor: 'pointer',
+          }}>📸</button>
+      </div>
       <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
         The bot&apos;s group tickets for the slate. Grading appears here live once games start.
         {' '}These re-pick as the bot&apos;s own inputs move before lock — odds, lineups, signals —

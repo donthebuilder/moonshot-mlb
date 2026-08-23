@@ -14,6 +14,7 @@ import DenseTable from '../DenseTable'
 import { heatModeFromUrl } from '../../lib/heatMode'
 import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { SCORE } from '../../lib/scales'
+import { downloadBoardCard } from '../shareCard'
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
@@ -150,6 +151,17 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{sub}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {/* 📸 SHARE (2026-08-23) — this board as a PNG, zero backend, same
+              canvas mechanism as the Watchlist/Player share cards. */}
+          {ranked.length > 0 && (
+            <button onClick={() => downloadBoardCard(ranked, { title, sub, type, scoreOf: (p) => scoreFor(p, type) })}
+              title="Download this board as a PNG for posting"
+              aria-label="Download board as image"
+              style={{
+                padding: '4px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${C.border}`, background: 'rgba(249,115,22,.10)', color: C.orange,
+              }}>📸</button>
+          )}
           <button onClick={() => setViewMode('list')} style={{
             padding: '4px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
             border: `1px solid ${viewMode === 'list' ? C.orange : C.border}`,

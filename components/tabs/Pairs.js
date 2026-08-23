@@ -1435,6 +1435,7 @@ import {
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { quoteFor, fmtOdds, impliedPct } from '../../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, mlbId } from '../../lib/player'
+import { downloadPairsCard } from '../shareCard'
 
 // ══ 🧱 BUILD FROM THE GROUPS ═══════════════════════════════════════════════
 //
@@ -2174,11 +2175,21 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
     <div>
       {evPairs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, fontWeight: 900 }}>🔗 By the record</span>
             <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
               pairs ranked on what actually landed across 58 graded nights
             </span>
+            {/* 📸 SHARE (2026-08-23) — zero-backend PNG export, same canvas
+                mechanism as the Watchlist/Player cards. */}
+            <button onClick={() => downloadPairsCard(evPairs, { title: 'PAIRS BY THE RECORD', baseline: PAIR_BASELINE })}
+              title="Download these pairs as a PNG for posting"
+              aria-label="Download pairs as image"
+              style={{
+                marginLeft: 'auto', background: 'rgba(249,115,22,.10)', border: `1px solid ${C.border}`,
+                color: C.orange, borderRadius: 7, padding: '2px 9px', fontSize: 10.5, fontWeight: 700,
+                cursor: 'pointer',
+              }}>📸</button>
           </div>
           <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6, maxWidth: 760 }}>
             Every percentage here is a <b style={{ color: C.text2 }}>measured</b> both-homer rate, not a

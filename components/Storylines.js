@@ -8,6 +8,7 @@ import { funFacts } from '../lib/funFacts'
 import { dedupeGraded } from '../lib/graded'
 import { useSetupHomers, backToBack } from '../lib/b2b'
 import { pickSplit, HITTING_FIELDS } from '../lib/seasonSplit'
+import { downloadStorylinesCard } from './shareCard'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -606,6 +607,18 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           </span>
         )}
         {!open && <span style={{ fontSize: 9, color: C.text3 }}>— the human layer, tap to open</span>}
+        {/* 📸 SHARE (2026-08-23) — tonight's matchup lines as a PNG, zero
+            backend. stopPropagation so it doesn't also flip the panel. */}
+        {mlines.length > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); downloadStorylinesCard(mlines, { note: compact ? 'this game' : 'the slate' }) }}
+            title="Download tonight's matchup lines as a PNG for posting"
+            aria-label="Download storylines as image"
+            style={{
+              marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,
+              borderRadius: 6, padding: '1px 8px', fontSize: 11, lineHeight: 1.4, cursor: 'pointer',
+            }}>📸</button>
+        )}
       </div>
 
       {/* The strongest matchup line stays visible even when the panel is

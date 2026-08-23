@@ -7,6 +7,7 @@ import { PillRow } from './Filters'
 import PitcherTags from './PitcherTags'
 import DenseTable from './DenseTable'
 import MatchupPitcher from './MatchupPitcher'
+import { downloadPitcherCard } from './shareCard'
 import PitcherSpots from './PitcherSpots'
 import PitcherProfile from './PitcherProfile'
 import SituationalSplits from './SituationalSplits'
@@ -294,7 +295,19 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
                 {pitcher?.lineup_confirmed === false ? ' · projected lineup' : ''}
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.text3, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+              {/* 📸 SHARE (2026-08-23) — his card as a PNG, zero backend, the
+                  same tiles this modal already drew above. */}
+              <button onClick={() => downloadPitcherCard({ name, team, opp, throws, weakSide, tiles, topBat: anchor })}
+                title="Download his card as a PNG for posting — the at-a-glance tiles and his toughest lineup matchup"
+                aria-label="Download pitcher card as image"
+                style={{
+                  background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
+                  borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
+                  cursor: 'pointer', minHeight: 26,
+                }}>📸</button>
+              <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.text3, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            </div>
           </div>
 
           {/* THE TAG ROW (rebuilt 2026-08-23) — the finding, above the

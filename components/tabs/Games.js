@@ -22,6 +22,7 @@ import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold from '../MobileFold'
 import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
+import { downloadGameCard } from '../shareCard'
 
 // A game card's pick chip, stat-first.
 //
@@ -1058,6 +1059,17 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           {!isActive && temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
                           {!isActive && wind > 0 && <span title={`Wind: ${wLbl || 'direction n/a'}`} style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}</span>}
                           {!isActive && parkF > 0 && <span title="Park HR factor — above 1.00 the yard helps hitters" style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>×{parkF.toFixed(2)}</span>}
+                          {/* 📸 SHARE (2026-08-23) — this matchup's picks as a
+                              PNG, zero backend. stopPropagation so it doesn't
+                              also toggle the card open/closed. */}
+                          <button onClick={(e) => { e.stopPropagation(); downloadGameCard(g) }}
+                            title="Download this game's picks as a PNG for posting"
+                            aria-label="Download game card as image"
+                            style={{
+                              background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,
+                              borderRadius: 6, padding: '1px 7px', fontSize: 11, lineHeight: 1.4,
+                              cursor: 'pointer',
+                            }}>📸</button>
                           <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
                         </span>
                       </div>

@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { wilson, ciText } from '../lib/interval'
+import { downloadTrackRecordCard } from './shareCard'
 
 // 🧾 REPORT CARD — the accountability page (2026-08-06).
 //
@@ -225,11 +226,26 @@ export default function ReportCard({ backtest }) {
         </div>
       </div>
       {/* ── 1. last night ── */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>🧾 Report card</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {model.lastDate ? `last complete night: ${model.lastDate}` : 'no complete night graded yet'}
         </span>
+        {/* 📸 SHARE (2026-08-23) — the season record as a PNG, zero backend.
+            Passes the exact numbers already computed above it, nothing
+            recomputed from `backtest` a second time. */}
+        <button
+          onClick={() => downloadTrackRecordCard({
+            rows: model.rows, seasonOk, seasonN, seasonPct, lockOk, lockN, lockPct, lockNights,
+            days: model.dates.length,
+          })}
+          title="Download the track record as a PNG for posting"
+          aria-label="Download track record as image"
+          style={{
+            marginLeft: 'auto', background: 'rgba(249,115,22,.10)', border: `1px solid ${C.border}`,
+            color: C.orange, borderRadius: 7, padding: '3px 10px', fontSize: 10.5, fontWeight: 700,
+            cursor: 'pointer',
+          }}>📸 Share</button>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
         Each category graded against its OWN bar and its OWN season baseline — a 20% HR night can be an A
