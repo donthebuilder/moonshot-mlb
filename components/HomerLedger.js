@@ -10,7 +10,7 @@ import { easternToday } from '../lib/data'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive, readAlignArchive, shiftDateKey, usePeople, axesOf } from '../lib/alignments'
-import { findNameEchoes, nameParts } from '../lib/namePatterns'
+import { findNameEchoes, nameParts, pairEcho, cadenceShape } from '../lib/namePatterns'
 import NamePatterns from './NamePatterns'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
@@ -814,6 +814,30 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       })
     })
 
+    // ── THE MATCHING GAME (2026-08-23) ────────────────────────────────────
+    // Donovan: "same first name — if one goes the other might go. Brice /
+    // Bryce Eldridge. Luis Rob / Luis Torrens. Pete and Pete Alonso. Names
+    // that rhyme, same jersey numbers, the syllable thing. Almost-matching,
+    // like a matching game."
+    //
+    // The lens above is about the NIGHT (a letter running hot). This one is
+    // about a PAIR: one man went deep, and somebody still to bat is his twin
+    // on a name or on a number. Different question, different answer, and the
+    // pair is the one he actually plays — so the chip names the partner and
+    // says what they share.
+    //
+    // Cadence is gated on rarity: a 2-1 syllable shape fits a big share of any
+    // slate, and as a pair reason it would fire on dozens of men a night. Only
+    // shapes carried by fewer than an eighth of tonight's bats are allowed to
+    // count, which leaves the odd ones (the 1-2s, the 3-1s) doing the work.
+    const shapeShare = new Map()
+    players.forEach((pl) => {
+      const sh = cadenceShape(nameParts(nameOf(pl)))
+      if (sh) shapeShare.set(sh, (shapeShare.get(sh) || 0) + 1)
+    })
+    const rareShape = (sh) => !!sh && (shapeShare.get(sh) || 0) <= Math.max(2, Math.floor(players.length / 8))
+    const homerTwins = cards.map((c) => ({ card: c, parts: nameParts(c.name) })).filter((h) => h.parts)
+
     // ── WHO LINES UP NEXT (2026-08-17, widened 2026-08-23) ─────────────────
     // The strip above only ever looked BACKWARD — it tagged men after they
     // homered. This asks who on the slate is standing on whatever the night is
@@ -846,6 +870,27 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         if (topDayRoot && a.axes.day && a.axes.day === topDayRoot.root) { chips.push(`day ${topDayRoot.root}`); why.push(`born on the ${String(a.birthDate).slice(8, 10)} — day-number ${topDayRoot.root}, where ${topDayRoot.list.length} of tonight's homers sit`) }
         if (topLifePath && a.axes.path && a.axes.path === topLifePath.root) { chips.push(`path ${topLifePath.root}`); why.push(`life path ${topLifePath.root} — the path ${topLifePath.list.length} of tonight's homers land on`) }
         nameAxes.forEach((ax) => { if (ax.test(a.parts)) { chips.push(ax.chip); why.push(ax.why) } })
+        // the pair lenses — his twin already went deep tonight
+        let twins = 0
+        homerTwins.forEach((h) => {
+          if (twins >= 2 || h.card.pid === pid) return
+          const shared = pairEcho(h.parts, a.parts, { cadenceOk: rareShape(cadenceShape(a.parts)) })
+          if (shared) {
+            twins += 1
+            chips.push(`↔ ${h.card.name.split(' ').slice(-1)[0]}`)
+            why.push(`${h.card.name} went deep tonight and they share ${shared}`)
+            return
+          }
+          // SAME NUMBER ON THE BACK. Not the digit root the strip above uses —
+          // the actual jersey, twice on one slate, which is the version of
+          // this he asked for by name.
+          const mine = a.jersey || null
+          if (mine && Number(h.card.jersey) === Number(mine)) {
+            twins += 1
+            chips.push(`#${mine} too`)
+            why.push(`${h.card.name} wears #${mine} and went deep tonight — so does he`)
+          }
+        })
         if (!why.length) return
         nextUp.push({ p: pl, pid, name: nameOf(pl), why, chips, count: why.length, hrScore: n(pl?.hr_score, 0) })
       })
@@ -1288,8 +1333,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             </div>
             <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: 4 }}>
               Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a
-              repeated number, the hot lineup spot, a jersey, a birth day, a life path, or the name echo
-              running tonight. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how
+              repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo
+              running tonight, or a straight match with somebody who already went: the same first name,
+              the same surname, a name one letter apart, an odd syllable shape they share, or the same
+              number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how
               many of those he sits on, then by HR score. A watch, not a prediction — nothing here is graded,
               scored, or fed to a pick.
             </div>
