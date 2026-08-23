@@ -9,7 +9,8 @@ import { fetchLiveSlate } from '../lib/liveSlate'
 import { easternToday } from '../lib/data'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
-import { writeAlignArchive } from '../lib/alignments'
+import { writeAlignArchive, readAlignArchive, shiftDateKey, usePeople, axesOf } from '../lib/alignments'
+import { findNameEchoes, nameParts } from '../lib/namePatterns'
 import NamePatterns from './NamePatterns'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
@@ -310,6 +311,14 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   // stamps on each homer, which is what lets a card say what KIND of homer it
   // was. A homer the live feed has and the grader hasn't reached yet simply
   // shows no band, which is the same honest gap an older night already had.
+  // BIRTHDAYS FOR THE WHOLE SLATE, not just the men who already went deep
+  // (2026-08-23). The people map the ledger fetches below covers the hitters
+  // in the ledger; the watch needs the same two numbers for everybody who has
+  // NOT homered yet, which is the entire point of a watch. usePeople is the
+  // batched, module-cached call Alignments already makes for exactly this, so
+  // this is a shared cache hit rather than a second round of requests.
+  const { people, loaded: peopleLoaded } = usePeople(players)
+
   const [live, setLive] = useState(null)
   const [liveErr, setLiveErr] = useState(null)   // last league-call failure, surfaced
   useEffect(() => {
@@ -720,21 +729,125 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     // so. Ranked by the bot's HR score among the aligned, because if the
     // night's numbers are calling somebody, the bat still has to answer.
     const homered = new Set(cards.map((c) => c.pid))
+
+    // ── THE NAME LENS, WIRED INTO THE WATCH (2026-08-23) ───────────────────
+    // Donovan: "the patterns being seen numerology and gematria and names wise
+    // — all the J names are going, who's a J tonight that looks good that can
+    // go later or now."
+    //
+    // findNameEchoes already answers the backward half every night ("5 of the
+    // 13 who homered have B surnames") and NamePatterns.js renders it. What it
+    // never did was turn around: if the J names are running, WHO ELSE IS A J
+    // and still has bats coming. That turn is the whole ask, and it is one
+    // function call plus a match, because the echo already knows which letter
+    // or which shared name it fired on.
+    //
+    // The deliberate line from NamePatterns.js still holds: a name never
+    // touches a SCORE, and it never becomes a tag on a man who already
+    // homered. It lives here, in the watch, where the whole panel is disclosed
+    // as pattern-watching and nothing is graded.
+    const nameAxes = []
+    findNameEchoes(cards, players).forEach((e) => {
+      if (e.kind === 'initial') {
+        const bits = String(e.cell || '').split(':')
+        const side = bits[1]; const letter = bits[2]
+        if (!letter) return
+        const where = side === 'f' ? 'first names' : 'surnames'
+        nameAxes.push({
+          letterKey: `${side}:${letter}`,
+          chip: `${letter.toUpperCase()} ${side === 'f' ? 'name' : 'surname'}`,
+          why: `${e.count} of tonight's homers have ${where} starting with ${letter.toUpperCase()} — ${joinNames(e.names)} — and so does he`,
+          test: (parts) => !!parts && String((side === 'f' ? parts.firstKey : parts.lastKey) || '').slice(0, 1) === letter,
+        })
+      } else if (e.kind === 'shared-first' || e.kind === 'shared-last') {
+        // Keyed off the echo's OWN names rather than its cell string, so a
+        // change to how cells are spelled upstream can never silently turn
+        // this into a match on nothing.
+        const last = e.kind === 'shared-last'
+        const seed = nameParts(e.names?.[0] || '')
+        const key = seed && (last ? seed.lastKey : seed.firstKey)
+        if (!key) return
+        const shown = String(e.names?.[0] || '').split(' ')
+        nameAxes.push({
+          chip: last ? `the ${shown[shown.length - 1]}s` : `the ${shown[0]}s`,
+          why: `${e.count} hitters sharing that ${last ? 'surname' : 'first name'} went deep tonight — ${joinNames(e.names)} — and he is one too`,
+          test: (parts) => !!parts && String((last ? parts.lastKey : parts.firstKey) || '') === key,
+        })
+      }
+    })
+
+    // THE PLAIN HOT INITIAL, BELOW THE STATISTICAL BAR (2026-08-23).
+    //
+    // findNameEchoes is deliberately strict: it runs a null against the
+    // night's own pool and stays silent unless the run is genuinely striking,
+    // which is the right bar for a panel that PRINTS A FINDING. It is the
+    // wrong bar for a watch. Three J names out of thirteen is exactly what
+    // Donovan means by "all the J names are going" and it will usually not
+    // clear a p-value — refusing to look at it is not honesty, it is just a
+    // different way of being unhelpful.
+    //
+    // So: if a letter has three or more of tonight's homers and the strict
+    // pass did not already fire on that letter, it still becomes an axis —
+    // wearing the count, and saying in its own tooltip that a run this size is
+    // ordinary. Watched, disclosed, never scored. Same posture as the digit
+    // roots two strips up.
+    const strictInitials = new Set(nameAxes.map((ax) => ax.letterKey).filter(Boolean))
+    ;['f', 'l'].forEach((side) => {
+      const tally = new Map()
+      cards.forEach((c) => {
+        const parts = nameParts(c.name)
+        const letter = String((side === 'f' ? parts?.firstKey : parts?.lastKey) || '').slice(0, 1)
+        if (!letter) return
+        if (!tally.has(letter)) tally.set(letter, [])
+        tally.get(letter).push(c.name)
+      })
+      const best = [...tally.entries()].sort((a, b) => b[1].length - a[1].length)[0]
+      if (!best || best[1].length < 3) return
+      const [letter, names] = best
+      if (strictInitials.has(`${side}:${letter}`)) return
+      const where = side === 'f' ? 'first names' : 'surnames'
+      nameAxes.push({
+        letterKey: `${side}:${letter}`,
+        chip: `${letter.toUpperCase()} ${side === 'f' ? 'name' : 'surname'} ${names.length}`,
+        why: `${names.length} of tonight's homers have ${where} starting with ${letter.toUpperCase()} — ${joinNames(names)} — and so does he. A run this size is ordinary on a full slate; it is being watched, not counted as evidence`,
+        test: (parts) => !!parts && String((side === 'f' ? parts.firstKey : parts.lastKey) || '').slice(0, 1) === letter,
+      })
+    })
+
+    // ── WHO LINES UP NEXT (2026-08-17, widened 2026-08-23) ─────────────────
+    // The strip above only ever looked BACKWARD — it tagged men after they
+    // homered. This asks who on the slate is standing on whatever the night is
+    // landing on, and has not gone yet:
+    //   · his NEXT homer (season_hr + 1) reduces to tonight's leading root
+    //   · his next homer is a number several hitters already reached tonight
+    //   · he bats in the spot leading the night
+    //   · his jersey reduces to tonight's leading root
+    //   · his birth day reduces to the day-number the night keeps landing on
+    //   · his life path is the life path the night keeps landing on
+    //   · his name carries tonight's running echo (the J names, the Petes)
+    // Every reason is stated on the chip. Counted and disclosed, never scored.
+    // Ranked by how many axes he sits on, then by the bot's HR score — if the
+    // night's numbers are calling somebody, the bat still has to answer.
     const nextUp = []
-    if (rootNum || hotSpot || repeatNums.size) {
+    if (rootNum || hotSpot || repeatNums.size || nameAxes.length || topDayRoot || topLifePath) {
       players.forEach((pl) => {
         const pid = Number(pl?.player_id)
         if (!pid || homered.has(pid)) return
+        const a = axesOf(pl, people)
         const nextHr = n(pl?.season_hr, 0) + 1
         const spot = Number(pl?.lineup_spot)
         const jersey = n(pl?.jersey_number, 0)
         const why = []
-        if (rootNum && digitRoot(nextHr) === rootNum) why.push(`his next homer (#${nextHr}) lands on tonight's root ${rootNum}`)
-        if (repeatNums.has(nextHr)) why.push(`his next is #${nextHr} — a number already hit ${(repeats.find((r) => r.num === nextHr)?.list.length) || 2}× tonight`)
-        if (hotSpot && spot === hotSpot) why.push(`bats ${ord(hotSpot)} — the spot leading the night with ${spots[hotSpot]}`)
-        if (rootNum && jersey > 0 && digitRoot(jersey) === rootNum) why.push(`jersey #${jersey} reduces to tonight's root ${rootNum}`)
+        const chips = []
+        if (rootNum && digitRoot(nextHr) === rootNum) { chips.push(`root ${rootNum}`); why.push(`his next homer (#${nextHr}) lands on tonight's root ${rootNum}`) }
+        if (repeatNums.has(nextHr)) { chips.push(`#${nextHr} again`); why.push(`his next is #${nextHr} — a number already hit ${(repeats.find((r) => r.num === nextHr)?.list.length) || 2}× tonight`) }
+        if (hotSpot && spot === hotSpot) { chips.push(`${ord(hotSpot)} spot`); why.push(`bats ${ord(hotSpot)} — the spot leading the night with ${spots[hotSpot]}`) }
+        if (rootNum && jersey > 0 && digitRoot(jersey) === rootNum) { chips.push(`#${jersey}→${rootNum}`); why.push(`jersey #${jersey} reduces to tonight's root ${rootNum}`) }
+        if (topDayRoot && a.axes.day && a.axes.day === topDayRoot.root) { chips.push(`day ${topDayRoot.root}`); why.push(`born on the ${String(a.birthDate).slice(8, 10)} — day-number ${topDayRoot.root}, where ${topDayRoot.list.length} of tonight's homers sit`) }
+        if (topLifePath && a.axes.path && a.axes.path === topLifePath.root) { chips.push(`path ${topLifePath.root}`); why.push(`life path ${topLifePath.root} — the path ${topLifePath.list.length} of tonight's homers land on`) }
+        nameAxes.forEach((ax) => { if (ax.test(a.parts)) { chips.push(ax.chip); why.push(ax.why) } })
         if (!why.length) return
-        nextUp.push({ p: pl, pid, name: nameOf(pl), why, count: why.length, hrScore: n(pl?.hr_score, 0) })
+        nextUp.push({ p: pl, pid, name: nameOf(pl), why, chips, count: why.length, hrScore: n(pl?.hr_score, 0) })
       })
       nextUp.sort((a, b) => (b.count - a.count) || (b.hrScore - a.hrScore))
     }
@@ -744,8 +857,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     // above. The archive effect below needs them too, so today's numerology
     // leaders (not just the homer-count root) can be written out for
     // Alignments to read back tomorrow.
-    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot, nextUp: nextUp.slice(0, 5), topJerseyRoot, topDayRoot, topLifePath }
-  }, [rows, players, seasonHr])
+    return { cards, spots, spotMax, total, placed, topSpot, repeats, roots, topRoot, numbered, aligned, hotSpot, nextUp: nextUp.slice(0, 20), topJerseyRoot, topDayRoot, topLifePath }
+  }, [rows, players, seasonHr, peopleLoaded])   // peopleLoaded, not people: the Map is stable, the tick is what changes
 
   // ── THE ARCHIVE WRITE (2026-08-18) ────────────────────────────────────────
   // Donovan: "the data can be stored in alignment for use, if need have the
@@ -821,6 +934,32 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           <span style={{ fontSize: 9.5, color: C.text3 }}>
             no homers yet tonight — it fills as they land, on its own, every few seconds
           </span>
+          {/* ── YESTERDAY'S ALIGNMENT (2026-08-23) ─────────────────────────
+              Donovan: "when all the games are final look at the running themes
+              document, keep for tomorrow as yesterday's alignment, then same
+              thing." The ledger is keyed to ONE slate date and prunes every
+              other night's record on load, so at the 3:30am rollover last
+              night stopped existing here — which is what "the players
+              disappear" was. The archive the ledger already writes every night
+              (writeAlignArchive, 2026-08-18) is the running record; it was
+              only ever read by Alignments. Reading it back here means the
+              blank before tonight's first homer is no longer blank: it is
+              what last night landed on, which is the thing you carry in. */}
+          {(() => {
+            const y = readAlignArchive(shiftDateKey(dateKey, -1))
+            if (!y || !y.total) return null
+            const bits = []
+            if (y.topRoot) bits.push(`root ${y.topRoot.root}`)
+            if (y.topLifePath) bits.push(`life path ${y.topLifePath.root}`)
+            if (y.topDayRoot) bits.push(`day ${y.topDayRoot.root}`)
+            if (y.topJerseyRoot) bits.push(`jerseys on ${y.topJerseyRoot.root}`)
+            return (
+              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}
+                title={y.topRoot ? `Last night's root ${y.topRoot.root}: ${(y.topRoot.names || []).join(', ')}` : undefined}>
+                · yesterday: {y.total} homers{bits.length ? ` on ${bits.join(' · ')}` : ''}
+              </span>
+            )
+          })()}
           {/* ── THE BLANK EXPLAINS ITSELF (2026-08-17) ─────────────────────
               Donovan: "one person went yard and the hr ledger has not
               populated with anything." A blank that might mean "no homers",
@@ -1100,31 +1239,63 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           who has NOT homered yet and is standing on one of them. Each chip
           carries its reasons in the tooltip and the strongest one inline.
           Pattern-watching, counted and disclosed — never fed to a score. */}
-      {nextUp.length > 0 && (
-        <div style={{
-          background: 'rgba(34,211,238,.06)', border: '1px solid rgba(34,211,238,.28)',
-          borderRadius: 10, padding: '7px 11px', marginBottom: 9,
-        }}>
-          <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.7 }}>
-            🔮 <b style={{ color: C.cyan }}>Lines up next:</b>{' '}
-            {nextUp.map((x, i) => (
-              <span key={x.pid}>
-                {i > 0 && ' · '}
-                <b
-                  onClick={() => onPlayerClick?.(x.p)}
-                  title={`${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`}
-                  style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}
-                >{x.name}</b>
-                <span style={{ color: C.text3, fontSize: 9.5 }}> — {x.why[0]}</span>
-              </span>
-            ))}
-            <span style={{ color: C.text3, fontSize: 9.5 }}>
-              {' '}· hitters not yet in the ledger whose numbers sit on tonight&apos;s pattern,
-              ranked by HR score. A watch, not a prediction — nothing here is graded or scored.
-            </span>
+      {nextUp.length > 0 && (() => {
+        // ── NOW, LATER, OR NOT AT ALL (2026-08-23) ────────────────────────
+        // Donovan: "who's a J that looks good tonight that can go later or
+        // now." A watch list that keeps naming men whose game ended two hours
+        // ago is a list you stop reading, so the game state decides both who
+        // survives and what order they stand in: still batting first, then
+        // first pitch to come, and anybody already final is simply gone. The
+        // state comes off the same live snapshot the ledger already holds —
+        // `lines[pid].state` — so this costs nothing.
+        const lines = live?.lines || {}
+        const upcoming = nextUp
+          .map((x) => {
+            const st = String(lines[x.pid]?.state || '')
+            return { ...x, when: st === 'Final' ? 'done' : st === 'Live' ? 'now' : 'later' }
+          })
+          .filter((x) => x.when !== 'done')
+          .sort((a, b) => (a.when === b.when ? 0 : a.when === 'now' ? -1 : 1))
+          .slice(0, 8)
+        if (!upcoming.length) return null
+        return (
+          <div style={{
+            background: 'rgba(34,211,238,.06)', border: '1px solid rgba(34,211,238,.28)',
+            borderRadius: 10, padding: '7px 11px', marginBottom: 9,
+          }}>
+            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.9 }}>
+              🔮 <b style={{ color: C.cyan }}>Fits tonight&apos;s pattern, hasn&apos;t gone yet:</b>{' '}
+              {upcoming.map((x, i) => (
+                <span key={x.pid}>
+                  {i > 0 && ' · '}
+                  <b
+                    onClick={() => onPlayerClick?.(x.p)}
+                    title={`${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`}
+                    style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}
+                  >{x.name}</b>
+                  <span style={{
+                    fontSize: 8.5, fontFamily: NUM_FONT, marginLeft: 4,
+                    color: x.when === 'now' ? '#4ade80' : C.text3,
+                  }}>{x.when === 'now' ? '⚡ batting' : '⏳ later'}</span>
+                  {x.chips.map((c) => (
+                    <span key={c} style={{
+                      fontSize: 8.5, fontFamily: NUM_FONT, marginLeft: 4, padding: '1px 5px',
+                      borderRadius: 5, border: `1px solid ${C.cyan}44`, color: C.cyan,
+                    }}>{c}</span>
+                  ))}
+                </span>
+              ))}
+            </div>
+            <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: 4 }}>
+              Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a
+              repeated number, the hot lineup spot, a jersey, a birth day, a life path, or the name echo
+              running tonight. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how
+              many of those he sits on, then by HR score. A watch, not a prediction — nothing here is graded,
+              scored, or fed to a pick.
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* 🔢 THE REPEATS — the number pattern, which is the whole reason this
           panel exists. Same-number clusters first, then the digit root. */}
