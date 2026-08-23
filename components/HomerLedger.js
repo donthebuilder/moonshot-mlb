@@ -984,9 +984,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
         padding: '9px 14px 11px', marginBottom: 14,
       }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', cursor: 'pointer' }}
-          onClick={toggle}>
-          <span style={{ fontSize: 12.5, fontWeight: 900 }}>💥 Homer ledger</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span onClick={toggle} style={{ fontSize: 12.5, fontWeight: 900, cursor: 'pointer' }}>💥 Homer ledger</span>
           <span style={{ fontSize: 9.5, color: C.text3 }}>
             no homers yet tonight — it fills as they land, on its own, every few seconds
           </span>
@@ -1134,14 +1133,25 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
       border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14,
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2, cursor: 'pointer' }}
-        onClick={toggle}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>🧾 Homer ledger</span>
+      {/* ── THE WHOLE HEADER WAS ONE BIG CLOSE BUTTON (2026-08-23) ────────
+          Donovan: "i'm wondering what happened to the home runs on the
+          ledger." Nothing had: ms_ledger_open was "0" on his phone and
+          nineteen homers were sitting behind a collapsed panel. This row is
+          the full width of the card and every part of it toggled, so a tap
+          meant to scroll, or to read the count, shut the thing — and a
+          remembered close means it stays shut the next night too.
+          The title and the chevron toggle. The count and the note do not. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+        <span onClick={toggle} style={{ fontSize: 12.5, fontWeight: 900, cursor: 'pointer' }}>🧾 Homer ledger</span>
         <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>
           {total} tonight
         </span>
-        <span style={{ fontSize: 9, color: C.text3 }}>builds as the slate plays</span>
-        <Chevron />
+        {open
+          ? <span style={{ fontSize: 9, color: C.text3 }}>builds as the slate plays</span>
+          : <span onClick={toggle} style={{ fontSize: 9, color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+              hidden — tap to show all {total}
+            </span>}
+        <span onClick={toggle} style={{ cursor: 'pointer' }}><Chevron /></span>
       </div>
       {/* Everything below the header folds. The count stays visible closed, so
           a shut ledger still tells you how many have landed. */}
