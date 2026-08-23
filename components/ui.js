@@ -201,3 +201,31 @@ export function RoleTag({ label, color = C.text2, title, style, glyph = null }) 
     </span>
   )
 }
+
+// ── THE HELPER LINES, FOLDED (2026-08-23) ───────────────────────────────────
+//
+// Donovan: "little words here and there throughout the site that just don't
+// need to be there — i know they're helpers but it's kinda not helping. make
+// smaller or remove them or repurpose better."
+//
+// He is right about the failure mode, and it is a specific one: a paragraph
+// that prints on EVERY visit is read on the first visit and skipped forever
+// after, while still costing three lines above the thing you came for. The
+// phone copies had already been hidden behind TabExplainer's ❓ pill for
+// exactly this reason; the desktop copies never got the same treatment.
+//
+// So they fold. The label stays visible — one small line, so a first-time
+// reader can still find the explanation — and the explanation itself is one
+// tap away instead of permanently in the way. Nothing is deleted: every word
+// these blocks carried is still on the page for anyone who wants it.
+export function WhatThis({ children, label = 'what this answers', maxWidth = 720 }) {
+  return (
+    <details style={{ margin: '2px 0 10px', maxWidth }}>
+      <summary style={{
+        fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT,
+        letterSpacing: '.06em', textTransform: 'uppercase',
+      }}>{label}</summary>
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, marginTop: 5 }}>{children}</div>
+    </details>
+  )
+}

@@ -87,7 +87,7 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, summary = '' }) {
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -272,8 +272,12 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
   // without opening it.
   const main = cards.find((c) => c.gsRank === 1) || cards[0]
   const upcoming = cards.filter((c) => !c.past).length
-  const foldSummary = `${cards.length} games · 🌋 ${main.matchup} ${main.gs.toFixed(0)}`
-    + (upcoming < cards.length ? ` · ${upcoming} still to come` : '')
+  // The caller can name it instead (2026-08-23): the Games tab used to wrap
+  // this component in a SECOND MobileFold just to say which game is open, so a
+  // phone got two stacked bars about the same fifteen games. That wrapper is
+  // gone and its summary moved here.
+  const foldSummary = summary || (`${cards.length} games · 🌋 ${main.matchup} ${main.gs.toFixed(0)}`
+    + (upcoming < cards.length ? ` · ${upcoming} still to come` : ''))
 
   return (
     <MobileFold
