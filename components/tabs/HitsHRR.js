@@ -5,6 +5,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { btnStyle } from '../ui'
 import RankedBoard from './RankedBoard'
 import Runs from './Runs'
+import StealBoard from './StealBoard'
 import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
@@ -331,7 +332,13 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 // pill row. They are boards, so they belong in the Boards group rather than as a
 // second navigation row on the front page. They route out to the existing
 // #tab= handlers rather than mounting here, so there is exactly one copy of each.
-const GROUPS = [['boards', '📊 Boards'], ['power', '🚀 Power'], ['patterns', '🔥 Patterns']]
+// 🏃 STEALS joins the group row (2026-08-23). Donovan asked for stolen-base
+// looks on 08-22 with the deadline "now", SB v1 landed the fields the next
+// morning, and "then do the stolen base thing its simple" is the go-ahead. It
+// belongs in Charts because Charts answers "who should I back, ranked" and
+// that is exactly what it is — a ranked board, on published counts, with no
+// model behind it.
+const GROUPS = [['boards', '📊 Boards'], ['power', '🚀 Power'], ['patterns', '🔥 Patterns'], ['steals', '🏃 Steals']]
 
 /**
  * New props, all optional so the CURRENT Dashboard mount keeps rendering
@@ -418,7 +425,9 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         )}
       </div>
 
-      {bview === 'patterns' ? (
+      {bview === 'steals' ? (
+        <StealBoard players={players} onPlayerClick={onPlayerClick} />
+      ) : bview === 'patterns' ? (
         /* allPlayers: a streak board silently narrowed by the header's team
            filter reads as the whole board — the audit's wrong-number find. */
         <Runs players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} />

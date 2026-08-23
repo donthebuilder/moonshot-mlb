@@ -27,9 +27,14 @@ import { alpha, score as fmtScore } from '../lib/scales'
  * is always the real one; `max` only sets what a full ring means, and the
  * caller is expected to say so in a title.
  */
-export function Dial({ value, col, size = 64, max = 100, title, dp = 0 }) {
+export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pctOverride }) {
   const v = value == null ? null : Number(value)
-  const pct = v == null ? null : Math.max(0, Math.min(100, (v / max) * 100))
+  // `pct` overrides the ring when the number has no absolute scale of its own.
+  // A Game Score is defined RELATIVE to tonight's slate — "GS vs the median" —
+  // so there is no 0-100 to draw it against and the strip already computes its
+  // own normalised heat. The printed number is still the real one.
+  const pct = pctOverride != null ? Math.max(0, Math.min(100, Number(pctOverride)))
+    : v == null ? null : Math.max(0, Math.min(100, (v / max) * 100))
   const inner = Math.round(size * 0.81)
   return (
     <div title={title} style={{
