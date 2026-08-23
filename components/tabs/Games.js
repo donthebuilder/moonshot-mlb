@@ -13,6 +13,7 @@ import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
+import { FilterPill } from '../Filters'
 import { catColor } from '../../lib/scales'
 import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
@@ -301,6 +302,33 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // is the honest tool (MobileFold's own note explains why a media query is
   // not). Declared HERE, with the rest of the state, because this component
   // has three early returns below and a hook may never sit after one.
+  // ── TARGETING AND FILTERING THE SLATE (2026-08-23) ───────────────────────
+  // Donovan: "make it so i can filter games or like target game."
+  //
+  // Fifteen cards is a slate you scan; three is a slate you WORK. Two controls,
+  // both on the games themselves rather than in a menu:
+  //   · ⭐ TARGET — tap the star on any chip. Targets survive a reload and are
+  //     per-browser (localStorage), because "the games I care about tonight"
+  //     is a working set, not a preference worth a round trip.
+  //   · THE RAIL — All · Live · Upcoming · Final · ⭐ Targets, each with its
+  //     own count, so the size of a slice is visible BEFORE you click it (the
+  //     universal filter's own rule).
+  //
+  // The filter is applied HERE, to `games`, so the card grid, the expanded
+  // read and the phone's bottom switcher all move together. Filtering in
+  // GameStrip alone would have left the switcher offering games the grid no
+  // longer showed.
+  const [targets, setTargets] = useState(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem('moonshot_target_games_v1') || '[]') } catch { return [] }
+  })
+  const [gfilter, setGfilter] = useState('all')
+  const toggleTarget = (pk) => setTargets((cur) => {
+    const next = cur.includes(pk) ? cur.filter((x) => x !== pk) : [...cur, pk]
+    try { localStorage.setItem('moonshot_target_games_v1', JSON.stringify(next)) } catch { /* private mode */ }
+    return next
+  })
+
   const isPhone = useIsPhone(760)
   const [panel, setPanel] = useState('read')
   // ── BOT OUTPUT, MERGED INTO DEFAULT (2026-08-18) ──────────────────────────
@@ -323,7 +351,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   const [lineupFocus, setLineupFocus] = useState(null)
   const gameRefs                = useRef({})
 
-  const games = useMemo(() => groupGames(players), [players])
+  const allGames = useMemo(() => groupGames(players), [players])
+
+
 
   // ── LIVE STATE, JOINED ONTO THE CARDS (2026-08-18) ────────────────────────
   // Donovan: "the box-score and live-game design pass against your MLB/ESPN/
@@ -343,6 +373,34 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     ;(live?.games || []).forEach((g) => { if (g?.pk != null) m.set(String(g.pk), g) })
     return m
   }, [live])
+
+  // ── DECLARED AFTER liveByPk, DELIBERATELY (2026-08-23) ────────────────────
+  // These read `liveByPk` to tell a live game from a finished one. Written
+  // above its `const` they threw "Cannot access 'liveByPk' before
+  // initialization" on every render — a temporal dead zone, which `next build`
+  // compiles happily and only a browser ever sees. Caught in the render, not
+  // in review. If either moves, they move together.
+  // The four states a game can be in tonight, counted before they are offered.
+  const gameState = (g) => {
+    const l = liveByPk?.[g.game_pk]
+    if (l?.state === 'Live') return 'live'
+    if (l?.state === 'Final' || isPast(g.game_time)) return 'final'
+    return 'upcoming'
+  }
+  const gCounts = useMemo(() => {
+    const c = { all: allGames.length, live: 0, upcoming: 0, final: 0, targets: 0 }
+    allGames.forEach((g) => {
+      c[gameState(g)] += 1
+      if (targets.includes(g.game_pk)) c.targets += 1
+    })
+    return c
+  }, [allGames, liveByPk, targets])
+
+  const games = useMemo(() => {
+    if (gfilter === 'all') return allGames
+    if (gfilter === 'targets') return allGames.filter((g) => targets.includes(g.game_pk))
+    return allGames.filter((g) => gameState(g) === gfilter)
+  }, [allGames, gfilter, targets, liveByPk])
 
   // Group games by time slot
   const slots = useMemo(() => {
@@ -575,8 +633,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           // entirely on a short page).
           transition: 'top .18s ease',
         }}>
+          <GameFilterRail
+            value={gfilter}
+            onChange={(k) => { setGfilter(k); setActive(null) }}
+            counts={gCounts}
+          />
           <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
-            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} />
+            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
         </div>
       )}
@@ -1036,8 +1099,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           the grid; clicking the card (or its header) again closes it. */}
       {mode !== 'lineups' && (
         <>
+          <GameFilterRail
+            value={gfilter}
+            onChange={(k) => { setGfilter(k); setActive(null) }}
+            counts={gCounts}
+          />
           <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
-            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} />
+            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {games.filter((g) => g.game_pk === activeGame).map((g) => {
@@ -1450,6 +1518,32 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           handler the top strip uses, so the two selectors can never disagree
           about what selecting a game does. */}
       <GameSwitcher games={games} activeGame={activeGame} onSelect={scrollTo} live={liveByPk} />
+    </div>
+  )
+}
+
+// ── THE SLATE'S OWN FILTER (2026-08-23) ─────────────────────────────────────
+// Counts on every pill, per the universal filter's rule: knowing the size of a
+// slice before you click it is the difference between a filter and a guess. A
+// slice that would be empty is disabled rather than hidden, so the rail does
+// not change shape as games start and finish under you.
+function GameFilterRail({ value, onChange, counts }) {
+  const opts = [
+    { key: 'all', label: 'All', count: counts.all },
+    { key: 'live', label: '🔴 Live', count: counts.live },
+    { key: 'upcoming', label: 'Upcoming', count: counts.upcoming },
+    { key: 'final', label: 'Final', count: counts.final },
+    { key: 'targets', label: '⭐ Targets', count: counts.targets,
+      title: 'the games you starred — tap the ⭐ on any chip' },
+  ]
+  return (
+    <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase' }}>Games</span>
+      {opts.map((o) => (
+        <FilterPill key={o.key} active={value === o.key} count={o.count} title={o.title}
+          disabled={o.count === 0 && value !== o.key}
+          onClick={() => onChange(o.key)}>{o.label}</FilterPill>
+      ))}
     </div>
   )
 }

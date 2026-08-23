@@ -7,6 +7,7 @@ import {
   hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId, mlbId,
 } from '../../lib/player'
 import { tierRole, shortRole, isAligned, hrRank } from '../../lib/scoring'
+import { designationOf } from '../../lib/verdict'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
@@ -229,7 +230,7 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   ...(dhOn ? [DH_COLUMN] : []),
   { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true },
-  { key: 'role',    label: 'Role',   heat: false, w: 76, dim: true },
+  { key: 'role',    label: 'Role',   heat: false, w: 104, dim: true },
   { key: 'spot',    label: 'Spot',   heat: false, w: 40, mono: true, dim: true,
     fmt: (v) => (v == null ? '—' : String(v)) },
   { key: 'weak',    label: '★',      flag: true, mark: '★', w: 32 },
@@ -490,7 +491,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       team: teamOf(p),
       g: gameNumOf(p, dh),
       opp: oppOf(p),
-      role: shortRole(p),
+      // THE DESIGNATION LEADS (2026-08-23). Donovan: "i dont see the watch
+    // on the role row." This printed the MODEL's tier (Power / Contact /
+    // HR Bet) and never the bot's designation — so WATCH, which exists
+    // only as a designation, was invisible in every dense table on the
+    // site while tonight's slate carried 45 of them. An undesignated bat
+    // still gets his tier; nothing was removed.
+    role: designationOf(p) || shortRole(p),
       spot: p?.lineup_spot == null || p?.lineup_spot === '' ? null : n(p.lineup_spot, null),
       weak: p?.weak_spot_flag ? 1 : 0,
       aligned: isAligned(p) ? 1 : 0,
@@ -759,7 +766,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           { key: 'hr',   label: 'HR',     w: 34,
             explain: 'How many home runs he has already hit tonight.' },
           { key: 'score', label: 'HR score', w: 58, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true },
-          { key: 'role', label: 'Role',   heat: false, w: 78, dim: true },
+          { key: 'role', label: 'Role',   heat: false, w: 104, dim: true },
           // ── the arm he did it against ──────────────────────────────────
           { key: 'pName',  label: 'Arm',     heat: false, w: 120, dim: true },
           { key: 'pHr9',   label: 'HR/9',    w: 50, dp: 2, scale: 'div', anchor: LG.hr9, ceiling: 0.80,

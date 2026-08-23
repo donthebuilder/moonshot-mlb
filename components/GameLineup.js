@@ -6,6 +6,7 @@ import {
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
 import { tierRole, shortRole, isAligned } from '../lib/scoring'
+import { designationOf } from '../lib/verdict'
 import DenseTable from './DenseTable'
 import { SCORE } from '../lib/scales'
 
@@ -110,7 +111,7 @@ const COLUMNS = [
   { key: 'name',   label: 'Batter', heat: false, w: 148, bold: true, sticky: true },
   { key: 'team',   label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   { key: 'b',      label: 'B',      heat: false, w: 22, mono: true, dim: true },
-  { key: 'role',   label: 'Role',   heat: false, w: 76, dim: true },
+  { key: 'role',   label: 'Role',   heat: false, w: 104, dim: true },
   { key: 'weak',   label: '★ Spot', flag: true, mark: '★', w: 44,
     title: 'Weak lineup spot — this starter has been beaten in this spot' },
   { key: 'aligned', label: 'Align', flag: true, mark: '◆', w: 40,
@@ -402,7 +403,13 @@ export default function GameLineup({ players, onPlayerClick }) {
         name: nameOf(p),
         team: teamOf(p),
         b: clean(p?.bats || p?.handedness, '?'),
-        role: shortRole(p),
+        // THE DESIGNATION LEADS (2026-08-23). Donovan: "i dont see the watch
+        // on the role row." This printed the MODEL's tier (Power / Contact /
+        // HR Bet) and never the bot's designation — so WATCH, which exists
+        // only as a designation, was invisible in every dense table on the
+        // site while tonight's slate carried 45 of them. An undesignated bat
+        // still gets his tier; nothing was removed.
+        role: designationOf(p) || shortRole(p),
         weak: p?.weak_spot_flag ? 1 : 0,
         aligned: isAligned(p) ? 1 : 0,
         edge: matchupEdge(p),

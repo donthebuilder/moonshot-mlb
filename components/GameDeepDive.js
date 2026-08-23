@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, verdictInk } from '../lib/scales'
 import { n, nn, clean, nameOf, hrScore } from '../lib/player'
@@ -73,33 +74,60 @@ const LEAGUE_HR9 = 1.25   // same reference ProjectedOutput's armOf() uses
 
 const toneColor = (t) => (t === 'hot' ? C.orange : t === 'cold' ? '#38bdf8' : C.text2)
 
+// ── THE AIR, AS A LINE YOU CAN CLOSE (2026-08-23) ───────────────────────────
+// Donovan: "put the weather park facts somewhere else so its not just just
+// there." It was a two-line paragraph across the full width of the open game,
+// above everything, on every game, every time — the park, the temperature, the
+// wind, the park factor, the humidity, the rain chance, the roof and the
+// lineup state, all as prose, whether or not any of it was interesting.
+//
+// It is a strip of chips now: the venue, then only the facts that HAVE a tone
+// (the ones lib/conditions.js already decided were worth colouring), and a
+// verdict word when the air is doing something. One line instead of four, and
+// it collapses the day nothing is happening. The full sentence — every part,
+// including the plain ones, with its tooltip — is one tap away on the chevron,
+// so nothing was removed from the page, only from the default view.
 function AirLine({ any, venue, confirmed }) {
+  const [open, setOpen] = useState(false)
   const parts = airParts(any)
   const verdict = airVerdict(any)
+  const loud = parts.filter((p) => p.tone && p.tone !== 'plain')
+  const shown = open ? parts : loud
+  const word = verdict === 'carrying' ? 'ball is carrying'
+    : verdict === 'dead' ? 'dead air' : null
+
   return (
     <div style={{
-      background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
-      border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 13px', marginBottom: 8,
-      fontSize: 12, lineHeight: 1.7, color: C.text2, maxWidth: 900,
+      display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+      marginBottom: 9, minWidth: 0,
     }}>
-      <b style={{ color: C.text, fontSize: 12.5 }}>{venue}</b>
-      {parts.length > 0 && (
-        <>
-          {' — '}
-          {parts.map((p, i) => (
-            <span key={p.key}>
-              {i > 0 && (i === parts.length - 1 ? ' and ' : ', ')}
-              <span title={p.title} style={{ color: toneColor(p.tone), fontWeight: p.tone === 'plain' ? 400 : 700 }}>{p.text}</span>
-            </span>
-          ))}
-          .
-        </>
+      <span style={{ fontSize: 11.5, fontWeight: 900, color: C.text, whiteSpace: 'nowrap' }}>{venue}</span>
+      {shown.map((p) => (
+        <span key={p.key} title={p.title} style={{
+          fontSize: 9.5, fontWeight: 700, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+          padding: '2px 7px', borderRadius: 999, cursor: 'help',
+          color: p.tone && p.tone !== 'plain' ? toneColor(p.tone) : C.text2,
+          border: `1px solid ${p.tone && p.tone !== 'plain' ? alpha(toneColor(p.tone), 0.4) : C.border}`,
+          background: p.tone && p.tone !== 'plain' ? alpha(toneColor(p.tone), 0.08) : C.glass,
+        }}>{p.text}</span>
+      ))}
+      {word && (
+        <span style={{
+          fontSize: 9.5, fontWeight: 900, letterSpacing: '.04em', whiteSpace: 'nowrap',
+          color: verdict === 'carrying' ? C.orange : C.blue,
+        }}>{word}</span>
       )}
-      {verdict === 'carrying' && <span style={{ color: C.orange }}> The ball is carrying here tonight.</span>}
-      {verdict === 'dead' && <span style={{ color: '#38bdf8' }}> This is dead air.</span>}
-      <span style={{ color: C.text3 }}>
-        {confirmed ? ' Lineups are confirmed.' : ' Lineups are still projected.'}
-      </span>
+      <span title={confirmed ? 'lineups confirmed' : 'lineups still projected'} style={{
+        fontSize: 9.5, fontFamily: NUM_FONT, color: confirmed ? C.green : C.text3, whiteSpace: 'nowrap',
+      }}>{confirmed ? '✓ lineups' : '◻ projected'}</span>
+      {parts.length > loud.length && (
+        <button onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+          title={open ? 'show only what stands out' : 'every condition, including the quiet ones'}
+          style={{
+            background: 'transparent', border: 'none', color: C.text3, cursor: 'pointer',
+            fontSize: 10, fontWeight: 900, padding: '2px 4px', lineHeight: 1,
+          }}>{open ? '▾' : `▸ ${parts.length - loud.length} more`}</button>
+      )}
     </div>
   )
 }

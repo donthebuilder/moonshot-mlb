@@ -85,7 +85,7 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null }) {
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -377,6 +377,25 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                     it is now legible, labelled by its tooltip, and no longer
                     the biggest ink on the card. */}
                 <span title="this game's Game Score rank on tonight's slate" style={{ marginLeft: 'auto' }}>#{c.gsRank}</span>
+                {/* ⭐ TARGET (2026-08-23) — Donovan: "make it so i can filter
+                    games or like target game." The star belongs ON the game,
+                    not in a menu: you decide a game matters while you are
+                    looking at it. stopPropagation, or starring would also open
+                    the card, which is the opposite of marking one for later. */}
+                {onTarget && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); onTarget(c.pk) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onTarget(c.pk) } }}
+                    title={targets.includes(c.pk) ? 'Targeted — tap to drop it' : 'Target this game (the ⭐ Targets filter above)'}
+                    style={{
+                      cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: '0 2px',
+                      color: targets.includes(c.pk) ? C.yellow : C.text3,
+                      opacity: targets.includes(c.pk) ? 1 : 0.55,
+                    }}
+                  >{targets.includes(c.pk) ? '★' : '☆'}</span>
+                )}
               </div>
 
               {/* THE ONE THING THAT LEADS (principle 1). */}
