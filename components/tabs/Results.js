@@ -778,7 +778,7 @@ function MultiHitCluster({ slots }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-export default function Results({ results, backtest, players = [], onPlayerClick }) {
+export default function Results({ results, liveResults = null, slateDate = '', backtest, players = [], onPlayerClick }) {
   // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
   // its own last-opened view, so switching to All season and back does not
   // dump you out of the sub-view you were reading. The seven keys are
@@ -826,6 +826,24 @@ export default function Results({ results, backtest, players = [], onPlayerClick
   // broken every single morning. So when the live payload has nothing judged
   // yet, the tab says so in one line and points at last night, instead of
   // presenting the empty shell as the news.
+  // ── "TONIGHT" MUST BE TONIGHT (2026-08-23) ────────────────────────────────
+  //
+  // `results` is now the slate-GATED payload (see Dashboard): tonight's own
+  // file when the branch has one, null when it doesn't. `liveResults` is the
+  // raw results_live.json, passed in only so this tab can name the date the
+  // branch is actually serving.
+  //
+  // The failure this exists for: results_live.json froze on 2026-08-21 and was
+  // still being served on the 23rd while graded_results_2026-08-23.json sat
+  // beside it. Every other surface date-gated and went quiet; this tab, which
+  // was handed the ungated file, rendered a completed two-day-old card under
+  // "🌙 Tonight — live". A results page is the one page on the site that has
+  // to be right about which night it is describing — being empty is survivable,
+  // being confidently wrong is not.
+  const liveFileDate = clean(liveResults?.date, '')
+  const liveFileStale = !!slateDate && !!liveFileDate && liveFileDate !== slateDate
+  const liveMissing = day === 'live' && !results
+
   const liveIsPregame = (() => {
     if (day !== 'live') return false
     const rows = results?.graded_slots || results?.results || []
@@ -904,8 +922,25 @@ export default function Results({ results, backtest, players = [], onPlayerClick
             🌙 Tonight — live
           </span>
           <span style={{ fontSize: 10, color: C.text3 }}>
-            grading updates as games finish
+            {liveMissing ? 'tonight’s grading hasn’t published yet' : 'grading updates as games finish'}
           </span>
+          {(liveMissing || liveFileStale) && (
+            <span style={{
+              fontSize: 10.5, color: C.text2, lineHeight: 1.5,
+              border: '1px solid rgba(248,113,113,.45)', background: 'rgba(248,113,113,.08)',
+              borderRadius: 8, padding: '4px 10px',
+            }}>
+              {liveMissing
+                ? <>Nothing graded for {slateDate || 'tonight'} has been published yet. </>
+                : <>Showing {slateDate}&apos;s own graded file. </>}
+              {liveFileDate && <>The bot&apos;s live results file is still <b>{liveFileDate}</b> — that night is finished, not tonight, so it is not shown here. </>}
+              {gradedDays.length > 0 && (
+                <b onClick={() => setDay(gradedDays[0])} style={{ color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                  Open the last finished night
+                </b>
+              )}
+            </span>
+          )}
           {liveIsPregame && gradedDays.length > 0 && (
             <span style={{
               fontSize: 10.5, color: C.text2, lineHeight: 1.5,
