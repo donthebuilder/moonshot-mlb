@@ -356,6 +356,8 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
             <button
               key={c.pk}
               onClick={() => onSelect(c.pk)}
+              title={[c.matchup, c.armsFull && `⚾ ${c.armsFull}`, c.topBat && `🔝 ${c.topBat}`]
+                .filter(Boolean).join('\n')}
               style={{
                 position: 'relative', overflow: 'hidden', textAlign: 'left',
                 cursor: 'pointer', padding: '12px 13px 11px', minWidth: 0,
@@ -378,7 +380,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                   pct={100 * c.heat}
                   col={col}
                   size={52}
-                  title={`Game Score ${c.gs.toFixed(0)} — #${c.gsRank} on tonight's slate. The ring fills against tonight's own GS range, because a Game Score is defined relative to the slate rather than out of 100.`}
+                  title={`Game Score ${c.gs.toFixed(0)} ${c.edge} — #${c.gsRank} on tonight's slate${c.weak > 0 ? `, ${c.weak} weak lineup spot${c.weak === 1 ? '' : 's'}` : ''}. The ring fills against tonight's own GS range, because a Game Score is defined relative to the slate rather than out of 100.`}
                 />
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
@@ -427,14 +429,19 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                     ) : (
                       <span>{c.time}</span>
                     )}
+                    {/* SLEEKER = FEWER MARKS, NOT SMALLER ONES (2026-08-23).
+                        #rank and the ▲▽ edge both said "where this game sits
+                        on tonight's board" — which is what the dial now draws,
+                        in the same glance, without a number to decode. ★weak
+                        was a third count competing with them. All three stay
+                        available: the dial's tooltip carries the rank, and the
+                        sort row above already orders by whatever you asked for.
+                        MAIN EVENT survives because it is one card a slate. */}
                     {band.word && (
                       <span style={{ fontSize: 8.5, fontWeight: 900, color: accent, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
                         {band.word}
                       </span>
                     )}
-                    {c.weak > 0 && <span title="weak lineup spots in this game">★{c.weak}</span>}
-                    <span title="this game's Game Score rank on tonight's slate">#{c.gsRank}</span>
-                    <span title="Game Score vs tonight's median">{c.edge}</span>
                   </div>
                 </div>
               </div>
@@ -456,18 +463,14 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                 )
               })()}
 
-              {(c.arms || c.topBat) && (
-                <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5, minWidth: 0 }}>
-                  {c.arms && (
-                    <div title={c.armsFull} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>⚾ {c.arms}</div>
-                  )}
-                  {c.topBat && (
-                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      🔝 {c.topBat}{c.heat >= 0.55 && c.topHrw ? ` · HRW ${c.topHrw}` : ''}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* THE ARMS AND THE TOP BAT CAME OFF (2026-08-23). Donovan:
+                  "game cards can be sleaker less info and more prescion."
+                  Both lines repeated what the row below already says better —
+                  the TOP chip names the top bat AND scores him, and both
+                  starters get a dial, a sentence and five tiles the moment the
+                  card is opened. Two truncated grey lines that restate the
+                  next row are the definition of less precise, not more.
+                  The arms survive as the card's tooltip, so nothing is gone. */}
 
               {/* THE EITHER/OR ROW, in the prop card's tile language. Same three
                   chips, same order, same grammar, same pair-leg behaviour and
