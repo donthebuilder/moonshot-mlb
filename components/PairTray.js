@@ -54,7 +54,11 @@ export default function PairTray({ legs = [], market = 'hr', onMarket, onRemove,
   const together = n(hist?.repeat_count, 0)
 
   return (
-    <div style={{
+    // .pair-tray (2026-08-23): the Games tab now has a fixed game switcher
+    // welded to the bottom edge on phones, and this tray sticks to the same
+    // edge. MobileCSS lifts it clear of the rail there; the class exists only
+    // so that rule has something to aim at.
+    <div className="pair-tray" style={{
       position: 'sticky', bottom: 8, zIndex: 30,
       background: `linear-gradient(155deg, rgba(9,9,11,.97), ${C.bg2})`,
       border: `1px solid ${legs.length === 2 ? 'rgba(34,211,238,.5)' : C.border2}`,

@@ -152,6 +152,23 @@ export default function MobileCSS() {
         .chip-row::-webkit-scrollbar { display: none; }
       }
 
+      /* ── THE GAME SWITCHER'S ROOM (2026-08-23) ────────────────────────────
+         components/GameSwitcher.js welds a rail to the bottom edge on phones
+         so changing games never costs a scroll back to the top. Two things
+         have to give it room, and both are here rather than inline because
+         both are about the PAGE, not the component:
+           · the main column needs bottom padding, or the last card can never
+             be scrolled clear of the rail — the classic fixed-footer bug
+           · PairTray sticks to the same edge (bottom: 8) and would sit under
+             it, so it lifts above the rail while one is on screen
+         The breakpoint is 760px to match GameSwitcher's own useIsPhone(760);
+         if one moves the other must, or the padding appears with no rail. */
+      @media (max-width: 760px) {
+        .dashboard-main { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important; }
+        .pair-tray { bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important; }
+        .game-switcher-rail::-webkit-scrollbar { display: none; }
+      }
+
       @media (max-width: 520px) {
         /* Vitals/verdict tiles: two per row keeps the numbers legible. */
         .dashboard-main div[style*="flex-wrap"] > div[style*="linear-gradient(135deg"] {

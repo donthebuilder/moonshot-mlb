@@ -70,7 +70,11 @@ export default function MobileFold({
         style={{
           display: 'flex', width: '100%', gap: 8, alignItems: 'center',
           textAlign: 'left', cursor: 'pointer', minWidth: 0,
-          background: `linear-gradient(160deg, ${accent}14, rgba(17,17,19,1) 70%)`,
+          // WAS rgba(17,17,19,1) — ember's bg2, baked in. In LIGHT mode that
+          // painted a black bar across a white page (caught rendering the
+          // Games tab's folded strip at 430px in light, 2026-08-23). C.bg2 is
+          // the same colour under ember and the right one everywhere else.
+          background: `linear-gradient(160deg, ${accent}14, ${C.bg2} 70%)`,
           border: `1px solid ${open ? accent : `${accent}40`}`,
           borderRadius: 11, padding: '9px 12px',
           marginBottom: open ? 9 : 0,

@@ -13,6 +13,7 @@ import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
+import { catColor } from '../../lib/scales'
 import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
 import AtThePlate from './AtThePlate'
@@ -20,7 +21,9 @@ import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
-import MobileFold from '../MobileFold'
+import MobileFold, { useIsPhone } from '../MobileFold'
+import GameSwitcher from '../GameSwitcher'
+import GamePitcherRead from '../GamePitcherRead'
 import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
 import { downloadGameCard } from '../shareCard'
 
@@ -73,13 +76,14 @@ function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
   )
 }
 
-const ROLE_CONFIG = {
-  TOP:     { label: 'Top Pick',     color: '#FCD34D' },
-  HR:      { label: 'HR Pick',      color: '#FB923C' },
-  HIT:     { label: 'Hit Pick',     color: '#60A5FA' },
-  HRR:     { label: 'HRR Pick',     color: '#34D399' },
-  CONTACT: { label: 'Contact Pick', color: '#A78BFA' },
+// Same registry, same reason — and this map is where HRR was GREEN while
+// CAT_COLOR four lines up called it cyan, in one file, for the same concept.
+const ROLE_LABEL = {
+  TOP: 'Top Pick', HR: 'HR Pick', HIT: 'Hit Pick', HRR: 'HRR Pick', CONTACT: 'Contact Pick',
 }
+const ROLE_CONFIG = Object.fromEntries(
+  Object.entries(ROLE_LABEL).map(([k, label]) => [k, { label, get color() { return catColor('role', k) } }])
+)
 function getRoleDisplay(p) {
   const primary = (p?.game_pick_role || '').split('/')[0]
   if (ROLE_CONFIG[primary]) return ROLE_CONFIG[primary]
@@ -128,7 +132,12 @@ function isPast(gameTime) {
 // Shared by the rundown cards and the expanded pick row so the two can
 // never disagree about who a game's picks are.
 const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
-const CAT_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
+// OFF THE REGISTRY (2026-08-23). These five hexes were this file's own copy
+// of the pick-role palette — one of the eleven copies scripts/check-scales.mjs
+// was written about, and the reason HRR could be cyan here and green four
+// lines down in ROLE_CONFIG. catColor('role', …) is the single source, so the
+// mono/steel/regal/light chromes reach the Games tab too.
+const catColorOf = (cat) => catColor('role', cat)
 const CAT_SCORE = {
   TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? p?.hr_score ?? 0,
   HR: (p) => p?.hr_score ?? 0,
@@ -288,6 +297,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // deliberately NOT reset when you open a different game — if you are reading
   // spot damage down the slate, the next game should open on spot damage
   // rather than making you re-pick the pill twelve times.
+  // Phone-only behaviour on this tab is real behaviour, not styling: the game
+  // switcher welds to the bottom edge and the selector strip folds. useIsPhone
+  // is the honest tool (MobileFold's own note explains why a media query is
+  // not). Declared HERE, with the rest of the state, because this component
+  // has three early returns below and a hook may never sit after one.
+  const isPhone = useIsPhone(760)
   const [panel, setPanel] = useState('read')
   // ── BOT OUTPUT, MERGED INTO DEFAULT (2026-08-18) ──────────────────────────
   // Donovan: "remove the bot output thing like how it has the bars just merge
@@ -480,10 +495,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           the hour. Park-factor work goes in ParkBoard. */}
       <PanelTitle
         title="Slate"
-        sub={`${games.length} games · ${slots.length} time slots · ${
-          mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
-          : 'the slate as game cards in first-pitch order — sort them any way below, tap one and switch between its read, its lineups, the head-to-head and the picks in place'
-        }`}
+        sub={/* ON A PHONE, THE COUNT AND NOTHING ELSE (2026-08-23). Donovan:
+          "everyhing on the games for moble needs to be fixed." Between the tab
+          bar and the first game card sat this sentence, the mode row, another
+          five-line paragraph and the sort row — three screens of prose
+          describing controls that are right there. The words are not wrong,
+          and they stay on desktop where they cost nothing. */
+          isPhone
+          ? `${games.length} games · first-pitch order`
+          : `${games.length} games · ${slots.length} time slots · ${
+            mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
+            : 'the slate as game cards in first-pitch order — sort them any way below, tap one and switch between its read, its lineups, the head-to-head and the picks in place'
+          }`}
         right={modeRow}
       />
 
@@ -491,7 +514,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           buttons above changed the whole page and the sub-line described them
           in shorthand ("heat-sized game cards"); this says which decision each
           mode is for, in words, and it changes when you switch. */}
-      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700 }}>
+      {/* Phone: this paragraph is what TabExplainer's ❓ pill is FOR — one
+          copy of the page's own explanation, on tap, not two on every visit. */}
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700, display: isPhone ? 'none' : 'block' }}>
         <b style={{ color: C.text2 }}>What this answers:</b>{' '}
         {mode === 'lineups'
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
@@ -551,7 +576,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           // entirely on a short page).
           transition: 'top .18s ease',
         }}>
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} />
+          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} />
+          </StripFold>
         </div>
       )}
 
@@ -909,7 +936,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     five slots Results grades. */}
                 {(() => {
                   const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
-                  const CAT_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
+                  // was a THIRD local copy of the role palette in this file
+                  const CAT_COLOR = Object.fromEntries(CAT_ORDER.map((k) => [k, catColor('role', k)]))
                   const CAT_SC = {
                     TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? 0,
                     HR: (p) => p?.hr_score ?? 0, HIT: (p) => p?.hit_score ?? 0,
@@ -950,7 +978,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           wrapping; phones get the auto-fit fallback via CSS. */}
                       <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch' }}>
                         {picks.map(({ cat, cats, p }) => {
-                          const col = CAT_COLOR[cat] || C.text3
+                          const col = catColorOf(cat)
                           return (
                             <button key={`${cat}-${playerId(p)}`} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
                               display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
@@ -1009,7 +1037,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           the grid; clicking the card (or its header) again closes it. */}
       {mode !== 'lineups' && (
         <>
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} />
+          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} />
+          </StripFold>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {games.filter((g) => g.game_pk === activeGame).map((g) => {
                 const picks = picksFor(g)
@@ -1034,7 +1064,15 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       scrollMarginTop: 160, minWidth: 0,
                       background: isActive ? `linear-gradient(160deg, rgba(249,115,22,.05), ${C.bg2} 45%)` : C.bg2,
                       border: `1px solid ${isActive ? 'rgba(249,115,22,.5)' : C.border}`,
-                      borderRadius: 14, overflow: 'hidden',
+                      // `clip`, NOT `hidden` (2026-08-23). Identical visual
+                      // result — it still clips the children to the rounded
+                      // corners — but `overflow: hidden` makes this box a
+                      // scroll container, and a scroll container kills
+                      // `position: sticky` for everything inside it. That is
+                      // why the in-game panel pills would not stick. Same
+                      // trick, same reason, as the html/body rule at the top
+                      // of MobileCSS.js.
+                      borderRadius: 14, overflow: 'clip',
                       boxShadow: isActive ? '0 0 26px -10px rgba(249,115,22,.5)' : 'none',
                       opacity: past && !isActive ? 0.65 : 1,
                     }}
@@ -1128,7 +1166,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       {picks.length > 0 && (
                         <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch', marginTop: 8 }}>
                           {picks.map(({ cat, cats, p }) => {
-                            const col = CAT_COLOR[cat] || C.text3
+                            const col = catColorOf(cat)
                             return (
                               // THE CHIP NOW CARRIES A REASON (2026-08-09).
                               // It used to read "HR · Alonso · 82" — a name and
@@ -1157,11 +1195,21 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         all still render the same components with the same
                         props — they are simply no longer stacked four screens
                         deep. See the `panel` state above for why. */}
+                    {/* ── THE ARMS, IN WORDS (2026-08-23) ──────────────
+                        Donovan: "the words for the pitcher and watch stats i
+                        wanted to be shown for them." Both starters, each with
+                        the attack dial, one sentence, and the four stats worth
+                        watching on him — the same block the pitcher modal
+                        opens with, at game scale, so the numbers cannot read
+                        one way here and another way one tap in. */}
+                    {isActive && <GamePitcherRead sides={sides} />}
+
                     {isActive && (
                       <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                         <GamePanelPills
                           panel={panel}
                           setPanel={setPanel}
+                          isPhone={isPhone}
                           gamePk={g.game_pk}
                           weakSpots={(g.players || []).filter((p) => p?.weak_spot_flag).length}
                           pickCount={sorted.length}
@@ -1275,11 +1323,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   // player is ONE merged card now (2026-08-14), a TOP/HR
                   // double-up lights BOTH his bars on that one card.
                   const scores = [
-                    { k: 'hr_score',      l: 'HR',  c: '#FB923C', cat: 'HR' },
-                    { k: 'hrr_score',     l: 'HRR', c: '#22d3ee', cat: 'HRR' },
-                    { k: 'hit_score',     l: 'HIT', c: '#60A5FA', cat: 'HIT' },
-                    { k: 'contact_score', l: 'CTG', c: '#A78BFA', cat: 'CONTACT' },
-                    { k: 'overall_score', l: 'OVR', c: '#FCD34D', cat: 'TOP' },
+                    // …and a FOURTH. Same five concepts, one registry.
+                    { k: 'hr_score',      l: 'HR',  c: catColor('role', 'HR'),      cat: 'HR' },
+                    { k: 'hrr_score',     l: 'HRR', c: catColor('role', 'HRR'),     cat: 'HRR' },
+                    { k: 'hit_score',     l: 'HIT', c: catColor('role', 'HIT'),     cat: 'HIT' },
+                    { k: 'contact_score', l: 'CTG', c: catColor('role', 'CONTACT'), cat: 'CONTACT' },
+                    { k: 'overall_score', l: 'OVR', c: catColor('role', 'TOP'),     cat: 'TOP' },
                   ]
                   return wrap(
                     <div
@@ -1393,7 +1442,36 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         pairHistorySummary={pairHistorySummary}
         onPlayerClick={onPlayerClick}
       />
+
+      {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
+          Phone only, fixed to the bottom edge, every game one thumb-tap away
+          no matter how far down the open game's read you have scrolled. See
+          components/GameSwitcher.js for the full note. `scrollTo` is the same
+          handler the top strip uses, so the two selectors can never disagree
+          about what selecting a game does. */}
+      <GameSwitcher games={games} activeGame={activeGame} onSelect={scrollTo} live={liveByPk} />
     </div>
+  )
+}
+
+// ── THE SELECTOR STRIP, FOLDED ON A PHONE (2026-08-23) ──────────────────────
+// A game is always open (the effect above picks the first one), so on a phone
+// the strip was fifteen cards of wall between the top of the tab and the game
+// you are actually reading — and now that the bottom switcher exists, it is
+// not even the way you change games there. It folds to one line, the site's
+// existing MobileFold, and everything inside it is one tap away exactly as
+// before. Desktop renders it bare: MobileFold returns its children untouched
+// above the breakpoint, so nothing about the wide layout changes.
+function StripFold({ isPhone, games, activeGame, children }) {
+  if (!isPhone) return children
+  const open = games.find((g) => g.game_pk === activeGame)
+  return (
+    <MobileFold
+      title="🏟 All games"
+      count={games.length}
+      summary={open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one'}
+      maxWidth={760}
+    >{children}</MobileFold>
   )
 }
 
@@ -1426,7 +1504,39 @@ const PANEL_SUB = {
 // stacked — "just have everything open up when you click on the game" — so a
 // pill's job is to scroll you there, not to swap content. gamePk scopes the
 // anchor ids so two open cards can't collide.
-function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '', gamePk = '' }) {
+function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '', gamePk = '', isPhone = false }) {
+  // STICKY ON A PHONE (2026-08-23). The four sections of an open game all
+  // render at once — Donovan's own call on 2026-08-17, "just have everything
+  // open up when you click on the game instead, it's a lot of clicking thru"
+  // — which is right, and which also makes one game several screens tall. The
+  // pills are the way to move between those screens, and they were pinned to
+  // the top of the game, i.e. off-screen the moment you used them once.
+  //
+  // Sticking them keeps "everything is open" AND makes any section one tap
+  // away. The offset has to be MEASURED, not guessed: the site header is
+  // itself sticky (position:sticky, top:0, z-index 50) and its height changes
+  // with the slate banner, the tab row wrapping, and the theme row. A
+  // hardcoded top would tuck the pills under the header on some slates and
+  // leave a gap on others.
+  const [stickTop, setStickTop] = useState(0)
+  useEffect(() => {
+    if (!isPhone) return undefined
+    const measure = () => {
+      const h = document.querySelector('header')?.offsetHeight
+      setStickTop(Number.isFinite(h) ? h : 0)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    // The header shrinks as the page scrolls past the hero, so re-measure on
+    // scroll too — cheap, and it is the difference between the pills sitting
+    // flush and hovering in mid-air.
+    window.addEventListener('scroll', measure, { passive: true })
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure)
+    }
+  }, [isPhone])
+
   const badge = { lineups: weakSpots ? `★${weakSpots}` : '', picks: pickCount ? String(pickCount) : '' }
   const jump = (k) => {
     setPanel(k)
@@ -1435,8 +1545,12 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
     } catch { /* ignore */ }
   }
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+    <div style={isPhone ? {
+      marginBottom: 10, position: 'sticky', top: stickTop, zIndex: 40,
+      background: C.bg, margin: '0 -14px 10px', padding: '8px 14px 6px',
+      borderBottom: `1px solid ${C.border}`,
+    } : { marginBottom: 10 }}>
+      <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
         {GAME_PANELS.map(([k, label]) => {
           const on = panel === k
           return (
@@ -1460,7 +1574,7 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
           )
         })}
       </div>
-      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
+      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 5, maxWidth: 720, display: isPhone ? 'none' : 'block' }}>
         {PANEL_SUB[panel]}
         {panel === 'lineups' && arm && (
           <span style={{ color: C.text3 }}> Tonight: {arm}.</span>
