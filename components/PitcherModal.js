@@ -2,7 +2,9 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf } from '../lib/player'
-import { Chip } from './ui'
+import { divTone, sampleDim } from '../lib/scales'
+import { PillRow } from './Filters'
+import PitcherTags from './PitcherTags'
 import DenseTable from './DenseTable'
 import MatchupPitcher from './MatchupPitcher'
 import PitcherSpots from './PitcherSpots'
@@ -47,85 +49,128 @@ function Tile({ label, value, tone, tip }) {
   )
 }
 
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button onClick={onClick} style={{
-      padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
-      border: `1px solid ${active ? C.orange : C.border}`,
-      background: active ? `${C.orange}22` : 'transparent',
-      color: active ? C.orange : C.text3,
-      whiteSpace: 'nowrap',
-    }}>{children}</button>
-  )
-}
-
 const TABS = [
   { key: 'matchup', label: '🥎 Arsenal + damage' },
   { key: 'lineup',  label: '📋 Lineup he faces' },
   { key: 'profile', label: '📊 Command + splits' },
 ]
 
-// ── THE SPLITS GRID (2026-08-17) ────────────────────────────────────────────
-// Donovan sent a reference tool whose pitcher view LEADS with one grid:
-// Season / vsLHB / vsRHB rows, the core rates as columns, shaded by which side
-// of the matchup each number favours. Ours had the same facts scattered over
-// three tabs — the modal was "fix the pitcher modal, bring up to speed,
-// intuitive and usable" because the first screen answered nothing at a glance.
+// ── THE SPLITS, AS A CONTROL (rebuilt 2026-08-23; 08-22 build lost) ─────────
+// The 2026-08-17 SplitsGrid answered the complaint it was given (facts were
+// scattered over three tabs) and then became the thing Donovan called
+// outdated: a 3x6 table at minWidth 460 that scrolls sideways on a phone to
+// reach WHIP, read rather than operated. Same facts, as a control: pick a
+// split, read it big.
 //
-// Columns are ONLY what the slate publishes per side (HR, HR/9, WHIP, XBH, and
-// his pitch mix on that side); the season row adds the season-only quality
-// rates. A cell the bot has not published is a dash, never a zero. Shading
-// follows the house tone rule — hot = good for the BAT — and the words carry
-// it too, so colour is never the only encoding.
-function SplitsGrid({ src }) {
-  const g = (k) => src(k)
-  const num = (k) => { const v = Number(g(k)); return Number.isFinite(v) ? v : null }
-  const f2 = (v) => (v == null ? '—' : v.toFixed(2))
-  const f0 = (v) => (v == null ? '—' : String(Math.round(v)))
-  const rows = [
-    { split: 'Season', hr: num('pitcher_hr_allowed'), hr9: num('pitcher_hr9'), whip: num('pitcher_whip'), xbh: null, mix: '' },
-    { split: 'vs LHB', hr: num('pitcher_hr_vs_lhb'), hr9: num('pitcher_hr9_vs_lhb'), whip: num('pitcher_whip_vs_lhb'), xbh: num('pitcher_xbh_vs_lhb'), mix: String(g('pitcher_primary_mix_vs_lhb') || '') },
-    { split: 'vs RHB', hr: num('pitcher_hr_vs_rhb'), hr9: num('pitcher_hr9_vs_rhb'), whip: num('pitcher_whip_vs_rhb'), xbh: num('pitcher_xbh_vs_rhb'), mix: String(g('pitcher_primary_mix_vs_rhb') || '') },
-  ]
-  if (rows.slice(1).every((r) => r.hr9 == null && r.whip == null)) return null
-  const toneHr9 = (v) => (v == null ? null : v >= 1.3 ? 'hot' : v <= 0.85 ? 'cold' : null)
-  const toneWhip = (v) => (v == null ? null : v >= 1.4 ? 'hot' : v <= 1.1 ? 'cold' : null)
-  const cell = (txt, tone, tip) => (
-    <td key={tip} title={tip} style={{
-      padding: '4px 10px', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 700, textAlign: 'right',
-      color: tone === 'hot' ? '#f87171' : tone === 'cold' ? '#4ade80' : C.text2,
-      borderBottom: `1px solid ${C.bg}`,
-    }}>{txt}</td>
-  )
+// Pills are DATA-GATED — "a dead pill, or one that silently falls back to
+// the season line, answers a question it was not asked." Season · vs LHB ·
+// vs RHB · Last 3 come from the slate row; In park / Road / Day / Night /
+// RISP / Ahead / Behind appear only when the bot publishes
+// pitcher_situational_splits (bot commit 1e95c81 — the five axes Donovan
+// named on 2026-08-22: in park · day games · RISP · when ahead · calendar).
+//
+// `Last 3` is the "pitch decline" / "track wear and arm" ask: the bot has
+// computed l3_* and fb_velo_delta all along; the modal never showed them.
+//
+// Colour reads ONE direction end to end — warm = good for the bat — via
+// divTone against stated league anchors (HR/9 1.15 ±0.80, WHIP 1.28 ±0.45,
+// ERA 4.10 ±2.00), retiring this file's hard-coded red/green pair.
+function SplitStat({ label, value, fmt, anchor, ceiling, tip }) {
+  const v = value == null ? null : Number(value)
+  const d = divTone(v, { anchor, ceiling })
   return (
-    <div style={{ margin: '2px 0 12px', overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', minWidth: 460 }}>
-        <thead>
-          <tr>
-            {['SPLIT', 'HR', 'HR/9', 'WHIP', 'XBH', 'HIS MIX THAT SIDE'].map((h, i) => (
-              <th key={h} style={{
-                padding: '3px 10px', fontSize: 8.5, color: C.text3, letterSpacing: '.07em',
-                textAlign: i === 0 ? 'left' : i === 5 ? 'left' : 'right', fontFamily: NUM_FONT,
-                borderBottom: `1px solid ${C.border}`,
-              }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.split}>
-              <td style={{ padding: '4px 10px', fontSize: 10.5, fontWeight: 800, color: C.text, borderBottom: `1px solid ${C.bg}` }}>{r.split}</td>
-              {cell(f0(r.hr), null, `${r.split}: home runs allowed`)}
-              {cell(f2(r.hr9), toneHr9(r.hr9), `${r.split}: HR per 9 — red is a leak (good for the bat), green is a wall`)}
-              {cell(f2(r.whip), toneWhip(r.whip), `${r.split}: walks+hits per inning — red is traffic`)}
-              {cell(r.xbh == null ? '—' : f0(r.xbh), null, `${r.split}: extra-base hits allowed`)}
-              <td style={{ padding: '4px 10px', fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, whiteSpace: 'nowrap', borderBottom: `1px solid ${C.bg}` }}>{r.mix || '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 3 }}>
-        red = good news for the bat on that side · green = his wall · season quality rates are the tiles above
+    <span title={tip} style={{
+      display: 'flex', flexDirection: 'column', gap: 1, minWidth: 66,
+      padding: '6px 11px', borderRadius: 8, background: d.bg,
+      border: `1px solid ${C.border}`,
+    }}>
+      <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
+      <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT, color: d.fg }}>
+        {v == null ? '—' : fmt(v)} <span style={{ fontSize: 9 }}>{d.glyph}</span>
+      </span>
+    </span>
+  )
+}
+
+function SplitsControl({ src }) {
+  const num = (k) => { const v = Number(src(k)); return Number.isFinite(v) ? v : null }
+  const sit = src('pitcher_situational_splits') || {}
+  const f2 = (v) => v.toFixed(2)
+  const f0 = (v) => String(Math.round(v))
+  const l3n = num('pitcher_l3_starts_found') || 0
+
+  const SIT_LABELS = [
+    ['home', 'In park', 'his numbers at home — the "in park" split'],
+    ['away', 'Road', 'his numbers on the road'],
+    ['day', 'Day', 'day games'],
+    ['night', 'Night', 'night games'],
+    ['risp', 'RISP', 'with runners in scoring position'],
+    ['ahead', 'Ahead', 'when ahead in the count'],
+    ['behind', 'Behind', 'when behind in the count — the blowup count state'],
+  ]
+  const options = [
+    { key: 'season', label: 'Season' },
+    ...(num('pitcher_hr9_vs_lhb') != null ? [{ key: 'lhb', label: 'vs LHB' }] : []),
+    ...(num('pitcher_hr9_vs_rhb') != null ? [{ key: 'rhb', label: 'vs RHB' }] : []),
+    ...(l3n > 0 ? [{ key: 'l3', label: `Last ${l3n}` }] : []),
+    ...SIT_LABELS.filter(([k]) => sit[k] && sit[k].hr9 != null)
+      .map(([k, label, title]) => ({ key: `sit:${k}`, label, title })),
+  ]
+  const [split, setSplit] = useState('season')
+  if (options.length <= 1) return null
+  const active = options.some((o) => o.key === split) ? split : 'season'
+
+  let stats = []
+  let footer = null
+  if (active === 'season') {
+    stats = [
+      { label: 'HR/9', value: num('pitcher_hr9'), fmt: f2, anchor: 1.15, ceiling: 0.8, tip: 'season homers per nine — warm is a leak, good for the bat' },
+      { label: 'WHIP', value: num('pitcher_whip'), fmt: f2, anchor: 1.28, ceiling: 0.45, tip: 'season walks+hits per inning' },
+      { label: 'ERA', value: num('pitcher_era'), fmt: f2, anchor: 4.10, ceiling: 2.0, tip: 'season earned-run average' },
+      { label: 'HR', value: num('pitcher_hr_allowed'), fmt: f0, anchor: 0, ceiling: 1e9, tip: 'season homers allowed (count, not shaded)' },
+      { label: 'BB/9', value: num('pitcher_bb9'), fmt: f2, anchor: 3.2, ceiling: 1.5, tip: 'season walks per nine' },
+    ]
+  } else if (active === 'lhb' || active === 'rhb') {
+    const side = active === 'lhb' ? 'lhb' : 'rhb'
+    stats = [
+      { label: 'HR/9', value: num(`pitcher_hr9_vs_${side}`), fmt: f2, anchor: 1.15, ceiling: 0.8, tip: `HR/9 vs ${side.toUpperCase()}` },
+      { label: 'WHIP', value: num(`pitcher_whip_vs_${side}`), fmt: f2, anchor: 1.28, ceiling: 0.45, tip: `WHIP vs ${side.toUpperCase()}` },
+      { label: 'HR', value: num(`pitcher_hr_vs_${side}`), fmt: f0, anchor: 0, ceiling: 1e9, tip: 'homers allowed to this side (count)' },
+      { label: 'XBH', value: num(`pitcher_xbh_vs_${side}`), fmt: f0, anchor: 0, ceiling: 1e9, tip: 'extra-base hits allowed to this side (count)' },
+    ]
+    const mix = String(src(`pitcher_primary_mix_vs_${side}`) || '')
+    footer = mix ? `his mix that side: ${mix}` : null
+  } else if (active === 'l3') {
+    const velo = num('pitcher_fb_velo_delta')
+    stats = [
+      { label: 'HR/9', value: num('pitcher_l3_hr9'), fmt: f2, anchor: 1.15, ceiling: 0.8, tip: `last ${l3n} starts` },
+      { label: 'WHIP', value: num('pitcher_l3_whip'), fmt: f2, anchor: 1.28, ceiling: 0.45, tip: `last ${l3n} starts` },
+      { label: 'ERA', value: num('pitcher_l3_era'), fmt: f2, anchor: 4.10, ceiling: 2.0, tip: `last ${l3n} starts` },
+      { label: 'FB Δ', value: velo, fmt: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`, anchor: 0, ceiling: 1.5, tip: 'last start fastball vs his season average — losing velocity is the wear signal', },
+    ]
+    footer = `a direction, not a rate — ${l3n} start${l3n === 1 ? '' : 's'} is a handful of innings · trend: ${clean(src('pitcher_trend_direction'), 'unknown')}`
+  } else {
+    const b = sit[active.slice(4)] || {}
+    const dim = sampleDim(b.bf, 40)
+    stats = [
+      { label: 'HR/9', value: b.hr9, fmt: f2, anchor: 1.15, ceiling: 0.8, tip: 'in this split' },
+      { label: 'WHIP', value: b.whip, fmt: f2, anchor: 1.28, ceiling: 0.45, tip: 'in this split' },
+      { label: 'OPS', value: b.ops, fmt: (v) => v.toFixed(3), anchor: 0.720, ceiling: 0.180, tip: 'OPS against, in this split' },
+      { label: 'HR', value: b.hr, fmt: f0, anchor: 0, ceiling: 1e9, tip: 'homers allowed in this split (count)' },
+      { label: 'IP', value: b.ip, fmt: (v) => v.toFixed(1), anchor: 0, ceiling: 1e9, tip: 'innings in this split (the denominator)' },
+    ]
+    footer = dim.thin ? `${b.bf ?? 0} batters faced — ${dim.title}` : `${b.bf} batters faced`
+  }
+
+  return (
+    <div style={{ margin: '2px 0 12px' }}>
+      <PillRow label="Split" value={active} options={options} onChange={setSplit} />
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+        {stats.map((st) => <SplitStat key={st.label} {...st} />)}
+      </div>
+      {footer && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>{footer}</div>}
+      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 2 }}>
+        warm = good news for the bat · cool = his wall · a split the bot hasn&apos;t published isn&apos;t offered
       </div>
     </div>
   )
@@ -141,6 +186,12 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
   const anchor = useMemo(() => {
     const rows = lineup.map((b) => b?.raw).filter(Boolean)
     return [...rows].sort((a, b) => n(b?.hr_score, 0) - n(a?.hr_score, 0))[0] || null
+  }, [lineup])
+
+  // A RAW row carrying the 98 pitcher_* stat fields, for the tag rules.
+  const tagRow = useMemo(() => {
+    const rows = lineup.map((b) => b?.raw).filter(Boolean)
+    return rows.find((r) => r.pitcher_hr9 != null) || rows[0] || null
   }, [lineup])
 
   const rows = useMemo(() => lineup.map((b) => {
@@ -246,13 +297,22 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.text3, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
           </div>
 
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-            {hr9 != null && <Chip color={hr9 >= 1.4 ? C.orange : C.text2}>HR/9 {hr9.toFixed(2)}</Chip>}
-            {weakSide && <Chip color={C.orange}>Weak vs {weakSide}</Chip>}
-            {clean(src('pitcher_attack_tag'), '') !== '—' && <Chip color={C.text2}>{clean(src('pitcher_attack_tag'))}</Chip>}
-            {src('pitcher_low_k_flag') && <Chip color={C.orange}>Low K</Chip>}
-            {src('weak_pitcher_flag') && <Chip color={C.orange}>Weak arm</Chip>}
-          </div>
+          {/* THE TAG ROW (rebuilt 2026-08-23) — the finding, above the
+              evidence. The old chip row (attack tag / Low K / Weak arm)
+              rides inside it as extraChips, excluded from the blowup count:
+              one finding, one surface, one vocabulary. tagRow is a RAW
+              lineup row — groupPitchers() builds identity-only objects, and
+              handing one of those to the tags renders exactly like "this
+              arm has no weaknesses" (the 08-22 bug, caught by rendering). */}
+          <PitcherTags
+            row={tagRow}
+            extraChips={[
+              weakSide ? { label: `Weak vs ${weakSide}`, why: 'the bot’s own split read' } : null,
+              clean(src('pitcher_attack_tag'), '') !== '—' && clean(src('pitcher_attack_tag'), '') ? { label: clean(src('pitcher_attack_tag')), why: 'the bot’s coarse attack bucket — three buckets, not independent of the measured tags' } : null,
+              src('pitcher_low_k_flag') ? { label: 'Low K', why: 'the bot’s low-strikeout flag' } : null,
+              src('weak_pitcher_flag') ? { label: 'Weak arm', why: 'the bot’s weak-pitcher flag — fired on 37 of 59 measured arms, informative but not independent' } : null,
+            ]}
+          />
 
           {/* the at-a-glance row — see Tile above */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 6 }}>
@@ -263,8 +323,8 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             <b style={{ color: '#60a5fa' }}>blue</b> = his strength — hover any tile for what it means
           </div>
 
-          {/* Season / vsLHB / vsRHB, the reference-tool grid — see SplitsGrid. */}
-          <SplitsGrid src={src} />
+          {/* the splits, as a control — see SplitsControl. */}
+          <SplitsControl src={src} />
 
           {/* 🧭 the story in sentences — same flow pass the batter modal got
               (2026-08-15). All from fields already resolved above. */}
@@ -279,10 +339,12 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             }}
           />
 
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
-            {TABS.map((t) => (
-              <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
-            ))}
+          <div style={{ marginBottom: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
+            <PillRow
+              value={tab}
+              options={TABS.map((t) => ({ key: t.key, label: t.label }))}
+              onChange={setTab}
+            />
           </div>
 
           {tab === 'matchup' && (
