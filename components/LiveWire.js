@@ -492,7 +492,11 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                     <span style={{ fontSize: 11, fontWeight: 700, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                       {nameOf(p)}
                     </span>
-                    {due && <span title={due === '🎤' ? 'At the plate RIGHT NOW' : 'On deck'} style={{ fontSize: 10, flexShrink: 0 }}>{due}</span>}
+                    {/* .live-marker: Quiet mode hides these two glyphs — a
+                        running "he is up NOW" notification on a board you are
+                        trying to read. The row, the name and every number on
+                        it stay exactly where they were. */}
+                    {due && <span className="live-marker" title={due === '🎤' ? 'At the plate RIGHT NOW' : 'On deck'} style={{ fontSize: 10, flexShrink: 0 }}>{due}</span>}
                     {/* A stopped game says so on the row itself — the reason a
                         pick isn't moving belongs beside the pick, not only in
                         the alert strip above it. */}

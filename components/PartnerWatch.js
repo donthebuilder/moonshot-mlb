@@ -139,7 +139,7 @@ export default function PartnerWatch({ players = [], pairHistorySummary, onPlaye
         <span style={{ fontSize: 12, fontWeight: 900 }}>👀 His partners went — he didn&apos;t</span>
         <span style={{ fontSize: 9, color: C.text3 }}>a watch, not a signal</span>
       </div>
-      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.55, marginBottom: 7, maxWidth: 620 }}>
+      <div className="quiet-note" style={{ fontSize: 10, color: C.text3, lineHeight: 1.55, marginBottom: 7, maxWidth: 620 }}>
         <b style={{ color: C.text2 }}>What this answers:</b> who on tonight&apos;s slate had the most of
         his usual co-homer partners go deep last night while he played and didn&apos;t. Sorted by how
         many of his partners went, then by how strong the pair is.

@@ -1,6 +1,6 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
-import { n, clean } from '../lib/player'
+import { n, clean, txt } from '../lib/player'
 import { compactRole, gradeFor, bestBet } from '../lib/scoring'
 import { quoteFor, fmtOdds, fairOdds, hrPerGame, impliedPct } from '../lib/odds'
 
@@ -156,6 +156,85 @@ export default function PlayerRead({ p, odds }) {
           {' '}— and he is weakest against <b style={{ color: matchesWeak ? C.orange : C.text }}>{weakSide}</b>
           {matchesWeak && <b style={{ color: C.orange }}>, which is this hitter&apos;s side ✓</b>}
         </>}.
+      </Line>
+    )
+  }
+
+  // ── THE MISTAKE (2026-08-23) ─────────────────────────────────────────────
+  //
+  // Donovan: "meat ball percent needs to be used in hr for sure hand splits and
+  // everything. wtf ."
+  //
+  // The bot now publishes an arm's middle-middle rate AGAINST THIS BAT'S SIDE
+  // and folds it into the HR score, plus meatball_fit_score — the edge between
+  // sides crossed with whether this bat punishes a mistake — as a graded
+  // column worth zero points. This is where a reader meets it, in the same
+  // sentence voice as everything else here, because a number nobody sees was
+  // the whole complaint.
+  //
+  // FOUR WAYS IT STAYS SILENT, and they are not the same:
+  //   · the field is absent entirely — a slate published before this shipped.
+  //     Renders nothing at all; a line saying "no meatball data" on every
+  //     hitter of every old slate would be worse than the gap it describes.
+  //   · status "missing" — no Statcast pitch data for this arm. Says so, once,
+  //     and only when the reader is already looking at a matchup line.
+  //   · status "no_side_split" — real rate, no usable hand split. Prints the
+  //     overall number and does not claim a split it does not have.
+  //   · a genuinely even arm — the note itself says "even both ways" and the
+  //     line reads as the non-event it is.
+  const mbNote = txt(p?.meatball_fit_note)
+  const mbFit = n(p?.meatball_fit_score, null)
+  const mbEdge = n(p?.meatball_edge_pp, 0)
+  const mbStatus = String(p?.meatball_fit_status || '')
+  if (mbNote && mbStatus && mbStatus !== 'missing') {
+    lines.push(
+      <Line key="meatball" icon="🍝">
+        <b style={{ color: C.text }}>The mistake:</b> he leaves{' '}
+        <B col={mbEdge >= 1 ? C.orange : C.text}>{mbNote}</B>
+        {mbFit != null && mbFit > 0 && <>
+          {' '}— a <B col={mbFit >= 65 ? C.orange : mbFit <= 35 ? '#38bdf8' : C.text}>{mbFit.toFixed(0)}</B> on
+          the bot&apos;s mistake-fit column, which crosses that with what this bat does to one
+        </>}.
+        {/* NO trailing "not enough pitches to split him" clause here. The bot's
+            own note already ends with exactly that sentence on a no_side_split
+            row, and printing it twice in one line is how a caveat stops being
+            read — caught in the render:
+            "…not enough pitches to split by hand — a 75 on the bot's
+             mistake-fit column… Not enough pitches to split him by hand, so
+             that is his rate against everybody."
+            One source for the caveat, and it is the one that knows the numbers. */}
+      </Line>
+    )
+  }
+
+  // ── THE RUN (2026-08-23) ─────────────────────────────────────────────────
+  //
+  // The other half of the six stats Donovan asked for. steal_risk_score is the
+  // bot's steal-spot model — how often he runs, how easily this arm gets run
+  // on, whether the catcher can throw, scaled by how often he reaches base.
+  // Worth zero points in every other model on this site.
+  //
+  // It only speaks for a man who actually runs. Status "no_runner" is a
+  // REFUSAL, not a low score, and printing "steal spot: 0" for a catcher who
+  // has never attempted a base would be the exact thing the model was fixed to
+  // stop doing. Silence is the correct output there.
+  const steal = n(p?.steal_risk_score, null)
+  const stealStatus = String(p?.steal_risk_status || '')
+  const catcher = txt(p?.opp_catcher_name)
+  const catcherRate = n(p?.opp_catcher_cs_rate, null)
+  if (steal != null && steal > 0 && stealStatus && stealStatus !== 'no_runner' && stealStatus !== 'missing') {
+    lines.push(
+      <Line key="steal" icon="🏃">
+        <b style={{ color: C.text }}>The run:</b> a{' '}
+        <B col={steal >= 60 ? C.orange : steal <= 35 ? '#38bdf8' : C.text}>{steal.toFixed(0)}</B> steal
+        spot tonight — {txt(p?.steal_risk_note)}
+        {catcher && catcherRate != null && <>
+          {' '}·{' '}<B col={catcherRate <= 0.16 ? C.orange : catcherRate >= 0.28 ? '#38bdf8' : C.text}>{catcher}</B> is
+          catching{p?.opp_catcher_source === 'roster' ? <span style={{ color: C.text3 }}> (lineup not posted — likeliest man)</span> : null}
+        </>}.
+        {stealStatus === 'thin' && <span style={{ color: C.text3 }}>
+          {' '}Half the matchup is unmeasured, so that score is built on what landed.
+        </span>}
       </Line>
     )
   }

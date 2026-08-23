@@ -127,7 +127,7 @@ function Section({ title, answers, sub, children }) {
     <div style={{ marginBottom: 22 }}>
       <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>{title}</div>
       {answers && (
-        <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
+        <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
           <b style={{ color: C.text2 }}>What this answers:</b> {answers}
         </div>
       )}

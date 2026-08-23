@@ -1,9 +1,10 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, MARKETS } from '../lib/gamelogs'
+import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, streakRuns, MARKETS } from '../lib/gamelogs'
+import StreakRibbon, { StreakLine } from './StreakRibbon'
 import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
-import { verdictInk, verdictWash } from '../lib/scales'
+import { alpha, verdictInk, verdictWash } from '../lib/scales'
 
 // PROP GRID v5 — PATTERNS, not furniture.
 //
@@ -61,6 +62,52 @@ const VAL = {
   k1: (g) => g.k,
 }
 
+// ⚡ THE STREAK LENS'S FIVE CELLS.
+//
+// Its own component because it is five <td>s that need the verdict pair and a
+// ribbon, and inlining that in the middle of an already-long table row is how
+// the price columns ended up unreadable. Everything it reads comes off the row
+// the matrix already built — no extra pass over the log.
+function StreakCells({ row, on }) {
+  const sr = row.sr
+  const cur = sr?.current
+  const warm = verdictInk(true).color
+  const cool = verdictInk(false).color
+  const cell = {
+    textAlign: 'center', fontSize: 11, fontWeight: 800, padding: '3px 4px',
+    borderRadius: 6, whiteSpace: 'nowrap',
+    outline: on ? '1px solid rgba(249,115,22,.25)' : 'none',
+  }
+  if (!sr) {
+    return (<><td style={cell} colSpan={5}><span style={{ color: C.text3, fontWeight: 600 }}>no games in view</span></td></>)
+  }
+  return (
+    <>
+      <td style={{ ...cell, fontSize: 12.5, fontWeight: 900, color: cur?.ok ? warm : cool }}
+          title={cur ? `${cur.ok ? 'Cleared' : 'Missed'} ${row.label} ${cur.len} straight — newest games first` : ''}>
+        {cur ? `${cur.ok ? 'W' : 'L'}${cur.len}` : '—'}
+      </td>
+      {/* THE BREAK. The one thing a streak number alone can never carry: what
+          this run ended, and the night it ended on. */}
+      <td style={{ ...cell, fontSize: 9.5, fontWeight: 700, color: C.text2 }}
+          title={sr.ended
+            ? `Before this run he ${sr.ended.ok ? 'cleared' : 'missed'} ${row.label} ${sr.ended.len} straight${cur?.broke ? `, and it ended ${cur.broke.home ? 'vs' : 'at'} ${cur.broke.opp || 'his opponent'} on ${cur.broke.date}` : ''}.`
+            : 'This is his first run of the season in this view — nothing behind it to have broken.'}>
+        {sr.ended ? `${sr.ended.ok ? 'W' : 'L'}${sr.ended.len}${cur?.broke?.date ? ` · ${cur.broke.date}` : ''}` : '—'}
+      </td>
+      <td style={{ ...cell, color: sr.best ? warm : C.text3 }} title={`His longest run of clears on ${row.label} in this view`}>
+        {sr.best || '—'}
+      </td>
+      <td style={{ ...cell, color: sr.drought ? cool : C.text3 }} title={`His longest run of misses on ${row.label} in this view`}>
+        {sr.drought || '—'}
+      </td>
+      <td style={{ ...cell, padding: '3px 6px', minWidth: 150 }}>
+        <StreakRibbon streak={sr} label={row.label} height={11} showEnds={false} />
+      </td>
+    </>
+  )
+}
+
 export default function ThresholdGrid({ playerId, odds }) {
   const [data, setData] = useState(null)
   const [ls, setLs] = useState(null)
@@ -88,6 +135,14 @@ export default function ThresholdGrid({ playerId, odds }) {
   const [after, setAfter] = useState('all')     // the game after a blank / a big one
   const [span, setSpan] = useState('L20')
   const [selGame, setSelGame] = useState(null)
+  // ⚡ THE STREAK LENS (2026-08-23, Donovan: "adds breask in streaks and als
+  // add streask to palayer model too with toggles on the props grid or
+  // somehting"). One toggle, one table. The matrix's columns are the only
+  // thing that changes — same eight markets, same order, same row click, same
+  // active line — because a second table would be a second place to keep the
+  // market list in step, and the whole point of the matrix is that every
+  // market is answering the SAME question at once.
+  const [lens, setLens] = useState('rates')
 
   useEffect(() => {
     let alive = true
@@ -209,7 +264,13 @@ export default function ThresholdGrid({ playerId, odds }) {
     // His own break-even: the price at which THIS rate is exactly fair. That's
     // the "true price" — everything longer is value, everything shorter isn't.
     const seasonPct = cells[3]?.pct ?? cells[2]?.pct ?? null
-    return { key: mk.key, label: `${t}+ ${SHORT[mk.key]}`, cells, lsCell, stk,
+    // The full run sequence, not just the live one. Computed off the SAME
+    // filtered pool the rates use, so "on the road vs righties" reshapes the
+    // streaks exactly as it reshapes the percentages — a streak inside a
+    // situation is a different streak, and showing the unfiltered one beside
+    // filtered rates would quietly compare two different bats.
+    const sr = streakRuns(pool, clr)
+    return { key: mk.key, label: `${t}+ ${SHORT[mk.key]}`, cells, lsCell, stk, sr,
              quote: q, fair: fairOdds(seasonPct), seasonPct }
   })
 
@@ -264,19 +325,51 @@ export default function ThresholdGrid({ playerId, odds }) {
     if (ab.pct > bl.pct) push('🔥', 'Carries momentum', ab, bl, 'the game after a big one vs otherwise')
     else push('🧊', 'Cools off after big games', bl, ab, 'fade the encore')
   }
-  let stkAll = 0
-  if (full.length) {
-    const first = clears(full[0]); let k = 0
-    for (const g of full) { if (clears(g) === first) k++; else break }
-    stkAll = first ? k : -k
-  }
-  if (Math.abs(stkAll) >= 4) {
+  // ── STREAKS ARE A PATTERN (2026-08-23) ───────────────────────────────────
+  // Donovan: "i wanted the streaks in the what repeats section."
+  //
+  // They belong here. Every other card in this section is a claim about what
+  // his log REPEATS, and "he goes on seven-game tears and two-game holes" is
+  // exactly that — it just happened to live in a separate lens. So the runs
+  // come in as first-class patterns, ranked against venue and staff and form
+  // on the same strength scale, and the section gets the ribbon underneath so
+  // the shape is visible and not only asserted.
+  //
+  // Computed on the UNFILTERED log, like every other pattern here — the
+  // filtered version lives in the matrix's ⚡ lens, where the chips that
+  // produced it are visible.
+  const runsAll = streakRuns(full, clears)
+  const stkAll = runsAll?.current ? (runsAll.current.ok ? runsAll.current.len : -runsAll.current.len) : 0
+  if (Math.abs(stkAll) >= 3) {
     patterns.push({
       icon: stkAll > 0 ? '⚡' : '🥶',
       claim: stkAll > 0 ? `Cleared ${dynLabel} ${stkAll} straight` : `Missed ${dynLabel} ${-stkAll} straight`,
-      detail: stkAll > 0 ? 'live streak, newest games' : 'live cold run, newest games',
-      strength: Math.abs(stkAll) * 12,
+      detail: runsAll?.ended
+        ? `live run · it broke a ${runsAll.ended.len}-game ${runsAll.ended.ok ? 'run' : 'drought'}${runsAll.current?.broke?.date ? ` on ${runsAll.current.broke.date}` : ''}`
+        : 'live run, newest games',
+      // A live run is worth ranking above a marginal split but never above a
+      // 40-point venue gap on 60 games, so it scales with length and stops.
+      strength: Math.min(320, Math.abs(stkAll) * 26),
     })
+  }
+  // HOW HE FAILS is a pattern too, and a different one from how he succeeds.
+  // A bat with a 6-game best and a 2-game worst is streaky UP; one with a
+  // 3-game best and an 11-game worst has a rate held up by a few explosions.
+  if (runsAll && full.length >= 25) {
+    const tears = runsAll.best, holes = runsAll.drought
+    if (tears >= 5 && tears >= holes * 2) {
+      patterns.push({
+        icon: '🌊', claim: `Runs in tears on ${dynLabel}`,
+        detail: `best run ${tears} straight vs a longest cold run of ${holes} — when he is on, he stays on`,
+        strength: 140 + tears * 8,
+      })
+    } else if (holes >= 6 && holes >= tears * 2) {
+      patterns.push({
+        icon: '💤', claim: `Disappears for stretches on ${dynLabel}`,
+        detail: `longest cold run ${holes} straight vs a best run of ${tears} — the rate is a few good weeks`,
+        strength: 140 + holes * 8,
+      })
+    }
   }
   patterns.sort((a, b) => b.strength - a.strength)
   const topPatterns = patterns.slice(0, 4)
@@ -286,6 +379,36 @@ export default function ThresholdGrid({ playerId, odds }) {
   const maxVal = Math.max(thr + 1, ...filteredLog.map(valFor), 1)
   const unit = 42 / maxVal
   const showNums = filteredLog.length <= 28
+  // ── THE STREAK, ENCODED IN THE CHART (2026-08-23) ─────────────────────────
+  // Donovan: "id like to see combo of those if that makes since that bar chart
+  // with the streaks encoded in it."
+  //
+  // The bars already say cleared-or-not one game at a time; what they cannot
+  // say is that four of them were consecutive. This is that, as a band welded
+  // under the bars: each run becomes one continuous segment spanning its
+  // games, warm for clears and cool for misses, with the length printed on
+  // runs of three or more. Same twenty games, same order, one more dimension.
+  //
+  // Chart order is OLDEST-LEFT (the map below reverses filteredLog), so the
+  // runs are computed on the reversed array too — computing them newest-first
+  // and drawing them oldest-left would mirror every segment onto the wrong
+  // games, which is the kind of bug that looks completely fine.
+  const chartLog = [...filteredLog].reverse()
+  const runMark = (() => {
+    const out = new Array(chartLog.length).fill(null)
+    let i = 0
+    while (i < chartLog.length) {
+      const ok = clears(chartLog[i])
+      let j = i
+      while (j < chartLog.length && clears(chartLog[j]) === ok) j++
+      const len = j - i
+      for (let k = i; k < j; k++) {
+        out[k] = { ok, len, first: k === i, last: k === j - 1, mid: k === i + ((len - 1) >> 1) }
+      }
+      i = j
+    }
+    return out
+  })()
 
   const chip = (on) => ({
     padding: '2px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
@@ -299,7 +422,18 @@ export default function ThresholdGrid({ playerId, odds }) {
     <div style={{ marginTop: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 12.5, fontWeight: 800 }}>🎯 Props</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>every market, every window — click a row to open it</span>
+        <span style={{ fontSize: 9.5, color: C.text3, flex: 1, minWidth: 0 }}>
+          {lens === 'rates'
+            ? 'every market, every window — click a row to open it'
+            : 'every market as a run of clears and misses — hover a band for the night it broke'}
+        </span>
+        <span style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+          {[['rates', '📊 Rates', 'How often he clears each bar, by window'],
+            ['streaks', '⚡ Streaks', 'The same eight markets as runs: what he is on now, what broke it, his best run and his longest drought'],
+          ].map(([k, lbl, tip]) => (
+            <button key={k} onClick={() => setLens(k)} title={tip} style={chip(lens === k)}>{lbl}</button>
+          ))}
+        </span>
       </div>
 
       <div style={{
@@ -319,7 +453,20 @@ export default function ThresholdGrid({ playerId, odds }) {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px' }}>Market</th>
-                {WINDOWS.map(([w]) => (
+                {lens === 'streaks' ? (
+                  <>
+                    <th title="What he is on RIGHT NOW — consecutive most-recent games, clearing or missing"
+                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>NOW</th>
+                    <th title="The run this one broke, and the date it broke on. Blank on his first run of the season — there is nothing behind it to have ended."
+                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>BROKE</th>
+                    <th title="His longest run of clears this season — the yardstick for whether tonight's streak is long FOR HIM"
+                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>BEST</th>
+                    <th title="His longest run of misses this season"
+                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>COLD</th>
+                    <th title="Every run across his last 40 games in view, newest on the left. Warm bands are clears, cool bands are misses; each boundary is a break."
+                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px', minWidth: 150 }}>THE RUN</th>
+                  </>
+                ) : <>{WINDOWS.map(([w]) => (
                   <th key={w} onClick={() => { setSpan(w); setSelGame(null) }}
                     title="Click — the chart below shows this window"
                     style={{
@@ -334,6 +481,7 @@ export default function ThresholdGrid({ playerId, odds }) {
                     style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>PRICE</th>
                 <th title="His TRUE price — the number at which his own rate for this row breaks even. The book paying longer than this is value; shorter is not."
                     style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>TRUE</th>
+                </>}
               </tr>
             </thead>
             <tbody>
@@ -347,7 +495,9 @@ export default function ThresholdGrid({ playerId, odds }) {
                       color: on ? C.orange : C.text, padding: '3px 6px',
                       borderLeft: `3px solid ${on ? C.orange : 'transparent'}`, borderRadius: 4,
                     }}>{row.label}</td>
-                    {row.cells.map((c, ci) => (
+                    {lens === 'streaks' ? (
+                      <StreakCells row={row} on={on} />
+                    ) : <>{row.cells.map((c, ci) => (
                       <td key={ci} title={c ? `cleared ${c.ok} of ${c.n}` : 'no games in this window'} style={{
                         textAlign: 'center', fontSize: 12, fontWeight: 800, padding: '3px 4px',
                         borderRadius: 6, background: cellBg(c?.pct),
@@ -403,6 +553,7 @@ export default function ThresholdGrid({ playerId, odds }) {
                       textAlign: 'center', fontSize: 10.5, fontWeight: 700, padding: '3px 4px',
                       color: C.text2, whiteSpace: 'nowrap',
                     }}>{row.fair ? fmtOdds(row.fair) : '—'}</td>
+                    </>}
                   </tr>
                 )
               })}
@@ -416,17 +567,33 @@ export default function ThresholdGrid({ playerId, odds }) {
           display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline',
           fontSize: 8.5, color: C.text3, margin: '5px 6px 0', fontFamily: NUM_FONT,
         }}>
-          <span>% of games cleared:</span>
-          <b style={{ color: C.orange }}>60%+</b>
-          <b style={{ color: '#FCD34D' }}>40–59</b>
-          <b style={{ color: C.orange }}>25–39</b>
-          <b style={{ color: C.blue }}>under 25</b>
-          <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>
-          <span style={{ width: '100%', height: 0 }} />
-          <span><b style={{ color: C.text2 }}>PRICE</b> = what the book pays ·{' '}
-            <b style={{ color: C.text2 }}>TRUE</b> = the price his own rate deserves ·{' '}
-            <b style={{ color: C.orange }}>warm</b> = they&apos;re paying more than he&apos;s worth ·{' '}
-            <b>@3+</b> = the book is on a different number</span>
+          {lens === 'streaks' ? (
+            <>
+              <span><b style={{ color: verdictInk(true).color }}>W4</b> = cleared four straight ·{' '}
+                <b style={{ color: verdictInk(false).color }}>L2</b> = missed two straight ·{' '}
+                <b style={{ color: C.text2 }}>BROKE</b> = the run this one ended, and the night it ended on</span>
+              <span style={{ width: '100%', height: 0 }} />
+              <span>THE RUN reads newest-on-the-left — warm bands are clears, cool bands are misses, and every
+                boundary between two bands is a break. Hover a band for the game that turned it. BEST and COLD
+                are his own longest runs each way, which is what makes a streak long or ordinary
+                <b style={{ color: C.text2 }}> for him</b> rather than in the abstract. Every number here obeys the
+                situation chips above: filter to the road and you get his road streaks, not his season ones.</span>
+            </>
+          ) : (
+            <>
+              <span>% of games cleared:</span>
+              <b style={{ color: C.orange }}>60%+</b>
+              <b style={{ color: '#FCD34D' }}>40–59</b>
+              <b style={{ color: C.orange }}>25–39</b>
+              <b style={{ color: C.blue }}>under 25</b>
+              <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>
+              <span style={{ width: '100%', height: 0 }} />
+              <span><b style={{ color: C.text2 }}>PRICE</b> = what the book pays ·{' '}
+                <b style={{ color: C.text2 }}>TRUE</b> = the price his own rate deserves ·{' '}
+                <b style={{ color: C.orange }}>warm</b> = they&apos;re paying more than he&apos;s worth ·{' '}
+                <b>@3+</b> = the book is on a different number</span>
+            </>
+          )}
         </div>
 
         {/* ══ PATTERNS ══ */}
@@ -453,6 +620,18 @@ export default function ThresholdGrid({ playerId, odds }) {
             <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.5 }}>
               No strong pattern on {dynLabel} — his rate holds across venue, opponent quality and recent form.
               Stability is a finding: what you see in the matrix is what you should expect.
+            </div>
+          )}
+          {/* THE RUN, IN THIS SECTION (2026-08-23). The cards above CLAIM a
+              shape; this shows it. Same ribbon the ⚡ lens draws, on the
+              active market and line, so "runs in tears" is a picture and not
+              an adjective. */}
+          {runsAll && (
+            <div style={{ marginTop: 9 }}>
+              <StreakLine streak={runsAll} label={dynLabel} />
+              <div style={{ marginTop: 6 }}>
+                <StreakRibbon streak={runsAll} label={dynLabel} height={12} max={44} showEnds={false} />
+              </div>
             </div>
           )}
           {handsState === 'idle' && (
@@ -561,7 +740,7 @@ export default function ThresholdGrid({ playerId, odds }) {
                 }} title={`his average: ${avgVal.toFixed(1)} per game in view`} />
               )}
               <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
-                {[...filteredLog].reverse().map((g, gi) => {
+                {chartLog.map((g, gi) => {
                   const val = valFor(g)
                   const ok = val >= thr
                   const q = staff?.[g.oppId]
@@ -585,6 +764,36 @@ export default function ThresholdGrid({ playerId, odds }) {
                         boxShadow: isSel ? '0 0 0 1.5px #fff' : ok && val >= thr + 1 ? '0 0 9px rgba(74,222,128,.45)' : 'none',
                       }} />
                       <div style={{ height: 4, borderRadius: 2, marginTop: 3, background: isSel ? '#fff' : oppCol }} />
+                      {/* THE RUN BAND — one continuous segment per streak,
+                          bridged across the flex gap so a run of four reads as
+                          one bar and not four. The numeral sits on the middle
+                          game of runs of three or more; shorter runs are their
+                          own label. */}
+                      {(() => {
+                        const rm = runMark[gi]
+                        if (!rm) return null
+                        const rc = rm.ok ? verdictInk(true).color : verdictInk(false).color
+                        return (
+                          <div style={{ position: 'relative', height: 9, marginTop: 2 }}>
+                            <div style={{
+                              position: 'absolute', top: 0, bottom: 0,
+                              left: rm.first ? 0 : -4, right: rm.last ? 0 : -4,
+                              background: alpha(rc, rm.ok ? 0.16 + 0.1 * Math.min(4, rm.len) : 0.14),
+                              borderTop: `1.5px solid ${alpha(rc, rm.ok ? 0.85 : 0.5)}`,
+                              borderLeft: rm.first ? `1px solid ${alpha(rc, 0.5)}` : 'none',
+                              borderRight: rm.last ? `1px solid ${alpha(rc, 0.5)}` : 'none',
+                              borderRadius: `${rm.first ? 3 : 0}px ${rm.last ? 3 : 0}px ${rm.last ? 3 : 0}px ${rm.first ? 3 : 0}px`,
+                            }} />
+                            {rm.mid && rm.len >= 3 && (
+                              <span style={{
+                                position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                                fontFamily: NUM_FONT, fontSize: 7.5, fontWeight: 900, lineHeight: 1,
+                                color: rc, pointerEvents: 'none',
+                              }}>{rm.len}</span>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
                   )
                 })}
@@ -621,7 +830,10 @@ export default function ThresholdGrid({ playerId, odds }) {
             {filteredLog.length} games of <b style={{ color: C.text2 }}>{dynLabel}</b>, newest right — bar height is the
             count, <span style={{ color: C.orange }}>warm clears the {thr - 0.5} line</span> (white rule), the dashed
             orange rule is his average{staff && <>; the strip under each bar is the opposing staff —{' '}
-            <span style={{ color: C.orange }}>brighter = softer arms</span></>}. Tap a bar to pin that game.
+            <span style={{ color: C.orange }}>brighter = softer arms</span></>}. The band along the bottom is the{' '}
+            <b style={{ color: C.text2 }}>streak</b>: one unbroken segment per run, warm where he kept clearing and
+            cool where he kept missing, with the length on any run of three or more — so four consecutive
+            reads as four and not as four separate bars. Tap a bar to pin that game.
           </div>
         </div>
       </div>

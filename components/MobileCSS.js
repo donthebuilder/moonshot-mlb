@@ -150,23 +150,90 @@ export default function MobileCSS() {
           -webkit-overflow-scrolling: touch; scrollbar-width: none;
         }
         .chip-row::-webkit-scrollbar { display: none; }
+        /* THE BUILDER'S NAME PICKER (2026-08-23). The collapsed height is a
+           whole number of rows on both sizes already (68px — three desktop
+           rows, two phone rows), so only the EXPANDED height needs a phone
+           value: 188px is eight desktop rows but five and a fifth phone ones.
+           212 is six whole ones. */
+        .anchor-chips.tall { max-height: 212px !important; }
+        .anchor-chips::-webkit-scrollbar { display: none; }
       }
 
-      /* ── THE GAME SWITCHER'S ROOM (2026-08-23) ────────────────────────────
-         components/GameSwitcher.js welds a rail to the bottom edge on phones
-         so changing games never costs a scroll back to the top. Two things
-         have to give it room, and both are here rather than inline because
-         both are about the PAGE, not the component:
-           · the main column needs bottom padding, or the last card can never
-             be scrolled clear of the rail — the classic fixed-footer bug
-           · PairTray sticks to the same edge (bottom: 8) and would sit under
-             it, so it lifts above the rail while one is on screen
-         The breakpoint is 760px to match GameSwitcher's own useIsPhone(760);
-         if one moves the other must, or the padding appears with no rail. */
+      /* ── THE GAME SWITCHER (2026-08-23) ───────────────────────────────────
+         It was welded to the bottom edge, so .dashboard-main carried 74px of
+         bottom padding to let the last card clear it and PairTray lifted 66px
+         to avoid sitting underneath. Both were compensation for a FIXED
+         element — and the whole rail moved to a sticky position under the
+         header the day Donovan reported it fighting the phone's own close
+         gesture, so both compensations came out with it. A sticky element in
+         flow needs no room made for it anywhere.
+         All that survives is hiding the rail's own scrollbar. */
       @media (max-width: 760px) {
-        .dashboard-main { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important; }
-        .pair-tray { bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important; }
         .game-switcher-rail::-webkit-scrollbar { display: none; }
+      }
+
+      /* ══ QUIET MODE (2026-08-23) ═══════════════════════════════════════════
+         Donovan: "we need a notifications setting somewhere to minimze the
+         notis on screen for user" — the ❓ banners, the pills and toasts, and
+         the live at-the-plate markers, all behind one switch (lib/quiet.js
+         holds the state; QuietButton in the header flips it; the class lands
+         on <html>).
+
+         Every rule below hides PROSE ABOUT the page, never a number on it.
+         Legends that state a threshold, refusals that say why something is
+         blank, and sample sizes all stay: hiding those would let a figure be
+         read as claiming more than it does, which is the one thing this site
+         is not allowed to do. It is not a display: none on the hard parts.
+
+         Anything can opt in by wearing .quiet-note. */
+      html.quiet .quiet-note,
+      html.quiet .tab-explainer,
+      html.quiet .quiet-toast { display: none !important; }
+      /* The live at-the-plate / on-deck markers (🎤 ⏳) are a running
+         notification on a board you are trying to read. The rows they sit on
+         stay; only the marker goes. */
+      html.quiet .live-marker { display: none !important; }
+
+      /* ── THE HEADER, ON A PHONE (2026-08-23) ──────────────────────────────
+         Donovan: "the header and the things at the top of the screen are too
+         big on mobile."
+         Measured, not guessed: at 390px the sticky header was 232px tall on
+         an 844px viewport — 27% of the screen gone before a single number of
+         the actual slate. The breakdown was 38px of brand, 85px of the slate
+         vitals strip, 34px of clock/theme/date and 32px of tabs.
+
+         The 85px is the whole story: the vitals row is flex-wrap: wrap, so
+         six tiles built for a 1300px header wrapped onto THREE lines. Making
+         it one horizontally-scrollable line is the entire fix — every tile
+         survives, in the same fixed left-to-right order (Games · Projected ·
+         HR tracking · Best game · Weak · Lineups), and you swipe the row
+         instead of the row eating a third of the page. Nothing is hidden and
+         nothing is dropped; the strip just stops wrapping.
+
+         Everything else here is trim: tighter header padding, and the meta
+         row's controls allowed to shrink rather than force a new line. The
+         header still condenses on scroll exactly as it did — this is about
+         the height it starts at. */
+      @media (max-width: 760px) {
+        header > div:first-child { padding: 6px 10px 5px !important; gap: 8px !important; }
+        .hdr-vitals {
+          flex-wrap: nowrap !important;
+          overflow-x: auto;
+          justify-content: flex-start !important;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          flex: 1 1 100% !important;
+          padding-bottom: 1px;
+        }
+        .hdr-vitals::-webkit-scrollbar { display: none; }
+        .hdr-vitals > * { flex-shrink: 0 !important; }
+        .hdr-meta { gap: 7px !important; }
+        /* The sport pills set their own 22px capsule geometry inline; the
+           blanket button-min-height thumb-target rule above would
+           stretch them back into ellipses. A 22px pill sitting inside a 38px
+           brand row is still an easy target, and it is not a control anyone
+           taps by accident. */
+        .sport-switch button { min-height: 22px !important; }
       }
 
       @media (max-width: 520px) {

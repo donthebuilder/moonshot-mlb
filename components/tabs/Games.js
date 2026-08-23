@@ -7,7 +7,7 @@ import Boxes from './Boxes'
 import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
-import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
+import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
@@ -483,9 +483,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           sub="the live batter's room — who is standing in right now, the count, every pitch, tonight's zone and spray"
           right={modeRow}
         />
-        <WhatThis maxWidth={700}>
+        <div className="quiet-note" style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700 }}>
+          <b style={{ color: C.text2 }}>What this answers:</b>{' '}
           what tonight looks like while it is happening — every live game with the man at the plate, the at-bat pitch by pitch, and where his contact is going. It wakes up at first pitch.
-        </WhatThis>
+        </div>
 
         {/* allPlayers, not players, same reason as Boxes below: the live room
             is not subject to the header's team filter — filtering it makes
@@ -572,11 +573,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           mode is for, in words, and it changes when you switch. */}
       {/* Phone: this paragraph is what TabExplainer's ❓ pill is FOR — one
           copy of the page's own explanation, on tap, not two on every visit. */}
-      {/* FOLDED EVERYWHERE NOW (2026-08-23), instead of hidden on a phone and
-          three lines tall on a desktop. The phone copy was already suppressed
-          because TabExplainer's ❓ pill carries it; the desktop copy printed in
-          full on every single visit. Same words, one tap away, both places. */}
-      <WhatThis maxWidth={700}>
+      <div className="quiet-note" style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700, display: isPhone ? 'none' : 'block' }}>
+        <b style={{ color: C.text2 }}>What this answers:</b>{' '}
         {mode === 'lineups'
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
           : mode === 'live'
@@ -589,7 +587,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           // worse than one describing none, so this says what is actually
           // true of the grid you are looking at.
           : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
-      </WhatThis>
+      </div>
 
       {/* Sort control (2026-08-12) — not shown in Lineups mode, where the strip
           is a jump bar, not the thing you're reading. Time is the default and
@@ -640,7 +638,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} summary={stripSummaryFor(games, activeGame)} />
+          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+          </StripFold>
         </div>
       )}
 
@@ -1104,7 +1104,19 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} summary={stripSummaryFor(games, activeGame)} />
+          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+          </StripFold>
+          {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
+              Phone only. It sits here, right under the game grid, and pins
+              itself under the header the moment you scroll past — so every
+              game stays one thumb-tap away however far down the open game's
+              read you have got, without a bar welded to the bottom edge where
+              the phone's own close gesture lives. `scrollTo` is the same
+              handler the grid above uses, so the two selectors can never
+              disagree about what selecting a game does.
+              See components/GameSwitcher.js. */}
+          <GameSwitcher games={games} activeGame={activeGame} onSelect={scrollTo} live={liveByPk} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {games.filter((g) => g.game_pk === activeGame).map((g) => {
                 const picks = picksFor(g)
@@ -1509,13 +1521,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         onPlayerClick={onPlayerClick}
       />
 
-      {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
-          Phone only, fixed to the bottom edge, every game one thumb-tap away
-          no matter how far down the open game's read you have scrolled. See
-          components/GameSwitcher.js for the full note. `scrollTo` is the same
-          handler the top strip uses, so the two selectors can never disagree
-          about what selecting a game does. */}
-      <GameSwitcher games={games} activeGame={activeGame} onSelect={scrollTo} live={liveByPk} />
     </div>
   )
 }
@@ -1554,17 +1559,28 @@ function GameFilterRail({ value, onChange, counts }) {
 // existing MobileFold, and everything inside it is one tap away exactly as
 // before. Desktop renders it bare: MobileFold returns its children untouched
 // above the breakpoint, so nothing about the wide layout changes.
-// ── ONE BAR, NOT TWO (2026-08-23) ───────────────────────────────────────────
-// Donovan: "three different drop downs is dumb and error-seeming."
-// He was looking at a fold inside a fold. This component wrapped <GameStrip>
-// in a MobileFold titled "🏟 All games (15)" — and GameStrip opens with its
-// OWN MobileFold, "🎮 Tonight's games (15)". Two bars, stacked, about the same
-// fifteen games, and you had to open both to reach a card. The wrapper is gone;
-// the one useful thing it said — which game you are reading — is now the
-// summary line on the fold that was already there.
-function stripSummaryFor(games, activeGame) {
+// ── THE GRID FOLDS AT EVERY WIDTH NOW (2026-08-23) ──────────────────────────
+// Donovan: "games chip need to be able to be hidden just like on mobile."
+// It was phone-only on the original argument that a dozen cards are a wall on
+// a phone and three tidy rows on a desktop — true for a BOARD, and wrong for
+// this, because the grid is a selector. You use it once, then read one game
+// for several screens, and a row of cards you are done with is just occupying
+// the top of the page. `rememberKey` makes closing it stick: this is a
+// standing preference, not a momentary one, and reopening it on every visit
+// would be the site overruling him nightly.
+function StripFold({ isPhone, games, activeGame, children }) {
   const open = games.find((g) => g.game_pk === activeGame)
-  return open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : ''
+  return (
+    <MobileFold
+      title="🏟 All games"
+      count={games.length}
+      summary={open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one'}
+      maxWidth={760}
+      always
+      defaultOpen={!isPhone}
+      rememberKey="moonshot_games_fold_v1"
+    >{children}</MobileFold>
+  )
 }
 
 // ── THE OPEN GAME'S SEGMENTED CONTROL (2026-08-15) ──────────────────────────
@@ -1638,7 +1654,11 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
   }
   return (
     <div style={isPhone ? {
-      marginBottom: 10, position: 'sticky', top: stickTop, zIndex: 40,
+      // --gsw-h is the game switcher's live height (0 when it is not on
+      // screen), published by components/GameSwitcher.js. Both bars pin under
+      // the header; without this term they pin to the SAME offset and the
+      // pills sit on top of the rail, which is exactly what happened.
+      marginBottom: 10, position: 'sticky', top: `calc(${stickTop}px + var(--gsw-h, 0px))`, zIndex: 30,
       background: C.bg, margin: '0 -14px 10px', padding: '8px 14px 6px',
       borderBottom: `1px solid ${C.border}`,
     } : { marginBottom: 10 }}>

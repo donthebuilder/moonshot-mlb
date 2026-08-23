@@ -453,7 +453,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
               the archive's verdict on it as a tap-to-open clause. The full
               measured paragraph is behind the headline that names it — read
               the claim, open the receipts. */}
-          <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
+          <div className="quiet-note" style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
             <b style={{ color: C.text }}>What this answers:</b> {ANSWERS[view] || ANSWER_FALLBACK}
             {pr && (
               <>

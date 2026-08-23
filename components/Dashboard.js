@@ -376,17 +376,8 @@ export default function Dashboard() {
   const resultsForSlate = liveMatchesSlate
     ? results
     : (clean(datedResults?.date, '') === slateDate ? datedResults : null)
-  // EVERY CONSUMER TAKES THE GATED COPY — the Results tab included, as of
-  // 2026-08-23. It used to be the exception, on the reasoning that its day
-  // picker owns its own dates. That reasoning only holds for the ARCHIVE half
-  // of the picker; its default view is "Tonight — live", and that view was
-  // rendering the raw live file whatever date the file claimed. So on a stale
-  // publish the one page whose whole job is "here is how tonight went" showed
-  // a finished card from a previous night under a heading that said tonight,
-  // while every other surface correctly showed nothing. Donovan, 2026-08-23:
-  // "the results page is not showing todays result its showing yesterdays as
-  // the live result on the page." The tab now takes the gated copy and is told
-  // what the live file actually claims, so it can say so instead. This used to be three exceptions:
+  // EVERY CONSUMER TAKES THE GATED COPY. The one exception is the Results tab,
+  // whose day picker owns its own dates. This used to be three exceptions:
   // Header rendered "HR capture 78% · 14/18 — how many of tonight's home runs
   // were on the sheet" straight off the raw file, so on a stale-publish day the
   // sticky bar announced a two-week-old capture rate on every tab while the
@@ -485,7 +476,7 @@ export default function Dashboard() {
             {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
-            {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
 
             {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
             {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}

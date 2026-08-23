@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, verdictInk } from '../lib/scales'
+import { airGlance } from '../lib/conditions'
 import { Dial } from './VerdictHero'
 import { useSpot } from '../lib/spotlight'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
@@ -60,6 +61,32 @@ import MobileFold from './MobileFold'
 // "J. Mlodzinski", suffix-aware — surnames alone truncated to "Thornt…" on
 // narrow cards and bare "Lowe" carried no identity (2026-08-07).
 const SUFFIX = new Set(['jr.', 'jr', 'sr.', 'sr', 'ii', 'iii', 'iv'])
+// ── THE NAME YOU CAN ACTUALLY READ (2026-08-23) ─────────────────────────────
+//
+// Donovan: "make sure you can see the full names but dont comprimse the
+// sizing. even if it first name and last intial."
+//
+// The chips were already calling shortName(), which produces "K. Schwarber" —
+// so the FORM was never the problem. Three chips sharing one 264px card row
+// left about thirty pixels of name each, and every card on the slate rendered
+// "TOP J. W… 73 · HR K. Sc… 61 · ALT J. B… 72". A first name and a last
+// initial would have fit in thirty pixels no better.
+//
+// So the row became a stack. Each chip now owns the card's full width, which
+// is enough for any name in the league at this size, and the three scores land
+// in a column you can compare down instead of across. The card grows about
+// 40px and nothing else changed: same three chips, same order, same colours,
+// same pair-leg behaviour, same tooltips, same type sizes.
+//
+// fullName() prefers the whole thing and falls back to "K. Schwarber" only for
+// the handful of names long enough to still overflow — measured against the
+// widest names on a real slate, that is roughly 19 characters at 9.5px in this
+// column. Suffix-aware, same as the two helpers below it.
+const NAME_CAP = 19
+const fullName = (full) => {
+  const f = String(full || '').trim()
+  return f.length <= NAME_CAP ? f : shortName(f)
+}
 const shortName = (full) => {
   const parts = String(full || '').trim().split(/\s+/)
   if (!parts[0]) return ''
@@ -87,7 +114,7 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, summary = '' }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null }) {
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -150,9 +177,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         armsFull: arms.join(' vs '),
         topBat: head?.name ? `${shortName(head.name)} ${hrScore(head).toFixed(0)}` : '',
         topHrw: head?.name && nn(head?.hrw_score) > 0 ? nn(head.hrw_score).toFixed(0) : null,
-        topPick: topPickP?.name ? { name: shortName(topPickP.name), score: topScore(topPickP).toFixed(0), p: topPickP } : null,
-        hrPick: hrPickP?.name ? { name: shortName(hrPickP.name), score: nn(hrPickP.hr_score).toFixed(0), p: hrPickP } : null,
-        altPick: altOk ? { name: shortName(alt.name), score: nn(alt.alt_hr_score).toFixed(0), p: alt } : null,
+        topPick: topPickP?.name ? { name: fullName(topPickP.name), score: topScore(topPickP).toFixed(0), p: topPickP } : null,
+        hrPick: hrPickP?.name ? { name: fullName(hrPickP.name), score: nn(hrPickP.hr_score).toFixed(0), p: hrPickP } : null,
+        altPick: altOk ? { name: fullName(alt.name), score: nn(alt.alt_hr_score).toFixed(0), p: alt } : null,
         altWhy: altOk ? String(alt.alt_reason || '') : '',
         // BOTH lineups (2026-08-07, Donovan): one ✓ hid a half-projected
         // game. Per-team marks now — ✓✓ both posted, ✓◻ one still projected.
@@ -202,6 +229,13 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         hrw: med(gp.map((x) => nn(x?.hrw_score))),
         weak: gp.filter((x) => x?.weak_spot_flag).length,
         venue: head?.venue_name || '',
+        // 🌤 THE AIR (2026-08-23, Donovan: "put littweeahet on the game
+        // chips"). Off the same head row the card already reads for park and
+        // venue — no new field, no new fetch. airGlance returns null when the
+        // slate published no weather for this game, which happens for whole
+        // stretches, and a card printing "0° ·0" on those nights would be
+        // worse than a card printing nothing.
+        wx: airGlance(head),
         batters: gp.length,
         // MORE INTUITIVE SORTS (2026-08-15, Donovan: "add more intuitive
         // game sorts"). Both come off rows this card already has — no new
@@ -272,12 +306,8 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
   // without opening it.
   const main = cards.find((c) => c.gsRank === 1) || cards[0]
   const upcoming = cards.filter((c) => !c.past).length
-  // The caller can name it instead (2026-08-23): the Games tab used to wrap
-  // this component in a SECOND MobileFold just to say which game is open, so a
-  // phone got two stacked bars about the same fifteen games. That wrapper is
-  // gone and its summary moved here.
-  const foldSummary = summary || (`${cards.length} games · 🌋 ${main.matchup} ${main.gs.toFixed(0)}`
-    + (upcoming < cards.length ? ` · ${upcoming} still to come` : ''))
+  const foldSummary = `${cards.length} games · 🌋 ${main.matchup} ${main.gs.toFixed(0)}`
+    + (upcoming < cards.length ? ` · ${upcoming} still to come` : '')
 
   return (
     <MobileFold
@@ -441,6 +471,19 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                         available: the dial's tooltip carries the rank, and the
                         sort row above already orders by whatever you asked for.
                         MAIN EVENT survives because it is one card a slate. */}
+                    {/* 🌤 the air, compressed to one readable clause. Warm
+                        when the ball is carrying, cool when it is dead, grey
+                        when tonight's conditions do not claim either — the
+                        same airVerdict() the deep-dive speaks in words. The
+                        full sentence, humidity and rain included, is the
+                        title. */}
+                    {c.wx && (
+                      <span title={c.wx.title} style={{
+                        whiteSpace: 'nowrap', cursor: 'help', fontWeight: 700,
+                        color: c.wx.tone === 'carrying' ? verdictInk(true).color
+                          : c.wx.tone === 'dead' ? verdictInk(false).color : C.text3,
+                      }}>{c.wx.text}</span>
+                    )}
                     {band.word && (
                       <span style={{ fontSize: 8.5, fontWeight: 900, color: accent, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
                         {band.word}
@@ -481,7 +524,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                   the same standing-highlight wash — rounder, roomier, and on
                   the card's own surface instead of a flat bg3 slab. */}
               {(c.topPick || c.hrPick || c.altPick) && (
-                <div style={{ display: 'flex', gap: 5, minWidth: 0, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                   {[['TOP', c.topPick, C.yellow, "The bot's TOP pick in this game"],
                     ['HR', c.hrPick, C.orange, "The bot's HR pick in this game"],
                     ['ALT', c.altPick, C.purple, c.altWhy || "The bot's secondary HR look in this game"],
@@ -493,8 +536,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                       ].filter(Boolean).join('\n')}
                       onClick={pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined}
                       style={{
-                        display: 'inline-flex', gap: 5, alignItems: 'baseline',
-                        minWidth: 86, flex: '1 1 31%',
+                        display: 'flex', gap: 7, alignItems: 'baseline', minWidth: 0,
                         fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text2,
                         cursor: pairing ? 'pointer' : 'inherit',
                         border: `1px solid ${isLeg(pk2.p) ? cc : C.border}`,

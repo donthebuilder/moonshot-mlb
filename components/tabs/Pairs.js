@@ -1741,6 +1741,14 @@ export function GroupTicketBuilder({
   // ticket it returns. Null = the behaviour this component always had.
   pinnedId = null,
   pinnedIds = null,
+  // ── MOUNTED INSIDE THE MERGED BUILDER (2026-08-23) ──────────────────────
+  // Donovan: "i dont like that its like two separate machines on one page."
+  // components/Builder.js now wraps this and PairBuilder in ONE bordered
+  // machine with one heading and a Both/Tickets/Partners switch. A second
+  // "🧱 Build from the groups" heading eleven pixels under the first one is
+  // precisely the thing that made it read as two products, so the host
+  // suppresses it. Every other caller still gets it.
+  bare = false,
   pinnedName = '',
 }) {
   // GROUPS DEFAULT TO THE PIN'S OWN DESIGNATIONS (2026-08-18). Without this,
@@ -1862,14 +1870,16 @@ export function GroupTicketBuilder({
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-        <span style={{ fontSize: 13, fontWeight: 900 }}>
-          🧱 {(pinnedIds?.length || pinnedId) ? `Build around ${pinnedName || 'your hitters'}` : 'Build from the groups'}
-        </span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-          two or more of the bot’s five designations, crossed
-        </span>
-      </div>
+      {!bare && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+          <span style={{ fontSize: 13, fontWeight: 900 }}>
+            🧱 {(pinnedIds?.length || pinnedId) ? `Build around ${pinnedName || 'your hitters'}` : 'Build from the groups'}
+          </span>
+          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+            two or more of the bot’s five designations, crossed
+          </span>
+        </div>
+      )}
       {pinNote && (
         <div style={{
           fontSize: 10.5, lineHeight: 1.6, marginBottom: 8, maxWidth: 820,
@@ -1879,7 +1889,11 @@ export function GroupTicketBuilder({
         </div>
       )}
 
-      <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.7, marginBottom: 9, maxWidth: 860 }}>
+      {/* .quiet-note: nine lines of measured rates that are load-bearing the
+          first time and furniture the fiftieth. Quiet mode hides it; the
+          per-leg bars below state their own rate either way, so nothing a
+          number MEANS goes with it. */}
+      <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.7, marginBottom: 9, maxWidth: 860 }}>
         The bot designates exactly one hitter per group per game, so a combination of groups is a
         real object: pick two and you are choosing between one candidate per game on each side.
         {' '}Each bar is what it is regardless of whose name is on it — measured over{' '}
@@ -1988,6 +2002,11 @@ export function GroupTicketBuilder({
           panel. It is written from LEG_SIGNALS itself so a rate can never
           drift from the one the library carries, and back-to-back — the one he
           named first — is the one that has to say it has no rate. */}
+      {/* NOT .quiet-note, deliberately. This paragraph is the one place that
+          says WHICH signals have a graded number behind them and which have
+          never been measured at all — back-to-back claims no rate, and hiding
+          that would let a filter chip read as evidence. Quiet mode hides prose
+          ABOUT the page; this changes what the chips above it MEAN. */}
       <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.9, margin: '14px 0 4px', maxWidth: 860 }}>
         <b style={{ color: C.text2 }}>What each signal has actually measured.</b>{' '}
         {LEG_SIGNALS.map((s, i) => (
@@ -2000,7 +2019,11 @@ export function GroupTicketBuilder({
         ))}
       </div>
 
-      <div style={{
+      {/* .quiet-note: how the ranking works, which is worth reading once and
+          is furniture after that. Every leg below still states its own bar and
+          names its own reserved signal, so nothing a number MEANS goes with
+          it — unlike the paragraph above, which stays. */}
+      <div className="quiet-note" style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.9, maxWidth: 860,
         marginBottom: 12, display: groups.length < 2 ? 'none' : 'block',
       }}>

@@ -11,10 +11,12 @@ import { STATE, alpha } from '../../lib/scales'
 import { penStatsFor, fetchPenFatigue, penTier, penFrom, penLineParts, penWorkParts, penWorkSentence } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import { groupPitchers } from '../../lib/data'
-import { n, clean } from '../../lib/player'
+import { n, clean, surname } from '../../lib/player'
 import { pitcherOverall } from '../../lib/scoring_additions'
 import { PanelTitle, Empty, Chip, btnStyle, Band } from '../ui'
 import { rankArms, armFormParts, armFormSentence, hrLuckPointers } from '../../lib/armLeak'
+import { Dial } from '../VerdictHero'
+import { verdictInk } from '../../lib/scales'
 import { airParts, airSentence, airVerdict } from '../../lib/conditions'
 import DenseTable from '../DenseTable'
 import PitcherSpots from '../PitcherSpots'
@@ -570,6 +572,110 @@ function LineupRow({ b, onPlayerClick }) {
   )
 }
 
+// ══ THE ATTACK CARD, REBUILT (2026-08-23) ═══════════════════════════════════
+//
+// Donovan, three times now: "the pitcher page — so much reaching, not enough
+// give and go info. good info just presented bad." "i dk what im looking at."
+// "too much on mobile." And, asked whether the arsenal or the splits should
+// lead: "both. want the both to look better."
+//
+// The old card was eleven numbers in three monospace strips with no hierarchy
+// — HR/9, ERA, WHIP, weak spots, worst-on, L3 HR/9, pen ERA, pen attack, air,
+// then the bats. Every one of them true, none of them ordered, and the actual
+// DECISION (attack this arm, with these three) sat at the bottom under all of
+// it. That is what "reaching" means: the reader doing the sorting the card
+// should have done.
+//
+// So it has a reading order now, and it is the same one every time:
+//
+//   1. THE VERDICT   the dial, the name, and one plain sentence naming the
+//                    single worst thing about him tonight.
+//   2. WHAT HE GIVES the arsenal half — the damage he allows, and whether it
+//                    is getting worse. Labelled tiles, not a mono strip.
+//   3. WHO GETS HIM  the splits half — which side he bleeds to, which lineup
+//                    spots, and the three bats to do it with.
+//
+// "Both" is answered by giving each half its own titled band rather than
+// picking a winner: on a phone you read one, then the other, and the labels
+// tell you which question you are in. The bullpen and the air moved into the
+// existing fold, because they are about the game and not about the arm.
+//
+// Nothing was deleted. Every figure the old card printed is still here, in a
+// tile with a label instead of a mono run-on, and the folded read is unchanged.
+
+/** One labelled figure. The label is the point — a bare 1.73 is the reaching. */
+function ArmStat({ label, value, sub, tone, tip }) {
+  const col = tone === 'hot' ? verdictInk(true).color
+    : tone === 'cold' ? verdictInk(false).color : C.text
+  return (
+    <span title={tip} style={{
+      flex: '1 1 68px', minWidth: 68, padding: '5px 8px', borderRadius: 9,
+      border: `1px solid ${tone ? alpha(col, 0.32) : C.border}`,
+      background: tone ? alpha(col, 0.07) : C.glass,
+      cursor: tip ? 'help' : 'default',
+    }}>
+      <span style={{
+        display: 'block', fontSize: 7.5, fontWeight: 800, letterSpacing: '.09em',
+        color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>{label}</span>
+      <span style={{
+        display: 'block', fontSize: 13.5, fontWeight: 900, fontFamily: NUM_FONT,
+        color: col, lineHeight: 1.15,
+      }}>{value}</span>
+      {sub && (
+        <span style={{ display: 'block', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>{sub}</span>
+      )}
+    </span>
+  )
+}
+
+/** A titled band. Two of these are the card's whole structure. */
+function ArmBand({ title, note, children }) {
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+        <span style={{
+          fontSize: 8, fontWeight: 900, letterSpacing: '.11em', color: C.text3,
+          fontFamily: NUM_FONT, textTransform: 'uppercase', flexShrink: 0,
+        }}>{title}</span>
+        {note && (
+          <span style={{
+            fontSize: 8.5, color: C.text3, minWidth: 0,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{note}</span>
+        )}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+/**
+ * The sentence. ONE clause, naming the worst single thing about him tonight,
+ * because "i dk what im looking at" is answered by a sentence and not by a
+ * fourth number.
+ *
+ * It reads the leak score's own driver list rather than re-deciding — the
+ * ranking already worked out what is carrying his score, and a card that
+ * disagreed with the number printed beside it would be worse than silent.
+ */
+function armVerdict(p, leak, raw) {
+  const hr9 = n(p.pitcher_hr9, 0)
+  const l3 = Number(raw?.pitcher_l3_hr9)
+  const l3n = n(raw?.pitcher_l3_starts_found, 0)
+  const worsening = Number.isFinite(l3) && l3n >= 2 && l3 > hr9 + 0.25
+  const top = leak?.drivers?.[0]
+  const spots = n(p.weak_spot_count, 0)
+  const bits = []
+  if (top) bits.push(`worst on ${String(top.label).toLowerCase()} (${top.text})`)
+  else if (hr9 > 0) bits.push(`${hr9.toFixed(2)} HR/9`)
+  if (worsening) bits.push(`and it has got worse — ${l3.toFixed(2)} over his last ${l3n}`)
+  if (spots > 0) bits.push(`${spots} lineup spot${spots > 1 ? 's' : ''} tonight he has been beaten in`)
+  if (!bits.length) return 'Not enough published on him tonight to say where he leaks.'
+  return `${bits[0]}${bits[1] ? `, ${bits[1]}` : ''}${bits[2] ? ` · ${bits[2]}` : ''}.`
+}
+
 function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }) {
   const hasWeak = pitcher.weak_spot_count > 0
   // BAND PERSONALITY (2026-08-07, same language as parks/games): from the
@@ -766,87 +872,156 @@ export default function Pitchers({ players, onPlayerClick }) {
 
       {/* ── ATTACK CARDS — the arm, his leaks, and the bats to do it with ── */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-        {targets.map(({ p, ov, leak }, i) => (
+        {targets.map(({ p, ov, leak }, i) => {
+          const raw = rawOf(p)
+          const hr9 = n(p.pitcher_hr9, 0)
+          const l3 = Number(raw?.pitcher_l3_hr9)
+          const l3n = n(raw?.pitcher_l3_starts_found, 0)
+          const brl = Number(raw?.pitcher_barrel_allowed)
+          const airPct = Number(raw?.weather_hr_effect_pct ?? raw?.weather_hr_pct)
+          const penEra = Number(raw?.bullpen_era)
+          const penAtk = Number(raw?.bullpen_attack_score)
+          const weakSide = clean(raw?.pitcher_weak_side, '')
+          const score = leak ? leak.leak : Math.round(ov)
+          const bats = topBats(p)
+          return (
           <div key={p.pitcher_id ?? p.pitcher_name} style={{
-            flex: '1 1 280px', minWidth: 0,
-            background: `linear-gradient(160deg, rgba(249,115,22,${i === 0 ? '.14' : '.09'}), ${C.bg2} 60%)`,
-            border: `1px solid rgba(249,115,22,${i === 0 ? '.55' : '.35'})`,
-            borderRadius: 13, padding: '10px 13px',
-            boxShadow: i === 0 ? '0 0 18px rgba(249,115,22,.14)' : 'none',
+            flex: '1 1 300px', minWidth: 0, position: 'relative', overflow: 'hidden',
+            background: `linear-gradient(158deg, rgba(249,115,22,${i === 0 ? '.13' : '.08'}), ${C.bg2} 56%)`,
+            border: `1px solid rgba(249,115,22,${i === 0 ? '.5' : '.28'})`,
+            borderRadius: 18, padding: '12px 13px 11px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-              <span style={{ fontSize: 9, fontWeight: 900, color: C.orange, letterSpacing: '.09em', fontFamily: NUM_FONT, flexShrink: 0 }}>
-                🎯 ATTACK #{i + 1}
-              </span>
-              <span
+            {/* the light bar — the same one every prop card on this site wears */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+              background: `linear-gradient(90deg, ${C.orange}, ${alpha(C.orange, 0)} 72%)`,
+            }} />
+
+            {/* ── 1. THE VERDICT ─────────────────────────────────────────── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+              <Dial
+                value={score}
+                col={C.orange}
+                size={52}
                 title={leak
                   ? `Leak score ${leak.leak}/100 — ranked against tonight's ${leaks.length} starters only, not the league. Built from ${leak.scoredOn} published fields: ${leak.terms.map((t) => `${t.label} ${t.text}`).join(' · ')}.${leak.thin ? ' Small Statcast sample behind the contact-quality terms.' : ''} The same number the Home page ranks arms with.`
                   : "Season and recent-form blend — this arm didn't carry enough published fields for the leak score."}
-                style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'help' }}>
-                {leak ? leak.leak : ov.toFixed(0)}{leak?.thin ? '·' : ''}
-              </span>
-            </div>
-            <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', marginTop: 3 }}>
-              <span style={{ fontSize: 14.5, fontWeight: 800 }}>{p.pitcher_name}</span>
-              <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginLeft: 6 }}>{p.pitcher_throws}HP · {p.team} vs {p.opponent_team} · {localTime(p.game_time)}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 4, fontFamily: NUM_FONT, fontSize: 10 }}>
-              <span title="HR allowed per nine — the leak" style={{ color: n(p.pitcher_hr9, 0) >= 1.3 ? C.orange : C.text2, fontWeight: 800 }}>HR/9 {n(p.pitcher_hr9, 0).toFixed(2)}</span>
-              <span style={{ color: C.text3 }}>ERA {n(p.pitcher_era, 0).toFixed(2)}</span>
-              <span style={{ color: C.text3 }}>WHIP {n(p.pitcher_whip, 0).toFixed(2)}</span>
-              {p.weak_spot_count > 0 && <span title="Weak lineup spots the opposing order fills tonight" style={{ color: '#FCD34D', fontWeight: 800 }}>★{p.weak_spot_count} weak spot{p.weak_spot_count > 1 ? 's' : ''}</span>}
-              {!p.lineup_confirmed && <span style={{ color: C.text3 }}>◻ proj. lineup</span>}
-            </div>
-            {leak?.drivers?.length > 0 && (
-              <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}
-                title="The two terms carrying his leak score tonight — hover the number above for the full breakdown.">
-                worst on: {leak.drivers.map((d) => `${d.label} ${d.text}`).join(' · ')}
-              </div>
-            )}
-
-            {/* ── THE THREE THINGS THE CARD NEVER SAID ────────────────────────
-                A card that ranks an arm as tonight's #1 target and then shows
-                you three season rates is answering a narrower question than
-                the reader is asking. What has he been doing LATELY, what
-                comes in AFTER him, and what AIR is he throwing it in — three
-                sentences, each with its numbers inside it, each clause
-                hoverable for the field behind it. */}
-            {/* ── STATS VISIBLE, SENTENCES FOLDED (2026-08-17) ────────────────
-                Donovan: "the attack pitcher cards stay too much words, we need
-                to actually see the stats. the actual words and reads can be
-                somewhere else. it's just a lot of colors everywhere as well."
-                The three prose lines (Lately / Behind him / The air) each
-                carried their numbers INSIDE sentences, in four colours. Now one
-                monochrome stat strip shows the figures bare — L3 vs season,
-                pen ERA/WHIP/attack, park swing — and the full written clauses
-                sit one tap behind it, unchanged. Facts kept, colours cut. */}
-            {(() => {
-              const raw = rawOf(p)
-              const l3 = Number(raw?.pitcher_l3_hr9)
-              const l3n = n(raw?.pitcher_l3_starts_found, 0)
-              const penEra = Number(raw?.bullpen_era)
-              const penAtk = Number(raw?.bullpen_attack_score)
-              const airPct = Number(raw?.weather_hr_effect_pct ?? raw?.weather_hr_pct)
-              return (
-                <div style={{ marginTop: 5, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
-                  {Number.isFinite(l3) && l3n > 0 && (
-                    <span title={`Last ${l3n} starts HR/9 against season ${n(p.pitcher_hr9, 0).toFixed(2)}`}>
-                      L{l3n} HR/9 <b style={{ color: l3 > n(p.pitcher_hr9, 0) ? C.orange : C.text2 }}>{l3.toFixed(2)}</b>
-                    </span>
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+                  <span style={{
+                    fontSize: 8.5, fontWeight: 900, color: C.orange, letterSpacing: '.1em',
+                    fontFamily: NUM_FONT, flexShrink: 0,
+                  }}>🎯 ATTACK #{i + 1}</span>
+                  {leak?.thin && (
+                    <span title="Small Statcast sample behind the contact-quality terms"
+                      style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>thin sample</span>
                   )}
-                  {Number.isFinite(penEra) && <span title="The bullpen behind him — season ERA">{' · '}pen ERA <b style={{ color: C.text2 }}>{penEra.toFixed(2)}</b></span>}
-                  {Number.isFinite(penAtk) && <span title="Bullpen attack score, 0-100 on tonight's spread">{' · '}pen atk <b style={{ color: C.text2 }}>{penAtk.toFixed(0)}</b></span>}
-                  {Number.isFinite(airPct) && <span title="The bot's published weather swing on home runs in this park tonight">{' · '}air <b style={{ color: airPct > 0 ? C.orange : C.text2 }}>{airPct > 0 ? '+' : ''}{airPct.toFixed(0)}%</b> HR</span>}
+                  {!p.lineup_confirmed && (
+                    <span title="The opposing lineup is projected, not posted — the bats below can change"
+                      style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>◻ proj</span>
+                  )}
                 </div>
-              )
-            })()}
-            <details style={{ marginTop: 3 }}>
-              <summary style={{ cursor: 'pointer', fontSize: 9, color: C.orange, listStyle: 'revert' }}>the read — lately, his pen, the air</summary>
-              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 15.5, fontWeight: 900, letterSpacing: '-.01em', minWidth: 0,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>{p.pitcher_name}</div>
+                  <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                    {p.pitcher_throws}HP · {p.team} vs {p.opponent_team} · {localTime(p.game_time)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ONE SENTENCE. The answer to "i dk what im looking at" is a
+                sentence, not a fourth number. */}
+            <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.5, marginTop: 8 }}>
+              {armVerdict(p, leak, raw)}
+            </div>
+
+            {/* ── 2. WHAT HE GIVES UP ────────────────────────────────────── */}
+            <ArmBand title="What he gives up" note="season, and lately">
+              <div style={{ display: 'flex', gap: 5, minWidth: 0, flexWrap: 'wrap' }}>
+                <ArmStat label="HR/9" value={hr9 ? hr9.toFixed(2) : '—'}
+                  tone={hr9 >= 1.3 ? 'hot' : hr9 && hr9 <= 0.9 ? 'cold' : null}
+                  tip="Home runs allowed per nine innings — the leak itself. Warm is bad for him." />
+                <ArmStat label={l3n ? `Last ${l3n}` : 'Last 3'}
+                  value={Number.isFinite(l3) && l3n > 0 ? l3.toFixed(2) : '—'}
+                  sub={Number.isFinite(l3) && l3n > 0 && hr9 ? (l3 > hr9 ? 'worse' : 'better') : null}
+                  tone={Number.isFinite(l3) && l3n > 0 && hr9 ? (l3 > hr9 ? 'hot' : 'cold') : null}
+                  tip={l3n ? `HR/9 over his last ${l3n} starts, against a season ${hr9.toFixed(2)}. Blank means the bot has not logged enough recent starts.` : 'No recent starts logged for him yet.'} />
+                <ArmStat label="Barrels" value={Number.isFinite(brl) ? `${(brl * 100).toFixed(1)}%` : '—'}
+                  tone={Number.isFinite(brl) ? (brl >= 0.09 ? 'hot' : brl <= 0.055 ? 'cold' : null) : null}
+                  tip="Share of batted balls against him hit at a home-run launch angle and speed. The contact-quality half of the leak." />
+                {/* "ERA / WHIP" ellipsised to "ERA / WH…" at 390px — caught in
+                    the render. The label is the shorter word and the second
+                    figure carries its own name underneath. */}
+                <ArmStat label="ERA"
+                  value={n(p.pitcher_era, 0) ? n(p.pitcher_era, 0).toFixed(2) : '—'}
+                  sub={n(p.pitcher_whip, 0) ? `${n(p.pitcher_whip, 0).toFixed(2)} WHIP` : null}
+                  tip="Season ERA, with season WHIP underneath. Context for the two numbers to the left, not the reason to attack him." />
+              </div>
+            </ArmBand>
+
+            {/* ── 3. WHO GETS HIM ────────────────────────────────────────── */}
+            <ArmBand
+              title="Who gets him"
+              note={weakSide
+                ? `weakest to ${weakSide === 'LHB' ? 'left' : 'right'}-handed bats`
+                : 'no side split published'}>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', minWidth: 0 }}>
+                {bats.map((b) => (
+                  <button key={b.player_id ?? b.name} onClick={() => onPlayerClick?.(b.raw)}
+                    title={`${b.name} — HR score ${Math.round(b.hr_score)}${b.weak_spot_flag ? ' · sits in a lineup spot this arm has been beaten in' : ''}`}
+                    style={{
+                      display: 'flex', alignItems: 'baseline', gap: 6, cursor: 'pointer',
+                      flex: '1 1 0', minWidth: 0,
+                      background: C.glass,
+                      border: `1px solid ${b.weak_spot_flag ? 'rgba(252,211,77,.5)' : C.border}`,
+                      borderRadius: 10, padding: '5px 9px',
+                    }}>
+                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{b.lineup_spot ?? '·'}</span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 800, color: C.text, minWidth: 0, flex: '1 1 auto',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{/* surname(), not split(' ').pop() — the latter renders
+                          Bobby Witt Jr. as a chip that says "Jr.", which is
+                          exactly what this card did until it was rendered and
+                          looked at. lib/player.js has been suffix-aware since
+                          the game chips hit the same bug. */}
+                      {surname(b.name)}</span>
+                    {b.weak_spot_flag && <span style={{ fontSize: 9, flexShrink: 0 }}>⭐</span>}
+                    <span style={{ fontSize: 11, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, flexShrink: 0 }}>{Math.round(b.hr_score)}</span>
+                  </button>
+                ))}
+                {!bats.length && <span style={{ fontSize: 9.5, color: C.text3 }}>no opposing bats on the slate yet</span>}
+              </div>
+              {n(p.weak_spot_count, 0) > 0 && (
+                <div style={{ fontSize: 9, color: '#FCD34D', fontFamily: NUM_FONT, marginTop: 4 }}
+                  title="Lineup positions this arm has historically been beaten in, that tonight's order actually fills">
+                  ★ {p.weak_spot_count} weak lineup spot{p.weak_spot_count > 1 ? 's' : ''} in tonight's order
+                </div>
+              )}
+            </ArmBand>
+
+            {/* ── THE GAME, not the arm — folded, unchanged ───────────────── */}
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 9, color: C.orange, listStyle: 'revert' }}>
+                the game around him — his form in words, his pen, the air
+                {(Number.isFinite(penEra) || Number.isFinite(airPct)) && (
+                  <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
+                    {Number.isFinite(penEra) ? `  ·  pen ${penEra.toFixed(2)}` : ''}
+                    {Number.isFinite(penAtk) ? `/${penAtk.toFixed(0)}` : ''}
+                    {Number.isFinite(airPct) ? `  ·  air ${airPct > 0 ? '+' : ''}${airPct.toFixed(0)}%` : ''}
+                  </span>
+                )}
+              </summary>
+              <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Clauses lead="Lately: "
-                  parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })} />
+                  parts={armFormParts(raw, { luckPointer: luckPts.get(p.pitcher_name) })} />
                 <Clauses lead="Behind him: "
-                  parts={penLineParts(penFrom(rawOf(p)), {
+                  parts={penLineParts(penFrom(raw), {
                     attackRange: penAtkRange,
                     fitAvg: (() => {
                       const f = (p.lineup || []).map((b) => Number(b?.raw?.bullpen_pitch_fit)).filter((v) => Number.isFinite(v))
@@ -854,32 +1029,12 @@ export default function Pitchers({ players, onPlayerClick }) {
                     })(),
                     fitN: (p.lineup || []).filter((b) => Number.isFinite(Number(b?.raw?.bullpen_pitch_fit))).length,
                   })} />
-                <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} />
+                <AirLine row={raw} lead={`${p.venue_name || 'The air'}: `} />
               </div>
             </details>
-            {/* the point of the card: attack WITH these bats */}
-            <div style={{ marginTop: 7, paddingTop: 6, borderTop: '1px solid rgba(249,115,22,.2)' }}>
-              <div style={{ fontSize: 8.5, fontWeight: 800, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>Attack with</div>
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {topBats(p).map((b) => (
-                  <button key={b.player_id ?? b.name} onClick={() => onPlayerClick?.(b.raw)}
-                    title={`${b.name} — HR score ${Math.round(b.hr_score)}${b.weak_spot_flag ? ' · sits in a weak spot for this arm' : ''}`}
-                    style={{
-                      display: 'inline-flex', alignItems: 'baseline', gap: 5, cursor: 'pointer', minWidth: 0,
-                      background: C.bg3, border: `1px solid ${b.weak_spot_flag ? 'rgba(252,211,77,.5)' : C.border2}`,
-                      borderRadius: 8, padding: '3px 9px',
-                    }}>
-                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{b.lineup_spot ?? '·'}</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{String(b.name || '').split(' ').slice(-1)[0]}</span>
-                    {b.weak_spot_flag && <span style={{ fontSize: 9 }}>⭐</span>}
-                    <span style={{ fontSize: 10.5, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT }}>{Math.round(b.hr_score)}</span>
-                  </button>
-                ))}
-                {!p.lineup?.length && <span style={{ fontSize: 9.5, color: C.text3 }}>no opposing bats on the slate yet</span>}
-              </div>
-            </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* ── STAY AWAY — one compact strip, not a twin box of dead space ── */}

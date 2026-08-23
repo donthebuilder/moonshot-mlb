@@ -6,10 +6,10 @@ import {
   recent375, ihrVal,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId, mlbId,
 } from '../../lib/player'
-import { tierRole, shortRole, isAligned, hrRank } from '../../lib/scoring'
-import { designationOf } from '../../lib/verdict'
+import { tierRole, isAligned, hrRank } from '../../lib/scoring'
+import { designationOf, laneRanker, laneLabel, laneTitle } from '../../lib/verdict'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
-import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
+import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
@@ -230,7 +230,8 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   ...(dhOn ? [DH_COLUMN] : []),
   { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true },
-  { key: 'role',    label: 'Role',   heat: false, w: 104, dim: true },
+  { key: 'role',    label: 'Role',   heat: false, w: 104, dim: true, titleKey: 'roleTitle',
+    title: 'A designated pick shows the designation the bot published (TOP/HR/HIT/HRR/CONTACT/WATCH). Everyone else shows his LANE — which of his four market scores sits highest within the rows in view — in capitals when he is in the top quarter of that lane and quiet when he is not. Hover a cell for the percentile.' },
   { key: 'spot',    label: 'Spot',   heat: false, w: 40, mono: true, dim: true,
     fmt: (v) => (v == null ? '—' : String(v)) },
   { key: 'weak',    label: '★',      flag: true, mark: '★', w: 32 },
@@ -457,7 +458,11 @@ function Tracker({ title, count, children, note, answers }) {
       <div style={{ fontSize: 12, fontWeight: 800, marginBottom: answers ? 2 : 6 }}>
         {title} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontWeight: 600 }}>({count})</span>
       </div>
-      {answers && <WhatThis maxWidth={640}>{answers}</WhatThis>}
+      {answers && (
+        <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55, marginBottom: 7 }}>
+          <b style={{ color: C.text2 }}>What this answers:</b> {answers}
+        </div>
+      )}
       {children}
       {note && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5 }}>{note}</div>}
     </div>
@@ -473,6 +478,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // fact about tonight's schedule, and it must not switch off because the
   // aligned-only toggle happened to hide one half of the doubleheader.
   const dh = useMemo(() => gameNumbers(players), [players])
+  // Percentiles only mean anything against the rows in view — see laneRanker.
+  const laneOf = useMemo(() => laneRanker(players), [players])
   const dhNote = useMemo(() => doubleheaderNote(players), [players])
 
   const rows = useMemo(() => {
@@ -487,13 +494,16 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       team: teamOf(p),
       g: gameNumOf(p, dh),
       opp: oppOf(p),
-      // THE DESIGNATION LEADS (2026-08-23). Donovan: "i dont see the watch
-    // on the role row." This printed the MODEL's tier (Power / Contact /
-    // HR Bet) and never the bot's designation — so WATCH, which exists
-    // only as a designation, was invisible in every dense table on the
-    // site while tonight's slate carried 45 of them. An undesignated bat
-    // still gets his tier; nothing was removed.
-    role: designationOf(p) || shortRole(p),
+      // THE LANE, NOT THE TIER, FOR AN UNDESIGNATED BAT (2026-08-23).
+      // Donovan: "it seems everyone is contact on the role colume, need a more
+      // diverse groupe of roles ... but prescion." Counted: final_hr_role has
+      // four values and 74 of 106 hitters carry one of them, so shortRole()
+      // printed "Contact" on seventy percent of the board. laneOf() asks the
+      // question the column is for instead — which of his four market scores
+      // sits highest WITHIN THE ROWS IN VIEW — and says so in upper case only
+      // when he is in the top quarter of that lane. See lib/verdict.js.
+      role: designationOf(p) || laneLabel(laneOf(p)),
+      roleTitle: designationOf(p) ? null : laneTitle(laneOf(p), players.length),
       spot: p?.lineup_spot == null || p?.lineup_spot === '' ? null : n(p.lineup_spot, null),
       weak: p?.weak_spot_flag ? 1 : 0,
       aligned: isAligned(p) ? 1 : 0,
@@ -762,7 +772,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           { key: 'hr',   label: 'HR',     w: 34,
             explain: 'How many home runs he has already hit tonight.' },
           { key: 'score', label: 'HR score', w: 58, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true },
-          { key: 'role', label: 'Role',   heat: false, w: 104, dim: true },
+          { key: 'role', label: 'Role',   heat: false, w: 104, dim: true, titleKey: 'roleTitle',
+            title: 'A designated pick shows the designation the bot published (TOP/HR/HIT/HRR/CONTACT/WATCH). Everyone else shows his LANE — which of his four market scores sits highest within the rows in view — in capitals when he is in the top quarter of that lane and quiet when he is not. Hover a cell for the percentile.' },
           // ── the arm he did it against ──────────────────────────────────
           { key: 'pName',  label: 'Arm',     heat: false, w: 120, dim: true },
           { key: 'pHr9',   label: 'HR/9',    w: 50, dp: 2, scale: 'div', anchor: LG.hr9, ceiling: 0.80,
@@ -961,11 +972,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
                   <span key={i} title={airParts(p).map((x) => `${x.text} — ${x.title}`).join('\n')} style={{ cursor: 'help' }}>
                     {i > 0 && '; '}
                     <b style={{ color: C.text }}>{clean(p?.venue_name, `${teamOf(p)} vs ${oppOf(p)}`)}</b>
-                    {/* CONDITIONS ON THE LEADER ONLY (2026-08-23) — two full
-                        weather parentheticals inside one sentence is the same
-                        wall the Angles line had. The second park keeps its in
-                        the tooltip this span already carries. */}
-                    {i === 0 && airParts(p).length > 0 && <span style={{ color: C.text3 }}> ({airParts(p).map((x) => x.text).join(', ')})</span>}
+                    {airParts(p).length > 0 && <span style={{ color: C.text3 }}> ({airParts(p).map((x) => x.text).join(', ')})</span>}
                   </span>
                 ))}
                 {airRead.carrying.length > 2 && <span style={{ color: C.text3 }}> and {airRead.carrying.length - 2} more</span>}
@@ -999,15 +1006,15 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
       {order}
 
-      <WhatThis>
-        who to look at first tonight. It&apos;s
+      <div className="quiet-note" style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '4px 0 8px', maxWidth: 720 }}>
+        <b style={{ color: C.text2 }}>What this answers:</b> who to look at first tonight. It&apos;s
         every hitter on the slate, sorted by home-run score — <b style={{ color: C.text2 }}>you can
         use the order without reading a single column</b>. Sort by any other header to ask a
         different question (Hit for contact plays, Park for launch pads, K risk for the ones likely
         to strike out), and click any row to open that hitter.{' '}
         <b style={{ color: C.text2 }}>Don&apos;t know what a column means? Tap the ⓘ next to its
         name</b> — it says so in plain English, no baseball background needed.
-      </WhatThis>
+      </div>
 
       {/* Why a name is on this board twice, answered before it is asked.
           A sentence, not a symbol legend — the question is about the schedule.

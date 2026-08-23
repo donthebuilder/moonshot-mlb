@@ -1202,7 +1202,7 @@ function Header({ auto, setAuto, refresh, count }) {
           }}>↻</button>
         </span>
       </div>
-      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.65, marginTop: 4, maxWidth: 760 }}>
+      <div className="quiet-note" style={{ fontSize: 11, color: C.text3, lineHeight: 1.65, marginTop: 4, maxWidth: 760 }}>
         <b style={{ color: C.text2 }}>What this answers:</b> the man hitting right now — where he does
         damage in the zone, where tonight&apos;s pitches have actually gone, and where the ball is
         leaving the bat — plus who is coming up behind him.

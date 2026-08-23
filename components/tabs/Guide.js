@@ -158,7 +158,7 @@ function ColorKey() {
       padding: '13px 16px', marginBottom: 10,
     }}>
       <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 3 }}>🎨 Reading the colours</div>
-      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 9 }}>
+      <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, marginBottom: 9 }}>
         <b style={{ color: C.text2 }}>What this answers:</b> what a coloured cell on any board means.
       </div>
 

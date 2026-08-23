@@ -37,12 +37,13 @@ import DenseTable from './DenseTable'
 // of the fit (which score ranks anchors and partners); the HISTORY half is
 // co-HR days in every market, because that's the only pair history the bot
 // publishes. The caption says so when it matters.
-const MARKETS = [
+export const PAIR_MARKETS = [
   { key: 'hr',  label: 'Home run', short: 'HR',  score: hrScore,   needs: '1+ HR' },
   { key: 'hit', label: '1+ hit',   short: 'Hit', score: hitScore,  needs: '1+ hit' },
   { key: 'hrr', label: 'HRR',      short: 'HRR', score: prodScore, needs: '2+ H+R+RBI' },
   { key: 'tb',  label: '2+ bases', short: 'TB',  score: tbScore,   needs: '2+ TB' },
 ]
+const MARKETS = PAIR_MARKETS
 
 const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '')
 
@@ -126,11 +127,20 @@ function refKey(o) {
 // name, it joins the anchors), but manual edits inside the builder win until
 // the list changes again — reasserting the seed on every render would fight
 // the user's own clicks.
-export default function PairBuilder({ summary, players = [], onPlayerClick, initialAnchors = [] }) {
+// `bare` (2026-08-23) — rendered INSIDE the merged builder, where the anchor
+// picker, the search box and the "Pair Builder" heading already exist one
+// block up. Donovan's note was that a page carrying two headings and two name
+// pickers reads as two machines however shared the state underneath is, so in
+// bare mode this panel draws neither: it takes its anchors from initialAnchors
+// and its market from the parent, and renders only the answer.
+export default function PairBuilder({ summary, players = [], onPlayerClick, initialAnchors = [],
+  bare = false, marketKey: marketProp = null, onMarketChange = null }) {
   const [anchorKeys, setAnchorKeys] = useState([])
   const [query, setQuery] = useState('')
   const [requireAll, setRequireAll] = useState(false)
-  const [marketKey, setMarketKey] = useState('hr')
+  const [marketOwn, setMarketOwn] = useState('hr')
+  const marketKey = marketProp || marketOwn
+  const setMarketKey = (k) => { setMarketOwn(k); onMarketChange?.(k) }
   const [showAllChips, setShowAllChips] = useState(false)
 
   // Seed the anchors from initialAnchors (see prop note above). Keyed on the
@@ -400,12 +410,14 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
 
   return (
     <div style={{ marginBottom: 22 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>Pair Builder</div>
-      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 9, lineHeight: 1.55, maxWidth: 660 }}>
+      {!bare && <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>Pair Builder</div>}
+      <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, marginBottom: 9, lineHeight: 1.55, maxWidth: 660 }}>
         <b style={{ color: C.text2 }}>What this answers:</b> who to put next to a hitter you already
-        like, for the market you&apos;re actually betting. Click hitters to add them —{' '}
-        <b style={{ color: C.text2 }}>you can select several</b>; click a selected hitter again to
-        drop him. Partners are <b style={{ color: C.text2 }}>every hitter on tonight&apos;s slate</b>,
+        like, for the market you&apos;re actually betting.{' '}
+        {bare
+          ? <>Your anchors are the hitters pinned above — <b style={{ color: C.text2 }}>tap more names up there</b> to add them.{' '}</>
+          : <>Click hitters to add them — <b style={{ color: C.text2 }}>you can select several</b>; click a selected hitter again to drop him.{' '}</>}
+        Partners are <b style={{ color: C.text2 }}>every hitter on tonight&apos;s slate</b>,
         ranked on a fit weighted toward tonight&apos;s score in the market below. Shared homer
         history is a <b style={{ color: C.text2 }}>bonus, not a requirement</b> — per pair it&apos;s a
         handful of days across a whole season, which is not enough to gate a list on.
@@ -450,7 +462,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginTop: 8 }}>
           <b style={{ color: C.orange }}>{mkt.label}</b> is selected, so every leg has to deliver{' '}
           <b style={{ color: C.text }}>{mkt.needs}</b>. Switching this changes{' '}
-          <b style={{ color: C.text }}>three things</b>: the score on the hitter chips below, the{' '}
+          <b style={{ color: C.text }}>three things</b>: the score on the hitter chips {bare ? 'above' : 'below'}, the{' '}
           <b style={{ color: C.text }}>{mkt.short}</b> column in the partner table, and{' '}
           <b style={{ color: C.text }}>55% of Fit</b> — so the ranking reshuffles.
           {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
@@ -460,77 +472,89 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         </div>
       </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Find any hitter on tonight's slate…"
-        style={{
-          width: '100%', maxWidth: 300, background: C.bg2, border: `1px solid ${C.border}`,
-          borderRadius: 8, padding: '6px 11px', fontSize: 12, color: C.text,
-          outline: 'none', fontFamily: NUM_FONT, marginBottom: 8,
-        }}
-      />
+      {!bare && (
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Find any hitter on tonight's slate…"
+          style={{
+            width: '100%', maxWidth: 300, background: C.bg2, border: `1px solid ${C.border}`,
+            borderRadius: 8, padding: '6px 11px', fontSize: 12, color: C.text,
+            outline: 'none', fontFamily: NUM_FONT, marginBottom: 8,
+          }}
+        />
+      )}
 
-      {/* CHIP ROW, capped in HEIGHT rather than in count (2026-08-09 — it was
-          wrapping to four lines and pushing the actual answer below the fold).
-          Two rows tall by default, scrolls inside itself, expands to a taller
-          scroll box on request. Nothing is removed from the list; it just
-          stops being the tallest thing on the panel. */}
-      <div style={{
-        display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8, alignItems: 'flex-start',
-        maxHeight: showAllChips ? 190 : 62, overflowY: 'auto',
-        paddingRight: 2,
-      }}>
-        {shown.slice(0, 200).map((a) => {
-          const on = activeKeys.has(a.key)
-          const implicit = on && !anchorKeys.length
-          return (
+      {/* The picker — chips and their caption — belongs to whichever block owns
+          the anchors. Inside the merged builder that is the shared block above,
+          so bare mode draws none of it. Standalone, it draws all of it. */}
+      {!bare && (
+        <>
+        {/* CHIP ROW, capped in HEIGHT rather than in count (2026-08-09 — it was
+            wrapping to four lines and pushing the actual answer below the fold).
+            Two rows tall by default, scrolls inside itself, expands to a taller
+            scroll box on request. Nothing is removed from the list; it just
+            stops being the tallest thing on the panel. */}
+        <div style={{
+          display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8, alignItems: 'flex-start',
+          maxHeight: showAllChips ? 190 : 62, overflowY: 'auto',
+          paddingRight: 2,
+        }}>
+          {shown.slice(0, 200).map((a) => {
+            const on = activeKeys.has(a.key)
+            const implicit = on && !anchorKeys.length
+            return (
+              <button
+                key={a.key}
+                onClick={() => toggleAnchor(a.key)}
+                title={implicit ? 'Shown by default — click another hitter to choose your own' : (on ? 'Click to remove' : 'Click to add')}
+                style={{
+                  padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
+                  fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap',
+                  border: `1px solid ${on ? C.orange : C.border}`,
+                  background: on ? 'rgba(249,115,22,.12)' : C.bg2,
+                  color: on ? C.orange : C.text2,
+                  opacity: implicit ? 0.8 : 1,
+                }}
+              >
+                {on && !implicit ? '✓ ' : ''}{a.name}
+                <span style={{ color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, fontSize: 9.5 }}>
+                  {mScore(a.today).toFixed(0)}
+                </span>
+                {!a.hasHistory && (
+                  <span title="No co-HR history on file — his partners are ranked on tonight's market score alone"
+                    style={{ color: C.text3, marginLeft: 4, fontSize: 9 }}>·</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 8 }}>
+          {shown.length > 18 && (
             <button
-              key={a.key}
-              onClick={() => toggleAnchor(a.key)}
-              title={implicit ? 'Shown by default — click another hitter to choose your own' : (on ? 'Click to remove' : 'Click to add')}
+              onClick={() => setShowAllChips((v) => !v)}
               style={{
-                padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
-                fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap',
-                border: `1px solid ${on ? C.orange : C.border}`,
-                background: on ? 'rgba(249,115,22,.12)' : C.bg2,
-                color: on ? C.orange : C.text2,
-                opacity: implicit ? 0.8 : 1,
+                padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 10,
+                fontWeight: 700, fontFamily: NUM_FONT,
+                border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
               }}
-            >
-              {on && !implicit ? '✓ ' : ''}{a.name}
-              <span style={{ color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, fontSize: 9.5 }}>
-                {mScore(a.today).toFixed(0)}
-              </span>
-              {!a.hasHistory && (
-                <span title="No co-HR history on file — his partners are ranked on tonight's market score alone"
-                  style={{ color: C.text3, marginLeft: 4, fontSize: 9 }}>·</span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 8 }}>
-        {shown.length > 18 && (
-          <button
-            onClick={() => setShowAllChips((v) => !v)}
-            style={{
-              padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 10,
-              fontWeight: 700, fontFamily: NUM_FONT,
-              border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
-            }}
-          >{showAllChips ? '▴ Collapse the list' : `▾ Taller list (${shown.length} hitters, scrolls)`}</button>
-        )}
-        <span style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>
-          Sorted by tonight&apos;s {mkt.label} score. A <b style={{ color: C.text2 }}>·</b> means no
-          co-HR history on file — still selectable, he just brings no partners of his own.
-        </span>
-      </div>
+            >{showAllChips ? '▴ Collapse the list' : `▾ Taller list (${shown.length} hitters, scrolls)`}</button>
+          )}
+          <span style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>
+            Sorted by tonight&apos;s {mkt.label} score. A <b style={{ color: C.text2 }}>·</b> means no
+            co-HR history on file — still selectable, he just brings no partners of his own.
+          </span>
+        </div>
+        </>
+      )}
 
       {(
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, alignItems: 'center' }}>
-          {anchorKeys.length > 0 && (
+          {/* Clearing the selection here would silently disagree with the pins
+              shown above, so in bare mode the parent's "clear all" is the only
+              one. */}
+          {!bare && anchorKeys.length > 0 && (
             <button
               onClick={() => setAnchorKeys([])}
               style={{

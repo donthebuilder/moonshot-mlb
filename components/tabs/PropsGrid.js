@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, txt } from '../../lib/player'
 import { quoteFor, fmtOdds } from '../../lib/odds'
@@ -128,9 +128,61 @@ function Card({ r, role: forced, odds, onPlayerClick }) {
 // a coverage board must never imply.
 const SOFT_CAP = 60
 
+// ══ PRECISION (2026-08-23) ══════════════════════════════════════════════════
+//
+// Donovan: "lets focus on precision instead of coverage … i just feel like now
+// theres hell picks, to every game's got the top and a hr pick idk … i was
+// thinking what about the 4 best bets then from dividing up the picks top hit
+// hrr bases whatever, what would the scoring look like if we did that over the
+// time — if bad or not good just forget that idea."
+//
+// bots/precision_study.py measured it over 25 graded nights, every pick on its
+// own bar (a homer for the HR pick, a base hit for the HIT pick, 2+ H+R+RBI
+// for HRR, 2+ total bases for CONTACT). The numbers below are that study's,
+// not an estimate:
+//
+//     one per market (The Four)   65.0%   over 100 picks
+//     two per market              ~59%
+//     three per market            ~55%
+//     every designation           41.2%   over 2,048 picks
+//
+// So this is a CUT, not a re-rank: keep the top K of each market's own block
+// and hide the rest behind the existing "Show the rest". The ordering inside a
+// block is untouched — it is already each market's own score, which is the
+// house rule and the reason the study's ranking was legitimate in the first
+// place.
+//
+// WHY PER-MARKET AND NOT TOP-N-OVERALL. A top-4-overall board can be four HR
+// picks on a night the HR board runs hot, and HR is the hardest bar on the
+// site — 21.8% against 74.3% for 1+ hit. One per market is the shape Donovan
+// described ("dividing up the picks") AND the shape that measured best.
+//
+// IT IS OFF BY DEFAULT. The bot publishes coverage on purpose and the study is
+// 25 nights, which is enough to offer this and not enough to impose it. The
+// pill states the measured rate so the choice is informed rather than a vibe.
+const PRECISION = [
+  { key: 0, label: 'All', title: 'Every badge the bot published tonight. Graded 41.2% across 2,048 picks over 25 nights.' },
+  { key: 1, label: '🎯 1 each', title: 'The single best pick in each market — the same board as The Four on the Rundown. Graded 65.0% across 100 picks over 25 nights; its 95% floor clears the full board\u2019s ceiling.' },
+  { key: 2, label: '2 each', title: 'The top two in each market. Roughly 59% on the same 25 nights — still well clear of the full board, with twice the plays.' },
+  { key: 3, label: '3 each', title: 'The top three in each market. Roughly 55% — the lift is real and decaying; past here it flattens toward the full board.' },
+]
+
 export default function PropsGrid({ players = [], odds = null, onPlayerClick }) {
   const [market, setMarket] = useState('picks')
   const [all, setAll] = useState(false)
+  // Off by default — see the PRECISION note. Remembered, because it is a
+  // standing preference about how much board you want, not a momentary one.
+  const [precision, setPrecision] = useState(0)
+  useEffect(() => {
+    try {
+      const v = Number(window.localStorage.getItem('moonshot_precision_v1'))
+      if (Number.isFinite(v) && v >= 0 && v <= 3) setPrecision(v)
+    } catch { /* private mode */ }
+  }, [])
+  const pickPrecision = (v) => {
+    setPrecision(v); setAll(false)
+    try { window.localStorage.setItem('moonshot_precision_v1', String(v)) } catch { /* private mode */ }
+  }
 
   // ── THE FULL-PAGE SHEET (2026-08-23) ──────────────────────────────────────
   // Donovan: "i like how the props is but possible have the open up to the
@@ -189,20 +241,31 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick }) 
     })
   }, [rows, market])
 
-  const total = useMemo(() => groups.reduce((s, g) => s + g.rows.length, 0), [groups])
+  // The cut. Per market, on the ordering the group already has — see PRECISION.
+  const shown = useMemo(() => (
+    precision > 0
+      ? groups.map((g) => ({ key: g.key, rows: g.rows.slice(0, precision) }))
+      : groups
+  ), [groups, precision])
+
+  const total = useMemo(() => shown.reduce((s, g) => s + g.rows.length, 0), [shown])
+  const dropped = useMemo(
+    () => groups.reduce((s, g) => s + g.rows.length, 0) - total,
+    [groups, total],
+  )
 
   // Trim ACROSS groups in order, so the cap never silently empties a market.
   const capped = useMemo(() => {
-    if (all || total <= SOFT_CAP) return groups
+    if (all || total <= SOFT_CAP) return shown
     let left = SOFT_CAP
     const out = []
-    for (const g of groups) {
+    for (const g of shown) {
       if (left <= 0) break
       out.push({ key: g.key, rows: g.rows.slice(0, left) })
       left -= Math.min(left, g.rows.length)
     }
     return out
-  }, [groups, total, all])
+  }, [shown, total, all])
 
   const hidden = total - capped.reduce((s, g) => s + g.rows.length, 0)
 
@@ -229,9 +292,41 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick }) 
           >{o.label}</FilterPill>
         ))}
       </div>
-      <div style={{ fontSize: 10, color: C.text3, margin: '8px 0 4px' }}>
+      {/* ── PRECISION (2026-08-23) ────────────────────────────────────────
+          "lets focus on precision instead of coverage." Measured, not
+          asserted — the rate on each pill is bots/precision_study.py's own
+          number over 25 graded nights, every pick on its own bar. Off by
+          default: 25 nights is enough to offer this and not enough to impose
+          it, and the bot publishes coverage on purpose. */}
+      <div className="chip-row" style={{
+        display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8,
+      }}>
+        <span style={{
+          fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
+          textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0,
+        }}>Precision</span>
+        {PRECISION.map((o) => (
+          <FilterPill
+            key={o.key}
+            active={precision === o.key}
+            onClick={() => pickPrecision(o.key)}
+            title={o.title}
+          >{o.label}</FilterPill>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 10, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
         {hidden > 0 ? `showing ${total - hidden} of ${total}` : `${total} card${total === 1 ? '' : 's'}`}
         {' — the verdict first, tap one for the full read.'}
+        {dropped > 0 && (
+          <>
+            {' '}<b style={{ color: C.text2 }}>Precision is on</b> — the top{' '}
+            {precision === 1 ? 'pick' : `${precision}`} in each market, with{' '}
+            <b style={{ color: C.text2 }}>{dropped}</b> further badge{dropped === 1 ? '' : 's'} cut.
+            {precision === 1 && ' That exact board graded 65.0% over 25 nights against 41.2% for every designation.'}
+            {' '}Nothing is deleted — switch to <b style={{ color: C.text2 }}>All</b> for the whole card.
+          </>
+        )}
       </div>
 
       {total === 0 ? (

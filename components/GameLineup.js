@@ -5,8 +5,8 @@ import {
   nameOf, teamOf, n, nn, clean, hrScore, hitScore, prodScore, tbScore,
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
-import { tierRole, shortRole, isAligned } from '../lib/scoring'
-import { designationOf } from '../lib/verdict'
+import { tierRole, isAligned } from '../lib/scoring'
+import { designationOf, laneRanker, laneLabel, laneTitle } from '../lib/verdict'
 import DenseTable from './DenseTable'
 import { SCORE } from '../lib/scales'
 
@@ -111,7 +111,8 @@ const COLUMNS = [
   { key: 'name',   label: 'Batter', heat: false, w: 148, bold: true, sticky: true },
   { key: 'team',   label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   { key: 'b',      label: 'B',      heat: false, w: 22, mono: true, dim: true },
-  { key: 'role',   label: 'Role',   heat: false, w: 104, dim: true },
+  { key: 'role',   label: 'Role',   heat: false, w: 104, dim: true, titleKey: 'roleTitle',
+    title: 'A designated pick shows the designation the bot published (TOP/HR/HIT/HRR/CONTACT/WATCH). Everyone else shows his LANE — which of his four market scores sits highest within the rows in view — in capitals when he is in the top quarter of that lane and quiet when he is not. Hover a cell for the percentile.' },
   { key: 'weak',   label: '★ Spot', flag: true, mark: '★', w: 44,
     title: 'Weak lineup spot — this starter has been beaten in this spot' },
   { key: 'aligned', label: 'Align', flag: true, mark: '◆', w: 40,
@@ -392,6 +393,11 @@ export default function GameLineup({ players, onPlayerClick }) {
     [players, team],
   )
 
+  // Percentiles against THIS GAME's bats, not the whole slate: on a lineup
+  // card the useful question is which of these nine is the base-hit bat, and
+  // ranking them against 267 hitters would make eight of nine read the same.
+  // See laneRanker's note on why the ranker is a closure over the rows in view.
+  const laneOf = useMemo(() => laneRanker(pool), [pool])
   const rows = useMemo(() => [...pool]
     .sort((a, b) => teamOf(a).localeCompare(teamOf(b)) || (nn(a?.lineup_spot) || 99) - (nn(b?.lineup_spot) || 99))
     .map((p, i) => {
@@ -403,13 +409,16 @@ export default function GameLineup({ players, onPlayerClick }) {
         name: nameOf(p),
         team: teamOf(p),
         b: clean(p?.bats || p?.handedness, '?'),
-        // THE DESIGNATION LEADS (2026-08-23). Donovan: "i dont see the watch
-        // on the role row." This printed the MODEL's tier (Power / Contact /
-        // HR Bet) and never the bot's designation — so WATCH, which exists
-        // only as a designation, was invisible in every dense table on the
-        // site while tonight's slate carried 45 of them. An undesignated bat
-        // still gets his tier; nothing was removed.
-        role: designationOf(p) || shortRole(p),
+        // THE LANE, NOT THE TIER, FOR AN UNDESIGNATED BAT (2026-08-23).
+        // Donovan: "it seems everyone is contact on the role colume, need a more
+        // diverse groupe of roles ... but prescion." Counted: final_hr_role has
+        // four values and 74 of 106 hitters carry one of them, so shortRole()
+        // printed "Contact" on seventy percent of the board. laneOf() asks the
+        // question the column is for instead — which of his four market scores
+        // sits highest WITHIN THE ROWS IN VIEW — and says so in upper case only
+        // when he is in the top quarter of that lane. See lib/verdict.js.
+        role: designationOf(p) || laneLabel(laneOf(p)),
+        roleTitle: designationOf(p) ? null : laneTitle(laneOf(p), pool.length),
         weak: p?.weak_spot_flag ? 1 : 0,
         aligned: isAligned(p) ? 1 : 0,
         edge: matchupEdge(p),

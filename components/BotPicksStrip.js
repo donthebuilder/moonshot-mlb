@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import {
   clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
 } from '../lib/player'
+import { verdictInk } from '../lib/scales'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
 //
@@ -213,10 +214,52 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-.01em' }}>🎯 The Four</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           four categories, three deep — the bot&apos;s headline picks
+        </span>
+        {/* ── THE RECORD, BECAUSE SOMEBODY FINALLY MEASURED IT (2026-08-23) ──
+            Donovan: "lets focus on precsion instead of coverage ... i was
+            thinking what about the 4 best bets then from dividing up the picks
+            top hit hrr bases whatever, what would the socring look like if we
+            did that over the time — if bad or not good just forget that idea."
+
+            bots/precision_study.py answered it off 25 graded nights, and the
+            answer is that the board he described ALREADY EXISTS and is this
+            one. Every pick graded on its own bar (designed_hit): The Four
+            65.0% across 100 picks, against 41.2% for all 2,048 designations.
+            Its 95% lower bound (55) clears the full board's upper bound (43).
+
+            The +16 is the MIX-ADJUSTED number, not the raw +23.8. A four-pick
+            board holds proportionally less home run than a board with an HR
+            pick in every game, and HR is the hardest bar on the site (21.8%
+            against 74.3% for 1+ hit) — so some of the gap is the market mix
+            rather than the ranking. The study prices that out and this prints
+            the number that survives it. Anything else would be flattering the
+            board with its own shape.
+
+            Deliberately NOT rounded up into a claim: it is a rate over 25
+            nights, it is stated with its sample, and it links nowhere it
+            cannot be checked. Re-run the study monthly and this line moves. */}
+        <span
+          title={'Measured over 25 graded nights, 100 picks, each one graded on its own bar '
+            + '(a home run for the HR pick, a base hit for the HIT pick, 2+ H+R+RBI for HRR, '
+            + '2+ total bases for CONTACT). The whole board — all 2,048 designations across the '
+            + 'same nights — graded 41.2%.\n\n'
+            + '+16pp is the MIX-ADJUSTED lift, not the raw +24: four picks hold proportionally '
+            + 'less home run than a board carrying an HR pick in every game, and HR is the '
+            + 'hardest bar here (21.8% against 74.3% for 1+ hit). That part is the market mix, '
+            + 'not the ranking, and it has been priced out.\n\n'
+            + 'bots/precision_study.py, re-run monthly.'}
+          style={{
+            marginLeft: 'auto', flexShrink: 0, cursor: 'help',
+            fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text3,
+            border: `1px solid ${C.border}`, borderRadius: 999, padding: '2px 9px',
+          }}
+        >
+          <b style={{ color: verdictInk(true).color }}>65%</b> over 25 nights ·{' '}
+          <span style={{ color: C.text2 }}>+16pp</span> vs the full board
         </span>
       </div>
 

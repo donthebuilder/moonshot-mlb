@@ -6,6 +6,7 @@ import { setSport } from '../lib/sport'
 import SlateTiles from './SlateTiles'
 import PaletteButton from './PaletteButton'
 import ThemeModeButton from './ThemeModeButton'
+import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
 
 // The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
@@ -316,17 +317,42 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
                   means maintaining two copies of every fix for the rest of the
                   season. NFL lives in this app now; the pill is a real toggle
                   and lib/sport.js holds the state. */}
-              <span style={{ display:'flex', gap:3, marginLeft:5, alignSelf:'center' }}>
-                <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999, background:'rgba(249,115,22,.15)', border:'1px solid rgba(249,115,22,.45)', color:C.orange }}>MLB</span>
-                <button
-                  onClick={() => setSport('nfl')}
-                  aria-label="Switch to MOONSHOT · NFL"
-                  style={{
-                    fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px',
-                    borderRadius:999, border:`1px solid ${C.border2}`, background:'transparent',
-                    color:C.text3, cursor:'pointer',
-                  }}
-                >NFL</button>
+              {/* ── THE SPORT PILLS, FIXED (2026-08-23) ─────────────────────
+                  Donovan: "the mlb bubble and nfl buble is off off."
+                  They were, and the cause was two bugs stacked. MLB was a
+                  <span> and NFL a <button>, so MobileCSS's blanket thumb-target
+                  rule (button { min-height: 32px } under 700px) applied to one
+                  of them and not the other; the row's default align-items then
+                  STRETCHED the span to match. Result on a phone: two 10px
+                  labels inside 39×32 boxes at borderRadius 999 — perfect
+                  ellipses, not pills, and visibly different from each other.
+                  Now: both are buttons, both carry the same explicit capsule
+                  geometry, and the row centres rather than stretches, so the
+                  shape is the same at every width and on every pointer.
+                  MLB is a real button too, with aria-pressed, so the pair reads
+                  as one toggle to a screen reader instead of a label beside a
+                  control. */}
+              <span className="sport-switch" style={{ display:'flex', alignItems:'center', gap:4, marginLeft:5, alignSelf:'center' }}>
+                {[['mlb', 'MLB'], ['nfl', 'NFL']].map(([key, label]) => {
+                  const on = key === 'mlb'
+                  return (
+                    <button
+                      key={key}
+                      onClick={on ? undefined : () => setSport(key)}
+                      aria-pressed={on}
+                      aria-label={on ? 'MOONSHOT · MLB (current)' : 'Switch to MOONSHOT · NFL'}
+                      style={{
+                        display:'inline-flex', alignItems:'center', justifyContent:'center',
+                        height:22, minHeight:22, padding:'0 10px', lineHeight:1,
+                        fontSize:10, fontWeight:800, letterSpacing:'0.06em',
+                        borderRadius:999, cursor: on ? 'default' : 'pointer',
+                        border:`1px solid ${on ? 'rgba(249,115,22,.45)' : C.border2}`,
+                        background: on ? 'rgba(249,115,22,.15)' : 'transparent',
+                        color: on ? C.orange : C.text3,
+                      }}
+                    >{label}</button>
+                  )
+                })}
               </span>
             </div>
             {!condensed && <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />}
@@ -373,7 +399,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
             header's own height ever changing gradually. display:none, NOT
             unmounted — SlateTiles owns polling state and a remount would
             re-derive it; the facts are one scroll-up away. */}
-        <div style={{
+        <div className="hdr-vitals" style={{
           display: condensed ? 'none' : 'flex',
           alignItems:'center', justifyContent:'center',
           gap:6, flexWrap:'wrap', flex:'1 1 480px', minWidth:0,
@@ -387,7 +413,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
           />
         </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10 }}>
           <DateBadge label={dateLabel || 'Loading…'} />
           {/* PALETTE, GLOBAL (2026-08-10). It used to live in the Guide tab and
               on the heat map legend only — two clicks away from the board you
@@ -395,6 +421,10 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
               one. */}
           <PaletteButton />
           <ThemeModeButton />
+          {/* 🔕 2026-08-23: "we need a notifications setting somewhere to
+              minimze the notis on screen for user." Same group as the other
+              two view settings. See lib/quiet.js. */}
+          <QuietButton />
           <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1px solid ${C.border}` }}>
             <button
               onClick={() => setMode('today')}

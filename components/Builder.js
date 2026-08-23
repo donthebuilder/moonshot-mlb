@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, playerId, mlbId, clean, n } from '../lib/player'
 import { GroupTicketBuilder } from './tabs/Pairs'
-import PairBuilder from './PairBuilder'
+import PairBuilder, { PAIR_MARKETS } from './PairBuilder'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🧱 ONE BUILDER, ONE ENGINE — now with ONE OR MORE anchors, from ANYONE
@@ -16,6 +16,22 @@ import PairBuilder from './PairBuilder'
 //      the same build" → one engine, one pin.
 //   3. (2026-08-17) "pair buiulder should be ables to build around one player
 //      or more then also buulding around bot picks only or any one ony site."
+//   4. (2026-08-23) "the pair builder and build by group — i dont like that
+//      its like two separate machines on one page, they kinda do the same
+//      thing. i like both elements, i want them combined."
+//
+// Step 4 is about the FRAME, not the engine — the engine merged at step 2 and
+// both halves have shared one anchor set ever since. What still read as two
+// machines was the presentation: a group builder with its own controls, then a
+// full-width divider, then a collapsed pill labelled "▸ 🤝 Pair Builder" with
+// a second machine behind it. Two headers with a rule between them IS two
+// machines, whatever the state underneath is doing.
+//
+// So: one bordered machine. The anchors sit at the top of it, a segmented
+// control picks which answer you want, and BOTH is the default because he
+// likes both. Nothing is hidden that was not hidden before, nothing new is
+// hidden, and the two panels are now visibly two views of one build rather
+// than two builds that happen to be adjacent.
 //
 // So now: pick as many hitters as you want, from the WHOLE slate. The pool
 // toggle decides who the search offers — the bot's designated picks, or every
@@ -58,7 +74,53 @@ export default function Builder({
   // Defaulting it open puts it at the base of the page on every visit, which
   // is the "at the base of the builder" half of the ask; the collapse button
   // stays for anyone who wants the room back.
-  const [showPartners, setShowPartners] = useState(true)
+  // ── ONE MACHINE, THREE VIEWS (2026-08-23) ────────────────────────────────
+  // 'both' by default — "i like both elements". The other two exist because a
+  // phone cannot hold both at once and because someone who came here for one
+  // question should be able to say so. Remembered, since which question you
+  // ask this page is a standing habit rather than a per-visit whim.
+  const [view, setView] = useState('both')
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem('moonshot_builder_view_v1')
+      if (v === 'both' || v === 'tickets' || v === 'partners') setView(v)
+    } catch { /* private mode */ }
+  }, [])
+  const pickView = (v) => {
+    setView(v)
+    try { window.localStorage.setItem('moonshot_builder_view_v1', v) } catch { /* private mode */ }
+  }
+  // ── ONE MARKET FOR THE WHOLE MACHINE (2026-08-23) ────────────────────────
+  // The market used to live inside the partner panel, which was fine when the
+  // partner panel also owned the chips. Now the chips are up here, and a chip
+  // list ranked by home-run score under a panel that says "the score on the
+  // hitter chips" would be a lie the moment you switched to 1+ hit. So the
+  // market is lifted: the panel still draws the control, the parent holds the
+  // value, and the chips re-rank with it.
+  //
+  // Held here rather than inside PairBuilder for a second reason: the partner
+  // panel is REMOUNTED by key on every pin change, so a market chosen inside
+  // it was silently thrown away every time you added a name.
+  const [market, setMarket] = useState('hr')
+  const mkt = PAIR_MARKETS.find((x) => x.key === market) || PAIR_MARKETS[0]
+
+  // ── THE NAMES YOU CAN JUST TAP (2026-08-23) ──────────────────────────────
+  // Donovan, on the merged builder: "i like how the builder had those names
+  // you can select from, then the build around look. i like the write up and
+  // stats showing thing the build from groups has."
+  //
+  // He is naming the best element of each half, and the merge had dropped one
+  // of them: the anchor picker up here was a bare text box, while the tappable
+  // name chips lived inside PairBuilder — i.e. inside ONE of the two views. So
+  // picking your guy worked differently depending on which answer you happened
+  // to be reading, which is the opposite of one machine.
+  //
+  // The chips come up to the shared anchor block, where they serve both views.
+  // Same behaviour as PairBuilder's: sorted by tonight's score, the score on
+  // each chip, capped in HEIGHT rather than in count (it wrapped to four lines
+  // and pushed the answer below the fold), scrolls inside itself, taller on
+  // request. The search box stays for anyone who would rather type.
+  const [tallChips, setTallChips] = useState(false)
 
   const pool = players.length ? players : allPlayers
 
@@ -86,9 +148,25 @@ export default function Builder({
       .filter((p) => (poolMode === 'anyone' ? true : clean(p?.game_pick_role, '')))
       .filter((p) => !pinnedKeys.has(String(mlbId(p))))
       .filter((p) => `${nameOf(p)} ${teamOf(p)}`.toLowerCase().includes(needle))
-      .sort((a, b) => n(b?.hr_score, 0) - n(a?.hr_score, 0))
+      .sort((a, b) => mkt.score(b) - mkt.score(a))
       .slice(0, 8)
-  }, [pool, q, poolMode, pinnedKeys])
+  }, [pool, q, poolMode, pinnedKeys, mkt])
+
+  // Every hitter the current pool offers, ranked by tonight's HR score — the
+  // chip list. One entry per MAN, not per slate row: a doubleheader publishes
+  // him twice and two identical chips is a bug wearing a feature's clothes.
+  const chipList = useMemo(() => {
+    const seen = new Set()
+    const out = []
+    for (const p2 of pool) {
+      if (poolMode !== 'anyone' && !clean(p2?.game_pick_role, '')) continue
+      const k = String(mlbId(p2) || nameOf(p2))
+      if (!k || seen.has(k)) continue
+      seen.add(k)
+      out.push(p2)
+    }
+    return out.sort((a, b) => mkt.score(b) - mkt.score(a))
+  }, [pool, poolMode, mkt])
 
   // The split the engine needs: designated anchors pin group legs; the rest
   // ride the partner explorer.
@@ -102,12 +180,49 @@ export default function Builder({
   const addPin = (p) => { setPins((v) => [...v, p]); setQ('') }
   const dropPin = (p) => setPins((v) => v.filter((x) => String(mlbId(x)) !== String(mlbId(p))))
 
+  // Which panels render. Both halves always MOUNT under 'both'; the other two
+  // are a choice, not a demotion.
+  const showTickets = view === 'both' || view === 'tickets'
+  // An undesignated anchor cannot hold a group leg, so he is only answerable
+  // by the partner explorer — forcing it open is the page keeping its own
+  // promise from the split note above rather than leaving him nowhere.
+  const showPartners = view === 'both' || view === 'partners' || freePins.length > 0
+
   return (
-    <div>
-      {/* ── THE ANCHORS: none, one, or several ───────────────────────────── */}
+    <div style={{
+      border: `1px solid ${C.border}`, borderRadius: 14, padding: '12px 13px',
+      background: `linear-gradient(168deg, rgba(249,115,22,.04), ${C.bg2} 60%)`,
+    }}>
+      {/* ── ONE HEADER FOR ONE MACHINE ─────────────────────────────────────
+          The whole point of the 08-23 pass. Before this there were two: a
+          group-builder heading, a full-width rule, and a second collapsed pill
+          announcing the Pair Builder as though it were a different tool. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 9 }}>
+        <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '-.01em' }}>🧱 The builder</span>
+        <span style={{ fontSize: 10, color: C.text3, flex: '1 1 200px', minWidth: 0 }}>
+          one build — pin who you like, then read it as tickets, as partners, or both
+        </span>
+        <span className="chip-row" style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+          {[
+            ['both', 'Both', 'The ticket table and the partner history together — the default, because they answer different questions about the same build.'],
+            ['tickets', '🎟 Tickets', 'Crossed designations only: pick two or more of the bot’s five groups and get the tickets they make.'],
+            ['partners', '🤝 Partners', 'Same-game history only: every hitter on the slate ranked by how they have done alongside your anchors. Works for ANY hitter, designated or not.'],
+          ].map(([k, label, tip]) => (
+            <button key={k} onClick={() => pickView(k)} title={tip} style={{
+              padding: '3px 11px', borderRadius: 999, cursor: 'pointer', fontSize: 10,
+              fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+              border: `1px solid ${view === k ? C.orange : C.border}`,
+              background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
+              color: view === k ? C.orange : C.text3,
+            }}>{label}</button>
+          ))}
+        </span>
+      </div>
+
+      {/* ── THE ANCHORS: none, one, or several. SHARED BY BOTH VIEWS. ─────── */}
       <div style={{
         border: `1px solid ${pins.length ? C.orange : C.border}`, borderRadius: 10,
-        background: pins.length ? 'rgba(249,115,22,.06)' : C.bg2,
+        background: pins.length ? 'rgba(249,115,22,.06)' : C.bg3,
         padding: '8px 11px', marginBottom: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -131,7 +246,40 @@ export default function Builder({
           </span>
         </div>
 
-        {pins.length > 0 && (
+        {/* ── THE BUILD-AROUND LOOK (2026-08-23) ─────────────────────────
+            Donovan: "i like the build around look." That is PairBuilder's
+            BUILDING AROUND panel — the anchor's name over his matchup line —
+            and the merged builder had flattened it to a bare chip. One pin
+            gets the full line back; several get the chip row, because five
+            matchup lines is a list rather than a heading. */}
+        {pins.length === 1 && (
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <div
+                onClick={() => onPlayerClick?.(pins[0])}
+                style={{ fontSize: 15, fontWeight: 900, letterSpacing: '-.01em',
+                  cursor: onPlayerClick ? 'pointer' : 'default' }}
+              >{nameOf(pins[0])}</div>
+              <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
+                {teamOf(pins[0])}
+                {clean(pins[0]?.opponent_team, '') ? ` vs ${clean(pins[0].opponent_team, '')}` : ''}
+                {clean(pins[0]?.pitcher_name, '') ? ` · ${clean(pins[0].pitcher_name, '')}` : ''}
+                {mkt.score(pins[0]) ? ` · ${mkt.short} ${mkt.score(pins[0]).toFixed(1)}` : ''}
+                {clean(pins[0]?.game_pick_role, '') ? ` · ${clean(pins[0].game_pick_role, '')}` : ' · not a bot pick'}
+              </div>
+            </div>
+            <button onClick={() => dropPin(pins[0])} title={`Remove ${nameOf(pins[0])}`} style={{
+              marginLeft: 'auto', flexShrink: 0, padding: '3px 10px', borderRadius: 999,
+              cursor: 'pointer', fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
+              border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+            }}>✕ clear</button>
+          </div>
+        )}
+
+        {/* Two or more: the chip row, because two matchup lines is a list. The
+            single-pin case is handled above and must NOT also draw a chip — the
+            same name printed twice was the merged builder's first draft. */}
+        {pins.length > 1 && (
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
             {pins.map((p) => (
               <span key={playerId(p)} style={{
@@ -160,10 +308,69 @@ export default function Builder({
           </div>
         )}
 
+        {/* ── THE CHIPS. Tap a name; no typing required. ─────────────────── */}
+        {chipList.length > 0 && (
+          <>
+            <div className={`anchor-chips${tallChips ? ' tall' : ''}`} style={{
+              display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-start',
+              marginTop: 8, paddingRight: 2,
+              // Measured, not guessed: a chip is 20px tall over a 24px pitch on
+              // desktop and 32 over 36 on a phone, so 68 is exactly three rows
+              // there and exactly two here — either way a whole number of rows
+              // rather than a fourth one sawn through the middle, which reads
+              // as a clipping bug instead of as "there is more, scroll".
+              maxHeight: tallChips ? 188 : 68, overflowY: 'auto',
+              scrollbarWidth: 'none',
+            }}>
+              {chipList.slice(0, 200).map((p2) => {
+                const on = pinnedKeys.has(String(mlbId(p2)))
+                const role = clean(p2?.game_pick_role, '')
+                return (
+                  <button
+                    key={playerId(p2)}
+                    onClick={() => (on ? dropPin(p2) : addPin(p2))}
+                    title={`${nameOf(p2)} — ${teamOf(p2)}${role ? ` · ${role}` : ' · not a bot pick'} · ${mkt.short} ${mkt.score(p2).toFixed(0)}. ${on ? 'Click to remove.' : 'Click to build around him.'}`}
+                    style={{
+                      padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
+                      fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap',
+                      border: `1px solid ${on ? C.orange : C.border}`,
+                      background: on ? 'rgba(249,115,22,.12)' : C.bg2,
+                      color: on ? C.orange : C.text2,
+                    }}
+                  >
+                    {on ? '✓ ' : ''}{nameOf(p2)}
+                    <span style={{ color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, fontSize: 9.5 }}>
+                      {mkt.score(p2).toFixed(0)}
+                    </span>
+                    {!role && (
+                      <span title="Not one of the bot's designations — he can anchor the partner view but cannot hold a leg in a group ticket"
+                        style={{ color: C.text3, marginLeft: 4, fontSize: 9 }}>·</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginTop: 6 }}>
+              {chipList.length > 18 && (
+                <button onClick={() => setTallChips((v) => !v)} style={{
+                  padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 10,
+                  fontWeight: 700, fontFamily: NUM_FONT,
+                  border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
+                }}>{tallChips ? '▴ Collapse the list' : `▾ Taller list (${chipList.length} hitters, scrolls)`}</button>
+              )}
+              <span style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>
+                Sorted by tonight&apos;s <b style={{ color: C.text2 }}>{mkt.label}</b> score
+                {market === 'hr' ? '' : ' — the market picked in the partner panel below'}.
+                {poolMode === 'anyone' && <> A <b style={{ color: C.text2 }}>·</b> means he is not one of the bot&apos;s designations — he can anchor the partner view but cannot hold a group leg.</>}
+              </span>
+            </div>
+          </>
+        )}
+
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={pins.length ? 'Add another…' : "Who's your guy tonight?"}
+          placeholder={pins.length ? 'Add another…' : 'Or search by name…'}
           style={{
             marginTop: 7, width: '100%', maxWidth: 320, padding: '6px 10px',
             borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg,
@@ -180,7 +387,7 @@ export default function Builder({
               }}>
                 {nameOf(p)}
                 <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
-                  {' '}{teamOf(p)}{clean(p?.game_pick_role, '') ? ` · ${clean(p.game_pick_role, '')}` : ` · HR ${n(p?.hr_score, 0).toFixed(0)}`}
+                  {' '}{teamOf(p)}{clean(p?.game_pick_role, '') ? ` · ${clean(p.game_pick_role, '')}` : ` · ${mkt.short} ${mkt.score(p).toFixed(0)}`}
                 </span>
               </button>
             ))}
@@ -211,46 +418,60 @@ export default function Builder({
           whose size was still 2 — one HIT slot for two HIT pins — and every
           ticket was dropped with a message blaming the wrong thing. The
           remount makes the leg count grow with the pins. */}
-      <GroupTicketBuilder
-        key={`pins-${pinnedIds.join('.') || 'none'}`}
-        players={pool}
-        odds={odds}
-        slateDate={slateDate}
-        defaultSize={Math.max(2, Math.min(4, designatedPins.length + 1))}
-        pinnedIds={pinnedIds}
-        pinnedName={pinnedName}
-        onPlayerClick={onPlayerClick}
-      />
+      {showTickets && (
+        <GroupTicketBuilder
+          key={`pins-${pinnedIds.join('.') || 'none'}`}
+          players={pool}
+          odds={odds}
+          slateDate={slateDate}
+          defaultSize={Math.max(2, Math.min(4, designatedPins.length + 1))}
+          pinnedIds={pinnedIds}
+          pinnedName={pinnedName}
+          onPlayerClick={onPlayerClick}
+          bare
+        />
+      )}
 
-      {/* ── THE OTHER QUESTION, seeded with every anchor ──────────────────── */}
-      <div style={{ marginTop: 20, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
-        <button
-          onClick={() => setShowPartners((v) => !v)}
-          style={{
-            padding: '5px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
-            fontWeight: 800, fontFamily: NUM_FONT,
-            border: `1px solid ${(showPartners || freePins.length) ? C.orange : C.border}`,
-            background: (showPartners || freePins.length) ? 'rgba(249,115,22,.14)' : 'transparent',
-            color: (showPartners || freePins.length) ? C.orange : C.text3,
-          }}
-        >
-          {(showPartners || freePins.length > 0) ? '▾' : '▸'} 🤝 Pair Builder — who has history with {pins.length > 1 ? 'them' : 'him'}
-        </button>
-        <span style={{ fontSize: 9.5, color: C.text3, marginLeft: 8 }}>
-          same-game record on every partner — works for ANY hitter, designated or not
-        </span>
-        {(showPartners || freePins.length > 0) && (
-          <div style={{ marginTop: 12 }}>
-            <PairBuilder
-              key={pins.map((p) => playerId(p)).join('|') || 'none'}
-              summary={pairHistorySummary}
-              players={pool}
-              onPlayerClick={onPlayerClick}
-              initialAnchors={pins.map((p) => playerId(p))}
-            />
-          </div>
-        )}
-      </div>
+      {/* ── THE OTHER ANSWER, same anchors ─────────────────────────────────
+          A hairline, not a full rule and not a second heading — this is the
+          second view of one build, and it used to announce itself as a
+          separate product. When it is the ONLY view showing, even the hairline
+          goes: there is nothing above it to be separated from. */}
+      {showPartners && (
+        <div style={showTickets
+          ? { marginTop: 16, paddingTop: 13, borderTop: `1px dashed ${C.border2}` }
+          : { marginTop: 4 }}>
+          {showTickets && (
+            <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.11em', color: C.text3,
+              fontFamily: NUM_FONT, textTransform: 'uppercase', marginBottom: 8 }}>
+              🤝 and who has history with {pins.length > 1 ? 'them' : pins.length ? 'him' : 'each of them'}
+            </div>
+          )}
+          {/* Kept from the old collapsed pill's caption, because it is the one
+              thing that distinguishes this half and it is easy to miss. */}
+          {view === 'partners' && (
+            <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8 }}>
+              same-game record on every partner — works for ANY hitter, designated or not
+            </div>
+          )}
+          {freePins.length > 0 && view === 'tickets' && (
+            <div style={{ fontSize: 10, color: C.yellow, marginBottom: 8, lineHeight: 1.55 }}>
+              Showing partners anyway: {freePins.map(nameOf).join(', ')} cannot hold a leg in a
+              group ticket, so this is the only view that can answer for {freePins.length === 1 ? 'him' : 'them'}.
+            </div>
+          )}
+          <PairBuilder
+            key={pins.map((p) => playerId(p)).join('|') || 'none'}
+            summary={pairHistorySummary}
+            players={pool}
+            onPlayerClick={onPlayerClick}
+            initialAnchors={pins.map((p) => playerId(p))}
+            marketKey={market}
+            onMarketChange={setMarket}
+            bare
+          />
+        </div>
+      )}
     </div>
   )
 }

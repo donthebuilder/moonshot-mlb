@@ -481,8 +481,16 @@ export default function DenseTable({
                     // the <tr>'s inset shadow was always painted over by
                     // exactly this `background: C.bg2`.
                     const isFirstText = c.sticky || c.key === firstTextKey
+                    // A TEXT CELL CAN EXPLAIN ITSELF (2026-08-23). Numeric
+                    // cells have carried a title since this table was written;
+                    // text cells never did, so a column whose whole value is a
+                    // judgement — the Role column's lane, which says "91st
+                    // percentile of hit_score on the rows in view" — had
+                    // nowhere to put its evidence. `titleKey` names a sibling
+                    // field on the row; absent or empty, nothing changes.
+                    const textTitle = c.titleKey ? (r?.[c.titleKey] || undefined) : undefined
                     return (
-                      <td key={c.key} className={c.sticky ? 'dense-sticky' : undefined} style={{
+                      <td key={c.key} title={textTitle} className={c.sticky ? 'dense-sticky' : undefined} style={{
                         position: c.sticky ? 'sticky' : undefined,
                         left: c.sticky ? 0 : undefined,
                         zIndex: c.sticky ? 1 : undefined,
@@ -493,6 +501,7 @@ export default function DenseTable({
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         maxWidth: c.w, borderRight: `1px solid ${C.border}`,
                         borderBottom: `1px solid ${C.bg}`,
+                        cursor: textTitle ? 'help' : undefined,
                         ...(light ? cellTint(light.color) : {}),
                         // The 3px bar belongs on the row's first cell, which is
                         // the element that actually paints there.

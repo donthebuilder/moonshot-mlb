@@ -51,6 +51,47 @@ function Tile({ label, value, tone, tip }) {
   )
 }
 
+// ══ TWO BANDS, IN ORDER (2026-08-23) ════════════════════════════════════════
+//
+// Donovan on the pitcher surfaces, three times: "so much reaching, not enough
+// give and go info", "i dk what im looking at", "too much on mobile" — and,
+// asked whether the arsenal or the splits should lead, "both. want the both to
+// look better."
+//
+// Counted on a 390px render before this: hero, then a blowup panel, then TEN
+// tag chips, then EIGHT stat tiles, then ELEVEN split buttons, then FIVE more
+// tiles — thirty-four coloured elements before a sentence, and the two tile
+// groups are the SAME statistics twice, adjacent, under different colour
+// rules. Nothing there is wrong. Nothing there is ordered either, and an
+// unordered wall is what "all over the place" means.
+//
+// So the modal gets the same two named bands the Pitchers page card got, in
+// the same order, using the same words:
+//
+//   WHAT HE GIVES UP   the damage — his season line and his recent contact.
+//   WHO GETS HIM       the splits — by hand, by park, by situation.
+//
+// "Both" is answered by titling each half rather than promoting one: on a
+// phone you now read one question, then the other, and the heading tells you
+// which one you are in. Nothing was removed — every tile, chip and control
+// still renders, in the band it belongs to.
+function ModalBand({ title, note, children }) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
+        <span style={{
+          fontSize: 8.5, fontWeight: 900, letterSpacing: '.11em', color: C.text3,
+          fontFamily: NUM_FONT, textTransform: 'uppercase', flexShrink: 0,
+        }}>{title}</span>
+        {note && (
+          <span style={{ fontSize: 9, color: C.text3, minWidth: 0 }}>{note}</span>
+        )}
+      </div>
+      {children}
+    </div>
+  )
+}
+
 const TABS = [
   { key: 'matchup', label: '🥎 Arsenal + damage' },
   { key: 'lineup',  label: '📋 Lineup he faces' },
@@ -383,17 +424,27 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             ]}
           />
 
-          {/* the at-a-glance row — see Tile above */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 6 }}>
-            {tiles.map((t) => <Tile key={t.label} {...t} />)}
-          </div>
-          <div style={{ fontSize: 8.5, color: C.text3, marginBottom: 10 }}>
-            <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
-            <b style={{ color: '#60a5fa' }}>blue</b> = his strength — hover any tile for what it means
-          </div>
+          {/* ── BAND 1: WHAT HE GIVES UP ─────────────────────────────────
+              His season line and his recent contact — the damage half. Same
+              tiles as before, now under a heading that says which question
+              they answer. */}
+          <ModalBand title="What he gives up" note="his season line, and the contact he has been allowing">
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 6 }}>
+              {tiles.map((t) => <Tile key={t.label} {...t} />)}
+            </div>
+            <div style={{ fontSize: 8.5, color: C.text3 }}>
+              <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
+              <b style={{ color: '#60a5fa' }}>blue</b> = his strength — hover any tile for what it means
+            </div>
+          </ModalBand>
 
-          {/* the splits, as a control — see SplitsControl. */}
-          <SplitsControl src={src} />
+          {/* ── BAND 2: WHO GETS HIM ─────────────────────────────────────
+              The splits. Same control, same tiles — but the heading is what
+              stops it reading as the previous eight numbers printed twice,
+              which is exactly how it read at 390px. */}
+          <ModalBand title="Who gets him" note="the same arm, cut by hand, park and situation">
+            <SplitsControl src={src} />
+          </ModalBand>
 
           {/* 🧭 the story in sentences — same flow pass the batter modal got
               (2026-08-15). All from fields already resolved above. */}

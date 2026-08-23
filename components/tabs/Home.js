@@ -98,33 +98,6 @@ function Fig({ children, col = C.text, title }) {
   )
 }
 
-// ── THE HERO'S FACTS, AS CHIPS (2026-08-23) ────────────────────────────────
-//
-// Donovan, from a phone: "trim up the home page open, make it look nice and
-// cool." The paragraph below was written to REPLACE a four-tile row, and the
-// reasoning holds on a desktop — but at 13px over 1.75 line-height it runs
-// fourteen lines on a 390px screen before anything else on the page, and the
-// numbers it exists to deliver are buried mid-sentence.
-//
-// So the numbers come out and stand in a row, and the prose keeps only what
-// the chips do not say. This is NOT the old tile row coming back: that row was
-// deleted for repeating the paragraph, and the paragraph is now trimmed to the
-// half the chips don't carry. Nothing is dropped, including the honest
-// "not published yet" states — a chip with no number says so in words.
-function Stat({ label, value, sub, col = C.text, title }) {
-  return (
-    <span title={title} style={{
-      display: 'inline-flex', alignItems: 'baseline', gap: 5,
-      border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.025)',
-      borderRadius: 8, padding: '3px 9px', cursor: title ? 'help' : 'inherit',
-    }}>
-      <span style={{ fontSize: 8.5, color: C.text3, letterSpacing: '.06em', fontFamily: NUM_FONT }}>{label}</span>
-      <b style={{ fontSize: 12, color: col, fontFamily: NUM_FONT }}>{value}</b>
-      {sub && <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</span>}
-    </span>
-  )
-}
-
 // ── TAB CONSOLIDATION (2026-08-16, owner-approved plan) ─────────────────────
 //
 // The rule the plan runs on: a TAB is a question you arrive with; a VIEW is an
@@ -602,42 +575,49 @@ export default function Home({
             'No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands; no refresh ritual required.'
           ) : (
             <>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                <Stat label="GAMES" value={games.length}
-                  sub={`${confirmedGames} confirmed`}
-                  col={C.blue}
-                  title="Games on tonight's slate, and how many have lineups the league has posted. Confirmed picks homer at a meaningfully higher clip than unconfirmed ones." />
-                <Stat label={isLive ? 'FIRST PITCH WAS' : 'FIRST PITCH'}
-                  value={firstPitch ? firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'not published'}
-                  col={firstPitch ? C.yellow : C.text3}
-                  title="Your local time — the earliest game that hasn't started yet, or the earliest on the slate once they all have." />
-                {modelHr != null ? (
-                  <Stat label="PROJ HR" value={modelHr.toFixed(1)}
-                    sub={proj ? `bot ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
-                    col={C.orange}
-                    title="The site's model, summed over every hitter on the slate. The second figure is the range on the bot's own published sheet — a second opinion, not the site's number." />
-                ) : proj ? (
-                  <Stat label="PROJ HR (BOT)" value={`${proj.low}–${proj.high}`} sub={proj.grade || null} col={C.orange}
-                    title="From the bot's published sheet. The site's own model figure isn't available for this slate." />
-                ) : (
-                  <Stat label="PROJ HR" value="not published yet" col={C.text3}
-                    title="Neither the site's model nor the bot's sheet has a homer projection for this slate yet." />
-                )}
-                {airRanked[0] && (
-                  <Stat label="BEST AIR" value={`${airRanked[0].venue} ${airRanked[0].edge > 0 ? '+' : ''}${airRanked[0].edge.toFixed(0)}%`}
-                    col={airRanked[0].edge > 0 ? C.orange : C.text3}
-                    title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
-                )}
-                {record && (
-                  <Stat label="GRADED" value={`${record.acc.toFixed(1)}%`} sub={`${record.days} days`} col={C.green}
-                    title="Base-hit accuracy across every graded pick in the archive — a measured rate, not a projection." />
-                )}
-              </div>
               {isLive && homersSoFar > 0 && <><b style={{ color: C.orange }}>⚡ {homersSoFar} already gone tonight.</b>{' '}</>}
+              {/* GAMES tile + its "N with confirmed lineups" sub-line */}
+              <Fig col={C.blue} title="Games on tonight's slate.">{games.length} games</Fig>
+              {', '}
+              <Fig col={confirmedGames === games.length ? C.green : C.text}
+                title="Lineups the league has posted. Confirmed picks homer at a meaningfully higher clip than unconfirmed ones — the Scoreboard's pick strip counts down the ones still open.">
+                {confirmedGames}
+              </Fig>
+              {' of them with confirmed lineups'}
+              {/* FIRST PITCH tile — value and its "your local time" sub-line */}
+              {firstPitch
+                ? <>, first pitch{isLive ? ' was' : ''} <Fig col={C.yellow} title="Your local time — the earliest game that hasn't started yet, or the earliest on the slate once they all have.">{firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Fig></>
+                : <>, and no game times have been published on the slate yet</>}
+              {'. '}
+              {/* PROJECTED HR tile — the model's own figure to the decimal
+                  (Donovan, 2026-08-15: "should show to the decimal not range"),
+                  the bot sheet's range as the second opinion, the power grade,
+                  and the tile's empty-state sentence when neither published. */}
+              {modelHr != null ? (
+                <>The site&apos;s own model projects <Fig col={C.orange} title="The site's model, summed over every hitter on the slate — the same figure the header and the projected-output table quote.">{modelHr.toFixed(1)} homers</Fig>
+                  {proj ? <> tonight, against the bot&apos;s own sheet at <Fig col={C.orange} title="The range printed on the bot's published sheet (today.txt) — a second opinion, not the site's number.">{proj.low}–{proj.high}</Fig>{proj.grade ? <> and a power grade of <b style={{ color: C.text }}>{proj.grade}</b></> : ''}</> : ' tonight'}.{' '}</>
+              ) : proj ? (
+                <>The bot&apos;s own sheet projects <Fig col={C.orange} title="From the bot's published sheet (today.txt). The site's own model figure isn't available for this slate.">{proj.low}–{proj.high} homers</Fig>{proj.grade ? <> at a power grade of <b style={{ color: C.text }}>{proj.grade}</b></> : ''}.{' '}</>
+              ) : (
+                <>No homer projection yet — that clause appears once the bot publishes its sheet.{' '}</>
+              )}
+              {/* BEST AIR — the number stays, the conditions are now spoken by
+                  lib/conditions instead of a chip strip 500px down the page. */}
+              {airRanked[0] && (airRanked[0].edge > 0 ? (
+                <>The best air is <b style={{ color: C.text }}>{airRanked[0].venue}</b> at{' '}
+                  <Fig col={C.orange} title="Park HR factor plus the published weather effect, as a percentage swing on home-run rate — not a chance of anything. The full ladder is on the Power tab.">+{airRanked[0].edge.toFixed(0)}%</Fig>
+                  {airLine(airRanked[0]) ? <> — <span title={airTitle(airRanked[0])} style={{ cursor: 'help' }}>{airLine(airRanked[0])}</span></> : ''}.{' '}</>
+              ) : (
+                <>No park on the slate is playing above neutral once its factor and air are combined — the best of the <Fig>{airRanked.length}</Fig> is <b style={{ color: C.text }}>{airRanked[0].venue}</b> at <Fig col={C.text3}>{airRanked[0].edge.toFixed(0)}%</Fig>.{' '}</>
+              ))}
               {headline && <>The game to circle is <Fig>{clean(headline.g.away, '?')} @ {clean(headline.g.home, '?')}</Fig>, immediately below.{' '}</>}
-              {record
-                ? <>Every pick is graded in public — the receipts are at the foot of this page.</>
-                : <>Every pick is graded in public, but the archive hasn&apos;t published a base-hit accuracy yet — the receipts door at the foot of this page still has every graded night.</>}
+              {/* BOT BASE-HIT RECORD tile — the quotable number and its
+                  denominator, or the tile's honest "not published" line. */}
+              {record ? (
+                <>The bot grades every pick in public: <Fig col={C.green} title="Base-hit accuracy across every graded pick in the archive — a measured rate, not a projection.">{record.acc.toFixed(1)}%</Fig> base-hit accuracy over <Fig col={C.green}>{record.days}</Fig> graded days, receipts at the foot of this page.</>
+              ) : (
+                <>The bot grades every pick in public, but the grading archive hasn&apos;t published a base-hit accuracy yet — the receipts door at the foot of this page still has every graded night.</>
+              )}
             </>
           )}
         </div>
@@ -847,18 +827,14 @@ export default function Home({
                         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {g.matchup}</span>
                         {' at '}
                         <b style={{ fontFamily: NUM_FONT, color: '#FB923C' }}>+{g.edge.toFixed(0)}%</b>
-                        {/* CONDITIONS ON THE LEADER ONLY (2026-08-23). Three
-                            full weather parentheticals in one sentence is most
-                            of a phone screen for a line that is meant to be
-                            read in a glance. The other two keep theirs in the
-                            tooltip the button already carries. */}
-                        {i === 0 && airLine(g) ? <span style={{ color: C.text3 }}> ({airLine(g)})</span> : ''}
+                        {airLine(g) ? <span style={{ color: C.text3 }}> ({airLine(g)})</span> : ''}
                       </span>
                     ))}
                     .{' '}</>
                 )}
                 <span style={{ fontSize: 9.5, color: C.text3 }}>
-                  Park factor plus published weather, as a swing on the rate — not a chance of one. Tap a park for the ladder.
+                  Park factor plus the published weather effect, as a percentage swing on home runs — a swing on the rate,
+                  not a chance of one. Tap a park for the full ladder.
                 </span>
               </span>
             </div>

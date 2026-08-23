@@ -52,20 +52,53 @@ export function useIsPhone(maxWidth = 560) {
  *   accent  — colour of the summary chrome
  *
  * Desktop (or any width above `maxWidth`) renders `children` bare.
+ *
+ *   always     — fold at EVERY width, not only on a phone (2026-08-23,
+ *                Donovan: "games chip need to be able to be hidden just like
+ *                on mobile"). The phone-only default stays the default,
+ *                because the original argument still holds for most sections:
+ *                fifteen cards are a wall on a phone and three tidy rows on a
+ *                desktop. It stops holding the moment a section is a SELECTOR
+ *                rather than a board — you pick a game once and then read for
+ *                several screens, and the grid you already used is just in the
+ *                way. That is a per-caller judgement, so it is a per-caller
+ *                prop rather than a new global rule.
+ *   rememberKey — localStorage key for the open/closed state. Only worth it
+ *                where the fold is a standing preference ("I don't want to see
+ *                the grid") rather than a momentary one; without it the fold
+ *                reopens on every visit, which is right for a phone wall and
+ *                wrong for a control someone deliberately closed.
  */
 export default function MobileFold({
   title, summary = '', count = null, accent = C.orange,
-  maxWidth = 560, defaultOpen = false, children,
+  maxWidth = 560, defaultOpen = false, always = false, rememberKey = null, children,
 }) {
   const isPhone = useIsPhone(maxWidth)
   const [open, setOpen] = useState(defaultOpen)
 
-  if (!isPhone) return <>{children}</>
+  // Same hydration rule as useIsPhone: never read storage during render. The
+  // server has none, so a stored `false` would produce markup React throws
+  // away on the first client pass.
+  useEffect(() => {
+    if (!rememberKey) return
+    try {
+      const v = window.localStorage.getItem(rememberKey)
+      if (v === '0' || v === '1') setOpen(v === '1')
+    } catch { /* private mode */ }
+  }, [rememberKey])
+
+  const toggle = () => setOpen((v) => {
+    const next = !v
+    if (rememberKey) { try { window.localStorage.setItem(rememberKey, next ? '1' : '0') } catch { /* private mode */ } }
+    return next
+  })
+
+  if (!isPhone && !always) return <>{children}</>
 
   return (
     <div style={{ marginBottom: open ? 0 : 10 }}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="tap-row"
         style={{
           display: 'flex', width: '100%', gap: 8, alignItems: 'center',

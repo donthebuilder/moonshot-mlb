@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, oppOf, mlbId, txt } from '../lib/player'
+import { n, nameOf, teamOf, oppOf, mlbId, txt } from '../lib/player'
 import { alpha, verdictInk, verdictWash } from '../lib/scales'
-import { thresholdRates, starterHands, MARKETS } from '../lib/gamelogs'
+import { thresholdRates, starterHands, streakRuns, MARKETS } from '../lib/gamelogs'
+import StreakRibbon, { StreakLine } from './StreakRibbon'
 import { quoteFor, gridQuote, fmtOdds, fairOdds, impliedPct } from '../lib/odds'
 import { primaryRole, verdictFor, roleColor, sentenceFor, chipsFor } from '../lib/verdict'
 import VerdictHero, { PeriodTiles } from './VerdictHero'
@@ -221,6 +222,29 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
 
   const last10 = useMemo(() => (data?.logAll || []).slice(0, 10), [data])
 
+  // Tonight's matchup columns. Read off the slate row, not the game log — and
+  // absent on every slate published before they shipped, which is why every
+  // consumer below is guarded rather than defaulted.
+  // "missing" means no Statcast pitch data for this arm; the note then reads
+  // "not a cold matchup, an unmeasured one" and is worth showing. An absent
+  // note is a slate that predates the field and shows nothing.
+  const mbNote = String(player?.meatball_fit_status || '') === 'missing'
+    ? '' : txt(player?.meatball_fit_note)
+  const mbFit = n(player?.meatball_fit_score, null)
+  const stealScore = String(player?.steal_risk_status || '') === 'no_runner'
+    ? null : n(player?.steal_risk_score, null)
+
+  // ⚡ THE RUN (2026-08-23, Donovan: "adds breask in streaks"). "Last 10" above
+  // shows ten marks; this shows the whole season as runs, so the SHAPE is
+  // readable — a bat that alternates every other night and a bat that goes on
+  // seven-game tears can hold the same 50% and are not the same bet. Computed
+  // off the log the sheet already fetched; the market rail retargets it, same
+  // as every other section here.
+  const streak = useMemo(
+    () => streakRuns(data?.logAll || [], meta.test),
+    [data, meta],
+  )
+
   // THE GRID, as bars: every market at once in one window. The desktop version
   // is eight markets × four windows on a heat matrix; a phone gets one window
   // at a time and a full-width track, which is the same comparison without the
@@ -303,6 +327,47 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
           </div>
         </Section>
 
+        {/* ── TONIGHT — ABOVE THE GAME-LOG GATE, DELIBERATELY ─────────────
+            Everything below this point is HIS OWN GAME LOG, fetched live from
+            StatsAPI. These two are slate columns and do not depend on it.
+
+            It was written inside the log branch first, and rendering the sheet
+            proved that wrong: a hitter with no published log — a September
+            call-up, or any night the fetch fails — got "no game log published"
+            and lost the two facts that were about tonight rather than about his
+            season. The gate belongs around the rates, not around the matchup.
+
+            Both render nothing at all when the fields are absent, which is
+            every slate published before they shipped. */}
+        {(mbNote || (stealScore != null && stealScore > 0)) && (
+          <Section title="tonight" note="the matchup, not his log">
+            {mbNote && (
+              <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.5, marginBottom: 6 }}>
+                <b style={{ color: C.text }}>🍝 The mistake</b>{' '}
+                <span style={{ color: C.text3 }}>{mbNote}</span>
+                {mbFit != null && mbFit > 0 && (
+                  <b style={{
+                    marginLeft: 6, fontFamily: NUM_FONT,
+                    color: mbFit >= 65 ? verdictInk(true).color
+                      : mbFit <= 35 ? verdictInk(false).color : C.text2,
+                  }}>{mbFit.toFixed(0)}</b>
+                )}
+              </div>
+            )}
+            {stealScore != null && stealScore > 0 && (
+              <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.5 }}>
+                <b style={{ color: C.text }}>🏃 The run</b>{' '}
+                <b style={{
+                  fontFamily: NUM_FONT,
+                  color: stealScore >= 60 ? verdictInk(true).color
+                    : stealScore <= 35 ? verdictInk(false).color : C.text2,
+                }}>{stealScore.toFixed(0)}</b>
+                <span style={{ color: C.text3 }}> · {txt(player?.steal_risk_note)}</span>
+              </div>
+            )}
+          </Section>
+        )}
+
         {data === undefined ? (
           <div style={{ fontSize: 11.5, color: C.text3, marginTop: 16 }}>Reading his game log…</div>
         ) : !data ? (
@@ -345,6 +410,15 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
                 })}
               </div>
             </Section>
+
+            {streak && (
+              <Section title="the run" note="newest on the left · warm cleared, cool missed">
+                <StreakLine streak={streak} label={meta.label} />
+                <div style={{ marginTop: 8 }}>
+                  <StreakRibbon streak={streak} label={meta.label} height={15} max={44} />
+                </div>
+              </Section>
+            )}
 
             <Section title="splits" note={hands ? 'home/away · arm side' : 'arm side loading…'}>
               {[['Home', splits?.home], ['Away', splits?.away], ['vs LHP', splits?.vsL], ['vs RHP', splits?.vsR]]

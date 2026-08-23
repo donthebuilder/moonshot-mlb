@@ -129,7 +129,7 @@ export default function TabExplainer({ tab }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} style={{
+      <button className="tab-explainer" onClick={() => setOpen(true)} style={{
         fontSize: 9.5, fontWeight: 700, color: C.text3, cursor: 'pointer',
         background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 999,
         padding: '2px 10px', marginBottom: 8,
@@ -137,7 +137,10 @@ export default function TabExplainer({ tab }) {
     )
   }
   return (
-    <div style={{
+    // .tab-explainer is what Quiet mode hides — see lib/quiet.js. The pill
+    // above wears it too, so quiet means gone rather than collapsed to a
+    // control you now have to ignore instead of read.
+    <div className="tab-explainer" style={{
       background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
       border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`,
       borderRadius: 10, padding: '9px 13px', marginBottom: 12,
