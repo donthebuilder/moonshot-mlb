@@ -1,6 +1,7 @@
 'use client'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { verdictInk } from '../../lib/scales'
 import { fetchJSON } from '../../lib/data'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
 import { oddsHistoryPaths } from '../../lib/dataSource'
@@ -232,9 +233,9 @@ export default function TruePrice({ onPlayerClick }) {
             <>
               Of the <B>{lead.pool.length.toLocaleString()}</B> priced lines with{' '}
               <B>{minN}+</B> graded night{minN === 1 ? '' : 's'} behind them,{' '}
-              <B col="#4ade80">{lead.real.length}</B> clear their own error bar —{' '}
-              <B col="#4ade80">{lead.up.length}</B> where the market has been slow on him,{' '}
-              <B col="#f87171">{lead.down.length}</B> where you have been paying up for the name.
+              <B col={verdictInk(true).color}>{lead.real.length}</B> clear their own error bar —{' '}
+              <B col={verdictInk(true).color}>{lead.up.length}</B> where the market has been slow on him,{' '}
+              <B col={verdictInk(false).color}>{lead.down.length}</B> where you have been paying up for the name.
             </>
           ) : (
             <>
@@ -261,7 +262,7 @@ export default function TruePrice({ onPlayerClick }) {
             prices he was actually getting only needed <B>{lead.loudest.avgImplied}%</B>. True price{' '}
             <B col={C.orange}>{priceText(lead.loudest.truePrice, lead.loudest.rate, lead.loudest.n)}</B>,
             book price <B>{lead.loudest.avgPrice != null ? fmtOdds(lead.loudest.avgPrice) : '—'}</B>{' '}
-            — a <B col={lead.loudest.edge > 0 ? '#4ade80' : '#f87171'}>
+            — a <B col={verdictInk(lead.loudest.edge > 0).color}>
               {lead.loudest.edge > 0 ? '+' : ''}{lead.loudest.edge.toFixed(0)}
             </B>-point gap at <B>{lead.loudest.z}σ</B>.
           </Line>
@@ -412,7 +413,7 @@ export default function TruePrice({ onPlayerClick }) {
                       </td>
                       <td style={{
                         ...cell, fontWeight: 900,
-                        color: r.trust === 'real' ? (r.edge > 0 ? '#4ade80' : '#f87171') : C.text2,
+                        color: r.trust === 'real' ? verdictInk(r.edge > 0).color : C.text2,
                       }} title={r.z != null ? `${r.edge > 0 ? '+' : ''}${r.edge} points, error bar ±${r.se} → ${r.z} standard errors` : ''}>
                         {r.edge > 0 ? '+' : ''}{r.edge.toFixed(0)}
                       </td>
@@ -439,7 +440,7 @@ export default function TruePrice({ onPlayerClick }) {
                                 padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap',
                                 border: `1px solid ${got ? 'rgba(74,222,128,.35)' : C.border}`,
                                 background: got ? 'rgba(74,222,128,.08)' : 'transparent',
-                                color: got ? '#4ade80' : C.text3,
+                                color: got ? verdictInk(true).color : C.text3,
                               }}>{date.slice(5)} {fmtOdds(over)}</span>
                             ))}
                           </div>

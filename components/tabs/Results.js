@@ -2,6 +2,7 @@
 import Leaders from './Leaders'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { verdictInk } from '../../lib/scales'
 import { gradedResultsUrl } from '../../lib/dataSource'
 import { dedupeGraded } from '../../lib/graded'
 import { arr, n, clean } from '../../lib/player'
@@ -70,7 +71,7 @@ import ScoreBands from '../ScoreBands'
 
 const TAG_COLORS = {
   '🏆': '#f97316', '🧨': '#f97316', '🔥': '#f97316',
-  '🏁': '#22d3ee', '💠': '#38bdf8', '⚾': '#4ade80', '⭐': '#facc15',
+  '🏁': '#22d3ee', '💠': '#38bdf8', '⚾': C.orange, '⭐': '#facc15',
 }
 function tagColor(tag) {
   for (const [emoji, col] of Object.entries(TAG_COLORS)) {
@@ -191,7 +192,7 @@ function TrackingLegend({ slots }) {
     { emoji: '🧩', label: 'Aligned signals',   count: puzzleCount, color: '#a78bfa' },
     { emoji: '🎯', label: 'Pitch type match',   count: matchCount, color: '#38bdf8' },
     { emoji: '👻', label: 'Hidden HR value',    count: hiddenCount, color: '#71717a' },
-    { emoji: '⚠️', label: 'Trap flag',          count: trapCount, color: '#f87171' },
+    { emoji: '⚠️', label: 'Trap flag',          count: trapCount, color: verdictInk(false).color },
   ].filter(x => x.count > 0)
 
   if (!items.length) return null
@@ -419,8 +420,8 @@ const Row = ({ p, accent }) => {
         </div>
         <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
           our picks vs him: <b style={{ color: hitPicks ? accent : C.text3 }}>{hitPicks}/{p.picks.length} homered</b>
-          {p.hr9 > 0 && <> · HR/9 <span style={{ color: p.hr9 >= 1.2 ? '#f87171' : C.text2 }}>{p.hr9.toFixed(2)}</span></>}
-          {p.whip > 0 && <> · WHIP <span style={{ color: p.whip >= 1.30 ? '#f87171' : C.text2 }}>{p.whip.toFixed(2)}</span></>}
+          {p.hr9 > 0 && <> · HR/9 <span style={{ color: p.hr9 >= 1.2 ? verdictInk(true).color : C.text2 }}>{p.hr9.toFixed(2)}</span></>}
+          {p.whip > 0 && <> · WHIP <span style={{ color: p.whip >= 1.30 ? verdictInk(true).color : C.text2 }}>{p.whip.toFixed(2)}</span></>}
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -428,7 +429,7 @@ const Row = ({ p, accent }) => {
           {p.hr_allowed_today} HR
         </div>
         <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? '#f87171' : C.text3, cursor: 'help' }}>{p.k_today} K</span>
+          {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? verdictInk(false).color : C.text3, cursor: 'help' }}>{p.k_today} K</span>
         </div>
       </div>
     </div>
@@ -547,12 +548,12 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
       {/* the verdict, before the list */}
       <div style={{ padding: '8px 14px 2px', fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
         flagged <b style={{ color: C.text }}>{flaggedN}</b> weak arm{flaggedN !== 1 ? 's' : ''} ·{' '}
-        <b style={{ color: '#4ade80' }}>{buckets.called.length}</b> gave it up
+        <b style={{ color: verdictInk(true).color }}>{buckets.called.length}</b> gave it up
         {flaggedN > 0 && <> ({((100 * buckets.called.length) / flaggedN).toFixed(0)}%)</>}
-        {unflaggedHr > 0 && <> · <b style={{ color: '#f87171' }}>{unflaggedHr} HR</b> came off arms it didn&apos;t flag</>}
+        {unflaggedHr > 0 && <> · <b style={{ color: verdictInk(false).color }}>{unflaggedHr} HR</b> came off arms it didn&apos;t flag</>}
       </div>
-      <Group icon="🎯" label="CALLED IT" note="flagged weak, and he gave it up" list={buckets.called} accent="#4ade80" />
-      <Group icon="💥" label="BURNED US UNFLAGGED" note="the model didn't flag him — he homered anyway" list={buckets.missedArm} accent="#f87171" />
+      <Group icon="🎯" label="CALLED IT" note="flagged weak, and he gave it up" list={buckets.called} accent={verdictInk(true).color} />
+      <Group icon="💥" label="BURNED US UNFLAGGED" note="the model didn't flag him — he homered anyway" list={buckets.missedArm} accent={verdictInk(false).color} />
       <Group icon="🧱" label="FLAG DIDN'T CASH" note="targeted as weak, held anyway" list={buckets.noCash} accent="#FCD34D" />
       <Group icon="😴" label="QUIET, AS EXPECTED" note="unflagged, no damage — the biggest group and the least news" list={buckets.quiet} accent="#3f3f46" collapsed />
       <div style={{ height: 8 }} />
@@ -1181,10 +1182,10 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           if (withJob.length) {
             const p = (100 * didJob) / withJob.length
             takes.push(
-              <Take key="job" col="#4ade80"
+              <Take key="job" col={verdictInk(true).color}
                 title="Every pick against the bar it was designated for — the tile that used to sit below called this “Did its job”.">
-                The picks cleared <B col="#4ade80">{didJob} of {withJob.length}</B> of their own bars
-                (<B col="#4ade80">{p.toFixed(0)}%</B>) — a HIT pick needed a hit, an HRR pick 2+ H+R+RBI;
+                The picks cleared <B col={verdictInk(true).color}>{didJob} of {withJob.length}</B> of their own bars
+                (<B col={verdictInk(true).color}>{p.toFixed(0)}%</B>) — a HIT pick needed a hit, an HRR pick 2+ H+R+RBI;
                 nobody here is graded on homers he wasn&apos;t picked for.
               </Take>,
             )
@@ -1256,7 +1257,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
                 title="Slate homers that were on the sheet somewhere — any lane, any rank. The full caught-vs-missed detail is the fold under this block.">
                 <B col="#38bdf8">{capCaught}</B> of the slate&apos;s <B>{capTotal}</B> home runs were somewhere on the sheet
                 (<B col="#38bdf8">{capPct.toFixed(0)}%</B>) — {capPct >= 70 ? 'a wide net on a night it mattered' : capPct >= 50 ? 'a decent net' : 'a leaky night for the net'}
-                {missedList.length ? <> ; the other <B col="#f87171">{missedList.length}</B> never made it (list below)</> : ''}.
+                {missedList.length ? <> ; the other <B col={verdictInk(false).color}>{missedList.length}</B> never made it (list below)</> : ''}.
               </Take>,
             )
           } else if (captureReport) {
@@ -1328,7 +1329,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
               <div style={{ marginTop: 6 }}>
                 HIT <B col="#a78bfa">{archText(ARCHIVE.lanes.HIT)}</B> ·{' '}
                 HRR <B col={C.cyan}>{archText(ARCHIVE.lanes.HRR)}</B> ·{' '}
-                CONTACT <B col="#4ade80">{archText(ARCHIVE.lanes.CONTACT)}</B> ·{' '}
+                CONTACT <B col={verdictInk(true).color}>{archText(ARCHIVE.lanes.CONTACT)}</B> ·{' '}
                 TOP <B col="#FCD34D">{archText(ARCHIVE.lanes.TOP)}</B> on its HR bar ·{' '}
                 HR <B col={C.orange}>{archText(ARCHIVE.lanes.HR)}</B>.
               </div>

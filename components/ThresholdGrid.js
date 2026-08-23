@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, MARKETS } from '../lib/gamelogs'
 import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
+import { verdictInk, verdictWash } from '../lib/scales'
 
 // PROP GRID v5 — PATTERNS, not furniture.
 //
@@ -23,9 +24,15 @@ import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 // The value chart, line chips, venue/arm filters and pinnable bars carry
 // over underneath. Live game logs; context lane, feeds no score.
 
-const rateCol = (pct) => pct >= 60 ? '#4ade80' : pct >= 40 ? '#FCD34D' : pct >= 25 ? C.orange : '#f87171'
+// THE VERDICT PAIR, SITE-WIDE (2026-08-23, Donovan's call): warm = the good
+// side, cool = the bad side — the same one-direction read the pitcher
+// modal's split tiles carry. Rate strength maps onto the warm/cool axis by
+// intensity instead of a four-hue green/amber/orange/red ladder.
+const rateCol = (pct) => pct == null ? C.text3
+  : pct >= 40 ? C.orange : pct >= 25 ? C.text2 : C.blue
 const cellBg = (pct) => pct == null ? 'transparent'
-  : pct >= 60 ? 'rgba(74,222,128,.13)' : pct >= 40 ? 'rgba(252,211,77,.10)' : pct >= 25 ? 'rgba(249,115,22,.10)' : 'rgba(248,113,113,.07)'
+  : pct >= 60 ? verdictWash(true, 0.16) : pct >= 40 ? verdictWash(true, 0.09)
+  : pct >= 25 ? 'transparent' : verdictWash(false, 0.08)
 
 // The book's price against his own: green when they're paying MORE than his
 // rate says the bet is worth. Only ever fires when the book is on this row's
@@ -35,8 +42,8 @@ const priceTone = (row) => {
     return { fg: row.quote?.matches ? C.text : C.text3, bg: 'transparent' }
   }
   const d = row.seasonPct - row.quote.implied
-  if (d >= 5) return { fg: '#4ade80', bg: 'rgba(74,222,128,.10)' }
-  if (d <= -5) return { fg: '#f87171', bg: 'rgba(248,113,113,.10)' }
+  if (d >= 5) return { fg: verdictInk(true).color, bg: verdictWash(true) }
+  if (d <= -5) return { fg: verdictInk(false).color, bg: verdictWash(false) }
   return { fg: C.text, bg: 'transparent' }
 }
 
@@ -354,7 +361,7 @@ export default function ThresholdGrid({ playerId, odds }) {
                     }}>{row.lsCell ? row.lsCell.pct.toFixed(0) : '—'}</td>
                     <td style={{
                       textAlign: 'center', fontSize: 11, fontWeight: 900, padding: '3px 4px',
-                      color: row.stk > 0 ? '#4ade80' : row.stk < 0 ? '#f87171' : C.text3,
+                      color: row.stk > 0 ? verdictInk(true).color : row.stk < 0 ? verdictInk(false).color : C.text3,
                     }}>{row.stk > 0 ? `W${row.stk}` : row.stk < 0 ? `L${-row.stk}` : '—'}</td>
                     {/* PRICE and TRUE are BOTH American odds, on purpose.
                         The first draft put a percentage-point edge in the
@@ -410,15 +417,15 @@ export default function ThresholdGrid({ playerId, odds }) {
           fontSize: 8.5, color: C.text3, margin: '5px 6px 0', fontFamily: NUM_FONT,
         }}>
           <span>% of games cleared:</span>
-          <b style={{ color: '#4ade80' }}>60%+</b>
+          <b style={{ color: C.orange }}>60%+</b>
           <b style={{ color: '#FCD34D' }}>40–59</b>
           <b style={{ color: C.orange }}>25–39</b>
-          <b style={{ color: '#f87171' }}>under 25</b>
+          <b style={{ color: C.blue }}>under 25</b>
           <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>
           <span style={{ width: '100%', height: 0 }} />
           <span><b style={{ color: C.text2 }}>PRICE</b> = what the book pays ·{' '}
             <b style={{ color: C.text2 }}>TRUE</b> = the price his own rate deserves ·{' '}
-            <b style={{ color: '#4ade80' }}>green</b> = they&apos;re paying more than he&apos;s worth ·{' '}
+            <b style={{ color: C.orange }}>warm</b> = they&apos;re paying more than he&apos;s worth ·{' '}
             <b>@3+</b> = the book is on a different number</span>
         </div>
 
@@ -520,13 +527,13 @@ export default function ThresholdGrid({ playerId, odds }) {
                 <>
                   <b style={{ color: C.text }}>{pool.length}</b> game{pool.length === 1 ? '' : 's'} match.
                   He clears <b style={{ color: C.text }}>{dynLabel}</b> in{' '}
-                  <b style={{ color: cutReal ? (cutGap > 0 ? '#4ade80' : '#f87171') : C.text }}>
+                  <b style={{ color: cutReal ? verdictInk(cutGap > 0).color : C.text }}>
                     {cutRate.toFixed(0)}%
                   </b>{' '}of them against <b style={{ color: C.text }}>{baseRate.toFixed(0)}%</b> overall
                   {cutGap != null && <> — <b style={{ color: C.text }}>{cutGap > 0 ? '+' : ''}{cutGap.toFixed(0)}</b> points</>}.
                   {' '}
                   {cutReal
-                    ? <span style={{ color: cutGap > 0 ? '#4ade80' : '#f87171' }}>
+                    ? <span style={{ color: verdictInk(cutGap > 0).color }}>
                         That clears the error bar (±{cutSe.toFixed(0)}) on this many games.
                       </span>
                     : <span style={{ color: C.text3 }}>
@@ -568,12 +575,12 @@ export default function ThresholdGrid({ playerId, odds }) {
                       onClick={() => setSelGame(isSel ? null : `${g.date}${gi}`)}
                       style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', cursor: 'pointer' }}>
                       {showNums && val > 0 && (
-                        <div style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, color: ok ? '#4ade80' : 'rgba(248,113,113,.8)', textAlign: 'center', marginBottom: 1 }}>{val}</div>
+                        <div style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, color: ok ? verdictInk(true).color : verdictInk(false).color, textAlign: 'center', marginBottom: 1 }}>{val}</div>
                       )}
                       <div style={{
                         height: hgt, borderRadius: '3px 3px 1px 1px',
                         background: ok
-                          ? 'linear-gradient(180deg, #86efac, #4ade80)'
+                          ? `linear-gradient(180deg, ${verdictWash(true, 0.85)}, ${verdictInk(true).color})`
                           : val > 0 ? 'linear-gradient(180deg, rgba(248,113,113,.6), rgba(248,113,113,.35))' : 'rgba(248,113,113,.22)',
                         boxShadow: isSel ? '0 0 0 1.5px #fff' : ok && val >= thr + 1 ? '0 0 9px rgba(74,222,128,.45)' : 'none',
                       }} />
@@ -601,7 +608,7 @@ export default function ThresholdGrid({ playerId, odds }) {
               }}>
                 <b style={{ color: C.text }}>{g.date} {g.home ? 'vs' : '@'} {ab2}</b>
                 <span>{g.h} H</span><span>{g.tb} TB</span>
-                <span style={{ color: g.hr > 0 ? '#4ade80' : undefined, fontWeight: g.hr > 0 ? 800 : 400 }}>{g.hr} HR</span>
+                <span style={{ color: g.hr > 0 ? verdictInk(true).color : undefined, fontWeight: g.hr > 0 ? 800 : 400 }}>{g.hr} HR</span>
                 <span>{g.r} R</span><span>{g.rbi} RBI</span><span style={{ color: C.text3 }}>{g.ab} AB</span>
                 {hand && <span style={{ color: C.text3 }}>{hand}HP started</span>}
                 {q && <span style={{ color: C.text3 }}>staff #{q.rank}/30 · OPS-ag {q.ops.toFixed(3)}</span>}
@@ -612,7 +619,7 @@ export default function ThresholdGrid({ playerId, odds }) {
 
           <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
             {filteredLog.length} games of <b style={{ color: C.text2 }}>{dynLabel}</b>, newest right — bar height is the
-            count, <span style={{ color: '#4ade80' }}>green clears the {thr - 0.5} line</span> (white rule), the dashed
+            count, <span style={{ color: C.orange }}>warm clears the {thr - 0.5} line</span> (white rule), the dashed
             orange rule is his average{staff && <>; the strip under each bar is the opposing staff —{' '}
             <span style={{ color: C.orange }}>brighter = softer arms</span></>}. Tap a bar to pin that game.
           </div>
