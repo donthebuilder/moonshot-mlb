@@ -4,6 +4,7 @@ import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import MatchupMap from './MatchupMap'
 import DvpTable, { GROUP } from './DvpTable'
+import { downloadNflPickCard } from './shareCard'
 
 // Why this player scores what he scores.
 //
@@ -270,6 +271,30 @@ function DvpSection({ player, matchup }) {
   )
 }
 
+// 📸 SHARE (2026-08-24) — the pregame half of the NFL share-card pair. Builds
+// the compact `pick` shape components/nfl/shareCard.js draws from out of
+// whatever the modal already has in scope: no re-fetch, no season lookup,
+// nothing this screen isn't already showing. `hit`/`actual`/`void` are left
+// unset here on purpose — this modal only ever carries a pregame score, never
+// a graded line, so the card it downloads always reads as a case, never a
+// result. The Accountability tab's own row (which DOES carry a graded line)
+// wires the same shareCard.js function with those fields filled in instead.
+function pickFromPlayer(player, market, spec) {
+  return {
+    name: player.name,
+    team: player.team,
+    opp: player.opp,
+    position: player.position,
+    market,
+    marketLabel: spec?.label || market,
+    bar: spec?.bar,
+    questionable: player.questionable,
+    low_sample: player.low_sample,
+    score: player.scores?.[market],
+    grade: Number.isFinite(player.scores?.[market]) ? gradeFor(player.scores[market]).label : undefined,
+  }
+}
+
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, onClose }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -313,10 +338,22 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
             </div>
           </div>
-          <button onClick={onClose} style={{
-            background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
-            borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
-          }}>esc</button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {/* 🎴 his card as a PNG — the NFL twin of the MLB player-modal
+                share button (components/PlayerModal.js). Client-side only:
+                draws a canvas, triggers a browser download, nothing else. */}
+            <button onClick={() => downloadNflPickCard(pickFromPlayer(player, market, spec))}
+              title="Download his pick card as a PNG for posting — the bot's call on this market, ready to share manually"
+              aria-label="Download pick card as image"
+              style={{
+                background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
+                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
+              }}>📸</button>
+            <button onClick={onClose} style={{
+              background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
+              borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
+            }}>esc</button>
+          </div>
         </div>
 
         {/* every market's score, so you can see the whole player at once */}

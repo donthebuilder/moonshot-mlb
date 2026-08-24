@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
+import { downloadNflPickCard } from '../shareCard'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -234,6 +235,32 @@ function cardRows(results) {
   return rows
 }
 
+// 📸 SHARE (2026-08-24) — the graded half of the NFL share-card pair. Every
+// field below already lives on the DenseTable row built by cardRows() above;
+// this only reshapes it to components/nfl/shareCard.js's `pick` shape. `opp`
+// here arrives pre-prefixed ("vs DAL") for the table's own column, so it's
+// stripped back to a bare team code — the card prepends its own "vs ". A
+// published '—' grade (no grade recorded) is dropped rather than printed
+// literally. No pregame `score` is carried in this row at all — the card
+// still reads correctly without one, it just leads with the result instead
+// of a score bar (see downloadNflPickCard's PREGAME vs GRADED branch).
+function pickFromResultRow(r) {
+  return {
+    name: r.name,
+    team: r.team,
+    opp: String(r.opp || '').replace(/^vs\s+/i, ''),
+    position: r.position,
+    market: r.market,
+    marketLabel: r.marketLabel,
+    rank: r.rank,
+    bar: r.bar,
+    actual: r.actual,
+    hit: r.hit,
+    void: r.void,
+    grade: r.grade && r.grade !== '—' ? r.grade : undefined,
+  }
+}
+
 // ── section 2: is the score separating outcomes, live ──────────────────────
 
 function bandMarket(key, bar, players, lines) {
@@ -406,6 +433,18 @@ export default function Accountability({ data, results, onPlayerClick }) {
             columns={[
               { key: 'did', label: '✓', flag: true, mark: '✓', w: 26,
                 title: 'Did this rung clear its own market’s bar?' },
+              { key: 'share', label: '', heat: false, w: 24,
+                fmt: (v, r) => (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); downloadNflPickCard(pickFromResultRow(r)) }}
+                    title="Download this result as a PNG for posting"
+                    aria-label="Download result card as image"
+                    style={{
+                      background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
+                      borderRadius: 6, padding: '1px 5px', cursor: 'pointer', fontSize: 10,
+                    }}
+                  >📸</button>
+                ) },
               { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
               { key: 'position', label: 'Pos', heat: false, w: 36, mono: true, dim: true },
               { key: 'team', label: 'Tm', heat: false, w: 36, mono: true, dim: true },
