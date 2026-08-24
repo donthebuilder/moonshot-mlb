@@ -683,11 +683,20 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
   }
 
   if (!items.length) {
+    // STALE SLATE, NOT A BROKEN STAR (2026-08-24, Donovan: "won't add to
+    // watchlist ... missed all the features"). An empty watchlist with an
+    // empty `players` list means the star button had nothing real to attach
+    // to — the daily slate hasn't published yet (same state the "1 day
+    // behind" banner up top is already reporting). Saying so here, not just
+    // "no saved players yet," so this doesn't read as a dead button.
+    const stale = !players.length
     return (
       <div>
         <PanelTitle title="Watchlist" sub="Tap the ☆ on any player card to save them here. Saved on this device only." />
         <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
-        <Empty text="No saved players yet." />
+        <Empty text={stale
+          ? "No players loaded yet — tonight's slate hasn't published, so there's nothing to star. This isn't a broken watchlist; it clears up once the bot's nightly build lands."
+          : 'No saved players yet.'} />
       </div>
     )
   }

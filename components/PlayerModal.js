@@ -602,6 +602,24 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
           <StatStrip p={p} type="hr" count={6} style={{ marginBottom: 8 }} />
           <HitRateBoxes p={p} style={{ marginBottom: 10, maxWidth: 320 }} />
 
+          {/* THE BUTTON THAT WASN'T THERE (2026-08-24, Donovan: "I click add
+              to watch, nothing happens"). It wasn't broken — this whole block
+              was gated on `!apiOnly` and just didn't render at all for a
+              LIVE-API-only player (one looked up from the league feed because
+              he isn't on the bot's currently-published slate — the normal
+              state while the nightly build is still catching up). A vanished
+              button and a dead click look identical from the outside, so this
+              now renders SOMETHING either way: the real controls when the
+              player carries slate data, a plain explanation when he doesn't,
+              instead of silence. */}
+          {apiOnly && (onAdd || onWatch) && (
+            <div style={{
+              fontSize: 10.5, color: C.text3, padding: '5px 10px', marginBottom: 10,
+              border: `1px dashed ${C.border}`, borderRadius: 7, display: 'inline-block',
+            }}>
+              Watch/slip unavailable — pulled live from the league, not from tonight's published slate yet.
+            </div>
+          )}
           {/* Watchlist + slip. You could open a hitter from any board, decide
               he's worth playing, and then have to close the modal and find his
               card again to add him. Both actions live here now. */}
