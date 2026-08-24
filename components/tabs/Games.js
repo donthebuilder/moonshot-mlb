@@ -14,7 +14,7 @@ import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import { FilterPill } from '../Filters'
-import { catColor } from '../../lib/scales'
+import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
 import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
 import AtThePlate from './AtThePlate'
@@ -718,14 +718,22 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             <div style={{
               display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
               padding: '8px 12px', marginBottom: 12, borderRadius: 11,
-              border: `1px solid ${out.length ? 'rgba(248,113,113,.4)' : C.border}`,
-              background: out.length ? 'rgba(248,113,113,.06)' : C.bg2,
+              // A scratched player is a bad outcome for a pick riding on him
+              // -- the site-wide verdict pair, not a hand-typed red.
+              border: `1px solid ${out.length ? alpha(verdictInk(false).color, 0.4) : C.border}`,
+              background: out.length ? verdictWash(false, 0.06) : C.bg2,
             }}>
               <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: C.text3 }}>
                 Lineup cards
               </span>
+              {/* "All posted" is a data-completeness state, not a win/loss
+                  verdict -- the false side is neutral (C.text2), not a
+                  losing colour -- so this reads C.green (byte-identical to
+                  the old #4ade80) rather than verdictInk, matching how this
+                  same "lineup confirmed" concept is already coloured a few
+                  hundred lines down in this file. */}
               <span title="Games where the league has posted all nine on both sides."
-                style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: postedN === inPlay.length ? '#4ade80' : C.text2 }}>
+                style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: postedN === inPlay.length ? C.green : C.text2 }}>
                 {postedN}/{inPlay.length} posted
               </span>
               {!out.length && !moved.length && (
@@ -737,7 +745,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
                     padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
-                    border: '1px solid rgba(248,113,113,.5)', background: 'rgba(248,113,113,.12)', color: '#f87171',
+                    // Scratched = the bad side of the verdict pair, not a
+                    // hand-typed red.
+                    border: `1px solid ${alpha(verdictInk(false).color, 0.5)}`, background: verdictWash(false, 0.12), color: verdictInk(false).color,
                   }}>
                   🚫 {String(p?.name || '').split(' ').slice(-1)[0]} out
                 </button>
@@ -876,7 +886,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       }}>{liveG.awayScore ?? 0}–{liveG.homeScore ?? 0}</span>
                       {liveG.state === 'Live' ? (
                         <span title={liveG.delayed ? liveG.detail : `${liveG.half} ${liveG.inning}`}
-                          style={{ fontSize: 10, fontWeight: 800, color: liveG.delayed ? C.yellow : '#4ade80' }}>
+                          // Delayed/live is a game STATE, not a win/loss
+                          // verdict, so this stays the byte-identical
+                          // C.green rather than routing through verdictInk.
+                          style={{ fontSize: 10, fontWeight: 800, color: liveG.delayed ? C.yellow : C.green }}>
                           {liveG.delayed ? liveG.statusLabel
                             : `${/^top/i.test(liveG.half) ? '▲' : /^bot/i.test(liveG.half) ? '▼' : '·'}${liveG.inning ?? ''}`}
                         </span>
@@ -896,7 +909,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   {(() => {
                     const anyPk = (g.players || []).find((x) => x?.game_pk)?.game_pk
                     const posted = !!live?.games?.find((x) => Number(x.pk) === Number(anyPk))?.lineupPosted
-                    const col = posted ? '#4ade80' : g.lineup_confirmed ? '#FCD34D' : C.text3
+                    // Three-tier trust ladder (league-posted > bot-confirmed
+                    // > neither), not a verdict pair -- posted reads the
+                    // byte-identical C.green; the middle tier is the site's
+                    // established gold accent with no matching C token (the
+                    // same exception the Results.js/Pairs.js passes
+                    // documented for their own uses of this gold), left
+                    // literal on purpose.
+                    const col = posted ? C.green : g.lineup_confirmed ? '#FCD34D' : C.text3
                     return (
                       <span title={posted ? 'The league has posted tonight’s card — these are the real nine.'
                         : g.lineup_confirmed ? 'The bot saw a confirmed lineup on its last run; the league hasn’t posted an update since.'
@@ -952,7 +972,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1,
                               textDecoration: lu.scratched ? 'line-through' : 'none' }}>
                               {p?.name}
-                              {lu.scratched && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: '#f87171', marginLeft: 4 }}>OUT</span>}
+                              {/* same scratched-is-bad verdict as the card watch above */}
+                              {lu.scratched && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: verdictInk(false).color, marginLeft: 4 }}>OUT</span>}
                               {lu.moved && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.orange, marginLeft: 4 }}>was #{p?.lineup_spot}</span>}
                               <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>{p?.bats}</span>
                               {/* AVG, inline (2026-08-21, on request: "batter
@@ -977,9 +998,20 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                 blank where his number would be, not a zero.
                                 A zero is a verdict; this is an absence. */}
                             <div style={{ flex: '0 0 46px', height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
+                              {/* hs is a 0-100 model score, not a rate --
+                                  fixed bands here (not divTone) to match
+                                  this card's compact bar; the >=60 tier is
+                                  C.orange (byte-identical to the old
+                                  #f97316, and the same token the number
+                                  label two lines down already used). The
+                                  >=45 tier is the site's established gold
+                                  accent with no matching C token (same
+                                  exception noted at the trust-ladder above),
+                                  left literal on purpose -- shared by the
+                                  bar and the number label right below it. */}
                               {!p?.off_slate && (
                                 <div style={{ width: `${Math.min(100, hs)}%`, height: '100%', borderRadius: 3,
-                                  background: hs >= 60 ? '#f97316' : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
+                                  background: hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
                               )}
                             </div>
                             <span title={p?.off_slate ? 'In the lineup, but not on the bot’s slate — no model score for him tonight.' : undefined}
@@ -1226,11 +1258,30 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                   duel's HR/9 gets one too, scaled 0–2.00 like
                                   the pen board reads, when the bar toggle
                                   (below, on the picks) is on. */}
+                              {/* FLAGGED, NOT FIXED: this bar's red/cyan/green
+                                  ladder is byte-identical to C.red/C.cyan/
+                                  C.green, so it's token-substituted rather
+                                  than left as raw hex -- but it is exactly
+                                  the "four-hue ladder" the verdict pair
+                                  exists to retire, and this pass stops short
+                                  of retiring it because doing so means
+                                  picking a direction, and this bar
+                                  DISAGREES with its own sibling five lines
+                                  up: the text label colours hr9>=1.3 warm
+                                  (C.orange) because the tooltip says "higher
+                                  favors the bats," while this bar colours
+                                  the same threshold C.red (i.e. treats high
+                                  hr9 as the LOSING side). Reconciling which
+                                  one is right is a product call, not a
+                                  colour-plumbing one -- flagged in the
+                                  session report rather than silently
+                                  resolved here. */}
                               {barsOn && s.hr9 != null && (
                                 <span style={{ width: 44, height: 5, background: 'rgba(255,255,255,.07)', borderRadius: 3, overflow: 'hidden', alignSelf: 'center' }}>
-                                  <span style={{ display: 'block', width: `${Math.min(100, (s.hr9 / 2) * 100)}%`, height: '100%', background: s.hr9 >= 1.3 ? '#f87171' : s.hr9 >= 1.05 ? '#22d3ee' : '#4ade80' }} />
+                                  <span style={{ display: 'block', width: `${Math.min(100, (s.hr9 / 2) * 100)}%`, height: '100%', background: s.hr9 >= 1.3 ? C.red : s.hr9 >= 1.05 ? C.cyan : C.green }} />
                                 </span>
                               )}
+                              {/* the same established gold accent, no C token match -- left literal */}
                               {s.stars > 0 && (
                                 <span title={`${s.stars} weak lineup spot${s.stars > 1 ? 's' : ''} this order can reach`} style={{ color: '#FCD34D', fontWeight: 800 }}>★{s.stars}</span>
                               )}
@@ -1371,7 +1422,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                 {roleInfo && (
                                   <span style={{
                                     position: 'absolute', top: -8, left: 13, zIndex: 2,
-                                    background: '#09090b',
+                                    // Byte-identical to the ember C.bg -- was
+                                    // hardcoded black, which broke the
+                                    // "notch cut into the page" look in
+                                    // light theme (a black badge on a white
+                                    // page). C.bg fixes that for real, not
+                                    // just plumbing.
+                                    background: C.bg,
                                     border: `1px solid ${roleInfo.color}99`,
                                     color: roleInfo.color, borderRadius: 6, padding: '1px 9px',
                                     fontSize: 9, fontWeight: 900, letterSpacing: '.08em',
@@ -1450,10 +1507,22 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           ARM is the opposing starter's HR/9 on a 0–2.00 bar
                           (higher = the arm bleeds homers, good for the bat). */}
                       {(() => {
+                        // Three fixed per-metric colours, one per bar, so
+                        // HRW/DMG/ARM read as three different rows at a
+                        // glance -- not a verdict on any one value (each bar
+                        // is this same colour whatever the number is). ARM's
+                        // hex is byte-identical to C.red and is
+                        // token-substituted; HRW's pink and DMG's emerald
+                        // don't match any C token (DMG's #34d399 is a
+                        // distinct shade from C.green's #4ade80, not the
+                        // same colour) and stay literal as a legend-only
+                        // differentiator, same call as the Results.js/
+                        // Pairs.js passes made for their own unmatched
+                        // categorical accents.
                         const extras = [
                           { l: 'HRW', v: Number(p?.hrw_score) || 0, max: 100, c2: '#f472b6', txt: (Number(p?.hrw_score) || 0).toFixed(0), tip: 'HR Watch score' },
                           { l: 'DMG', v: Number(p?.damage_conversion_score) || 0, max: 100, c2: '#34d399', txt: (Number(p?.damage_conversion_score) || 0).toFixed(0), tip: 'Damage conversion score' },
-                          { l: 'ARM', v: Number(p?.pitcher_hr9) || 0, max: 2, c2: '#f87171', txt: (Number(p?.pitcher_hr9) || 0).toFixed(2), tip: 'Opposing starter HR/9 — bar runs 0 to 2.00, higher favors the bat' },
+                          { l: 'ARM', v: Number(p?.pitcher_hr9) || 0, max: 2, c2: C.red, txt: (Number(p?.pitcher_hr9) || 0).toFixed(2), tip: 'Opposing starter HR/9 — bar runs 0 to 2.00, higher favors the bat' },
                         ].filter((e) => e.v > 0)
                         if (!extras.length) return null
                         return (
