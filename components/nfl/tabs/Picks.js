@@ -2,6 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
+import { quoteFor } from '../../../lib/nfl/oddsMatch'
+import OddsLine from '../../OddsLine'
+import OddsStatus from '../../OddsStatus'
 import {
   CONVICTION, CONVICTION_ORDER, slateKey, slotKey, isLocked,
   getPicks, savePick, setConviction, clearPick,
@@ -69,7 +72,7 @@ function Stat({ label, value, sub, color, big }) {
   )
 }
 
-export default function Picks({ picks, results, data, onPlayerClick }) {
+export default function Picks({ picks, results, data, onPlayerClick, odds, oddsStatus }) {
   const [mine, setMine] = useState({})
   const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState('')
@@ -283,6 +286,13 @@ export default function Picks({ picks, results, data, onPlayerClick }) {
       </div>
 
       {/* ── the ladders ────────────────────────────────────────────────── */}
+      {/* Says WHY a rung below carries no price, rather than every rung just
+          silently carrying nothing — same discipline odds_status.json
+          enforces on the MLB side. Silent once a fetch has actually
+          succeeded; see components/OddsStatus.js's own TONE table. */}
+      {oddsStatus && (
+        <div style={{ marginBottom: 10 }}><OddsStatus status={oddsStatus} /></div>
+      )}
       <div style={{ fontSize: 11, color: C.text3, marginBottom: 10, lineHeight: 1.6 }}>
         Five deep per market, ranked across the whole slate. Swap yourself onto any rung and
         tag how sure you are — <b style={{ color: C.text2 }}>rungs lock at kickoff.</b>
@@ -360,6 +370,16 @@ export default function Picks({ picks, results, data, onPlayerClick }) {
                           {rung.position} {rung.team}{rung.opp ? ` vs ${rung.opp}` : ''}
                         </span>
                       </button>
+                      {/* The book's line on the bot's own rung — renders
+                          nothing when this player has none (a normal,
+                          per-player state; the banner above says whether the
+                          fetch found anything at all). */}
+                      {odds && (
+                        <OddsLine
+                          quote={quoteFor(odds, { player_id: rung.player_id, name: rung.name }, market)}
+                          compact
+                        />
+                      )}
                       {rung.questionable && (
                         <span style={{ fontSize: 9, fontWeight: 900, color: C.yellow }}>Q</span>
                       )}

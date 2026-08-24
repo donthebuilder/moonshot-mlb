@@ -2,6 +2,9 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
+import { quoteFor } from '../../../lib/nfl/oddsMatch'
+import OddsLine from '../../OddsLine'
+import OddsStatus from '../../OddsStatus'
 
 // Boards — the seven markets, one at a time, category buttons across the top.
 //
@@ -13,7 +16,7 @@ import { btnStyle } from '../../ui'
 // board — is this a market with three clear plays or twenty coin flips — and
 // a column of numbers doesn't show you that.
 
-export default function Boards({ data, onPlayerClick }) {
+export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
   const [market, setMarket] = useState('TD')
   const [showLow, setShowLow] = useState(false)
 
@@ -42,6 +45,14 @@ export default function Boards({ data, onPlayerClick }) {
                   style={btnStyle(C.green, market === key)}>{label}</button>
         ))}
       </div>
+
+      {/* Says WHY there's no price on any row below, rather than every row
+          just silently carrying nothing — same discipline odds_status.json
+          enforces on the MLB side. Silent (renders null) once a fetch has
+          actually succeeded; see components/OddsStatus.js's own TONE table. */}
+      {oddsStatus && (
+        <div style={{ marginBottom: 10 }}><OddsStatus status={oddsStatus} /></div>
+      )}
 
       {spec && (
         <div style={{
@@ -123,6 +134,15 @@ export default function Boards({ data, onPlayerClick }) {
                 position: 'relative', fontSize: 10.5, color: C.text2,
                 fontFamily: NUM_FONT, minWidth: 74, textAlign: 'right',
               }}>{p.team} {p.opp ? `vs ${p.opp}` : ''}</span>
+              {/* The book's line, when one exists for this player/market —
+                  renders nothing per-row when it doesn't (no line offered is
+                  a normal, per-player state; the banner above is what says
+                  whether the FETCH itself found anything at all). */}
+              {odds && (
+                <span style={{ position: 'relative' }}>
+                  <OddsLine quote={quoteFor(odds, p, market)} compact />
+                </span>
+              )}
               {p.questionable && (
                 <span style={{
                   position: 'relative', fontSize: 9, fontWeight: 900, color: C.yellow,
