@@ -11,6 +11,7 @@ import { WhatThis } from './ui'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive, readAlignArchive, shiftDateKey, usePeople, axesOf } from '../lib/alignments'
+import { gradedResultsUrl } from '../lib/dataSource'
 import { findNameEchoes, nameParts, pairEcho, cadenceShape } from '../lib/namePatterns'
 import NamePatterns from './NamePatterns'
 
@@ -233,7 +234,27 @@ function LookOut({ players }) {
   )
 }
 
-export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick }) {
+// ── TWO PLACES, TWO JOBS (2026-08-24) ──────────────────────────────────────
+// Donovan: "the full home run ledger should live in Alignments — that in
+// itself should be its own research tool."
+//
+// So it mounts twice. On Home it stays what it has always been: tonight,
+// foldable, a panel you glance at between innings. In Alignments it is the
+// tool — always open, never remembering a collapse, and carrying a night
+// picker, because the whole point of the numbers strip is comparing nights
+// and a panel that can only ever show today cannot do that.
+//
+// One component rather than two, deliberately: every section here (the roots,
+// the repeats, the name echoes, the matching game, the watch) is exactly what
+// the research view needs, and a forked copy would be a second version of
+// arithmetic that has already been wrong twice this month.
+export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick, onNavigate = null, variant = 'home' }) {
+  const research = variant === 'research'
+  // '' = tonight. Any other value is an archived night, read from the branch's
+  // own graded file rather than from anything this browser happens to hold.
+  const [night, setNight] = useState('')
+  const [nightData, setNightData] = useState(null)
+  const [nightState, setNightState] = useState('idle')
   // ── CLOSEABLE, AND IT REMEMBERS (2026-08-17) ──────────────────────────────
   // Donovan, twice: "hr ledger on home page should be close able just like a
   // the other things", "yeah like the ledger need to be colasbple".
@@ -254,15 +275,51 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       return next
     })
   }
+  // Research mode is never folded: it IS the page you navigated to, and a
+  // remembered collapse from the Home mount would greet you with a shut panel.
+  const openNow = research || open
   const Chevron = () => (
     <span
       onClick={(e) => { e.stopPropagation(); toggle() }}
       title={open ? 'Hide the ledger' : 'Show the ledger'}
       style={{ marginLeft: 'auto', cursor: 'pointer', color: C.text3, fontSize: 11, padding: '0 2px' }}
-    >{open ? '▾' : '▸'}</span>
+    >{openNow ? '▾' : '▸'}</span>
   )
 
-  const dateKey = slateDate || easternToday()
+  const dateKey = (research && night) || slateDate || easternToday()
+
+  // THE ARCHIVE THIS BROWSER KNOWS ABOUT. writeAlignArchive drops one key per
+  // night it has seen, so the picker offers exactly the nights there is
+  // something to show for — no probing the branch for files that may not
+  // exist, and no list of dates that all open empty.
+  const nights = useMemo(() => {
+    if (!research) return []
+    const out = new Set()
+    try {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const k = window.localStorage.key(i) || ''
+        const m = k.match(/^ms_align_archive_(\d{4}-\d{2}-\d{2})$/)
+        if (m) out.add(m[1])
+      }
+    } catch { /* private mode: tonight only, which is still a working panel */ }
+    out.delete(slateDate || easternToday())
+    return [...out].sort().reverse().slice(0, 14)
+  }, [research, slateDate])
+
+  // A past night comes off the branch's graded file — the same payload the
+  // Results tab reads, so the two can never disagree about what happened.
+  useEffect(() => {
+    if (!research || !night) { setNightData(null); setNightState('idle'); return undefined }
+    let alive = true
+    setNightState('loading'); setNightData(null)
+    fetch(gradedResultsUrl(night), { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) { setNightData(j || null); setNightState(j ? 'done' : 'empty') } })
+      .catch(() => { if (alive) setNightState('empty') })
+    return () => { alive = false }
+  }, [research, night])
+
+  const payload = research && night ? nightData : results
   // COMPARED IN THE SAME FRAME THE SLATE DATE IS BUILT IN (2026-08-17).
   // This read `> new Date().toLocaleDateString('en-CA')` — the viewer's local
   // day — against a slateDate that lib/data.js derives from the games. With the
@@ -364,16 +421,23 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   const seenRef = useMemo(() => {
     const store = { key: `ms_ledger_seen_${dateKey}`, map: new Map() }
     try {
-      // prune any other night's record while loading tonight's
-      for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
-        const k = window.localStorage.key(i)
-        if (k && k.startsWith('ms_ledger_seen_') && k !== store.key) window.localStorage.removeItem(k)
+      // Prune any other night's record while loading tonight's — but NOT while
+      // the research view is parked on an archived night (2026-08-24). That
+      // mount's dateKey is the night being READ, and the prune would have
+      // deleted tonight's live record as a side effect of looking at
+      // yesterday: the homers would still be on the branch, but the running
+      // in-browser record the Home panel renders from would be gone.
+      if (!(research && night)) {
+        for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+          const k = window.localStorage.key(i)
+          if (k && k.startsWith('ms_ledger_seen_') && k !== store.key) window.localStorage.removeItem(k)
+        }
       }
       const raw = window.localStorage.getItem(store.key)
       if (raw) Object.entries(JSON.parse(raw)).forEach(([pid, rec]) => store.map.set(Number(pid), rec))
     } catch { /* private mode: memory-only, still sticky for the session */ }
     return store
-  }, [dateKey])
+  }, [dateKey, research, night])
 
   const rows = useMemo(() => {
     if (isTmrw) return null
@@ -381,8 +445,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     // hr_events by pid, from the graded file when it is for tonight. This is
     // the ONLY thing taken from the bot now, and its absence is survivable.
     const eventsById = new Map()
-    if (results && String(results.date || '') === String(dateKey)) {
-      dedupeGraded(results.graded_slots || results.results || []).forEach((s) => {
+    if (payload && String(payload.date || '') === String(dateKey)) {
+      dedupeGraded(payload.graded_slots || payload.results || []).forEach((s) => {
         const pid = Number(s?.player_id)
         if (pid && Array.isArray(s?.hr_events) && s.hr_events.length) eventsById.set(pid, s.hr_events)
       })
@@ -391,7 +455,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     // THE LIVE PATH — write what the snapshot shows into the record, then
     // RENDER THE RECORD. The snapshot can only ever add or raise; a player
     // missing from this tick keeps last tick's entry.
-    const lines = live?.lines
+    // AN ARCHIVED NIGHT NEVER READS THE LIVE WIRE. The snapshot is tonight's
+    // by definition, and folding it into a past night would put tonight's
+    // homers under yesterday's date.
+    const lines = (research && night) ? null : live?.lines
     if (lines && Object.keys(lines).length) {
       Object.entries(lines).forEach(([id, l]) => {
         const pid = Number(id)
@@ -421,17 +488,17 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
 
     // FALLBACK: the graded file, exactly as before. Reached before first pitch,
     // when the league call fails, and on any archived night.
-    if (!results) return null
+    if (!payload) return null
     // date gate — the live file keeps the last graded slate until the next
     // one starts grading, so an ungated read shows a stale night
-    if (String(results.date || '') !== String(dateKey)) return null
+    if (String(payload.date || '') !== String(dateKey)) return null
     // DEDUPE BY PLAYER (2026-08-09). A hitter designated in two categories
     // (TOP *and* HR, say) gets a graded slot per category, each carrying the
     // same actual_hr — walking the slots naively counted his homer twice and
     // inflated the night's total. The rule now lives in lib/graded.js because
     // it had bitten three components; this call site kept its own copy of it
     // until then.
-    return dedupeGraded(results.graded_slots || results.results || [])
+    return dedupeGraded(payload.graded_slots || payload.results || [])
       // hr_events rides along from 2026-08-11: the grader now records each
       // homer's launch speed, angle and distance, so the ledger can say WHAT
       // KIND of homer it was and not just that one happened. Older nights
@@ -439,7 +506,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       // wall-scraper are different claims.
       .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0), events: s?.hr_events || [] }))
       .filter((x) => x.pid && x.hr > 0)
-  }, [results, isTmrw, dateKey, live, seenRef])
+  }, [payload, isTmrw, dateKey, live, seenRef, research, night])
 
   // ── THE NUMBER HAS TO BE RIGHT, OR THE PANEL IS WORSE THAN NOTHING ───────
   //
@@ -1038,7 +1105,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           })()}
           <Chevron />
         </div>
-        {!open ? null : !pre ? (
+        {!openNow ? null : !pre ? (
           <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.6 }}>
             When one goes, this is where it shows up: who hit it, what number home
             run it was for him, which lineup spot it came from, whether the bot had
@@ -1143,20 +1210,58 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           remembered close means it stays shut the next night too.
           The title and the chevron toggle. The count and the note do not. */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
-        <span onClick={toggle} style={{ fontSize: 12.5, fontWeight: 900, cursor: 'pointer' }}>🧾 Homer ledger</span>
-        <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>
-          {total} tonight
+        <span onClick={research ? undefined : toggle}
+          style={{ fontSize: 12.5, fontWeight: 900, cursor: research ? 'default' : 'pointer' }}>
+          🧾 Homer ledger{research ? ' — research' : ''}
         </span>
-        {open
-          ? <span style={{ fontSize: 9, color: C.text3 }}>builds as the slate plays</span>
+        <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>
+          {total} {research && night ? `on ${night}` : 'tonight'}
+        </span>
+        {!research && onNavigate && (
+          <span onClick={() => onNavigate('align')}
+            title="The full ledger with every night this browser has seen — the roots, the echoes, the matching game, all of it"
+            style={{
+              fontSize: 9, color: C.cyan, cursor: 'pointer', fontFamily: NUM_FONT,
+              textDecoration: 'underline', textDecorationStyle: 'dotted',
+            }}>research →</span>
+        )}
+        {openNow
+          ? <span style={{ fontSize: 9, color: C.text3 }}>{research ? 'every night this browser has seen' : 'builds as the slate plays'}</span>
           : <span onClick={toggle} style={{ fontSize: 9, color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
               hidden — tap to show all {total}
             </span>}
         <span onClick={toggle} style={{ cursor: 'pointer' }}><Chevron /></span>
       </div>
+      {/* ── THE NIGHT PICKER (2026-08-24, research mode only) ───────────────
+          The strips under this header are all comparisons — which root the
+          night landed on, which numbers repeated, which names echoed — and a
+          panel that can only ever show TODAY cannot answer the question those
+          strips exist to raise. Tonight is the default; every other night
+          comes off the branch's own graded file, so what you read here is the
+          same payload the Results tab grades from. */}
+      {research && nights.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', margin: '7px 0 9px' }}>
+          {[['', 'Tonight'], ...nights.map((d) => [d, d.slice(5)])].map(([k, label]) => (
+            <button key={k || 'today'} onClick={() => setNight(k)} style={{
+              fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800, cursor: 'pointer',
+              padding: '3px 9px', borderRadius: 999,
+              border: `1px solid ${night === k ? C.orange : C.border}`,
+              background: night === k ? `${C.orange}18` : 'transparent',
+              color: night === k ? C.orange : C.text3,
+            }}>{label}</button>
+          ))}
+          {nightState === 'loading' && <span style={{ fontSize: 9, color: C.text3 }}>loading…</span>}
+          {nightState === 'empty' && night && (
+            <span style={{ fontSize: 9, color: C.yellow }}>
+              no graded file published for {night}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Everything below the header folds. The count stays visible closed, so
           a shut ledger still tells you how many have landed. */}
-      {open && (
+      {openNow && (
       <>
       <WhatThis maxWidth={640}>
         which homer of the season each one was, and where in the order tonight&apos;s power is coming from.

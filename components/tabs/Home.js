@@ -654,7 +654,7 @@ export default function Home({
       {/* 🧾 THE LEDGER — directly under the welcome, per his ordering: the
           greeting owns the top of the page, the ledger is the first thing
           after it. Foldable, and it remembers being closed. */}
-      <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+      <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
 
       {/* ── THE HEADLINE GAME — lifted here 2026-08-16 ───────────────
              The hero's last clause names this game; it used to be three

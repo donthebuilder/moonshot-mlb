@@ -145,6 +145,26 @@ export default function Combos({
         />
         </div>
       )}
+      {/* ── THE LEDGER, IN FULL, AS THE RESEARCH TOOL (2026-08-24) ────────
+          Donovan: "the full home run ledger should live in Alignments — that
+          in itself should be its own research tool."
+          It leads this view rather than trailing it: Alignments below is the
+          PREGAME half — every hitter's roots, who lines up with what — and
+          this is the half that already happened. Reading the night that landed
+          before the slate that hasn't is the order the question comes in.
+          Same component as the Home panel, in its research variant: always
+          open, and carrying the night picker so the roots, the repeats and
+          the name echoes can be read against any night this browser has seen
+          rather than only tonight. */}
+      {view === 'align' && (
+        <HomerLedger
+          variant="research"
+          players={allPlayers}
+          slateDate={slateDate}
+          results={results}
+          onPlayerClick={onPlayerClick}
+        />
+      )}
       {view === 'align' && (
         <Alignments
           players={allPlayers}
