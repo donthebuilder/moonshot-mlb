@@ -293,7 +293,14 @@ rows={parsed.map((r, i) => {
               ...(onWatch ? [{
                 key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
                 titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
-                onAction: (row) => row?._raw && onWatch(row._raw, !watchedIds?.has(playerId(row._raw))),
+                // DenseTable's action cell hands onAction the raw player row directly
+                // (r._raw ?? r — see DenseTable.js), not a wrapper with its own ._raw
+                // field. This used to read row._raw off that already-unwrapped object,
+                // which is always undefined, so the click short-circuited before ever
+                // calling onWatch — every star in this table has been a no-op since the
+                // day it shipped (2026-08-04). Matches the working convention every other
+                // board's watch column uses (onAction: onWatch, e.g. DueBoard.js).
+                onAction: (p) => p && onWatch(p, !watchedIds?.has(playerId(p))),
               }] : []),
               { key: 'input', label: 'Pasted', heat: false, w: 118, dim: true },
               { key: 'name',  label: 'Matched', heat: false, w: 148, bold: true, sticky: true },
@@ -936,7 +943,10 @@ rows={filteredOnSlate.map((p) => {
                 ...(onWatch ? [{
                   key: 'watched', label: '★', action: true, w: 30, mark: '★', markOff: '☆',
                   titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
-                  onAction: (row) => row?._raw && onWatch(row._raw, false),
+                  // Same unwrap mismatch as CrossReference's star column above — row
+                  // here IS the raw player row DenseTable already unwrapped, not a
+                  // wrapper carrying its own ._raw, so this never fired.
+                  onAction: (p) => p && onWatch(p, false),
                 }] : []),
                 { key: 'name',  label: 'Player', heat: false, w: 148, bold: true, sticky: true },
                 { key: 'team',  label: 'Tm',   heat: false, w: 34, mono: true, dim: true },
