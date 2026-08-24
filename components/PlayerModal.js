@@ -437,7 +437,32 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   }, [pid, player])
 
   if (!player) return null
-  const p = detail ? { ...player, ...detail } : player
+  // IDENTITY FIELDS NEVER COME FROM detail (2026-08-24, Donovan: "the add to
+  // watch list problem" — reported again after two other real fixes to
+  // narrower entry points, because this one is the modal itself, the most
+  // common way a player gets added).
+  //
+  // detail/today republishes on its own hourly clock (lib/dataSource.js's
+  // own comment above the cache-buster), while the slate this player row
+  // came from can have moved since. Caught live: the published slate had
+  // Fernando Tatis Jr. on game_pk 823260 — his real game tonight — while his
+  // detail file still carried 823262. "detail keys win on conflict" then let
+  // that stale game_pk overwrite the correct one in `p`, so the watchlist
+  // entry got SAVED under 823262. The very next tick, Dashboard.js's slate-
+  // prune effect checked 823262 against tonight's real game_pks, found no
+  // match, and silently deleted the entry it had just added — a star that
+  // fills in and then, within one render, empties itself. Confirmed with
+  // instrumented localStorage writes against the live site: one click, two
+  // writes, add then remove, net zero.
+  //
+  // detail is still the richer source for everything ELSE — spray chart,
+  // pitch mix, splits, all the content this merge exists for — so only the
+  // two fields anything downstream uses to IDENTIFY this row (which game,
+  // which man) are pinned back to the slate's own values, which are never
+  // more than one poll old.
+  const p = detail
+    ? { ...player, ...detail, game_pk: player?.game_pk ?? detail?.game_pk, player_id: player?.player_id ?? player?.id ?? detail?.player_id }
+    : player
   // Which market's counting stats the slash line should lead with. A hitter
   // the bot designated as an HRR pick is graded on hits + runs + RBI, so those
   // are the numbers his card owes you — not season homers.
