@@ -7,6 +7,7 @@ import Pools from './Pools'
 import PairHistory from './PairHistory'
 import Builder from '../Builder'
 import HomerLedger from '../HomerLedger'
+import LedgerLab from './LedgerLab'
 import Alignments from '../Alignments'
 
 // 🎟 COMBOS — Pairs, Pools and their history under one roof (2026-08-16).
@@ -44,9 +45,21 @@ import Alignments from '../Alignments'
 // other three, because it's the whole slate's numerology in one place and
 // deserves the room. Its "Build a ticket around these →" button hands
 // checked names to the Builder view below (see seedPins/onSeedConsumed).
+// ── AND THE LEDGER GETS ITS OWN (2026-08-24) ────────────────────────────────
+// Donovan: "what if [we take the] homer ledger and make it its own page in
+// Alignments — do that, and make it damn near its own research tool."
+//
+// It had been mounted ON TOP of the Alignments view since the morning, which
+// is not a page, it is a stack — you scrolled past the ledger to reach the
+// thing the pill is named after, and the ledger read as a header for it. Same
+// call as Alignments got on 2026-08-18, for the same reason: it is a whole
+// subject and it deserves the room. Sits next to Alignments because that is
+// where he put it, and the two are halves of one question — this is the night
+// that landed, Alignments is the slate that hasn't.
 const VIEWS = [
   ['pairs', '🤝 Pairs & Pools'],
   ['align', '🔮 Alignments'],
+  ['ledger', '🧾 Homer ledger'],
   ['builder', '🧱 Builder'],
   ['history', '📜 History'],
 ]
@@ -145,21 +158,15 @@ export default function Combos({
         />
         </div>
       )}
-      {/* ── THE LEDGER, IN FULL, AS THE RESEARCH TOOL (2026-08-24) ────────
-          Donovan: "the full home run ledger should live in Alignments — that
-          in itself should be its own research tool."
-          It leads this view rather than trailing it: Alignments below is the
-          PREGAME half — every hitter's roots, who lines up with what — and
-          this is the half that already happened. Reading the night that landed
-          before the slate that hasn't is the order the question comes in.
-          Same component as the Home panel, in its research variant: always
-          open, and carrying the night picker so the roots, the repeats and
-          the name echoes can be read against any night this browser has seen
-          rather than only tonight. */}
-      {view === 'align' && (
-        <HomerLedger
-          variant="research"
-          players={allPlayers}
+      {/* ── THE LEDGER'S OWN PAGE (2026-08-24) ────────────────────────────
+          It spent one morning stacked above Alignments here. See the note on
+          VIEWS above for why it moved out into a pill of its own, and
+          components/tabs/LedgerLab.js for what "research tool" turned out to
+          mean: the night, and then the corpus of nights behind it. */}
+      {view === 'ledger' && (
+        <LedgerLab
+          players={players}
+          allPlayers={allPlayers}
           slateDate={slateDate}
           results={results}
           onPlayerClick={onPlayerClick}

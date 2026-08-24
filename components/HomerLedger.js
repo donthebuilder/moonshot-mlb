@@ -11,6 +11,7 @@ import { WhatThis } from './ui'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive, readAlignArchive, shiftDateKey, usePeople, axesOf } from '../lib/alignments'
+import { listLedgerNights } from '../lib/ledgerArchive'
 import { gradedResultsUrl } from '../lib/dataSource'
 import { findNameEchoes, nameParts, pairEcho, cadenceShape } from '../lib/namePatterns'
 import NamePatterns from './NamePatterns'
@@ -288,13 +289,77 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
 
   const dateKey = (research && night) || slateDate || easternToday()
 
+  // ── PAST NIGHT: TONIGHT'S FORWARD-LOOKING STRIPS COME OFF (2026-08-24) ────
+  // Several sections here are about the board that has NOT played yet — the
+  // look-out (which arms are tiring, who needs one for a round number), the
+  // pregame watchlist scorecard, and "who lines up next". Every one of them
+  // reads the `players` prop, which is TONIGHT'S slate, and none of them has
+  // any way to know it is being rendered under an August 22 header.
+  //
+  // Left in, they were the worst kind of wrong: a research page confidently
+  // printing tonight's arms-to-watch under a date three days old, with nothing
+  // saying which night each half belonged to. The night itself — who went
+  // deep, what number it was, the roots, the echoes, the spots — is all
+  // genuinely about the archived night and stays.
+  const pastNight = Boolean(research && night)
+  // What to call the night being read. Every strip below was written for
+  // tonight and says so; on an archived night the same sentence has to name
+  // the date instead, or the panel reports August 22 as though it were now.
+  const nightWord = pastNight ? `on ${night}` : 'tonight'
+
+  // ── THE NIGHT PICKER (2026-08-24, research mode only) ─────────────────────
+  // The strips under the header are all comparisons — which root the night
+  // landed on, which numbers repeated, which names echoed — and a panel that
+  // can only ever show TODAY cannot answer the question those strips exist to
+  // raise. Tonight is the default; every other night comes off the branch's
+  // own graded file, so what you read here is the same payload the Results tab
+  // grades from.
+  //
+  // DEFINED UP HERE, ABOVE THE EARLY RETURNS, because it has to render on BOTH
+  // paths. It was inside the main one only — so on a night before the first
+  // homer lands (which, on a research page, is most of the hours anyone would
+  // be doing research in) the component took the pregame branch and the picker
+  // was simply unreachable. A research tool you cannot point at a past night
+  // is a panel.
+  const NightPicker = () => {
+    if (!research || nights.length === 0) return null
+    return (
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', margin: '7px 0 9px' }}>
+        {[['', 'Tonight'], ...nights.map((d) => [d, d.slice(5)])].map(([k, label]) => (
+          <button key={k || 'today'} onClick={() => setNight(k)} style={{
+            fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800, cursor: 'pointer',
+            padding: '3px 9px', borderRadius: 999,
+            border: `1px solid ${night === k ? C.orange : C.border}`,
+            background: night === k ? `${C.orange}18` : 'transparent',
+            color: night === k ? C.orange : C.text3,
+          }}>{label}</button>
+        ))}
+        {nightState === 'loading' && <span style={{ fontSize: 9, color: C.text3 }}>loading…</span>}
+        {nightState === 'empty' && night && (
+          <span style={{ fontSize: 9, color: C.yellow }}>
+            no graded file published for {night}
+          </span>
+        )}
+      </div>
+    )
+  }
+
   // THE ARCHIVE THIS BROWSER KNOWS ABOUT. writeAlignArchive drops one key per
   // night it has seen, so the picker offers exactly the nights there is
   // something to show for — no probing the branch for files that may not
   // exist, and no list of dates that all open empty.
+  // TWO ARCHIVES, ONE LIST (2026-08-24). This used to read only the keys
+  // writeAlignArchive drops as you browse — which meant the picker offered
+  // exactly the nights you happened to have the site open for, and on a fresh
+  // browser it offered nothing at all. The Homer Ledger's own page can now
+  // BACKFILL nights straight off the branch's graded files
+  // (lib/ledgerArchive.js), so the picker unions both: anything either store
+  // knows about is a night there is something to show for. Still no probing
+  // the branch for files that may not exist, and still no list of dates that
+  // all open empty.
   const nights = useMemo(() => {
     if (!research) return []
-    const out = new Set()
+    const out = new Set(listLedgerNights())
     try {
       for (let i = 0; i < window.localStorage.length; i += 1) {
         const k = window.localStorage.key(i) || ''
@@ -303,7 +368,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       }
     } catch { /* private mode: tonight only, which is still a working panel */ }
     out.delete(slateDate || easternToday())
-    return [...out].sort().reverse().slice(0, 14)
+    return [...out].sort().reverse().slice(0, 21)
+  // The list is read once per mount, which is enough: the page that backfills
+  // (components/tabs/LedgerLab.js) lives in a sibling view, so coming back to
+  // this one remounts the component and re-reads the store.
   }, [research, slateDate])
 
   // A past night comes off the branch's graded file — the same payload the
@@ -504,7 +572,22 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       // KIND of homer it was and not just that one happened. Older nights
       // have no hr_events and simply show no band — an untracked homer and a
       // wall-scraper are different claims.
-      .map((s) => ({ pid: Number(s?.player_id), hr: n(s?.actual_hr, 0), events: s?.hr_events || [] }))
+      // NAME AND TEAM RIDE ALONG (2026-08-24). They always existed in the
+      // file and were always thrown away, because the card resolved every
+      // hitter against the SLATE rows — which are tonight's. That is fine for
+      // tonight and wrong the moment the research view is parked on an
+      // archived night: anyone who homered on August 22 and is not playing
+      // today had no slate row to match, so he rendered as "#673357". The
+      // graded row knows who he is; take its word for it when the slate has
+      // nothing to say.
+      .map((s) => ({
+        pid: Number(s?.player_id),
+        hr: n(s?.actual_hr, 0),
+        events: s?.hr_events || [],
+        fileName: clean(s?.name, ''),
+        fileTeam: clean(s?.team, ''),
+        fileSpot: n(s?.lineup_spot, 0) || null,
+      }))
       .filter((x) => x.pid && x.hr > 0)
   }, [payload, isTmrw, dateKey, live, seenRef, research, night])
 
@@ -613,10 +696,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
     const spots = Array(10).fill(0)          // index 1..9
     const cards = []
     let total = 0
-    rows.forEach(({ pid, hr, events, liveName }) => {
+    rows.forEach(({ pid, hr, events, liveName, fileName, fileTeam, fileSpot }) => {
       const p = byId.get(pid)
       total += hr
-      const spot = Number(p?.lineup_spot)
+      const spot = Number(p?.lineup_spot ?? fileSpot)
       if (spot >= 1 && spot <= 9) spots[spot] += hr
       // Authoritative first; slate arithmetic only as a marked fallback.
       const numRec = seasonHr?.get(pid) || null
@@ -632,8 +715,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         pid, p, hr, events: events || [],
         // The live feed carries fullName, so a homer from a hitter the bot
         // never scored renders as a person instead of as "#650968".
-        name: p ? nameOf(p) : (clean(liveName, '') || `#${pid}`),
-        team: p ? teamOf(p) : '',
+        name: p ? nameOf(p) : (clean(liveName, '') || clean(fileName, '') || `#${pid}`),
+        team: p ? teamOf(p) : clean(fileTeam, ''),
         spot: spot >= 1 && spot <= 9 ? spot : null,
         nth,
         exact: Number.isFinite(exact),
@@ -1032,7 +1115,32 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   // slate that has not happened. But today with zero homers renders a WAITING
   // strip — it names itself, says what it will show, and says when. That is
   // information, not decoration: "no homers yet" is a fact about tonight.
-  if (isTmrw) return null
+  // TOMORROW STILL SAYS NOTHING — there is no night to report on — but the
+  // RESEARCH page must not vanish when the site happens to be parked on
+  // tomorrow's slate: the whole point of that page is the nights behind you.
+  // So it keeps its header and its picker and says which it is.
+  if (isTmrw && !(research && night)) {
+    if (!research) return null
+    return (
+      <div style={{
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+        padding: '9px 14px 11px', marginBottom: 14,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 900 }}>💥 Homer ledger — research</span>
+          <span style={{ fontSize: 9.5, color: C.text3 }}>
+            the site is on tomorrow&apos;s slate, which has not happened — pick a night below
+          </span>
+        </div>
+        <NightPicker />
+        {nights.length === 0 && (
+          <div style={{ fontSize: 10.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
+            No nights archived on this device yet. The Archive view can pull them off the branch.
+          </div>
+        )}
+      </div>
+    )
+  }
 
   if (!model || !model.total) {
     // ── PREGAME: THE LEDGER'S OWN QUESTIONS, ASKED FORWARD ──────────────────
@@ -1053,9 +1161,16 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         padding: '9px 14px 11px', marginBottom: 14,
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <span onClick={toggle} style={{ fontSize: 12.5, fontWeight: 900, cursor: 'pointer' }}>💥 Homer ledger</span>
+          <span onClick={research ? undefined : toggle}
+                style={{ fontSize: 12.5, fontWeight: 900, cursor: research ? 'default' : 'pointer' }}>
+            💥 Homer ledger{research ? ' — research' : ''}
+          </span>
           <span style={{ fontSize: 9.5, color: C.text3 }}>
-            no homers yet tonight — it fills as they land, on its own, every few seconds
+            {research && night
+              // An archived night with nobody in it is a REAL answer, and it is
+              // not "no homers YET" — that sentence belongs to tonight only.
+              ? `no homers in the graded file for ${night}`
+              : 'no homers yet tonight — it fills as they land, on its own, every few seconds'}
           </span>
           {/* ── YESTERDAY'S ALIGNMENT (2026-08-23) ─────────────────────────
               Donovan: "when all the games are final look at the running themes
@@ -1103,9 +1218,20 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
               </span>
             )
           })()}
-          <Chevron />
+          {!research && <Chevron />}
         </div>
-        {!openNow ? null : !pre ? (
+        <NightPicker />
+        {!openNow || pastNight ? (
+          // An archived night that graded to nothing: say that, and say
+          // nothing else — every strip below this describes tonight's board.
+          pastNight ? (
+            <div style={{ fontSize: 10.5, color: C.text3, marginTop: 5, lineHeight: 1.6 }}>
+              The graded file for {night} has no home runs in it. Either nothing left the yard
+              among the names the sheet was watching, or the night was written before any game
+              finished.
+            </div>
+          ) : null
+        ) : !pre ? (
           <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.6 }}>
             When one goes, this is where it shows up: who hit it, what number home
             run it was for him, which lineup spot it came from, whether the bot had
@@ -1218,7 +1344,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           {total} {research && night ? `on ${night}` : 'tonight'}
         </span>
         {!research && onNavigate && (
-          <span onClick={() => onNavigate('align')}
+          <span onClick={() => onNavigate('ledger')}
             title="The full ledger with every night this browser has seen — the roots, the echoes, the matching game, all of it"
             style={{
               fontSize: 9, color: C.cyan, cursor: 'pointer', fontFamily: NUM_FONT,
@@ -1232,32 +1358,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             </span>}
         <span onClick={toggle} style={{ cursor: 'pointer' }}><Chevron /></span>
       </div>
-      {/* ── THE NIGHT PICKER (2026-08-24, research mode only) ───────────────
-          The strips under this header are all comparisons — which root the
-          night landed on, which numbers repeated, which names echoed — and a
-          panel that can only ever show TODAY cannot answer the question those
-          strips exist to raise. Tonight is the default; every other night
-          comes off the branch's own graded file, so what you read here is the
-          same payload the Results tab grades from. */}
-      {research && nights.length > 0 && (
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', margin: '7px 0 9px' }}>
-          {[['', 'Tonight'], ...nights.map((d) => [d, d.slice(5)])].map(([k, label]) => (
-            <button key={k || 'today'} onClick={() => setNight(k)} style={{
-              fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800, cursor: 'pointer',
-              padding: '3px 9px', borderRadius: 999,
-              border: `1px solid ${night === k ? C.orange : C.border}`,
-              background: night === k ? `${C.orange}18` : 'transparent',
-              color: night === k ? C.orange : C.text3,
-            }}>{label}</button>
-          ))}
-          {nightState === 'loading' && <span style={{ fontSize: 9, color: C.text3 }}>loading…</span>}
-          {nightState === 'empty' && night && (
-            <span style={{ fontSize: 9, color: C.yellow }}>
-              no graded file published for {night}
-            </span>
-          )}
-        </div>
-      )}
+      <NightPicker />
 
       {/* Everything below the header folds. The count stays visible closed, so
           a shut ledger still tells you how many have landed. */}
@@ -1269,7 +1370,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
 
       {milestones.length > 0 && (
         <div style={{ fontSize: 10.5, color: C.text2, marginBottom: 8, lineHeight: 1.6 }}>
-          🎯 <b style={{ color: C.orange }}>Round number tonight:</b>{' '}
+          🎯 <b style={{ color: C.orange }}>{pastNight ? `Round number on ${night}:` : 'Round number tonight:'}</b>{' '}
           {milestones.map((c, i) => (
             <span key={c.pid}>
               {i > 0 ? ' · ' : ''}
@@ -1292,6 +1393,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           numerology claim on the site that is falsifiable. It says the miss
           count too, because a watchlist that only reports its hits is a horoscope. */}
       {(() => {
+        if (pastNight) return null
         const pre = pregameLedger(players)
         if (!pre) return null
         const homered = new Map()
@@ -1350,9 +1452,12 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           borderRadius: 10, padding: '8px 11px', marginBottom: 9,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 900, color: C.orange }}>🧲 Aligning with tonight</span>
+            <span style={{ fontSize: 10.5, fontWeight: 900, color: C.orange }}>
+              🧲 {pastNight ? `Aligning on ${night}` : 'Aligning with tonight'}
+            </span>
             <span style={{ fontSize: 9, color: C.text3 }}>
-              {aligned.length} homer{aligned.length === 1 ? '' : 's'} lining up with tonight&apos;s numbers
+              {aligned.length} homer{aligned.length === 1 ? '' : 's'} lining up with{' '}
+              {pastNight ? `${night}'s` : "tonight's"} numbers
             </span>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1400,9 +1505,14 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           against 300 synthetic nights rather than assuming one.
 
           Renders nothing when nothing clears. That is the normal state. */}
-      <LookOut players={players} />
+      {!pastNight && <LookOut players={players} />}
 
-      <NamePatterns homers={model.cards} population={players} />
+      {/* The name-echo test needs the POPULATION it drew from, and on an
+          archived night the population on file is tonight's slate — a
+          different set of men. Rating August 22's names against August 24's
+          board would be a null model of the wrong universe, so the test sits
+          out rather than reporting a number nobody can defend. */}
+      {!pastNight && <NamePatterns homers={model.cards} population={players} />}
 
       {/* 🔮 WHO LINES UP NEXT — the forward half of the alignment strip.
           "i need the ledger to have some prediction of players that align as
@@ -1410,7 +1520,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           who has NOT homered yet and is standing on one of them. Each chip
           carries its reasons in the tooltip and the strongest one inline.
           Pattern-watching, counted and disclosed — never fed to a score. */}
-      {nextUp.length > 0 && (() => {
+      {!pastNight && nextUp.length > 0 && (() => {
         // ── NOW, LATER, OR NOT AT ALL (2026-08-23) ────────────────────────
         // Donovan: "who's a J that looks good tonight that can go later or
         // now." A watch list that keeps naming men whose game ended two hours
@@ -1503,7 +1613,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           {repeats.map(({ num, list }) => (
             <div key={num} style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6 }}>
               <b style={{ color: '#a78bfa', fontFamily: NUM_FONT }}>{list.length} hitters</b> notched their{' '}
-              <b style={{ color: C.text, fontFamily: NUM_FONT }}>{ord(num)}</b> tonight —{' '}
+              <b style={{ color: C.text, fontFamily: NUM_FONT }}>{ord(num)}</b> {nightWord} —{' '}
               {list.map((c, i) => (
                 <span key={c.pid}>
                   {i > 0 ? ', ' : ''}
@@ -1601,8 +1711,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           </div>
           <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
             {placed} of {total} homers have a known lineup spot.
-            {spots[topSpot] >= 3 && <> The <b style={{ color: C.text2 }}>{ord(topSpot)} spot</b> leads tonight with {spots[topSpot]}.</>}
-            {' '}A full slate is ~25 homers across nine spots, so a tall bar is a picture of tonight,
+            {spots[topSpot] >= 3 && <> The <b style={{ color: C.text2 }}>{ord(topSpot)} spot</b> leads {nightWord} with {spots[topSpot]}.</>}
+            {' '}A full slate is ~25 homers across nine spots, so a tall bar is a picture of one night,
             not a finding about baseball — read it as texture, never as a signal to chase.
           </div>
         </>
