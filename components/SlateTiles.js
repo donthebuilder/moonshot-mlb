@@ -21,7 +21,7 @@ const playerScore = (p) => median([
   hrScore(p), prodScore(p), nn(p?.hrw_score), nn(p?.damage_conversion_score),
 ])
 
-function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color }) {
+function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color, wide = false }) {
   // Tinted to match the capture pill next door. Grey boxes read as chrome;
   // a tinted pill with a live dot reads as an instrument, which is what these
   // are -- they change during the night.
@@ -38,9 +38,9 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color }) {
   // panel rather than a row of grey boxes — this is the part of the page that
   // ends up in every clip, so it's worth the extra few bytes of CSS.
   return (
-    <div style={{
+    <div className={wide ? 'slate-tile-wide' : undefined} style={{
       display: 'flex', flexDirection: 'column', justifyContent: 'center',
-      padding: '5px 12px', borderRadius: 9, minWidth: 0,
+      padding: '5px 12px', borderRadius: 9, minWidth: 0, height: '100%',
       background: `linear-gradient(135deg, ${col}22, ${col}08)`,
       border: `1px solid ${col}45`,
       boxShadow: (toneKey === 'flat' && !color) ? 'none' : `0 0 16px ${col}14`,
@@ -59,11 +59,12 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color }) {
         {label}
       </div>
       <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap',
+        display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap', minWidth: 0,
       }}>
         <span style={{
-          fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900,
+          fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, minWidth: 0,
           color: (toneKey === 'flat' && !color) ? C.text : col, letterSpacing: '-.02em',
+          overflow: 'hidden', textOverflow: 'ellipsis',
         }}>{value}</span>
         {delta && (
           <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{delta}</span>
@@ -112,9 +113,30 @@ export default function SlateTiles({ players = [], results, games = [], projecte
 
   const pct = (x) => `${Math.round((100 * x) / Math.max(1, players.length))}%`
 
+  // ── AN EVEN STRIP (2026-08-24) ────────────────────────────────────────────
+  // Donovan: "the top needs to be even."
+  //
+  // It wasn't, and the reason is that every tile was content-width. "Games"
+  // carries one digit and "Best game" carries a matchup plus a score, so a
+  // flex-wrap row of them broke wherever the text happened to run out — most
+  // nights that left LINEUPS ✓ stranded alone on a second line with two-thirds
+  // of the row empty beside it. A header strip that changes shape with the
+  // fixtures reads as broken layout rather than as information.
+  //
+  // Every tile is a flex CELL on the same basis now, so a row fills its width
+  // edge to edge and whatever lands on the last row grows to close it out.
+  //
+  // The rule lives in CSS (.slate-tiles > *, components/MobileCSS.js) rather
+  // than in a wrapper <div> around each child, and that is the whole trick:
+  // two of these tiles are elements threaded in from Header.js which render
+  // NULL on most slates (no projection published, no homer hit yet). A wrapper
+  // div exists whether or not its child rendered, so wrapping would have left
+  // one or two empty 148px cells holding open a gap in the middle of the
+  // strip. A child selector matches only what actually made a DOM node.
   return (
-    <div style={{
-      display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch', justifyContent: 'center',
+    <div className="slate-tiles" style={{
+      display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch',
+      width: '100%', minWidth: 0,
     }}>
       {/* FIXED ORDER AND HUES, alternating cool/warm so no two neighbours
           share a colour:
@@ -132,6 +154,7 @@ export default function SlateTiles({ players = [], results, games = [], projecte
       {capture}
       {stats.best && (
         <Tile
+          wide
           label="Best game"
           value={stats.best.label}
           delta={stats.best.gs.toFixed(1)}

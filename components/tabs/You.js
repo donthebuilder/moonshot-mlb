@@ -20,9 +20,18 @@ import Watchlist from './Watchlist'
 // Old deep links (#tab=mypicks / #tab=watch) land here via alias routes
 // carrying `initial`.
 
+// ── THE WATCHLIST OPENS FIRST (2026-08-24) ──────────────────────────────────
+// Donovan: "watch list needs to be the first tab to open on you."
+//
+// Right call, and the ordering says why: the Watchlist is a LIST OF NAMES you
+// already decided you cared about — you arrive at YOU to see how your guys are
+// doing. My Picks is a thing you go and DO, one slot at a time, and it is
+// worth arriving at deliberately. So the roster leads and the game is one tap
+// behind it. #tab=mypicks still lands on My Picks — a link someone clicked is
+// a stronger signal than a default.
 const VIEWS = [
-  ['picks', '🎮 My Picks'],
   ['watch', '👁 Watchlist'],
+  ['picks', '🎮 My Picks'],
 ]
 
 export default function You({
@@ -36,9 +45,9 @@ export default function You({
   onWatch = null,
   onAdd = null,
   onPlayerClick = null,
-  initial = 'picks',
+  initial = 'watch',
 }) {
-  const [view, setView] = useState(VIEWS.some(([k]) => k === initial) ? initial : 'picks')
+  const [view, setView] = useState(VIEWS.some(([k]) => k === initial) ? initial : 'watch')
 
   return (
     <div>

@@ -111,16 +111,31 @@ function Fig({ children, col = C.text, title }) {
 // deleted for repeating the paragraph, and the paragraph is now trimmed to the
 // half the chips don't carry. Nothing is dropped, including the honest
 // "not published yet" states — a chip with no number says so in words.
+// A welcome chip. It sizes itself from CSS now (.hero-stats > *) rather than
+// from its own text, so five of them make one even row — see MobileCSS.js.
+// Everything inside can shrink and ellipsis: a chip that is narrower than its
+// value must clip the value, never push the row back out of shape.
 function Stat({ label, value, sub, col = C.text, title }) {
   return (
     <span title={title} style={{
-      display: 'inline-flex', alignItems: 'baseline', gap: 5,
+      display: 'flex', alignItems: 'baseline', gap: 5, minWidth: 0,
       border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.025)',
-      borderRadius: 8, padding: '3px 9px', cursor: title ? 'help' : 'inherit',
+      borderRadius: 8, padding: '4px 9px', cursor: title ? 'help' : 'inherit',
     }}>
-      <span style={{ fontSize: 8.5, color: C.text3, letterSpacing: '.06em', fontFamily: NUM_FONT }}>{label}</span>
-      <b style={{ fontSize: 12, color: col, fontFamily: NUM_FONT }}>{value}</b>
-      {sub && <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</span>}
+      <span style={{
+        fontSize: 8.5, color: C.text3, letterSpacing: '.06em', fontFamily: NUM_FONT,
+        flexShrink: 0,
+      }}>{label}</span>
+      <b style={{
+        fontSize: 12, color: col, fontFamily: NUM_FONT, minWidth: 0,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{value}</b>
+      {sub && (
+        <span style={{
+          fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, minWidth: 0,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{sub}</span>
+      )}
     </span>
   )
 }
@@ -597,42 +612,51 @@ export default function Home({
             the hover text, and a clause whose field is missing SAYS SO rather
             than disappearing — that was the whole point of the tiles' honest
             "not published yet" sub-lines and it survives the fold. */}
+        {/* THE CHIP ROW SITS OUTSIDE THE PROSE COLUMN (2026-08-24). The
+            paragraph under it is capped at 720px because that is about the
+            width prose stays readable at; the chips are not prose, and inside
+            that cap the fifth one — GRADED — had nowhere to go but a line of
+            its own. Out here they get the hero's full width and make one even
+            row on a desktop. See .hero-stats in components/MobileCSS.js. */}
+        {!empty && (
+          <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+            <Stat label="GAMES" value={games.length}
+              sub={`${confirmedGames} confirmed`}
+              col={C.blue}
+              title="Games on tonight's slate, and how many have lineups the league has posted. Confirmed picks homer at a meaningfully higher clip than unconfirmed ones." />
+            <Stat label={isLive ? 'FIRST PITCH WAS' : 'FIRST PITCH'}
+              value={firstPitch ? firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'not published'}
+              col={firstPitch ? C.yellow : C.text3}
+              title="Your local time — the earliest game that hasn't started yet, or the earliest on the slate once they all have." />
+            {modelHr != null ? (
+              <Stat label="PROJ HR" value={modelHr.toFixed(1)}
+                sub={proj ? `bot ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
+                col={C.orange}
+                title="The site's model, summed over every hitter on the slate. The second figure is the range on the bot's own published sheet — a second opinion, not the site's number." />
+            ) : proj ? (
+              <Stat label="PROJ HR (BOT)" value={`${proj.low}–${proj.high}`} sub={proj.grade || null} col={C.orange}
+                title="From the bot's published sheet. The site's own model figure isn't available for this slate." />
+            ) : (
+              <Stat label="PROJ HR" value="not published yet" col={C.text3}
+                title="Neither the site's model nor the bot's sheet has a homer projection for this slate yet." />
+            )}
+            {airRanked[0] && (
+              <Stat label="BEST AIR" value={`${airRanked[0].venue} ${airRanked[0].edge > 0 ? '+' : ''}${airRanked[0].edge.toFixed(0)}%`}
+                col={airRanked[0].edge > 0 ? C.orange : C.text3}
+                title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
+            )}
+            {record && (
+              <Stat label="GRADED" value={`${record.acc.toFixed(1)}%`} sub={`${record.days} days`} col={C.green}
+                title="Base-hit accuracy across every graded pick in the archive — a measured rate, not a projection." />
+            )}
+          </div>
+        )}
+
         <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.75, maxWidth: 720 }}>
           {empty ? (
             'No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands; no refresh ritual required.'
           ) : (
             <>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                <Stat label="GAMES" value={games.length}
-                  sub={`${confirmedGames} confirmed`}
-                  col={C.blue}
-                  title="Games on tonight's slate, and how many have lineups the league has posted. Confirmed picks homer at a meaningfully higher clip than unconfirmed ones." />
-                <Stat label={isLive ? 'FIRST PITCH WAS' : 'FIRST PITCH'}
-                  value={firstPitch ? firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'not published'}
-                  col={firstPitch ? C.yellow : C.text3}
-                  title="Your local time — the earliest game that hasn't started yet, or the earliest on the slate once they all have." />
-                {modelHr != null ? (
-                  <Stat label="PROJ HR" value={modelHr.toFixed(1)}
-                    sub={proj ? `bot ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
-                    col={C.orange}
-                    title="The site's model, summed over every hitter on the slate. The second figure is the range on the bot's own published sheet — a second opinion, not the site's number." />
-                ) : proj ? (
-                  <Stat label="PROJ HR (BOT)" value={`${proj.low}–${proj.high}`} sub={proj.grade || null} col={C.orange}
-                    title="From the bot's published sheet. The site's own model figure isn't available for this slate." />
-                ) : (
-                  <Stat label="PROJ HR" value="not published yet" col={C.text3}
-                    title="Neither the site's model nor the bot's sheet has a homer projection for this slate yet." />
-                )}
-                {airRanked[0] && (
-                  <Stat label="BEST AIR" value={`${airRanked[0].venue} ${airRanked[0].edge > 0 ? '+' : ''}${airRanked[0].edge.toFixed(0)}%`}
-                    col={airRanked[0].edge > 0 ? C.orange : C.text3}
-                    title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
-                )}
-                {record && (
-                  <Stat label="GRADED" value={`${record.acc.toFixed(1)}%`} sub={`${record.days} days`} col={C.green}
-                    title="Base-hit accuracy across every graded pick in the archive — a measured rate, not a projection." />
-                )}
-              </div>
               {isLive && homersSoFar > 0 && <><b style={{ color: C.orange }}>⚡ {homersSoFar} already gone tonight.</b>{' '}</>}
               {headline && <>The game to circle is <Fig>{clean(headline.g.away, '?')} @ {clean(headline.g.home, '?')}</Fig>, immediately below.{' '}</>}
               {record

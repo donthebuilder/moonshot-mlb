@@ -172,6 +172,41 @@ export default function MobileCSS() {
         .game-switcher-rail::-webkit-scrollbar { display: none; }
       }
 
+      /* ── EVEN ROWS: THE HEADER STRIP AND THE WELCOME CHIPS (2026-08-24) ───
+         Donovan: "the top needs to be even, so does the part on the welcome."
+
+         Both rows were content-width pills in a flex-wrap container, which
+         means the break point is wherever the text happens to run out. On the
+         header strip that stranded LINEUPS ✓ alone on a second line; on the
+         welcome it stranded GRADED. Neither is a wrapping bug — it is what
+         flex-wrap does with ragged children — so the fix is to stop the
+         children being ragged.
+
+         One basis for every cell, and flex-grow on, so a row fills its width
+         edge to edge and a short last row closes itself out instead of
+         leaving a gap. Best game gets a wider basis because it carries a
+         matchup rather than a number; it still shares the grow factor, so it
+         is proportionally larger rather than a different shape. The bases are
+         MEASURED, not guessed: the header's vitals column is about 620px on a
+         1280 desktop, so five tiles have to start at ~104px to share one row,
+         and on a phone Best game takes a row of its own because a matchup and
+         a score will not read at 116px.
+
+         WHY A CHILD SELECTOR and not a wrapper div: two tiles in the header
+         strip are elements passed down from Header.js that render null on
+         most slates (nothing projected yet, no homer landed yet). A wrapper
+         exists whether or not its child does, so wrapping would hold open an
+         empty cell — exactly the gap this is removing. A child selector matches only
+         what actually rendered. */
+      .slate-tiles > * { flex: 1 1 104px; min-width: 0; }
+      .slate-tiles > .slate-tile-wide { flex-basis: 146px; }
+      .hero-stats > * { flex: 1 1 132px; min-width: 0; }
+      @media (max-width: 520px) {
+        .slate-tiles > * { flex-basis: 116px; }
+        .slate-tiles > .slate-tile-wide { flex-basis: 100%; }
+        .hero-stats > * { flex-basis: 124px; }
+      }
+
       /* ══ QUIET MODE (2026-08-23) ═══════════════════════════════════════════
          Donovan: "we need a notifications setting somewhere to minimze the
          notis on screen for user" — the ❓ banners, the pills and toasts, and
