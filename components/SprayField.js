@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { alpha, catColor, verdictInk } from '../lib/scales'
 import { n, clean, obj, arr } from '../lib/player'
 import { detailUrl } from '../lib/dataSource'
 import { chipColor } from './Heatmap'
@@ -261,17 +262,71 @@ const BB_TYPES = [
 // Barrels get a ring. `is_barrel` is on every tracked ball, and a barrel is the
 // launch-angle/EV combination that actually produces damage, so ringing them
 // surfaces "he squared these up" independently of whether they fell in.
+// ── REGISTRY RECONCILIATION (2026-08-24) ────────────────────────────────────
+//
+// lib/scales.js's CAT.result was built with this exact five-key set in mind
+// -- its own comment names "SprayField's five, which is the one categorical
+// set on the site where colour is currently the sole encoding" -- and maps
+// home_run: 'orange', triple: 'purple', double: 'cyan', single: 'blue',
+// out: 'text3'. Two of five are already byte-identical to what this file
+// draws (triple, single) and now route through catColor() below. The other
+// three are NOT byte-identical, and forcing them through would be a real
+// visual change, not just plumbing, for reasons specific to this file:
+//
+//   home_run: registry says C.orange. This file's whole point, a few
+//   paragraphs up, is "ORANGE IS THE FIELD, NOT THE DOTS" -- the wall, the
+//   foul lines, the distance arcs and the warning track are already orange.
+//   A home run, the ball most likely to land right at that wall, drawn in
+//   the same hue as the wall it just cleared risks exactly the "hard to
+//   read, nothing can be picked out" failure this file's own rewrite exists
+//   to prevent. Same shape as Results.js's flagged TOP case (commit
+//   81d12e2): the registry and an established, deliberate file-local choice
+//   disagree, and picking a side is a product call, not a colour-plumbing
+//   one.
+//
+//   double: registry says C.cyan, this file says C.green. No field-collision
+//   risk (cyan isn't used elsewhere on this chart), but it's still a real
+//   hue change from what ships today, so it's flagged rather than silently
+//   swapped.
+//
+//   out: registry says C.text3. This one has a documented reason to actually
+//   want the swap: the 2026-08-22 audit (claude/moonshot-colour-chart-
+//   system-audit.md) names this literal specifically -- "on a light page the
+//   out dots become the loudest marks on the chart" -- because this literal
+//   reads near-black (quiet) against this file's dark field but reads as a hard
+//   dark mark against a LIGHT theme's page. C.text3 is designed to stay a
+//   quiet mid-tone against whichever theme is active, which is what "kept
+//   nearly silent" is actually asking for across all five themes, not just
+//   ember. Not swapped here unilaterally anyway, both because it shares an
+//   object with the two flagged keys above and because "reads quiet" is
+//   exactly the property in question -- worth Donovan's eyes on how it
+//   actually looks in light mode, not just a diff.
+//
+// All three flagged in place below, same as Results.js's TOP case: reported,
+// not resolved.
 const RESULT_COLORS = {
-  home_run: '#f87171',   // C.red    — the headline event
-  triple:   '#a78bfa',   // C.purple
-  double:   '#4ade80',   // C.green
-  single:   '#60a5fa',   // C.blue
-  out:      '#3f3f46',   // near-black grey — the majority case, kept silent
+  home_run: '#f87171',   // C.red — NOT catColor('result','home_run') (=C.orange); see the flag above
+  double:   '#4ade80',   // C.green — NOT catColor('result','double') (=C.cyan); see the flag above
+  out:      '#3f3f46',   // near-black grey, the majority case kept silent — NOT catColor('result','out') (=C.text3); see the flag above
 }
+// triple/single ARE byte-identical to the registry (catColor('result',
+// 'triple') resolves to C.purple, catColor('result','single') resolves to
+// C.blue -- both match the literals this file used to hardcode here, in
+// every theme they were ever checked against), so they route through it,
+// resolved at CALL TIME inside resultColor/liveColor below, deliberately
+// NOT baked into the RESULT_COLORS object above. That distinction is
+// load-bearing here: lib/theme.js's own note says never hoist a C-derived
+// colour to module scope,
+// because applyTheme() mutates C in place AFTER hydration, while a plain
+// object literal only ever evaluates once, at import, before that mutation
+// has happened (see components/tabs/Pitchers.js's identical note and
+// claude/moonshot-HANDOFF-2026-08-22.md's "the earned trap"). Reading
+// catColor() inside a function body re-resolves it on every call, which is
+// what these two functions need since they're invoked fresh every render.
 const resultColor = (h) => h.hr ? RESULT_COLORS.home_run
-  : h.event === 'triple' ? RESULT_COLORS.triple
+  : h.event === 'triple' ? catColor('result', 'triple')
   : h.event === 'double' ? RESULT_COLORS.double
-  : h.event === 'single' ? RESULT_COLORS.single
+  : h.event === 'single' ? catColor('result', 'single')
   : RESULT_COLORS.out
 
 // Real outfield distances. PRECEDENCE FLIPPED 2026-08-04: the curated PARKS
@@ -314,10 +369,12 @@ function dimsFor(player) {
 // they go through the same toPolar() and land in the same places. Nothing is
 // re-scaled and nothing is modeled.
 const liveIsHR = (b) => /home_run/i.test(b?.event || '')
+// Same split as resultColor() just above: triple/single read live off the
+// registry, home_run/double/out stay the flagged literals.
 const liveColor = (b) => (liveIsHR(b) ? RESULT_COLORS.home_run
-  : /triple/i.test(b?.event || '') ? RESULT_COLORS.triple
+  : /triple/i.test(b?.event || '') ? catColor('result', 'triple')
   : /double/i.test(b?.event || '') ? RESULT_COLORS.double
-  : /single/i.test(b?.event || '') ? RESULT_COLORS.single
+  : /single/i.test(b?.event || '') ? catColor('result', 'single')
   : RESULT_COLORS.out)
 
 // ── liveOnly: THE AT-THE-PLATE SKIN ─────────────────────────────────────────
@@ -513,6 +570,13 @@ export default function SprayField({
 
   // Result classes. The old version called every non-XBH ball an "Out", which
   // labelled 4,311 singles across the slate as outs. Group on `event`.
+  // Filter-CHIP colours, not the dot legend: an orange-intensity ladder for
+  // button emphasis, independent of RESULT_COLORS. Note 'single' below is
+  // dark orange while a single DOT (RESULT_COLORS.single / catColor('result',
+  // 'single')) is blue -- deliberately different concepts (chip emphasis vs.
+  // outcome identity), not an inconsistency to fix here. xbh/single/hard have
+  // no exact C token match (all three are hand-picked orange shades) and stay
+  // literal; all/hr/out already read tokens (C.text2/C.orange/C.text3).
   const classes = useMemo(() => {
     const t = inRange.length || 1
     const of = (f) => inRange.filter(f).length
@@ -572,11 +636,25 @@ export default function SprayField({
   const liveResTabs = useMemo(() => OUTCOME_TABS.map((t) => ({
     ...t,
     n: t.key === 'all' ? liveHits.length : liveHits.filter((b) => b.res === t.key).length,
+    // Filter-chip emphasis for the HR tab only -- a near-orange accent, not
+    // an exact C token (Tailwind orange-400 vs C.orange's orange-500) and
+    // not routed through catColor('result', ...): OUTCOME_TABS' keys ('hr',
+    // '3b','2b','1b','out', from BattedBallLog) don't match CAT.result's
+    // ('home_run','triple','double','single','out'), so only two of five
+    // would even resolve. Left literal.
     col: t.key === 'hr' ? '#fb923c' : C.text2,
   })), [liveHits])
   const liveQualTabs = useMemo(() => {
     const gate = { hh: (b) => b.hh, barrel: (b) => b.barrel, ev100: (b) => (b.ev || 0) >= 100, deepFly: (b) => b.deepFly }
-    const col = { hh: '#fb923c', barrel: '#f87171', ev100: '#fbbf24', deepFly: '#a78bfa' }
+    // Quality-flag colours, not RESULT_COLORS -- 'barrel' and 'deepFly' are
+    // batted-ball QUALITY flags (lib/livePitches.js), not outcome categories,
+    // so neither routes through catColor('result', ...) either; there's no
+    // CAT concept for them. barrel and deepFly were already byte-identical
+    // to C.red/C.purple, so those two read the token directly instead of a
+    // duplicate literal. hh and ev100 have no exact token match (both are
+    // near-misses on C.orange/C.yellow, off by one Tailwind step) and stay
+    // literal.
+    const col = { hh: '#fb923c', barrel: C.red, ev100: '#fbbf24', deepFly: C.purple }
     return QUALITY_TABS.map((t) => ({
       ...t,
       n: liveHits.filter(gate[t.key] || (() => false)).length,
@@ -693,7 +771,17 @@ export default function SprayField({
   // Field-relative bearing: 0 = straight out to centre, 180 = straight in.
   const windTo = windCross ? 90 : windOut ? (/corner/i.test(windLabel) ? 28 : 0)
     : windIn ? (/corner/i.test(windLabel) ? 152 : 180) : 0
-  const windCol = windOut ? C.orange : windIn ? '#60a5fa' : C.text2
+  // This IS the site-wide verdict pair, not a one-off ternary: the footer a
+  // few hundred lines down spells out the same good/bad framing in words
+  // ("helping carry" / "hurting carry" / "pushing sideways"), and the two
+  // non-neutral colours were already, byte-for-byte, C.orange and C.blue.
+  // verdictInk(null) resolves the crosswind/no-wind case to C.text3 rather
+  // than the old literal C.text2 -- one shade quieter, matching how every
+  // other null verdict on the site reads. windOut is checked before windIn
+  // here, same precedence as the ternary this replaces, so "crosswind (out)"
+  // labels still resolve to the warm/true side exactly as before -- no
+  // branching logic changed, only the colour source.
+  const windCol = verdictInk(windOut ? true : windIn ? false : null).color
   const hasWind = windMph > 0 && !!windLabel
   const chipBtn = (on, col) => ({
     padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
@@ -716,7 +804,14 @@ export default function SprayField({
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
           <span style={{
             fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
-            color: '#4ade80', border: '1px solid rgba(74,222,128,.5)', background: 'rgba(74,222,128,.10)',
+            // Game-state signal ("this view is live"), not a win/loss verdict
+            // -- same call Games.js's e7c5fd3 pass made for its identical
+            // live/posted badges. Byte-identical to the old literal and its
+            // rgba(...) forms in ember, now theme-resolved. The other
+            // three "● Tonight"/"TONIGHT ONLY" state labels below (the ●
+            // Tonight toggle chip, the hover readout, the footer) are the
+            // same state colour, same reasoning, not re-commented each time.
+            color: C.green, border: `1px solid ${alpha(C.green, 0.5)}`, background: alpha(C.green, 0.10),
             borderRadius: 999, padding: '2px 9px',
           }}>● TONIGHT ONLY</span>
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
@@ -842,7 +937,7 @@ export default function SprayField({
           <button
             onClick={() => setLiveOn((v) => !v)}
             title="Tonight's tracked balls in play from the live feed, on this same field. Ringed in white so they can't be mistaken for the season sample."
-            style={{ ...chipBtn(liveOn, '#4ade80'), padding: '2px 8px', fontSize: 9.5 }}
+            style={{ ...chipBtn(liveOn, C.green), padding: '2px 8px', fontSize: 9.5 }}
           >● Tonight {liveN}</button>
         )}
         <button onClick={reset} style={{ ...chipBtn(false, C.text3), padding: '2px 8px', fontSize: 9.5, marginLeft: 'auto' }}>
@@ -983,6 +1078,37 @@ export default function SprayField({
             inside a tall box and eating most of a portrait screen for nothing.
             The class lets the phone rule reclaim the height. */}
         <svg className="spray-svg" viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 460, height, flexShrink: 0 }}>
+          {/* ── FIELD GEOMETRY COLOURS: DOMAIN, NOT ROUTED (2026-08-24) ──────
+              Every fixed hex from here down through the wall/turf/track/
+              infield/arcs — including the field's own dark base tone,
+              reused below as an outline so a marker still reads against
+              whatever sits under it — is the ballpark graphic: turf, dirt,
+              wall, wedge. lib/scales.js's own header exempts this explicitly
+              ("Green/red survives ONLY where it is a domain colour, a field
+              graphic"). None of it carries a verdict or a category; it's
+              drawing a park, the same way a real park is brown dirt and
+              green grass regardless of what theme your phone is in.
+              A few of these (the wall stroke, the foul lines, the distance-
+              arc stroke, the infield fill) happen to be byte-identical to
+              C.orange today — deliberately NOT routed to the token: this
+              file's own design a few hundred lines up is "ORANGE IS THE
+              FIELD, NOT THE DOTS", so making the field itself follow
+              C.orange across five different themes is a real design
+              question — does the park still read as a park when it goes
+              from ember's saturated orange to light theme's much more muted
+              burnt-orange? — not something to answer unilaterally in a
+              colour-plumbing pass. Flagged once here rather than at each
+              repeat.
+              Two are the opposite case: literals that must NOT be routed
+              even though they land on a token by coincidence. The tonight-
+              dot ring (below) is a fixed near-white ring that separates
+              tonight's balls from the season sample, and happens to equal
+              ember's C.text — but C.text is near-black under the light
+              theme, so reading it as C.text would make the ring disappear
+              exactly where it's needed. The hover ring (two places below,
+              a plain "white") is a fixed white for the same reason. Neither
+              is "the text colour" conceptually; both stay literal, marked
+              at each occurrence. */}
           {/* THE FIELD IS A SOLID SURFACE.
               Every previous version drew it as white at 2-8% opacity on a
               near-black page, which is a difference of about 1.3:1 — the eye
@@ -1144,6 +1270,7 @@ export default function SprayField({
                   />
                   {/* Ring = barrel. Squared up, whatever the outcome was. */}
                   {h.barrel && <circle cx={x} cy={y} r={rr + 3.6} fill="none" stroke={col} strokeWidth="1.1" opacity={on ? 1 : 0.75} />}
+                  {/* fixed white hover ring — see the geometry-colours note above; must stay a literal, not C.text */}
                   {on && <circle cx={x} cy={y} r="12" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.9" />}
                 </g>
                 <circle
@@ -1180,8 +1307,10 @@ export default function SprayField({
             return (
               <g key={`live-${i}`}>
                 <g style={{ pointerEvents: 'none' }} opacity={focus ? 1 : 0.28}>
+                  {/* fixed near-white ring — coincidentally equals ember's C.text but must NOT read C.text (near-black in light theme); see the geometry-colours note above */}
                   <circle cx={x} cy={y} r={rr} fill={col} stroke="#f4f4f5" strokeWidth={focus ? 1.3 : 0.8} />
                   {b.hr && <circle cx={x} cy={y} r={rr + 3.4} fill="none" stroke={col} strokeWidth="1.1" opacity="0.85" />}
+                  {/* fixed white hover ring — same as the season dots above, must stay a literal */}
                   {on && <circle cx={x} cy={y} r="12" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.9" />}
                 </g>
                 <circle
@@ -1266,7 +1395,7 @@ export default function SprayField({
         <div style={{ flex: 1, minWidth: 160, minHeight: 54 }}>
           {hoverLive != null && liveDrawn[hoverLive] ? (
             <div style={{ fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7 }}>
-              <div style={{ color: '#4ade80', fontSize: 8, fontWeight: 900, letterSpacing: '.09em' }}>● TONIGHT</div>
+              <div style={{ color: C.green, fontSize: 8, fontWeight: 900, letterSpacing: '.09em' }}>● TONIGHT</div>
               <div style={{ color: liveColor(liveDrawn[hoverLive]), fontWeight: 800, fontSize: 11 }}>
                 {String(liveDrawn[hoverLive].event || 'in play').replace(/_/g, ' ').toUpperCase()}
               </div>
@@ -1339,9 +1468,9 @@ export default function SprayField({
               fielded-vs-carry) moved behind "How to read this". */}
           <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
             <b style={{ color: RESULT_COLORS.home_run }}>red</b> HR ·{' '}
-            <b style={{ color: RESULT_COLORS.triple }}>purple</b> 3B ·{' '}
+            <b style={{ color: catColor('result', 'triple') }}>purple</b> 3B ·{' '}
             <b style={{ color: RESULT_COLORS.double }}>green</b> 2B ·{' '}
-            <b style={{ color: RESULT_COLORS.single }}>blue</b> 1B · dark = out ·{' '}
+            <b style={{ color: catColor('result', 'single') }}>blue</b> 1B · dark = out ·{' '}
             <b style={{ color: C.text2 }}>ring = barrel</b> · shape = pitch · size = distance
           </div>
 
@@ -1349,7 +1478,7 @@ export default function SprayField({
               as everything else, and says out loud what it is. */}
           {liveN > 0 && (
             <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5, lineHeight: 1.6 }}>
-              <b style={{ color: '#4ade80' }}>● Tonight:</b>{' '}
+              <b style={{ color: C.green }}>● Tonight:</b>{' '}
               {liveOnly || liveOn ? <>
                 {liveN} tracked ball{liveN === 1 ? '' : 's'} in play from the live feed
                 {liveOnly
