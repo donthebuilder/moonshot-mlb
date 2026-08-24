@@ -11,6 +11,14 @@ export const metadata = {
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MOONSHOT' },
   icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
+  // Chrome/Edge deprecated apple-mobile-web-app-capable in favour of the
+  // standard tag (2026-08-24, console warning Donovan saw). Next 14's
+  // metadata API only emits the apple- prefixed one from appleWebApp above —
+  // there's no built-in field for the standard name yet — so it's added
+  // straight through `other`. Both tags now render; nothing behind
+  // appleWebApp changes, this just stops the warning and covers the browsers
+  // that only recognise the new name.
+  other: { 'mobile-web-app-capable': 'yes' },
 }
 
 // THE MOBILE LINCHPIN (found missing 2026-08-05). Without a viewport export,
