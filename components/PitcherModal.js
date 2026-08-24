@@ -18,6 +18,7 @@ import SlotDamage from './SlotDamage'
 import TeamVsStarter from './TeamVsStarter'
 import PitcherRead from './PitcherRead'
 import GameLineup from './GameLineup'
+import { PitcherSim } from './GameSimulator'
 
 // The pitcher's own modal.
 //
@@ -97,6 +98,7 @@ const TABS = [
   { key: 'matchup', label: '🥎 Arsenal + damage' },
   { key: 'lineup',  label: '📋 Lineup he faces' },
   { key: 'profile', label: '📊 Command + splits' },
+  { key: 'sim',     label: '🎮 Sim' },
 ]
 
 // ── THE SPLITS, AS A CONTROL (rebuilt 2026-08-23; 08-22 build lost) ─────────
@@ -588,6 +590,8 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
               <SituationalSplits playerId={pitcher?.pitcher_id} kind="pitcher" />
             </>
           )}
+
+          {tab === 'sim' && <PitcherSim getStat={src} name={name} />}
         </div>
       </div>
     </div>

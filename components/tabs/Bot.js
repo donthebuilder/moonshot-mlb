@@ -511,11 +511,12 @@ function SheetViewer({ url, label }) {
 // for the full version, and that link is the thing he says he likes. Removing
 // the view would break it. If he wants it gone entirely, the teaser moves to an
 // inline expand on Home first — one change, not a dangling link.
+// 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
-  { key: 'short',    label: '🎯 Shortlist' },
-  { key: 'sheet',    label: '📄 Today’s Sheet' },
-  { key: 'tomorrow', label: '📄 Tomorrow' },
-  { key: 'read',     label: '📝 The Read' },
+  { key: 'short',    label: 'Shortlist' },
+  { key: 'sheet',    label: 'Today’s Sheet' },
+  { key: 'tomorrow', label: 'Tomorrow' },
+  { key: 'read',     label: 'The Read' },
 ]
 
 export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = null }) {

@@ -30,6 +30,7 @@ import MatchupPitcher from './MatchupPitcher'
 import PlayerSplits from './PlayerSplits'
 import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
+import { BatterSim } from './GameSimulator'
 import ThresholdGrid from './ThresholdGrid'
 import ColdCase from './ColdCase'
 import PlayerRead from './PlayerRead'
@@ -213,6 +214,7 @@ const TABS = [
   // all of it: matchup view, zone matches, hover popouts with gb/fly and
   // starter bleed. One map, one home.
   { key: 'pitcher',  label: '🥎 Pitcher' },
+  { key: 'sim',      label: '🎮 Sim' },
 ]
 
 // `inline` renders the same content as a plain panel instead of a popup.
@@ -899,6 +901,9 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
 
           {/* the arm he's facing */}
           {tab === 'pitcher' && <MatchupPitcher player={p} slateMode={slateMode} />}
+
+          {/* simple, closed-form projected line + hit-count chart */}
+          {tab === 'sim' && <BatterSim player={p} name={nameOf(p)} />}
 
           {/* what this batter does to each pitch type */}
           {tab === 'pitch' && (

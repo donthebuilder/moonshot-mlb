@@ -2146,9 +2146,10 @@ export function GroupTicketBuilder({
 // for "construct your own ticket" beats two. Season History went with it:
 // the Pair History tab already owns that data, and a second copy here was a
 // tab pretending to be a feature.
+// 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
-  { key:'today',   label:'🧩 Today\'s Pairs' },
-  { key:'live',    label:'⚡ Live HR Pairs' },
+  { key:'today',   label:'Today\'s Pairs' },
+  { key:'live',    label:'Live HR Pairs' },
 ]
 
 // `odds` and `slateDate` are NEW AND OPTIONAL (2026-08-16). Dashboard doesn't

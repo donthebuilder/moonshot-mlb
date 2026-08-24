@@ -300,6 +300,11 @@ export default function Runs({ players = [], onPlayerClick }) {
   const [team, setTeam] = useState('')
   const [game, setGame] = useState('')
   const [order, setOrder] = useState('run')
+  // 2026-08-24: "Breaks Allowed" — reuses the same 0/1/2/3 idiom as the
+  // other streak board's tolerance control (the gold streaks board), wired
+  // into Patterns specifically since it only ever lived on that other
+  // board. 0 is the strict, original definition of a run.
+  const [breaks, setBreaks] = useState(0)
   const [open, setOpen] = useState(null)
 
   useEffect(() => {
@@ -376,12 +381,12 @@ export default function Runs({ players = [], onPlayerClick }) {
       .filter((p) => !needle
         || String(p.name || '').toLowerCase().includes(needle)
         || String(p.team || '').toLowerCase().includes(needle))
-      .map((p) => ({ p, r: readRun(p.g, market.col, bar, split) }))
+      .map((p) => ({ p, r: readRun(p.g, market.col, bar, split, dir === 'hot' ? breaks : 0) }))
       .filter((x) => x.r && x.r.n >= 5)
       .sort((a, b) => (dir === 'hot'
         ? (b.r.run - a.r.run) || (b.r.l15?.pct ?? 0) - (a.r.l15?.pct ?? 0)
         : (a.r.run - b.r.run) || (a.r.l15?.pct ?? 0) - (b.r.l15?.pct ?? 0)))
-  }, [data, market, bar, split, dir, q, onSlate])
+  }, [data, market, bar, split, dir, breaks, q, onSlate])
 
   const gameTeams = useMemo(() => {
     if (!game) return null
@@ -462,6 +467,17 @@ export default function Runs({ players = [], onPlayerClick }) {
         <button onClick={() => setDir('hot')} style={chip(dir === 'hot')}>Hot</button>
         <button onClick={() => setDir('cold')} style={chip(dir === 'cold')}
           title="The same board, the other direction — who has missed this bar the most times running.">Cold</button>
+        {/* BREAKS ALLOWED (2026-08-24). Cold is defined as consecutive misses,
+            so tolerance has no meaning there — the control only touches the
+            Hot run length, and is disabled rather than hidden on Cold so its
+            state survives a toggle back. */}
+        <span style={{ width: 8 }} />
+        <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Breaks Allowed</span>
+        {[0, 1, 2, 3].map((n2) => (
+          <button key={n2} onClick={() => setBreaks(n2)} disabled={dir !== 'hot'}
+            style={{ ...chip(dir === 'hot' && breaks === n2), opacity: dir === 'hot' ? 1 : 0.4, cursor: dir === 'hot' ? 'pointer' : 'default' }}
+            title="How many non-qualifying games the active run can absorb without ending it. 0 is the strict streak — any miss ends it.">{n2}</button>
+        ))}
       </div>
 
       {/* ── SECOND LINE: which slice of the slate, and in what order ──────

@@ -12,6 +12,7 @@ import LuckReport from '../LuckReport'
 import ParkBoard, { parkRows } from '../ParkBoard'
 import FenceBoard from '../FenceBoard'
 import ShapeBoard from '../ShapeBoard'
+import { alpha } from '../../lib/scales'
 
 // 🚀 POWER — one lead, one board, three lenses (rebuilt 2026-08-15).
 //
@@ -105,14 +106,16 @@ const DUE_POWER_FLOOR = 0.03
 // number it would have to apologise for.
 const LEAD_MIN_PA = 150
 
+// 2026-08-24: labels went text-only — secondary/sub-tab pills are emoji-free
+// site-wide (Donovan). Only the top-level nav tabs in lib/theme.js carry emoji.
 const LENSES = [
-  { k: 'longest', label: '🚀 Farthest', tag: 'who hits it the farthest', color: C.orange },
-  { k: 'due', label: '⏳ Overdue', tag: 'who is sitting on one', color: C.purple },
-  { k: 'parks', label: '🏟 Parks', tag: 'where the air is helping', color: C.cyan },
+  { k: 'longest', label: 'Farthest', tag: 'who hits it the farthest', color: C.orange },
+  { k: 'due', label: 'Overdue', tag: 'who is sitting on one', color: C.purple },
+  { k: 'parks', label: 'Parks', tag: 'where the air is helping', color: C.cyan },
   // The tag says "hits" and not "will hit" because this lens describes homers
   // already struck; the other three project tonight. One word, and it is the
   // difference between a description and a claim.
-  { k: 'shape', label: '🧬 Shape', tag: 'what kind of homer he hits', color: C.purple },
+  { k: 'shape', label: 'Shape', tag: 'what kind of homer he hits', color: C.purple },
 ]
 
 const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
@@ -264,7 +267,17 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
         const den = n(p?.recent_350_den, 0)
 
         return (
-          <section style={{ marginBottom: 20, maxWidth: 780, borderLeft: `3px solid ${h.color}`, paddingLeft: 14 }}>
+          // Card treatment matches VerdictHero's visual language (radius 18,
+          // padded, a subtle tint of the lead's own color) instead of the bare
+          // borderLeft rule that used to sit directly above the lens pills —
+          // 2026-08-24, "looks off/cluttered" against a purple callout with no
+          // card edge of its own. See components/VerdictHero.js.
+          <section style={{
+            marginBottom: 18, maxWidth: 780, borderRadius: 18,
+            border: `1px solid ${alpha(h.color, 0.26)}`,
+            background: `linear-gradient(158deg, ${alpha(h.color, 0.1)}, ${C.bg2} 60%)`,
+            padding: '16px 18px 15px',
+          }}>
             <div style={{
               fontSize: 9, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.14em',
               textTransform: 'uppercase', color: h.color, marginBottom: 5,
@@ -395,7 +408,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           below run with showTitle={false}. The active lens's own one-line
           answer rides the row rather than getting a paragraph of its own — the
           longer explanation belongs to the board and is printed by the board. */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', gap: 6, marginTop: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
         {LENSES.map((l) => (
           <button key={l.k} onClick={() => setView(l.k)} style={btnStyle(l.color, view === l.k)}>
             {l.label}

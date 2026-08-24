@@ -54,9 +54,10 @@ import {
 // graded file holds the ~90 candidates the bot watches, so this is a board
 // about the names the sheet was looking at, not about baseball.
 
+// 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
-  ['night', '🌙 One night'],
-  ['archive', '📚 The archive'],
+  ['night', 'One night'],
+  ['archive', 'The archive'],
 ]
 
 const panel = (accent) => ({

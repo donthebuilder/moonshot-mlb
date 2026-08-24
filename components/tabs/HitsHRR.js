@@ -338,7 +338,9 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 // belongs in Charts because Charts answers "who should I back, ranked" and
 // that is exactly what it is — a ranked board, on published counts, with no
 // model behind it.
-const GROUPS = [['boards', '📊 Boards'], ['power', '🚀 Power'], ['patterns', '🔥 Patterns'], ['steals', '🏃 Steals']]
+// 2026-08-24: labels went text-only (Donovan wants secondary/sub-tab pill
+// rows emoji-free site-wide — only the top-level nav tabs get emoji prefixes).
+const GROUPS = [['boards', 'Boards'], ['power', 'Power'], ['patterns', 'Patterns'], ['steals', 'Steals']]
 
 /**
  * New props, all optional so the CURRENT Dashboard mount keeps rendering
@@ -356,7 +358,6 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   const [bview, setBview] = useState(() => (GROUPS.some(([k]) => k === initialView) ? initialView : 'boards'))
   const [view, setView] = useState('hr')
   const [proofOpen, setProofOpen] = useState(false)
-  const stickTop = useHeaderOffset()
   // Scoped to whichever lens is open (view), so the Score slider in
   // BoardFilters reads hr_score on the HR board, hit_score on Hits, etc.,
   // rather than guessing. Lifted here (not left inside RankedBoard) so the
@@ -371,20 +372,16 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   return (
     <div>
       {/* ── THE ONLY HEADER ──────────────────────────────────────────────
-          Sticky, because the lens you want next should always be one tap away
-          and never one scroll up — that is the "scroll up to scroll back
-          down" complaint, answered. It pins BELOW the app header rather than
-          at 0; see useHeaderOffset above for why that distinction matters. */}
-      {/* ── NOT STICKY ON PHONES (2026-08-17) ────────────────────────────────
-          Donovan's screenshot: this pill row pinned itself mid-screen on
-          mobile and the page scrolled behind it, cutting the Power lead in
-          half — "the page like breaks or follows when you scroll down". On a
-          phone the condensed header animates its height, so any fixed
-          stickTop is wrong for part of every scroll; and a 3-pill row is not
-          worth pinning on a 6-inch screen anyway. The class carries the
-          coarse-pointer override in MobileCSS; desktop keeps the sticky. */}
+          Used to be sticky (pinned below the app header, following you down
+          the board) so the lens you want next was always one tap away. That
+          made it a SECOND thing pinned to the viewport on desktop, on top of
+          the site's actual sticky header — 2026-08-24, Donovan's screenshot:
+          this row was sticking to the top of the viewport while scrolling
+          Charts, and only the main nav/header should ever do that. It was
+          already forced non-sticky on phones (see the class below, still
+          carried by MobileCSS); now it's plain in-flow on desktop too. */}
       <div className="board-pill-row" style={{
-        position: 'sticky', top: stickTop, zIndex: 20, background: C.bg,
+        background: C.bg,
         paddingTop: 4, paddingBottom: 7, marginBottom: 10,
         borderBottom: `1px solid ${C.border}`,
         display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
@@ -407,20 +404,20 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         {boards && (
           <>
             <span style={{ width: 1, alignSelf: 'stretch', background: C.border, margin: '0 3px' }} />
-            <button onClick={() => setView('top')}     style={btnStyle(C.yellow, view === 'top')}     title={`Top — ${ANSWERS.top}`}>🥇 Top</button>
+            <button onClick={() => setView('top')}     style={btnStyle(C.yellow, view === 'top')}     title={`Top — ${ANSWERS.top}`}>Top</button>
             <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}      title={`HR — ${ANSWERS.hr}`}>HR</button>
             <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}     title={`Hits — ${ANSWERS.hit}`}>Hits</button>
             <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}     title={`HRR — ${ANSWERS.hrr}`}>HRR</button>
-            <button onClick={() => setView('contact')} style={btnStyle(C.blue,   view === 'contact')} title={`Contact — ${ANSWERS.contact}`}>⚾ Contact</button>
-            <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')} title={`Weak Spot — ${ANSWERS.weakspot}`}>⭐ Weak Spot</button>
-            <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')} title={`Aligned — ${ANSWERS.aligned}`}>🧩 Aligned</button>
-            <button onClick={() => setView('matchupedge')} style={btnStyle(C.orange, view === 'matchupedge')} title={`Matchup Edge — ${ANSWERS.matchupedge}`}>🎯 Matchup Edge</button>
+            <button onClick={() => setView('contact')} style={btnStyle(C.blue,   view === 'contact')} title={`Contact — ${ANSWERS.contact}`}>Contact</button>
+            <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')} title={`Weak Spot — ${ANSWERS.weakspot}`}>Weak Spot</button>
+            <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')} title={`Aligned — ${ANSWERS.aligned}`}>Aligned</button>
+            <button onClick={() => setView('matchupedge')} style={btnStyle(C.orange, view === 'matchupedge')} title={`Matchup Edge — ${ANSWERS.matchupedge}`}>Matchup Edge</button>
             {/* 🧊 AFTER A BLANK (2026-08-15) — Donovan: "show all the players who
                 blanked in their last game ... on a chart, have a column with
                 price [and hit] rate for hits and 1 HRR." A ninth lens rather
                 than a tab: it is a board, it ranks, and it belongs beside the
                 other eight. */}
-            <button onClick={() => setView('blank')} style={btnStyle(C.cyan, view === 'blank')} title={`After a Blank — ${ANSWERS.blank}`}>🧊 After a Blank</button>
+            <button onClick={() => setView('blank')} style={btnStyle(C.cyan, view === 'blank')} title={`After a Blank — ${ANSWERS.blank}`}>After a Blank</button>
           </>
         )}
       </div>

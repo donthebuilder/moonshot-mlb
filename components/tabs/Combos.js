@@ -56,12 +56,13 @@ import Alignments from '../Alignments'
 // subject and it deserves the room. Sits next to Alignments because that is
 // where he put it, and the two are halves of one question — this is the night
 // that landed, Alignments is the slate that hasn't.
+// 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
-  ['pairs', '🤝 Pairs & Pools'],
-  ['align', '🔮 Alignments'],
-  ['ledger', '🧾 Homer ledger'],
-  ['builder', '🧱 Builder'],
-  ['history', '📜 History'],
+  ['pairs', 'Pairs & Pools'],
+  ['align', 'Alignments'],
+  ['ledger', 'Homer ledger'],
+  ['builder', 'Builder'],
+  ['history', 'History'],
 ]
 
 export default function Combos({

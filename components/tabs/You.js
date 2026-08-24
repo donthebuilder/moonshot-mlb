@@ -29,9 +29,10 @@ import Watchlist from './Watchlist'
 // worth arriving at deliberately. So the roster leads and the game is one tap
 // behind it. #tab=mypicks still lands on My Picks — a link someone clicked is
 // a stronger signal than a default.
+// 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
-  ['watch', '👁 Watchlist'],
-  ['picks', '🎮 My Picks'],
+  ['watch', 'Watchlist'],
+  ['picks', 'My Picks'],
 ]
 
 export default function You({
