@@ -193,10 +193,31 @@ function sortPitchers(pitchers, sortKey) {
 // to face, and which individual arms were emptied yesterday (fetchPenFatigue
 // has collected those names since day one and nothing ever showed them). The
 // two sources are labelled rather than blended — see lib/bullpen.js.
+// ONE PLAIN-LANGUAGE VERDICT PER PEN (2026-08-24). Donovan on the wall of
+// coloured prose this board used to force-render for every notable pen: "I
+// like how it shows all the data it's how it's presented" — so the sentence
+// isn't gone, it moved behind a toggle, and this is the two-or-three-word
+// read that stands in front of it. Same two inputs the sentence itself is
+// built from (bullpen_quality/HR9 and yesterday's workload tier), just
+// collapsed to a label instead of six clauses.
+function penVerdict(r) {
+  const weak = r.line?.quality === 'weak' || (r.line?.hr9 ?? r.st?.hr9 ?? 0) >= 1.25
+  const strong = r.line?.quality === 'strong'
+  const gassed = r.tier?.key === 'gassed'
+  const worked = r.tier?.key === 'worked'
+  if (weak && gassed) return { label: 'Weak pen, gassed', col: '#f87171' }
+  if (weak && worked) return { label: 'Weak pen, worked', col: C.orange }
+  if (weak) return { label: 'Weak pen', col: C.orange }
+  if (gassed) return { label: 'Fresh grade, gassed arms', col: '#FCD34D' }
+  if (strong) return { label: 'Strong pen', col: C.text3 }
+  return { label: 'Notable', col: C.text3 }
+}
+
 function BullpenBoard({ pitchers, onTeamClick }) {
   const [pen, setPen] = useState(null)          // ABBR → {hr9, hr, ip}
   const [fatByAbbr, setFatByAbbr] = useState(null)
   const [open, setOpen] = useState(false)
+  const [openRow, setOpenRow] = useState(null)   // which notable-row's full sentence is expanded
   const [sortKey, setSortKey] = useState('hr9') // hr9 | fatigue | attack
 
   useEffect(() => {
@@ -365,8 +386,11 @@ function BullpenBoard({ pitchers, onTeamClick }) {
           const slateLine = r.line
             ? ` Published pen line: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN, liveHr9: r.st?.hr9 }).map((x) => x.text).join(', ')}.`
             : ''
+          const rowKey = `w:${r.ab}`
+          const workOpen = openRow === rowKey
           return (
-            <div key={r.ab}
+            <div key={r.ab}>
+            <div
               onClick={clickable ? () => onTeamClick(arm) : undefined}
               title={`${apiLine}${slateLine}${opp ? ` They pitch to ${opp} tonight.` : ''} ${penWorkSentence(r.fat)}${clickable ? ` Click to open ${arm.pitcher_name}, ${r.ab}'s starter in this game.` : ''}`}
               style={{
@@ -442,14 +466,22 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   What is new is that the tooltips now name the arms that were
                   actually emptied, which fetchPenFatigue has always collected
                   and this board has never shown. */}
+              {/* VISIBLE, NOT HOVER-ONLY (2026-08-24). Donovan: "the little
+                  read on the bullpen I need the info just can't see it to
+                  access it" — this carried real info (which arms were
+                  emptied yesterday) behind a bare title= that a phone can't
+                  even trigger. It's a button now: the names print right on
+                  the row below instead of staying locked in a tooltip. */}
               {r.tier ? (
                 <span title={penWorkSentence(r.fat)}
-                  style={{ fontSize: 9, fontWeight: 900, color: r.tier.col, flexShrink: 0, cursor: 'help' }}>
+                  onClick={(e) => { e.stopPropagation(); setOpenRow((k) => (k === `w:${r.ab}` ? null : `w:${r.ab}`)) }}
+                  style={{ fontSize: 9, fontWeight: 900, color: r.tier.col, flexShrink: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}>
                   {r.tier.icon} {r.tier.word}
                 </span>
               ) : r.fat ? (
                 <span title={penWorkSentence(r.fat)}
-                  style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'help' }}>
+                  onClick={(e) => { e.stopPropagation(); setOpenRow((k) => (k === `w:${r.ab}` ? null : `w:${r.ab}`)) }}
+                  style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}>
                   {r.fat.used}a / {r.fat.pitches}p
                 </span>
               ) : (
@@ -457,6 +489,28 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   no log
                 </span>
               )}
+            </div>
+            {/* THE FRESHEST-ARMS MINI-TABLE, ON CLICK (2026-08-24). The names
+                and pitch counts fetchPenFatigue has always collected, printed
+                plainly instead of trapped in a tooltip. */}
+            {workOpen && r.fat && (r.fat.names || []).length > 0 && (
+              <div style={{
+                margin: '2px 0 4px 24px', padding: '5px 9px', borderRadius: 7,
+                background: C.bg3, border: `1px solid ${C.border}`,
+                display: 'flex', gap: 10, flexWrap: 'wrap',
+              }}>
+                {r.fat.names.filter((x) => x?.pitches > 0).slice(0, 4).map((x) => (
+                  <span key={x.name} style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.text2 }}>
+                    <b style={{ color: C.text }}>{x.name}</b> {x.pitches}p
+                  </span>
+                ))}
+              </div>
+            )}
+            {workOpen && (!r.fat || !(r.fat.names || []).length) && (
+              <div style={{ margin: '2px 0 4px 24px', fontSize: 9, color: C.text3 }}>
+                {penWorkSentence(r.fat)}
+              </div>
+            )}
             </div>
           )
         })}
@@ -475,19 +529,41 @@ function BullpenBoard({ pitchers, onTeamClick }) {
           numbers inside it. This is where the attack score, the pitch fit and
           the individual arms from yesterday get said out loud, because none of
           them fit on a row and all three are the point. */}
+      {/* VERDICT FIRST (2026-08-24). Donovan: "I like how it shows all the
+          data it's how it's presented" — the six-clause paragraph per pen is
+          still built from the exact same penLineParts/penWorkParts and still
+          renders in full, it just doesn't force itself onto the page for
+          every notable pen any more. A short label leads; the sentence is one
+          click away and stays open until clicked again. */}
       {notable.length > 0 && (
         <div style={{ marginTop: 7, paddingTop: 6, borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {notable.map((r) => {
             const arm = starterOfTeam[r.ab] || null
+            const key = `n:${r.ab}`
+            const isOpen = openRow === key
+            const v = penVerdict(r)
             return (
-              <Clauses
-                key={r.ab}
-                lead={`${r.ab}${oppOfTeam[r.ab] ? ` vs ${oppOfTeam[r.ab]}` : ''}${arm ? `, behind ${arm.pitcher_name}` : ''}: `}
-                parts={[
-                  ...penLineParts(r.line, { attackRange, fitAvg: r.line?.fitAvg, fitN: r.line?.fitN, liveHr9: r.st?.hr9 }),
-                  ...penWorkParts(r.fat),
-                ]}
-              />
+              <div key={r.ab}>
+                <div
+                  onClick={() => setOpenRow((k) => (k === key ? null : key))}
+                  style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', cursor: 'pointer' }}
+                >
+                  <span style={{ fontSize: 10, fontWeight: 900, color: v.col, fontFamily: NUM_FONT }}>{v.label}</span>
+                  <span style={{ fontSize: 9.5, color: C.text3 }}>
+                    {r.ab}{oppOfTeam[r.ab] ? ` vs ${oppOfTeam[r.ab]}` : ''}{arm ? `, behind ${arm.pitcher_name}` : ''}
+                  </span>
+                  <span style={{ fontSize: 8.5, color: C.text3, marginLeft: 'auto' }}>{isOpen ? 'hide detail ▴' : 'detail ▾'}</span>
+                </div>
+                {isOpen && (
+                  <Clauses
+                    style={{ marginTop: 2 }}
+                    parts={[
+                      ...penLineParts(r.line, { attackRange, fitAvg: r.line?.fitAvg, fitN: r.line?.fitN, liveHr9: r.st?.hr9 }),
+                      ...penWorkParts(r.fat),
+                    ]}
+                  />
+                )}
+              </div>
             )
           })}
         </div>
@@ -700,28 +776,31 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
           padding: '12px 14px', cursor: 'pointer', gap: 10, flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ fontSize: 10, color: C.text3, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', display: 'inline-block', width: 10 }}>▸</span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 14, fontWeight: 800 }}>{pitcher.pitcher_name}</span>
-              <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{pitcher.pitcher_throws}HP</span>
-              {band.word && (
-                <span title={band.word === 'WALL'
-                  ? 'Stingy: HR/9 ≤ 0.85 — hitters facing him fight uphill tonight'
-                  : `From the hitter's side: HR/9 ${hr9 ? hr9.toFixed(2) : '—'}${pitcher.weak_spot_count ? ` + ${pitcher.weak_spot_count} weak spot${pitcher.weak_spot_count > 1 ? 's' : ''}` : ''} — this is an arm to attack`}
-                  style={{ fontSize: 8, fontWeight: 900, color: band.col, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
-                  {band.icon} {band.word}
-                </span>
-              )}
-              {hasWeak && <Chip color="#f59e0b">⭐ {pitcher.weak_spot_count} weak spot{pitcher.weak_spot_count > 1 ? 's' : ''}</Chip>}
-            </div>
-            <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
-              {pitcher.team} vs {pitcher.opponent_team} · {localTime(pitcher.game_time)}
-              {pitcher.venue_name ? ` · ${pitcher.venue_name}` : ''}
-              {' · '}{pitcher.lineup_confirmed ? 'Lineup confirmed' : 'Projected lineup'}
-            </div>
-          </div>
+        {/* ONE LINE (2026-08-24). Donovan: "the top header should be one line
+            with the game and the projected on it, not two — make it all fit
+            on one good line." This was name+throws+band on line one and
+            team/opponent/time/venue/lineup-status stacked as a second line
+            underneath every single card. Same content, one flex row now —
+            it still wraps on a narrow phone (flexWrap stays on), but at any
+            width that fits it reads as one line instead of two by default. */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, color: C.text3, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', display: 'inline-block', width: 10, alignSelf: 'center' }}>▸</span>
+          <span style={{ fontSize: 14, fontWeight: 800 }}>{pitcher.pitcher_name}</span>
+          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{pitcher.pitcher_throws}HP</span>
+          {band.word && (
+            <span title={band.word === 'WALL'
+              ? 'Stingy: HR/9 ≤ 0.85 — hitters facing him fight uphill tonight'
+              : `From the hitter's side: HR/9 ${hr9 ? hr9.toFixed(2) : '—'}${pitcher.weak_spot_count ? ` + ${pitcher.weak_spot_count} weak spot${pitcher.weak_spot_count > 1 ? 's' : ''}` : ''} — this is an arm to attack`}
+              style={{ fontSize: 8, fontWeight: 900, color: band.col, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
+              {band.icon} {band.word}
+            </span>
+          )}
+          {hasWeak && <Chip color="#f59e0b">⭐ {pitcher.weak_spot_count} weak spot{pitcher.weak_spot_count > 1 ? 's' : ''}</Chip>}
+          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+            {pitcher.team} vs {pitcher.opponent_team} · {localTime(pitcher.game_time)}
+            {pitcher.venue_name ? ` · ${pitcher.venue_name}` : ''}
+            {' · '}{pitcher.lineup_confirmed ? 'Confirmed' : 'Projected'}
+          </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <button
@@ -763,6 +842,9 @@ export default function Pitchers({ players, onPlayerClick }) {
   const [sortKey, setSortKey] = useState('weak')
   const [openId, setOpenId] = useState(null)
   const [modalPitcher, setModalPitcher] = useState(null)
+  // Which game's full weather clause is expanded — "Where they're throwing"
+  // shows a verdict by default now, detail on click. See airRowVerdict below.
+  const [openAirGame, setOpenAirGame] = useState(null)
   const [colGroup, setColGroup] = useState('core')
   // DROPDOWN FILTERS (2026-08-14 upgrade — Donovan, from the competitor
   // screenshots: "i like how they have drop down menus, it saves space in
@@ -1181,13 +1263,32 @@ export default function Pitchers({ players, onPlayerClick }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {games.map((g) => {
               const arms = [...g.arms].sort((a, b) => String(a.team).localeCompare(String(b.team)))
+              // ── VERDICT FIRST (2026-08-24) ────────────────────────────────
+              // Same request as the bullpen board: the full temp/wind/park/
+              // humidity/rain/roof clause is still built (AirLine, unchanged)
+              // and still says every fact — it just doesn't render by
+              // default for all ~15 games any more. airVerdict already
+              // returns exactly the plain read this needed: 'carrying' /
+              // 'dead' / '' (neutral).
+              const v = airVerdict(g.row)
+              const verdictLabel = v === 'carrying' ? 'Helps hitters' : v === 'dead' ? 'Kills the ball' : 'Neutral'
+              const verdictCol = v === 'carrying' ? C.orange : v === 'dead' ? C.blue : C.text3
+              const isOpen = openAirGame === g.key
               return (
                 <div key={g.key} style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>
                     {localTime(g.time)}
                   </span>
                   <span style={{ flex: '1 1 260px', minWidth: 0 }}>
-                    <AirLine row={g.row} lead={`${g.venue || 'Venue not published'} — `} size={10} />
+                    <div
+                      onClick={() => setOpenAirGame((k) => (k === g.key ? null : g.key))}
+                      style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', cursor: 'pointer' }}
+                    >
+                      <span style={{ fontSize: 10, fontWeight: 900, color: verdictCol, fontFamily: NUM_FONT }}>{verdictLabel}</span>
+                      <span style={{ fontSize: 10, color: C.text2 }}>{g.venue || 'Venue not published'}</span>
+                      <span style={{ fontSize: 8.5, color: C.text3 }}>{isOpen ? 'hide detail ▴' : 'detail ▾'}</span>
+                    </div>
+                    {isOpen && <AirLine row={g.row} lead={`${g.venue || 'Venue not published'} — `} size={10} />}
                     <div style={{ fontSize: 9, color: C.text3, marginTop: 1 }}>
                       {arms.map((a, i) => (
                         <span key={a.pitcher_id ?? a.pitcher_name}>
