@@ -371,9 +371,83 @@ function SideRead({ team, rows, onPlayerClick }) {
   )
 }
 
+// ── COMPACT CARDS, THE DEFAULT (2026-08-24) ─────────────────────────────────
+// Donovan: the full ~30-column table "doesn't fit... cut off on the right
+// edge even on desktop", and asked for it redesigned to actually look good on
+// both desktop and mobile without losing any data.
+//
+// The table itself is not the problem — it's the right default. A wall of 30
+// columns answers a question nobody asked before reading the first three. So
+// this is now the DEFAULT view: one card per hitter, the handful of numbers
+// that actually decide a quick read up front (role, HR/Hit/HRR/TB, the three
+// flag columns as dots), everything else — spot damage cluster, form
+// cluster, pitch mix, barrel, IHR, 375+, HR/9 — one tap away behind a native
+// <details> disclosure, the same expand idiom the rest of the site already
+// uses (CrossReference's paste box, the Card view toggle below, "the fine
+// print" on the air panel). Nothing is removed: nothing here is a column the
+// full table doesn't also have; the full table just isn't what you see first.
+//
+// Cards stack full-width, so there is nothing to scroll horizontally on a
+// phone — the failure mode of a dense table shrunk to fit. On desktop they
+// wrap into a multi-column grid instead of one 30-cell-wide row.
+const CARD_DETAIL = [
+  ['sdmg', 'Spot dmg', 1], ['spa', 'Spot PA', 0], ['sslg', 'Spot SLG', 3], ['zdmg', 'Zone dmg', 1],
+  ['hrw', 'HRW', 1], ['dc', 'DC', 1], ['due', 'Due', 1], ['pmix', 'PMix', 1],
+  ['barrel', 'Brl%', 1], ['ihr', 'IHR', 3], ['d375', '375+', 0],
+  ['a5', 'L5 AVG', 3], ['a10', 'L10 AVG', 3], ['aSzn', 'Szn AVG', 3], ['aArm', 'vs Arm', 3],
+  ['xw10', 'xwOBA10', 3], ['ev', 'EV', 1], ['hh', 'HH%', 0], ['since', 'Since HR', 0], ['hr9', 'P HR/9', 2],
+]
+const fmtNum = (v, dp) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(dp))
+
+function LineupCard({ row, onPlayerClick }) {
+  return (
+    <details style={{
+      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
+      padding: '7px 11px', breakInside: 'avoid',
+    }}>
+      <summary
+        onClick={(e) => { if (onPlayerClick) { e.preventDefault(); onPlayerClick(row._raw) } }}
+        style={{ cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}
+      >
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 16, flexShrink: 0 }}>{row.spot}</span>
+        <span style={{ fontWeight: 800, fontSize: 12.5, color: C.text }}>{row.name}</span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{row.team} · {row.b}</span>
+        <span style={{ fontSize: 9.5, color: C.text2 }} title={row.roleTitle}>{row.role}</span>
+        {row.weak ? <span style={{ color: C.yellow, fontSize: 10 }} title="Weak lineup spot">★</span> : null}
+        {row.aligned ? <span style={{ color: C.purple, fontSize: 10 }} title="Signals aligned">◆</span> : null}
+        {row.edge ? <span style={{ color: C.orange, fontSize: 10 }} title="Bats into the pitcher's weak side">▲</span> : null}
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, fontFamily: NUM_FONT, fontSize: 11 }}>
+          <span title="HR score"><b style={{ color: C.orange }}>{fmtNum(row.hr, 1)}</b><span style={{ color: C.text3 }}> HR</span></span>
+          <span title="Hit score"><b style={{ color: '#a78bfa' }}>{fmtNum(row.hit, 1)}</b><span style={{ color: C.text3 }}> Hit</span></span>
+          <span title="HRR score"><b style={{ color: C.text2 }}>{fmtNum(row.hrr, 1)}</b><span style={{ color: C.text3 }}> HRR</span></span>
+          <span title="TB score"><b style={{ color: C.text2 }}>{fmtNum(row.tb, 1)}</b><span style={{ color: C.text3 }}> TB</span></span>
+        </span>
+      </summary>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))',
+        gap: '4px 10px', marginTop: 8, paddingTop: 7, borderTop: `1px solid ${C.border}`,
+      }}>
+        {CARD_DETAIL.map(([key, label, dp]) => (
+          <div key={key}>
+            <div style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '.05em', color: C.text3 }}>{label}</div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2 }}>{fmtNum(row[key], dp)}</div>
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
 export default function GameLineup({ players, onPlayerClick }) {
   const [team, setTeam] = useState('Both')
-  // ── THE TABLE LEADS (2026-08-17) ──────────────────────────────────────────
+  // ── CARDS LEAD (2026-08-24) ────────────────────────────────────────────────
+  // Superseding the 2026-08-17 note below: the full table stayed the default
+  // for a week and Donovan flagged it as the thing that doesn't fit on either
+  // desktop or mobile. Cards are the default now — same information, top few
+  // numbers first, rest one tap away — and the full table is still one pill
+  // over for anyone who wants to sort all 30 columns at once.
+  //
+  // ── (2026-08-17, superseded) ───────────────────────────────────────────────
   // Donovan: "lineups need stats not reading", "i liked when you click on the
   // games and it opened the full table", "on the games you gotta do all this
   // clicking to just see everything". The spot read defaulted first and the
@@ -381,7 +455,7 @@ export default function GameLineup({ players, onPlayerClick }) {
   // always one click away. Reversed: the full stat table is what opening a
   // game shows, the read is the pill. Nothing removed — same two views, the
   // other default.
-  const [shape, setShape] = useState('table')
+  const [shape, setShape] = useState('cards')
 
   const teams = useMemo(
     () => Array.from(new Set(players.map(teamOf).filter(Boolean))).sort(),
@@ -497,7 +571,9 @@ export default function GameLineup({ players, onPlayerClick }) {
           </div>
         )}
         <div style={{ display: 'flex', gap: 4 }}>
-          {/* Table first in the row too — the pill order matches the default. */}
+          {/* Cards first in the row too — the pill order matches the default. */}
+          <button onClick={(e) => { e.stopPropagation(); setShape('cards') }} style={pill(shape === 'cards')}
+            title="One card per hitter — the key numbers up front, everything else one tap away">Cards</button>
           <button onClick={(e) => { e.stopPropagation(); setShape('table') }} style={pill(shape === 'table')}
             title="The full dense lineup table — every column, sortable">Full table</button>
           <button onClick={(e) => { e.stopPropagation(); setShape('read') }} style={pill(shape === 'read')}
@@ -508,7 +584,19 @@ export default function GameLineup({ players, onPlayerClick }) {
         </span>
       </div>
 
-      {shape === 'read' ? (
+      {shape === 'cards' ? (
+        <>
+          <div className="lineup-card-grid" style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 6,
+          }}>
+            {rows.map((r) => <LineupCard key={r._key} row={r} onPlayerClick={onPlayerClick} />)}
+          </div>
+          <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
+            Tap a card to expand every column for that hitter; tap the name to open his own card.
+            Switch to the full table for all {cols.length} columns sortable at once.
+          </div>
+        </>
+      ) : shape === 'read' ? (
         <>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {sides.map(([t, tRows]) => (
@@ -522,6 +610,7 @@ export default function GameLineup({ players, onPlayerClick }) {
           </div>
         </>
       ) : (
+        <div style={{ overflowX: 'auto' }}>
         <DenseTable
           heatMode="sorted"
 rows={rows}
@@ -530,6 +619,7 @@ rows={rows}
           maxHeight={420}
           caption="Batting order by default — click a header to re-sort, a row to open the hitter. ★ weak spot · ◆ aligned signals · ▲ bats into the pitcher's weak side. Spot dmg / Spot PA / Spot SLG / Zone dmg are what tonight's starter has allowed to that batting-order slot and to that third of the order — the same numbers the spot read says in words."
         />
+        </div>
       )}
     </div>
   )

@@ -114,8 +114,64 @@ const COLUMNS = [
   { key: 'hrr',     label: 'HRR',    w: 44, dp: 1 },
 ]
 
+// ── SPOT CARDS, THE DEFAULT (2026-08-24) ────────────────────────────────────
+// Donovan: the "Lineup slot × damage" heatmap-plus-table pair overflows on
+// the right on desktop and is worse on a phone. The hero callout above (Does
+// he get hurt in the N-hole) already answers the headline question for
+// whichever spot is picked; this panel used to duplicate all nine spots
+// again as a wide heatmap and then AGAIN as a 14-column table. Now it's nine
+// cards, one per lineup spot, each opening (same <details> idiom as the rest
+// of the site) into the identical numbers the table carried — nothing
+// dropped, just not all fourteen columns open at once for all nine rows.
+// The heatmap and the full table both stay, one tap away, for anyone who
+// wants the cross-spot visual scan or a sortable column.
+const SPOT_DETAIL = [
+  ['vsOwn', 'vs own', 1], ['pa', 'PA', 0], ['slg', 'SLG ag', 3], ['iso', 'ISO ag', 3],
+  ['hrRate', 'HR%', 1], ['xbhRate', 'XBH%', 1], ['hh', 'HH%', 1], ['zone', 'Zone', 1],
+  ['hr', 'HR scr', 1], ['hit', 'Hit', 1], ['hrr', 'HRR', 1],
+]
+const fmtN = (v, dp) => (v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(dp))
+
+function SpotCard({ r, onPlayerClick }) {
+  return (
+    <details style={{
+      background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${r.verdictColor}`,
+      borderRadius: 10, padding: '7px 11px', breakInside: 'avoid',
+    }}>
+      <summary
+        onClick={(e) => { if (onPlayerClick && r._raw) { e.preventDefault(); onPlayerClick(r._raw) } }}
+        style={{ cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}
+      >
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 16, flexShrink: 0 }}>{r.spot ?? '?'}</span>
+        <span style={{ fontWeight: 800, fontSize: 12, color: C.text }}>{r.batter}</span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>({r.bats})</span>
+        {r.weak ? <span style={{ color: C.yellow, fontSize: 10 }} title="Weak spot">★</span> : null}
+        <span style={{ fontSize: 10, fontWeight: 700, color: r.verdictColor }}>{r.verdict}</span>
+        <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11 }}>
+          <b style={{ color: r.verdictColor }}>{fmtN(r.damage, 1)}</b><span style={{ color: C.text3 }}> dmg</span>
+        </span>
+      </summary>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+        gap: '4px 10px', marginTop: 8, paddingTop: 7, borderTop: `1px solid ${C.border}`,
+      }}>
+        {SPOT_DETAIL.map(([key, label, dp]) => (
+          <div key={key}>
+            <div style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '.05em', color: C.text3 }}>{label}</div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2 }}>{fmtN(r[key], dp)}</div>
+          </div>
+        ))}
+      </div>
+      {r.weakReason && (
+        <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>{r.weakReason}</div>
+      )}
+    </details>
+  )
+}
+
 export default function PitcherSpots({ pitcher, onPlayerClick }) {
   const lineup = useMemo(() => (pitcher?.lineup || []).filter(Boolean), [pitcher])
+  const [detailOpen, setDetailOpen] = useState(false)
 
   const spots = useMemo(() => {
     const built = lineup.map((b) => {
@@ -257,6 +313,31 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
         {thinCount > 0 && ` · ${thinCount} on under 10 PA`}
       </div>
 
+      {/* ── LINEUP SLOT × DAMAGE, AS CARDS BY DEFAULT (2026-08-24) ──────────
+          Nine cards, one per lineup spot — the same numbers the heatmap and
+          table below carry, opened per-row instead of all fourteen columns
+          crammed into one wide table. Tap a card to expand it; tap the
+          batter's name to open his own card. */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.text2, margin: '2px 0 6px' }}>
+        Lineup slot × damage
+      </div>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6, marginBottom: 8,
+      }}>
+        {spots.map((r) => <SpotCard key={r._key} r={r} onPlayerClick={onPlayerClick} />)}
+      </div>
+      <button
+        onClick={() => setDetailOpen((v) => !v)}
+        style={{
+          fontSize: 10, fontWeight: 700, color: C.orange, background: 'transparent',
+          border: 'none', cursor: 'pointer', padding: '2px 0', marginBottom: 10,
+        }}
+      >
+        {detailOpen ? '▴ hide the heatmap + sortable table' : '▾ show the heatmap + sortable table (cross-spot scan, sort by column)'}
+      </button>
+
+      {detailOpen && (
+      <div style={{ overflowX: 'auto' }}>
       {/* ── LINEUP × DAMAGE, RESCALED (2026-08-22) ─────────────────────────
           Donovan: "great info, visually off… the chart overwhelming."
 
@@ -330,6 +411,8 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
         maxHeight={380}
         caption="Verdict thresholds are the bot's own: under 10 PA is NOT ENOUGH DATA regardless of how the damage reads, because a three-PA fluke is the easiest way to talk yourself into a bad spot."
       />
+      </div>
+      )}
     </div>
   )
 }
