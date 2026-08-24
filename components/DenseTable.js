@@ -9,6 +9,23 @@ import { edgeOn } from '../lib/palette'
 import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, fieldAnchor, fieldLabel } from '../lib/scales'
 import { explainFor, InfoDot, ExplainBanner } from './Explain'
 
+// ── ABSENT IS NOT ZERO (2026-08-23) ─────────────────────────────────────────
+// `Number(null)` is 0 and `Number('')` is 0, and both are finite, so every
+// numeric cell fed a null drew a confident **0** — with the ramp colour that
+// zero earns on that column. Twenty-one columns on the Pitchers table alone
+// pass `n(field, null)`, which is the house idiom for "the bot published
+// nothing here", and thirty-odd components render through this table.
+//
+// The sorter already knew the difference and had this exact predicate defined
+// privately inside it, which is how the two halves of one table came to
+// disagree: blanks sank to the bottom when you sorted, and read as zeroes when
+// you looked. One rule now, used by both.
+//
+// This project's line on it: a refusal must never be rendered as a zero.
+export const isBlank = (v) => v === null || v === undefined || v === '' || v === '—'
+/** Number(), except that an absent value stays absent instead of becoming 0. */
+const numOf = (v) => (isBlank(v) ? NaN : Number(v))
+
 // DenseTable — the PropFinder table pattern.
 //
 // Twenty-odd stat columns, every numeric column colored against its OWN range,
@@ -129,7 +146,10 @@ export default function DenseTable({
   const ranges = useMemo(() => {
     const out = {}
     heatCols.forEach((c) => {
-      const vals = rows.map((r) => Number(r[c.key])).filter(Number.isFinite)
+      // numOf, not Number: a column where half the arms published nothing was
+      // computing its ramp against a floor of phantom zeroes, so the arms that
+      // DID publish were all squashed into the top of the gradient.
+      const vals = rows.map((r) => numOf(r[c.key])).filter(Number.isFinite)
       out[c.key] = vals.length ? [Math.min(...vals), Math.max(...vals)] : [0, 1]
     })
     return out
@@ -148,7 +168,7 @@ export default function DenseTable({
       if (c.scale !== 'div' || c.anchor !== DIV_FIELD) return
       const blank = typeof c.blankWhen === 'function' ? c.blankWhen : null
       out[c.key] = fieldAnchor(rows
-        .filter((r) => !blank || !blank(Number(r[c.key]), r))
+        .filter((r) => !blank || !blank(numOf(r[c.key]), r))
         .map((r) => r[c.key]))
     })
     return out
@@ -196,10 +216,9 @@ export default function DenseTable({
     // Missing values sink to the bottom whichever way the column is pointing.
     // Flipping to ascending on a column full of dashes used to fill the top of
     // the table with blanks, which is never what you wanted from the click.
-    const blank = (v) => v === null || v === undefined || v === '' || v === '—'
     const cmpOne = (a, b, { key, dir }) => {
       const av = a[key], bv = b[key]
-      const ab = blank(av), bb = blank(bv)
+      const ab = isBlank(av), bb = isBlank(bv)
       if (ab && bb) return 0
       if (ab) return 1
       if (bb) return -1
@@ -522,7 +541,7 @@ export default function DenseTable({
                   }
 
                   const [lo, hi] = ranges[c.key] || [0, 1]
-                  const num = Number(v)
+                  const num = numOf(v)
 
                   // ── DIVERGING COLUMN ───────────────────────────────────
                   // A signed distance from a stated zero: a tint, quiet ink,

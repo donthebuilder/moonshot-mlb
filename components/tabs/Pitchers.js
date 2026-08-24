@@ -12,6 +12,7 @@ import { penStatsFor, fetchPenFatigue, penTier, penFrom, penLineParts, penWorkPa
 import { teamAbbrs } from '../../lib/gamelogs'
 import { groupPitchers } from '../../lib/data'
 import { n, clean, surname } from '../../lib/player'
+import { runningGame, runningGameLine } from '../../lib/running'
 import { pitcherOverall } from '../../lib/scoring_additions'
 import { PanelTitle, Empty, Chip, btnStyle, Band } from '../ui'
 import { rankArms, armFormParts, armFormSentence, hrLuckPointers } from '../../lib/armLeak'
@@ -964,7 +965,58 @@ export default function Pitchers({ players, onPlayerClick }) {
               </div>
             </ArmBand>
 
-            {/* ── 3. WHO GETS HIM ────────────────────────────────────────── */}
+            {/* ── 3. WHAT HE GIVES AWAY (2026-08-23) ─────────────────────
+                Nine running-game fields ship on every slate row and, until
+                this band, the steal board read two of them. Donovan asked for
+                these by name. They sit BELOW the home-run bands on purpose —
+                this is a home-run product and the running game is context for
+                the arm, not the reason to attack him.
+
+                Every figure carries its denominator and nothing is coloured
+                against an invented league average. A rate the bot refused to
+                compute (under 5 attempts, under 20 baserunners) prints an
+                em-dash and the reason, never a 0%. */}
+            {(() => {
+              const rg = runningGame(raw)
+              if (!rg.ok) return null
+              const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`
+              return (
+                <ArmBand title="What he gives away"
+                  note={rg.catcher.ok && rg.catcher.name
+                    ? `${rg.catcher.name} catching${rg.catcher.source === 'roster' ? ' (roster, lineup not posted)' : ''}`
+                    : 'catcher not resolved'}>
+                  <div style={{ display: 'flex', gap: 5, minWidth: 0, flexWrap: 'wrap' }}>
+                    <ArmStat
+                      label="Run on him"
+                      value={rg.attempts == null ? '—' : String(rg.attempts)}
+                      sub={rg.attempts ? `${rg.sb} SB · ${rg.cs} CS` : null}
+                      tip="Stolen-base attempts against him this season, with the raw split underneath. The count, not a rate — a night where every arm reads 0 is a data gap rather than a slate nobody runs on, and only the counts can tell those apart." />
+                    <ArmStat
+                      label="Thrown out"
+                      value={rg.csRate == null ? '—' : pc(rg.csRate)}
+                      sub={rg.csWhy || (rg.cs != null && rg.attempts ? `${rg.cs} of ${rg.attempts}` : null)}
+                      tip="Caught-stealing rate on those attempts. This is the PAIR'S number and not his alone — the catcher throws it, which is why the catcher is named at the top of this band. The bot refuses to compute it under five attempts." />
+                    <ArmStat
+                      label="WP/9"
+                      value={rg.wp9 == null ? '—' : rg.wp9.toFixed(2)}
+                      sub={rg.wp != null ? `${rg.wp} all season` : null}
+                      tip="Wild pitches per nine innings, with the season count underneath. A ball to the backstop moves a runner up without anybody swinging." />
+                    <ArmStat
+                      label="Pickoffs"
+                      value={rg.pickRate == null ? '—' : pc(rg.pickRate, 1)}
+                      sub={rg.pickWhy || (rg.pickoffs != null ? `${rg.pickoffs} all season` : null)}
+                      tip="Share of the baserunners he allows that he picks off. The bot refuses to compute it under twenty baserunners." />
+                  </div>
+                  {runningGameLine(rg) && (
+                    <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, marginTop: 5 }}>
+                      {runningGameLine(rg)}
+                    </div>
+                  )}
+                </ArmBand>
+              )
+            })()}
+
+            {/* ── 4. WHO GETS HIM ────────────────────────────────────────── */}
             <ArmBand
               title="Who gets him"
               note={weakSide
@@ -1268,6 +1320,23 @@ rows={(() => {
             hardCon: /HARD CONTACT/i.test(clean(src('pitcher_attack_tag'), '')) ? 1 : 0,
             weakSide: clean(p.pitcher_weak_side, ''),
             spots: p.weak_spot_count,
+            // ── THE RUNNING GAME, AS ONE SORTABLE NUMBER (2026-08-23) ──────
+            // Donovan, asked whether this deserved its own column group:
+            // "do whats most innovative and intuitive yet still helping user
+            // interface be simple and usable."
+            //
+            // A sixth group is not innovative, it is more of the same, and
+            // this table already carries eight. So: ONE column, in Core, and
+            // the five-figure detail lives in the card band a click away.
+            //
+            // Attempts, not a rate, is the sortable number — a rate off three
+            // attempts is noise wearing a percentage sign, which is exactly
+            // why the bot refuses to publish one, and sorting on a refused
+            // rate would put every small sample at the top. The tooltip on
+            // each cell carries the split and the catcher, and the cell draws
+            // what it sorts by, which is the rule.
+            runOn: src('pitcher_running_game_status') === 'ok'
+              ? n(src('pitcher_sb_attempts_against'), 0) : null,
             conf: p.lineup_confirmed ? 1 : 0,
 
             // BATTED BALL ALLOWED. All four verified on 268 of 268 slate rows
@@ -1376,7 +1445,7 @@ rows={(() => {
           // rank an arm but couldn't tell you what has been happening to him,
           // who follows him, or where he is throwing.
           const GROUPS = {
-            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9',...(hasX ? ['xallowed','xluck'] : ['luck']),'era','whip','spots'],
+            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9',...(hasX ? ['xallowed','xluck'] : ['luck']),'era','whip','spots','runOn'],
             recent: ['name','tm','vs','trend','overall','l3hr9','l3era','l3whip','l3n','velo','hr9',...(hasX ? ['xallowed','xluck'] : ['luck'])],
             cmd:    ['name','t','tm','vs','meat','fps','put','whiff','swstr','k9','ev','hr9L','hr9R'],
             bot:    ['name','tm','vs','overall','attack','wsScore','zoneDmg','spotDmg','spots','gbTrap','hardCon','lowK'],
@@ -1458,6 +1527,8 @@ rows={(() => {
             title: 'Damage by individual lineup spot. Thin by construction.' },
           { key: 'spots',  label: '★ Spots', w: 52,
             title: 'Weak lineup spots he faces tonight' },
+          { key: 'runOn',  label: 'Run on', w: 52,
+            title: 'Stolen-base attempts against him this season — how often runners actually go. A count and not a rate: a caught-stealing percentage off three attempts is noise, which is why the bot refuses to publish one, and sorting on it would float every small sample to the top. The full picture — thrown out, wild pitches, pickoffs and the catcher behind him — is in the What he gives away band on his card.' },
 
           // Batted ball allowed. Grouped at the end so the bot-score block
           // above stays one uninterrupted run of numbers.

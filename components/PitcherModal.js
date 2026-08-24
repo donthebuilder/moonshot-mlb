@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf } from '../lib/player'
+import { runningGame, runningGameLine } from '../lib/running'
 import { divTone, sampleDim, verdictInk } from '../lib/scales'
 import { PillRow } from './Filters'
 import VerdictHero from './VerdictHero'
@@ -442,6 +443,62 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
               The splits. Same control, same tiles — but the heading is what
               stops it reading as the previous eight numbers printed twice,
               which is exactly how it read at 390px. */}
+          {/* ── WHAT HE GIVES AWAY (2026-08-23) ────────────────────────────
+              The same nine fields the Pitchers page card reads, in the same
+              order, from the same helper — because two surfaces computing the
+              same thing twice is how they start quietly disagreeing, which
+              this page has already paid for once with two rival attackability
+              scores. Same rules: every figure with its denominator, a refused
+              rate drawn as an em-dash and its reason, and the catcher named
+              because the caught-stealing rate is his as much as the arm's. */}
+          {(() => {
+            const rgRow = (lineup.find((b) => b?.raw?.pitcher_running_game_status) || lineup[0])?.raw
+            const rg = runningGame(rgRow)
+            if (!rg.ok) return null
+            const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`
+            const cell = (label, value, sub, tip) => (
+              <span key={label} title={tip} style={{
+                flex: '1 1 76px', minWidth: 76, padding: '5px 9px', borderRadius: 9,
+                border: `1px solid ${C.border}`, background: C.glass, cursor: 'help',
+              }}>
+                <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, letterSpacing: '.09em',
+                  color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT,
+                  color: C.text, lineHeight: 1.15 }}>{value}</span>
+                {sub && <span style={{ display: 'block', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>{sub}</span>}
+              </span>
+            )
+            return (
+              <ModalBand title="What he gives away"
+                note={rg.catcher.ok && rg.catcher.name
+                  ? `${rg.catcher.name} catching${rg.catcher.source === 'roster' ? ' (roster — lineup not posted)' : ''}`
+                  : 'catcher not resolved tonight'}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {cell('Run on him', rg.attempts == null ? '—' : String(rg.attempts),
+                    rg.attempts ? `${rg.sb} SB · ${rg.cs} CS` : null,
+                    'Stolen-base attempts against him this season, with the raw split underneath. A count rather than a rate: an arm nobody runs on and an arm with no data both read low, and only the counts separate them.')}
+                  {cell('Thrown out', rg.csRate == null ? '—' : pc(rg.csRate),
+                    rg.csWhy || (rg.cs != null && rg.attempts ? `${rg.cs} of ${rg.attempts}` : null),
+                    "Caught stealing on those attempts. This is the pair's number, not his alone — the catcher throws it, which is why the catcher is named above. Refused under five attempts.")}
+                  {cell('WP/9', rg.wp9 == null ? '—' : rg.wp9.toFixed(2),
+                    rg.wp != null ? `${rg.wp} all season` : null,
+                    'Wild pitches per nine innings, season count underneath. A ball past the catcher moves a runner up with nobody swinging.')}
+                  {cell('Pickoffs', rg.pickRate == null ? '—' : pc(rg.pickRate, 1),
+                    rg.pickWhy || (rg.pickoffs != null ? `${rg.pickoffs} all season` : null),
+                    'Share of the baserunners he allows that he picks off. Refused under twenty baserunners.')}
+                  {rg.defence.ok && rg.defence.oaa != null && cell('Defence',
+                    `${rg.defence.oaa > 0 ? '+' : ''}${rg.defence.oaa}`, 'OAA behind him',
+                    'Outs Above Average for the defence playing behind him, from Baseball Savant. Positive means the gloves have been taking hits away.')}
+                </div>
+                {runningGameLine(rg) && (
+                  <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
+                    {runningGameLine(rg)}
+                  </div>
+                )}
+              </ModalBand>
+            )
+          })()}
+
           <ModalBand title="Who gets him" note="the same arm, cut by hand, park and situation">
             <SplitsControl src={src} />
           </ModalBand>
