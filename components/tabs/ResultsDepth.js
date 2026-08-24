@@ -5,6 +5,7 @@ import { arr, obj, n, clean, hitScore, prodScore, tbScore } from '../../lib/play
 import { dedupeGraded } from '../../lib/graded'
 import { rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
+import { WhatThis } from '../ui'
 import { SCORE } from '../../lib/scales'
 
 // Results depth — the grading half of the Streamlit Results tab.
@@ -126,11 +127,7 @@ function Section({ title, answers, sub, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>{title}</div>
-      {answers && (
-        <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, marginBottom: 6, lineHeight: 1.55 }}>
-          <b style={{ color: C.text2 }}>What this answers:</b> {answers}
-        </div>
-      )}
+      {answers && <WhatThis maxWidth={700}>{answers}</WhatThis>}
       {sub && <div style={{ fontSize: 10, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>{sub}</div>}
       {children}
     </div>

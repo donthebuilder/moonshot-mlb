@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { dataUrl } from '../lib/dataSource'
 import { nameOf, playerId, surname, arr, n } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
+import { WhatThis } from './ui'
 
 // 👀 HIS PARTNERS WENT, HE DIDN'T (2026-08-08; reworked 2026-08-09).
 //
@@ -139,13 +140,13 @@ export default function PartnerWatch({ players = [], pairHistorySummary, onPlaye
         <span style={{ fontSize: 12, fontWeight: 900 }}>👀 His partners went — he didn&apos;t</span>
         <span style={{ fontSize: 9, color: C.text3 }}>a watch, not a signal</span>
       </div>
-      <div className="quiet-note" style={{ fontSize: 10, color: C.text3, lineHeight: 1.55, marginBottom: 7, maxWidth: 620 }}>
-        <b style={{ color: C.text2 }}>What this answers:</b> who on tonight&apos;s slate had the most of
+      <WhatThis maxWidth={620}>
+        who on tonight&apos;s slate had the most of
         his usual co-homer partners go deep last night while he played and didn&apos;t. Sorted by how
         many of his partners went, then by how strong the pair is.
         {multi > 0 && <> <b style={{ color: C.text2 }}>{multi}</b> of these had more than one partner go.</>}
         {' '}Folklore-grade: pair history&apos;s measured lift is ~1.3× and unproven.
-      </div>
+      </WhatThis>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {watch.map(({ p, partners, best }) => {
           const cnt = partners.length

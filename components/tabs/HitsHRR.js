@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
-import { btnStyle } from '../ui'
+import { btnStyle, WhatThis } from '../ui'
 import RankedBoard from './RankedBoard'
 import Runs from './Runs'
 import StealBoard from './StealBoard'
@@ -454,10 +454,13 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
               measured paragraph is behind the headline that names it — read
               the claim, open the receipts. */}
           <div className="quiet-note" style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
-            <b style={{ color: C.text }}>What this answers:</b> {ANSWERS[view] || ANSWER_FALLBACK}
+            {/* The sentence folds; the proof button does NOT (2026-08-23).
+                Hiding "✓ 68% over 27 nights ▾" behind a fold would bury the
+                one clause on this page that is a measured record and an
+                affordance at the same time. */}
+            <WhatThis maxWidth={840}>{ANSWERS[view] || ANSWER_FALLBACK}</WhatThis>
             {pr && (
               <>
-                {' '}
                 <button
                   onClick={() => setProofOpen((v) => !v)}
                   title={proofOpen ? 'Hide the measured record' : 'Open the measured record behind this board — the archive rates, in full'}

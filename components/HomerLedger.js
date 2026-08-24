@@ -7,6 +7,7 @@ import { pickSplit } from '../lib/seasonSplit'
 import { hrShapeMeta, hrLine } from '../lib/hrShape'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { easternToday } from '../lib/data'
+import { WhatThis } from './ui'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive } from '../lib/alignments'
@@ -952,10 +953,9 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           a shut ledger still tells you how many have landed. */}
       {open && (
       <>
-      <div className="quiet-note" style={{ fontSize: 10, color: C.text3, lineHeight: 1.55, marginBottom: 8, maxWidth: 640 }}>
-        <b style={{ color: C.text2 }}>What this answers:</b> which homer of the season each one was, and
-        where in the order tonight&apos;s power is coming from.
-      </div>
+      <WhatThis maxWidth={640}>
+        which homer of the season each one was, and where in the order tonight&apos;s power is coming from.
+      </WhatThis>
 
       {milestones.length > 0 && (
         <div style={{ fontSize: 10.5, color: C.text2, marginBottom: 8, lineHeight: 1.6 }}>

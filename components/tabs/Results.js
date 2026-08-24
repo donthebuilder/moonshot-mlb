@@ -6,7 +6,7 @@ import { verdictInk } from '../../lib/scales'
 import { gradedResultsUrl } from '../../lib/dataSource'
 import { dedupeGraded } from '../../lib/graded'
 import { arr, n, clean } from '../../lib/player'
-import { PanelTitle, Empty, Chip, Card } from '../ui'
+import { PanelTitle, Empty, Chip, Card, WhatThis } from '../ui'
 import Backtest from './Backtest'
 import ResultsDepth, { ARCHIVE, archText } from './ResultsDepth'
 import SignalAudit from '../SignalAudit'
@@ -166,12 +166,10 @@ function SectionHeader({ title, color = C.text3, right }) {
 // ONE LINE, PLAIN ENGLISH, AT THE TOP OF EVERY SECTION. The rule from the
 // 2026-08-09 pass: if a panel can't say in one sentence what question it
 // answers, it comes off the page rather than getting a longer caption.
+// Every Purpose() on this tab folds now (2026-08-23) — one change, every
+// section. See ui.WhatThis for why these stopped printing in full.
 function Purpose({ children }) {
-  return (
-    <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55, margin: '0 0 8px' }}>
-      <b style={{ color: C.text2 }}>What this answers:</b> {children}
-    </div>
-  )
+  return <WhatThis maxWidth={760}>{children}</WhatThis>
 }
 
 // ── Tracking legend + expanded stats ─────────────────────────────────────────
@@ -969,11 +967,11 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           marginTop: 8, background: C.bg2, border: `1px solid ${C.border}`,
           borderRadius: 11, padding: '10px 13px',
         }}>
-          <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55, marginBottom: 8 }}>
-            <b style={{ color: C.text2 }}>What this answers:</b> what a previous night actually
-            graded out to. Picking one moves <b style={{ color: C.text2 }}>only this tab</b> — the
-            Games board and every other page stay on tonight&apos;s slate.
-          </div>
+          <WhatThis maxWidth={620}>
+            what a previous night actually graded out to. Picking one moves{' '}
+            <b style={{ color: C.text2 }}>only this tab</b> — the Games board and every other page
+            stay on tonight&apos;s slate.
+          </WhatThis>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', maxHeight: 190, overflowY: 'auto' }}>
             {gradedDays.map((d) => (
               <button
@@ -1096,8 +1094,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
       </div>
 
       {/* One plain-English line for whatever is selected. */}
-      <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, margin: '-2px 0 12px', lineHeight: 1.55 }}>
-        <b style={{ color: C.text2 }}>What this answers:</b>{' '}
+      <WhatThis maxWidth={760}>
         {{
           overview: 'how the night went — did the picks do the jobs they were picked for, who delivered, and what got away.',
           pitcher: 'did the arms we called weak actually give it up — and which arm burned us without a flag.',
@@ -1107,7 +1104,7 @@ export default function Results({ results, backtest, players = [], onPlayerClick
           signals: 'is each badge on this site worth anything — every flag graded against the archive.',
           pl: 'what the archive would have returned at flat stakes, in moons (1 moon = 1 unit, never dollars).',
         }[subTab]}
-      </div>
+      </WhatThis>
 
       {/* OVERVIEW — takeaways first (2026-08-08, "less charts, more things
           to understand and take from"). The page now leads with computed

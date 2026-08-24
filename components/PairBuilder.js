@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { arr, obj, n, clean, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
 import DenseTable from './DenseTable'
+import { WhatThis } from './ui'
 
 // Pair Builder — pick one or more hitters, get the partners they share tonight.
 //
@@ -411,9 +412,8 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
   return (
     <div style={{ marginBottom: 22 }}>
       {!bare && <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>Pair Builder</div>}
-      <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, marginBottom: 9, lineHeight: 1.55, maxWidth: 660 }}>
-        <b style={{ color: C.text2 }}>What this answers:</b> who to put next to a hitter you already
-        like, for the market you&apos;re actually betting.{' '}
+      <WhatThis maxWidth={660}>
+        who to put next to a hitter you already like, for the market you&apos;re actually betting.{' '}
         {bare
           ? <>Your anchors are the hitters pinned above — <b style={{ color: C.text2 }}>tap more names up there</b> to add them.{' '}</>
           : <>Click hitters to add them — <b style={{ color: C.text2 }}>you can select several</b>; click a selected hitter again to drop him.{' '}</>}
@@ -421,7 +421,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         ranked on a fit weighted toward tonight&apos;s score in the market below. Shared homer
         history is a <b style={{ color: C.text2 }}>bonus, not a requirement</b> — per pair it&apos;s a
         handful of days across a whole season, which is not enough to gate a list on.
-      </div>
+      </WhatThis>
 
       {/* THE MARKET — promoted to the top of the panel and given its own card
           (2026-08-09). It was a row of four small pills that looked like a tag
