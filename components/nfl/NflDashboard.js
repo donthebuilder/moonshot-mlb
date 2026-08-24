@@ -15,7 +15,6 @@ import Picks from './tabs/Picks'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
 import Pairs from './tabs/Pairs'
-import Live from './tabs/Live'
 import Guide from './tabs/Guide'
 
 // The NFL shell. Thin on purpose — state and routing only, same as the MLB
@@ -55,7 +54,7 @@ export default function NflDashboard() {
     hashDone.current = true
     // initialHashParams(), not window.location.hash — see lib/sport.js.
     const t = initialHashParams().get('tab')
-    if (t && ['games', 'picks', 'boards', 'research', 'matchups', 'report', 'accountability', 'pairs', 'live', 'guide'].includes(t)) setTab(t)
+    if (t && ['games', 'picks', 'boards', 'research', 'matchups', 'report', 'accountability', 'pairs', 'guide'].includes(t)) setTab(t)
   }, [])
 
   useEffect(() => {
@@ -108,7 +107,6 @@ export default function NflDashboard() {
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
-            {tab === 'live' && <Live data={data} onPlayerClick={openPlayer} />}
             {tab === 'guide' && <Guide />}
           </>
         )}

@@ -2,6 +2,13 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 
+// SUPERSEDED (2026-08-24, same day this shipped): folded into
+// components/nfl/tabs/Games.js instead of staying a second tab — no longer
+// imported by NflDashboard.js or listed in lib/nfl/theme.js's TABS. Left on
+// disk because the writeup below (exact fields ESPN's scoreboard fetch does
+// and doesn't carry, what a real live-play feed would need on the bot side)
+// is still accurate and worth keeping if this ever wants its own tab again.
+//
 // 🔴 LIVE — real-time game state for whatever's actually in progress right
 // now. The NFL sibling of the MLB side's live layer, and DELIBERATELY ONE
 // SMALL COMPONENT where MLB runs six (LiveAtBats 9KB, LiveWire 32KB, JustNow
