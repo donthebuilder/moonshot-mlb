@@ -69,15 +69,23 @@ export default function OffBot({ players = [], onPlayerClick }) {
 
   return (
     <div style={{ margin: '10px 0 14px' }}>
-      <button onClick={toggle} style={{
+      <button onClick={toggle}
+        title="Hitters in posted lineups the bot didn't score — every one opens live via the API."
+        style={{
         display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
         background: open ? C.bg2 : 'rgba(255,255,255,.02)', cursor: 'pointer',
         border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 12px',
       }}>
-        <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text }}>🕳 Playing tonight, off the bot</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>
-          hitters in posted lineups the bot didn&apos;t score — every one opens live via the API
-        </span>
+        {/* ONE LINE (2026-08-23). Title plus a full sentence of explanation
+            wrapped to three lines on a phone, for a panel that is shut. The
+            sentence is the button's tooltip and it is repeated in full inside
+            the panel when it opens, so nothing is lost by not shouting it at
+            somebody who has not asked. */}
+        <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text, whiteSpace: 'nowrap' }}>🕳 Off the bot</span>
+        <span style={{
+          fontSize: 9.5, color: C.text3, overflow: 'hidden',
+          textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+        }}>in tonight&apos;s lineups, never scored</span>
         <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
           {state === 'done' ? `${rows.length} found` : ''} {open ? '▾' : '▸'}
         </span>

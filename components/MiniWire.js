@@ -128,12 +128,17 @@ export default function MiniWire({
   // same priority gates, same three-per-batch cap. Nothing about which events
   // notify changes on any device.
   const narrowRef = useRef(false)
+  // A REF CANNOT MOVE A RENDER (2026-08-23). narrowRef exists for the toast
+  // BUDGET, which is read inside an effect, so a ref was right for it. The
+  // gate below is read while RENDERING, and a ref that changes never
+  // re-renders anything — so the samemedia query is also kept in state.
+  const [narrow, setNarrow] = useState(false)
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return undefined
     // pointer:coarse catches a big phone or a tablet in landscape, which the
     // width query alone would miss and which has the same problem.
     const mq = window.matchMedia('(max-width: 700px), (pointer: coarse)')
-    const apply = () => { narrowRef.current = mq.matches }
+    const apply = () => { narrowRef.current = mq.matches; setNarrow(mq.matches) }
     apply()
     if (mq.addEventListener) { mq.addEventListener('change', apply); return () => mq.removeEventListener('change', apply) }
     mq.addListener(apply)
@@ -399,13 +404,28 @@ export default function MiniWire({
 
   return (
     <>
-      {/* toast stack — fixed, above everything, never blocks the page */}
-      {toasts.length > 0 && (
+      {/* ── THE WIRE STAYS SHUT ON A PHONE UNTIL YOU OPEN IT (2026-08-23) ──
+          Donovan: "leave live wire auto closed until open, especially on
+          mobile — some things just take up the whole screen."
+          The wire PANEL already defaulted closed. What was covering the phone
+          was this stack: fixed at top 74, up to 340px wide, which on a 390px
+          screen lands squarely on the tab bar — so "UP NOW — Sal Stewart
+          batting" sat on top of Home / Charts / Props while he was trying to
+          read the page. Unasked-for furniture over the navigation.
+          On a narrow or touch screen the toasts now only appear once the wire
+          is OPEN — i.e. once he has said he wants the live feed on screen.
+          Nothing is lost while it is shut: the strip carries a count of what
+          has fired, and opening the wire shows it. Desktop is untouched: there
+          the stack sits in a corner of a monitor, which is what it was
+          designed for. When it does show on a phone it now clears the tab bar
+          rather than covering it. */}
+      {toasts.length > 0 && (!narrow || wireOpen) && (
         <div style={{
           // TOP-right (2026-08-06, on request) — where the eye actually goes
           // for news. Offset clears the sticky header.
-          position: 'fixed', right: 14, top: 74, zIndex: 300,
-          display: 'flex', flexDirection: 'column', gap: 7, maxWidth: 'min(340px, 90vw)',
+          position: 'fixed', right: narrow ? 8 : 14, top: narrow ? 122 : 74, zIndex: 300,
+          display: 'flex', flexDirection: 'column', gap: 7,
+          maxWidth: narrow ? 'calc(100vw - 16px)' : 'min(340px, 90vw)',
         }}>
           {toasts.map((t) => (
             <div key={t.key}
@@ -458,6 +478,9 @@ export default function MiniWire({
             {live.length} game{live.length > 1 ? 's' : ''}
             {picks.length > 0 && <> · picks <b style={{ color: cleared ? '#4ade80' : C.text2 }}>{cleared}/{picks.length}</b> cleared</>}
             {hr > 0 && <> · <b style={{ color: C.orange }}>{hr} HR</b></>}
+            {narrow && !wireOpen && toasts.length > 0 && (
+              <> · <b style={{ color: '#4ade80' }}>{toasts.length} new</b></>
+            )}
           </span>
           <span
             onClick={(e) => { e.stopPropagation(); toggleNotif() }}

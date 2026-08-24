@@ -114,7 +114,7 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, nested = false }) {
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -309,13 +309,29 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
   const foldSummary = `${cards.length} games · 🌋 ${main.matchup} ${main.gs.toFixed(0)}`
     + (upcoming < cards.length ? ` · ${upcoming} still to come` : '')
 
+  // ── ONE BAR, NOT TWO (2026-08-23) ─────────────────────────────────────────
+  // Donovan: "three different drop downs is dumb and error-seeming."
+  // He was looking at a fold inside a fold. The Games tab wraps this component
+  // in StripFold — its own MobileFold, "🏟 All games (15)", now with a
+  // remembered open state — and then this component opened a SECOND one,
+  // "🎮 Tonight's games (15)", around the same fifteen cards. Two bars, both
+  // shut, both about the same games, and you had to open both to reach a card.
+  // `nested` says the caller already owns the fold, so the cards render bare
+  // inside it. Every other mount (the Bot view, Runs) is untouched and keeps
+  // its own fold.
+  const Wrap = nested
+    ? ({ children }) => <>{children}</>
+    : ({ children }) => (
+      <MobileFold
+        title={botView ? '🤖 Games' : mode === 'lineups' ? '⚾ Jump to a game' : '🎮 Tonight’s games'}
+        summary={foldSummary}
+        count={cards.length}
+        accent={accent}
+      >{children}</MobileFold>
+    )
+
   return (
-    <MobileFold
-      title={botView ? '🤖 Games' : mode === 'lineups' ? '⚾ Jump to a game' : '🎮 Tonight’s games'}
-      summary={foldSummary}
-      count={cards.length}
-      accent={accent}
-    >
+    <Wrap>
     <div style={{ marginBottom: 16 }}>
       {/* ONE SIZE (2026-08-15, Donovan: "for the games tab i don't like the
           game bubble"). Cards used to scale their width AND their flex-grow
@@ -598,6 +614,6 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         )}
       </div>
     </div>
-    </MobileFold>
+    </Wrap>
   )
 }

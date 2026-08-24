@@ -9,7 +9,7 @@ import {
 import { tierRole, isAligned, hrRank } from '../../lib/scoring'
 import { designationOf, laneRanker, laneLabel, laneTitle } from '../../lib/verdict'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
-import { PanelTitle, Empty, btnStyle } from '../ui'
+import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
 import BotPicksStrip from '../BotPicksStrip'
@@ -458,11 +458,7 @@ function Tracker({ title, count, children, note, answers }) {
       <div style={{ fontSize: 12, fontWeight: 800, marginBottom: answers ? 2 : 6 }}>
         {title} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontWeight: 600 }}>({count})</span>
       </div>
-      {answers && (
-        <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.55, marginBottom: 7 }}>
-          <b style={{ color: C.text2 }}>What this answers:</b> {answers}
-        </div>
-      )}
+      {answers && <WhatThis maxWidth={640}>{answers}</WhatThis>}
       {children}
       {note && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5 }}>{note}</div>}
     </div>
@@ -972,7 +968,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
                   <span key={i} title={airParts(p).map((x) => `${x.text} — ${x.title}`).join('\n')} style={{ cursor: 'help' }}>
                     {i > 0 && '; '}
                     <b style={{ color: C.text }}>{clean(p?.venue_name, `${teamOf(p)} vs ${oppOf(p)}`)}</b>
-                    {airParts(p).length > 0 && <span style={{ color: C.text3 }}> ({airParts(p).map((x) => x.text).join(', ')})</span>}
+                    {i === 0 && airParts(p).length > 0 && <span style={{ color: C.text3 }}> ({airParts(p).map((x) => x.text).join(', ')})</span>}
                   </span>
                 ))}
                 {airRead.carrying.length > 2 && <span style={{ color: C.text3 }}> and {airRead.carrying.length - 2} more</span>}
@@ -1006,15 +1002,15 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
       {order}
 
-      <div className="quiet-note" style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '4px 0 8px', maxWidth: 720 }}>
-        <b style={{ color: C.text2 }}>What this answers:</b> who to look at first tonight. It&apos;s
+      <WhatThis>
+        who to look at first tonight. It&apos;s
         every hitter on the slate, sorted by home-run score — <b style={{ color: C.text2 }}>you can
         use the order without reading a single column</b>. Sort by any other header to ask a
         different question (Hit for contact plays, Park for launch pads, K risk for the ones likely
         to strike out), and click any row to open that hitter.{' '}
         <b style={{ color: C.text2 }}>Don&apos;t know what a column means? Tap the ⓘ next to its
         name</b> — it says so in plain English, no baseball background needed.
-      </div>
+      </WhatThis>
 
       {/* Why a name is on this board twice, answered before it is asked.
           A sentence, not a symbol legend — the question is about the schedule.

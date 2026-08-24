@@ -7,7 +7,7 @@ import Boxes from './Boxes'
 import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
-import { PanelTitle, Empty, btnStyle } from '../ui'
+import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
@@ -483,10 +483,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           sub="the live batter's room — who is standing in right now, the count, every pitch, tonight's zone and spray"
           right={modeRow}
         />
-        <div className="quiet-note" style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700 }}>
-          <b style={{ color: C.text2 }}>What this answers:</b>{' '}
+        <WhatThis maxWidth={700}>
           what tonight looks like while it is happening — every live game with the man at the plate, the at-bat pitch by pitch, and where his contact is going. It wakes up at first pitch.
-        </div>
+        </WhatThis>
 
         {/* allPlayers, not players, same reason as Boxes below: the live room
             is not subject to the header's team filter — filtering it makes
@@ -573,8 +572,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           mode is for, in words, and it changes when you switch. */}
       {/* Phone: this paragraph is what TabExplainer's ❓ pill is FOR — one
           copy of the page's own explanation, on tap, not two on every visit. */}
-      <div className="quiet-note" style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '2px 0 12px', maxWidth: 700, display: isPhone ? 'none' : 'block' }}>
-        <b style={{ color: C.text2 }}>What this answers:</b>{' '}
+      {/* FOLDED EVERYWHERE NOW (2026-08-23) — it was hidden on a phone and
+          three lines tall on a desktop; same words, one tap, both places. */}
+      <WhatThis maxWidth={700}>
         {mode === 'lineups'
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
           : mode === 'live'
@@ -587,7 +587,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           // worse than one describing none, so this says what is actually
           // true of the grid you are looking at.
           : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
-      </div>
+      </WhatThis>
 
       {/* Sort control (2026-08-12) — not shown in Lineups mode, where the strip
           is a jump bar, not the thing you're reading. Time is the default and
@@ -639,7 +639,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             counts={gCounts}
           />
           <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
-            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+            <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
         </div>
       )}
@@ -1105,7 +1105,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             counts={gCounts}
           />
           <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
-            <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+            <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
           {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
               Phone only. It sits here, right under the game grid, and pins
