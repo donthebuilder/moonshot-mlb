@@ -188,7 +188,7 @@ export default function Live({ data, onPlayerClick }) {
   return (
     <div>
       <div style={{ fontSize: 11, color: C.text3, marginBottom: 12, lineHeight: 1.6 }}>
-        Score, quarter and clock for whatever&apos;s in progress right now — pulled straight from the same ESPN
+        Score, quarter and clock for whatever&apos;s in progress right now — pulled straight from the same
         scoreboard fetch every other live field on the site uses. No possession indicator: the bot doesn&apos;t
         publish one yet (see this file&apos;s header). Refreshes every 45s while anything below is live, same
         interval the rest of the dashboard already polls on.

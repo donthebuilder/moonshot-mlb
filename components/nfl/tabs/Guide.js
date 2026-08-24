@@ -112,7 +112,7 @@ export default function Guide() {
       <Section title="Where the numbers come from">
         Player stats, play-by-play, Next Gen Stats, snap counts, depth charts and injury
         reports all come from <b style={{ color: C.text }}>nflverse</b>. Schedules and live
-        scores come from ESPN&apos;s public scoreboard, because nflverse carries no
+        scores come from a public scoreboard feed, because nflverse carries no
         preseason at all. Expected TDs are computed from the league&apos;s own TD rate by
         distance from the end zone — inside five yards a target scores 41.8% of the time,
         from thirty out it&apos;s 3.3%.
