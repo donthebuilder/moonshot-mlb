@@ -2,7 +2,7 @@
 import Leaders from './Leaders'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { verdictInk } from '../../lib/scales'
+import { catColor, verdictInk } from '../../lib/scales'
 import { gradedResultsUrl } from '../../lib/dataSource'
 import { dedupeGraded } from '../../lib/graded'
 import { arr, n, clean } from '../../lib/player'
@@ -69,6 +69,15 @@ import ScoreBands from '../ScoreBands'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
+// TAG_COLORS is the HR-scorer bubble's tag-emoji identity (🏆/🧨/🔥/🏁/💠/⚾/⭐)
+// -- genuinely categorical, same as Pairs.js's own TAG_COLORS, but it doesn't
+// overlap CAT.role/pitch/result so it isn't a lib/scales.js concept. Left as
+// a literal dictionary on purpose, the same call the Pairs.js pass made for
+// the identical shape: adding a CAT key for it is a registry decision, not
+// something this pass should invent unilaterally. Flagged in the session
+// report rather than converted here -- including the four entries that
+// happen to numerically equal C.orange (three of them) and C.cyan, left
+// untouched rather than cherry-picked so the dict stays one decision.
 const TAG_COLORS = {
   '🏆': '#f97316', '🧨': '#f97316', '🔥': '#f97316',
   '🏁': '#22d3ee', '💠': '#38bdf8', '⚾': C.orange, '⭐': '#facc15',
@@ -185,6 +194,12 @@ function TrackingLegend({ slots }) {
   const hiddenCount = slots.filter(r => r.hidden_hr_value).length
   const trapCount = slots.filter(r => r.trap_flag).length
 
+  // Flag-type identity (weak spot / aligned signals / pitch match / hidden
+  // value / trap) -- its own categorical concept, not CAT.role/pitch/result,
+  // so left as literals rather than inventing a CAT key. Two of five already
+  // route through the registry: weak-spot borrows C.yellow because that hue
+  // is already this file's colour for it, and trap is the one member that IS
+  // a real verdict (a trap is the bad/down side), hence verdictInk(false).
   const items = [
     { emoji: '⭐', label: 'Weak pitcher spot', count: starCount, color: C.yellow },
     { emoji: '🧩', label: 'Aligned signals',   count: puzzleCount, color: '#a78bfa' },
@@ -414,7 +429,7 @@ const Row = ({ p, accent }) => {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{p.name}</span>
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.throws}HP</span>
-          {p.weak_side && <span style={{ fontSize: 9.5, color: '#a78bfa', fontFamily: NUM_FONT }}>bleeds vs {p.weak_side}</span>}
+          {p.weak_side && <span style={{ fontSize: 9.5, color: C.purple, fontFamily: NUM_FONT }}>bleeds vs {p.weak_side}</span>}
         </div>
         <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
           our picks vs him: <b style={{ color: hitPicks ? accent : C.text3 }}>{hitPicks}/{p.picks.length} homered</b>
@@ -542,6 +557,9 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
 
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
+      {/* This card's sky-blue section accent is not a data value and has no
+          exact C token match, so it's left literal rather than guessing
+          the nearest hue. */}
       <SectionHeader title="⚾ Pitcher Results — Model vs Actual" color="#38bdf8" />
       {/* the verdict, before the list */}
       <div style={{ padding: '8px 14px 2px', fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
@@ -550,6 +568,15 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
         {flaggedN > 0 && <> ({((100 * buckets.called.length) / flaggedN).toFixed(0)}%)</>}
         {unflaggedHr > 0 && <> · <b style={{ color: verdictInk(false).color }}>{unflaggedHr} HR</b> came off arms it didn&apos;t flag</>}
       </div>
+      {/* This is a 4-state grid (flagged x gave-it-up), not a binary -- CALLED
+          IT and BURNED US are the true up/down pair so they already route
+          through verdictInk. FLAG DIDN'T CASH and QUIET are the other two
+          cells and don't have a warm/cool side to take: the gold below is
+          the site's established gold accent with no matching C token (the
+          same exception the Pairs.js pass documented for its own dozen-odd
+          uses of that same gold) and the dim grey is a one-off neutral for
+          "no news". Neither is a CAT concept or a verdict-pair member, so
+          both stay literal. */}
       <Group icon="🎯" label="CALLED IT" note="flagged weak, and he gave it up" list={buckets.called} accent={verdictInk(true).color} />
       <Group icon="💥" label="BURNED US UNFLAGGED" note="the model didn't flag him — he homered anyway" list={buckets.missedArm} accent={verdictInk(false).color} />
       <Group icon="🧱" label="FLAG DIDN'T CASH" note="targeted as weak, held anyway" list={buckets.noCash} accent="#FCD34D" />
@@ -610,7 +637,7 @@ function PairsResults({ pairPoolResults }) {
 
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
-      <SectionHeader title="🔗 Pairs & Pools Performance" color="#a78bfa" />
+      <SectionHeader title="🔗 Pairs & Pools Performance" color={C.purple} />
 
       {/* pair summary */}
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }}>
@@ -1231,14 +1258,14 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             const hot = runDiff != null && runDiff >= 5
             const cold = runDiff != null && runDiff <= -5
             takes.push(
-              <Take key="hit" col="#60A5FA"
+              <Take key="hit" col={verdictInk(false).color}
                 title="Every graded pick against the plainest bar there is: one base hit. Four of the five lanes are not picked for it, so this is scale, not a grade.">
                 On the plainest bar there is — one base hit — the same picks went{' '}
-                <B col="#60A5FA">{baseHit} of {judge.length}</B> ({p.toFixed(0)}% of every pick that batted)
+                <B col={verdictInk(false).color}>{baseHit} of {judge.length}</B> ({p.toFixed(0)}% of every pick that batted)
                 {runDiff == null ? '.' : (
                   <>
                     , which is the model running{' '}
-                    <B col={hot ? C.orange : cold ? '#60A5FA' : C.text}>{hot ? 'hot' : cold ? 'cold' : 'right on'}</B>{' '}
+                    <B col={hot ? verdictInk(true).color : cold ? verdictInk(false).color : C.text}>{hot ? 'hot' : cold ? 'cold' : 'right on'}</B>{' '}
                     against its season base of <B>{seasonBase.toFixed(1)}%</B> lifetime.
                     {cold ? ' One night, not a verdict — the base is the number to trust.' : ''}
                   </>
@@ -1283,6 +1310,11 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           }
           // ④ the "HR capture" tile. Says so even at zero, because a 0% tile
           // and "no homer has landed yet" are very different facts.
+          // The sky-blue accent below (both branches) is this card's constant
+          // section colour, not a magnitude-tiered verdict -- capPct's
+          // good/bad framing lives in the TEXT ("wide net" vs "leaky
+          // night"), not the colour. No exact C token matches it, so it's
+          // left literal.
           if (capTotal > 0) {
             takes.push(
               <Take key="cap" col="#38bdf8"
@@ -1302,6 +1334,11 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             )
           }
           // ⑤ the "Multi-hit / multi-HR" tile, which showed a bare count.
+          // The gold below is the site's established gold accent with no
+          // matching C token -- the same exception the Pairs.js pass
+          // documented for its own dozen-odd uses of that gold -- and it
+          // isn't a verdict-pair member, so it's left literal rather than
+          // guessing a nearest token.
           takes.push(
             <Take key="multi" col="#FCD34D"
               title="A pick with 2+ hits or 2+ homers — the big individual nights. Every one of them is named under “Who delivered”.">
@@ -1358,8 +1395,17 @@ export default function Results({ results, liveResults = null, slateDate = '', b
               <B>{ARCHIVE.nights}</B> graded nights, <B>{ARCHIVE.games.toLocaleString()}</B> games,{' '}
               <B>{ARCHIVE.picks.toLocaleString()}</B> judgeable designated picks. Each lane on its own
               bar, voids excluded — a man who never batted is a void, not a loss.
+              {/* Each lane name below wears its CAT.role identity colour --
+                  except TOP, which stays the literal established gold
+                  rather than catColor('role','TOP') (=C.yellow): CAT.role
+                  says TOP is 'yellow' but this gold is visibly a different
+                  shade, and PickScorecard.js's own TOP colour is this same
+                  gold, not C.yellow either. A real fix is a registry
+                  decision (add a gold CAT token, or reconcile
+                  CAT.role.TOP to what's actually shipping) -- flagged in
+                  the session report, not decided here. */}
               <div style={{ marginTop: 6 }}>
-                HIT <B col="#a78bfa">{archText(ARCHIVE.lanes.HIT)}</B> ·{' '}
+                HIT <B col={catColor('role', 'HIT')}>{archText(ARCHIVE.lanes.HIT)}</B> ·{' '}
                 HRR <B col={C.cyan}>{archText(ARCHIVE.lanes.HRR)}</B> ·{' '}
                 CONTACT <B col={verdictInk(true).color}>{archText(ARCHIVE.lanes.CONTACT)}</B> ·{' '}
                 TOP <B col="#FCD34D">{archText(ARCHIVE.lanes.TOP)}</B> on its HR bar ·{' '}
