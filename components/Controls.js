@@ -219,16 +219,35 @@ function LightEditor({ draft, setDraft, players, onSave, onCancel, onDelete }) {
           <span style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>Criteria</span>
           <label style={{ fontSize: 9.5, color: C.text3, display: 'flex', gap: 5, alignItems: 'center' }}>
             Require
-            <select value={draft.mode} onChange={(e) => setDraft({ ...draft, mode: e.target.value })} style={{
+            <select value={draft.mode} onChange={(e) => {
+              const mode = e.target.value
+              setDraft({ ...draft, mode, min: mode === 'atLeast' ? String(draft.min || Math.max(1, draft.rules.length - 1)) : draft.min })
+            }} style={{
               background: C.bg, color: C.text, border: `1px solid ${C.border2}`, borderRadius: 7, fontSize: 10, padding: '3px 5px',
             }}>
               <option value="all">All {draft.rules.length || ''}</option>
               <option value="any">Any</option>
+              <option value="atLeast">At least…</option>
             </select>
+            {draft.mode === 'atLeast' && (
+              <>
+                <input value={draft.min ?? ''} onChange={(e) => setDraft({ ...draft, min: e.target.value.replace(/[^0-9]/g, '') })}
+                  inputMode="numeric" style={{
+                    width: 28, background: C.bg, color: C.text, border: `1px solid ${C.border2}`, borderRadius: 7,
+                    fontSize: 10, padding: '3px 4px', textAlign: 'center', fontFamily: NUM_FONT,
+                  }} />
+                <span>of {draft.rules.length}</span>
+              </>
+            )}
           </label>
         </div>
         <div style={{ fontSize: 9, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>
-          A hitter lights up when he meets {draft.mode === 'any' ? <b>any one</b> : <b>all</b>} of these. A missing stat never counts as a pass.
+          A hitter lights up when he meets{' '}
+          {draft.mode === 'any'
+            ? <b>any one</b>
+            : draft.mode === 'atLeast'
+              ? <b>at least {Math.max(1, Math.min(draft.rules.length, Number(draft.min) || 1))} of {draft.rules.length}</b>
+              : <b>all</b>} of these. A missing stat never counts as a pass.
         </div>
         {draft.rules.map((r, i) => (
           <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
@@ -304,7 +323,7 @@ export function SpotlightControl({ players = [] }) {
 
   const newLight = () => setDraft({
     id: '', name: '', color: SPOT_COLORS[(conf.lights.length) % SPOT_COLORS.length],
-    priority: String(conf.lights.length + 1), mode: 'all', on: true,
+    priority: String(conf.lights.length + 1), mode: 'all', min: 1, on: true,
     rules: [{ field: 'hr_score', op: '>=', val: 70 }],
   })
 
@@ -315,6 +334,7 @@ export function SpotlightControl({ players = [] }) {
       name: draft.name.trim() || 'Highlight',
       color: spotColor(draft.color),
       priority: Math.max(1, Number(draft.priority) || 1),
+      min: draft.mode === 'atLeast' ? Math.max(1, Math.min(draft.rules.length, Number(draft.min) || 1)) : undefined,
       rules: draft.rules
         .map((r) => ({ ...r, val: Number(r.val) }))
         .filter((r) => Number.isFinite(r.val)),
@@ -388,7 +408,7 @@ export function SpotlightControl({ players = [] }) {
                 }}>
                 {l.name}
                 <span style={{ fontFamily: NUM_FONT, fontSize: 8, color: C.text3, marginLeft: 5 }}>
-                  P{l.priority} · {l.mode === 'any' ? 'any' : 'all'} {l.rules.length}
+                  P{l.priority} · {l.mode === 'atLeast' ? `${l.min || 1} of ${l.rules.length}` : l.mode === 'any' ? `any ${l.rules.length}` : `all ${l.rules.length}`}
                 </span>
               </button>
               <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, flexShrink: 0 }}
