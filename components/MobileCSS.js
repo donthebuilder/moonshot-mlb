@@ -213,6 +213,42 @@ export default function MobileCSS() {
         .hero-stats > * { flex-basis: 124px; }
       }
 
+      /* ── THE TICKER (2026-08-24, later still) ─────────────────────────────
+         Donovan: "make it moving like espn or like stock tickers ... give
+         data on the slate, home runs, projected, lineups, games, all that."
+         SlateTiles.js renders its tile set twice into one track and this is
+         what moves it: 0 to -50% is exactly one copy's width, so the instant
+         the first copy scrolls out of the clipped viewport the second is
+         sitting where the first started, and the loop is invisible. See that
+         file for why the duplicate is safe to animate (nothing in the strip
+         is clickable) and aria-hidden (it's a visual echo, not new content).
+
+         26s is a read-it-without-straining pace for a real slate's tile
+         count; it isn't derived from measured width the way the flex bases
+         above are; a wildly longer or shorter strip would need retuning.
+
+         Paused on hover so a mouse can stop it on any tile — no separate
+         pause control to hunt for. prefers-reduced-motion turns the motion
+         off and falls back to the plain side-scroll the "one line, not two"
+         fix already shipped: the animation is cancelled, the duplicate copy
+         is hidden outright (reading the same six tiles twice while trying to
+         swipe them would be worse than the motion this is meant to spare),
+         and the viewport regains the manual overflow-x it had before. */
+      @keyframes slate-ticker {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
+      .slate-tiles-viewport { overflow: hidden; }
+      .slate-tiles { animation: slate-ticker 26s linear infinite; }
+      .slate-tiles-viewport:hover .slate-tiles { animation-play-state: paused; }
+      @media (prefers-reduced-motion: reduce) {
+        .slate-tiles { animation: none; }
+        .slate-tiles-echo { display: none; }
+        .slate-tiles-viewport {
+          overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        }
+      }
+
       /* ══ QUIET MODE (2026-08-23) ═══════════════════════════════════════════
          Donovan: "we need a notifications setting somewhere to minimze the
          notis on screen for user" — the ❓ banners, the pills and toasts, and

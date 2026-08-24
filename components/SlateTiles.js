@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, hrScore, median, hitScore, prodScore, nn } from '../lib/player'
 import { isAligned } from '../lib/scoring'
@@ -71,6 +71,40 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color, wide = 
         )}
       </div>
     </div>
+  )
+}
+
+// The tile row, factored out so the ticker below can render it twice — once
+// real, once a visual echo — without hand-duplicating six JSX blocks that
+// have to stay byte-identical or the loop seam shows.
+function TileSet({ stats, playerCount, projected, capture, pct }) {
+  return (
+    <>
+      <Tile label="Games" value={stats.gameCount} color="#38bdf8" />
+      {projected}
+      {capture}
+      {stats.best && (
+        <Tile
+          wide
+          label="Best game"
+          value={stats.best.label}
+          delta={stats.best.gs.toFixed(1)}
+          tone="accent"
+          dot
+        />
+      )}
+      <Tile label="★ Weak" value={stats.weak} color="#FCD34D" dot />
+      <Tile
+        label="Lineups ✓"
+        value={`${stats.confirmed}`}
+        delta={`of ${playerCount} · ${pct(stats.confirmed)}`}
+        color="#4ade80"
+        dot
+      />
+      {stats.settled > 0 && (
+        <Tile label="Settled" value={stats.settled} delta="graded" color="#4ade80" />
+      )}
+    </>
   )
 }
 
@@ -146,47 +180,55 @@ export default function SlateTiles({ players = [], results, games = [], projecte
   // div exists whether or not its child rendered, so wrapping would have left
   // one or two empty 148px cells holding open a gap in the middle of the
   // strip. A child selector matches only what actually made a DOM node.
+  // ── A TICKER, NOT A SHELF (2026-08-24, later still) ────────────────────────
+  // Donovan: "make it moving like espn or like stock tickers ... something
+  // that changes, giving data on the slate — home runs, projected, lineups,
+  // games, all that." The scroll-on-overflow fix above solved "stays one
+  // line"; this is a different ask — the strip should read as a live
+  // instrument, not a shelf you have to swipe.
+  //
+  // Nothing here is clickable (Tile is a plain div, never a button), so
+  // there is no target an animated strip could steal a tap from — the usual
+  // reason a ticker is a bad idea on a real UI doesn't apply.
+  //
+  // TileSet's own content renders twice, back to back, inside a track twice
+  // as wide as the viewport that clips it. Animating that track from 0 to
+  // -50% is the standard seamless-loop trick: because both halves are
+  // byte-identical, the moment the first copy has scrolled fully out of
+  // view the second is sitting exactly where the first started, and the
+  // animation restarts invisibly. The duplicate is `aria-hidden` — it
+  // exists to be looked at, not read twice by a screen reader.
+  //
+  // Pauses on hover so anyone who actually wants to read a tile can stop it
+  // without hunting for a button. prefers-reduced-motion turns the motion
+  // off entirely and falls back to the same manual side-scroll the "one
+  // line, not two" fix already shipped — the rules live together in
+  // components/MobileCSS.js.
   return (
-    <div className="slate-tiles" style={{
-      display: 'flex', gap: 6, flexWrap: 'nowrap', alignItems: 'stretch',
-      width: '100%', minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none',
-      WebkitOverflowScrolling: 'touch',
-    }}>
-      {/* FIXED ORDER AND HUES, alternating cool/warm so no two neighbours
-          share a colour:
-            Games BLUE · Projected ORANGE · HR tracking BLUE ·
-            Best game ORANGE · Weak GOLD · Lineups GREEN · (Settled green)
-          The projected and capture pills are built in Header.js and threaded
-          in as elements so the whole strip is one row with one wrap order.
+    <div className="slate-tiles-viewport" style={{ width: '100%', minWidth: 0, overflow: 'hidden' }}>
+      <div className="slate-tiles" style={{
+        display: 'flex', gap: 6, flexWrap: 'nowrap', alignItems: 'stretch',
+        width: 'max-content',
+      }}>
+        {/* FIXED ORDER AND HUES, alternating cool/warm so no two neighbours
+            share a colour:
+              Games BLUE · Projected ORANGE · HR tracking BLUE ·
+              Best game ORANGE · Weak GOLD · Lineups GREEN · (Settled green)
+            The projected and capture pills are built in Header.js and
+            threaded in as elements so the whole strip is one row with one
+            order — same tiles, just laid out twice now for the loop.
 
-          LINEUPS was computed here from day one and never rendered. It's the
-          certainty number for the whole slate — every score on the site is
-          softer for a hitter who might not start, so how much of the board is
-          locked belongs in the header. */}
-      <Tile label="Games" value={stats.gameCount} color="#38bdf8" />
-      {projected}
-      {capture}
-      {stats.best && (
-        <Tile
-          wide
-          label="Best game"
-          value={stats.best.label}
-          delta={stats.best.gs.toFixed(1)}
-          tone="accent"
-          dot
-        />
-      )}
-      <Tile label="★ Weak" value={stats.weak} color="#FCD34D" dot />
-      <Tile
-        label="Lineups ✓"
-        value={`${stats.confirmed}`}
-        delta={`of ${players.length} · ${pct(stats.confirmed)}`}
-        color="#4ade80"
-        dot
-      />
-      {stats.settled > 0 && (
-        <Tile label="Settled" value={stats.settled} delta="graded" color="#4ade80" />
-      )}
+            LINEUPS was computed here from day one and never rendered. It's
+            the certainty number for the whole slate — every score on the
+            site is softer for a hitter who might not start, so how much of
+            the board is locked belongs in the header. */}
+        <Fragment key="real">
+          <TileSet stats={stats} playerCount={players.length} projected={projected} capture={capture} pct={pct} />
+        </Fragment>
+        <div className="slate-tiles-echo" aria-hidden="true" style={{ display: 'contents' }}>
+          <TileSet stats={stats} playerCount={players.length} projected={projected} capture={capture} pct={pct} />
+        </div>
+      </div>
     </div>
   )
 }
