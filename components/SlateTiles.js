@@ -123,8 +123,21 @@ export default function SlateTiles({ players = [], results, games = [], projecte
   // of the row empty beside it. A header strip that changes shape with the
   // fixtures reads as broken layout rather than as information.
   //
-  // Every tile is a flex CELL on the same basis now, so a row fills its width
-  // edge to edge and whatever lands on the last row grows to close it out.
+  // FIRST FIX made every tile a flex cell on the same basis and let whatever
+  // landed on a wrapped last row grow to close it out — LINEUPS ✓ stopped
+  // being a stranded sliver, but it was still A SECOND ROW, now just a full-
+  // width one: on a real slate the header's vitals column measures ~620px and
+  // six tiles at their measured bases run past that, so something always
+  // wrapped.
+  //
+  // ONE LINE, NOT TWO (2026-08-24, later the same day). Donovan: "fix the
+  // header mix it one line not two." Wrapping was the wrong tool no matter
+  // how the leftover cell was styled — the fix is to never wrap at all. The
+  // strip is flex-nowrap now and scrolls sideways instead, the same pattern
+  // the tab rail below it already uses (Header.js's `.rail`): every tile
+  // keeps its full, measured, legible width, the header stays one line at
+  // any slate size, and nothing that doesn't fit is lost — it's a swipe
+  // away instead of a second row.
   //
   // The rule lives in CSS (.slate-tiles > *, components/MobileCSS.js) rather
   // than in a wrapper <div> around each child, and that is the whole trick:
@@ -135,8 +148,9 @@ export default function SlateTiles({ players = [], results, games = [], projecte
   // strip. A child selector matches only what actually made a DOM node.
   return (
     <div className="slate-tiles" style={{
-      display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'stretch',
-      width: '100%', minWidth: 0,
+      display: 'flex', gap: 6, flexWrap: 'nowrap', alignItems: 'stretch',
+      width: '100%', minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none',
+      WebkitOverflowScrolling: 'touch',
     }}>
       {/* FIXED ORDER AND HUES, alternating cool/warm so no two neighbours
           share a colour:

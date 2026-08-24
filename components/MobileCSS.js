@@ -198,12 +198,18 @@ export default function MobileCSS() {
          exists whether or not its child does, so wrapping would hold open an
          empty cell — exactly the gap this is removing. A child selector matches only
          what actually rendered. */
-      .slate-tiles > * { flex: 1 1 104px; min-width: 0; }
-      .slate-tiles > .slate-tile-wide { flex-basis: 146px; }
+      .slate-tiles > * { flex: 0 0 104px; min-width: 0; }
+      .slate-tiles > .slate-tile-wide { flex: 0 0 146px; }
       .hero-stats > * { flex: 1 1 132px; min-width: 0; }
       @media (max-width: 520px) {
+        /* NOWRAP NOW (2026-08-24, "fix the header mix it one line not
+           two") — the strip scrolls instead of wrapping, so a tile never
+           needs to claim a whole row of its own any more. Basis only
+           grows slightly here for touch legibility; flex-grow/shrink stay
+           at 0 so tiles hold their real width and the row scrolls under a
+           thumb instead of squeezing shut. */
         .slate-tiles > * { flex-basis: 116px; }
-        .slate-tiles > .slate-tile-wide { flex-basis: 100%; }
+        .slate-tiles > .slate-tile-wide { flex-basis: 158px; }
         .hero-stats > * { flex-basis: 124px; }
       }
 
