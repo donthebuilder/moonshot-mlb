@@ -2,11 +2,24 @@
 import PairHistory from './PairHistory'
 import { useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { catColor, verdictInk, verdictWash, alpha } from '../../lib/scales'
 import { PanelTitle, Empty, btnStyle } from '../ui'
 import DenseTable from '../DenseTable'
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
+// PAIR-TEMPLATE IDENTITY — NOT YET A CAT CONCEPT. Ten fixed labels the old
+// pair-builder / bot payload can carry in `type` (some, like "Best HR Pair" or
+// "Hot + Due Pair", are legacy strings this file's own current builders no
+// longer emit but a cached/older payload still can). This is genuinely
+// categorical identity — exactly the kind of thing lib/scales.js's CAT
+// registry exists for — but it doesn't overlap CAT.role/pitch/result and
+// adding a new CAT.pairType key is a registry decision, not something this
+// pass should do unilaterally. Left as a literal map on purpose; see the
+// session report for the flagged registry gap. (Two keys already share one
+// colour — 'Hot + Due Pair' and 'Statcast HR Pair' are both the same gold — which is
+// itself a small instance of the exact problem CAT.role/pitch/result were
+// built to prevent, left as pre-existing rather than silently patched here.)
 const PAIR_TYPE_COLORS = {
   'Best HR Pair':            '#FB923C',
   'Core HR Pair':            '#FB923C',
@@ -19,7 +32,9 @@ const PAIR_TYPE_COLORS = {
   'Value Power Pair':        '#a78bfa',
   'HRR Safer Pair':          '#4ade80',
 }
-function typeColor(t) { return PAIR_TYPE_COLORS[t] || '#71717a' }
+// The "unknown type" fallback isn't identity — it's the same quiet neutral
+// catColor() itself falls back to — so it routes through the theme token.
+function typeColor(t) { return PAIR_TYPE_COLORS[t] || C.text3 }
 
 const PAIR_SCOPES = [
   { key:'cross', label:'🔀 Cross Game' },
@@ -49,6 +64,13 @@ const PAIR_SCOPES = [
 // quantities with the same field name, so each lane is ranked and shaded
 // against its own range, the same rule Heatmap uses per column.
 const LANE_ORDER = ['TOP30', 'A', 'B', 'C', 'D']
+// BOT-LANE IDENTITY — the same "new CAT concept, not invented here" situation
+// as PAIR_TYPE_COLORS above. TOP30/A/B/C/D is a different axis than pair type
+// (a lane the bot published the pair under, not the pair's own label), so it
+// isn't simply PAIR_TYPE_COLORS under another name, but it's the same kind of
+// gap: a registry entry (CAT.lane, or a merge with CAT.pairType) is a decision
+// for whoever owns lib/scales.js, not something to invent mid-file-pass. Left
+// literal on purpose; flagged in the session report alongside PAIR_TYPE_COLORS.
 const LANE_META = {
   TOP30: { short: 'TOP 30', color: '#FB923C', blurb: 'The bot’s headline board — scored on a different scale from the lettered lanes.' },
   A:     { short: 'LANE A', color: '#FCD34D', blurb: 'Core: the safest construction it will offer.' },
@@ -251,6 +273,15 @@ function enforceUniquePairExposure(pairs=[], maxExposure=1, limit=30) {
   })
 }
 
+// BOT-TAG-EMOJI IDENTITY — a third instance of the same gap as
+// PAIR_TYPE_COLORS/LANE_META above: ten fixed emoji keys, each a distinct
+// bucket, none of them role/pitch/result. A CAT.tag entry would be the right
+// home for this (and possibly the same registry decision that resolves
+// pairType/lane), but that's a lib/scales.js change, not this file's call.
+// Left as one literal map rather than partially tokenizing individual keys
+// (e.g. 🔥 already happens to equal C.orange) — a half-converted dict is
+// worse than a whole literal one, since it implies a single-value guarantee
+// this map doesn't actually have.
 const TAG_COLORS = {
   '🏆':'#FB923C','🧨':'#FB923C','🔥':'#f97316',
   '🏁':'#22d3ee','💠':'#38bdf8','⚾':'#4ade80','⭐':'#FCD34D',
@@ -470,11 +501,22 @@ function PairRow({ pair, i, dimmed=false }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, marginBottom:3, flexWrap:'wrap' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
           <span style={{ fontSize:9, fontWeight:800, textTransform:'uppercase', letterSpacing:'0.07em', color:col }}>{pair.type}</span>
-          <span style={{ fontSize:9, color:pair.same_game ? '#22d3ee' : '#a78bfa', fontFamily:NUM_FONT }}>{relation}</span>
+          {/* Same-game/cross-game is a recurring binary in this file and is
+              already themed elsewhere in it (TicketBlock, GroupTicketBuilder's
+              shape buttons) via C.cyan/C.purple directly — these two literals
+              were just an untokenized duplicate of that existing convention. */}
+          <span style={{ fontSize:9, color:pair.same_game ? C.cyan : C.purple, fontFamily:NUM_FONT }}>{relation}</span>
           {(pair.tags || []).slice(0,3).map(tag => (
             <span key={tag} style={{ fontSize:9, padding:'1px 5px', borderRadius:4, background:`${col}18`, color:col, border:`1px solid ${col}44`, textTransform:'uppercase', letterSpacing:'0.04em', fontFamily:NUM_FONT }}>{tag}</span>
           ))}
         </div>
+        {/* One-sided magnitude highlight on pair_score, not a verdict — there
+            is no "cool/bad" tier to pair it with (below 250 is just plain
+            C.text), so this doesn't fit verdictInk's up/down shape. It's the
+            same kind of ad-hoc severity step HotZoneMap's cG/cR amber mid-tier
+            was, left alone there for the same reason: a real fix is a
+            seqColor ramp with a stated domain over pair_score, which is
+            separate, harder work, not a mechanical swap. */}
         <span style={{ fontFamily:NUM_FONT, fontWeight:800, fontSize:15, flexShrink:0, color:score >= 280 ? C.orange : score >= 250 ? '#FCD34D' : C.text }}>{score || '—'}</span>
       </div>
       <div style={{ fontSize:14, fontWeight:800, marginBottom:2, wordBreak:'break-word' }}>{players.map(p => p.name).join(' + ')}</div>
@@ -536,7 +578,7 @@ function BotLane({ group, tagFilter }) {
                   <span style={{ fontSize:14, fontWeight:800, wordBreak:'break-word' }}>
                     {(pair.players || []).map(p => p.name).join('  +  ')}
                   </span>
-                  <span style={{ fontSize:9.5, color: pair.same_game ? '#22d3ee' : '#a78bfa', fontFamily:NUM_FONT }}>
+                  <span style={{ fontSize:9.5, color: pair.same_game ? C.cyan : C.purple, fontFamily:NUM_FONT }}>
                     {pair.same_game ? '⚡ same game' : '🔀 cross game'}
                   </span>
                 </div>
@@ -544,8 +586,8 @@ function BotLane({ group, tagFilter }) {
                   {pair.risk && (
                     <span style={{
                       fontSize:9, fontFamily:NUM_FONT, fontWeight:700, padding:'1px 6px', borderRadius:4,
-                      color: pair.risk === 'High' ? '#f87171' : C.text3,
-                      border:`1px solid ${pair.risk === 'High' ? '#f8717144' : C.border}`,
+                      color: pair.risk === 'High' ? verdictInk(false).color : C.text3,
+                      border:`1px solid ${pair.risk === 'High' ? alpha(verdictInk(false).color, 0.27) : C.border}`,
                     }}>{pair.risk} risk</span>
                   )}
                   <span style={{ fontFamily:NUM_FONT, fontWeight:800, fontSize:15, color:meta.color }}>
@@ -558,6 +600,16 @@ function BotLane({ group, tagFilter }) {
                 <div style={{ width:`${frac * 100}%`, height:'100%', background:meta.color, borderRadius:2, opacity:.75 }} />
               </div>
 
+              {/* The 'Due' gold highlight (here and at every other 'Due' site
+                  in this file) is deliberately left literal. It isn't a
+                  good/bad verdict on an outcome (it's an informational "the
+                  bot flagged this one" tag, closer to lib/scales.js's STATE
+                  concept than to verdictInk's win/loss pair), and it isn't an
+                  untokenized duplicate of an existing C token either — the
+                  nearest theme colour, C.yellow, is a visibly different,
+                  more muted amber, so swapping it in would be a real colour
+                  change disguised as plumbing. Left as-is rather than either
+                  forcing that change or inventing a registry concept for it. */}
               <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:4 }}>
                 {(pair.tags || []).map(tag => (
                   <span key={tag} style={{
@@ -637,6 +689,7 @@ function BotPairGroups({ pairBuilder, q = '' }) {
           <span style={{ fontSize:9, color:C.text3, textTransform:'uppercase', letterSpacing:'.07em' }}>Bot tags</span>
           <button onClick={() => setTagFilter(null)} style={btnStyle(C.orange, !tagFilter)}>All</button>
           {tagCounts.map(([tag, count]) => (
+            // Same 'Due' gold literal as the tag chip above — see that comment.
             <button key={tag} onClick={() => setTagFilter(t => (t === tag ? null : tag))}
               style={btnStyle(tag === 'Due' ? '#FCD34D' : C.orange, tagFilter === tag)}>
               {tag} {count}
@@ -714,7 +767,12 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
       {focusKey && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-          background: 'rgba(249,115,22,0.08)', border: `1px solid ${C.orange}44`, borderRadius: 10,
+          // rgba(249,115,22,...) was the decimal form of C.orange baked in at
+          // its ember value — invisible to check-scales.mjs (not a #-literal)
+          // but still a real theming bug: C.orange resolves to a different
+          // hex in the light theme, and this hardcoded rgba would have stayed
+          // the ember colour there regardless.
+          background: alpha(C.orange, 0.08), border: `1px solid ${C.orange}44`, borderRadius: 10,
           padding: '8px 12px', marginBottom: 10, flexWrap: 'wrap',
         }}>
           <span style={{ fontSize: 11, color: C.text2 }}>
@@ -727,7 +785,7 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
 
       <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:8 }}>
         {PAIR_SCOPES.map(item => (
-          <button key={item.key} onClick={() => { setScope(item.key); setActiveType('All') }} style={btnStyle(item.key === 'same' ? '#22d3ee' : C.orange, scope === item.key)}>
+          <button key={item.key} onClick={() => { setScope(item.key); setActiveType('All') }} style={btnStyle(item.key === 'same' ? C.cyan : C.orange, scope === item.key)}>
             {item.label}
           </button>
         ))}
@@ -965,11 +1023,18 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
   // whether history has a live setup working.
   const StatusStrip = () => {
     const tiles = [
-      { label: 'HR tonight', v: homers.length, color: '#4ade80' },
-      { label: 'Cross pairs', v: crossPairs.length, color: '#a78bfa' },
-      { label: 'Same-game', v: samePairs.length, color: '#22d3ee' },
+      // 'HR tonight' literally counts the home_run batted-ball outcome — the
+      // one tile here with an exact CAT.result key, so it reads through the
+      // registry rather than a duplicate green.
+      { label: 'HR tonight', v: homers.length, color: catColor('result', 'home_run') },
+      // Cross/same-game reuses this file's own established relation colours.
+      { label: 'Cross pairs', v: crossPairs.length, color: C.purple },
+      { label: 'Same-game', v: samePairs.length, color: C.cyan },
       { label: 'Bot pairs hit', v: combinedBotHits.length, color: combinedBotHits.length ? C.orange : C.text3,
         note: combinedBotHits.length ? 'a recommended pair fully landed' : 'none complete yet' },
+      // Same gold as the 'Due' tag elsewhere in this file — left
+      // literal for the same reason (see the comment on the Due tag chip in
+      // BotLane): not a verdict, not a match for any existing C token.
       { label: 'History setups', v: historyMatches.length, color: historyMatches.length ? '#FCD34D' : C.text3,
         note: historyMatches.length ? 'partner still to bat' : '' },
     ]
@@ -1012,7 +1077,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
   }
 
   const PairLine = ({pair, i}) => {
-    const col = pair.same_game ? '#22d3ee' : '#a78bfa'
+    const col = pair.same_game ? C.cyan : C.purple
     const label = pair.same_game ? '⚡ Same game' : '🔀 Cross game'
     const a = pair.a || pair.players?.[0]
     const b = pair.b || pair.players?.[1]
@@ -1052,6 +1117,8 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
 
       {historyMatches.length > 0 && (
         <div style={{ marginBottom:14 }}>
+          {/* Same 'Due'-family gold literal as elsewhere in this file — see
+              the comment on BotLane's 'Due' tag chip. */}
           <div style={{ fontSize:12, fontWeight:800, color:'#FCD34D', marginBottom:5 }}>
             📅 Season History Match ({historyMatches.length})
             <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}> — someone who already homered has a season partner still to bat</span>
@@ -1095,7 +1162,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
 
       <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:10 }}>
         {PAIR_SCOPES.map(item => (
-          <button key={item.key} onClick={() => setScope(item.key)} style={btnStyle(item.key === 'same' ? '#22d3ee' : C.orange, scope === item.key)}>
+          <button key={item.key} onClick={() => setScope(item.key)} style={btnStyle(item.key === 'same' ? C.cyan : C.orange, scope === item.key)}>
             {item.label}
           </button>
         ))}
@@ -1190,6 +1257,13 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
 // heavy at 5), so the original 10/4/1 split put 100% of pairs in one tier
 // with the other two empty -- thresholds below are set from the real
 // distribution instead of a guessed round number.
+// A 3-step MAGNITUDE ramp on same_day_hr_count_season (elite > solid >
+// occasional), not a verdict — 'solid' already correctly reads C.orange and
+// 'occasional' reads C.text3, so only 'elite' still hardcodes its rung. There
+// is no "bad/cool" side here to pair it with, so this doesn't fit verdictInk's
+// up/down shape; the honest fix is a seqColor ramp with a stated domain over
+// the count, which — like HotZoneMap's own zone-heat-ramp — is separate,
+// harder work than a mechanical hex swap. Left literal on purpose.
 const HISTORY_TIERS = [
   { key: 'elite',      label: '🔥 Elite',      min: 8, color: '#f87171' },
   { key: 'solid',      label: '⚡ Solid',       min: 6,  color: C.orange },
@@ -1242,14 +1316,21 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
     .filter(x => x.today)
   const onSlate = onSlatePlayers.length > 0
   const scale = badgeScale(season)
+  // Gold/silver/bronze medal colours — a fixed real-world convention for
+  // 1st/2nd/3rd place, the same kind of "domain colour" the header comment in
+  // lib/scales.js carves out an exception for (a field graphic), not a
+  // data-driven categorical or verdict choice. Left literal on purpose.
   const rankColor = isTop3 ? ['#FCD34D', '#D1D5DB', '#FB923C'][rank - 1] : C.text3
 
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
       borderTop: rank > 1 ? `1px solid ${C.border}` : 'none',
-      borderLeft: onSlate ? '3px solid #4ade80' : '3px solid transparent',
-      background: onSlate ? 'rgba(74,222,128,0.04)' : 'transparent',
+      // onSlate = "this historical partner is actually playing tonight, so
+      // this pair is actionable" — a genuine good/relevant verdict, not a
+      // domain colour, so it reads through the site-wide up/down pair.
+      borderLeft: onSlate ? `3px solid ${verdictInk(true).color}` : '3px solid transparent',
+      background: onSlate ? verdictWash(true, 0.04) : 'transparent',
       flexWrap: 'wrap',
     }}>
       <div style={{ width: 22, flexShrink: 0, textAlign: 'center', fontFamily: NUM_FONT, fontWeight: 800, fontSize: isTop3 ? 14 : 11, color: rankColor }}>
@@ -1258,7 +1339,7 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 700, wordBreak: 'break-word' }}>{pairNames(pair)}</span>
-          {onSlate && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 5, background: 'rgba(74,222,128,0.15)', color: '#4ade80', fontFamily: NUM_FONT, fontWeight: 700 }}>ON SLATE</span>}
+          {onSlate && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 5, background: verdictWash(true, 0.15), color: verdictInk(true).color, fontFamily: NUM_FONT, fontWeight: 700 }}>ON SLATE</span>}
         </div>
         <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>Last: {last}</div>
         <DateTimeline dates={dates} color={tierColor} />
@@ -1271,6 +1352,10 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
               const hasWeakSpot = today.weak_spot_flag === true
               const hasEdge = Number(today.pitch_type_match_score || 0) > 0
               if (!hasWeakSpot && !hasEdge) return null
+              // Same gold-family literal as 'Due' elsewhere in this file — a
+              // matchup-edge flag, not a good/bad verdict on a graded outcome,
+              // and not a match for any existing C token. See the comment on
+              // BotLane's 'Due' tag chip.
               return (
                 <span key={ref.player_id} style={{
                   fontSize: 9, padding: '1px 7px', borderRadius: 5,
@@ -1291,8 +1376,11 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
           borderRadius: 6, background: `${tierColor}22`, color: tierColor, border: `1px solid ${tierColor}44`,
           fontFamily: NUM_FONT, fontWeight: 800, ...scale,
         }}>{season}× same-day</span>
-        {sameGame > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: 'rgba(34,211,238,0.12)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.25)', fontFamily: NUM_FONT, fontWeight: 700 }}>{sameGame}× same-game</span>}
-        {boost > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', fontFamily: NUM_FONT, fontWeight: 700 }}>+{boost}</span>}
+        {/* Same-game badge: the file's own recurring relation colour (C.cyan),
+            now via alpha() instead of a hand-typed rgba of its ember value. */}
+        {sameGame > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: alpha(C.cyan, 0.12), color: C.cyan, border: `1px solid ${alpha(C.cyan, 0.25)}`, fontFamily: NUM_FONT, fontWeight: 700 }}>{sameGame}× same-game</span>}
+        {/* boost > 0 is a genuine positive verdict on this pairing. */}
+        {boost > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: verdictWash(true, 0.1), color: verdictInk(true).color, border: `1px solid ${alpha(verdictInk(true).color, 0.2)}`, fontFamily: NUM_FONT, fontWeight: 700 }}>+{boost}</span>}
       </div>
     </div>
   )
@@ -1375,7 +1463,7 @@ function HistorySection({ data, q, players=[] }) {
         <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT }}>
           {Number(data.pair_count || filtered.length)} pairs · {Number(data.days_checked || 0)} days · {data.season || ''}
         </div>
-        <button onClick={() => setOnSlateOnly(v => !v)} style={btnStyle('#4ade80', onSlateOnly)}>
+        <button onClick={() => setOnSlateOnly(v => !v)} style={btnStyle(verdictInk(true).color, onSlateOnly)}>
           On Slate Today
         </button>
       </div>
@@ -2210,7 +2298,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
               title="Download these pairs as a PNG for posting"
               aria-label="Download pairs as image"
               style={{
-                marginLeft: 'auto', background: 'rgba(249,115,22,.10)', border: `1px solid ${C.border}`,
+                marginLeft: 'auto', background: alpha(C.orange, 0.10), border: `1px solid ${C.border}`,
                 color: C.orange, borderRadius: 7, padding: '2px 9px', fontSize: 10.5, fontWeight: 700,
                 cursor: 'pointer',
               }}>📸</button>
@@ -2269,7 +2357,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
         right={
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
             {VIEWS.map(item => (
-              <button key={item.key} onClick={() => { setView(item.key); if (item.key !== 'today') onClearFocus?.() }} style={btnStyle(item.key === 'live' ? '#22d3ee' : C.orange, view === item.key)}>
+              <button key={item.key} onClick={() => { setView(item.key); if (item.key !== 'today') onClearFocus?.() }} style={btnStyle(item.key === 'live' ? C.cyan : C.orange, view === item.key)}>
                 {item.label}
                 {item.key === 'live' && homers.length > 0 ? ` (${homers.length} HR)` : ''}
               </button>
