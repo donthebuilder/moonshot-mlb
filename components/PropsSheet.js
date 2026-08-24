@@ -161,7 +161,7 @@ function Section({ title, note, children }) {
   )
 }
 
-export default function PropsSheet({ player, odds = null, onClose, onFullResearch }) {
+export default function PropsSheet({ player, odds = null, onClose, onFullResearch, onWatch, watched }) {
   const [market, setMarket] = useState(null)
   const [win, setWin] = useState('Szn')
   const [data, setData] = useState(undefined)   // undefined = loading, null = none
@@ -296,6 +296,21 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
           flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 900,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>{nameOf(player)}</span>
+        {onWatch && (
+          // The sticky bar you close from is the one thing that's always on
+          // screen here, so it's also where the watch control belongs
+          // (2026-08-24, Donovan: "click a player to add to watch list,
+          // nothing happens"). This sheet is what actually opens on a phone
+          // tap — PropsGrid's cards go straight here, not to the player
+          // modal — and it had no watch control of its own, only an
+          // indirect route through "full research" into that modal.
+          <button onClick={() => onWatch(player)} title={watched ? 'Remove from watchlist' : 'Add to watchlist'} style={{
+            flexShrink: 0, background: watched ? 'rgba(249,115,22,.14)' : 'transparent',
+            border: `1px solid ${watched ? C.orange : C.border2}`,
+            color: watched ? C.orange : C.text2, borderRadius: 9, padding: '4px 10px', fontSize: 12.5,
+            fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>{watched ? '★ Watching' : '☆ Watch'}</button>
+        )}
         {onFullResearch && (
           <button onClick={() => onFullResearch(player)} style={{
             flexShrink: 0, background: 'transparent', border: `1px solid ${C.border2}`,

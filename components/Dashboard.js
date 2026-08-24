@@ -480,7 +480,7 @@ export default function Dashboard() {
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
                 per Donovan's sequencing call: the grid stays an entry point,
                 the drill-down is the existing player modal on top of it. */}
-            {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} />}
+            {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
             {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}

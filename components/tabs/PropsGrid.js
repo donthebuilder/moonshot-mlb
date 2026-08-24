@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { nameOf, teamOf, oppOf, txt } from '../../lib/player'
+import { nameOf, teamOf, oppOf, txt, playerId } from '../../lib/player'
 import { quoteFor, fmtOdds } from '../../lib/odds'
 import {
   ROLE_ORDER, GROUP_ORDER, rolesOf, primaryRole, roleColor,
@@ -88,7 +88,7 @@ function priceFor(odds, r, role) {
   return price === '—' ? null : price
 }
 
-function Card({ r, role: forced, odds, onPlayerClick }) {
+function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
   // The card wears the market you are BROWSING. Filter to HR and a hitter who
   // also holds TOP shows his hr_score, because that is the board you asked
   // for — the first build always showed his highest-priority role instead,
@@ -115,6 +115,25 @@ function Card({ r, role: forced, odds, onPlayerClick }) {
         line={sentenceFor(r, role)}
         chips={chipsFor(r, role)}
         footer={<PeriodTiles tiles={v.tiles(r)} />}
+        right={onWatch && (
+          // A star on every card, not only behind the modal (2026-08-24,
+          // Donovan: "click a player to add to watch list, nothing
+          // happens"). This grid never received onWatch/watchIds from
+          // Dashboard at all, so this was the one board on the site where
+          // adding to your watchlist meant opening the player first.
+          // stopPropagation so the star doesn't also fire the card's own
+          // onClick and open the sheet/modal underneath it.
+          <button
+            onClick={(e) => { e.stopPropagation(); onWatch(r) }}
+            title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+            style={{
+              flexShrink: 0, background: watched ? 'rgba(249,115,22,.14)' : 'transparent',
+              border: `1px solid ${watched ? C.orange : C.border}`,
+              color: watched ? C.orange : C.text3,
+              borderRadius: 7, padding: '3px 7px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
+            }}
+          >{watched ? '★' : '☆'}</button>
+        )}
       />
     </div>
   )
@@ -167,7 +186,7 @@ const PRECISION = [
   { key: 3, label: '3 each', title: 'The top three in each market. Roughly 55% — the lift is real and decaying; past here it flattens toward the full board.' },
 ]
 
-export default function PropsGrid({ players = [], odds = null, onPlayerClick }) {
+export default function PropsGrid({ players = [], odds = null, onPlayerClick, onWatch, watchIds }) {
   const [market, setMarket] = useState('picks')
   const [all, setAll] = useState(false)
   // Off by default — see the PRECISION note. Remembered, because it is a
@@ -343,7 +362,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick }) 
                 gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))',
               }}>
                 {g.rows.map((r) => (
-                  <Card key={`${r.player_id}-${r.game_pk}`} r={r} role={g.key} odds={odds} onPlayerClick={openCard} />
+                  <Card key={`${r.player_id}-${r.game_pk}`} r={r} role={g.key} odds={odds} onPlayerClick={openCard} onWatch={onWatch} watched={watchIds?.has(playerId(r))} />
                 ))}
               </div>
             </div>
@@ -362,6 +381,8 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick }) 
           odds={odds}
           onClose={() => setSheet(null)}
           onFullResearch={(p) => { setSheet(null); onPlayerClick?.(p) }}
+          onWatch={onWatch}
+          watched={watchIds?.has(playerId(sheet))}
         />
       )}
     </div>
