@@ -1,34 +1,33 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { RAMPS, usePalette, hydrateRamp } from '../lib/palette'
-import PaletteToggle from './PaletteToggle'
-import PaletteStudio from './PaletteStudio'
+import { hydrateRamp, setRamp } from '../lib/palette'
 
-// 🎨 PALETTE BUTTON — the colours, reachable from every tab.
+// One colour language, available from every page. The old control exposed four
+// competing heat-map experiments plus a full custom-ramp studio in the sticky
+// header. On a phone that became a nearly full-screen settings sheet, and the
+// names (Ember / Signal / Verdict) did not help somebody read the board.
 //
-// 2026-08-10, Donovan: "I need to be able to access the colours from all
-// across the site."
-//
-// He was right to flag it. The picker shipped inside the Guide tab and on the
-// heat map's own legend, which means the one moment you actually want it —
-// looking at a board that is hard to read — is the moment it is two clicks and
-// a tab away, and by the time you are back the thing you were judging is off
-// screen. It belongs in the header, beside Today/Tomorrow, because it is the
-// same kind of control: a view setting, not a page.
-//
-// THE BUTTON IS ITS OWN SWATCH. It shows the active ramp in miniature, so the
-// header answers "which one am I on" without being opened.
+// The Rundown already has the clearest colour system on the site, so this is a
+// key for that system instead: four pick jobs, four stable hues. Heat maps stay
+// on the original amber magnitude ramp, where dark means less and bright means
+// more. No page can silently retain one of the retired red/green experiments.
+const JOBS = [
+  { key: 'HR', label: 'Home run', color: '#f97316' },
+  { key: 'HIT', label: 'Base hit', color: '#a78bfa' },
+  { key: 'HRR', label: 'Runs + RBI', color: '#22d3ee' },
+  { key: 'CONTACT', label: 'Total bases', color: '#4ade80' },
+]
+
 export default function PaletteButton() {
-  const active = usePalette()
   const [open, setOpen] = useState(false)
   const wrap = useRef(null)
 
-  useEffect(() => { hydrateRamp() }, [])
+  useEffect(() => {
+    hydrateRamp()
+    setRamp('ember')
+  }, [])
 
-  // Close on outside click and on Escape. Both, because this sits in a sticky
-  // header over scrolling content — a panel you can only dismiss by finding
-  // the button again is worse than no panel.
   useEffect(() => {
     if (!open) return undefined
     const onDown = (e) => { if (wrap.current && !wrap.current.contains(e.target)) setOpen(false) }
@@ -41,19 +40,15 @@ export default function PaletteButton() {
     }
   }, [open])
 
-  // The mini swatch shows a LIT ramp by its inks. Signal's fills are
-  // deliberately near-black — correct on a table where the number sits on top,
-  // and invisible as a 30x12 chip in the header.
-  const r = RAMPS[active] || {}
-  const stops = r.inks || r.stops || []
-
   return (
     <div ref={wrap} style={{ position: 'relative' }}>
       <button
         type="button"
+        className="palette-key-button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        title={`Heat map colours — currently ${RAMPS[active]?.label || ''}. Switch or build your own.`}
+        aria-controls="site-colour-key"
+        title="Open the site colour key"
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '4px 8px', borderRadius: 8, cursor: 'pointer',
@@ -61,51 +56,51 @@ export default function PaletteButton() {
           border: `1px solid ${open ? C.orange : C.border}`,
         }}
       >
-        <span style={{ display: 'flex', width: 30, height: 12, borderRadius: 3, overflow: 'hidden' }}>
-          {stops.map((c, i) => <span key={c + i} style={{ flex: 1, background: c }} />)}
+        <span aria-hidden="true" style={{ display: 'flex', width: 30, height: 12, borderRadius: 3, overflow: 'hidden' }}>
+          {JOBS.map((job) => <span key={job.key} style={{ flex: 1, background: job.color }} />)}
         </span>
-        <span style={{ fontSize: 10, fontWeight: 800, color: C.text3, fontFamily: NUM_FONT }}>
-          {RAMPS[active]?.label || 'Colours'}
-        </span>
+        <span style={{ fontSize: 10, fontWeight: 800, color: C.text3, fontFamily: NUM_FONT }}>Key</span>
       </button>
 
       {open && (
         <div
+          id="site-colour-key"
           className="palette-pop"
+          role="dialog"
+          aria-label="Site colour key"
           style={{
-            // ANCHORED TO THE VIEWPORT, NOT THE BUTTON, ON A PHONE
-            // (2026-08-10). `right: 0` anchors the panel to the button, and the
-            // button lives in a header that scrolls sideways — so on a phone
-            // the panel hung off the left edge of the screen with its sliders
-            // cut in half. A 380px panel simply cannot be positioned relative
-            // to a control that sits 300px into a 390px viewport.
-            //
-            // Below 560px it stops being a popover and becomes a sheet: pinned
-            // to both edges with a margin, its own width, nothing to overflow.
-            // Above that the anchored popover is correct and unchanged.
             position: 'fixed', zIndex: 90,
-            top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
+            // Sit below the measured sticky header so the sheet never covers
+            // its own trigger (at 321px the old fixed 104px top did exactly
+            // that, leaving outside-click/Escape as the only way to close it).
+            top: 'calc(var(--hdr-h, 150px) + 6px)',
             left: 8, right: 8, width: 'auto',
-            maxHeight: '72vh', overflowY: 'auto',
             background: 'rgba(17,17,19,0.98)', backdropFilter: 'blur(14px)',
             border: `1px solid ${C.border2}`, borderRadius: 12,
-            boxShadow: '0 18px 44px rgba(0,0,0,0.55)',
-            padding: 12, display: 'flex', flexDirection: 'column', gap: 12,
+            boxShadow: '0 18px 44px rgba(0,0,0,0.55)', padding: 12,
           }}
         >
-          <div>
-            <div style={{
-              fontSize: 9.5, fontWeight: 800, letterSpacing: '.07em',
-              textTransform: 'uppercase', color: C.text2, marginBottom: 6,
-            }}>Heat map colours</div>
-            <PaletteToggle compact />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 900, color: C.text }}>Colour key</span>
+            <span style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>same on every page</span>
           </div>
-          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-            <div style={{
-              fontSize: 9.5, fontWeight: 800, letterSpacing: '.07em',
-              textTransform: 'uppercase', color: C.text2, marginBottom: 6,
-            }}>Build your own</div>
-            <PaletteStudio compact />
+          <div className="site-colour-key-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {JOBS.map((job) => (
+              <div key={job.key} style={{
+                display: 'flex', alignItems: 'center', gap: 7, minWidth: 0,
+                padding: '7px 8px', borderRadius: 8,
+                background: `${job.color}12`, border: `1px solid ${job.color}36`,
+              }}>
+                <span aria-hidden="true" style={{ width: 8, height: 24, borderRadius: 4, background: job.color, flexShrink: 0 }} />
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 9.5, fontWeight: 900, color: job.color, fontFamily: NUM_FONT }}>{job.key}</span>
+                  <span style={{ display: 'block', fontSize: 10, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.label}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.text3, lineHeight: 1.45 }}>
+            Heat maps use Moonshot amber: <b style={{ color: C.text2 }}>darker = less</b>, <b style={{ color: C.orange }}>brighter = more</b>.
           </div>
         </div>
       )}

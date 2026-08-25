@@ -252,13 +252,29 @@ export default function LedgerLab({
                 : 'empty on this device'}
             />
             {digest ? (
-              <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.75 }}>
-                <Num color={C.orange}>{digest.homers}</Num> home run{digest.homers === 1 ? '' : 's'} by{' '}
-                <Num>{digest.repeats.length}</Num> different hitters across{' '}
-                <Num>{digest.nights}</Num> night{digest.nights === 1 ? '' : 's'}.
+              <div>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))',
+                  gap: 7,
+                }}>
+                  {[
+                    ['Nights', digest.nights, C.cyan],
+                    ['Home runs', digest.homers, C.orange],
+                    ['Hitters', digest.repeats.length, C.green],
+                  ].map(([label, value, color]) => (
+                    <div key={label} style={{
+                      background: `${color}0d`, border: `1px solid ${color}33`,
+                      borderRadius: 9, padding: '8px 10px',
+                    }}>
+                      <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
+                      <div style={{ fontSize: 19, fontFamily: NUM_FONT, fontWeight: 900, color, marginTop: 1 }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
                 {digest.thin && (
-                  <> <b style={{ color: C.yellow }}>Thin</b> — under four nights nothing below is
-                    worth reading as a pattern. Pull more in.</>
+                  <div style={{ marginTop: 8, fontSize: 10.5, color: C.yellow }}>
+                    Small sample — pull at least four nights before reading a pattern.
+                  </div>
                 )}
               </div>
             ) : (
@@ -270,10 +286,10 @@ export default function LedgerLab({
 
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
               <button disabled={busy} onClick={() => backfill(14)} style={btnStyle(C.cyan, false)}>
-                {busy ? 'Reading…' : 'Pull the last 14 nights'}
+                {busy ? 'Updating…' : 'Update · 14 nights'}
               </button>
-              <button disabled={busy} onClick={() => backfill(45)} style={btnStyle(C.cyan, false)}>Go back 45</button>
-              {digest && <button onClick={doExport} style={btnStyle(C.text3, false)}>Export</button>}
+              <button disabled={busy} onClick={() => backfill(45)} style={btnStyle(C.cyan, false)}>Backfill · 45 nights</button>
+              {digest && <button onClick={doExport} style={btnStyle(C.text3, false)}>Export JSON</button>}
               {digest && (
                 <button
                   onClick={() => {
@@ -282,17 +298,14 @@ export default function LedgerLab({
                     }
                   }}
                   style={{ ...btnStyle(C.red, false), color: C.red, borderColor: `${C.red}55` }}
-                >Clear</button>
+                >Clear device archive</button>
               )}
               {msg && <span style={{ fontSize: 10, color: C.text3 }}>{msg}</span>}
             </div>
 
-            <div style={{ fontSize: 10.5, color: C.text3, marginTop: 11, lineHeight: 1.7 }}>
-              <b style={{ color: C.text2 }}>What this is counting.</b> The graded file carries the
-              ~90 candidates the bot was watching that night, not every hitter who played — so every
-              number here is <i>among the names on the sheet</i>. Nothing on this page is scored,
-              feeds a pick, or is a rate: they are counts, printed with what they are counts out of.
-            </div>
+            <WhatThis label="what the archive counts" maxWidth={680}>
+              Counts cover hitters on each night&apos;s Moonshot sheet, not every hitter who played. They are research totals and do not change any pick or score.
+            </WhatThis>
           </div>
 
           {digest && (

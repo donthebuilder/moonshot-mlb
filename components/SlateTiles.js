@@ -1,7 +1,8 @@
 'use client'
-import { Fragment, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { n, hrScore, median, hitScore, prodScore, nn } from '../lib/player'
+import { n, hrScore, median, hitScore, prodScore, nn, teamOf } from '../lib/player'
+import { easternToday } from '../lib/data'
 import { isAligned } from '../lib/scoring'
 import { dedupeGraded } from '../lib/graded'
 
@@ -77,7 +78,7 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color, wide = 
 // The tile row, factored out so the ticker below can render it twice — once
 // real, once a visual echo — without hand-duplicating six JSX blocks that
 // have to stay byte-identical or the loop seam shows.
-function TileSet({ stats, playerCount, projected, capture, pct }) {
+function TileSet({ stats, projected, capture, staleSlate }) {
   return (
     <>
       <Tile label="Games" value={stats.gameCount} color="#38bdf8" />
@@ -95,10 +96,11 @@ function TileSet({ stats, playerCount, projected, capture, pct }) {
       )}
       <Tile label="★ Weak" value={stats.weak} color="#FCD34D" dot />
       <Tile
-        label="Lineups ✓"
-        value={`${stats.confirmed}`}
-        delta={`of ${playerCount} · ${pct(stats.confirmed)}`}
-        color="#4ade80"
+        label={staleSlate ? 'Previous lineups' : 'Lineups ✓'}
+        value={`${stats.confirmedTeams}/${stats.lineupTeams}`}
+        delta="teams"
+        color={staleSlate ? C.text3 : '#4ade80'}
+        wide={staleSlate}
         dot
       />
       {stats.settled > 0 && (
@@ -108,11 +110,13 @@ function TileSet({ stats, playerCount, projected, capture, pct }) {
   )
 }
 
-export default function SlateTiles({ players = [], results, games = [], projected = null, capture = null }) {
+export default function SlateTiles({ players = [], results, games = [], projected = null, capture = null, slateDate = '', mode = 'today' }) {
+  const [tickerPaused, setTickerPaused] = useState(false)
   const stats = useMemo(() => {
     if (!players.length) return null
 
-    const confirmed = players.filter((p) => p?.lineup_confirmed).length
+    const lineupTeamsSet = new Set(players.map(teamOf).filter(Boolean))
+    const confirmedTeamsSet = new Set(players.filter((p) => p?.lineup_confirmed).map(teamOf).filter(Boolean))
     const aligned = players.filter(isAligned).length
     const hot = players.filter((p) => hrScore(p) >= 70).length
     const weak = players.filter((p) => p?.weak_spot_flag).length
@@ -140,12 +144,19 @@ export default function SlateTiles({ players = [], results, games = [], projecte
 
     const gameCount = games.length || new Set(players.map((p) => p?.game_pk)).size
 
-    return { confirmed, aligned, hot, weak, actual, onSheet, settled, best, gameCount }
+    return {
+      confirmedTeams: confirmedTeamsSet.size,
+      lineupTeams: lineupTeamsSet.size,
+      aligned, hot, weak, actual, onSheet, settled, best, gameCount,
+    }
   }, [players, results, games])
 
   if (!stats) return null
 
-  const pct = (x) => `${Math.round((100 * x) / Math.max(1, players.length))}%`
+  const expectedDate = mode === 'tomorrow'
+    ? new Date(new Date(`${easternToday()}T12:00:00Z`).getTime() + 864e5).toISOString().slice(0, 10)
+    : easternToday()
+  const staleSlate = !!slateDate && slateDate < expectedDate
 
   // ── AN EVEN STRIP (2026-08-24) ────────────────────────────────────────────
   // Donovan: "the top needs to be even."
@@ -199,17 +210,19 @@ export default function SlateTiles({ players = [], results, games = [], projecte
   // animation restarts invisibly. The duplicate is `aria-hidden` — it
   // exists to be looked at, not read twice by a screen reader.
   //
-  // Pauses on hover so anyone who actually wants to read a tile can stop it
-  // without hunting for a button. prefers-reduced-motion turns the motion
-  // off entirely and falls back to the same manual side-scroll the "one
-  // line, not two" fix already shipped — the rules live together in
-  // components/MobileCSS.js.
+  // Hover still pauses for a mouse, and the visible button below gives touch
+  // and keyboard users the same control. When paused the echo disappears and
+  // the real tiles become a manually scrollable row.
   return (
-    <div className="slate-tiles-viewport" style={{ width: '100%', minWidth: 0, overflow: 'hidden' }}>
-      <div className="slate-tiles" style={{
-        display: 'flex', gap: 6, flexWrap: 'nowrap', alignItems: 'stretch',
-        width: 'max-content',
-      }}>
+    <div
+      className={`slate-tiles-shell${tickerPaused ? ' ticker-paused' : ''}`}
+      style={{ position: 'relative', width: '100%', minWidth: 0 }}
+    >
+      <div className="slate-tiles-viewport" style={{ width: '100%', minWidth: 0, overflow: 'hidden', paddingRight: 38 }}>
+        <div className="slate-tiles" style={{
+          display: 'flex', gap: 0, flexWrap: 'nowrap', alignItems: 'stretch',
+          width: 'max-content',
+        }}>
         {/* FIXED ORDER AND HUES, alternating cool/warm so no two neighbours
             share a colour:
               Games BLUE · Projected ORANGE · HR tracking BLUE ·
@@ -222,13 +235,29 @@ export default function SlateTiles({ players = [], results, games = [], projecte
             the certainty number for the whole slate — every score on the
             site is softer for a hitter who might not start, so how much of
             the board is locked belongs in the header. */}
-        <Fragment key="real">
-          <TileSet stats={stats} playerCount={players.length} projected={projected} capture={capture} pct={pct} />
-        </Fragment>
-        <div className="slate-tiles-echo" aria-hidden="true" style={{ display: 'contents' }}>
-          <TileSet stats={stats} playerCount={players.length} projected={projected} capture={capture} pct={pct} />
+          <div className="slate-tiles-set">
+            <TileSet stats={stats} projected={projected} capture={capture} staleSlate={staleSlate} />
+          </div>
+          <div className="slate-tiles-set slate-tiles-echo" aria-hidden="true">
+            <TileSet stats={stats} projected={projected} capture={capture} staleSlate={staleSlate} />
+          </div>
         </div>
       </div>
+      <button
+        type="button"
+        className="slate-ticker-toggle"
+        aria-pressed={tickerPaused}
+        aria-label={tickerPaused ? 'Resume moving slate ticker' : 'Pause moving slate ticker'}
+        title={tickerPaused ? 'Resume ticker' : 'Pause ticker'}
+        onClick={() => setTickerPaused((paused) => !paused)}
+        style={{
+          position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
+          zIndex: 2, width: 32, height: 32, minHeight: 32, padding: 0,
+          display: 'grid', placeItems: 'center', borderRadius: 999,
+          border: `1px solid ${C.border}`, background: C.bg2, color: C.text2,
+          cursor: 'pointer', fontSize: 11, fontWeight: 900,
+        }}
+      >{tickerPaused ? '▶' : 'Ⅱ'}</button>
     </div>
   )
 }

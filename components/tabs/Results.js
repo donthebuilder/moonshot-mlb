@@ -937,51 +937,64 @@ export default function Results({ results, liveResults = null, slateDate = '', b
     } catch { return d }
   }
 
+  const archiveIndex = day === 'live' ? -1 : gradedDays.indexOf(day)
+  const newerDay = archiveIndex > 0 ? gradedDays[archiveIndex - 1] : null
+  const olderDay = archiveIndex >= 0 && archiveIndex < gradedDays.length - 1
+    ? gradedDays[archiveIndex + 1]
+    : null
+
   // Rendered as an element, not a nested component, so the open/closed state
   // above survives every re-render of the page.
   const archiveBar = (
     <div style={{ marginBottom: 12 }}>
       {day === 'live' ? (
-        <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, fontWeight: 900, color: C.text }}>
-            🌙 Tonight — live
-          </span>
+        <div className="results-night-bar" style={{
+          display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+          background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 11px',
+        }}>
+          <span style={{ fontSize: 9, color: C.green, fontWeight: 900, letterSpacing: '.09em', fontFamily: NUM_FONT }}>● LIVE</span>
+          <span style={{ fontSize: 12.5, fontWeight: 900, color: C.text }}>Tonight</span>
           <span style={{ fontSize: 10, color: C.text3 }}>
-            {liveMissing ? 'tonight’s grading hasn’t published yet' : 'grading updates as games finish'}
+            {liveMissing ? 'waiting for grading' : 'updates as games finish'}
           </span>
           {(liveMissing || liveFileStale) && (
-            <span style={{
+            <div style={{
+              order: 4, flex: '1 1 100%', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
               fontSize: 10.5, color: C.text2, lineHeight: 1.5,
               border: '1px solid rgba(248,113,113,.45)', background: 'rgba(248,113,113,.08)',
-              borderRadius: 8, padding: '4px 10px',
+              borderRadius: 8, padding: '7px 9px',
             }}>
-              {liveMissing
-                ? <>Nothing graded for {slateDate || 'tonight'} has been published yet. </>
-                : <>Showing {slateDate}&apos;s own graded file. </>}
-              {liveFileDate && <>The bot&apos;s live results file is still <b>{liveFileDate}</b> — that night is finished, not tonight, so it is not shown here. </>}
+              <span>{liveMissing ? `No grading has published for ${slateDate || 'tonight'} yet.` : `The live file is still dated ${liveFileDate || 'an earlier night'}.`}</span>
               {gradedDays.length > 0 && (
-                <b onClick={() => setDay(gradedDays[0])} style={{ color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                  Open the last finished night
-                </b>
+                <button type="button" onClick={() => setDay(gradedDays[0])} style={{
+                  marginLeft: 'auto', padding: '5px 9px', borderRadius: 7, cursor: 'pointer',
+                  border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
+                  fontSize: 10, fontWeight: 800,
+                }}>Open latest final</button>
               )}
-            </span>
+            </div>
           )}
           {liveIsPregame && gradedDays.length > 0 && (
-            <span style={{
+            <div style={{
+              order: 4, flex: '1 1 100%', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
               fontSize: 10.5, color: C.text2, lineHeight: 1.5,
               border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.03)',
-              borderRadius: 8, padding: '4px 10px',
+              borderRadius: 8, padding: '7px 9px',
             }}>
-              Nothing has started yet — tonight&apos;s {(results?.graded_slots || results?.results || []).length} tracked
-              slots are all pregame. Last night&apos;s finished card is{' '}
-              <b onClick={() => setDay(gradedDays[0])} style={{ color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                one click away
-              </b>.
-            </span>
+              <span>All {(results?.graded_slots || results?.results || []).length} tracked picks are still pregame.</span>
+              <button type="button" onClick={() => setDay(gradedDays[0])} style={{
+                marginLeft: 'auto', padding: '5px 9px', borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
+                fontSize: 10, fontWeight: 800,
+              }}>View latest final</button>
+            </div>
           )}
           {gradedDays.length > 0 && (
             <button
+              type="button"
               onClick={() => setArchiveOpen((v) => !v)}
+              aria-expanded={archiveOpen}
+              aria-controls="results-archive-nights"
               style={{
                 marginLeft: 'auto', padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
                 fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
@@ -989,7 +1002,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                 background: archiveOpen ? `${C.orange}18` : 'transparent',
                 color: archiveOpen ? C.orange : C.text2,
               }}
-            >📅 {archiveOpen ? 'Close' : 'Browse'} past nights ({gradedDays.length})</button>
+            >📅 {archiveOpen ? 'Close archive' : `Past nights · ${gradedDays.length}`}</button>
           )}
         </div>
       ) : (
@@ -1002,43 +1015,57 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             📅 ARCHIVE
           </span>
           <span style={{ fontSize: 12.5, fontWeight: 900, color: C.text }}>{prettyDay(day)}</span>
-          <span style={{ fontSize: 10, color: C.text3 }}>
-            graded and final — only this tab moved, everything else is still on tonight
-          </span>
+          <span style={{ fontSize: 10, color: C.text3 }}>graded · final</span>
+          {newerDay && <button type="button" onClick={() => setDay(newerDay)} style={{
+            marginLeft: 'auto', padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+            fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+            border: `1px solid ${C.border}`, background: C.bg3, color: C.text2,
+          }}>← Newer</button>}
+          {olderDay && <button type="button" onClick={() => setDay(olderDay)} style={{
+            padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+            fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+            border: `1px solid ${C.border}`, background: C.bg3, color: C.text2,
+          }}>Older →</button>}
           <button
+            type="button"
             onClick={() => { setDay('live'); setArchiveOpen(false) }}
             style={{
-              marginLeft: 'auto', padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
+              marginLeft: newerDay ? 0 : 'auto', padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
               fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
               border: `1px solid ${C.orange}`, background: `${C.orange}22`, color: C.orange,
             }}
-          >← Back to tonight</button>
+          >Tonight</button>
           <button
+            type="button"
             onClick={() => setArchiveOpen((v) => !v)}
+            aria-expanded={archiveOpen}
+            aria-controls="results-archive-nights"
             style={{
               padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
               fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
               border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
             }}
-          >📅 Pick another night</button>
+          >📅 All nights</button>
         </div>
       )}
 
       {archiveOpen && gradedDays.length > 0 && (
-        <div style={{
+        <div id="results-archive-nights" style={{
           marginTop: 8, background: C.bg2, border: `1px solid ${C.border}`,
           borderRadius: 11, padding: '10px 13px',
         }}>
-          <WhatThis maxWidth={620}>
-            what a previous night actually graded out to. Picking one moves{' '}
-            <b style={{ color: C.text2 }}>only this tab</b> — the Games board and every other page
-            stay on tonight&apos;s slate.
-          </WhatThis>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', maxHeight: 190, overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 900 }}>Past nights</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>Selecting a date changes Results only.</span>
+            <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{gradedDays.length} final</span>
+          </div>
+          <div className="archive-night-grid">
             {gradedDays.map((d) => (
               <button
+                type="button"
                 key={d}
                 onClick={() => { setDay(d); setArchiveOpen(false) }}
+                aria-current={day === d ? 'date' : undefined}
                 style={{
                   padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
                   fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT, whiteSpace: 'nowrap',

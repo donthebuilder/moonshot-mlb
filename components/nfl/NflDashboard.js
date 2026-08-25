@@ -17,6 +17,8 @@ import Accountability from './tabs/Accountability'
 import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
 
+const NFL_TABS = new Set(['games', 'picks', 'boards', 'research', 'matchups', 'report', 'accountability', 'pairs', 'guide'])
+
 // The NFL shell. Thin on purpose — state and routing only, same as the MLB
 // Dashboard. Everything with an opinion lives in a tab file.
 //
@@ -25,7 +27,7 @@ import Guide from './tabs/Guide'
 // 45s while anything is live, 10 minutes otherwise.
 
 export default function NflDashboard() {
-  const [tab, setTab] = useState('games')
+  const [tab, setTabRaw] = useState('games')
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
   const [meta, setMeta] = useState(null)
@@ -46,15 +48,47 @@ export default function NflDashboard() {
   const [modal, setModal] = useState(null)      // { player, market }
   const [refreshKey, setRefreshKey] = useState(0)
 
+  const setTab = (next) => {
+    if (!NFL_TABS.has(next)) return
+    setTabRaw(next)
+    try {
+      const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      hash.set('sport', 'nfl')
+      hash.set('tab', next)
+      window.history.replaceState(null, '', `#${hash.toString()}`)
+    } catch { /* ignore URL failures; the tab still works */ }
+  }
+
   // Deep links: #sport=nfl&tab=boards is a real address, same contract the
   // MLB side honours.
   const hashDone = useRef(false)
   useEffect(() => {
     if (hashDone.current) return
     hashDone.current = true
-    // initialHashParams(), not window.location.hash — see lib/sport.js.
-    const t = initialHashParams().get('tab')
-    if (t && ['games', 'picks', 'boards', 'research', 'matchups', 'report', 'accountability', 'pairs', 'guide'].includes(t)) setTab(t)
+    // Prefer the live hash when switching sports without a reload, then fall
+    // back to the module-load snapshot for a direct NFL deep link.
+    let t = null
+    try {
+      const live = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      if (live.get('sport') === 'nfl') t = live.get('tab')
+    } catch { /* ignore */ }
+    if (!NFL_TABS.has(t)) t = initialHashParams().get('tab')
+    setTab(NFL_TABS.has(t) ? t : 'games')
+  }, [])
+
+  // Keep manually edited hashes and browser-driven hash changes in sync with
+  // the visible NFL panel. replaceState navigation above deliberately does
+  // not add a history entry for every tab click.
+  useEffect(() => {
+    const readHash = () => {
+      try {
+        const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+        const next = hash.get('tab')
+        if (hash.get('sport') === 'nfl' && NFL_TABS.has(next)) setTabRaw(next)
+      } catch { /* ignore malformed hashes */ }
+    }
+    window.addEventListener('hashchange', readHash)
+    return () => window.removeEventListener('hashchange', readHash)
   }, [])
 
   useEffect(() => {

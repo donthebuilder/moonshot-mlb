@@ -166,6 +166,10 @@ const HOME_VIEWS = [
   { key: 'boxes', label: 'Box scores' },
 ]
 const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))
+const BARE_BUTTON = {
+  border: 'none', background: 'transparent', padding: 0,
+  color: 'inherit', font: 'inherit', textAlign: 'left',
+}
 
 export default function Home({
   players = [], results, backtest, mode = 'today', slateDate = '', dateLabel = '',
@@ -789,9 +793,9 @@ export default function Home({
               ))}
               {mine.length > 3 && <span style={{ color: C.text3 }}> and {mine.length - 3} more</span>}
               .{' '}
-              <span onClick={() => onNavigate?.('mypicks')} style={{ color: '#60a5fa', cursor: 'pointer', fontWeight: 800 }}>
+              <button type="button" onClick={() => onNavigate?.('mypicks')} style={{ ...BARE_BUTTON, color: '#60a5fa', cursor: 'pointer', fontWeight: 800 }}>
                 Grade them on My Picks →
-              </span>
+              </button>
             </span>
           </div>
         </div>
@@ -1036,7 +1040,7 @@ export default function Home({
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
                   <span style={{ fontSize: 12, fontWeight: 900 }}>{title}</span>
-                  <span onClick={() => onNavigate?.(door)} style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</span>
+                  <button type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {rows.map((p, i) => {
@@ -1044,7 +1048,8 @@ export default function Home({
                     const hr9 = n(p?.pitcher_hr9, 0)
                     const leaky = hr9 >= 1.4
                     return (
-                      <div key={i} onClick={() => onPlayerClick?.(p)} className="tap-row" style={{
+                      <button type="button" key={i} onClick={() => onPlayerClick?.(p)} className="tap-row" style={{
+                        ...BARE_BUTTON, width: '100%', textAlign: 'left',
                         display: 'flex', gap: 7, alignItems: 'center', cursor: 'pointer',
                         padding: '2px 5px', borderRadius: 6, minWidth: 0,
                         background: i === 0 ? `${col}12` : 'transparent',
@@ -1060,13 +1065,13 @@ export default function Home({
                           vs {clean(p?.pitcher_name, 'TBD').split(' ').slice(-1)[0]}
                           {hr9 > 0 && <b style={{ color: leaky ? '#f87171' : C.text3 }} title={leaky ? 'This arm leaks homers — 1.40+ HR/9' : 'Starter HR/9'}> {hr9.toFixed(2)}</b>}
                         </span>
-                        <div style={{ flex: '0 0 46px', height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.min(100, (100 * s) / max)}%`, height: '100%', background: col, opacity: i < 3 ? 1 : 0.55 }} />
-                        </div>
+                        <span style={{ display: 'block', flex: '0 0 46px', height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
+                          <span style={{ display: 'block', width: `${Math.min(100, (100 * s) / max)}%`, height: '100%', background: col, opacity: i < 3 ? 1 : 0.55 }} />
+                        </span>
                         <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: i < 3 ? col : C.text2, width: 24, textAlign: 'right', flexShrink: 0 }}>
                           {s.toFixed(0)}
                         </span>
-                      </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -1131,7 +1136,8 @@ export default function Home({
           )
         }
         const Arm = ({ a, i, showTrend }) => (
-          <div onClick={() => onNavigate?.('pitchers')} className="tap-row" style={{
+          <button type="button" onClick={() => onNavigate?.('pitchers')} className="tap-row" style={{
+            ...BARE_BUTTON, width: '100%', textAlign: 'left',
             display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
             padding: '2px 5px', borderRadius: 6, minWidth: 0,
           }} title={`${a.nm} vs ${a.vs}: ${a.hr9.toFixed(2)} HR/9 season${a.l3hr9 != null ? `, ${a.l3hr9.toFixed(2)} over his last 3 starts` : ''}${a.weak ? ` · ${a.weak} weak lineup spots against him` : ''} — tap for the Pitchers workbench`}>
@@ -1165,7 +1171,7 @@ export default function Home({
               </span>
             )}
             {a.weak > 0 && <span style={{ fontSize: 8.5, flexShrink: 0 }} title={`${a.weak} weak spots in the lineup he faces`}>★{a.weak}</span>}
-          </div>
+          </button>
         )
         return (
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -1236,16 +1242,18 @@ export default function Home({
           </div>
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
             {START.map((s) => (
-              <div
+              <button
+                type="button"
                 key={s.tab}
                 onClick={() => onNavigate?.(s.tab)}
                 style={{
+                  ...BARE_BUTTON, textAlign: 'left',
                   flex: '1 1 210px', minWidth: 0, cursor: 'pointer',
                   background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 11,
                   padding: '10px 13px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
                   <span style={{
                     width: 19, height: 19, borderRadius: '50%', flexShrink: 0,
                     border: `1px solid ${C.orange}77`, background: `${C.orange}18`, color: C.orange,
@@ -1254,17 +1262,18 @@ export default function Home({
                   }}>{s.n}</span>
                   <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{s.title}</span>
                   <span style={{ marginLeft: 'auto', fontSize: 11, color: C.orange }}>→</span>
-                </div>
-                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{s.body}</div>
-              </div>
+                </span>
+                <span style={{ display: 'block', fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{s.body}</span>
+              </button>
             ))}
           </div>
           <div style={{ fontSize: 10, color: C.text3, marginTop: 9, lineHeight: 1.5 }}>
             Want the longer version?{' '}
-            <span
+            <button
+              type="button"
               onClick={() => onNavigate?.('guide')}
-              style={{ color: C.orange, cursor: 'pointer', fontWeight: 700 }}
-            >Open the Guide →</span>{' '}
+              style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}
+            >Open the Guide →</button>{' '}
             — five steps, a colour key and a plain-language glossary. Everywhere else on this site,
             hovering a number tells you what it is.
           </div>
@@ -1274,18 +1283,19 @@ export default function Home({
       {/* ── THREE DOORS ──────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {DOORS.map((d) => (
-          <div key={d.tab} onClick={() => onNavigate?.(d.tab)} style={{
+          <button type="button" key={d.tab} onClick={() => onNavigate?.(d.tab)} style={{
+            ...BARE_BUTTON, textAlign: 'left',
             flex: '1 1 240px', minWidth: 0, cursor: 'pointer',
             background: `linear-gradient(155deg, ${d.color}12, ${d.color}04)`,
             border: `1px solid ${d.color}3d`, borderRadius: 13, padding: '13px 15px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
               <span style={{ fontSize: 15 }}>{d.icon}</span>
               <span style={{ fontSize: 13, fontWeight: 900, color: d.color }}>{d.title}</span>
               <span style={{ marginLeft: 'auto', fontSize: 12, color: d.color }}>→</span>
-            </div>
-            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{d.body}</div>
-          </div>
+            </span>
+            <span style={{ display: 'block', fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
+          </button>
         ))}
       </div>
 
@@ -1294,14 +1304,14 @@ export default function Home({
       {!startOpen && (
         <div style={{ fontSize: 10, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
           New here?{' '}
-          <span onClick={reopenStart} style={{ color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
+          <button type="button" onClick={reopenStart} style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
             Start with these 3 things →
-          </span>{' '}
+          </button>{' '}
           — two minutes, in order. The longer version, with a colour key and a plain-language
           glossary, is on{' '}
-          <span onClick={() => onNavigate?.('guide')} style={{ color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
+          <button type="button" onClick={() => onNavigate?.('guide')} style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
             the Guide
-          </span>.
+          </button>.
         </div>
       )}
 

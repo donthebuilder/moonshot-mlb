@@ -41,6 +41,15 @@ export default function NflHeader({ tab, setTab, data, meta }) {
   const projTd = rows.reduce((a, p) => a + (p.stats?.xTD || 0), 0)
   const aGrade = rows.filter(
     (p) => Math.max(...Object.values(p.scores || { _: 0 })) >= 62).length
+  const builtAt = meta?.built_at || data?.built_at || ''
+  const builtAtMs = Date.parse(builtAt)
+  const ageHours = Number.isFinite(builtAtMs) ? Math.max(0, (Date.now() - builtAtMs) / 3_600_000) : 0
+  const stale = ageHours >= 24
+  const ageLabel = ageHours >= 48
+    ? `${Math.floor(ageHours / 24)} days`
+    : ageHours >= 24
+      ? `${Math.floor(ageHours)} hours`
+      : ''
 
   return (
     <header style={{
@@ -79,7 +88,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                 WebkitTextFillColor: 'transparent',
               }}>MOONSHOT</span>
               {/* The switch. MLB is the sibling now, not a different website. */}
-              <span style={{ display: 'flex', gap: 3, marginLeft: 5, alignSelf: 'center' }}>
+              <span className="sport-switch" style={{ display: 'flex', gap: 3, marginLeft: 5, alignSelf: 'center' }}>
                 <button
                   onClick={() => setSport('mlb')}
                   style={{
@@ -139,6 +148,21 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           <PaletteButton />
         </div>
       </div>
+
+      {stale && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            maxWidth: 1300, margin: '0 auto 6px', padding: '7px 16px',
+            borderTop: `1px solid ${C.yellow}35`, borderBottom: `1px solid ${C.yellow}35`,
+            background: `${C.yellow}12`, color: C.yellow, fontSize: 10.5,
+            fontWeight: 800, lineHeight: 1.45,
+          }}
+        >
+          ⚠ NFL data is {ageLabel} old · last built {meta?.built_at_human || data?.built_at_human || builtAt}. Verify the slate before using picks or odds.
+        </div>
+      )}
 
       <div className="rail" style={{
         maxWidth: 1300, margin: '0 auto', padding: '0 16px',

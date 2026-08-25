@@ -194,7 +194,7 @@ function DateBadge({ label }) {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-export default function Header({ tab, setTab, mode, setMode, dateLabel, results, players = [], games = [] }) {
+export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDate = '', results, players = [], games = [] }) {
   // TAP TARGET (2026-08-12): the NFL "coming soon" pill carried its note in a
   // bare title= — invisible on a phone, the same gap fixed elsewhere via the
   // InfoDot pattern (see Explain.js's header comment).
@@ -408,13 +408,15 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
             players={players}
             results={results}
             games={games}
+            slateDate={slateDate}
+            mode={mode}
             projected={<ProjectedHRStat mode={mode} players={players} />}
             capture={<CaptureStat results={results} />}
           />
         </div>
 
         <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <DateBadge label={dateLabel || 'Loading…'} />
+          <div className="date-badge"><DateBadge label={dateLabel || 'Loading…'} /></div>
           {/* PALETTE, GLOBAL (2026-08-10). It used to live in the Guide tab and
               on the heat map legend only — two clicks away from the board you
               are squinting at. It is a view setting, so it sits with the other
@@ -425,7 +427,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, results,
               minimze the notis on screen for user." Same group as the other
               two view settings. See lib/quiet.js. */}
           <QuietButton />
-          <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1px solid ${C.border}` }}>
+          <div className="date-mode-switch" style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1px solid ${C.border}` }}>
             <button
               onClick={() => setMode('today')}
               style={{

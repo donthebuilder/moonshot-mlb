@@ -20,7 +20,7 @@ import LiveWire from '../LiveWire'
 import NearMisses, { nearMissRows } from '../NearMisses'
 import ProjectedOutput, { slateProjHr } from '../ProjectedOutput'
 import { groupPitchers, groupGames } from '../../lib/data'
-import { airParts, airVerdict } from '../../lib/conditions'
+import { airVerdict } from '../../lib/conditions'
 import { DIV_FIELD } from '../../lib/scales'
 
 // ── FOLD LIVES AT MODULE SCOPE, NOT INSIDE Scoreboard() (fixed 2026-08-18) ──
@@ -933,72 +933,34 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         }
       />
 
-      {/* ── THE SLATE, STATED (2026-08-16) ──────────────────────────────────
-          What stood here was the header's own sub-line: "266 batters · ★12
-          weak spot · ◆9 aligned · ▲41 matchup edge". Four counts in a glyph
-          code you have to already know, above a page that then opened on a
-          four-tile orientation strip. Same four counts, plus the two facts the
-          page never stated out loud — how the air is playing tonight, and how
-          many balls have already gone — as one sentence that names each mark
-          as it uses it. Every mark still has its own column on the board
-          below, and each count keeps its denominator. */}
-      <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.7, margin: '0 0 12px', maxWidth: 760 }}>
-        <b style={{ color: C.text, fontFamily: NUM_FONT }}>{rows.length}</b> hitters
-        {alignedOnly ? ' pass the ◆ aligned filter' : ' are on tonight’s board'}, across{' '}
-        <b style={{ color: C.text, fontFamily: NUM_FONT }}>{airRead.games}</b> games.{' '}
-        <span title="Weak spot: this pitcher has been hurt by the lineup slot this hitter is standing in. The validated flag — 18.0% vs 13.9% — and its own ★ column on the board.">
-          <b style={{ color: C.text, fontFamily: NUM_FONT }}>{lit('weak')}</b> of them stand in a
-          ★ weak lineup spot against tonight&apos;s arm
-        </span>,{' '}
-        <span title="Aligned: weak spot, pitch-type match and real recent contact quality all stacking on the same hitter. Its own ◆ column, and the filter button above.">
-          <b style={{ color: C.purple, fontFamily: NUM_FONT }}>{lit('aligned')}</b> are ◆ aligned
-        </span>{' '}and{' '}
-        <span title="Matchup edge: the hitter bats from the side this pitcher is weakest against. Its own ▲ column on the board.">
-          <b style={{ color: C.text, fontFamily: NUM_FONT }}>{lit('edge')}</b> hold the ▲ handedness edge
-        </span>.{' '}
-        {/* The air, spoken by lib/conditions. Silent when no game is strong
-            enough either way — a neutral slate is a finding, not a gap. */}
-        {(airRead.carrying.length > 0 || airRead.dead.length > 0) && (
-          <>
-            {airRead.carrying.length > 0 && (
-              <>The air is carrying in{' '}
-                <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{airRead.carrying.length} of {airRead.games}</b>{' '}
-                games —{' '}
-                {airRead.carrying.slice(0, 2).map((p, i) => (
-                  <span key={i} title={airParts(p).map((x) => `${x.text} — ${x.title}`).join('\n')} style={{ cursor: 'help' }}>
-                    {i > 0 && '; '}
-                    <b style={{ color: C.text }}>{clean(p?.venue_name, `${teamOf(p)} vs ${oppOf(p)}`)}</b>
-                    {i === 0 && airParts(p).length > 0 && <span style={{ color: C.text3 }}> ({airParts(p).map((x) => x.text).join(', ')})</span>}
-                  </span>
-                ))}
-                {airRead.carrying.length > 2 && <span style={{ color: C.text3 }}> and {airRead.carrying.length - 2} more</span>}
-                {airRead.dead.length > 0 ? ', and ' : '. '}
-              </>
-            )}
-            {airRead.dead.length > 0 && (
-              <>{airRead.carrying.length > 0 ? 'playing dead in ' : 'The air is playing dead in '}
-                <b style={{ color: C.blue, fontFamily: NUM_FONT }}>{airRead.dead.length} of {airRead.games}</b>
-                {airRead.carrying.length > 0 ? '. ' : ' games. '}
-              </>
-            )}
-          </>
-        )}
-        {goneYard.length > 0 && (
-          <>
-            <b style={{ color: C.green, fontFamily: NUM_FONT }}>{goneYard.length}</b> ball
-            {goneYard.length === 1 ? ' has' : 's have'} already left the yard tonight, and{' '}
-            <b style={{ color: C.green, fontFamily: NUM_FONT }}>
-              {goneYard.filter((r) => r.rank && r.rank <= 15).length} of {goneYard.length}
-            </b>{' '}
-            came from the top 15 of this board — Gone yard has the full list against its ranks.{' '}
-          </>
-        )}
-        <span style={{ color: C.text3 }}>
-          {liveNow
-            ? 'Live: the wire and tonight’s homers lead, the picks and the plan sit under them.'
-            : 'The Four — the bot’s headline pick per category, three deep — leads below; the full board is at the foot of the page.'}
-        </span>
+      {/* A scan, not a paragraph. These are the five denominated facts people
+          use to orient themselves; context remains one disclosure below. */}
+      <div className="rundown-facts" style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(82px, 1fr))',
+        gap: 6, margin: '0 0 6px', maxWidth: 760,
+      }}>
+        {[
+          ['Games', airRead.games, C.blue, 'Games represented on tonight’s board'],
+          ['★ Weak', lit('weak'), C.yellow, 'Hitters in a weak lineup spot against tonight’s arm'],
+          ['◆ Aligned', lit('aligned'), C.purple, 'Weak spot, pitch match and recent contact quality agree'],
+          ['▲ Edge', lit('edge'), C.cyan, 'Hitters batting from the side this pitcher is weakest against'],
+          ['HR tonight', goneYard.length, C.green, 'Home runs already hit by hitters on this board'],
+        ].map(([label, value, color, title]) => (
+          <div key={label} title={title} style={{
+            padding: '6px 8px', borderRadius: 8, minWidth: 0,
+            background: `${color}0d`, border: `1px solid ${color}30`,
+          }}>
+            <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{label}</div>
+            <div style={{ marginTop: 1, fontSize: 14, color, fontFamily: NUM_FONT, fontWeight: 900 }}>{value}</div>
+          </div>
+        ))}
       </div>
+      <WhatThis label="slate context" maxWidth={760}>
+        {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
+        {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
+        {goneYard.length > 0 && <>{goneYard.filter((r) => r.rank && r.rank <= 15).length} of {goneYard.length} homers came from the board&apos;s top 15. </>}
+        {liveNow ? 'Live action leads below.' : 'The Four leads; the sortable full board follows.'}
+      </WhatThis>
 
       {order}
 

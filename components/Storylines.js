@@ -103,6 +103,11 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
   const pullFrom = (fetchPlayers && fetchPlayers.length ? fetchPlayers : players)
   useEffect(() => {
+    // The slate-wide panel starts collapsed. Do not pull hundreds of MLB API
+    // records for content the visitor has not asked to see yet. Compact
+    // game-level panels are always open, so their existing behaviour stays
+    // unchanged. Once loaded, the module caches below keep reopenings instant.
+    if (!open) return undefined
     if (_cacheByDate[dateKey] || !pullFrom.length) { setData(_cacheByDate[dateKey] || null); return }
     let alive = true
     ;(async () => {
@@ -134,7 +139,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       } catch { if (alive) setData({ people: [], promos: null }) }
     })()
     return () => { alive = false }
-  }, [pullFrom.length, dateKey])
+  }, [open, pullFrom.length, dateKey])
 
   // ── ⚾ TONIGHT'S MATCHUP LINES (2026-08-09) — the lead section ──
   //
@@ -157,6 +162,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   const [mlines, setMlines] = useState([])
   const mkey = players.map((p) => Number(p?.player_id ?? p?.id) || 0).join(',')
   useEffect(() => {
+    if (!open) return undefined
     if (!mkey) { setMlines([]); return undefined }
     const cached = _mlineCache.get(mkey)
     if (cached) { setMlines(cached); return undefined }
@@ -167,7 +173,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       .catch(() => {})
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mkey, compact])
+  }, [open, mkey, compact])
 
   // ── 🎩 FUN FACTS (2026-08-10) ──
   //
@@ -211,6 +217,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // then they really are the wrong facts.
   const ffScope = useRef('')
   useEffect(() => {
+    if (!open) return undefined
     if (compact || !fkey) { setFfacts([]); return undefined }
     const ck = `${dateKey}|${fkey}|${armSkipKey}`
     const cached = _ffactCache.get(ck)
@@ -223,7 +230,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       .catch(() => {})
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fkey, dateKey, compact, armSkipKey])
+  }, [open, fkey, dateKey, compact, armSkipKey])
 
   // ── BACK-TO-BACK WATCH (2026-08-07) — pure slate field, no API needed.
   // games_since_last_hr === 0 means he homered in his most recent game;
@@ -351,7 +358,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
   // The matchup lines are their own pull, so they must survive a failed
   // people fetch the same way the b2b watch does.
-  if (!data?.people?.length && !b2b.length && !mlines.length && !ffacts.length) return null
+  if (compact && !data?.people?.length && !b2b.length && !mlines.length && !ffacts.length) return null
 
   const byId = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
   const statOf = (person, type) => {
@@ -545,7 +552,6 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // honest "no storylines in this one — just baseball" line entirely.
   const hasLeaders = false   // slate HR leaders retired 2026-08-09
   const empty = !hasLeaders && !mlines.length && !ffacts.length && !b2b.length && !miles.length && !bdays.length && !majorGiveaways.length && !duels.length && !revenge.length && !rivalries.length
-  if (empty && !compact) return null
   if (empty && compact) {
     return (
       <div style={{ fontSize: 10, color: C.text3, margin: '6px 0 10px', fontStyle: 'italic' }}>
@@ -569,44 +575,71 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // className="tap-row" (2026-08-10 phone pass): every line in this panel is a
   // clickable div at 11px with 3px of padding — about 21px tall, sitting flush
   // against the next one. On a phone that's a coin toss between two players.
-  // .tap-row is the existing hook that floors it at 34px on a touch device.
-  const Row = ({ icon, children, p }) => (
-    <div onClick={() => p && onPlayerClick?.(p)} className={p ? 'tap-row' : undefined} style={{
-      display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11, lineHeight: 1.55,
-      padding: '3px 0', cursor: p ? 'pointer' : 'default', color: C.text2,
-    }}>
-      <span style={{ flexShrink: 0 }}>{icon}</span>
-      <span style={{ minWidth: 0 }}>{children}</span>
-    </div>
-  )
+  // .tap-row is the existing hook that floors it at 44px on a touch device.
+  const Row = ({ icon, children, p, title, style = {} }) => {
+    const interactive = Boolean(p && onPlayerClick)
+    const Tag = interactive ? 'button' : 'div'
+    return (
+      <Tag
+        type={interactive ? 'button' : undefined}
+        onClick={interactive ? () => onPlayerClick(p) : undefined}
+        className={interactive ? 'tap-row' : undefined}
+        title={title}
+        style={{
+          display: 'flex', gap: 8, alignItems: 'baseline', width: '100%',
+          font: 'inherit', fontSize: 11, lineHeight: 1.55, textAlign: 'left',
+          padding: '3px 0', border: 'none', background: 'transparent',
+          cursor: interactive ? 'pointer' : 'default', color: C.text2,
+          ...style,
+        }}
+      >
+        <span style={{ flexShrink: 0 }}>{icon}</span>
+        <span style={{ minWidth: 0 }}>{children}</span>
+      </Tag>
+    )
+  }
+
+  const StoryHeader = compact ? 'div' : 'button'
 
   return (
     <div style={{
       background: `linear-gradient(155deg, ${C.bg2}, rgba(252,211,77,.03))`,
       border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14,
     }}>
-      <div onClick={flip} style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: open ? 6 : 0, cursor: 'pointer', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 {compact ? 'This game\u2019s storylines' : 'Storylines'} {compact ? '' : (open ? '▾' : '▸')}</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {[
-            mlines.length && `⚾ ${mlines.length} matchup line${mlines.length > 1 ? 's' : ''}`,
-            ffacts.length && `🎩 ${ffacts.length} fun fact${ffacts.length > 1 ? 's' : ''}`,
-            b2b.length && `🔁 ${b2b.length} b2b`,
-            miles.length && `🏁 ${miles.length} milestone${miles.length > 1 ? 's' : ''}`,
-            duels.length && `⚔ ${duels.length} duel${duels.length > 1 ? 's' : ''}`,
-            revenge.length && `😤 ${revenge.length} revenge`,
-            rivalries.length && `🔥 ${rivalries.length} rivalry`,
-            bdays.length && `🎂 ${bdays.length}`,
-            majorGiveaways.length && `🎁 ${majorGiveaways.length} giveaway${majorGiveaways.length > 1 ? 's' : ''}`,
-          ].filter(Boolean).join(' · ')}
-        </span>
-        {cashedIds.size > 0 && (
-          <span style={{ fontSize: 9.5, fontWeight: 900, color: '#4ade80', fontFamily: NUM_FONT }}
-            title={`Storylines that actually happened on ${dateKey} — from that day's live graded results, refreshed every 5 minutes. Nothing is counted unless the graded file is for this slate.`}>
-            ✅ {cashedIds.size} came true
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: open ? 6 : 0, flexWrap: 'wrap' }}>
+        <StoryHeader
+          type={compact ? undefined : 'button'}
+          onClick={compact ? undefined : flip}
+          aria-expanded={compact ? undefined : open}
+          style={{
+            display: 'flex', alignItems: 'baseline', gap: 8, flex: '1 1 auto',
+            minWidth: 0, flexWrap: 'wrap', padding: 0, border: 'none',
+            background: 'transparent', color: 'inherit', font: 'inherit',
+            textAlign: 'left', cursor: compact ? 'default' : 'pointer',
+          }}
+        >
+          <span style={{ fontSize: 12.5, fontWeight: 900 }}>📖 {compact ? 'This game\u2019s storylines' : 'Storylines'} {compact ? '' : (open ? '▾' : '▸')}</span>
+          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+            {[
+              mlines.length && `⚾ ${mlines.length} matchup line${mlines.length > 1 ? 's' : ''}`,
+              ffacts.length && `🎩 ${ffacts.length} fun fact${ffacts.length > 1 ? 's' : ''}`,
+              b2b.length && `🔁 ${b2b.length} b2b`,
+              miles.length && `🏁 ${miles.length} milestone${miles.length > 1 ? 's' : ''}`,
+              duels.length && `⚔ ${duels.length} duel${duels.length > 1 ? 's' : ''}`,
+              revenge.length && `😤 ${revenge.length} revenge`,
+              rivalries.length && `🔥 ${rivalries.length} rivalry`,
+              bdays.length && `🎂 ${bdays.length}`,
+              majorGiveaways.length && `🎁 ${majorGiveaways.length} giveaway${majorGiveaways.length > 1 ? 's' : ''}`,
+            ].filter(Boolean).join(' · ')}
           </span>
-        )}
-        {!open && <span style={{ fontSize: 9, color: C.text3 }}>— the human layer, tap to open</span>}
+          {cashedIds.size > 0 && (
+            <span style={{ fontSize: 9.5, fontWeight: 900, color: '#4ade80', fontFamily: NUM_FONT }}
+              title={`Storylines that actually happened on ${dateKey} — from that day's live graded results, refreshed every 5 minutes. Nothing is counted unless the graded file is for this slate.`}>
+              ✅ {cashedIds.size} came true
+            </span>
+          )}
+          {!open && <span style={{ fontSize: 9, color: C.text3 }}>— open to load live matchup stories</span>}
+        </StoryHeader>
         {/* 📸 SHARE (2026-08-23) — tonight's matchup lines as a PNG, zero
             backend. stopPropagation so it doesn't also flip the panel. */}
         {mlines.length > 0 && (
@@ -627,13 +660,9 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           about tonight's matchup defeats the point of writing it. One line,
           no chrome, tap to open the rest. */}
       {!open && mlines.length > 0 && (
-        <div
-          onClick={() => onPlayerClick?.(mlines[0].player)}
-          className="tap-row"
-          style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: 'pointer' }}
-        >
-          ⚾ <Parts parts={mlines[0].parts} />
-        </div>
+        <Row icon="⚾" p={mlines[0].player} style={{ marginTop: 4 }}>
+          <Parts parts={mlines[0].parts} />
+        </Row>
       )}
 
       {/* THE COMPACT FUN FACT — this is the Home-page version. Home renders
@@ -644,14 +673,14 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           `f.player` is null and the tap is skipped rather than opening
           somebody else's card. */}
       {!open && ffacts.length > 0 && (
-        <div
-          onClick={() => ffacts[0].player && onPlayerClick?.(ffacts[0].player)}
-          className={ffacts[0].player ? 'tap-row' : undefined}
+        <Row
+          icon={ffacts[0].icon}
+          p={ffacts[0].player}
           title={ffacts[0].source || `Counted from his published game log — ${ffacts[0].sample}. Nothing here is modelled.`}
-          style={{ fontSize: 11, lineHeight: 1.55, color: C.text2, marginTop: 4, cursor: ffacts[0].player ? 'pointer' : 'default' }}
+          style={{ marginTop: 4 }}
         >
-          {ffacts[0].icon} <Parts parts={ffacts[0].parts} />
-        </div>
+          <Parts parts={ffacts[0].parts} />
+        </Row>
       )}
 
       {open && (<>
@@ -665,22 +694,16 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       {mlines.length > 0 && (
         <div style={{ marginBottom: 5 }}>
           {mlines.map((m) => (
-            <div
+            <Row
               key={`mx${m.pid}`}
-              onClick={() => onPlayerClick?.(m.player)}
-              className="tap-row"
+              icon="⚾"
+              p={m.player}
               title={`Game logs, ${m.seasons || 'this season and last'} — his at ${m.venue}, the starter's at ${m.venue}. Counted from published game logs, not modelled.`}
-              style={{
-                display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.55,
-                padding: '3px 0', cursor: 'pointer', color: C.text2,
-              }}
+              style={{ fontSize: 11.5 }}
             >
-              <span style={{ flexShrink: 0 }}>⚾</span>
-              <span style={{ minWidth: 0 }}>
-                <Parts parts={m.parts} />
-                {hrToday(m.player) && <Cashed>WENT DEEP</Cashed>}
-              </span>
-            </div>
+              <Parts parts={m.parts} />
+              {hrToday(m.player) && <Cashed>WENT DEEP</Cashed>}
+            </Row>
           ))}
         </div>
       )}
@@ -709,22 +732,16 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             fontFamily: NUM_FONT, margin: '4px 0 2px',
           }}>🎩 FUN FACTS</div>
           {ffacts.map((f) => (
-            <div
+            <Row
               key={`ff${f.key}`}
-              onClick={() => f.player && onPlayerClick?.(f.player)}
-              className={f.player ? 'tap-row' : undefined}
+              icon={f.icon}
+              p={f.player}
               title={f.source || `Counted from his published hitting game log this season — ${f.sample}. Any “most” was checked across every hitter this panel actually computed tonight, and the line names how many that was. Nothing here is modelled or estimated.`}
-              style={{
-                display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11.5, lineHeight: 1.55,
-                padding: '3px 0', cursor: f.player ? 'pointer' : 'default', color: C.text2,
-              }}
+              style={{ fontSize: 11.5 }}
             >
-              <span style={{ flexShrink: 0 }}>{f.icon}</span>
-              <span style={{ minWidth: 0 }}>
-                <Parts parts={f.parts} />
-                {hrToday(f.player) && <Cashed>WENT DEEP TONIGHT</Cashed>}
-              </span>
-            </div>
+              <Parts parts={f.parts} />
+              {hrToday(f.player) && <Cashed>WENT DEEP TONIGHT</Cashed>}
+            </Row>
           ))}
         </div>
       )}

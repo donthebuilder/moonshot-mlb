@@ -198,8 +198,12 @@ export default function MobileCSS() {
          exists whether or not its child does, so wrapping would hold open an
          empty cell — exactly the gap this is removing. A child selector matches only
          what actually rendered. */
-      .slate-tiles > * { flex: 0 0 104px; min-width: 0; }
-      .slate-tiles > .slate-tile-wide { flex: 0 0 146px; }
+      .slate-tiles-set {
+        display: flex; align-items: stretch; gap: 6px; padding-right: 6px;
+        flex: none; min-width: max-content;
+      }
+      .slate-tiles-set > * { flex: 0 0 104px; min-width: 0; }
+      .slate-tiles-set > .slate-tile-wide { flex: 0 0 146px; }
       .hero-stats > * { flex: 1 1 132px; min-width: 0; }
       @media (max-width: 520px) {
         /* NOWRAP NOW (2026-08-24, "fix the header mix it one line not
@@ -208,8 +212,8 @@ export default function MobileCSS() {
            grows slightly here for touch legibility; flex-grow/shrink stay
            at 0 so tiles hold their real width and the row scrolls under a
            thumb instead of squeezing shut. */
-        .slate-tiles > * { flex-basis: 116px; }
-        .slate-tiles > .slate-tile-wide { flex-basis: 158px; }
+        .slate-tiles-set > * { flex-basis: 116px; }
+        .slate-tiles-set > .slate-tile-wide { flex-basis: 158px; }
         .hero-stats > * { flex-basis: 124px; }
       }
 
@@ -227,13 +231,11 @@ export default function MobileCSS() {
          count; it isn't derived from measured width the way the flex bases
          above are; a wildly longer or shorter strip would need retuning.
 
-         Paused on hover so a mouse can stop it on any tile — no separate
-         pause control to hunt for. prefers-reduced-motion turns the motion
-         off and falls back to the plain side-scroll the "one line, not two"
-         fix already shipped: the animation is cancelled, the duplicate copy
-         is hidden outright (reading the same six tiles twice while trying to
-         swipe them would be worse than the motion this is meant to spare),
-         and the viewport regains the manual overflow-x it had before. */
+         Hover pauses for a mouse; SlateTiles.js also renders a persistent
+         pause/resume control for touch and keyboard users. A manual pause
+         hides the duplicate and restores sideways scrolling. Reduced-motion
+         does the same automatically and hides a control that has nothing left
+         to pause. */
       @keyframes slate-ticker {
         from { transform: translateX(0); }
         to { transform: translateX(-50%); }
@@ -241,11 +243,19 @@ export default function MobileCSS() {
       .slate-tiles-viewport { overflow: hidden; }
       .slate-tiles { animation: slate-ticker 26s linear infinite; }
       .slate-tiles-viewport:hover .slate-tiles { animation-play-state: paused; }
+      .ticker-paused .slate-tiles-viewport {
+        overflow-x: auto !important; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+      }
+      .ticker-paused .slate-tiles { animation: none; }
+      .ticker-paused .slate-tiles-echo { display: none !important; }
+      .ticker-paused .slate-tiles-viewport::-webkit-scrollbar { display: none; }
       @media (prefers-reduced-motion: reduce) {
         .slate-tiles { animation: none; }
         .slate-tiles-echo { display: none; }
+        .slate-ticker-toggle { display: none !important; }
         .slate-tiles-viewport {
           overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+          padding-right: 0 !important;
         }
       }
 
@@ -304,13 +314,21 @@ export default function MobileCSS() {
         }
         .hdr-vitals::-webkit-scrollbar { display: none; }
         .hdr-vitals > * { flex-shrink: 0 !important; }
-        .hdr-meta { gap: 7px !important; }
-        /* The sport pills set their own 22px capsule geometry inline; the
-           blanket button-min-height thumb-target rule above would
-           stretch them back into ellipses. A 22px pill sitting inside a 38px
-           brand row is still an easy target, and it is not a control anyone
-           taps by accident. */
-        .sport-switch button { min-height: 22px !important; }
+        .hdr-meta {
+          width: 100%; gap: 6px !important; justify-content: flex-end;
+          min-width: 0;
+        }
+        .hdr-meta > * { flex-shrink: 0; }
+        .sport-switch button { min-height: 32px !important; }
+      }
+
+      @media (max-width: 390px) {
+        .hdr-meta { justify-content: space-between; gap: 4px !important; }
+        .date-badge > div > span:first-child { display: none; }
+        .date-mode-switch button { padding-left: 9px !important; padding-right: 9px !important; }
+        .palette-key-button { padding-left: 6px !important; padding-right: 6px !important; }
+        .rail { padding-left: 8px !important; padding-right: 8px !important; scroll-snap-type: x proximity; }
+        .rail button { scroll-snap-align: center; }
       }
 
       @media (max-width: 520px) {
@@ -324,8 +342,15 @@ export default function MobileCSS() {
          watchlist stars and swap buttons are 30px cells on desktop, which is
          under the 44px a thumb needs. */
       @media (pointer: coarse) {
-        .dense-scroll td button { min-height: 34px !important; }
+        .dense-scroll td button { min-height: 44px !important; }
+        .sport-switch button { min-height: 44px !important; padding: 8px 10px !important; }
+        .slate-tiles-viewport { padding-right: 50px !important; }
+        .slate-ticker-toggle {
+          width: 44px !important; min-width: 44px !important;
+          height: 44px !important; min-height: 44px !important;
+        }
         button { touch-action: manipulation; }
+        details > summary { min-height: 44px; display: flex; align-items: center; }
         /* The boards pill row pinned itself mid-screen on phones — the
            condensed header animates its height, so its computed stickTop is
            wrong for part of every scroll and the row floats over content
@@ -358,8 +383,22 @@ export default function MobileCSS() {
           position: absolute !important;
           top: calc(100% + 8px) !important;
           left: auto !important; right: 0 !important;
-          width: min(92vw, 380px) !important;
+          width: min(92vw, 320px) !important;
         }
+      }
+
+      @media (max-width: 360px) {
+        .site-colour-key-grid { grid-template-columns: 1fr !important; }
+      }
+
+      .archive-night-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+        gap: 6px; max-height: 236px; overflow-y: auto; scrollbar-width: thin;
+      }
+      .archive-night-grid button { min-width: 0; min-height: 40px; }
+      @media (max-width: 560px) {
+        .archive-night-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .archive-night-grid button { min-height: 44px; }
       }
 
       @media (max-width: 700px) {
@@ -479,14 +518,14 @@ export default function MobileCSS() {
       }
 
       /* ── 3. TAP TARGETS ──
-         Buttons already get min-height 32px under 700px. The gap was the
-         clickable DIVS — the Home top-10 rows and the weakest-arms rows are
-         2px/5px padding around 11px text, about 20px tall, sitting 2px
-         apart. On a phone that's a coin toss between two players. */
+         Buttons already get min-height 32px under 700px. Coarse pointers get
+         the full 44px target on dense rows, chips and navigation, where the
+         compact desktop geometry would otherwise put adjacent actions too
+         close together for a thumb. */
       @media (pointer: coarse) {
-        .tap-row { min-height: 34px; padding-top: 6px !important; padding-bottom: 6px !important; }
-        .dense-scroll td button { min-height: 36px !important; }
-        .chip-row button, .dash-tabs button { min-height: 34px; }
+        .tap-row { min-height: 44px; padding-top: 8px !important; padding-bottom: 8px !important; }
+        .dense-scroll td button { min-height: 44px !important; }
+        .chip-row button, .dash-tabs button { min-height: 44px; }
       }
 
       /* ── 4. STRIPS THAT SQUEEZE ──

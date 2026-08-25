@@ -220,7 +220,7 @@ export function RoleTag({ label, color = C.text2, title, style, glyph = null }) 
 // these blocks carried is still on the page for anyone who wants it.
 export function WhatThis({ children, label = 'what this answers', maxWidth = 720 }) {
   return (
-    <details style={{ margin: '2px 0 10px', maxWidth }}>
+    <details className="quiet-note" style={{ margin: '2px 0 8px', maxWidth }}>
       <summary style={{
         fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT,
         letterSpacing: '.06em', textTransform: 'uppercase',

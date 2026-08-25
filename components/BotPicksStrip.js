@@ -5,6 +5,7 @@ import {
   clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
 } from '../lib/player'
 import { verdictInk } from '../lib/scales'
+import { WhatThis } from './ui'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
 //
@@ -396,16 +397,9 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
         })}
       </div>
 
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        The category is the bot&apos;s own <code>game_pick_role</code>; ranking inside it is by the top
-        score <b style={{ color: C.text2 }}>on that category&apos;s scale</b> — HR score for HR, hit
-        score for HIT, and so on. The line under each name is{' '}
-        <b style={{ color: C.text2 }}>that category&apos;s own evidence</b>: homers and barrels for HR,
-        hits and average for HIT, runs and RBI for HRR, extra-base hits and slugging for CONTACT —
-        recent form first, season behind it. Three deep because the archive says #1 vs #2 is close
-        to a coin flip, and one name per bucket dies with a scratch.
-        {' '}⭐ marks a weak lineup spot against tonight&apos;s starter. Click any name to open the hitter.
-      </div>
+      <WhatThis label="how these are ranked" maxWidth={720}>
+        Each category uses its own score and evidence. ⭐ marks a weak lineup spot; tap a name for the hitter detail.
+      </WhatThis>
     </div>
   )
 }

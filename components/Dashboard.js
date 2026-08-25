@@ -433,7 +433,7 @@ export default function Dashboard() {
       {/* The ember signature — same bar the night-receipts card wears. */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
         background: 'linear-gradient(90deg, #f97316, #FCD34D 50%, #f97316)' }} />
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
       <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
