@@ -33,3 +33,13 @@ export async function regenerateInviteCode(formData) {
   revalidatePath(`/fantasy/league/${leagueId}/settings`)
   redirect(routeFor(leagueId,'message',`New invite code: ${data}`))
 }
+
+export async function deleteLeague(formData) {
+  const leagueId=String(formData.get('leagueId')||'')
+  const confirmation=String(formData.get('confirmation')||'')
+  const supabase=await clientAndUser()
+  const {error}=await supabase.rpc('delete_fantasy_league',{p_league_id:leagueId,p_confirmation:confirmation})
+  if(error)redirect(routeFor(leagueId,'error',error.message))
+  revalidatePath('/fantasy')
+  redirect('/fantasy?message=League%20deleted')
+}
