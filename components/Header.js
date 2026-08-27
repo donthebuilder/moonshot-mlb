@@ -340,7 +340,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
                       key={key}
                       onClick={on ? undefined : () => setSport(key)}
                       aria-pressed={on}
-                      aria-label={on ? 'MOONSHOT · MLB (current)' : 'Switch to MOONSHOT · NFL'}
+                      aria-label={on ? 'MOONSHOT · MLB (current)' : 'Switch to TUDDY · NFL'}
                       style={{
                         display:'inline-flex', alignItems:'center', justifyContent:'center',
                         height:22, minHeight:22, padding:'0 10px', lineHeight:1,

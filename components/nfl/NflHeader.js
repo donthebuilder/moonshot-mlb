@@ -86,8 +86,8 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                 fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em',
                 background: GRADIENT, WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-              }}>MOONSHOT</span>
-              {/* The switch. MLB is the sibling now, not a different website. */}
+              }}>TUDDY</span>
+              {/* Tuddy is the NFL product inside DASH Network. */}
               <span className="sport-switch" style={{ display: 'flex', gap: 3, marginLeft: 5, alignSelf: 'center' }}>
                 <button
                   onClick={() => setSport('mlb')}

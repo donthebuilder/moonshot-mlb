@@ -70,9 +70,9 @@ function SetupScreen() {
       <header className={styles.previewHeader}>
         <div className={styles.brandRow}>
           <span className={styles.logoMark}>FX</span>
-          <strong>MOONSHOT</strong>
-          <span className={styles.sportPill}>MLB</span>
-          <span className={styles.sportPill}>NFL</span>
+          <strong>DASH NETWORK</strong>
+          <span className={styles.sportPill}>MOONSHOT · MLB</span>
+          <span className={styles.sportPill}>TUDDY · NFL</span>
           <span className={`${styles.sportPill} ${styles.selectedPill}`}>FRANCHISE</span>
         </div>
         <div className={styles.scoreRail}>
