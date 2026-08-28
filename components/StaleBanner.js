@@ -47,7 +47,7 @@ const daysBetween = (a, b) => Math.round(
   (new Date(`${a}T12:00:00Z`).getTime() - new Date(`${b}T12:00:00Z`).getTime()) / 864e5,
 )
 
-export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0 }) {
+export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0, compact = false }) {
   // Re-check on a slow timer so a tab left open overnight notices the rollover
   // rather than sitting on the assumption it made when it was opened.
   const [now, setNow] = useState(null)
@@ -84,12 +84,12 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
             {games} game{games === 1 ? '' : 's'}{slateDate ? ` · dated ${slateDate}` : ' · no date published'}
           </span>
         </div>
-        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
+        {!compact && <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
           The bot published a slate file too small to be a real night of baseball, so most hitters are
           missing from every board. <b>Anything that says the model had no opinion on a player is wrong —
           it means he isn&apos;t in the file, not that he wasn&apos;t picked.</b> The site is read-only and
           can&apos;t rebuild it; the next successful bot run replaces it.
-        </div>
+        </div>}
       </div>
     )
   }
@@ -120,7 +120,7 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
           showing {slateDate} · {behind} day{behind === 1 ? '' : 's'} behind
         </span>
       </div>
-      <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
+      {!compact && <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
         {early ? (
           <>
             The daily build normally lands around <b>1am ET</b> and it hasn’t yet, so everything below is
@@ -135,7 +135,7 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
             the site is read-only and can’t fix it from here.
           </>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

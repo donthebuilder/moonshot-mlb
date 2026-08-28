@@ -1,10 +1,10 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
-import { btnStyle } from '../../ui'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
+import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 
 // Boards — the seven markets, one at a time, category buttons across the top.
 //
@@ -19,6 +19,9 @@ import OddsStatus from '../../OddsStatus'
 export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
   const [market, setMarket] = useState('TD')
   const [showLow, setShowLow] = useState(false)
+  const [query, setQuery] = useState('')
+  const [team, setTeam] = useState('all')
+  const [position, setPosition] = useState('all')
 
   const spec = useMemo(
     () => (data?.markets || []).find((m) => m.key === market),
@@ -27,9 +30,35 @@ export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
 
   const rows = useMemo(() => {
     const all = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
-    const kept = showLow ? all : all.filter((p) => !p.low_sample)
+    const needle = query.trim().toLowerCase()
+    const kept = all.filter((p) => (
+      (showLow || !p.low_sample)
+      && (team === 'all' || p.team === team)
+      && (position === 'all' || p.position === position)
+      && (!needle || String(p.name || '').toLowerCase().includes(needle))
+    ))
     return kept.sort((a, b) => b.scores[market] - a.scores[market]).slice(0, 60)
-  }, [data, market, showLow])
+  }, [data, market, showLow, query, team, position])
+
+  const filterOptions = useMemo(() => {
+    const eligible = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
+    const countBy = (key) => eligible.reduce((acc, p) => {
+      const value = p[key]
+      if (value) acc[value] = (acc[value] || 0) + 1
+      return acc
+    }, {})
+    const teams = countBy('team')
+    const positions = countBy('position')
+    return {
+      teams: [{ key: 'all', label: 'All teams', count: eligible.length }, ...Object.keys(teams).sort().map((key) => ({ key, label: key, count: teams[key] }))],
+      positions: [{ key: 'all', label: 'All positions', count: eligible.length }, ...Object.keys(positions).sort().map((key) => ({ key, label: key, count: positions[key] }))],
+    }
+  }, [data, market])
+
+  const marketOptions = useMemo(() => MARKETS.map(([key, label]) => ({
+    key, label,
+    count: (data?.players || []).filter((p) => Number.isFinite(p.scores?.[key]) && (showLow || !p.low_sample)).length,
+  })), [data, showLow])
 
   const lowCount = useMemo(
     () => (data?.players || []).filter(
@@ -39,11 +68,37 @@ export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {MARKETS.map(([key, label]) => (
-          <button key={key} onClick={() => setMarket(key)}
-                  style={btnStyle(C.green, market === key)}>{label}</button>
-        ))}
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
+        padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
+        background: C.bg2,
+      }}>
+        <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
+        <FilterBar>
+          <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
+          <FilterSelect label="Team" value={team} options={filterOptions.teams} onChange={setTeam} />
+          <FilterSelect label="Position" value={position} options={filterOptions.positions} onChange={setPosition} />
+          <Segmented
+            label="Sample"
+            value={showLow ? 'all' : 'trusted'}
+            onChange={(value) => setShowLow(value === 'all')}
+            options={[
+              { key: 'trusted', label: 'Trusted' },
+              { key: 'all', label: `All${lowCount ? ` +${lowCount}` : ''}` },
+            ]}
+          />
+        </FilterBar>
+        <ActiveFilters
+          shown={rows.length}
+          total={(data?.players || []).filter((p) => Number.isFinite(p.scores?.[market])).length}
+          filters={[
+            query && { key: 'query', label: `Name: ${query}`, onClear: () => setQuery('') },
+            team !== 'all' && { key: 'team', label: `Team: ${team}`, onClear: () => setTeam('all') },
+            position !== 'all' && { key: 'position', label: `Position: ${position}`, onClear: () => setPosition('all') },
+            showLow && { key: 'sample', label: 'Low-sample included', onClear: () => setShowLow(false) },
+          ]}
+          onClearAll={() => { setQuery(''); setTeam('all'); setPosition('all'); setShowLow(false) }}
+        />
       </div>
 
       {/* Says WHY there's no price on any row below, rather than every row
@@ -69,15 +124,6 @@ export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
             </div>
           )}
         </div>
-      )}
-
-      {lowCount > 0 && (
-        <button
-          onClick={() => setShowLow((v) => !v)}
-          style={{ ...btnStyle(C.yellow, showLow), marginBottom: 10 }}
-        >
-          {showLow ? 'Hide' : 'Show'} {lowCount} low-sample
-        </button>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

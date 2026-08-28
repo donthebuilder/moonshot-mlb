@@ -5,6 +5,7 @@ import PropsGrid from './PropsGrid'
 import MatchupMap from './MatchupMap'
 import DvpTable, { GROUP } from './DvpTable'
 import { downloadNflPickCard } from './shareCard'
+import { useNflWatchlist } from '../../lib/nfl/watchlist'
 
 // Why this player scores what he scores.
 //
@@ -295,7 +296,8 @@ function pickFromPlayer(player, market, spec) {
   }
 }
 
-export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, onClose }) {
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, onClose, onFullProfile }) {
+  const watchlist = useNflWatchlist(slate)
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', esc)
@@ -339,6 +341,20 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button onClick={() => watchlist.toggle(player)}
+              aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
+              style={{
+                background: watchlist.isPinned(player.player_id) ? `${C.yellow}16` : 'transparent',
+                border: `1px solid ${watchlist.isPinned(player.player_id) ? C.yellow + '66' : C.border}`,
+                color: watchlist.isPinned(player.player_id) ? C.yellow : C.text3,
+                borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9, fontWeight: 900,
+              }}>{watchlist.isPinned(player.player_id) ? '★ SAVED' : '☆ SAVE'}</button>
+            {onFullProfile && <button onClick={() => onFullProfile(player)}
+              style={{
+                background: `${C.green}12`, border: `1px solid ${C.green}55`, color: C.green,
+                borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9,
+                fontWeight: 900,
+              }}>FULL PROFILE →</button>}
             {/* 🎴 his card as a PNG — the NFL twin of the MLB player-modal
                 share button (components/PlayerModal.js). Client-side only:
                 draws a canvas, triggers a browser download, nothing else. */}

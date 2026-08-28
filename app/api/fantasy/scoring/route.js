@@ -9,11 +9,15 @@ export const dynamic='force-dynamic'
 export const runtime='nodejs'
 
 function hasCronAuthorization(request) {
-  const expected=process.env.FRANCHISE_CRON_SECRET||process.env.CRON_SECRET
+  // Vercel automatically sends CRON_SECRET as a Bearer token. Keep the
+  // Franchise-specific alias for manual/external runners, but production
+  // Vercel Cron must have CRON_SECRET configured as well.
   const supplied=request.headers.get('authorization')?.replace(/^Bearer\s+/i,'')||''
-  if(!expected||!supplied)return false
-  const a=Buffer.from(expected);const b=Buffer.from(supplied)
-  return a.length===b.length&&timingSafeEqual(a,b)
+  if(!supplied)return false
+  return [process.env.CRON_SECRET,process.env.FRANCHISE_CRON_SECRET].filter(Boolean).some((expected)=>{
+    const a=Buffer.from(expected);const b=Buffer.from(supplied)
+    return a.length===b.length&&timingSafeEqual(a,b)
+  })
 }
 
 async function authorization(request) {

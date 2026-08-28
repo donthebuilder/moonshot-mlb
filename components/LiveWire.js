@@ -8,6 +8,7 @@ import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
 import { leagueRates, tonightTotals } from '../lib/leagueRates'
+import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from './Filters'
 
 // 📡 LIVE WIRE — the site's live feed, and deliberately NOT a highlight
 // ticker (ESPN owns that). This is the model grading itself in public:
@@ -29,6 +30,9 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
   const [busy, setBusy] = useState(false)
   const [auto, setAuto] = useState(false)
   const [open, setOpen] = useState(true)
+  const [pickQuery, setPickQuery] = useState('')
+  const [pickRole, setPickRole] = useState('all')
+  const [pickState, setPickState] = useState('all')
   const [abbrs, setAbbrs] = useState(null)
   const timer = useRef(null)
   useEffect(() => { teamAbbrs().then(setAbbrs).catch(() => {}) }, [])
@@ -85,7 +89,30 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
         : 3
       return rank(a) - rank(b)
     })
+    .filter((row, index, all) => all.findIndex((other) => (
+      Number(pidOf(other.p)) === Number(pidOf(row.p)) && other.role === row.role
+    )) === index)
   const graded = picks.filter((x) => x.line)
+  const pickStateOf = (row) => row.cleared === true ? 'cleared'
+    : !row.line?.settled ? 'live'
+    : row.line?.ab === 0 || row.line?.postponed ? 'void'
+    : 'missed'
+  const pickNeedle = pickQuery.trim().toLowerCase()
+  const visibleGraded = graded.filter((row) => (
+    (pickRole === 'all' || row.role === pickRole)
+    && (pickState === 'all' || pickStateOf(row) === pickState)
+    && (!pickNeedle || `${nameOf(row.p)} ${teamOf(row.p)} ${row.role}`.toLowerCase().includes(pickNeedle))
+  ))
+  const roleOptions = [{ key: 'all', label: 'All markets', count: graded.length }, ...GROUP_ORDER.map((key) => ({
+    key, label: key, count: graded.filter((row) => row.role === key).length,
+  })).filter((option) => option.count)]
+  const stateOptions = [
+    { key: 'all', label: 'All states', count: graded.length },
+    { key: 'live', label: 'Still working', count: graded.filter((row) => pickStateOf(row) === 'live').length },
+    { key: 'cleared', label: 'Cleared', count: graded.filter((row) => pickStateOf(row) === 'cleared').length },
+    { key: 'missed', label: 'Missed', count: graded.filter((row) => pickStateOf(row) === 'missed').length },
+    { key: 'void', label: 'Void', count: graded.filter((row) => pickStateOf(row) === 'void').length },
+  ].filter((option) => option.key === 'all' || option.count)
   const clearedCount = graded.filter((x) => x.cleared === true).length
   // Games the weather stopped. Kept separate from `live` and `finals` because
   // they belong to neither: nothing is happening, and nothing is decided.
@@ -314,7 +341,29 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
       </div>
 
       {open && (
-        <>
+        <div style={{ maxHeight: 'min(62vh, 520px)', overflowY: 'auto', paddingRight: 3, marginTop: 5 }}>
+          {graded.length > 0 && (
+            <div style={{
+              position: 'sticky', zIndex: 3, top: 0, display: 'flex', flexDirection: 'column', gap: 6,
+              padding: '7px 8px', marginBottom: 5, border: `1px solid ${C.border}`,
+              borderRadius: 9, background: C.bg2,
+            }}>
+              <FilterBar>
+                <FilterSearch value={pickQuery} onChange={setPickQuery} placeholder="Find live pick…" width={145} />
+                <FilterSelect value={pickRole} options={roleOptions} onChange={setPickRole} />
+                <FilterSelect value={pickState} options={stateOptions} onChange={setPickState} />
+                <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 8.5 }}>{visibleGraded.length}/{graded.length} picks</span>
+              </FilterBar>
+              <ActiveFilters
+                filters={[
+                  pickQuery && { key: 'query', label: pickQuery, onClear: () => setPickQuery('') },
+                  pickRole !== 'all' && { key: 'role', label: pickRole, onClear: () => setPickRole('all') },
+                  pickState !== 'all' && { key: 'state', label: stateOptions.find((item) => item.key === pickState)?.label || pickState, onClear: () => setPickState('all') },
+                ]}
+                onClearAll={() => { setPickQuery(''); setPickRole('all'); setPickState('all') }}
+              />
+            </div>
+          )}
           {/* 🎤 at the plate — the wire's heartbeat: your names batting NOW.
               Tap = his full card, where the zone map and spray chart live. */}
           {atThePlate.length > 0 && (
@@ -445,7 +494,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 the category now, and those 44px go back to the name, which
                 this file's own comment already called out as too tight. */}
             {GROUP_ORDER.map((gRole) => {
-              const rows = graded.filter((x) => x.role === gRole)
+              const rows = visibleGraded.filter((x) => x.role === gRole)
               if (!rows.length) return null
               const col = ROLE_COLOR[gRole] || C.text3
               const got = rows.filter((x) => x.cleared === true).length
@@ -529,6 +578,11 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 </div>
               )
             })}
+            {!visibleGraded.length && (
+              <div style={{ padding: 14, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.text3, fontSize: 10, textAlign: 'center' }}>
+                No live pick matches these filters.
+              </div>
+            )}
             </>
           )}
 
@@ -543,7 +597,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
             are every slate homer tonight, orange when the bot had him. Boxscore truth, refreshed when
             you ask{auto ? ' (auto every 60s while visible)' : ''} — no background polling.
           </div>
-        </>
+        </div>
       )}
     </div>
   )

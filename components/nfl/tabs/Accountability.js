@@ -129,6 +129,60 @@ function Badge({ tone, children }) {
   )
 }
 
+function ReceiptHero({ results, when }) {
+  const totals = results.totals || {}
+  const markets = MARKETS.map(([key, label]) => ({
+    key, label, color: MARKET_COLOR[key], ...(totals[key] || {}),
+  })).filter((m) => Number.isFinite(m.n))
+  const graded = markets.reduce((sum, m) => sum + (m.n || 0), 0)
+  const hits = markets.reduce((sum, m) => sum + (m.hit || 0), 0)
+  const voids = markets.reduce((sum, m) => sum + (m.void || 0), 0)
+  const hitRate = graded ? (100 * hits) / graded : null
+  const leader = [...markets]
+    .filter((m) => m.n > 0 && Number.isFinite(m.pct))
+    .sort((a, b) => b.pct - a.pct || b.n - a.n)[0]
+
+  return (
+    <section className="receiptHero">
+      <div className="receiptGlow" />
+      <div className="receiptTop">
+        <div>
+          <div className="receiptEyebrow">TUDDY · THE RECEIPT ROOM</div>
+          <h1>Every call. Every bar. No hiding.</h1>
+          <p>The latest published card, graded market by market against the job it was asked to do.</p>
+        </div>
+        <div className="receiptStamp">
+          <span>LAST GRADED</span>
+          <strong>{when}</strong>
+          {results.exhibition && <em>PRESEASON</em>}
+        </div>
+      </div>
+
+      <div className="receiptKpis">
+        <div className="receiptRate">
+          <span>OVERALL CLEAR RATE</span>
+          <strong>{hitRate == null ? '—' : `${hitRate.toFixed(1)}%`}</strong>
+          <div className="receiptMeter"><i style={{ width: `${Math.max(0, Math.min(100, hitRate || 0))}%` }} /></div>
+          <small>{hits} of {graded} graded rungs cleared</small>
+        </div>
+        <div><span>GRADED</span><strong>{graded}</strong><small>latest published run</small></div>
+        <div><span>VOIDS</span><strong>{voids}</strong><small>not counted as misses</small></div>
+        <div><span>STRONGEST MARKET</span><strong className="leader" style={{ color: leader?.color }}>{leader?.label || '—'}</strong><small>{leader ? `${leader.hit}/${leader.n} · ${leader.pct.toFixed(1)}%` : 'waiting on results'}</small></div>
+      </div>
+
+      <div className="receiptMarkets" aria-label="Latest clear rate by market">
+        {markets.map((m) => (
+          <div key={m.key} title={`${m.hit || 0} of ${m.n || 0} cleared`}>
+            <span style={{ color: m.color }}>{m.label}</span>
+            <b>{m.n ? `${Number(m.pct || 0).toFixed(0)}%` : '—'}</b>
+            <i><em style={{ width: `${Math.max(0, Math.min(100, m.pct || 0))}%`, background: m.color }} /></i>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 // ── section 1: the card's record ────────────────────────────────────────────
 
 function CardGrid({ results }) {
@@ -412,6 +466,8 @@ export default function Accountability({ data, results, onPlayerClick }) {
 
   return (
     <div>
+      <ReceiptHero results={results} when={when} />
+
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
         borderRadius: 10, padding: '10px 14px', marginBottom: 14,
@@ -477,6 +533,40 @@ export default function Accountability({ data, results, onPlayerClick }) {
       )}
 
       <ScoreBands data={data} results={results} />
+
+      <style jsx>{`
+        .receiptHero{position:relative;overflow:hidden;margin-bottom:12px;padding:20px;border:1px solid ${C.green}45;border-radius:17px;background:linear-gradient(135deg,#071b17 0%,${C.bg2} 46%,#07121c 100%)}
+        .receiptGlow{position:absolute;right:-80px;top:-130px;width:330px;height:330px;border-radius:50%;background:${C.green}16;filter:blur(12px);pointer-events:none}
+        .receiptTop{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+        .receiptEyebrow{font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.16em;color:${C.green};margin-bottom:7px}
+        h1{font-size:clamp(24px,4vw,40px);line-height:.98;letter-spacing:-.045em;margin:0;color:${C.text};max-width:620px}
+        p{font-size:11px;line-height:1.55;color:${C.text3};max-width:590px;margin:9px 0 0}
+        .receiptStamp{min-width:142px;text-align:right;border-right:3px solid ${C.green};padding-right:10px}
+        .receiptStamp span,.receiptKpis span{display:block;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.1em;color:${C.text3}}
+        .receiptStamp strong{display:block;font-size:11px;color:${C.text2};margin-top:4px}
+        .receiptStamp em{display:inline-block;margin-top:5px;padding:2px 6px;border-radius:4px;background:${C.yellow}1f;color:${C.yellow};font-family:${NUM_FONT};font-size:8px;font-style:normal;font-weight:900}
+        .receiptKpis{position:relative;display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:8px;margin-top:18px}
+        .receiptKpis>div{min-width:0;padding:10px 11px;border:1px solid ${C.border};border-radius:10px;background:#050b0ee0}
+        .receiptKpis strong{display:block;margin-top:4px;font-family:${NUM_FONT};font-size:22px;line-height:1;color:${C.text}}
+        .receiptKpis strong.leader{font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .receiptKpis small{display:block;margin-top:5px;font-size:8.5px;color:${C.text3}}
+        .receiptMeter{height:4px;margin-top:8px;border-radius:99px;background:${C.border};overflow:hidden}
+        .receiptMeter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,${C.green},${C.lime})}
+        .receiptMarkets{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:8px}
+        .receiptMarkets>div{padding:7px 8px;border-radius:8px;background:#050b0eb8;border:1px solid ${C.border}}
+        .receiptMarkets span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:${NUM_FONT};font-size:8px;font-weight:900}
+        .receiptMarkets b{display:block;margin-top:3px;font-family:${NUM_FONT};font-size:12px;color:${C.text2}}
+        .receiptMarkets i{display:block;height:2px;margin-top:5px;background:${C.border};border-radius:9px;overflow:hidden}
+        .receiptMarkets em{display:block;height:100%;border-radius:inherit}
+        @media(max-width:760px){
+          .receiptHero{padding:15px}
+          .receiptTop{display:block}
+          .receiptStamp{text-align:left;border-right:0;border-left:3px solid ${C.green};padding:1px 0 1px 9px;margin-top:14px}
+          .receiptKpis{grid-template-columns:1fr 1fr}
+          .receiptMarkets{display:flex;overflow-x:auto;padding-bottom:3px}
+          .receiptMarkets>div{min-width:82px}
+        }
+      `}</style>
     </div>
   )
 }

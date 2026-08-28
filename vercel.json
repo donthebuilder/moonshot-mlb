@@ -2,5 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "next build",
-  "installCommand": "npm install --no-audit --no-fund"
+  "installCommand": "npm install --no-audit --no-fund",
+  "crons": [
+    {
+      "path": "/api/fantasy/scoring",
+      "schedule": "*/10 17-23 * * 0,1,4"
+    },
+    {
+      "path": "/api/fantasy/scoring",
+      "schedule": "*/10 0-5 * * 1,2,5"
+    }
+  ]
 }

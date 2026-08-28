@@ -1,5 +1,8 @@
 'use client'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+
+const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
 // Games — the slate, one card per matchup: real scoreboard weight up top,
 // each side's best plays underneath.
@@ -109,9 +112,41 @@ function SidePicks({ players, team, onPlayerClick }) {
   )
 }
 
-export default function Games({ data, onPlayerClick }) {
+function DesignatedCalls({ game, picks, playersById, onPlayerClick }) {
+  const calls = Object.entries(picks?.card || {}).filter(([market]) => HEADLINE_MARKETS.has(market))
+    .map(([market, block]) => ({ market, block, call: block?.rungs?.[0] }))
+    .filter(({ call }) => call && (call.team === game.away || call.team === game.home))
+  if (!calls.length) return <div style={{ color: C.text3, fontSize: 9.5 }}>No headline call lands in this game.</div>
+  return <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>{calls.map(({ market, block, call }) => {
+    const player = playersById[String(call.player_id)]
+    const grade = gradeFor(call.score)
+    return <button key={market} onClick={() => player && onPlayerClick?.(player, market)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', border: `1px solid ${grade.color}45`, borderRadius: 8, background: `${grade.color}0d`, color: C.text, cursor: player ? 'pointer' : 'default', textAlign: 'left' }}><span style={{ color: grade.color, fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900 }}>{market}</span><b style={{ fontSize: 9.5 }}>{call.name}</b><em style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 8, fontStyle: 'normal' }}>bar {block.bar}</em></button>
+  })}</div>
+}
+
+function softRole(matchup, defense) {
+  const roles = matchup?.dvp?.season?.[defense] || {}
+  const ranked = Object.entries(roles).filter(([, row]) => Number.isFinite(Number(row?.td_rank)))
+    .sort((a, b) => Number(a[1].td_rank) - Number(b[1].td_rank))
+  if (!ranked.length) return null
+  return { role: ranked[0][0], ...ranked[0][1] }
+}
+
+function GameIntel({ game, matchup }) {
+  const awayDefense = softRole(matchup, game.away)
+  const homeDefense = softRole(matchup, game.home)
+  return <div className="nfl-game-intel">
+    <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : 'OUTDOORS'}</b><span>{game.indoors ? 'weather removed from the game' : 'forecast not published in NFL feed'}</span></div>
+    <div><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.td_rank}` : '—'}</b><span>{awayDefense ? 'softest TD role · rank 1 leaks most' : 'matchup table pending'}</span></div>
+    <div><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.td_rank}` : '—'}</b><span>{homeDefense ? 'softest TD role · rank 1 leaks most' : 'matchup table pending'}</span></div>
+  </div>
+}
+
+export default function Games({ data, picks, matchup, onPlayerClick }) {
   const games = data?.games || []
   const players = data?.players || []
+  const [selectedGame, setSelectedGame] = useState('all')
+  const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
   if (!games.length) {
     return (
@@ -129,15 +164,14 @@ export default function Games({ data, onPlayerClick }) {
   // happened to put it. Array.prototype.sort is stable, so pregame/final
   // games keep their original relative order.
   const sorted = [...games].sort((a, b) => (a.state === 'in' ? 0 : 1) - (b.state === 'in' ? 0 : 1))
+    .filter((game) => selectedGame === 'all' || game.game_id === selectedGame)
+  const liveCount = games.filter((game) => game.state === 'in').length
+  const finalCount = games.filter((game) => game.completed).length
 
   return (
     <div>
-      <div style={{
-        fontSize: 11, color: C.text3, marginBottom: 10, lineHeight: 1.6,
-      }}>
-        Score for every game on the slate, top three by <b style={{ color: C.text2 }}>Anytime TD</b> score
-        under each side. Low-sample players are held out of this view — they&apos;re still on the boards.
-      </div>
+      <section className="nfl-games-hero"><div><small>TUDDY GAME CENTER</small><h1>The slate, with the reasons attached.</h1><p>Scoreboard, The Six calls, each side&apos;s top TD board, matchup pressure, and honest feed limits in one card.</p></div><div><strong>{games.length}</strong><span>GAMES</span><strong>{liveCount}</strong><span>LIVE</span><strong>{finalCount}</strong><span>FINAL</span></div></section>
+      <div className="nfl-game-picker"><button className={selectedGame === 'all' ? 'active' : ''} onClick={() => setSelectedGame('all')}>ALL GAMES</button>{games.map((game) => <button key={game.game_id} className={selectedGame === game.game_id ? 'active' : ''} onClick={() => setSelectedGame(game.game_id)}>{game.away} @ {game.home}</button>)}</div>
 
       <div style={{
         display: 'grid', gap: 10,
@@ -170,11 +204,20 @@ export default function Games({ data, onPlayerClick }) {
 
               {hasScore && <ScoreLine g={g} />}
 
+              {live && <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Drive possession and down/distance are not published in the current feed · ESPN state: {g.detail || 'live'}</div>}
+
               {g.venue && (
                 <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 2 }}>
                   {g.venue}{g.indoors ? ' · indoors' : ''}
                 </div>
               )}
+
+              <GameIntel game={g} matchup={matchup} />
+
+              <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
+                <div style={{ marginBottom: 6, color: C.green, fontSize: 8, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.09em' }}>THE SIX · DESIGNATED CALLS IN THIS GAME</div>
+                <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} />
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
                 {[g.away, g.home].map((t) => (
@@ -191,6 +234,9 @@ export default function Games({ data, onPlayerClick }) {
           )
         })}
       </div>
+      <style>{`
+        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(34,211,238,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(34,211,238,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(34,197,94,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(34,197,94,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:61px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}.nfl-game-intel>div:first-child{grid-column:1/-1}}
+      `}</style>
     </div>
   )
 }

@@ -1,7 +1,26 @@
 'use client'
-import { C, NUM_FONT, TABS, GRADIENT } from '../../lib/nfl/theme'
+import { useState } from 'react'
+import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 import PaletteButton from '../PaletteButton'
+
+const PRIMARY_TABS = [
+  ['home', 'Home'],
+  ['picks', 'Picks'],
+  ['games', 'Games'],
+  ['boards', 'Boards'],
+  ['research', 'Research'],
+]
+const MORE_TABS = [
+  ['players', 'Player Portal'],
+  ['watchlist', 'Watchlist'],
+  ['matchups', 'Matchups'],
+  ['report', 'Report Card'],
+  ['accountability', 'Results'],
+  ['pairs', 'Pairs'],
+  ['guide', 'Guide'],
+]
+const PRIMARY_KEYS = new Set(PRIMARY_TABS.map(([key]) => key))
 
 // The NFL header. Deliberately the same silhouette as the MLB one — logo tile
 // left, status strip centre, controls right, tab rail underneath — so the
@@ -30,6 +49,8 @@ function Tile({ label, value, color, title }) {
 }
 
 export default function NflHeader({ tab, setTab, data, meta }) {
+  const [moreOpen, setMoreOpen] = useState(false)
+  const go = (next) => { setMoreOpen(false); setTab(next) }
   const games = data?.games?.length ?? 0
   const live = (data?.games || []).filter((g) => g.state === 'in').length
   const isPre = data?.mode === 'preseason'
@@ -169,12 +190,12 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
       }}>
         <div style={{ display: 'flex', gap: 2, minWidth: 'max-content' }}>
-          {TABS.map(([key, label]) => {
+          {PRIMARY_TABS.map(([key, label]) => {
             const active = tab === key
             return (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => go(key)}
                 style={{
                   padding: '8px 13px', fontSize: 11, fontWeight: active ? 800 : 500,
                   cursor: 'pointer', border: 'none', borderRadius: 0,
@@ -190,12 +211,50 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               </button>
             )
           })}
+          <button
+            onClick={() => setMoreOpen((open) => !open)}
+            aria-expanded={moreOpen}
+            style={{
+              padding:'8px 13px', fontSize:11,
+              fontWeight:!PRIMARY_KEYS.has(tab) ? 800 : 500,
+              cursor:'pointer', border:'none', borderRadius:0,
+              background:'transparent', color:!PRIMARY_KEYS.has(tab) ? C.green : C.text3,
+              position:'relative', transition:'color .12s', whiteSpace:'nowrap',
+            }}
+          >
+            More
+            {!PRIMARY_KEYS.has(tab) && <div style={{
+              position:'absolute', bottom:0, left:0, right:0, height:2,
+              background:GRADIENT, borderRadius:'2px 2px 0 0',
+            }} />}
+          </button>
         </div>
       </div>
+
+      {moreOpen && (
+        <div style={{ borderTop:`1px solid ${C.border}`, background:'rgba(17,17,19,.98)' }}>
+          <div className="nfl-simple-more" style={{
+            maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
+            display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:6,
+          }}>
+            {MORE_TABS.map(([key,label]) => (
+              <button key={key} onClick={() => go(key)} style={{
+                padding:'9px 10px', border:`1px solid ${tab === key ? C.green + '66' : C.border}`,
+                borderRadius:8, background:tab === key ? `${C.green}12` : C.glass,
+                color:tab === key ? C.green : C.text2, fontSize:10, fontWeight:750,
+                textAlign:'left', cursor:'pointer',
+              }}>{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         header div::-webkit-scrollbar { display: none; }
+        @media (max-width: 700px) {
+          .nfl-simple-more { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+        }
       `}</style>
     </header>
   )

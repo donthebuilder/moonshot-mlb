@@ -117,11 +117,11 @@ export function downloadShareCard(items = [], { title = 'MY WATCHLIST' } = {}) {
   g.fillStyle = '#fff'; g.font = `900 16px ${MONO}`
   g.textAlign = 'center'; g.fillText('HR', 46, 45); g.textAlign = 'left'
 
-  g.fillStyle = '#f4f4f5'; g.font = `900 21px ${SANS}`
-  g.fillText('MOONSHOT', 82, 36)
-  const wmW = g.measureText('MOONSHOT').width
+  g.fillStyle = '#f4f4f5'; g.font = `900 19px ${SANS}`
+  g.fillText('DASH NETWORK', 82, 36)
+  const wmW = g.measureText('DASH NETWORK').width
   g.fillStyle = '#f97316'; g.font = `900 12px ${MONO}`
-  g.fillText('🌙 ' + title, 84 + wmW + 10, 37)
+  g.fillText('🌙 MOONSHOT · ' + title, 84 + wmW + 10, 37)
   g.fillStyle = '#a1a1aa'; g.font = `600 11px ${MONO}`
   g.fillText(`${new Date().toLocaleDateString()} · ${items.length} hitters · HR score, the bot's own ranking`, 82, 58)
 
@@ -218,7 +218,7 @@ export function downloadShareCard(items = [], { title = 'MY WATCHLIST' } = {}) {
   g.fillText(`${more}🤖 = the bot's designated pick tonight`, 24, fy)
   g.fillStyle = '#a1a1aa'; g.font = `800 10px ${MONO}`
   g.textAlign = 'right'
-  g.fillText('moonshot-mlb.vercel.app', W - 24, fy)
+  g.fillText('DASH NETWORK · MOONSHOT', W - 24, fy)
   g.textAlign = 'left'
   g.fillStyle = '#f97316'; g.fillRect(0, H - 3, W, 3)
 
@@ -307,13 +307,13 @@ export function downloadPlayerCard(p, { jersey = null } = {}) {
   g.beginPath(); g.roundRect(22, 19, 42, 42, 10); g.fill()
   g.fillStyle = '#fff'; g.font = `900 15px ${MONO}`
   g.textAlign = 'center'; g.fillText('HR', 43, 41); g.textAlign = 'left'
-  g.fillStyle = '#f4f4f5'; g.font = `900 20px ${SANS}`
-  g.fillText('MOONSHOT', 76, 33)
-  const wmW2 = g.measureText('MOONSHOT').width
+  g.fillStyle = '#f4f4f5'; g.font = `900 18px ${SANS}`
+  g.fillText('DASH NETWORK', 76, 33)
+  const wmW2 = g.measureText('DASH NETWORK').width
   g.fillStyle = '#f97316'; g.font = `900 11.5px ${MONO}`
-  g.fillText('🌙 PLAYER CARD', 78 + wmW2 + 10, 34)
+  g.fillText('🌙 MOONSHOT · PLAYER CARD', 78 + wmW2 + 10, 34)
   g.fillStyle = '#a1a1aa'; g.font = `600 10.5px ${MONO}`
-  g.fillText(`${new Date().toLocaleDateString()} · moonshot-mlb.vercel.app`, 76, 54)
+  g.fillText(`${new Date().toLocaleDateString()} · DASH NETWORK`, 76, 54)
   g.font = `800 10.5px ${MONO}`
   const nite = 'TONIGHT'
   const nw2 = g.measureText(nite).width + 20
@@ -482,7 +482,7 @@ export function downloadPlayerCard(p, { jersey = null } = {}) {
   // never collide (v1 of this card shipped them overlapping)
   const fy2 = H - footH / 2
   g.font = `800 10px ${MONO}`
-  const url = 'moonshot-mlb.vercel.app'
+  const url = 'DASH NETWORK · MOONSHOT'
   const urlW = g.measureText(url).width
   g.fillStyle = '#52525b'; g.font = `600 9.5px ${MONO}`
   g.fillText(ellipsize(g, "scores are the bot's own 0–100 rankings, not probabilities", W - 24 - urlW - 42), 24, fy2)
@@ -533,11 +533,11 @@ function posterHeader(g, W, label, sub) {
   g.beginPath(); g.roundRect(24, 22, 44, 44, 11); g.fill()
   g.fillStyle = '#fff'; g.font = `900 16px ${MONO}`
   g.textAlign = 'center'; g.fillText('HR', 46, 45); g.textAlign = 'left'
-  g.fillStyle = '#f4f4f5'; g.font = `900 21px ${SANS}`
-  g.fillText('MOONSHOT', 82, 36)
-  const wmW = g.measureText('MOONSHOT').width
+  g.fillStyle = '#f4f4f5'; g.font = `900 19px ${SANS}`
+  g.fillText('DASH NETWORK', 82, 36)
+  const wmW = g.measureText('DASH NETWORK').width
   g.fillStyle = '#f97316'; g.font = `900 12px ${MONO}`
-  g.fillText('🌙 ' + label, 84 + wmW + 10, 37)
+  g.fillText('🌙 MOONSHOT · ' + label, 84 + wmW + 10, 37)
   g.fillStyle = '#a1a1aa'; g.font = `600 11px ${MONO}`
   g.fillText(sub, 82, 58)
   g.strokeStyle = 'rgba(255,255,255,0.07)'
@@ -550,7 +550,7 @@ function posterFooter(g, W, H, note) {
   g.fillText(note, 24, fy)
   g.fillStyle = '#a1a1aa'; g.font = `800 10px ${MONO}`
   g.textAlign = 'right'
-  g.fillText('moonshot-mlb.vercel.app', W - 24, fy)
+  g.fillText('DASH NETWORK · MOONSHOT', W - 24, fy)
   g.textAlign = 'left'
   g.fillStyle = '#f97316'; g.fillRect(0, H - 3, W, 3)
 }
@@ -807,7 +807,7 @@ export function downloadPoolsCard(pools = [], { title = "TONIGHT'S POOLS", grade
     const rh = rowHeights[i]
     const hit = n(pl.hr_count, 0)
     const tot = Math.max(1, n(pl.total_count ?? (pl.players || []).length, 0))
-    const bar = n(pl.bar, tot <= 4 ? 1 : 2)
+    const bar = n(pl.bar, Math.min(2, tot))
     const col = graded ? (hit >= bar ? '#4ade80' : hit > 0 ? '#f97316' : '#3f3f46') : '#f97316'
     g.fillStyle = `${col}10`
     g.strokeStyle = `${col}55`; g.lineWidth = 1
@@ -898,7 +898,7 @@ export function downloadPitcherCard({ name, team, opp, throws, weakSide, tiles =
   const footH = 42
   const H = HEAD_H + idH + tileH + batH + footH
   const { c, g } = newPoster(W, H)
-  posterHeader(g, W, 'PITCHER CARD', `${new Date().toLocaleDateString()} · moonshot-mlb.vercel.app`)
+  posterHeader(g, W, 'PITCHER CARD', `${new Date().toLocaleDateString()} · DASH NETWORK`)
 
   const y0 = HEAD_H
   g.fillStyle = '#f97316'; g.font = `800 9px ${MONO}`

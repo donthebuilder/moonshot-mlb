@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { C, NUM_FONT, TABS } from '../lib/theme'
+import { C, NUM_FONT } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
 import SlateTiles from './SlateTiles'
@@ -22,6 +22,26 @@ const hexToRgba = (hex, a) => {
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
+
+// Keep the existing Moonshot look, but make the top rail answer only the
+// questions people arrive with most often. The deeper tools stay one tap
+// away in More instead of competing with the picks on every screen.
+const PRIMARY_TABS = [
+  ['home', '🏠 Home'],
+  ['props', '🃏 Props'],
+  ['scoreboard', '🧮 Rundown'],
+  ['games', '🎮 Slate'],
+  ['bot', '🎯 Picks'],
+]
+const MORE_TABS = [
+  ['board', '📊 Charts'],
+  ['pitchers', '⚾ Pitchers'],
+  ['combos', '🎟 Combos'],
+  ['odds', '💵 Odds'],
+  ['you', '⭐ You'],
+  ['results', '🧾 Results'],
+]
+const PRIMARY_KEYS = new Set(PRIMARY_TABS.map(([key]) => key))
 
 
 // ── live capture ticker ───────────────────────────────────────────────────────
@@ -208,6 +228,8 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
   // writes --hdr-h on <html>; everyone else styles `top: var(--hdr-h, 86px)`
   // and is correct at every width without a matching media query.
   const hdrRef = useRef(null)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const go = (next) => { setMoreOpen(false); setTab(next) }
 
   // ── AND IT CONDENSES ONCE YOU SCROLL (2026-08-16, same pass) ───────────
   // Fixing the sticky bug above had an immediate consequence: a bar that
@@ -461,12 +483,12 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             of ragged word-width chips. minWidth keeps the horizontal scroll
             working on phones, where equal shares would crush the labels. */}
         <div style={{ display:'flex', gap:0, paddingBottom:0, minWidth:'max-content', width:'100%' }}>
-          {TABS.map(([key,label]) => {
+          {PRIMARY_TABS.map(([key,label]) => {
             const active = tab === key
             return (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => go(key)}
                 style={{
                   padding: condensed ? '6px 13px' : '8px 13px',
                   fontSize:11, fontWeight:active ? 800 : 500,
@@ -485,8 +507,44 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
               </button>
             )
           })}
+          <button
+            onClick={() => setMoreOpen((open) => !open)}
+            aria-expanded={moreOpen}
+            style={{
+              padding: condensed ? '6px 13px' : '8px 13px',
+              fontSize:11, fontWeight:!PRIMARY_KEYS.has(tab) ? 800 : 500,
+              cursor:'pointer', border:'none', borderRadius:0,
+              background:'transparent', color:!PRIMARY_KEYS.has(tab) ? '#f97316' : C.text3,
+              position:'relative', transition:'color .12s', whiteSpace:'nowrap',
+              flex:'1 0 auto', textAlign:'center',
+            }}
+          >
+            ••• More
+            {!PRIMARY_KEYS.has(tab) && <div style={{
+              position:'absolute', bottom:0, left:0, right:0, height:2,
+              background:'linear-gradient(90deg, #f97316, #ef4444)', borderRadius:'2px 2px 0 0',
+            }} />}
+          </button>
         </div>
       </div>
+
+      {moreOpen && (
+        <div style={{ borderTop:`1px solid ${C.border}`, background:hexToRgba(C.bg2, .98) }}>
+          <div className="simple-more-grid" style={{
+            maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
+            display:'grid', gridTemplateColumns:'repeat(6,minmax(0,1fr))', gap:6,
+          }}>
+            {MORE_TABS.map(([key,label]) => (
+              <button key={key} onClick={() => go(key)} style={{
+                padding:'9px 10px', border:`1px solid ${tab === key ? '#f9731666' : C.border}`,
+                borderRadius:8, background:tab === key ? 'rgba(249,115,22,.10)' : C.glass,
+                color:tab === key ? '#f97316' : C.text2, fontSize:10, fontWeight:750,
+                textAlign:'left', cursor:'pointer',
+              }}>{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes pulse {
@@ -494,6 +552,9 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
           50% { opacity: 0.4; }
         }
         header div::-webkit-scrollbar { display: none; }
+        @media (max-width: 700px) {
+          .simple-more-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+        }
       `}</style>
     </header>
   )

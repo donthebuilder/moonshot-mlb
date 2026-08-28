@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { btnStyle, WhatThis } from '../ui'
@@ -10,7 +10,9 @@ import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
-import { playerId } from '../../lib/player'
+import { hrScore, nameOf, playerId, teamOf } from '../../lib/player'
+import { useSetupHomers, backToBack } from '../../lib/b2b'
+import { dedupeGraded } from '../../lib/graded'
 
 // Which BoardFilters score-slider a view means by "Score" — mirrors the keys
 // BoardFilters.js's own SCORE_FOR_TYPE understands. weakspot/aligned/
@@ -342,6 +344,46 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 // rows emoji-free site-wide — only the top-level nav tabs get emoji prefixes).
 const GROUPS = [['boards', 'Boards'], ['power', 'Power'], ['patterns', 'Patterns'], ['steals', 'Steals']]
 
+function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
+  return (
+    <section style={{
+      margin: '-2px 0 11px', padding: '9px 11px', border: `1px solid ${C.orange}4d`,
+      borderRadius: 11, background: `linear-gradient(105deg,${C.orange}16,${C.bg2} 48%,${C.bg})`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 10 }}>🔁 B2B WATCH</b>
+        <span style={{ color: C.text3, fontSize: 9.5 }}>
+          {loading ? 'checking the setup game…' : !verified ? 'setup proof unavailable' : list.length ? `${list.length} verified encore chase${list.length === 1 ? '' : 's'}` : 'no verified encore chases on this slate'}
+        </span>
+        <span style={{ marginLeft: 'auto', color: C.text3, fontSize: 8.5 }}>last-game homer proven · no hit-rate claim</span>
+      </div>
+      {list.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingTop: 8, paddingBottom: 1 }}>
+          {list.map((player) => {
+            const id = Number(playerId(player))
+            const hitAgain = cashed.has(id)
+            return (
+              <button key={id || nameOf(player)} onClick={() => onPlayerClick?.(player)} style={{
+                flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8,
+                minWidth: 165, padding: '7px 9px', borderRadius: 9, cursor: 'pointer',
+                border: `1px solid ${hitAgain ? C.green : C.border2}`,
+                background: hitAgain ? `${C.green}12` : C.bg2, color: C.text, textAlign: 'left',
+              }}>
+                <span style={{
+                  display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8,
+                  background: `${hitAgain ? C.green : C.orange}18`, color: hitAgain ? C.green : C.orange,
+                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900,
+                }}>{teamOf(player) || 'MLB'}</span>
+                <span><b style={{ display: 'block', fontSize: 10 }}>{nameOf(player)}</b><small style={{ display: 'block', marginTop: 3, color: hitAgain ? C.green : C.text3, fontFamily: NUM_FONT, fontSize: 8 }}>{hitAgain ? '✓ HOMERED AGAIN' : `HR score ${Math.round(hrScore(player) || 0)}`}</small></span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
 /**
  * New props, all optional so the CURRENT Dashboard mount keeps rendering
  * unchanged — this lands BEFORE the routes are rewired:
@@ -365,6 +407,16 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   // switch instead of silently resetting every time view changes.
   const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[view] || null)
   const { filtered, state } = filterState
+  const setupHomers = useSetupHomers(slateDate)
+  const b2b = useMemo(() => backToBack(allPlayers.length ? allPlayers : players, setupHomers, hrScore), [allPlayers, players, setupHomers])
+  const b2bCashed = useMemo(() => {
+    const ids = new Set()
+    if (!results || (slateDate && results.date && String(results.date) !== String(slateDate))) return ids
+    dedupeGraded(results?.graded_slots || results?.results || []).forEach((row) => {
+      if (Number(row?.actual_hr) > 0) ids.add(Number(row?.player_id))
+    })
+    return ids
+  }, [results, slateDate])
 
   const boards = bview === 'boards'
   const pr = PROOF[view]
@@ -421,6 +473,14 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           </>
         )}
       </div>
+
+      <B2BStrip
+        list={b2b.list}
+        verified={b2b.verified}
+        loading={setupHomers === undefined}
+        cashed={b2bCashed}
+        onPlayerClick={onPlayerClick}
+      />
 
       {bview === 'steals' ? (
         <StealBoard players={players} onPlayerClick={onPlayerClick} />
@@ -492,7 +552,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-            : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} filterState={filterState} />
+            : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
           }
         </>
       )}

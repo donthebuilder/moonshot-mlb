@@ -67,7 +67,7 @@ self.addEventListener('message', (e) => {
   const d = e.data
   if (!d || d.type !== 'notify') return
   const { title, body, tag, silent, url } = d
-  e.waitUntil(self.registration.showNotification(title || 'Moonshot', {
+  e.waitUntil(self.registration.showNotification(title || 'DASH Network · Moonshot', {
     body: body || '',
     tag: tag || undefined,
     silent: !!silent,
@@ -102,7 +102,7 @@ self.addEventListener('notificationclick', (e) => {
 self.addEventListener('push', (e) => {
   let d = {}
   try { d = e.data ? e.data.json() : {} } catch { d = { body: e.data ? e.data.text() : '' } }
-  e.waitUntil(self.registration.showNotification(d.title || '⚾ Moonshot', {
+  e.waitUntil(self.registration.showNotification(d.title || '⚾ DASH Network · Moonshot', {
     body: d.body || '',
     tag: d.tag || undefined,
     icon: '/icon-192.png',

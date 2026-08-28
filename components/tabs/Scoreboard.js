@@ -7,7 +7,8 @@ import {
   hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId, mlbId,
 } from '../../lib/player'
 import { tierRole, isAligned, hrRank } from '../../lib/scoring'
-import { designationOf, laneRanker, laneLabel, laneTitle } from '../../lib/verdict'
+import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneRanker } from '../../lib/verdict'
+import { hrOverlayRead } from '../../lib/hrOverlay'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
@@ -230,8 +231,12 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   ...(dhOn ? [DH_COLUMN] : []),
   { key: 'opp',     label: 'Opp',    heat: false, w: 34, mono: true, dim: true },
-  { key: 'role',    label: 'Role',   heat: false, w: 104, dim: true, titleKey: 'roleTitle',
-    title: 'A designated pick shows the designation the bot published (TOP/HR/HIT/HRR/CONTACT/WATCH). Everyone else shows his LANE — which of his four market scores sits highest within the rows in view — in capitals when he is in the top quarter of that lane and quiet when he is not. Hover a cell for the percentile.' },
+  { key: 'role',    label: 'Role',   heat: false, w: 158, dim: true, titleKey: 'roleTitle',
+    title: 'The hitter archetype comes first; the grading market stays in parentheses. Official picks settle on that market. Other rows show their strongest profile lane, not an official pick.' },
+  { key: 'hrPct', label: 'HR%', w: 48, dp: 1, domain: [0, 35], primary: true,
+    title: 'His small-sample-shrunk season-derived chance of 1+ HR in this game. This is a probability; HR score is not.' },
+  { key: 'hrFit', label: 'HR Fit', w: 48, dp: 0, domain: [0, 3], fmt: (v) => `${Number(v).toFixed(0)}/3`,
+    title: 'Validated HR restriction progress: Barrel ≥3.1%, FB ≥23.2%, Avg EV ≥89.9. Only 3/3 has a held-out rate: 16.2% vs 11.1% base (1.46×).' },
   { key: 'spot',    label: 'Spot',   heat: false, w: 40, mono: true, dim: true,
     fmt: (v) => (v == null ? '—' : String(v)) },
   { key: 'weak',    label: '★',      flag: true, mark: '★', w: 32 },
@@ -480,7 +485,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   const rows = useMemo(() => {
     const pool = alignedOnly ? players.filter(isAligned) : players
-    return pool.map((p, i) => ({
+    return pool.map((p, i) => {
+      const hrOverlay = hrOverlayRead(p)
+      return ({
       // game_pk in the key: on a doubleheader one player_id is legitimately two
       // rows, and a duplicate React key drops one of them silently — which
       // would "fix" the complaint by deleting a game.
@@ -498,8 +505,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       // question the column is for instead — which of his four market scores
       // sits highest WITHIN THE ROWS IN VIEW — and says so in upper case only
       // when he is in the top quarter of that lane. See lib/verdict.js.
-      role: designationOf(p) || laneLabel(laneOf(p)),
-      roleTitle: designationOf(p) ? null : laneTitle(laneOf(p), players.length),
+      role: designationOf(p) || hitterLaneLabel(p, laneOf(p)),
+      roleTitle: designationOf(p) ? hitterRoleTitle(p) : hitterLaneTitle(p, laneOf(p), players.length),
+      hrPct: hrOverlay.probability,
+      hrFit: hrOverlay.passed,
       spot: p?.lineup_spot == null || p?.lineup_spot === '' ? null : n(p.lineup_spot, null),
       weak: p?.weak_spot_flag ? 1 : 0,
       aligned: isAligned(p) ? 1 : 0,
@@ -573,7 +582,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       pL3Whip: n(p?.pitcher_l3_whip, null),
       pL3Hr9: n(p?.pitcher_l3_hr9, null),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
-    }))
+    })})
   }, [players, alignedOnly, watchIds, dh])
 
   // Who has already homered tonight, matched back to where the board had him.
@@ -768,8 +777,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           { key: 'hr',   label: 'HR',     w: 34,
             explain: 'How many home runs he has already hit tonight.' },
           { key: 'score', label: 'HR score', w: 58, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true },
-          { key: 'role', label: 'Role',   heat: false, w: 104, dim: true, titleKey: 'roleTitle',
-            title: 'A designated pick shows the designation the bot published (TOP/HR/HIT/HRR/CONTACT/WATCH). Everyone else shows his LANE — which of his four market scores sits highest within the rows in view — in capitals when he is in the top quarter of that lane and quiet when he is not. Hover a cell for the percentile.' },
+          { key: 'role', label: 'Role',   heat: false, w: 158, dim: true, titleKey: 'roleTitle',
+            title: 'The hitter archetype comes first; the grading market stays in parentheses. Official picks settle on that market. Other rows show their strongest profile lane, not an official pick.' },
           // ── the arm he did it against ──────────────────────────────────
           { key: 'pName',  label: 'Arm',     heat: false, w: 120, dim: true },
           { key: 'pHr9',   label: 'HR/9',    w: 50, dp: 2, scale: 'div', anchor: LG.hr9, ceiling: 0.80,

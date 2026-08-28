@@ -14,6 +14,7 @@ import Slip from './Slip'
 import PlayerModal from './PlayerModal'
 import MobileCSS from './MobileCSS'
 import StaleBanner from './StaleBanner'
+import MobileTabBar from './MobileTabBar'
 
 import Home from './tabs/Home'
 import MyPicks from './tabs/MyPicks'
@@ -544,6 +545,7 @@ export default function Dashboard() {
       </main>
       {/* ⌘K / "/" from anywhere → jump to any player's modal. */}
       <QuickSearch players={allPlayers} onPick={setModalPlayer} />
+      <MobileTabBar tab={tab} setTab={setTab} />
       <Slip slip={slip} setSlip={setSlip} />
       {/* slateMode is passed EXPLICITLY, not left to the module-level default
           in dataSource.js. That default is set by an effect, so flipping

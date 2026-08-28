@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
+import NflTeamMark from '../../../../components/fantasy/NflTeamMark'
 import styles from '../../fantasy.module.css'
 import { addToQueue, assignDraftPick, draftPlayer, prepareDraft, removeFromQueue, runAutoPick, setDraftState, startDraft, syncPlayerCatalog } from './actions'
 
@@ -78,7 +79,7 @@ export default async function LeagueRoom({ params, searchParams }) {
             <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} href={`/fantasy/league/${leagueId}?position=${position}`}>{position}</Link>)}</div>
             <div className={styles.draftColumns}><span>RK</span><span>POS</span><span>PLAYER</span><span>DASH</span><span>STATUS</span></div>
             {!players.length ? <p className={styles.emptyRoom}>Commissioner: sync the NFL player catalog to begin.</p> : available.slice(0,80).map((player) => (
-              <div className={styles.draftPlayer} key={player.id}><span className={styles.rankNumber}>{rankedPlayers.findIndex((ranked)=>ranked.id===player.id)+1}</span><span className={styles.positionTag}>{player.position}</span><div><b>{player.name}</b><small>{player.team || 'FA'}{player.injury_status ? ` · ${player.injury_status}` : ''}</small></div><strong className={styles.playerDash}>{player.dash_score}</strong>{canPick?<form action={draftPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><button>Draft</button></form>:draft&&myTeam?<form action={addToQueue}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><button className={styles.queueButton}>+ Queue</button></form>:<span className={styles.lockedPick}>{draft?.status === 'paused' ? 'PAUSED' : draft?.status === 'live' ? 'WAIT' : 'SCOUT'}</span>}</div>
+              <div className={styles.draftPlayer} key={player.id}><span className={styles.rankNumber}>{rankedPlayers.findIndex((ranked)=>ranked.id===player.id)+1}</span><span className={styles.positionTag}>{player.position}</span><div className={styles.playerIdentity}><NflTeamMark team={player.team}/><span><b>{player.name}</b><small>{player.team || 'FA'}{player.injury_status ? ` · ${player.injury_status}` : ''}</small></span></div><strong className={styles.playerDash}>{player.dash_score}</strong>{canPick?<form action={draftPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><button>Draft</button></form>:draft&&myTeam?<form action={addToQueue}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><button className={styles.queueButton}>+ Queue</button></form>:<span className={styles.lockedPick}>{draft?.status === 'paused' ? 'PAUSED' : draft?.status === 'live' ? 'WAIT' : 'SCOUT'}</span>}</div>
             ))}
           </section>
           <aside className={styles.draftSide}>

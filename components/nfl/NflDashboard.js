@@ -7,6 +7,9 @@ import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
 import MobileCSS from '../MobileCSS'
 
+import Home from './tabs/Home'
+import StatPortal from './tabs/StatPortal'
+import Watchlist from './tabs/Watchlist'
 import Games from './tabs/Games'
 import Boards from './tabs/Boards'
 import Research from './tabs/Research'
@@ -17,7 +20,7 @@ import Accountability from './tabs/Accountability'
 import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
 
-const NFL_TABS = new Set(['games', 'picks', 'boards', 'research', 'matchups', 'report', 'accountability', 'pairs', 'guide'])
+const NFL_TABS = new Set(['home', 'games', 'picks', 'boards', 'players', 'watchlist', 'research', 'matchups', 'report', 'accountability', 'pairs', 'guide'])
 
 // The NFL shell. Thin on purpose — state and routing only, same as the MLB
 // Dashboard. Everything with an opinion lives in a tab file.
@@ -27,7 +30,7 @@ const NFL_TABS = new Set(['games', 'picks', 'boards', 'research', 'matchups', 'r
 // 45s while anything is live, 10 minutes otherwise.
 
 export default function NflDashboard() {
-  const [tab, setTabRaw] = useState('games')
+  const [tab, setTabRaw] = useState('home')
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
   const [meta, setMeta] = useState(null)
@@ -55,6 +58,7 @@ export default function NflDashboard() {
       const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
       hash.set('sport', 'nfl')
       hash.set('tab', next)
+      if (next !== 'players') hash.delete('player')
       window.history.replaceState(null, '', `#${hash.toString()}`)
     } catch { /* ignore URL failures; the tab still works */ }
   }
@@ -73,7 +77,7 @@ export default function NflDashboard() {
       if (live.get('sport') === 'nfl') t = live.get('tab')
     } catch { /* ignore */ }
     if (!NFL_TABS.has(t)) t = initialHashParams().get('tab')
-    setTab(NFL_TABS.has(t) ? t : 'games')
+    setTab(NFL_TABS.has(t) ? t : 'home')
   }, [])
 
   // Keep manually edited hashes and browser-driven hash changes in sync with
@@ -119,6 +123,15 @@ export default function NflDashboard() {
   }, [data])
 
   const openPlayer = (player, market = 'TD') => setModal({ player, market })
+  const openFullProfile = (player) => {
+    setModal(null)
+    setTab('players')
+    try {
+      const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      hash.set('sport', 'nfl'); hash.set('tab', 'players'); hash.set('player', String(player.player_id))
+      window.history.replaceState(null, '', `#${hash.toString()}`)
+    } catch {}
+  }
 
   return (
     <>
@@ -133,7 +146,10 @@ export default function NflDashboard() {
           }}>Loading slate…</div>
         ) : (
           <>
-            {tab === 'games' && <Games data={data} onPlayerClick={openPlayer} />}
+            {tab === 'home' && <Home data={data} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
+            {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} />}
+            {tab === 'watchlist' && <Watchlist data={data} onPlayerClick={openPlayer} />}
+            {tab === 'games' && <Games data={data} picks={picks} matchup={matchup} onPlayerClick={openPlayer} />}
             {tab === 'boards' && <Boards data={data} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
@@ -152,7 +168,9 @@ export default function NflDashboard() {
         splitMeta={{ pairs: data?.split_pairs, labels: data?.split_labels }}
         logs={logs}
         matchup={matchup}
+        slate={data}
         onClose={() => setModal(null)}
+        onFullProfile={openFullProfile}
       />
     </>
   )

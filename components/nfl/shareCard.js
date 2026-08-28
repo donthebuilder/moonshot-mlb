@@ -78,11 +78,11 @@ function posterHeader(g, W, label, sub) {
   g.fillStyle = '#052e16'; g.font = `900 15px ${MONO}`
   g.textAlign = 'center'; g.fillText('TD', 44, 43); g.textAlign = 'left'
 
-  g.fillStyle = C.text; g.font = `900 21px ${SANS}`
-  g.fillText('MOONSHOT', 80, 34)
-  const wmW = g.measureText('MOONSHOT').width
+  g.fillStyle = C.text; g.font = `900 19px ${SANS}`
+  g.fillText('DASH NETWORK', 80, 34)
+  const wmW = g.measureText('DASH NETWORK').width
   g.fillStyle = C.green; g.font = `900 12px ${MONO}`
-  g.fillText('🏈 ' + label, 82 + wmW + 10, 35)
+  g.fillText('🏈 TUDDY · ' + label, 82 + wmW + 10, 35)
   g.fillStyle = C.text3; g.font = `600 11px ${MONO}`
   g.fillText(sub, 80, 56)
   g.strokeStyle = C.border
@@ -95,7 +95,7 @@ function posterFooter(g, W, H, note) {
   g.fillText(note, 22, fy)
   g.fillStyle = C.text2; g.font = `800 10px ${MONO}`
   g.textAlign = 'right'
-  g.fillText('moonshot-mlb.vercel.app', W - 22, fy)
+  g.fillText('DASH NETWORK · TUDDY', W - 22, fy)
   g.textAlign = 'left'
   g.fillStyle = C.green; g.fillRect(0, H - 3, W, 3)
 }

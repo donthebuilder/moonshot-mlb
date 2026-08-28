@@ -41,7 +41,7 @@ function fetchMatrix() {
 // Which archive category answers for each board type.
 const ARCHIVE_CAT = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }
 
-export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60, slateDate = null, filterState = null }) {
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60, slateDate = null, filterState = null, setupHomers }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
   // his most recent game", and on a slate rebuilt after the 12:05 window that
@@ -55,7 +55,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // a TypeError on first paint, and the entire Boards tab died. Found in
   // production 2026-08-15, on the one tab the render harness never visited;
   // it visits all of them now (scripts/check-render note below).
-  const setupHr = useSetupHomers(slateDate)
+  const ownSetupHr = useSetupHomers(setupHomers === undefined ? slateDate : null)
+  const setupHr = setupHomers === undefined ? ownSetupHr : setupHomers
   const b2bIds = useMemo(() => (setupHr instanceof Set ? setupHr : null), [setupHr])
   const [title, sub] = TITLES[type] || TITLES.hr
   // filterState: when the owning tab lifts the filter bar (so it survives a

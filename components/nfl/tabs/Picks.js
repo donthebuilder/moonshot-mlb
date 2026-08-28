@@ -5,6 +5,7 @@ import { btnStyle } from '../../ui'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
+import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
 import {
   CONVICTION, CONVICTION_ORDER, slateKey, slotKey, isLocked,
   getPicks, savePick, setConviction, clearPick,
@@ -78,6 +79,10 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
   const [msg, setMsg] = useState('')
   const [bump, setBump] = useState(0)
   const [openSlot, setOpenSlot] = useState(null)
+  const [filterMarket, setFilterMarket] = useState('all')
+  const [filterTeam, setFilterTeam] = useState('all')
+  const [filterPosition, setFilterPosition] = useState('all')
+  const [filterQuery, setFilterQuery] = useState('')
   const fileRef = useRef(null)
 
   const key = useMemo(
@@ -185,6 +190,30 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
   }
 
   const edge = totals.n ? totals.minePct - totals.botPct : null
+  const allRungs = Object.entries(card).flatMap(([market, blk]) => (
+    (blk.rungs || []).map((rung) => ({ ...rung, market }))
+  ))
+  const countBy = (key) => allRungs.reduce((out, rung) => {
+    const value = rung[key]
+    if (value) out[value] = (out[value] || 0) + 1
+    return out
+  }, {})
+  const teamCounts = countBy('team')
+  const positionCounts = countBy('position')
+  const teamOptions = [{ key: 'all', label: 'All teams', count: allRungs.length }, ...Object.keys(teamCounts).sort().map((key) => ({ key, label: key, count: teamCounts[key] }))]
+  const positionOptions = [{ key: 'all', label: 'All positions', count: allRungs.length }, ...Object.keys(positionCounts).sort().map((key) => ({ key, label: key, count: positionCounts[key] }))]
+  const marketOptions = [{ key: 'all', label: 'All markets', count: allRungs.length }, ...Object.entries(card).map(([key, blk]) => ({ key, label: blk.label || key, count: (blk.rungs || []).length }))]
+  const needle = filterQuery.trim().toLowerCase()
+  const filteredCard = Object.entries(card).map(([market, blk]) => [market, {
+    ...blk,
+    rungs: (blk.rungs || []).filter((rung) => (
+      (filterMarket === 'all' || market === filterMarket)
+      && (filterTeam === 'all' || rung.team === filterTeam)
+      && (filterPosition === 'all' || rung.position === filterPosition)
+      && (!needle || String(rung.name || '').toLowerCase().includes(needle))
+    )),
+  }]).filter(([, blk]) => blk.rungs.length)
+  const shownRungs = filteredCard.reduce((sum, [, blk]) => sum + blk.rungs.length, 0)
 
   return (
     <div>
@@ -293,13 +322,35 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
       {oddsStatus && (
         <div style={{ marginBottom: 10 }}><OddsStatus status={oddsStatus} /></div>
       )}
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
+        padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
+        background: C.bg2,
+      }}>
+        <PillRow label="Market" value={filterMarket} options={marketOptions} onChange={setFilterMarket} />
+        <FilterBar>
+          <FilterSearch value={filterQuery} onChange={setFilterQuery} placeholder="Search pick…" width={160} />
+          <FilterSelect label="Team" value={filterTeam} options={teamOptions} onChange={setFilterTeam} />
+          <FilterSelect label="Position" value={filterPosition} options={positionOptions} onChange={setFilterPosition} />
+          <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>{shownRungs}/{allRungs.length} rungs</span>
+        </FilterBar>
+        <ActiveFilters
+          filters={[
+            filterQuery && { key: 'query', label: `Name: ${filterQuery}`, onClear: () => setFilterQuery('') },
+            filterMarket !== 'all' && { key: 'market', label: card[filterMarket]?.label || filterMarket, onClear: () => setFilterMarket('all') },
+            filterTeam !== 'all' && { key: 'team', label: `Team: ${filterTeam}`, onClear: () => setFilterTeam('all') },
+            filterPosition !== 'all' && { key: 'position', label: `Position: ${filterPosition}`, onClear: () => setFilterPosition('all') },
+          ]}
+          onClearAll={() => { setFilterQuery(''); setFilterMarket('all'); setFilterTeam('all'); setFilterPosition('all') }}
+        />
+      </div>
       <div style={{ fontSize: 11, color: C.text3, marginBottom: 10, lineHeight: 1.6 }}>
         Five deep per market, ranked across the whole slate. Swap yourself onto any rung and
         tag how sure you are — <b style={{ color: C.text2 }}>rungs lock at kickoff.</b>
       </div>
 
       <div style={{ display: 'grid', gap: 11, gridTemplateColumns: 'repeat(auto-fit, minmax(430px, 1fr))' }}>
-        {Object.entries(card).map(([market, blk]) => {
+        {filteredCard.map(([market, blk]) => {
           const e = blk.edge
           const t = TRUST[e?.trust] || TRUST.thin
           return (
@@ -469,6 +520,13 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
           )
         })}
       </div>
+
+      {!filteredCard.length && (
+        <div style={{
+          border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24,
+          textAlign: 'center', color: C.text3, fontSize: 11,
+        }}>No published pick matches these filters.</div>
+      )}
     </div>
   )
 }
