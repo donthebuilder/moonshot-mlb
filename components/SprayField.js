@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, catColor, verdictInk } from '../lib/scales'
 import { n, clean, obj, arr } from '../lib/player'
-import { detailUrl } from '../lib/dataSource'
+import { detailUrl, archiveDetailUrl } from '../lib/dataSource'
 import { chipColor } from './Heatmap'
 // Pitch colours shared with ZoneMap and the live feed parser, so a sinker is
 // the same orange on the spray chips as it is on the strike-zone dots.
@@ -415,6 +415,16 @@ export default function SprayField({
   const [range, setRange] = useState('g5')
   const rangeTouched = useRef(false)
   const [bbPick, setBbPick] = useState(null)   // null = all batted-ball types
+  // PARK OVERLAY (2026-08-28, addendum N3: "would it have gone out here").
+  // '' = off, showing only his real park's wall like every chart before this.
+  // A selected park name re-tests every dot on screen against THAT park's
+  // fence at the same landing angle, using the exact same wallAt() math —
+  // see dimsFor()'s own note on why the curated PARKS table (not a live
+  // fetch) is the source of truth here: it was checked against the real
+  // payload and found to be RIGHT where the bot's own numbers were wrong
+  // (Camden, Daikin, Fenway), so testing against anything else would be
+  // testing against dimensions already known to be worse.
+  const [testPark, setTestPark] = useState('')
   // tonight's layer
   const [hoverLive, setHoverLive] = useState(null)
   const [liveOn, setLiveOn] = useState(true)
@@ -435,12 +445,19 @@ export default function SprayField({
     let alive = true
     setState('loading'); setData(null); setPicked(null); setOnly('all')
     setRange('all'); setBbPick(null)
-    fetch(detailUrl(pid, slateMode))
+    // OFF-SLATE PLAYERS (2026-08-28): a QuickSearch result has no slate
+    // detail file — it was never on tonight's board — so asking for
+    // detailUrl() would just be a guaranteed 404. archiveDetailUrl() is the
+    // league-wide, slate-independent archive spray_archive.py fills in
+    // gradually (see lib/dataSource.js). Same fetch/shape either way — the
+    // rest of this component doesn't know or care which source answered.
+    const url = player?.api_only ? archiveDetailUrl(pid) : detailUrl(pid, slateMode)
+    fetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) { setData(j); setState('done') } })
       .catch(() => { if (alive) setState('error') })
     return () => { alive = false }
-  }, [pid, slateMode, liveOnly])
+  }, [pid, slateMode, liveOnly, player?.api_only])
 
   const hits = useMemo(() => arr(data?.spray_chart).map((h) => {
     const p = toPolar(h)
@@ -615,7 +632,7 @@ export default function SprayField({
     }
   }).filter(Boolean), [liveBalls])
 
-  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all'); setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null) }
+  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all'); setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null); setTestPark('') }
 
   const liveN = liveHits.length
   // In liveOnly the ● Tonight chip isn't rendered (it lives in the season
@@ -739,6 +756,33 @@ export default function SprayField({
     const f = t * 4 - i
     return dims[i] + (dims[i + 1] - dims[i]) * f
   }
+
+  // PARK OVERLAY — same interpolation as wallAt(), against the SELECTED
+  // park's dims instead of his own. Undefined (not '') when no park is
+  // picked, so every call site below can just check `wallAtTest &&`.
+  const testDims = testPark ? PARKS[testPark] : null
+  const wallAtTest = testDims ? (ang) => {
+    const t = (Math.max(-45, Math.min(45, ang)) + 45) / 90
+    const i = Math.min(3, Math.max(0, Math.floor(t * 4)))
+    const f = t * 4 - i
+    return testDims[i] + (testDims[i + 1] - testDims[i]) * f
+  } : null
+
+  // The payoff number: of what's ON SCREEN right now (the same `shown` set
+  // the dots below are drawn from — the range/pitch/bb-type filters apply
+  // here too, on purpose, so the summary always describes what's visible),
+  // how many real homers would still clear the selected park, and how many
+  // balls that did NOT clear his own wall would clear this one instead.
+  // Landing-coordinate radius vs. the wall at that same angle — exactly
+  // what "did it clear the fence" means geometrically, no distance-vs-carry
+  // ambiguity (see the note at toPolar() on why radius, not hit_distance_sc,
+  // is the right number for a location question).
+  const parkTest = wallAtTest ? shown.reduce((acc, h) => {
+    const clearsTest = h.r > wallAtTest(h.ang)
+    if (h.hr) { acc.realHR += 1; if (clearsTest) acc.stillClears += 1 }
+    else if (clearsTest) acc.wouldBeHR += 1
+    return acc
+  }, { realHR: 0, stillClears: 0, wouldBeHR: 0 }) : null
 
   const laneCounts = LANE_ORDER.map((key) => ({
     key,
@@ -984,6 +1028,40 @@ export default function SprayField({
       </div>
       )}
 
+      {/* PARK OVERLAY (addendum N3, 2026-08-28, "would it have gone out
+          here"). Off by default — picking a park re-tests every ball on
+          screen against that park's real fence, drawn as a second, dashed
+          wall alongside his own. Season mode only, same as the other
+          filters above; At the Plate's liveOnly skin stays untouched. */}
+      {!liveOnly && (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>
+          Test vs. park
+        </span>
+        <select
+          value={testPark}
+          onChange={(e) => setTestPark(e.target.value)}
+          style={{
+            background: C.bg3, color: C.text2, border: `1px solid ${C.border}`,
+            borderRadius: 6, fontSize: 10.5, fontFamily: NUM_FONT, padding: '2px 6px',
+          }}
+        >
+          <option value="">— his real park —</option>
+          {Object.keys(PARKS).sort().map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+        {parkTest && (
+          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+            {parkTest.stillClears} of {parkTest.realHR} real HR{parkTest.realHR === 1 ? '' : 's'} still clear
+            {parkTest.wouldBeHR > 0 && (
+              <> · <b style={{ color: C.orange }}>{parkTest.wouldBeHR}</b> more would go out here that didn&apos;t at his own park</>
+            )}
+          </span>
+        )}
+      </div>
+      )}
+
       {/* Pitch chips. This is the question the panel exists for: does he only
           do damage against one pitch, and does tonight's arm throw it? The
           chips now come up pre-set to the starter's mix against this side. */}
@@ -1178,6 +1256,24 @@ export default function SprayField({
             fill="rgba(253,183,90,0.13)"
           />
 
+          {/* PARK OVERLAY: the selected park's fence, drawn as an outline
+              only (no fill — his real wall above already owns the surface)
+              so the two can be compared directly. Dashed and a cool colour
+              on purpose: everything else on this field is warm orange, so
+              a second solid orange line would just look like a rendering
+              glitch rather than a second, different wall. */}
+          {wallAtTest && (
+            <path
+              d={wedge(-45, 45, wallAtTest)}
+              fill="none"
+              stroke="#5fb8ff"
+              strokeWidth="1.6"
+              strokeDasharray="5 4"
+              strokeLinejoin="round"
+              opacity="0.9"
+            />
+          )}
+
           {/* Foul poles. Two short bright uprights where the lines meet the
               wall — small, but it's the thing that makes the corners read as
               corners. */}
@@ -1270,6 +1366,18 @@ export default function SprayField({
                   />
                   {/* Ring = barrel. Squared up, whatever the outcome was. */}
                   {h.barrel && <circle cx={x} cy={y} r={rr + 3.6} fill="none" stroke={col} strokeWidth="1.1" opacity={on ? 1 : 0.75} />}
+                  {/* PARK OVERLAY flip rings — same blue as the test wall so
+                      the two read as one system. A real HR that would NOT
+                      clear the selected park gets a dashed downgrade ring; a
+                      ball that did NOT clear his own wall but WOULD clear
+                      this one gets a solid gold upgrade ring. Never both —
+                      h.hr and !h.hr are mutually exclusive. */}
+                  {wallAtTest && h.hr && h.r <= wallAtTest(h.ang) && (
+                    <circle cx={x} cy={y} r={rr + 3.6} fill="none" stroke="#5fb8ff" strokeWidth="1.3" strokeDasharray="2 2" opacity={on ? 1 : 0.85} />
+                  )}
+                  {wallAtTest && !h.hr && h.r > wallAtTest(h.ang) && (
+                    <circle cx={x} cy={y} r={rr + 3.6} fill="none" stroke="#ffd23f" strokeWidth="1.6" opacity={on ? 1 : 0.9} />
+                  )}
                   {/* fixed white hover ring — see the geometry-colours note above; must stay a literal, not C.text */}
                   {on && <circle cx={x} cy={y} r="12" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.9" />}
                 </g>
@@ -1425,6 +1533,15 @@ export default function SprayField({
                 {' · '}{shown[hover].lane || '—'}
                 {' · '}{shown[hover].date}
               </div>
+              {wallAtTest && (() => {
+                const clearsTest = shown[hover].r > wallAtTest(shown[hover].ang)
+                return (
+                  <div style={{ color: clearsTest ? C.orange : C.text3, marginTop: 2 }}>
+                    At {testPark}: {clearsTest ? 'clears the wall' : 'does not clear the wall'}
+                    {shown[hover].hr && !clearsTest ? ' (was a HR at his own park)' : ''}
+                  </div>
+                )
+              })()}
             </div>
           ) : (
             <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6 }}>

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { detailUrl } from '../lib/dataSource'
+import { detailUrl, archiveDetailUrl } from '../lib/dataSource'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
@@ -380,15 +380,27 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   const pid = player?.player_id || player?.id
   useEffect(() => {
     if (!pid) return
-    if (player?.api_only) { setDetail(null); setDetailState('missing'); return }
+    // OFF-SLATE PLAYERS (2026-08-28, Donovan: "i need to be able to see the
+    // spray chart even if they player isnt on. the bot."). This used to
+    // hard-skip the fetch for every api_only player — QuickSearch resolves
+    // ANY active player by name, but a slate detail file only ever exists
+    // for tonight's ~270, so the fetch was a guaranteed 404 and wasn't even
+    // attempted. bots/spray_archive.py now publishes a slate-INDEPENDENT
+    // archive (same statcast_batter() pull the slate pipeline already does,
+    // pointed at every active-roster hitter league-wide, filled in
+    // gradually) — archiveDetailUrl() is where an off-slate player's spray
+    // chart / EV log actually live now. Still fails soft to 'missing' for a
+    // player the archive hasn't reached yet — that's the honest state, not
+    // a bug.
     let alive = true
     setDetailState('loading'); setDetail(null)
-    fetch(detailUrl(pid, slateMode))
+    const url = player?.api_only ? archiveDetailUrl(pid) : detailUrl(pid, slateMode)
+    fetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive) { setDetail(j); setDetailState(j ? 'done' : 'missing') } })
       .catch(() => { if (alive) setDetailState('error') })
     return () => { alive = false }
-  }, [pid, slateMode])
+  }, [pid, slateMode, player?.api_only])
 
   // An API-only player can land while a bot-only tab is open — snap home.
   useEffect(() => { if (player?.api_only) setTab('overview') }, [player])
@@ -471,10 +483,21 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   // API-ONLY PLAYERS (2026-08-06): anyone found through the league-wide
   // search who isn't on the bot's slate. Every live-pull panel works for them
   // — props grid, situational splits, zone map, EV-log header — so those tabs
-  // show; the bot-fed panels (scores, pitch tables, spray) would render empty
-  // zeros and are hidden instead of faked.
+  // show; the bot-fed panels (scores, pitch tables) would render empty zeros
+  // and are hidden instead of faked.
+  //
+  // 'spray' ADDED (2026-08-28, Donovan: "i need to be able to see the spray
+  // chart even if they player isnt on. the bot."). Used to be hidden here
+  // for the same reason pitch/pitcher/sim still are — no data existed for
+  // an off-slate player at all. Now bots/spray_archive.py publishes one
+  // (league-wide, gradually filled in) and SprayField.js/the detail-fetch
+  // effect above both know to ask archiveDetailUrl() for an api_only
+  // player, so the tab has somewhere real to point. If the archive hasn't
+  // reached him yet it 404s honestly, same as a slate player with no
+  // detail file — see the caveat right below, no longer suppressed for
+  // apiOnly either, now that a real fetch is actually attempted.
   const apiOnly = !!p?.api_only
-  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'splits', 'ev'].includes(t.key)) : TABS
+  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'splits', 'ev', 'spray'].includes(t.key)) : TABS
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -736,9 +759,11 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
             {tab !== 'overview' && detailState === 'loading' && (
               <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>Loading detail…</span>
             )}
-            {!apiOnly && tab !== 'overview' && (detailState === 'missing' || detailState === 'error') && (
+            {tab !== 'overview' && (detailState === 'missing' || detailState === 'error') && (
               <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
-                No detail file published for this hitter
+                {apiOnly
+                  ? 'Not archived yet — this player isn’t on tonight’s slate and the off-slate archive hasn’t reached him'
+                  : 'No detail file published for this hitter'}
               </span>
             )}
           </div>
