@@ -10,6 +10,7 @@ const routeFor = (leagueId, type, message) =>
 
 async function clientAndUser() {
   const supabase = await createSupabaseServerClient()
+  if (!supabase) redirect('/fantasy')
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
   return supabase
@@ -28,8 +29,7 @@ export async function addFreeAgent(formData) {
     p_drop_player_id: optionalId(formData,'dropPlayerId'),
   })
   if (error) redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/wire`)
-  revalidatePath(`/fantasy/league/${leagueId}/team`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message','Free agent added to your roster'))
 }
 
@@ -42,7 +42,7 @@ export async function submitWaiverClaim(formData) {
     p_drop_player_id: optionalId(formData,'dropPlayerId'),
   })
   if (error) redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/wire`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message','Waiver claim submitted'))
 }
 
@@ -52,7 +52,7 @@ export async function cancelWaiverClaim(formData) {
   const supabase = await clientAndUser()
   const { error } = await supabase.rpc('cancel_fantasy_waiver_claim', { p_claim_id: claimId })
   if (error) redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/wire`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message','Waiver claim cancelled'))
 }
 
@@ -61,7 +61,6 @@ export async function processWaivers(formData) {
   const supabase = await clientAndUser()
   const { data, error } = await supabase.rpc('process_fantasy_waivers', { p_league_id: leagueId })
   if (error) redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/wire`)
-  revalidatePath(`/fantasy/league/${leagueId}/team`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message',`${data} waiver claims awarded`))
 }

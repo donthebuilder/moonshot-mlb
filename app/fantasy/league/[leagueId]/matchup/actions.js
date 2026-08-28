@@ -11,13 +11,13 @@ const routeFor = (leagueId, type, message) =>
 export async function generateSchedule(formData) {
   const leagueId = String(formData.get('leagueId') || '')
   const supabase = await createSupabaseServerClient()
+  if (!supabase) redirect('/fantasy')
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
   const { data, error } = await supabase.rpc('generate_fantasy_schedule', {
     p_league_id: leagueId, p_season: 2026, p_weeks: 14,
   })
   if (error) redirect(routeFor(leagueId, 'error', error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/matchup`)
-  revalidatePath(`/fantasy/league/${leagueId}/league`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId, 'message', `${data} matchups scheduled`))
 }

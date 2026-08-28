@@ -10,12 +10,12 @@ const routeFor=(leagueId,type,message)=>`/fantasy/league/${leagueId}/trades?${ty
 async function runTradeRpc(formData,name,args,success) {
   const leagueId=String(formData.get('leagueId')||'')
   const supabase=await createSupabaseServerClient()
+  if(!supabase)redirect('/fantasy')
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
   const {error}=await supabase.rpc(name,args)
   if(error)redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/trades`)
-  revalidatePath(`/fantasy/league/${leagueId}/team`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message',success))
 }
 

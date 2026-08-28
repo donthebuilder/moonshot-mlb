@@ -10,6 +10,7 @@ const routeFor=(leagueId,type,message)=>`/fantasy/league/${leagueId}/coach?${typ
 
 async function clientAndUser() {
   const supabase=await createSupabaseServerClient()
+  if(!supabase)redirect('/fantasy')
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
   return supabase
@@ -23,8 +24,7 @@ export async function syncNflWeekFeed(formData) {
   if(catalogError)redirect(routeFor(leagueId,'error',catalogError.message))
   const {data,error}=await supabase.rpc('sync_nfl_week_feed',{p_games:feed.games,p_players:feed.players})
   if(error)redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/coach`)
-  revalidatePath(`/fantasy/league/${leagueId}/team`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message',`${data?.games||0} games, ${data?.players||0} player updates, and injury statuses refreshed`))
 }
 
@@ -35,7 +35,6 @@ export async function refreshMatchupScores(formData) {
     p_league_id:leagueId,p_season:Number(formData.get('season')||2026),p_week:Number(formData.get('week')||1),
   })
   if(error)redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/matchup`)
-  revalidatePath(`/fantasy/league/${leagueId}/league`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message',`${data||0} matchups recalculated`))
 }

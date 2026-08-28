@@ -41,8 +41,12 @@ async function synchronize(request) {
   let runId=null
   try {
     if(access.mode==='member'){
-      const {data:latest}=await supabase.from('fantasy_scoring_sync_runs').select('completed_at').eq('status','complete').order('completed_at',{ascending:false}).limit(1).maybeSingle()
-      if(latest?.completed_at&&Date.now()-new Date(latest.completed_at).getTime()<25000)return Response.json({ok:true,cached:true,completedAt:latest.completed_at})
+      // Throttle on the LATEST run whatever its status: keying on
+      // status='complete' meant every open tab could start another sync while
+      // one was still in flight.
+      const {data:latest}=await supabase.from('fantasy_scoring_sync_runs').select('started_at,completed_at,status').order('started_at',{ascending:false}).limit(1).maybeSingle()
+      const startedAgo=latest?.started_at?Date.now()-new Date(latest.started_at).getTime():Infinity
+      if(latest&&latest.status!=='failed'&&startedAgo<25000)return Response.json({ok:true,cached:true,status:latest.status,completedAt:latest.completed_at||null})
     }
     const feed=await loadFranchiseNflFeed()
     const weeks=[...new Set(feed.games.map((game)=>game.week))].sort((a,b)=>a-b)
@@ -58,6 +62,7 @@ async function synchronize(request) {
     await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:new Date().toISOString()}).eq('id',runId)
     return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,builtAt:feed.builtAt})
   } catch(error) {
+    console.error('[franchise/scoring] sync failed', error)
     if(runId)await supabase.from('fantasy_scoring_sync_runs').update({status:'failed',error_message:String(error?.message||error).slice(0,500),completed_at:new Date().toISOString()}).eq('id',runId)
     return Response.json({error:'Scoring synchronization failed'},{status:500})
   }

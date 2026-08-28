@@ -20,8 +20,7 @@ export async function updateLeagueSettings(formData) {
   }
   const {error}=await supabase.rpc('update_fantasy_league_settings',{p_league_id:leagueId,p_settings:settings})
   if(error)redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}`)
-  revalidatePath(`/fantasy/league/${leagueId}/settings`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message','League settings saved'))
 }
 
@@ -30,7 +29,7 @@ export async function regenerateInviteCode(formData) {
   const supabase=await clientAndUser()
   const {data,error}=await supabase.rpc('regenerate_fantasy_invite_code',{p_league_id:leagueId})
   if(error)redirect(routeFor(leagueId,'error',error.message))
-  revalidatePath(`/fantasy/league/${leagueId}/settings`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message',`New invite code: ${data}`))
 }
 

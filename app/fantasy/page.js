@@ -6,6 +6,7 @@ import {
   signUp,
 } from './actions'
 import Link from 'next/link'
+import SubmitButton from '../../components/fantasy/SubmitButton'
 import styles from './fantasy.module.css'
 
 import { hasSupabaseConfig } from '../../lib/supabase/config'
@@ -25,6 +26,7 @@ function Notice({ error, message }) {
 function AuthScreen({ error, message }) {
   return (
     <main className={styles.launchApp}>
+      {(error || message) && <div className={styles.authBanner}><Notice error={error} message={message} /></div>}
       <header className={styles.launchHeader}>
         <Link className={styles.launchBrand} href="/"><img src="/icon-192.png" alt="" width="39" height="39"/><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
         <nav><a href="#product">See the product</a><a href="#sign-in">Sign in</a><a className={styles.launchNavCta} href="#create-account">Start free</a></nav>
@@ -55,7 +57,7 @@ function AuthScreen({ error, message }) {
       </section>
 
       <section className={styles.launchProduct} id="product">
-        <div className={styles.launchSectionHead}><p>NOT A PROMISE. THE ACTUAL PRODUCT.</p><h2>See your whole season in one place.</h2><span>Matchups, lineups, league movement, and advice—with the clutter stripped out.</span></div>
+        <div className={styles.launchSectionHead}><p>A LOOK AT THE PRODUCT</p><h2>See your whole season in one place.</h2><span>Matchups, lineups, league movement, and advice—with the clutter stripped out.</span></div>
         <SetupScreen embedded />
       </section>
 
@@ -80,7 +82,7 @@ function AuthScreen({ error, message }) {
           <label>Your name<input name="displayName" autoComplete="name" maxLength="40" required /></label>
           <label>Email<input name="email" type="email" autoComplete="email" required /></label>
           <label>Password<input name="password" type="password" minLength="8" autoComplete="new-password" required /></label>
-          <button type="submit">Start my Franchise <span>→</span></button>
+          <SubmitButton pendingLabel="Creating your account…">Start my Franchise <span>→</span></SubmitButton>
           <small>No card. No payment. Just your league.</small>
         </form>
         <form action={signIn} className={styles.launchAuthCard} id="sign-in">
@@ -89,7 +91,7 @@ function AuthScreen({ error, message }) {
           <p>Use the email and password you created for Franchise.</p>
           <label>Email<input name="email" type="email" autoComplete="email" required /></label>
           <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-          <button type="submit">Sign in <span>→</span></button>
+          <SubmitButton pendingLabel="Signing in…">Sign in <span>→</span></SubmitButton>
         </form>
         </div>
       </section>
@@ -134,12 +136,12 @@ function SetupScreen({ embedded = false }) {
       </div>
 
       <nav className={styles.desktopNav}>
-        <a className={styles.navActive}>⌂ Home</a><a>▣ Team</a><a>⚔ Matchup</a><a>▤ League</a><a>♟ Players</a><a>⌁ The Wire</a><a>⇄ Trades</a><a>◈ Draft</a><a>✦ Coach</a>
+        <a className={styles.navActive}>◈ Draft</a><a>▣ Team</a><a>⚔ Matchup</a><a>▤ League</a><a>⌁ The Wire</a><a>⇄ Trades</a><a>◎ Feed</a><a>✦ Coach</a>
       </nav>
 
       <div className={styles.previewMode}>
         <span>{embedded ? '◉ PRODUCT VIEW' : '◉ PREVIEW MODE'}</span>
-        <p>{embedded ? 'A real look at the Franchise team dashboard.' : 'This is the Franchise experience. Connect Supabase when you\'re ready to make accounts and leagues live.'}</p>
+        <p>{embedded ? 'A preview of the Franchise team dashboard.' : 'This is the Franchise experience. Connect Supabase when you\'re ready to make accounts and leagues live.'}</p>
         {!embedded && <code>.env.example</code>}
       </div>
 
@@ -213,7 +215,7 @@ function CreateLeagueForm() {
         <label>IR slots<select name="irSlots" defaultValue="1"><option value="0">None</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
         <div className={styles.checks}><label><input name="hasKicker" type="checkbox" defaultChecked /> Kicker</label><label><input name="hasDefense" type="checkbox" defaultChecked /> Defense</label></div>
       </div>
-      <button type="submit">Create league</button>
+      <SubmitButton pendingLabel="Creating…">Create league</SubmitButton>
     </form>
   )
 }
@@ -226,11 +228,12 @@ export default async function FantasyPage({ searchParams }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return <AuthScreen error={params.error} message={params.message} />
 
-  const { data: memberships = [], error: membershipError } = await supabase
+  const { data: membershipRows, error: membershipError } = await supabase
     .from('fantasy_league_memberships')
     .select('league_id, role')
     .eq('user_id', user.id)
 
+  const memberships = membershipRows || []
   const leagueIds = memberships.map((row) => row.league_id)
   let leagues = []
   let teams = []
@@ -247,7 +250,7 @@ export default async function FantasyPage({ searchParams }) {
     <main className={styles.app}>
       <header className={styles.topbar}>
         <div><p>DASH NETWORK</p><strong>FRANCHISE</strong></div>
-        <form action={signOut}><button className={styles.ghost}>Sign out</button></form>
+        <form action={signOut}><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form>
       </header>
       <section className={styles.welcome}>
         <p className={styles.eyebrow}>YOUR FRONT OFFICE</p>
@@ -287,10 +290,10 @@ export default async function FantasyPage({ searchParams }) {
           <p className={styles.muted}>Invite-only by design. Ask your commissioner for the code.</p>
           <label>Invite code<input name="inviteCode" maxLength="20" autoCapitalize="characters" placeholder="A1B2C3D4" required /></label>
           <label>Your team name<input name="teamName" maxLength="40" required /></label>
-          <button type="submit">Join league</button>
+          <SubmitButton pendingLabel="Joining…">Join league</SubmitButton>
         </form>
       </section>
-      <nav className={styles.mobileNav}><a className={styles.active}>Home</a><a>Team</a><a>League</a><a>DASH Coach</a></nav>
+      {leagues[0] && <nav aria-label="Quick links" className={styles.mobileNav}><a className={styles.active} href="#top">Home</a><Link href={`/fantasy/league/${leagues[0].id}/team`}>Team</Link><Link href={`/fantasy/league/${leagues[0].id}/league`}>League</Link><Link href={`/fantasy/league/${leagues[0].id}/coach`}>DASH Coach</Link></nav>}
     </main>
   )
 }

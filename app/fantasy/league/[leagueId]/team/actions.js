@@ -13,6 +13,7 @@ export async function saveLineupSlot(formData) {
   const slotIndex = Number(formData.get('slotIndex'))
   const playerId = String(formData.get('playerId') || '') || null
   const supabase = await createSupabaseServerClient()
+  if (!supabase) redirect('/fantasy')
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
   const { error } = await supabase.rpc('set_fantasy_lineup_slot', {
@@ -20,7 +21,7 @@ export async function saveLineupSlot(formData) {
     p_slot: slot, p_slot_index: slotIndex, p_player_id: playerId,
   })
   const route = `/fantasy/league/${leagueId}/team`
-  if (error) redirect(`${route}?error=${encodeURIComponent(error.message)}`)
-  revalidatePath(route)
-  redirect(`${route}?message=${encodeURIComponent(`${slot}${slotIndex > 1 ? ` ${slotIndex}` : ''} saved`)}`)
+  if (error) redirect(`${route}?week=${week}&error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
+  redirect(`${route}?week=${week}&message=${encodeURIComponent(`${slot}${slotIndex > 1 ? ` ${slotIndex}` : ''} saved`)}`)
 }
