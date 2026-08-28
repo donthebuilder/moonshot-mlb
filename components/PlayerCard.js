@@ -7,6 +7,7 @@ import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, best
 import { roleBadge } from '../lib/roleBadge'
 import { hrwRead } from '../lib/hrwBand'
 import { hrGateVerdict } from '../lib/hrGate'
+import { hrOverlayRead } from '../lib/hrOverlay'
 import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
@@ -126,6 +127,8 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   const aligned  = (p?.top_board_tags || []).some((t) => String(t).includes('🧩'))
   const gamePickLabel = gamePickLabelFor(p)
   const recency = lastHrRecency(p)
+  const hrOverlay = hrOverlayRead(p)
+  const showHrOverlay = type === 'hr' || type === 'top'
   // role/bet chips no longer render literal avoid text directly -- that's
   // now handled entirely by the single isAvoid/avoidLabel chip below, in
   // its own row and color, so it can't stack with the consolidated chip.
@@ -279,6 +282,11 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
           card's own category anyway). Undesignated cards keep the fuller
           read, but in a single row. */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+        {showHrOverlay && (
+          <span title={hrOverlay.title}>
+            <Chip color={hrOverlay.color}>{hrOverlay.validated ? '✓ ' : ''}{hrOverlay.label}</Chip>
+          </span>
+        )}
         {gamePickLabel ? (
           <>
             <Chip color={C.yellow}>★ Bot&apos;s {gamePickLabel}</Chip>

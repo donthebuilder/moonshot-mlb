@@ -677,12 +677,10 @@ function PairsResults({ pairPoolResults }) {
             <div style={{ fontSize: 11, color: C.text3, marginBottom: 6 }}>{label}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {list.map((pool, i) => {
-                // Colour and bar run to the BAR the pool is actually graded
-                // on, not to "every member homered" — that outcome happened 0
-                // times in 320 archived pools, so scoring against it painted
-                // every real hit as a near-miss.
+                // Colour and bar run to the published 2+ primary grade. The
+                // complete hit count remains visible for the 2/3/4 ladder.
                 const size = Math.max(1, si(pool.total_count))
-                const bar = si(pool.bar) || (size <= 4 ? 1 : 2)
+                const bar = si(pool.bar) || Math.min(2, size)
                 const hits = si(pool.hr_count)
                 const hitRatio = hits / bar
                 const col = hits >= bar ? C.green : hits > 0 ? C.yellow : C.text3
@@ -801,9 +799,56 @@ function MultiHitCluster({ slots }) {
   )
 }
 
+function HRTierRecord({ report }) {
+  const order = ['verified_shape', 'premium_power', 'elite_matchup']
+  const colors = { verified_shape: '#4ade80', premium_power: '#FCD34D', elite_matchup: '#f97316' }
+  const pct = (value) => Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(1)}%` : 'collecting'
+  const record = (stats) => stats?.n ? `${stats.hrs}/${stats.n} · ${pct(stats.hr_rate)}` : '0 tracked · collecting'
+  const tiers = report?.tiers || {}
+  const hasSchema = Number(report?.eligible_schema_n || 0) > 0
+
+  return (
+    <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
+      <Purpose>the permanent HR overlay record — membership frozen before first pitch, then graded after the game.</Purpose>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 8 }}>
+        {order.map((key) => {
+          const tier = tiers[key] || {}
+          const full = tier.all || {}
+          const seven = tier.rolling?.['7'] || {}
+          const thirty = tier.rolling?.['30'] || {}
+          const reference = report?.reference?.[key]
+          return (
+            <Card key={key} style={{ borderTop: `3px solid ${colors[key]}`, padding: 13 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <b style={{ color: C.text, fontSize: 13 }}>{tier.label || key.replaceAll('_', ' ')}</b>
+                <span style={{ color: colors[key], fontSize: 9, fontWeight: 900, textTransform: 'uppercase' }}>
+                  {full.n >= 200 ? 'measured' : 'tracking'}
+                </span>
+              </div>
+              <div style={{ color: C.text3, fontSize: 10, lineHeight: 1.5, minHeight: 30, marginTop: 4 }}>{tier.rule || 'Waiting for the first locked row.'}</div>
+              <div style={{ color: colors[key], fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, marginTop: 8 }}>{record(full)}</div>
+              <div style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10, marginTop: 5 }}>L7 {record(seven)} · L30 {record(thirty)}</div>
+              {reference && (
+                <div style={{ color: C.text2, fontSize: 9.5, lineHeight: 1.5, marginTop: 8 }}>
+                  Held-out reference: {(reference.hr_rate * 100).toFixed(1)}% over {reference.n} hitter-games; shown separately from the live locked record.
+                </div>
+              )}
+            </Card>
+          )
+        })}
+      </div>
+      {!hasSchema && (
+        <div style={{ color: C.text3, fontSize: 10, lineHeight: 1.6, marginTop: 7 }}>
+          Clean tracking begins with the first official run using hr_overlay_v1. Earlier nights are not recreated from later data.
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-export default function Results({ results, liveResults = null, slateDate = '', backtest, players = [], onPlayerClick }) {
+export default function Results({ results, liveResults = null, slateDate = '', backtest, evalReport = null, players = [], onPlayerClick }) {
   // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
   // its own last-opened view, so switching to All season and back does not
   // dump you out of the sub-view you were reading. The seven keys are
@@ -1623,6 +1668,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
       {subTab === 'card' && (
         <>
           <ReportCard backtest={backtest} />
+          <HRTierRecord report={evalReport?.hr_overlay} />
           {backtest && (
             <div style={{ marginTop: 26, paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
               <Purpose>

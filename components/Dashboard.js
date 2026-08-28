@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
-import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
+import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { Empty } from './ui'
@@ -97,6 +97,7 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [backtest, setBacktest] = useState(null)
+  const [evalReport, setEvalReport] = useState(null)
 
   // Which slate the last payload was for. The regression guard below must only
   // compare like with like: today -> tomorrow legitimately moves the date
@@ -137,6 +138,7 @@ export default function Dashboard() {
       fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
       fetchJSON(pairSummaryPaths()).then((j) => { if (alive) setPairSummary(j) }),
       fetchJSON(backtestPaths()).then((j) => { if (alive) setBacktest(j) }),
+      fetchJSON(evalReportPaths()).then((j) => { if (alive) setEvalReport(j) }),
     ]).then(() => {
       if (alive) { setLoading(false); setRefreshing(false) }
     })
@@ -439,7 +441,7 @@ export default function Dashboard() {
             has the full panel) — live info dies when it needs visiting. */}
         {/* Loudest thing on the page when it fires, and silent otherwise:
             "you are looking at a slate that already happened". */}
-        <StaleBanner slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} />
+        <StaleBanner compact slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} />
         <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} results={resultsForSlate} odds={odds} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice
@@ -485,7 +487,7 @@ export default function Dashboard() {
             {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
-            {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />}
 
             {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
             {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}

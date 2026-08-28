@@ -6,7 +6,8 @@ import {
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
 import { tierRole, scoreFor, isAligned } from '../lib/scoring'
-import { designationOf, laneRanker, laneLabel, laneTitle } from '../lib/verdict'
+import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneRanker } from '../lib/verdict'
+import { hrOverlayRead } from '../lib/hrOverlay'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../lib/doubleheader'
 import Heatmap from './Heatmap'
 import DenseTable from './DenseTable'
@@ -49,8 +50,12 @@ const COLUMNS = [
   { key: 'team',    label: 'Tm',      heat: false, w: 34, mono: true, dim: true },
   { key: 'opp',     label: 'Opp',     heat: false, w: 34, mono: true, dim: true },
   { key: 'spot',    label: '#',       heat: false, w: 24, mono: true, dim: true },
-  { key: 'role',    label: 'Role',    heat: false, w: 104, dim: true, titleKey: 'roleTitle',
-    title: 'A designated pick shows the designation the bot published (TOP/HR/HIT/HRR/CONTACT/WATCH). Everyone else shows his LANE — which of his four market scores sits highest within the rows in view — in capitals when he is in the top quarter of that lane and quiet when he is not. Hover a cell for the percentile.' },
+  { key: 'role',    label: 'Role',    heat: false, w: 158, dim: true, titleKey: 'roleTitle',
+    title: 'The hitter archetype comes first; the grading market stays in parentheses. Official picks settle on that market. Other rows show their strongest profile lane, not an official pick.' },
+  { key: 'hrPct', label: 'HR%', w: 48, dp: 1, domain: [0, 35], primary: true,
+    title: 'His small-sample-shrunk season-derived chance of 1+ HR in this game. This is a probability; HR score is not.' },
+  { key: 'hrFit', label: 'HR Fit', w: 48, dp: 0, domain: [0, 3], fmt: (v) => `${Number(v).toFixed(0)}/3`,
+    title: 'Validated HR restriction progress: Barrel ≥3.1%, FB ≥23.2%, Avg EV ≥89.9. Only 3/3 has a held-out rate: 16.2% vs 11.1% base (1.46×).' },
   { key: 'weak',    label: '★ Spot',  flag: true, mark: '★', w: 44 },
   { key: 'aligned', label: 'Align',   flag: true, mark: '◆', w: 40 },
   { key: 'edge',    label: 'Edge',    flag: true, mark: '▲', w: 40 },
@@ -97,7 +102,9 @@ export default function HitterHeat({
     [dh],
   )
 
-  const rows = useMemo(() => ranked.map((p, i) => ({
+  const rows = useMemo(() => ranked.map((p, i) => {
+    const hrOverlay = hrOverlayRead(p)
+    return ({
     // game_pk is in the key because on a doubleheader the same player_id is
     // legitimately two rows, and a duplicate React key silently drops one of
     // them — which would have "fixed" the complaint by deleting a real game.
@@ -116,8 +123,10 @@ export default function HitterHeat({
     // question the column is for instead — which of his four market scores
     // sits highest WITHIN TONIGHT'S SLATE — and says so in upper case only
     // when he is actually in the top quarter of that lane. See lib/verdict.js.
-    role: designationOf(p) || laneLabel(laneOf(p)),
-    roleTitle: designationOf(p) ? null : laneTitle(laneOf(p), players.length),
+    role: designationOf(p) || hitterLaneLabel(p, laneOf(p)),
+    roleTitle: designationOf(p) ? hitterRoleTitle(p) : hitterLaneTitle(p, laneOf(p), players.length),
+    hrPct: hrOverlay.probability,
+    hrFit: hrOverlay.passed,
     weak: p?.weak_spot_flag ? 1 : 0,
     aligned: isAligned(p) ? 1 : 0,
     edge: matchupEdge(p),
@@ -134,7 +143,7 @@ export default function HitterHeat({
     ihr: ihrVal(p),
     d375: recent375(p),
     hr9: nn(p?.pitcher_hr9),
-  })), [ranked, dh])
+  })}), [ranked, dh])
 
   if (!ranked.length) return null
 

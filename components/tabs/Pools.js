@@ -57,22 +57,11 @@ function LivePools({ results, players = [], onPlayerClick }) {
             cursor: 'pointer',
           }}>📸</button>
       </div>
-      {/* 2026-08-09. This blurb used to explain that a pool "clears only when
-          every member goes deep" and that most end unfinished. That was true
-          and it was also hiding the number: across 40 graded nights, all-or-
-          nothing cleared 0 times in 320 pools. Not rarely. Never.
-
-          The legs were never the problem — a pool leg homers 17.5% against a
-          14.9% slate baseline, and at least one goes on about half of all
-          nights. The BAR was the problem, so the bot moved it (1+ of a 3- or
-          4-man) and retired the 6-man. This copy now says what the bar is and
-          what the record actually was. */}
       <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
-        The bot&apos;s group tickets, graded as games finish. The bar is{' '}
-        <b style={{ color: C.text2 }}>1+ of 3 or 4</b> — one member going deep is a hit.
-        {' '}Across 40 graded nights that landed about half the time, and two members landed 13%.
-        {' '}<b style={{ color: C.text2 }}>All members homering has happened 0 times in 320 pools</b>,
-        which is why it stopped being the bar and the 6-man was retired.
+        The bot&apos;s group tickets, graded as games finish. A pool now needs{' '}
+        <b style={{ color: C.text2 }}>at least two homers</b> to hit. The full ladder stays visible:
+        {' '}2-of-4 is a hit, 3-of-4 is strong, and 4-of-4 is perfect. One homer is tracked,
+        but it is not graded as a win.
       </div>
       <div style={{
         display: 'grid', gap: 8,
@@ -80,12 +69,14 @@ function LivePools({ results, players = [], onPlayerClick }) {
       }}>
         {pools.map((pl, i) => {
           const hit = n(pl.hr_count, 0)
-          const tot = Math.max(1, n(pl.total_count, 0))
-          // The bar the bot publishes, with a fallback for older payloads that
-          // predate it: 1+ on a small pool, 2+ on anything bigger.
-          const bar = n(pl.bar, tot <= 4 ? 1 : 2)
+          // Show the published roster denominator. `total_count` is the
+          // number of active/finished legs and made a four-name pool display
+          // as 0/1 while games were still in progress.
+          const tot = Math.max(1, (pl.players || []).length || n(pl.total_count, 0))
+          const bar = n(pl.bar, Math.min(2, tot))
           const done = hit >= bar
           const perfect = hit >= tot
+          const grade = perfect ? 'PERFECT' : hit >= 3 ? `3/${tot} STRONG` : done ? `2/${tot} HIT` : ''
           const col = done ? '#4ade80' : hit > 0 ? C.orange : C.border
           const homered = new Set((pl.homer_names || []).map((x) => String(x || '').toLowerCase()))
           return (
@@ -100,10 +91,7 @@ function LivePools({ results, players = [], onPlayerClick }) {
               {/* progress bar along the bottom edge — the pool's pulse */}
               <div style={{
                 position: 'absolute', left: 0, bottom: 0, height: 3,
-                // Progress runs to the BAR, not to every member. A bar that
-                // fills to 1/6 on a hit nobody can reach reads as failure; the
-                // same hit filling to 1/1 reads as what it is.
-                width: `${Math.min(100, (100 * hit) / bar)}%`, background: col,
+                width: `${Math.min(100, (100 * hit) / tot)}%`, background: col,
                 boxShadow: `0 0 8px ${col}`, transition: 'width .3s',
               }} />
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -111,7 +99,7 @@ function LivePools({ results, players = [], onPlayerClick }) {
                 {done && (
                   <span title={perfect ? 'Every member went deep' : `Cleared the bar: ${bar}+ of ${tot}`}
                     style={{ fontSize: 9, fontWeight: 900, color: '#4ade80' }}>
-                    {perfect ? 'PERFECT' : 'HIT'}
+                    {grade}
                   </span>
                 )}
                 <span title={`${hit} of ${tot} homered · the bar is ${bar}+`} style={{
@@ -258,6 +246,7 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }
       }}>
         {all.map((pl, i) => {
           const k = String(pl.pool_key || `${pl.kind}-${i}`)
+          const p2 = Number(pl?.estimated_grade_probability?.['2plus'])
           const prevSnap = prevByKey?.[k]
           const changed = !!(prevSnap && prevSnap.sig !== undefined && prevSnap.sig !== rosterSig(pl))
           const currNorm = new Set(arr(pl.players).map((mb) => _pnorm(mb?.name)))
@@ -278,7 +267,7 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }
                 </span>
               )}
               <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
-                {pl.kind}
+                {pl.kind} · need 2{Number.isFinite(p2) ? ` · est ${(100 * p2).toFixed(1)}%` : ''}
               </span>
             </div>
             <div style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>

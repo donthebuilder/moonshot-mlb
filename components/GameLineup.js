@@ -6,7 +6,8 @@ import {
   pitchMixScore, barrelRate, ihrVal, recent375,
 } from '../lib/player'
 import { tierRole, isAligned } from '../lib/scoring'
-import { designationOf, laneRanker, laneLabel, laneTitle } from '../lib/verdict'
+import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneRanker } from '../lib/verdict'
+import { hrOverlayRead } from '../lib/hrOverlay'
 import DenseTable from './DenseTable'
 import { SCORE } from '../lib/scales'
 
@@ -111,8 +112,12 @@ const COLUMNS = [
   { key: 'name',   label: 'Batter', heat: false, w: 148, bold: true, sticky: true },
   { key: 'team',   label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   { key: 'b',      label: 'B',      heat: false, w: 22, mono: true, dim: true },
-  { key: 'role',   label: 'Role',   heat: false, w: 104, dim: true, titleKey: 'roleTitle',
-    title: 'A designated pick shows the designation the bot published (TOP/HR/HIT/HRR/CONTACT/WATCH). Everyone else shows his LANE — which of his four market scores sits highest within the rows in view — in capitals when he is in the top quarter of that lane and quiet when he is not. Hover a cell for the percentile.' },
+  { key: 'role',   label: 'Role',   heat: false, w: 158, dim: true, titleKey: 'roleTitle',
+    title: 'The hitter archetype comes first; the grading market stays in parentheses. Official picks settle on that market. Other rows show their strongest profile lane, not an official pick.' },
+  { key: 'hrPct', label: 'HR%', w: 48, dp: 1, domain: [0, 35], primary: true,
+    title: 'His small-sample-shrunk season-derived chance of 1+ HR in this game. This is a probability; HR score is not.' },
+  { key: 'hrFit', label: 'HR Fit', w: 48, dp: 0, domain: [0, 3], fmt: (v) => `${Number(v).toFixed(0)}/3`,
+    title: 'Validated HR restriction progress: Barrel ≥3.1%, FB ≥23.2%, Avg EV ≥89.9. Only 3/3 has a held-out rate: 16.2% vs 11.1% base (1.46×).' },
   { key: 'weak',   label: '★ Spot', flag: true, mark: '★', w: 44,
     title: 'Weak lineup spot — this starter has been beaten in this spot' },
   { key: 'aligned', label: 'Align', flag: true, mark: '◆', w: 40,
@@ -476,6 +481,7 @@ export default function GameLineup({ players, onPlayerClick }) {
     .sort((a, b) => teamOf(a).localeCompare(teamOf(b)) || (nn(a?.lineup_spot) || 99) - (nn(b?.lineup_spot) || 99))
     .map((p, i) => {
       const spotReason = parseSpotReason(p?.pitcher_spot_damage_reason)
+      const hrOverlay = hrOverlayRead(p)
       return {
         _key: `${p?.player_id ?? nameOf(p)}-${i}`,
         _raw: p,
@@ -491,8 +497,10 @@ export default function GameLineup({ players, onPlayerClick }) {
         // question the column is for instead — which of his four market scores
         // sits highest WITHIN THE ROWS IN VIEW — and says so in upper case only
         // when he is in the top quarter of that lane. See lib/verdict.js.
-        role: designationOf(p) || laneLabel(laneOf(p)),
-        roleTitle: designationOf(p) ? null : laneTitle(laneOf(p), pool.length),
+        role: designationOf(p) || hitterLaneLabel(p, laneOf(p)),
+        roleTitle: designationOf(p) ? hitterRoleTitle(p) : hitterLaneTitle(p, laneOf(p), pool.length),
+        hrPct: hrOverlay.probability,
+        hrFit: hrOverlay.passed,
         weak: p?.weak_spot_flag ? 1 : 0,
         aligned: isAligned(p) ? 1 : 0,
         edge: matchupEdge(p),

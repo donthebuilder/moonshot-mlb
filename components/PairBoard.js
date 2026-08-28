@@ -12,21 +12,20 @@ import DenseTable from './DenseTable'
 // exists for exactly that — it's the side that decides whether the pair
 // clears, because both have to land.
 //
-// SCORE IS NOT HEATED, ON PURPOSE. `pair_score` is not one quantity. The bot
-// writes it on two different scales depending on the lane: the TOP30 pairs come
-// back at 112 and 99, and lanes A–D come back at 11 to 16. Ramping that single
-// column meant the two TOP30 rows lit up and all eight lettered-lane pairs sat
-// in the floor colour — which reads as "these eight are bad" when what it
-// actually means is "these eight were scored by a different formula". There is
-// no shared range to normalise against, so the column is shown as a plain
-// number with its lane next to it, and the heat is carried by the columns that
-// ARE comparable across lanes: Stronger, Weaker, Balance, HRW, Longest are all
-// per-hitter scores on one scale.
+// The production bot now publishes one common pair score and a separate,
+// plainly-labelled season estimate for both players homering. The estimate is
+// useful for ordering and price screening; it is not called calibrated.
 
 const LANE_SHORT = {
-  TOP30: 'TOP30', A: 'A · Core', B: 'B · Statcast', C: 'C · Flex', D: 'D · Value',
+  TOP30: 'TOP30', A: 'A · Core', B: 'B · Statcast', C: 'C · Flex', D: 'D · Variance',
 }
 const LANE_RANK = ['TOP30', 'A', 'B', 'C', 'D']
+const chancePct = (p) => {
+  const published = Number(p?.season_hr_game_probability)
+  if (Number.isFinite(published) && published > 0 && published < 1) return 100 * published
+  const perPa = Number(p?.hr_per_pa)
+  return Number.isFinite(perPa) && perPa > 0 ? 100 * (1 - Math.pow(1 - perPa, 4.15)) : 0
+}
 
 export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
   // Live leg-tracking: which halves of each recommended pair have homered
@@ -43,6 +42,8 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
       const b = ps[1] || {}
       const hrA = n(a.hr_score, 0)
       const hrB = n(b.hr_score, 0)
+      const chanceA = chancePct(a)
+      const chanceB = chancePct(b)
       const lane = String(pr?.lane_key || '').toUpperCase()
       return {
         _key: clean(pr?.pair_key, String(i)),
@@ -55,6 +56,9 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
         teams: [clean(a.team, ''), clean(b.team, '')].filter(Boolean).join(' / '),
         sameGame: a.game_pk && a.game_pk === b.game_pk ? 1 : 0,
         score: n(pr?.pair_score, 0),
+        bothEst: 100 * n(pr?.estimated_both_hr_probability, (chanceA * chanceB) / 10000),
+        strongEst: Math.max(chanceA, chanceB),
+        weakEst: Math.min(chanceA, chanceB),
         risk: clean(pr?.risk, '—'),
         stronger: Math.max(hrA, hrB),
         weaker: Math.min(hrA, hrB),
@@ -66,6 +70,8 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
         aHit: homered.has(String(a.name || '').toLowerCase().trim()) ? 1 : 0,
         bHit: homered.has(String(b.name || '').toLowerCase().trim()) ? 1 : 0,
         aName: clean(a.name, '?'), bName: clean(b.name, '?'),
+        strongName: chanceA >= chanceB ? clean(a.name, '?') : clean(b.name, '?'),
+        weakName: chanceA >= chanceB ? clean(b.name, '?') : clean(a.name, '?'),
         l5: `${a.name ? String(a.name).split(' ').slice(-1)[0] : '?'} ${n(a.last5_hits,0)}H/${n(a.last5_hr,0)}HR · ${b.name ? String(b.name).split(' ').slice(-1)[0] : '?'} ${n(b.last5_hits,0)}H/${n(b.last5_hr,0)}HR`,
         reason: clean(pr?.reason, ''),
       }
@@ -90,7 +96,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
   // best weaker half, and when that isn't the highest-scored pair the card
   // shows both and names the trade, because that comparison is the whole
   // lesson and it takes two lines to teach.
-  const sturdiest = [...rows].sort((a, b) => b.weaker - a.weaker)[0]
+  const sturdiest = [...rows].sort((a, b) => b.weakEst - a.weakEst || b.bothEst - a.bothEst)[0]
   const topScore = [...rows].sort((a, b) => b.score - a.score)[0]
   const differ = sturdiest && topScore && sturdiest._key !== topScore._key
 
@@ -99,8 +105,8 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
       <b style={{ fontSize: 13, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</b>
       <span style={{
         fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900,
-        color: weak ? (score >= 60 ? C.orange : '#f87171') : C.text3,
-      }}>{score.toFixed(0)}</span>
+        color: weak ? (score >= 15 ? C.orange : '#f87171') : C.text3,
+      }}>{score.toFixed(1)}%</span>
     </span>
   )
 
@@ -126,19 +132,18 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
             </span>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <Side name={sturdiest.aName} score={sturdiest.stronger} />
+            <Side name={sturdiest.strongName} score={sturdiest.strongEst} />
             <span style={{ color: C.text3, fontSize: 13 }}>+</span>
-            <Side name={sturdiest.bName} score={sturdiest.weaker} weak />
+            <Side name={sturdiest.weakName} score={sturdiest.weakEst} weak />
             <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              gap {sturdiest.gap.toFixed(0)}
+              both est {sturdiest.bothEst.toFixed(1)}%
             </span>
           </div>
           <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginTop: 5 }}>
-            Both have to land, so the pair is worth its <b style={{ color: C.orange }}>weaker half — {sturdiest.weaker.toFixed(0)}</b>,
-            not its headline.
+            Both have to land, so this leads on its <b style={{ color: C.orange }}>weaker season estimate — {sturdiest.weakEst.toFixed(1)}%</b>.
             {differ && (
               <> The highest-SCORED pair is <b style={{ color: C.text }}>{topScore.pair}</b> at {topScore.score.toFixed(1)},
-              but its weak side is only <b style={{ color: topScore.weaker >= 60 ? C.orange : '#f87171' }}>{topScore.weaker.toFixed(0)}</b> —
+              but its weak-side estimate is <b style={{ color: C.text2 }}>{topScore.weakEst.toFixed(1)}%</b> —
               that&apos;s the trade.</>
             )}
           </div>
@@ -165,8 +170,10 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
             title: 'The bot’s own lane_key. Scores are only comparable inside a lane.' },
           { key: 'sameGame', label: 'Same gm',  flag: true, mark: '●', w: 46 },
           { key: 'score',    label: 'Score',    heat: false, w: 56, mono: true,
-            title: 'The bot’s pair_score. Not shaded — TOP30 scores around 100 and lanes A–D around 12, so a shared ramp would be meaningless.',
+            title: 'The bot’s common pair quality score.',
             fmt: (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(Number(v) < 30 ? 2 : 1) : '—') },
+          { key: 'bothEst',  label: 'Both est', w: 58, dp: 1, title: 'Independent season HR/PA screening estimate; not a calibrated model forecast.' },
+          { key: 'weakEst',  label: 'Weak est', w: 58, dp: 1, title: 'Lower of the two individual season estimates.' },
           { key: 'stronger', label: 'Stronger', w: 56, dp: 1 },
           { key: 'weaker',   label: 'Weaker',   w: 52, dp: 1 },
           { key: 'gap',      label: 'Gap',      w: 44, dp: 1, invert: true },
@@ -179,7 +186,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
         onRowClick={onPlayerClick}
         initialSort={null}
         maxHeight={420}
-        caption="Sorted by lane, then by score inside the lane. Gap is inverted — a wide gap between the two sides is a worse pair at the same score. Score is shown unshaded because TOP30 and lanes A–D are scored on different scales; compare within a lane, not down the column. Click a row to open the stronger hitter."
+        caption="Sorted by lane, then by the bot's common pair score. Both est multiplies the two small-sample-shrunk season HR/PA estimates under independence; it is a screening estimate, not a calibrated forecast. Click a row to open the stronger hitter."
       />
 
       {/* THE BOT'S REASONING, in prose. The reason/tags/risk fields were

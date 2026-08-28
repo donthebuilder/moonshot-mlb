@@ -28,8 +28,8 @@ const PAIR_TYPE_COLORS = {
   'Pitcher Target Pair':     '#f87171',
   'Flex HR Pair':            '#22d3ee',
   'Same-Game Stack Pair':    '#22d3ee',
-  'Value / Contrarian Pair': '#a78bfa',
-  'Value Power Pair':        '#a78bfa',
+  'Variance Pair':           '#a78bfa',
+  'Variance Power Pair':     '#a78bfa',
   'HRR Safer Pair':          '#4ade80',
 }
 // The "unknown type" fallback isn't identity — it's the same quiet neutral
@@ -319,7 +319,7 @@ function variantScore(a, b, type) {
       (num(a.hrr_score) + num(b.hrr_score)) * 0.34 +
       (num(a.hit_score) + num(b.hit_score)) * 0.12
   }
-  if (type === 'Value Power Pair') {
+  if (type === 'Variance Power Pair') {
     return base * 0.72 +
       (num(a.pitcher_attack_score) + num(b.pitcher_attack_score)) * 0.34 +
       (num(a.hr_due_score) + num(b.hr_due_score)) * 0.2 +
@@ -381,7 +381,7 @@ function eligiblePairPlayers(players=[]) {
 
 function buildVariantPairs(players, relation='cross') {
   const pool = eligiblePairPlayers(players)
-  const types = ['Core HR Pair', 'Statcast HR Pair', 'Flex HR Pair', 'Value Power Pair']
+  const types = ['Core HR Pair', 'Statcast HR Pair', 'Flex HR Pair', 'Variance Power Pair']
   const candidatesByType = new Map()
 
   for (const type of types) {
@@ -443,13 +443,13 @@ function buildVariantPools(players, size) {
         ['Pool A — Strongest', 'strong'],
         ['Pool B — Balanced', 'balanced'],
         ['Pool C — Mid / Var', 'variance'],
-        ['Pool D — Contrarian', 'variance'],
+        ['Pool D — Variance', 'variance'],
       ]
     : [
         ['Pool A — Strongest', 'strong'],
         ['Pool B — HRR + Power', 'hrr'],
         ['Pool C — Balanced', 'balanced'],
-        ['Pool D — Contrarian', 'variance'],
+        ['Pool D — Variance', 'variance'],
       ]
 
   const globalUsed = new Set()

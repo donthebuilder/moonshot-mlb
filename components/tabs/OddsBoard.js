@@ -6,6 +6,7 @@ import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName } from '../.
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
 import TruePrice from './TruePrice'
+import OddsSignals from './OddsSignals'
 import { btnStyle } from '../ui'
 
 // 💵 THE ODDS PAGE (2026-08-15, Donovan: "we need to see the line the book has
@@ -146,11 +147,14 @@ const one = (v) => (Number.isFinite(v) ? (Math.round(10 * v) / 10).toFixed(1) : 
 // until routing is rewired.
 const PAGE_VIEWS = [
   ['board', '💵 Tonight’s board'],
+  ['signals', '⚡ Moves & gaps'],
   ['trueprice', '🏷 True Price'],
 ]
 
 export default function OddsBoard({ players = [], odds = null, onPlayerClick, initialView = 'board' }) {
-  const [view, setView] = useState(initialView === 'trueprice' ? 'trueprice' : 'board')
+  const [view, setView] = useState(
+    initialView === 'trueprice' ? 'trueprice' : initialView === 'signals' ? 'signals' : 'board'
+  )
   const [market, setMarket] = useState('batter_home_runs')
   const [plusOnly, setPlusOnly] = useState(false)
   const [offStd, setOffStd] = useState(false)
@@ -407,6 +411,15 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       <div>
         {viewBar}
         <TruePrice onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
+
+  if (view === 'signals') {
+    return (
+      <div>
+        {viewBar}
+        <OddsSignals players={players} odds={odds} onPlayerClick={onPlayerClick} />
       </div>
     )
   }
