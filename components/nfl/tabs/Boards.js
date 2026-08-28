@@ -6,6 +6,63 @@ import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 
+const LOG_FIELD = {
+  TD: 'g_td',
+  REC_YDS: 'g_recyd',
+  REC: 'g_rec',
+  RUSH_YDS: 'g_ruyd',
+  RUSH_ATT: 'g_car',
+  PASS_YDS: 'g_payd',
+  KICK_PTS: 'g_kick',
+}
+
+function recentForm(logs, playerId, market, bar) {
+  const field = LOG_FIELD[market]
+  const games = logs?.logs?.[String(playerId)]?.log
+  if (!field || !Array.isArray(games)) return null
+  const points = games
+    .filter((game) => Number.isFinite(game?.[field]))
+    .slice(-8)
+    .map((game) => ({ value: Number(game[field]), week: game.w, season: game.s }))
+  if (points.length < 2) return null
+
+  const split = Math.max(1, Math.floor(points.length / 2))
+  const older = points.slice(0, split)
+  const newer = points.slice(split)
+  const average = (items) => items.reduce((sum, point) => sum + point.value, 0) / items.length
+  const delta = average(newer) - average(older)
+  const hits = points.filter((point) => point.value >= Number(bar)).length
+  return { points, delta, hits }
+}
+
+function FormSparkline({ form, bar, color }) {
+  if (!form) return <span style={{ color: C.text3, fontSize: 9 }}>No form</span>
+  const values = form.points.map((point) => point.value)
+  const ceiling = Math.max(Number(bar) || 0, ...values, 1)
+  const coords = values.map((value, index) => {
+    const x = values.length === 1 ? 32 : 2 + (index / (values.length - 1)) * 60
+    const y = 24 - (Math.max(0, value) / ceiling) * 20
+    return `${x},${y}`
+  }).join(' ')
+  const barY = 24 - (Math.max(0, Number(bar) || 0) / ceiling) * 20
+  const direction = form.delta > 0.05 ? '▲' : form.delta < -0.05 ? '▼' : '—'
+  const directionColor = form.delta > 0.05 ? C.green : form.delta < -0.05 ? C.red : C.text3
+
+  return (
+    <span title={`${form.hits}/${form.points.length} cleared the market bar in the last ${form.points.length} games`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <svg width="66" height="27" viewBox="0 0 66 27" role="img" aria-label={`Recent form: ${form.hits} of ${form.points.length} games cleared the bar`}>
+        <line x1="1" x2="65" y1={barY} y2={barY} stroke={C.border2} strokeDasharray="2 2" />
+        <polyline points={coords} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        {form.points.map((point, index) => {
+          const [x, y] = coords.split(' ')[index].split(',')
+          return <circle key={`${point.season}-${point.week}`} cx={x} cy={y} r="1.8" fill={point.value >= Number(bar) ? C.green : color} />
+        })}
+      </svg>
+      <b style={{ color: directionColor, fontFamily: NUM_FONT, fontSize: 9 }}>{direction}</b>
+    </span>
+  )
+}
+
 // Boards — the seven markets, one at a time, category buttons across the top.
 //
 // Same call the MLB side made on 2026-08-04 when HR Board and Hits & HRR were
@@ -16,7 +73,7 @@ import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmente
 // board — is this a market with three clear plays or twenty coin flips — and
 // a column of numbers doesn't show you that.
 
-export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
+export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) {
   const [market, setMarket] = useState('TD')
   const [showLow, setShowLow] = useState(false)
   const [query, setQuery] = useState('')
@@ -123,6 +180,9 @@ export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
               no lines this slate · weight redistributed
             </div>
           )}
+          <div style={{ color: C.text3, marginTop: 3, fontSize: 9.5 }}>
+            Form line = last 8 games · dotted line = market bar · arrow compares recent half with prior half
+          </div>
         </div>
       )}
 
@@ -130,6 +190,7 @@ export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
         {rows.map((p, i) => {
           const s = p.scores[market]
           const g = gradeFor(s)
+          const form = recentForm(logs, p.player_id, market, spec?.bar)
           return (
             <button
               key={p.player_id}
@@ -189,6 +250,9 @@ export default function Boards({ data, onPlayerClick, odds, oddsStatus }) {
                   <OddsLine quote={quoteFor(odds, p, market)} compact />
                 </span>
               )}
+              <span style={{ position: 'relative', minWidth: 88, display: 'flex', justifyContent: 'flex-end' }}>
+                <FormSparkline form={form} bar={spec?.bar} color={g.color} />
+              </span>
               {p.questionable && (
                 <span style={{
                   position: 'relative', fontSize: 9, fontWeight: 900, color: C.yellow,
