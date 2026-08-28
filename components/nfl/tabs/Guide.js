@@ -28,9 +28,33 @@ function Card({ children, accent = C.green }) {
   )
 }
 
-export default function Guide() {
+function PageCard({ tab, title, note, onNavigate }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate?.(tab)}
+      style={{
+        minHeight: 72, padding: '10px 12px', textAlign: 'left', cursor: 'pointer',
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 9,
+      }}
+    >
+      <b style={{ display: 'block', color: C.text, fontSize: 12 }}>{title}</b>
+      <span style={{ display: 'block', marginTop: 4, color: C.text3, fontSize: 10, lineHeight: 1.45 }}>{note}</span>
+    </button>
+  )
+}
+
+export default function Guide({ onNavigate }) {
   return (
     <div style={{ maxWidth: 760 }}>
+      <Section title="Start here — three taps">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
+          <PageCard tab="home" title="1 · Read the slate" note="Home shows the live ledger, The Six, lookout spots and the strongest boards." onNavigate={onNavigate} />
+          <PageCard tab="picks" title="2 · Read the calls" note="Picks holds the designated calls. A call is graded; a high Board rank is not automatically a call." onNavigate={onNavigate} />
+          <PageCard tab="boards" title="3 · Compare the field" note="Boards ranks every eligible player by market. Filter it, inspect recent form, then tap a player for the full card." onNavigate={onNavigate} />
+        </div>
+      </Section>
+
       <Section title="The one thing to understand">
         A score is a <b style={{ color: C.text }}>rank, not a probability</b>. A 67 does
         not mean 67%. It means he sits that far up the league on the inputs the model
@@ -49,6 +73,25 @@ export default function Guide() {
             should score thin</b> — and now it does. This preseason board tops out in the
             60s and hands out no A+ at all.
           </div>
+        </Card>
+      </Section>
+
+      <Section title="Calls, rankings and saves are different">
+        <Card>
+          <b style={{ color: C.text }}>The Six</b> are TUDDY&apos;s headline calls: one each
+          for anytime TD, receiving yards, rushing yards, receptions, passing yards and
+          kicker points. They are graded as calls.
+        </Card>
+        <Card accent={C.blue}>
+          <b style={{ color: C.text }}>The Board</b> is the full model ranking for one
+          market. A player can rank first without becoming a designated pick. The form
+          line on each row is his last eight real games; its dotted line is the market
+          bar, and the arrow compares the recent half with the prior half. It is not a
+          historical model score or an odds chart.
+        </Card>
+        <Card accent={C.purple}>
+          <b style={{ color: C.text }}>Watchlist</b> is your private shortlist on this
+          device. Saving a player does not promote or grade him.
         </Card>
       </Section>
 
@@ -94,6 +137,25 @@ export default function Guide() {
             {' '}— low sample. A rate built on four touches has no business sitting at the
             same visual weight as one built on two hundred.</div>
         </div>
+      </Section>
+
+      <Section title="Where each page takes you">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
+          <PageCard tab="games" title="Games" note="Drive state, weather, defense fatigue and designated calls grouped by matchup." onNavigate={onNavigate} />
+          <PageCard tab="players" title="Player Portal" note="Search one player for measurables, splits, projections, recent games and storylines." onNavigate={onNavigate} />
+          <PageCard tab="watchlist" title="Watchlist" note="Only the players you saved, with the current slate row kept intact." onNavigate={onNavigate} />
+          <PageCard tab="research" title="Research" note="Deeper model inputs and supporting context. Useful after the verdict, not before it." onNavigate={onNavigate} />
+          <PageCard tab="matchups" title="Matchups" note="Defense-versus-position and matchup context without turning team context into a player pick." onNavigate={onNavigate} />
+          <PageCard tab="pairs" title="Pairs" note="Related same-game combinations. Relationship labels are context, not a guarantee or independent grade." onNavigate={onNavigate} />
+          <PageCard tab="accountability" title="Results" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
+          <PageCard tab="report" title="Report Card" note="Backtests each model against a simple trailing-average baseline." onNavigate={onNavigate} />
+        </div>
+      </Section>
+
+      <Section title="Filters never change the model">
+        Search, team, position, game and sample controls only narrow what is visible. They
+        do not recalculate a score or turn a Board row into a pick. Clear the active-filter
+        chips to return to the full slate.
       </Section>
 
       <Section title="What preseason is and isn't">

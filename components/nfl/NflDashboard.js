@@ -158,7 +158,7 @@ export default function NflDashboard() {
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
-            {tab === 'guide' && <Guide />}
+            {tab === 'guide' && <Guide onNavigate={setTab} />}
           </>
         )}
       </main>
