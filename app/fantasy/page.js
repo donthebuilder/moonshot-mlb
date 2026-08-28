@@ -24,37 +24,81 @@ function Notice({ error, message }) {
 
 function AuthScreen({ error, message }) {
   return (
-    <main className={styles.authPage}>
-      <section className={styles.hero}>
-        <p className={styles.eyebrow}>DASH NETWORK</p>
-        <h1>FRANCHISE</h1>
-        <p>Build a team. Run the room. Own the season.</p>
+    <main className={styles.launchApp}>
+      <header className={styles.launchHeader}>
+        <Link className={styles.launchBrand} href="/"><span>DN</span><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
+        <nav><a href="#product">See the product</a><a href="#sign-in">Sign in</a><a className={styles.launchNavCta} href="#create-account">Start free</a></nav>
+      </header>
+
+      <section className={styles.launchHero}>
+        <div className={styles.launchHeroCopy}>
+          <p className={styles.launchEyebrow}><span>●</span> FANTASY FOOTBALL, BUILT INTO DASH</p>
+          <h1>Run your league.<br/><em>Know your next move.</em></h1>
+          <p>Draft with friends, follow every matchup live, work the waiver wire, trade, talk trash, and get a clear recommendation when you&apos;re stuck.</p>
+          <div className={styles.launchActions}><a href="#create-account">Create your free league <b>→</b></a><a href="#sign-in">I already have an account</a></div>
+          <div className={styles.launchTrust}><span>✓ Free to play</span><span>✓ Invite-only leagues</span><span>✓ No payment screen</span></div>
+        </div>
+        <div className={styles.launchScoreCard}>
+          <div><small>DASH SCORE</small><strong>87</strong><span>A−</span></div>
+          <p>YOUR WEEK 2 EDGE</p>
+          <h2>Start DeVonta Smith at FLEX.</h2>
+          <p>Higher target ceiling in a matchup you&apos;re projected to win by 7.3.</p>
+          <div className={styles.launchScoreFooter}><span>WIN CHANCE <b>62%</b></span><span>PROJECTED <b>124.8</b></span></div>
+        </div>
       </section>
-      <Notice error={error} message={message} />
-      <section className={styles.authGrid}>
-        <form action={signIn} className={styles.card}>
-          <p className={styles.kicker}>WELCOME BACK</p>
-          <h2>Sign in</h2>
-          <p className={styles.muted}>Already made your Franchise account? Enter the same email and password here.</p>
-          <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-          <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-          <button type="submit">Enter Franchise</button>
-        </form>
-        <form action={signUp} className={styles.card}>
-          <p className={styles.kicker}>ROOKIE SEASON</p>
-          <h2>Create account</h2>
-          <p className={styles.muted}>Only use this once. Returning owners should use Sign in.</p>
+
+      <section className={styles.launchProof}>
+        <div><strong>LIVE</strong><span>Matchups &amp; NFL game status</span></div>
+        <div><strong>24H</strong><span>Rolling-priority waivers</span></div>
+        <div><strong>8–14</strong><span>Teams per private league</span></div>
+        <div><strong>1</strong><span>Coach for every decision</span></div>
+      </section>
+
+      <section className={styles.launchProduct} id="product">
+        <div className={styles.launchSectionHead}><p>NOT A PROMISE. THE ACTUAL PRODUCT.</p><h2>See your whole season in one place.</h2><span>Matchups, lineups, league movement, and advice—with the clutter stripped out.</span></div>
+        <SetupScreen embedded />
+      </section>
+
+      <section className={styles.launchReasons}>
+        <article><span>01</span><p>GAME DAY</p><h3>Watch the matchup change live.</h3><small>NFL game status, player scores, projections, and every matchup around your league.</small></article>
+        <article><span>02</span><p>DASH COACH</p><h3>Get an answer, not another spreadsheet.</h3><small>Beginner-friendly lineup, draft, and waiver recommendations with the reason explained.</small></article>
+        <article><span>03</span><p>YOUR PEOPLE</p><h3>A league that feels like your league.</h3><small>Private invite codes, trades, commissioner control, reactions, comments, recaps, and weekly awards.</small></article>
+      </section>
+
+      <section className={styles.launchAuth}>
+        <div className={styles.launchAuthIntro}>
+          <p>READY WHEN YOUR LEAGUE IS</p>
+          <h2>Make this season yours.</h2>
+          <span>Create the league now or sign back into the front office you already started.</span>
+        </div>
+        <Notice error={error} message={message} />
+        <div className={styles.launchAuthGrid}>
+        <form action={signUp} className={styles.launchAuthCard} id="create-account">
+          <p className={styles.kicker}>START HERE · FREE</p>
+          <h3>Create your account</h3>
+          <p>One account lets you own teams in multiple private leagues.</p>
           <label>Your name<input name="displayName" autoComplete="name" maxLength="40" required /></label>
           <label>Email<input name="email" type="email" autoComplete="email" required /></label>
           <label>Password<input name="password" type="password" minLength="8" autoComplete="new-password" required /></label>
-          <button type="submit">Start your Franchise</button>
+          <button type="submit">Start my Franchise <span>→</span></button>
+          <small>No card. No payment. Just your league.</small>
         </form>
+        <form action={signIn} className={styles.launchAuthCard} id="sign-in">
+          <p className={styles.kicker}>WELCOME BACK</p>
+          <h3>Enter your front office</h3>
+          <p>Use the email and password you created for Franchise.</p>
+          <label>Email<input name="email" type="email" autoComplete="email" required /></label>
+          <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+          <button type="submit">Sign in <span>→</span></button>
+        </form>
+        </div>
       </section>
+      <footer className={styles.launchFooter}><span>DASH NETWORK</span><p>MOONSHOT · MLB</p><p>TUDDY · NFL</p><p>FRANCHISE · FANTASY</p></footer>
     </main>
   )
 }
 
-function SetupScreen() {
+function SetupScreen({ embedded = false }) {
   const lineup = [
     ['QB', 'J. Allen', 'BUF · vs BAL', '24.6'],
     ['RB', 'B. Hall', 'NYJ · vs PIT', '16.8'],
@@ -65,8 +109,9 @@ function SetupScreen() {
     ['FLEX', 'D. Smith', 'PHI · vs DAL', '14.7'],
   ]
 
+  const Wrapper = embedded ? 'div' : 'main'
   return (
-    <main className={styles.previewApp}>
+    <Wrapper className={`${styles.previewApp} ${embedded ? styles.embeddedPreview : ''}`}>
       <header className={styles.previewHeader}>
         <div className={styles.brandRow}>
           <span className={styles.logoMark}>FX</span>
@@ -93,9 +138,9 @@ function SetupScreen() {
       </nav>
 
       <div className={styles.previewMode}>
-        <span>◉ PREVIEW MODE</span>
-        <p>This is the Franchise experience. Connect Supabase when you&apos;re ready to make accounts and leagues live.</p>
-        <code>.env.example</code>
+        <span>{embedded ? '◉ PRODUCT VIEW' : '◉ PREVIEW MODE'}</span>
+        <p>{embedded ? 'A real look at the Franchise team dashboard.' : 'This is the Franchise experience. Connect Supabase when you\'re ready to make accounts and leagues live.'}</p>
+        {!embedded && <code>.env.example</code>}
       </div>
 
       <section className={styles.previewContent}>
@@ -148,8 +193,8 @@ function SetupScreen() {
           </section>
         </div>
       </section>
-      <nav className={styles.mobilePreviewNav}><a className={styles.navActive}>⌂<span>Home</span></a><a>▣<span>Team</span></a><a>⚔<span>Matchup</span></a><a>▤<span>League</span></a><a>✦<span>Coach</span></a></nav>
-    </main>
+      {!embedded && <nav className={styles.mobilePreviewNav}><a className={styles.navActive}>⌂<span>Home</span></a><a>▣<span>Team</span></a><a>⚔<span>Matchup</span></a><a>▤<span>League</span></a><a>✦<span>Coach</span></a></nav>}
+    </Wrapper>
   )
 }
 
