@@ -26,7 +26,7 @@ function AuthScreen({ error, message }) {
   return (
     <main className={styles.launchApp}>
       <header className={styles.launchHeader}>
-        <Link className={styles.launchBrand} href="/"><span>DN</span><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
+        <Link className={styles.launchBrand} href="/"><img src="/icon-192.png" alt="" width="39" height="39"/><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
         <nav><a href="#product">See the product</a><a href="#sign-in">Sign in</a><a className={styles.launchNavCta} href="#create-account">Start free</a></nav>
       </header>
 
