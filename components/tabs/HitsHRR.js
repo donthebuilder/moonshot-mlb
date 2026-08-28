@@ -10,7 +10,7 @@ import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
-import { hrScore, nameOf, playerId, teamOf } from '../../lib/player'
+import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
 import { useSetupHomers, backToBack } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
 
@@ -360,7 +360,7 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
       {list.length > 0 && (
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingTop: 8, paddingBottom: 1 }}>
           {list.map((player) => {
-            const id = Number(playerId(player))
+            const id = mlbId(player)
             const hitAgain = cashed.has(id)
             return (
               <button key={id || nameOf(player)} onClick={() => onPlayerClick?.(player)} style={{
