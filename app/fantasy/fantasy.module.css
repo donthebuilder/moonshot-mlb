@@ -4779,3 +4779,119 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .roomApp .playerBoard>.positionFilters { top: 0; }
   .roomApp .playerBoard>.draftColumns { top: 40px; }
 }
+
+/* == TEAM · LOOK PASS 1 ================================================== */
+/* Same surface scale as the draft room. The board was 15+ identical rows with
+   no visible line between starters and bench, and "locked" read as nothing
+   more than a slightly darker background. */
+
+.roomApp .lineupBoard,
+.roomApp .teamSide>section {
+  border: 1px solid var(--fx-edge-2);
+  border-radius: 14px;
+  background: var(--fx-s1);
+  box-shadow: 0 1px 0 rgba(255,255,255,.02) inset, 0 10px 30px rgba(0,0,0,.32);
+}
+.roomApp .teamHero {
+  border-color: #26382f;
+  background: radial-gradient(circle at 88% 14%,rgba(24,200,120,.11),transparent 42%),var(--fx-s1);
+}
+
+/* --- groups: starters, bench, IR --------------------------------------- */
+.slotGroupHead {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--fx-edge-2);
+  background: var(--fx-s2);
+}
+.slotGroup:first-child .slotGroupHead { border-top: 0; }
+.slotGroupHead span {
+  color: var(--fx-ink);
+  font: 900 9px/1 monospace;
+  letter-spacing: .17em;
+}
+.slotGroupHead small {
+  margin-right: auto;
+  color: var(--fx-muted-2);
+  font: 9px/1 monospace;
+}
+.slotGroupHead b {
+  color: var(--fx-muted);
+  font: 900 10px/1 monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- slot rows ---------------------------------------------------------- */
+.roomApp .slotRow {
+  grid-template-columns: 48px 1fr 52px minmax(150px,250px) 74px;
+  border-top: 1px solid var(--fx-edge);
+  transition: background .12s ease;
+}
+.roomApp .slotRow:hover { background: var(--fx-s2); }
+.roomApp .slotRow b { font-size: 13px; letter-spacing: -.01em; }
+
+/* an open starting slot is the one thing on this page that needs you */
+.roomApp .slotRow[data-empty="true"][data-starter="true"] {
+  background: linear-gradient(90deg,rgba(246,169,40,.07),transparent 45%);
+}
+.roomApp .slotRow[data-empty="true"][data-starter="true"] .slotBadge {
+  border-style: dashed;
+}
+.roomApp .slotRow[data-empty="true"] b {
+  color: var(--fx-muted-2);
+  font-style: italic;
+}
+
+/* locked should read as inert, not as "a slightly different grey" */
+.roomApp .slotRow[data-locked="true"] {
+  background: repeating-linear-gradient(135deg,rgba(255,255,255,.014) 0 6px,transparent 6px 12px),var(--fx-s1);
+  opacity: .72;
+}
+.roomApp .slotRow[data-locked="true"]:hover { background: var(--fx-s1); }
+.roomApp .slotRow[data-locked="true"] .slotBadge { border-style: solid; }
+
+.slotProjection {
+  text-align: right;
+  color: var(--fx-ink);
+  font: 900 13px/1 monospace;
+  font-variant-numeric: tabular-nums;
+}
+.slotProjection i {
+  display: block;
+  margin-top: 4px;
+  color: var(--fx-dim);
+  font: 400 7px/1 monospace;
+  font-style: normal;
+  letter-spacing: .1em;
+}
+.roomApp .slotRow[data-empty="true"] .slotProjection { color: var(--fx-dim); }
+
+.roomApp .slotRow select {
+  height: 34px;
+  border-radius: 8px;
+  background: #0e0d0c;
+  transition: border-color .14s ease, color .14s ease;
+}
+.roomApp .slotRow select:focus {
+  outline: none;
+  border-color: var(--fx-accent);
+  color: var(--fx-ink);
+}
+.roomApp .slotRow button { height: 34px; border-radius: 8px; }
+.roomApp .positionCount { border-top: 1px solid var(--fx-edge); }
+.roomApp .positionCount:hover { background: var(--fx-s2); }
+
+@media(max-width:760px) {
+  .roomApp .slotRow {
+    grid-template-columns: 42px 1fr 52px;
+    row-gap: 7px;
+  }
+  .roomApp .slotRow select { grid-column: 1/4; width: 100%; }
+  .roomApp .slotRow button { grid-column: 1/4; width: 100%; }
+  .slotGroupHead { top: 0; }
+}
