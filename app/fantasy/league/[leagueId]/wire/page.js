@@ -21,7 +21,7 @@ function remaining(until) {
 }
 
 export default async function WirePage({params,searchParams}) {
-  const leagueId=params.leagueId
+  const [{leagueId},query]=await Promise.all([params,searchParams])
   const supabase=await createSupabaseServerClient()
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
@@ -43,8 +43,8 @@ export default async function WirePage({params,searchParams}) {
   const rosteredIds=new Set(safeRosters.map((row)=>row.player_id))
   const myRosterIds=safeRosters.filter((row)=>row.team_id===myTeam?.id).map((row)=>row.player_id)
   const myRoster=safePlayers.filter((player)=>myRosterIds.includes(player.id)).sort((a,b)=>a.position.localeCompare(b.position)||a.name.localeCompare(b.name))
-  const selectedPosition=POSITIONS.includes(searchParams?.position)?searchParams.position:'ALL'
-  const search=String(searchParams?.q||'').trim().toLowerCase().slice(0,40)
+  const selectedPosition=POSITIONS.includes(query?.position)?query.position:'ALL'
+  const search=String(query?.q||'').trim().toLowerCase().slice(0,40)
   const availablePlayers=safePlayers.map((player)=>({...player,dash_score:dashScore(player)}))
     .filter((player)=>!rosteredIds.has(player.id))
     .filter((player)=>selectedPosition==='ALL'||player.position===selectedPosition)
@@ -59,11 +59,11 @@ export default async function WirePage({params,searchParams}) {
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>PLAYER MARKET</small><strong>{league.name}</strong></div><span>Priority #{safeTeams.findIndex((team)=>team.id===myTeam?.id)+1}</span></header>
     <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><a className={styles.roomActive}>Wire</a><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link></nav>
     <div className={styles.roomBody}>
-      {(searchParams?.error||searchParams?.message)&&<p className={searchParams.error?styles.error:styles.message}>{searchParams.error||searchParams.message}</p>}
+      {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.wireHero}><div><p className={styles.panelLabel}>THE WIRE</p><h1>Find the next difference-maker.</h1><p>Free agents join immediately. Dropped players spend 24 hours on rolling-priority waivers.</p></div><div className={styles.roomStats}><span><small>PRIORITY</small><b>#{safeTeams.findIndex((team)=>team.id===myTeam?.id)+1}</b></span><span><small>CLAIMS</small><b>{myClaims.length}</b></span><span><small>ROSTER</small><b>{myRoster.length}/15</b></span></div></section>
       {membership.role==='commissioner'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>COMMISSIONER</p><strong>{nextProcessing?`Next claims ${remaining(nextProcessing.process_after)}`:'No pending waiver run'}</strong></div><form action={processWaivers}><input type="hidden" name="leagueId" value={leagueId}/><button disabled={!nextProcessing}>Process cleared claims</button></form></section>}
       <div className={styles.wireLayout}>
-        <section className={styles.playerBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>Free agents & waivers</h2></div><form className={styles.playerSearch}><input name="q" defaultValue={searchParams?.q||''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{availablePlayers.length} players</span></div>
+        <section className={styles.playerBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>Free agents & waivers</h2></div><form className={styles.playerSearch}><input name="q" defaultValue={query?.q||''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{availablePlayers.length} players</span></div>
           <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} href={`/fantasy/league/${leagueId}/wire?position=${position}`}>{position}</Link>)}</div>
           <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
           {availablePlayers.slice(0,80).map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><div><b>{player.name}</b><small>{player.team||'FA'}{player.injury_status?` · ${player.injury_status}`:''}</small></div><strong>{player.dash_score}</strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><button disabled={league.status!=='active'}>{onWaivers?'Claim':'Add'}</button></div></form>})}

@@ -174,7 +174,7 @@ function CreateLeagueForm() {
 }
 
 export default async function FantasyPage({ searchParams }) {
-  const params = searchParams || {}
+  const params = (await searchParams) || {}
   if (!hasSupabaseConfig()) return <SetupScreen />
 
   const supabase = await createSupabaseServerClient()

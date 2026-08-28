@@ -6,8 +6,8 @@ import styles from '../../../fantasy.module.css'
 import { cancelTrade, proposeTrade, respondTrade, reviewTrade } from './actions'
 
 export default async function TradesPage({params,searchParams}) {
-  const leagueId=params.leagueId
-  const selectedTeamId=String(searchParams?.team||'')
+  const [{leagueId},query]=await Promise.all([params,searchParams])
+  const selectedTeamId=String(query?.team||'')
   const supabase=await createSupabaseServerClient()
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
@@ -32,7 +32,7 @@ export default async function TradesPage({params,searchParams}) {
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{reviewCount} awaiting review</span></header>
     <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><a className={styles.roomActive}>Trades</a><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link></nav>
     <div className={styles.roomBody}>
-      {(searchParams?.error||searchParams?.message)&&<p className={searchParams.error?styles.error:styles.message}>{searchParams.error||searchParams.message}</p>}
+      {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.tradeHero}><div><p className={styles.panelLabel}>TRADE DESK</p><h1>Build a deal. Make both teams better.</h1><p>Owners agree first. The commissioner reviews the final deal before any roster changes occur.</p></div><div className={styles.roomStats}><span><small>ACTIVE</small><b>{relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length}</b></span><span><small>REVIEW</small><b>{reviewCount}</b></span><span><small>DONE</small><b>{relevant.filter((trade)=>trade.status==='completed').length}</b></span></div></section>
       {!otherTeams.length&&<section className={styles.waitingRoom}><span>⇄</span><div><p className={styles.panelLabel}>TRADE PARTNERS</p><strong>Another owner needs to join first.</strong><small>Trade offers unlock as soon as the league has at least two teams with players.</small></div></section>}
       {otherTeams.length>0&&<section className={styles.tradeBuilder}><div className={styles.tradeBuilderHead}><div><p className={styles.panelLabel}>NEW OFFER</p><h2>Propose a trade</h2></div><form><label>Trade partner<select name="team" defaultValue={target?.id}>{otherTeams.map((team)=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><button>Load roster</button></form></div><form action={proposeTrade}><div className={styles.tradeSides}><PlayerSelect title={`${myTeam?.name} sends`} name="offeredPlayerIds" players={myRoster}/><span className={styles.tradeArrow}>⇄</span><PlayerSelect title={`${target?.name} sends`} name="requestedPlayerIds" players={targetRoster}/></div><div className={styles.tradeNote}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="recipientTeamId" value={target?.id}/><input name="note" maxLength="280" placeholder="Optional note to the other owner"/><button disabled={!myRoster.length||!targetRoster.length}>Send offer</button></div></form></section>}

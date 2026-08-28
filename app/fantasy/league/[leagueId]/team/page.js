@@ -27,7 +27,7 @@ function eligible(player, slot, league) {
 }
 
 export default async function TeamPage({ params, searchParams }) {
-  const leagueId = params.leagueId
+  const [{leagueId},query] = await Promise.all([params,searchParams])
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
@@ -49,7 +49,7 @@ export default async function TeamPage({ params, searchParams }) {
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>WEEK {WEEK}</small><strong>{team.name}</strong></div><span>{roster.length} rostered</span></header>
     <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><a className={styles.roomActive}>Team</a><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link></nav>
     <div className={styles.roomBody}>
-      {(searchParams?.error||searchParams?.message)&&<p className={searchParams.error?styles.error:styles.message}>{searchParams.error||searchParams.message}</p>}
+      {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.teamHero}><div><p className={styles.panelLabel}>WEEK {WEEK} LINEUP</p><h1>{team.name}</h1><p>Set each player before their individual game begins. Locked players cannot be moved.</p></div><div className={styles.roomStats}><span><small>STARTERS</small><b>{lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).length}/{starterCount}</b></span><span><small>BENCH</small><b>{lineup.filter((row)=>row.slot==='BENCH').length}/6</b></span><span><small>IR</small><b>{lineup.filter((row)=>row.slot==='IR').length}/{league.ir_slots}</b></span></div></section>
       {!players.length&&<section className={styles.waitingRoom}><span>◇</span><div><p className={styles.panelLabel}>ROSTER EMPTY</p><strong>Your players arrive here as they are drafted.</strong><small>Return to the draft room once the commissioner starts the board.</small></div></section>}
       <div className={styles.teamLayout}>

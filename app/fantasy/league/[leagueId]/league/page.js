@@ -8,9 +8,9 @@ import { generateWeeklyContent } from './actions'
 const SEASON=2026
 
 export default async function LeaguePage({params,searchParams}) {
-  const leagueId=params.leagueId
-  const view=['standings','power','recap'].includes(searchParams?.view)?searchParams.view:'standings'
-  const week=Math.min(14,Math.max(1,Number(searchParams?.week)||1))
+  const [{leagueId},query]=await Promise.all([params,searchParams])
+  const view=['standings','power','recap'].includes(query?.view)?query.view:'standings'
+  const week=Math.min(14,Math.max(1,Number(query?.week)||1))
   const supabase=await createSupabaseServerClient()
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
@@ -35,7 +35,7 @@ export default async function LeaguePage({params,searchParams}) {
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>{league.status}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
     <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><a className={styles.roomActive}>League</a><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link></nav>
     <div className={styles.roomBody}>
-      {(searchParams?.error||searchParams?.message)&&<p className={searchParams.error?styles.error:styles.message}>{searchParams.error||searchParams.message}</p>}
+      {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.leagueHero}><div><p className={styles.panelLabel}>LEAGUE HQ</p><h1>{league.name}</h1><p>{league.scoring.replace('_','-').toUpperCase()} · {league.team_count} teams · Invite <b>{league.invite_code}</b></p>{membership.role==='commissioner'&&<Link className={styles.leagueSettingsLink} href={`/fantasy/league/${leagueId}/settings`}>⚙ Open Commissioner Control Room</Link>}</div><div className={styles.roomStats}><span><small>MEMBERS</small><b>{teams.length}</b></span><span><small>GAMES</small><b>{matchups.length}</b></span><span><small>FINAL</small><b>{finalGames}</b></span></div></section>
       <div className={styles.leagueViews}><Link className={view==='standings'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=standings&week=${week}`}>Standings</Link><Link className={view==='power'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=power&week=${week}`}>Power Rankings</Link><Link className={view==='recap'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=recap&week=${week}`}>Weekly Recap</Link><form><input type="hidden" name="view" value={view}/><select name="week" defaultValue={week}>{Array.from({length:14},(_,i)=>i+1).map((number)=><option value={number} key={number}>Week {number}</option>)}</select><button>Go</button></form></div>
       {membership.role==='commissioner'&&view!=='standings'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>WEEKLY PUBLISHER</p><strong>{weekFinals?`${weekFinals} final games available`:`Week ${week} still needs final scores`}</strong></div><form action={generateWeeklyContent}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="week" value={week}/><button disabled={!weekFinals}>Generate Week {week}</button></form></section>}

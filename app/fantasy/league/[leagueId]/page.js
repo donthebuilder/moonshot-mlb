@@ -13,7 +13,7 @@ function dashScore(player) {
 }
 
 export default async function LeagueRoom({ params, searchParams }) {
-  const leagueId = params.leagueId
+  const [{leagueId}, query] = await Promise.all([params, searchParams])
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
@@ -35,8 +35,8 @@ export default async function LeagueRoom({ params, searchParams }) {
     draft && myTeam ? supabase.from('fantasy_draft_queue').select('*,player:nfl_players(id,name,position,team)').eq('draft_id', draft.id).eq('team_id', myTeam.id).order('rank') : Promise.resolve({ data: [] }),
   ])
   const draftedIds = new Set(picks.filter((pick) => pick.player_id).map((pick) => pick.player_id))
-  const selectedPosition = POSITIONS.includes(searchParams?.position) ? searchParams.position : 'ALL'
-  const search = String(searchParams?.q || '').trim().toLowerCase().slice(0,40)
+  const selectedPosition = POSITIONS.includes(query?.position) ? query.position : 'ALL'
+  const search = String(query?.q || '').trim().toLowerCase().slice(0,40)
   const rankedPlayers = players.map((player) => ({ ...player, dash_score: dashScore(player) }))
     .sort((a,b) => b.dash_score - a.dash_score || a.name.localeCompare(b.name))
   const available = rankedPlayers.filter((player) => !draftedIds.has(player.id))
@@ -52,7 +52,7 @@ export default async function LeagueRoom({ params, searchParams }) {
       <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>{league.status}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
       <nav className={styles.roomNav}><a className={styles.roomActive}>Draft</a><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link></nav>
       <div className={styles.roomBody}>
-        {(searchParams?.error || searchParams?.message) && <p className={searchParams.error ? styles.error : styles.message}>{searchParams.error || searchParams.message}</p>}
+        {(query?.error || query?.message) && <p className={query.error ? styles.error : styles.message}>{query.error || query.message}</p>}
         <section className={styles.draftHero}>
           <div><p className={styles.panelLabel}>LIVE LEAGUE ROOM</p><h1>{draft?.status === 'live' ? `Pick ${draft.current_overall_pick} is on the clock` : 'Build the draft board.'}</h1><p>{draft?.status === 'live' ? `${currentTeam?.name || 'Next team'} · ${draft.timer_seconds} second timer` : `${league.scoring.replace('_','-').toUpperCase()} · ${league.draft_order_method} order · ${league.draft_timer_seconds}s picks`}</p></div>
           <div className={styles.roomStats}><span><small>PLAYERS</small><b>{players.length}</b></span><span><small>DRAFTED</small><b>{draftedIds.size}</b></span><span><small>ROSTER</small><b>{myRoster.length}</b></span></div>
@@ -74,7 +74,7 @@ export default async function LeagueRoom({ params, searchParams }) {
 
         <div className={styles.draftLayout}>
           <section className={styles.playerBoard}>
-            <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>DASH NFL board</h2></div><form className={styles.playerSearch}><input name="q" defaultValue={searchParams?.q || ''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{available.length} available</span></div>
+            <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>DASH NFL board</h2></div><form className={styles.playerSearch}><input name="q" defaultValue={query?.q || ''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{available.length} available</span></div>
             <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} href={`/fantasy/league/${leagueId}?position=${position}`}>{position}</Link>)}</div>
             <div className={styles.draftColumns}><span>RK</span><span>POS</span><span>PLAYER</span><span>DASH</span><span>STATUS</span></div>
             {!players.length ? <p className={styles.emptyRoom}>Commissioner: sync the NFL player catalog to begin.</p> : available.slice(0,80).map((player) => (

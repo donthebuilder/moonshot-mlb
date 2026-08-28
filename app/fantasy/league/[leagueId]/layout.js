@@ -1,5 +1,6 @@
 import LeagueMobileNav from './LeagueMobileNav'
 
-export default function LeagueLayout({children,params}) {
-  return <>{children}<LeagueMobileNav leagueId={params.leagueId}/></>
+export default async function LeagueLayout({children,params}) {
+  const {leagueId}=await params
+  return <>{children}<LeagueMobileNav leagueId={leagueId}/></>
 }

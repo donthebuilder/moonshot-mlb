@@ -10,11 +10,18 @@ import { generateSchedule } from './actions'
 const SEASON = 2026
 
 export default async function MatchupPage({ params, searchParams }) {
-  const leagueId = params.leagueId
-  const week = Math.min(14, Math.max(1, Number(searchParams?.week) || 1))
+  const [{leagueId},query] = await Promise.all([params,searchParams])
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
+  const requestedWeek=Number(query?.week)
+  let week=Number.isInteger(requestedWeek)&&requestedWeek>=1&&requestedWeek<=14?requestedWeek:null
+  if(!week){
+    const {data:seasonGames=[]}=await supabase.from('nfl_week_games').select('week,kickoff,status').eq('season',SEASON).lte('week',14).order('kickoff')
+    const liveGame=seasonGames.find((game)=>game.status==='live')
+    const nextGame=seasonGames.find((game)=>game.status==='scheduled'&&new Date(game.kickoff).getTime()>=Date.now())
+    week=Number(liveGame?.week||nextGame?.week||seasonGames.at(-1)?.week||1)
+  }
   const [{ data: league }, { data: membership }, { data: teams = [] }, { data: matchups = [] }, {data:nflGames=[]}, {data:latestSync}] = await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
@@ -54,7 +61,7 @@ export default async function MatchupPage({ params, searchParams }) {
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>WEEK {week}</small><strong>{league.name}</strong></div><span>{matchups.length} matchups</span></header>
     <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><a className={styles.roomActive}>Matchup</a><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link></nav>
     <div className={styles.roomBody}>
-      {(searchParams?.error||searchParams?.message)&&<p className={searchParams.error?styles.error:styles.message}>{searchParams.error||searchParams.message}</p>}
+      {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <LiveMatchupCenter leagueId={leagueId} live={hasLiveGames} lastUpdated={latestSync?.completed_at}/>
       <div className={styles.weekStrip}>{Array.from({length:14},(_,i)=>i+1).map((number)=><Link className={number===week?styles.weekActive:''} href={`/fantasy/league/${leagueId}/matchup?week=${number}`} key={number}>W{number}</Link>)}</div>
       <NflGameCenter games={nflGames}/>

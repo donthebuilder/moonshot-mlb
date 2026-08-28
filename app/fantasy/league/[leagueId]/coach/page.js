@@ -12,7 +12,7 @@ const WEEK=1
 function clamp(value,min=0,max=100){return Math.min(max,Math.max(min,Math.round(value)))}
 
 export default async function CoachPage({params,searchParams}) {
-  const leagueId=params.leagueId
+  const [{leagueId},query]=await Promise.all([params,searchParams])
   const supabase=await createSupabaseServerClient()
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
@@ -52,7 +52,7 @@ export default async function CoachPage({params,searchParams}) {
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>DASH INTELLIGENCE</small><strong>{league.name}</strong></div><span>{latestSync?.status==='complete'?'Scoring automation healthy':games.length?'NFL feed connected':'Feed awaiting sync'}</span></header>
     <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><a className={styles.roomActive}>Coach</a></nav>
     <div className={styles.roomBody}>
-      {(searchParams?.error||searchParams?.message)&&<p className={searchParams.error?styles.error:styles.message}>{searchParams.error||searchParams.message}</p>}
+      {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.coachHero}><div><p className={styles.panelLabel}>DASH COACH · WEEK {WEEK}</p><h1>{recommendations[0]?.title||'Your next move starts here.'}</h1><p>{recommendations[0]?.detail||'Draft players and set a lineup to unlock personalized recommendations.'}</p></div><div className={styles.coachGrade}><small>DASH SCORE</small><strong>{overallScore}</strong><span>{grade(overallScore)}</span></div></section>
       <section className={styles.scoreCards}><ScoreCard label="DASH SCORE" score={overallScore} copy="Overall team readiness"/><ScoreCard label="DRAFT SCORE" score={draftScore} copy="Roster strength and balance"/><ScoreCard label="WAIVER SCORE" score={waiverScore} copy="Available upgrade potential"/></section>
       {membership.role==='commissioner'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>NFL SCORING CONTROL</p><strong>{nextGame?`Next kickoff ${new Date(nextGame.kickoff).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}`:'Refresh the provider-neutral feed'}</strong></div><form action={syncNflWeekFeed}><input type="hidden" name="leagueId" value={leagueId}/><button>Refresh NFL feed & locks</button></form><form action={refreshMatchupScores}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><button>Recalculate Week {WEEK}</button></form></section>}
