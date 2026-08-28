@@ -20,21 +20,29 @@ const MORE = [
   ['guide', 'Guide', 'How every part of MOONSHOT works'],
 ]
 
-const MAIN_KEYS = new Set(MAIN.map(([key]) => key))
-
-export default function MobileTabBar({ tab, setTab }) {
+// C3 (dash-network-master-plan-2026-08-28.md): "Pilot: mobile-only bottom
+// bar for MOONSHOT with five slots (Home · Boards · Rundown · Picks ·
+// More)... If it feels right, NFL copies it." This component was hardcoded
+// to MOONSHOT's own tab list and brand name. Generalized here (2026-08-28)
+// via optional props, defaulting to the exact original MAIN/MORE/brand
+// values -- MOONSHOT's existing <MobileTabBar tab={tab} setTab={setTab} />
+// call site in Dashboard.js is untouched and renders identically. NFL's own
+// arrays live in components/nfl/MobileTabBarNfl.js, which imports this file
+// and supplies its own main/more/brand.
+export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT' }) {
   const [open, setOpen] = useState(false)
   useEffect(() => setOpen(false), [tab])
   const go = (key) => { setOpen(false); setTab(key); window.scrollTo({ top: 0, behavior: 'smooth' }) }
-  const moreActive = !MAIN_KEYS.has(tab)
+  const mainKeys = new Set(main.map(([key]) => key))
+  const moreActive = !mainKeys.has(tab)
 
   return (
     <>
       {open && <button className="mobileTabScrim" aria-label="Close More menu" onClick={() => setOpen(false)} />}
       <aside className={`mobileMore ${open ? 'open' : ''}`} aria-hidden={!open}>
-        <div className="mobileMoreHead"><div><small>MOONSHOT</small><strong>More tools</strong></div><button onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
+        <div className="mobileMoreHead"><div><small>{brand}</small><strong>More tools</strong></div><button onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
         <div className="mobileMoreGrid">
-          {MORE.map(([key, label, detail]) => (
+          {more.map(([key, label, detail]) => (
             <button key={key} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
               <span>{label}</span><small>{detail}</small>
             </button>
@@ -42,8 +50,8 @@ export default function MobileTabBar({ tab, setTab }) {
         </div>
       </aside>
 
-      <nav className="mobileTabBar" aria-label="MOONSHOT primary navigation">
-        {MAIN.map(([key, icon, label]) => (
+      <nav className="mobileTabBar" aria-label={`${brand} primary navigation`}>
+        {main.map(([key, icon, label]) => (
           <button key={key} className={tab === key ? 'active' : ''} onClick={() => go(key)} aria-current={tab === key ? 'page' : undefined}>
             <i>{icon}</i><span>{label}</span>
           </button>

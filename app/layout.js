@@ -1,9 +1,33 @@
 import './globals.css'
 import DashNetworkNav from '../components/DashNetworkNav'
 
+// C1 rebrand sweep (dash-network-master-plan-2026-08-28.md): title, footer,
+// and share cards were already DASH-branded; OG/Twitter card metadata never
+// existed at all (not a rebrand inconsistency, a genuine gap — confirmed by
+// reading this file before this change, no openGraph/twitter keys present).
+// Needs NEXT_PUBLIC_SITE_URL set on Vercel to resolve the image URL below to
+// the real domain instead of localhost — see .env.example, already
+// documents the var, just needs a value in the actual Vercel project.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
 export const metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'DASH Network · Moonshot, Tuddy & Franchise',
   description: 'DASH Network — Moonshot MLB, Tuddy NFL, and Franchise fantasy football.',
+  openGraph: {
+    title: 'DASH Network',
+    description: 'Moonshot MLB, Tuddy NFL, and Franchise fantasy football — every call graded in public.',
+    url: SITE_URL,
+    siteName: 'DASH Network',
+    images: [{ url: '/icon-1024.png', width: 1024, height: 1024, alt: 'DASH Network' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'DASH Network',
+    description: 'Moonshot MLB, Tuddy NFL, and Franchise fantasy football — every call graded in public.',
+    images: ['/icon-1024.png'],
+  },
   // INSTALLABLE (2026-08-09). Two reasons, and the second one is the point:
   // it puts the site on a home screen like an app, and on iOS Safari grants
   // notification permission ONLY to a site opened from the Home Screen. No

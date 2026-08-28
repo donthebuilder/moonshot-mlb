@@ -6,6 +6,7 @@ import { initialHashParams } from '../../lib/sport'
 import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
 import MobileCSS from '../MobileCSS'
+import MobileTabBarNfl from './MobileTabBarNfl'
 
 import Home from './tabs/Home'
 import StatPortal from './tabs/StatPortal'
@@ -161,6 +162,7 @@ export default function NflDashboard() {
           </>
         )}
       </main>
+      <MobileTabBarNfl tab={tab} setTab={setTab} />
       <NflPlayerModal
         player={modal?.player}
         market={modal?.market}

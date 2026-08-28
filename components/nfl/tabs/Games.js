@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
@@ -132,20 +133,50 @@ function softRole(matchup, defense) {
   return { role: ranked[0][0], ...ranked[0][1] }
 }
 
+// REST (2026-08-28, B7). A blunt but real fatigue proxy -- days since each
+// team's last game, computed purely from schedule dates
+// (bots/nfl/nfl_espn.py's attach_rest_days()), no new API. Distinct from
+// the DVP softness tiles below: this is about the TEAM being tired, not
+// about which role a defense leaks. Week 1 and any team missing a prior
+// game in the pool honestly shows '—', never a guessed number.
+function restLabel(days, shortWeek) {
+  if (days == null) return '—'
+  return `${days}d${shortWeek ? ' ⚠' : ''}`
+}
+
 function GameIntel({ game, matchup }) {
   const awayDefense = softRole(matchup, game.away)
   const homeDefense = softRole(matchup, game.home)
+  const hasWeather = Number.isFinite(game.weather_temp_f)
   return <div className="nfl-game-intel">
-    <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : 'OUTDOORS'}</b><span>{game.indoors ? 'weather removed from the game' : 'forecast not published in NFL feed'}</span></div>
+    <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b><span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>
+    <div><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b><span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
     <div><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.td_rank}` : '—'}</b><span>{awayDefense ? 'softest TD role · rank 1 leaks most' : 'matchup table pending'}</span></div>
     <div><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.td_rank}` : '—'}</b><span>{homeDefense ? 'softest TD role · rank 1 leaks most' : 'matchup table pending'}</span></div>
   </div>
 }
 
+// C5 (dash-network-master-plan-2026-08-28.md): "the ratchet continues: NFL
+// Boards, stat portal, Wire, Odds pages" -- Games.js was the one sibling tab
+// under components/nfl/tabs/ with zero Filters.js imports. State/search are
+// the two useful axes here that the existing game-picker strip below doesn't
+// already cover: the picker jumps to ONE game, it doesn't narrow the grid to
+// "just what's live right now" on a 16-game Sunday, and it has no search for
+// a slate too wide to scan. Team/Position aren't added -- there's no
+// per-player row here to filter, the grid unit is a game.
+const STATE_OPTIONS = [
+  { key: 'all', label: 'All' },
+  { key: 'live', label: 'Live' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'final', label: 'Final' },
+]
+
 export default function Games({ data, picks, matchup, onPlayerClick }) {
   const games = data?.games || []
   const players = data?.players || []
   const [selectedGame, setSelectedGame] = useState('all')
+  const [stateFilter, setStateFilter] = useState('all')
+  const [query, setQuery] = useState('')
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
   if (!games.length) {
@@ -159,19 +190,52 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
     )
   }
 
+  const stateOf = (game) => (game.state === 'in' ? 'live' : game.completed ? 'final' : 'upcoming')
+
   // Live first — real scoreboard behavior: what's happening right now
   // belongs at the top of the grid, not wherever the payload's own order
   // happened to put it. Array.prototype.sort is stable, so pregame/final
   // games keep their original relative order.
+  const needle = query.trim().toLowerCase()
   const sorted = [...games].sort((a, b) => (a.state === 'in' ? 0 : 1) - (b.state === 'in' ? 0 : 1))
     .filter((game) => selectedGame === 'all' || game.game_id === selectedGame)
+    .filter((game) => stateFilter === 'all' || stateOf(game) === stateFilter)
+    .filter((game) => !needle || `${game.away} ${game.home}`.toLowerCase().includes(needle))
   const liveCount = games.filter((game) => game.state === 'in').length
   const finalCount = games.filter((game) => game.completed).length
 
   return (
     <div>
       <section className="nfl-games-hero"><div><small>TUDDY GAME CENTER</small><h1>The slate, with the reasons attached.</h1><p>Scoreboard, The Six calls, each side&apos;s top TD board, matchup pressure, and honest feed limits in one card.</p></div><div><strong>{games.length}</strong><span>GAMES</span><strong>{liveCount}</strong><span>LIVE</span><strong>{finalCount}</strong><span>FINAL</span></div></section>
+
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
+        padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
+        background: C.bg2,
+      }}>
+        <FilterBar>
+          <FilterSearch value={query} onChange={setQuery} placeholder="Search team…" width={165} />
+          <Segmented label="State" value={stateFilter} onChange={setStateFilter} options={STATE_OPTIONS} />
+        </FilterBar>
+        <ActiveFilters
+          shown={sorted.length}
+          total={games.length}
+          filters={[
+            query && { key: 'query', label: `Team: ${query}`, onClear: () => setQuery('') },
+            stateFilter !== 'all' && { key: 'state', label: `State: ${STATE_OPTIONS.find((o) => o.key === stateFilter)?.label}`, onClear: () => setStateFilter('all') },
+          ]}
+          onClearAll={() => { setQuery(''); setStateFilter('all') }}
+        />
+      </div>
+
       <div className="nfl-game-picker"><button className={selectedGame === 'all' ? 'active' : ''} onClick={() => setSelectedGame('all')}>ALL GAMES</button>{games.map((game) => <button key={game.game_id} className={selectedGame === game.game_id ? 'active' : ''} onClick={() => setSelectedGame(game.game_id)}>{game.away} @ {game.home}</button>)}</div>
+
+      {!sorted.length && (
+        <div style={{
+          border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 22,
+          textAlign: 'center', color: C.text3, fontSize: 12,
+        }}>No games clear this filter.</div>
+      )}
 
       <div style={{
         display: 'grid', gap: 10,
@@ -204,7 +268,14 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
 
               {hasScore && <ScoreLine g={g} />}
 
-              {live && <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Drive possession and down/distance are not published in the current feed · ESPN state: {g.detail || 'live'}</div>}
+              {/* B7 (2026-08-28): shows real down/distance the moment ESPN's feed
+                  carries it (bots/nfl/nfl_espn.py's best-effort situation parse,
+                  unverified against a real live game as of this build) -- falls
+                  back to the same honest caveat as before when it doesn't. */}
+              {live && (g.down_distance
+                ? <div style={{ margin: '1px 0 7px', color: g.red_zone ? C.yellow : C.cyan, fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT }}>{g.down_distance}{g.red_zone ? ' · RED ZONE' : ''}</div>
+                : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Drive possession and down/distance are not published in the current feed · ESPN state: {g.detail || 'live'}</div>
+              )}
 
               {g.venue && (
                 <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 2 }}>
@@ -235,7 +306,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
         })}
       </div>
       <style>{`
-        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(34,211,238,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(34,211,238,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(34,197,94,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(34,197,94,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:61px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}.nfl-game-intel>div:first-child{grid-column:1/-1}}
+        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(34,211,238,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(34,211,238,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(34,197,94,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(34,197,94,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:61px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}}
       `}</style>
     </div>
   )
