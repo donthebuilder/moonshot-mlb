@@ -205,6 +205,70 @@ function buildCrossPlayerRows(players, bars, results) {
   return rows.sort((a, b) => b.weaker - a.weaker)
 }
 
+// ── section 3: ATD stack — two DIFFERENT players, same market (TD) ─────────
+//
+// B5 (moonshot-b5-cross-prop-grading-rules-2026-08-28.md §2): the master
+// plan's own named example, "ATD stacks" — two different players both
+// needing to clear Anytime TD. The grading side is already covered:
+// gradePair() is keyed by (playerId, market) independently per side, so
+// calling it with the SAME market on both legs (below) needed no new
+// function. The only real work is picking which two players to stack — a
+// selection question the B5 doc explicitly left open (same team? same
+// game/shootout? top-N league-wide, unconstrained?) rather than answering.
+//
+// Chosen rule: ONE stack per team — that team's two highest-scored TD
+// players — mirroring section 2's own "one pair per team" shape exactly,
+// not a global top-N pairwise cross join. A league-wide combinatorial pick
+// (pair the top 8 TD scores, every combination) would silently manufacture
+// a "best stacks" ranking with no correlation claim behind it beyond score
+// size; keeping it to one pair per team is the same same-team/same-game-
+// script story section 2 already tells and already disclaims, just with
+// both legs on the same market instead of two different ones. No same-
+// game-correlation claim is made here either, for the same reason section
+// 2's caption states plainly: lib/pairEvidence.js's own MLB measurement
+// found shared-environment pairs land at or below random once independence
+// is accounted for.
+//
+// Position eligibility for TD itself is NOT re-checked here (unlike the
+// same-player templates above, which gate on position because they pair
+// TWO DIFFERENT markets whose sensible position list differs per
+// template) — nfl_results.py already publishes TD scores only for players
+// eligible for that market, so `Number.isFinite(p.scores?.TD)` alone is
+// the correct and complete gate.
+function buildStackRows(players, bars, results) {
+  const byTeam = new Map()
+  players.forEach((p) => {
+    if (!p.team || p.low_sample || !Number.isFinite(p.scores?.TD)) return
+    if (!byTeam.has(p.team)) byTeam.set(p.team, [])
+    byTeam.get(p.team).push(p)
+  })
+  const rows = []
+  byTeam.forEach((roster, team) => {
+    const top2 = [...roster].sort((a, b) => b.scores.TD - a.scores.TD).slice(0, 2)
+    if (top2.length < 2) return
+    const [a, b] = top2
+    const sa = a.scores.TD
+    const sb = b.scores.TD
+    const grade = gradePair(a.player_id, 'TD', b.player_id, 'TD', bars, results)
+    rows.push({
+      _key: `${team}-atd-stack`,
+      _raw: a,
+      _market: 'TD',
+      pairName: `${a.name} + ${b.name}`,
+      team,
+      opp: a.opp ? `vs ${a.opp}` : '',
+      why: `${team}'s two highest anytime-TD scores tonight, same team, same red-zone opportunity — no same-game-correlation claim beyond that.`,
+      legA: sa,
+      legB: sb,
+      weaker: Math.min(sa, sb),
+      stronger: Math.max(sa, sb),
+      gap: Math.abs(sa - sb),
+      gradeState: grade.state,
+    })
+  })
+  return rows.sort((a, b) => b.weaker - a.weaker)
+}
+
 // ── the tab ──────────────────────────────────────────────────────────────────
 
 export default function Pairs({ data, results, onPlayerClick }) {
@@ -215,6 +279,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
   const bars = useMemo(() => barMap(data, results), [data, results])
   const sameRows = useMemo(() => buildSamePlayerRows(data?.players || [], bars, results), [data, bars, results])
   const crossRows = useMemo(() => buildCrossPlayerRows(data?.players || [], bars, results), [data, bars, results])
+  const stackRows = useMemo(() => buildStackRows(data?.players || [], bars, results), [data, bars, results])
 
   if (!data?.players?.length) {
     return (
@@ -343,6 +408,40 @@ export default function Pairs({ data, results, onPlayerClick }) {
       ) : (
         <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>
           No team on this slate currently has both a scored QB and a scored receiver.
+        </div>
+      )}
+
+      <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
+        <span style={{ fontSize: 12, fontWeight: 800 }}>ATD stack — two scorers, same team</span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          {stackRows.length} teams · same market both legs, the plan's own named case
+        </span>
+      </div>
+
+      {stackRows.length > 0 ? (
+        <DenseTable
+          rows={stackRows}
+          columns={[
+            { key: 'pairName', label: 'Stack', heat: false, w: 220, bold: true, sticky: true },
+            { key: 'team', label: 'Tm', heat: false, w: 36, mono: true, dim: true },
+            { key: 'opp', label: 'Opp', heat: false, w: 56, mono: true, dim: true },
+            { key: 'legA', label: 'TD sc 1', w: 56, dp: 0 },
+            { key: 'legB', label: 'TD sc 2', w: 56, dp: 0 },
+            { key: 'weaker', label: 'Weaker', w: 54, dp: 0,
+              title: 'The lower of the two legs — the stack is worth this number, not its headline.' },
+            { key: 'gap', label: 'Gap', w: 42, dp: 0, invert: true },
+            { key: 'gradeState', label: 'Graded', heat: false, w: 62,
+              title: 'Both legs checked against the last graded run’s actual values — a TD leg reads ungraded rather than missed on a real zero, same caveat as the other sections.',
+              fmt: (v) => <GradeBadge state={v} /> },
+          ]}
+          onRowClick={onPlayerClick ? openRow : undefined}
+          initialSort="weaker"
+          maxHeight={300}
+          caption="One stack per team — that team's two highest anytime-TD scores, paired together. Both legs grade against the SAME market (Anytime TD), unlike the two sections above. No same-game-correlation claim is made: lib/pairEvidence.js's own measurement on the MLB archive found shared-environment pairs (same game, same team) landing at or below a random pair once independence is accounted for — this section exists because the master plan named ATD stacks explicitly, not because a real edge has been measured here yet."
+        />
+      ) : (
+        <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>
+          No team on this slate currently has two players carrying an Anytime TD score.
         </div>
       )}
     </div>
