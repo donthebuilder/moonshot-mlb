@@ -293,13 +293,21 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         // market, hit score on 1+ hit, and so on.
         const hr = mScore(today)
 
-        // Weighted toward tonight on purpose. Same-game history counts for five
-        // times a shared date, because only the same-game version is correlated.
-        const fit =
-          hr * 0.55 +
-          Math.min(40, sameGame * 12) * 0.25 +
-          Math.min(30, days * 2.5) * 0.10 +
-          Math.max(0, 30 - Math.min(30, since)) * 0.10
+        // FIT = TONIGHT'S SCORE, FULL STOP (2026-08-28 correction).
+        //
+        // This used to weight sameGame/days/since history in here at
+        // 25%/10%/10%, on the belief that "only the same-game version is
+        // correlated." That belief is the exact one lib/pairEvidence.js's
+        // header disproves: 186,000 same-night pairs, 58 graded nights —
+        // same game comes out at 1.05x independence, same team 1.04x, i.e.
+        // 1.00 to within noise. Two hitters in the same ballpark are two
+        // independent coin flips. sameGame/days/since are still shown as
+        // their own DenseTable columns below (they're real, measured facts
+        // about the pair) — they just don't get to move the number that
+        // ranks the list anymore, since the archive says they shouldn't. See
+        // lib/pairEvidence.js for the full study and the validated
+        // PAIR_RULES this site actually uses elsewhere for a real bonus.
+        const fit = hr
 
         if (!acc.has(k)) {
           acc.set(k, {
@@ -356,10 +364,10 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         all: matched > 0 && matched === total,
         with: r.per.map((x) => x.anchorName.split(' ').slice(-1)[0]).join(', '),
         // Mean fit, not sum — a sum would just rank by how many anchors matched,
-        // which `matched` already carries as its own column. With no history at
-        // all the same formula degenerates to the tonight term on its own
-        // (0.55 × market score), which is exactly what it should be.
-        fit: r.per.length ? sum((x) => x.fit) / r.per.length : r.hr * 0.55,
+        // which `matched` already carries as its own column. Fit is just
+        // tonight's score now (see the fit formula above), so a partner with
+        // per.length === 0 gets exactly r.hr — no separate case to keep in sync.
+        fit: r.per.length ? sum((x) => x.fit) / r.per.length : r.hr,
         sameGame: sum((x) => x.sameGame),
         days: sum((x) => x.days),
         since: sinces.length ? Math.min(...sinces) : null,
@@ -418,9 +426,9 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
           ? <>Your anchors are the hitters pinned above — <b style={{ color: C.text2 }}>tap more names up there</b> to add them.{' '}</>
           : <>Click hitters to add them — <b style={{ color: C.text2 }}>you can select several</b>; click a selected hitter again to drop him.{' '}</>}
         Partners are <b style={{ color: C.text2 }}>every hitter on tonight&apos;s slate</b>,
-        ranked on a fit weighted toward tonight&apos;s score in the market below. Shared homer
-        history is a <b style={{ color: C.text2 }}>bonus, not a requirement</b> — per pair it&apos;s a
-        handful of days across a whole season, which is not enough to gate a list on.
+        ranked on tonight&apos;s score in the market below. Shared homer history shows up as
+        its own columns — <b style={{ color: C.text2 }}>informational, not a ranking factor</b> —
+        because the measured archive found it isn&apos;t predictive (see lib/pairEvidence.js).
       </WhatThis>
 
       {/* THE MARKET — promoted to the top of the panel and given its own card
@@ -462,13 +470,14 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginTop: 8 }}>
           <b style={{ color: C.orange }}>{mkt.label}</b> is selected, so every leg has to deliver{' '}
           <b style={{ color: C.text }}>{mkt.needs}</b>. Switching this changes{' '}
-          <b style={{ color: C.text }}>three things</b>: the score on the hitter chips {bare ? 'above' : 'below'}, the{' '}
-          <b style={{ color: C.text }}>{mkt.short}</b> column in the partner table, and{' '}
-          <b style={{ color: C.text }}>55% of Fit</b> — so the ranking reshuffles.
+          <b style={{ color: C.text }}>two things</b>: the score on the hitter chips {bare ? 'above' : 'below'}, and the{' '}
+          <b style={{ color: C.text }}>{mkt.short}</b>/<b style={{ color: C.text }}>Fit</b> columns in
+          the partner table — Fit <i>is</i> tonight&apos;s score now, full stop (2026-08-28:
+          shared-history bonuses stopped moving it once the archive showed they don&apos;t predict
+          anything).
           {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
-          counting co-<i>homer</i> days, because co-HR days are the only pair history the bot
-          publishes. On the {mkt.label} market that history is a proxy, not the market itself —
-          which is why it only ever adds to a partner&apos;s fit and never decides who appears.
+          counting co-<i>homer</i> days regardless of market, because co-HR days are the only pair
+          history the bot publishes — shown for reference now, not folded into anyone&apos;s fit.
         </div>
       </div>
 
@@ -829,16 +838,23 @@ rows={partners.map((p) => ({
                 title: 'Weak lineup spot against tonight’s starter' },
               ...(histOnly ? [] : [
                 { key: 'hist', label: '🤝', flag: true, mark: '●', w: 30,
-                  title: 'These two have homered on the same day at least once this season. A bonus inside Fit — not a requirement for being on this list.' },
+                  title: 'These two have homered on the same day at least once this season. Informational only (2026-08-28: the archive found shared history isn\'t predictive) — not a bonus inside Fit, and not a requirement for being on this list.' },
               ]),
               { key: 'fit',      label: 'Fit',     w: 46, dp: 1,
-                title: `55% tonight's ${mkt.label} score · 25% same-game history · 10% shared days · 10% recency`,
+                title: `Tonight's ${mkt.label} score, full stop — same-game/shared-day history no longer weighted in (2026-08-28: measured, not predictive — see lib/pairEvidence.js)`,
                 // 2026-08-12: 'Fit' collided with the single-player GLOSSARY
                 // entry ("how well this hitter fits what the board is
                 // looking for") plus its ranking/percentage caveat, both
                 // written for a different, one-hitter score. This is a
                 // two-hitter pairing score — own explanation now.
-                explain: 'How well he pairs with your anchor — mostly tonight\'s own score for this market, plus whether the two have gone deep the same day before and how active both have been lately. Higher fits better.' },
+                //
+                // 2026-08-28: dropped the sameGame/days/since weighting (was
+                // 25%/10%/10%). It was built on "only the same-game version
+                // is correlated," which lib/pairEvidence.js's own 186k-pair
+                // study disproves (same game measures at 1.05x independence
+                // — noise). Fit === tonight's score now; the history fields
+                // moved to display-only columns below.
+                explain: 'How well he pairs with your anchor — tonight\'s own score for this market. Shared homer history shows up in its own columns but no longer moves this number; the archive found it isn\'t predictive.' },
               { key: 'hr',       label: mkt.short, w: 44, dp: 1,
                 title: `Tonight's ${mkt.label} score — the market you picked above` },
               { key: 'l5',       label: 'L5',      heat: false, w: 58, mono: true, dim: true,
@@ -847,19 +863,19 @@ rows={partners.map((p) => ({
                 title: 'Season ISO ×100 — the archive’s strongest HR predictor' },
               { key: 'hrw',      label: 'HRW',     w: 46, dp: 0 },
               { key: 'sameGame', label: 'Same gm', w: 50,
-                title: 'Times he and your anchor homered in the SAME GAME this season — the only correlated version of pair history' },
+                title: 'Times he and your anchor homered in the SAME GAME this season — a real count, but measured at 1.05x independence (i.e. not correlated). Reference only, not a Fit input.' },
               { key: 'days',     label: 'Same day', w: 54,
-                title: 'Times they homered on the same DATE — includes different ballparks, so it’s coincidence-friendly. Read Same gm first.' },
+                title: 'Times they homered on the same DATE — includes different ballparks, so it’s coincidence-friendly, and even Same gm already tests as noise. Reference only, not a Fit input.' },
               { key: 'since',    label: 'Last together', w: 72,
                 invert: true, fmt: (v) => (v == null ? 'never' : v === 0 ? 'today' : `${v}d ago`),
-                title: 'How long since the two of them last homered on the same day. "12d ago" = still warm; months = a stat, not a streak. Inverted so recent reads bright.' },
+                title: 'How long since the two of them last homered on the same day. "12d ago" = still warm; months = a stat, not a streak. Inverted so recent reads bright. Reference only, not a Fit input.' },
               { key: 'hr9',      label: 'Opp HR/9', w: 50, dp: 2,
                 title: 'The starter this partner faces tonight' },
             ]}
             onRowClick={onPlayerClick}
             initialSort={multi ? 'matched' : 'fit'}
             maxHeight={400}
-            caption={`${histOnly ? '' : 'Every hitter on tonight’s slate is listed — 🤝 marks the ones who share a co-homer history with your selection, and that history only adds to Fit. '}"Last together" is how long since these two last homered on the same day — "12d ago" is a live pairing, "60d ago" is a memory; it's inverted so recent reads bright. Same gm beats Same day: only the same-game version means they were actually in one ballpark. Boost and the bot's raw pair score came off the board — both were inputs to Fit wearing their own columns.${mkt.key !== 'hr' ? ` On the ${mkt.label} market, tonight's score is on your market but the history columns still count co-HOMER days — that's the only pair history the bot publishes.` : ''}${multi ? ' With multiple anchors, Same gm / Same day sum across matched anchors and Last together is the most recent.' : ''}`}
+            caption={`${histOnly ? '' : 'Every hitter on tonight’s slate is listed — 🤝 marks the ones who share a co-homer history with your selection. Shown for reference, not folded into Fit (2026-08-28: measured, not predictive). '}"Last together" is how long since these two last homered on the same day — "12d ago" is a live pairing, "60d ago" is a memory; it's inverted so recent reads bright. Same gm and Same day are both raw counts now, not ranking inputs — Boost and the bot's raw pair score came off the board earlier for the same reason, as their own reference columns.${mkt.key !== 'hr' ? ` On the ${mkt.label} market, tonight's score is on your market but the history columns still count co-HOMER days — that's the only pair history the bot publishes.` : ''}${multi ? ' With multiple anchors, Same gm / Same day sum across matched anchors and Last together is the most recent.' : ''}`}
           />
         </>
       )}
