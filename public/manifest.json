@@ -1,7 +1,8 @@
 {
-  "name": "MOONSHOT · MLB",
-  "short_name": "MOONSHOT",
-  "description": "MLB home run picks, live wire, and receipts — graded in public.",
+  "id": "/",
+  "name": "DASH Network",
+  "short_name": "DASH",
+  "description": "Moonshot MLB, Tuddy NFL, and Franchise fantasy football in one sports network.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -11,7 +12,7 @@
   "categories": ["sports"],
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
   ]
 }

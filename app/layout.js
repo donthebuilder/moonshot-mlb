@@ -2,7 +2,7 @@ import './globals.css'
 import DashNetworkNav from '../components/DashNetworkNav'
 
 export const metadata = {
-  title: 'Moonshot · MLB | DASH Network',
+  title: 'DASH Network · Moonshot, Tuddy & Franchise',
   description: 'DASH Network — Moonshot MLB, Tuddy NFL, and Franchise fantasy football.',
   // INSTALLABLE (2026-08-09). Two reasons, and the second one is the point:
   // it puts the site on a home screen like an app, and on iOS Safari grants
@@ -11,7 +11,14 @@ export const metadata = {
   // does not survive the tab closing.
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'DASH' },
-  icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
+  icons: {
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    shortcut: '/favicon-32.png',
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   // Chrome/Edge deprecated apple-mobile-web-app-capable in favour of the
   // standard tag (2026-08-24, console warning Donovan saw). Next 14's
   // metadata API only emits the apple- prefixed one from appleWebApp above —
