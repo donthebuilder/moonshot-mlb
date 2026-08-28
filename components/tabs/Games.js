@@ -193,15 +193,25 @@ function sidesOf(g) {
   const teams = order.length === 2 ? order : Object.keys(byTeam)
   return teams.map((t) => {
     const lineup = byTeam[t]
+    const hr9 = Number(lineup[0]?.pitcher_hr9) || null
+    const l3hr9 = lineup[0]?.pitcher_l3_hr9 != null ? Number(lineup[0].pitcher_l3_hr9) : null
+    const trend = String(lineup[0]?.pitcher_trend_direction || '').toLowerCase()
     return {
       team: t,
       lineup,
       arm: lineup[0]?.pitcher_name || 'TBD',
       throws: lineup[0]?.pitcher_throws || '',
-      hr9: Number(lineup[0]?.pitcher_hr9) || null,
+      hr9,
+      l3hr9,
+      trend,
       era: Number(lineup[0]?.pitcher_era) || null,
       projected: !!lineup[0]?.pitcher_projected,
       stars: lineup.filter((p) => p?.weak_spot_flag).length,
+      // Same "trending bad" the Home page attack map already uses
+      // (pitcher_trend_direction === 'worsening', or his last-3-starts
+      // HR/9 has climbed at least 0.4 above his season figure) — reused
+      // here rather than invented fresh, so the two pages agree.
+      trendingBad: trend === 'worsening' || (l3hr9 != null && hr9 > 0 && l3hr9 >= hr9 + 0.4),
     }
   })
 }
@@ -387,11 +397,17 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     if (l?.state === 'Final' || isPast(g.game_time)) return 'final'
     return 'upcoming'
   }
+  // Donovan: "add like trending bad filter on the games page for pitchers"
+  // (2026-08-28) — either side's starter counted as trending bad, reusing
+  // sidesOf's own trendingBad flag so this reads exactly the same signal
+  // the Home page's attack map already highlights, not a second definition.
+  const hasTrendingBadPitcher = (g) => sidesOf(g).some((s) => s.trendingBad)
   const gCounts = useMemo(() => {
-    const c = { all: allGames.length, live: 0, upcoming: 0, final: 0, targets: 0 }
+    const c = { all: allGames.length, live: 0, upcoming: 0, final: 0, targets: 0, trendingPitcher: 0 }
     allGames.forEach((g) => {
       c[gameState(g)] += 1
       if (targets.includes(g.game_pk)) c.targets += 1
+      if (hasTrendingBadPitcher(g)) c.trendingPitcher += 1
     })
     return c
   }, [allGames, liveByPk, targets])
@@ -399,6 +415,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   const games = useMemo(() => {
     if (gfilter === 'all') return allGames
     if (gfilter === 'targets') return allGames.filter((g) => targets.includes(g.game_pk))
+    if (gfilter === 'trendingPitcher') return allGames.filter(hasTrendingBadPitcher)
     return allGames.filter((g) => gameState(g) === gfilter)
   }, [allGames, gfilter, targets, liveByPk])
 
@@ -1247,6 +1264,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             <span style={{ fontSize: 9.5, color: C.text3, flexShrink: 0 }}>vs</span>
                             <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {s.arm}{s.throws ? ` (${s.throws})` : ''}{s.projected ? ' ≈' : ''}
+                              {s.trendingBad && (
+                                <span title={`trending bad — ${s.trend === 'worsening' ? 'published trend is worsening' : `last 3 starts ${s.l3hr9.toFixed(2)} HR/9 vs ${s.hr9.toFixed(2)} season`}`}
+                                  style={{ marginLeft: 5, color: C.orange, fontWeight: 900 }}>📉</span>
+                              )}
                             </span>
                             <span style={{ marginLeft: 'auto', display: 'flex', gap: 7, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5 }}>
                               {s.hr9 != null && (
@@ -1607,6 +1628,8 @@ function GameFilterRail({ value, onChange, counts }) {
     { key: 'final', label: 'Final', count: counts.final },
     { key: 'targets', label: '⭐ Targets', count: counts.targets,
       title: 'the games you starred — tap the ⭐ on any chip' },
+    { key: 'trendingPitcher', label: '📉 Trending bad', count: counts.trendingPitcher,
+      title: 'either starter is trending worse — his trend is published as "worsening," or his last-3-starts HR/9 has climbed at least 0.4 above his season figure' },
   ]
   return (
     <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
