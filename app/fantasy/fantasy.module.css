@@ -4559,3 +4559,223 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   margin: 0 auto;
   max-width: 900px;
 }
+
+/* == DRAFT ROOM · LOOK PASS 1 ============================================ */
+/* Palette is unchanged (gold stays gold). What changes here is structure:
+   one real surface scale instead of six near-identical darks, a clock you
+   can't miss, a scannable board, and states you can see. */
+
+.roomApp {
+  --fx-s0: #0a0a09;   /* page ground */
+  --fx-s1: #121110;   /* panel */
+  --fx-s2: #171512;   /* row, raised */
+  --fx-s3: #1e1b17;   /* row hover / active */
+  --fx-edge: #24211d; /* hairline inside a panel */
+  --fx-edge-2: #322e28;
+  background: var(--fx-s0);
+}
+
+/* --- panels ------------------------------------------------------------- */
+.roomApp .playerBoard,
+.roomApp .draftSide>section {
+  border: 1px solid var(--fx-edge-2);
+  border-radius: 14px;
+  background: var(--fx-s1);
+  box-shadow: 0 1px 0 rgba(255,255,255,.02) inset, 0 10px 30px rgba(0,0,0,.32);
+}
+.roomApp .draftHero {
+  border-color: #37281f;
+  background: radial-gradient(circle at 88% 12%,rgba(246,169,40,.13),transparent 42%),var(--fx-s1);
+}
+.roomApp .roomStats span {
+  border-color: var(--fx-edge-2);
+  background: var(--fx-s2);
+}
+.roomApp .roomStats b { color: var(--fx-ink); }
+.roomApp .roomStats small { letter-spacing: .12em; }
+
+/* --- the clock ---------------------------------------------------------- */
+/* It used to be a 6px chip inside a sidebar panel. On draft night this is the
+   only thing anyone is actually looking at. */
+.clockBar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0;
+  padding: 13px 16px;
+  border: 1px solid var(--fx-edge-2);
+  border-left: 3px solid var(--fx-dim);
+  border-radius: 12px;
+  background: rgba(18,17,16,.93);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+.clockBar[data-state="live"] { border-left-color: var(--gold); }
+.clockBar[data-yours="true"] {
+  border-left-color: var(--fx-good);
+  background: linear-gradient(90deg,rgba(24,200,120,.12),rgba(18,17,16,.93) 40%);
+}
+.clockPick {
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border: 1px solid var(--fx-edge-2);
+  border-radius: 7px;
+  color: var(--fx-dim);
+  font: 900 9px/1 monospace;
+  letter-spacing: .1em;
+}
+.clockBar[data-yours="true"] .clockPick { border-color: #2c4c3d; color: var(--fx-good); }
+.clockWho { min-width: 0; margin-right: auto; }
+.clockWho b {
+  display: block;
+  font-size: 15px;
+  letter-spacing: -.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clockWho small {
+  display: block;
+  margin-top: 3px;
+  color: var(--fx-muted-2);
+  font: 9px/1.3 monospace;
+}
+.clockTime {
+  flex: 0 0 auto;
+  font: 900 13px/1 monospace;
+  letter-spacing: .02em;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.clockTime [data-urgent="true"] { color: #ff8f4a; }
+.clockTime [data-expired="true"] { color: var(--orange); }
+
+/* --- board: the head stays put while you scroll ------------------------- */
+.roomApp .playerBoard { position: relative; }
+.roomApp .playerBoard>.boardHead,
+.roomApp .playerBoard>.positionFilters,
+.roomApp .playerBoard>.draftColumns {
+  position: sticky;
+  z-index: 6;
+  background: var(--fx-s1);
+}
+.roomApp .playerBoard>.boardHead { top: 0; }
+.roomApp .playerBoard>.positionFilters { top: 62px; }
+.roomApp .playerBoard>.draftColumns { top: 104px; border-bottom: 1px solid var(--fx-edge); }
+.roomApp .boardHead h2 { font-size: 17px; letter-spacing: -.02em; }
+.roomApp .panelLabel { letter-spacing: .16em; }
+
+.roomApp .positionFilters a {
+  border-radius: 999px;
+  transition: color .14s ease, border-color .14s ease, background .14s ease;
+}
+.roomApp .positionFilters a:hover { color: var(--fx-ink); }
+
+/* --- board rows --------------------------------------------------------- */
+.roomApp .draftPlayer {
+  position: relative;
+  border-top: 1px solid var(--fx-edge);
+  transition: background .12s ease;
+}
+.roomApp .draftPlayer:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--pos,transparent);
+  opacity: 0;
+  transition: opacity .14s ease;
+}
+.roomApp .draftPlayer:hover { background: var(--fx-s2); }
+.roomApp .draftPlayer:hover:before { opacity: .85; }
+.roomApp .draftPlayer:focus-within { background: var(--fx-s3); }
+.roomApp .draftPlayer:focus-within:before { opacity: 1; }
+.roomApp .draftPlayer b { font-size: 13px; letter-spacing: -.01em; }
+.roomApp .rankNumber { font-variant-numeric: tabular-nums; }
+
+/* the DASH score gets a shape, so the board can be read at a glance */
+.roomApp .playerDash {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 7px;
+}
+.dashMeter {
+  position: absolute;
+  left: 0;
+  right: 8px;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--fx-edge-2);
+  overflow: hidden;
+}
+.dashMeter:after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w,0%);
+  border-radius: 2px;
+  background: var(--c,var(--gold));
+  opacity: .85;
+}
+
+/* your turn should be visible from across the room */
+.roomApp .playerBoard[data-yours="true"] { border-color: #2c4c3d; }
+.roomApp .playerBoard[data-yours="true"] .draftPlayer button { border-color: #2f6a48; }
+
+/* --- side panels -------------------------------------------------------- */
+.roomApp .pickRow,
+.roomApp .activePick,
+.roomApp .queueRow,
+.roomApp .rosterRow { border-top: 1px solid var(--fx-edge); }
+.roomApp .activePick { background: #1d1710; }
+.roomApp .queueRow:hover,
+.roomApp .rosterRow:hover,
+.roomApp .pickRow:hover { background: var(--fx-s2); }
+.roomApp .queueRow b,
+.roomApp .rosterRow b { font-size: 11px; }
+
+/* --- controls ----------------------------------------------------------- */
+.roomApp .playerSearch input,
+.roomApp .assignmentBar select,
+.roomApp .assignmentBar button,
+.roomApp .playerSearch button {
+  height: 34px;
+  border-radius: 8px;
+  background: #0e0d0c;
+  transition: border-color .14s ease, color .14s ease;
+}
+.roomApp .playerSearch input:focus,
+.roomApp .assignmentBar select:focus {
+  outline: none;
+  border-color: var(--gold);
+  color: var(--fx-ink);
+}
+.roomApp a:focus-visible,
+.roomApp button:focus-visible,
+.roomApp input:focus-visible,
+.roomApp select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.roomApp .draftPlayer button { transition: background .13s ease, border-color .13s ease; }
+.roomApp .draftPlayer button:hover:not(:disabled) { background: #33190f; }
+
+@media(max-width:760px) {
+  .clockBar {
+    top: 6px;
+    gap: 10px;
+    padding: 11px 12px;
+  }
+  .clockWho b { font-size: 14px; }
+  .clockPick { padding: 6px 7px; font-size: 8px; }
+  .roomApp .playerBoard>.boardHead { position: static; }
+  .roomApp .playerBoard>.positionFilters { top: 0; }
+  .roomApp .playerBoard>.draftColumns { top: 40px; }
+}
