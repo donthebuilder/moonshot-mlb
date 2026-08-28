@@ -222,11 +222,8 @@ function CardGrid({ results }) {
       }}>
         {boxes.map((b) => {
           const { n, hit, pct, void: voidN } = b.t
-          const degenerate = b.key === 'TD'
           return (
-            <div key={b.key} title={degenerate
-              ? 'TD’s bar is 1, and a value of exactly 0 never reaches this payload (nfl_results.py drops falsy values) — so a void rung here may mean “played, scored zero” rather than “never played.” Read the void count as an upper bound on true misses, not a bench count.'
-              : `Graded against ${MARKET_OUTCOME_TEXT[b.key]}, bar ${b.bar}.`}
+            <div key={b.key} title={`Graded against ${MARKET_OUTCOME_TEXT[b.key]}, bar ${b.bar}.`}
               style={{
                 background: `linear-gradient(155deg, ${b.color}1c, ${b.color}06)`,
                 border: `1px solid ${b.color}44`, borderRadius: 11, padding: '8px 12px',
@@ -234,7 +231,6 @@ function CardGrid({ results }) {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 900, color: b.color, fontFamily: NUM_FONT }}>{b.label}</span>
                 <span style={{ fontSize: 8.5, color: C.text3 }}>bar {b.bar}</span>
-                {degenerate && <span style={{ fontSize: 9, color: C.yellow }}>†</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
                 <span style={{ fontFamily: NUM_FONT, fontSize: 19, fontWeight: 900, color: b.color }}>
@@ -250,9 +246,6 @@ function CardGrid({ results }) {
             </div>
           )
         })}
-      </div>
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 2 }}>
-        † TD&apos;s void count may be inflated — see the box for why.
       </div>
     </div>
   )
