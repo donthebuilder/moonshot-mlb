@@ -800,8 +800,8 @@ function MultiHitCluster({ slots }) {
 }
 
 function HRTierRecord({ report }) {
-  const order = ['verified_shape', 'premium_power', 'elite_matchup']
-  const colors = { verified_shape: '#4ade80', premium_power: '#FCD34D', elite_matchup: '#f97316' }
+  const order = ['hr_overlay', 'power_overlay', 'premium_power']
+  const colors = { hr_overlay: '#4ade80', power_overlay: '#FCD34D', premium_power: '#f97316' }
   const pct = (value) => Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(1)}%` : 'collecting'
   const record = (stats) => stats?.n ? `${stats.hrs}/${stats.n} · ${pct(stats.hr_rate)}` : '0 tracked · collecting'
   const tiers = report?.tiers || {}
@@ -830,7 +830,7 @@ function HRTierRecord({ report }) {
               <div style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10, marginTop: 5 }}>L7 {record(seven)} · L30 {record(thirty)}</div>
               {reference && (
                 <div style={{ color: C.text2, fontSize: 9.5, lineHeight: 1.5, marginTop: 8 }}>
-                  Held-out reference: {(reference.hr_rate * 100).toFixed(1)}% over {reference.n} hitter-games; shown separately from the live locked record.
+                  Audit reference: {(reference.hr_rate * 100).toFixed(1)}% over {reference.n} hitter-games; shown separately from the live locked record.
                 </div>
               )}
             </Card>
@@ -839,7 +839,7 @@ function HRTierRecord({ report }) {
       </div>
       {!hasSchema && (
         <div style={{ color: C.text3, fontSize: 10, lineHeight: 1.6, marginTop: 7 }}>
-          Clean tracking begins with the first official run using hr_overlay_v1. Earlier nights are not recreated from later data.
+          Clean tracking for these power tiers begins with the first official run using hr_overlay_v2. Earlier nights are not recreated from later data.
         </div>
       )}
     </div>

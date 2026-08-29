@@ -57,6 +57,8 @@ const HAND = [
 export const BAND_STATS = [
   { key: 'hrw',   label: 'HRW',    min: 0, max: 100, get: (p) => n(p?.hrw_score, 0) },
   { key: 'pull',  label: 'Pull%',  min: 0, max: 100, get: (p) => n(p?.recent_pull_rate, 0) * 100 },
+  { key: 'pullair', label: 'PullAir%', min: 0, max: 100, get: (p) => n(p?.recent_pull_air_rate, 0) * 100 },
+  { key: 'air',   label: 'Air%',   min: 0, max: 100, get: (p) => n(p?.l25pa_air_rate, 0) * 100 },
   { key: 'hh',    label: 'HH%',    min: 0, max: 100, get: (p) => n(p?.recent_hard_hit_rate, 0) * 100 },
   { key: 'fb',    label: 'FB%',    min: 0, max: 100, get: (p) => n(p?.recent_fb_rate, 0) * 100 },
   // Added 2026-08-12, on request. Same recent window as fb/pull above --
@@ -65,6 +67,9 @@ export const BAND_STATS = [
   { key: 'ld',    label: 'LD%',    min: 0, max: 100, get: (p) => n(p?.recent_ld_rate, 0) * 100 },
   { key: 'brl',   label: 'Brl%',   min: 0, max: 40,  get: (p) => n(p?.recent_barrel_rate, 0) * 100 },
   { key: 'sweet', label: 'Sweet%', min: 0, max: 100, get: (p) => n(p?.recent_sweet_spot_rate, 0) * 100 },
+  { key: 'squp',  label: 'SqUp%',  min: 0, max: 100, get: (p) => n(p?.recent_squared_up_rate, 0) * 100 },
+  { key: 'blast', label: 'Blast%', min: 0, max: 100, get: (p) => n(p?.recent_blast_rate, 0) * 100 },
+  { key: 'avgdist', label: 'AvgDist', min: 0, max: 450, get: (p) => n(p?.recent_avg_distance ?? p?.bbe_profile?.avg_distance, 0) },
   { key: 'iso',   label: 'ISO',    min: 0, max: 400, get: (p) => n(p?.season_iso, 0) * 1000, fmt: (v) => `.${String(v).padStart(3, '0')}` },
 ]
 
