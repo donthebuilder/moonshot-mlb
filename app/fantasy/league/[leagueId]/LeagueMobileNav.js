@@ -15,6 +15,7 @@ const items=[
   ['coach','✦','Coach'],
   ['trades','⇄','Trades'],
   ['feed','◎','Feed'],
+  ['settings','⚙','Settings'],
 ]
 
 export default function LeagueMobileNav({leagueId}) {

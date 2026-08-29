@@ -5063,3 +5063,41 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .marginLegend span { font-size: 9px; }
   .roomApp .nflGameGrid { grid-template-columns: repeat(auto-fit,minmax(116px,1fr)); }
 }
+
+/* == DRAFT NIGHT · hardening =============================================== */
+/* Found while auditing the room before a real draft. These are not taste. */
+
+/* The clock parked UNDERNEATH the sticky header (header z-30/top-0, nav
+   z-29/top-62; the clock was z-20/top-0). On a 60-second timer, the one
+   element everybody is watching was the one element that hid. */
+.roomApp .clockBar {
+  top: 107px;
+  z-index: 31;
+}
+/* `overflow-x: hidden` on .roomApp computes overflow-y to auto, which makes it
+   the scrollport and can stop sticky engaging at all. `clip` does not. */
+.roomApp { overflow-x: clip; }
+
+@media(max-width:760px) {
+  /* The board was BELOW three sidebar panels — up to 900px of scrolling to
+     reach the first draftable name, on a 60-second clock. Draft order and the
+     queue matter, but not before the thing you are here to do. */
+  .roomApp .draftSide { order: 1; }
+  .roomApp .playerBoard { order: 0; }
+  .roomApp .clockBar { top: 52px; }
+  /* + Queue and the "Drafting…" pending label both overflowed a 58px column. */
+  .roomApp .draftPlayer {
+    grid-template-columns: 26px 36px 1fr 38px minmax(72px,auto);
+    gap: 6px;
+  }
+  .roomApp .draftPlayer button { padding: 8px 7px; font-size: 8px; }
+}
+
+/* A commissioner's escape hatch should look like one. */
+.roomApp .commishBar form:last-of-type button { white-space: nowrap; }
+.roomApp .assignmentBar small {
+  display: block;
+  margin-top: 5px;
+  color: var(--fx-muted-2);
+  font: 9px/1.4 monospace;
+}

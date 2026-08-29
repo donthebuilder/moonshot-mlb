@@ -1,17 +1,24 @@
 'use server'
 
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+import weekSlate from '../../../../public/data/nfl/week.json'
 import { normalizeNflCatalog } from '../../../../lib/nfl/playerCatalog'
 import { fantasyDefenseCatalog } from '../../../../lib/nfl/teams'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 
-const routeFor = (leagueId, type, message) =>
-  `/fantasy/league/${leagueId}?${type}=${encodeURIComponent(message)}`
+const routeFor = (leagueId, type, message, view) => {
+  const params = new URLSearchParams()
+  if (view?.position && view.position !== 'ALL') params.set('position', view.position)
+  if (view?.q) params.set('q', view.q)
+  params.set(type, message)
+  return `/fantasy/league/${leagueId}?${params.toString()}`
+}
+const viewFrom = (formData) => ({
+  position: String(formData.get('viewPosition') || ''),
+  q: String(formData.get('viewQuery') || ''),
+})
 
 async function clientAndUser() {
   const supabase = await createSupabaseServerClient()
@@ -24,12 +31,7 @@ async function clientAndUser() {
 export async function syncPlayerCatalog(formData) {
   const leagueId = String(formData.get('leagueId') || '')
   const { supabase } = await clientAndUser()
-  let raw
-  try {
-    raw = JSON.parse(await readFile(path.join(process.cwd(), 'public/data/nfl/week.json'), 'utf8'))
-  } catch (readError) {
-    redirect(routeFor(leagueId, 'error', `Player catalog unavailable: ${readError.message}`))
-  }
+  const raw = weekSlate
   const normalized = normalizeNflCatalog(raw)
   const season = Number(raw.season || raw.stat_season)
   const catalog = [...normalized, ...fantasyDefenseCatalog(season)]
@@ -62,16 +64,27 @@ export async function prepareDraft(formData) {
   // A hardcoded 15 rounds builds more picks than there are draftable players
   // (15 x 12 teams = 180 picks against a ~134-row catalog), so the board could
   // never be completed. Cap the rounds at what the catalog can actually fill.
-  const { count: catalogSize } = await supabase
-    .from('nfl_players').select('id', { count: 'exact', head: true }).eq('active', true)
-  const maxRounds = Math.floor(Number(catalogSize || 0) / Math.max(order.length, 1))
-  const rounds = Math.max(1, Math.min(15, maxRounds || 15))
+  const { data: leagueRules } = await supabase
+    .from('fantasy_leagues').select('has_kicker,has_defense').eq('id', leagueId).single()
+  const excluded = []
+  if (!leagueRules?.has_kicker) excluded.push('K')
+  if (!leagueRules?.has_defense) excluded.push('DEF')
+  let catalogQuery = supabase.from('nfl_players').select('id', { count: 'exact', head: true }).eq('active', true)
+  for (const position of excluded) catalogQuery = catalogQuery.neq('position', position)
+  const { count: catalogSize } = await catalogQuery
+  // Leave a full round of slack. Running the pool exactly dry means the last
+  // round is forced garbage, and one inactive row means auto-pick raises
+  // 'No eligible players remain' — which aborts without advancing the clock,
+  // so the draft hangs with no way out short of raw SQL.
+  const eligible = Number(catalogSize || 0)
+  const maxRounds = Math.floor(eligible / Math.max(order.length, 1)) - 1
+  const rounds = Math.max(1, Math.min(15, maxRounds > 0 ? maxRounds : 1))
   const { error } = await supabase.rpc('prepare_fantasy_draft', {
     p_league_id: leagueId, p_order_team_ids: order, p_rounds: rounds,
   })
   if (error) redirect(routeFor(leagueId, 'error', error.message))
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
-  redirect(routeFor(leagueId, 'message', `Snake draft board prepared — ${rounds} rounds`))
+  redirect(routeFor(leagueId, 'message', `Snake draft board prepared — ${rounds} rounds from ${eligible} eligible players`))
 }
 
 export async function startDraft(formData) {
@@ -86,13 +99,22 @@ export async function startDraft(formData) {
 export async function draftPlayer(formData) {
   const leagueId = String(formData.get('leagueId') || '')
   const playerId = String(formData.get('playerId') || '')
+  const expectedPick = Number(formData.get('overallPick'))
+  const view = viewFrom(formData)
   const { supabase } = await clientAndUser()
+  if (Number.isInteger(expectedPick)) {
+    const { data: draft } = await supabase
+      .from('fantasy_drafts').select('current_overall_pick,status').eq('league_id', leagueId).maybeSingle()
+    if (draft && draft.current_overall_pick !== expectedPick) {
+      redirect(routeFor(leagueId, 'error', `Pick ${expectedPick} was already made — the board moved on to pick ${draft.current_overall_pick}. Nothing was drafted.`, view))
+    }
+  }
   const { error } = await supabase.rpc('make_fantasy_draft_pick', {
     p_league_id: leagueId, p_player_id: playerId,
   })
-  if (error) redirect(routeFor(leagueId, 'error', error.message))
+  if (error) redirect(routeFor(leagueId, 'error', error.message, view))
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
-  redirect(routeFor(leagueId, 'message', 'Pick locked in'))
+  redirect(routeFor(leagueId, 'message', 'Pick locked in', view))
 }
 
 export async function setDraftState(formData) {
@@ -110,21 +132,23 @@ export async function setDraftState(formData) {
 export async function addToQueue(formData) {
   const leagueId = String(formData.get('leagueId') || '')
   const playerId = String(formData.get('playerId') || '')
+  const view = viewFrom(formData)
   const { supabase } = await clientAndUser()
   const { error } = await supabase.rpc('add_fantasy_draft_queue', { p_league_id: leagueId, p_player_id: playerId })
-  if (error) redirect(routeFor(leagueId, 'error', error.message))
+  if (error) redirect(routeFor(leagueId, 'error', error.message, view))
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
-  redirect(routeFor(leagueId, 'message', 'Player added to your queue'))
+  redirect(routeFor(leagueId, 'message', 'Player added to your queue', view))
 }
 
 export async function removeFromQueue(formData) {
   const leagueId = String(formData.get('leagueId') || '')
   const playerId = String(formData.get('playerId') || '')
+  const view = viewFrom(formData)
   const { supabase } = await clientAndUser()
   const { error } = await supabase.rpc('remove_fantasy_draft_queue', { p_league_id: leagueId, p_player_id: playerId })
-  if (error) redirect(routeFor(leagueId, 'error', error.message))
+  if (error) redirect(routeFor(leagueId, 'error', error.message, view))
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
-  redirect(routeFor(leagueId, 'message', 'Player removed from queue'))
+  redirect(routeFor(leagueId, 'message', 'Player removed from queue', view))
 }
 
 export async function runAutoPick(formData) {
