@@ -43,6 +43,34 @@ function StateBadge({ g }) {
       }}>Final</span>
     )
   }
+  // ── A KICKOFF THAT HAS ALREADY HAPPENED IS NOT AN UPCOMING GAME ─────────
+  // (2026-08-29, Donovan: "whats up with the games tab on the nfl page.")
+  // The published payload was built 2026-08-21 and never rebuilt: preseason
+  // ended, so the bot's wave filter finds nothing ahead of today and the
+  // branch keeps carrying that build. Sixteen games sat on the tab, fourteen
+  // of them still flagged neither live nor complete, printing a future-tense
+  // kickoff time for games that had finished a week earlier. Two were marked
+  // FINAL; the rest read as tonight's football.
+  //
+  // The payload cannot be trusted to mark them, so the clock decides: a
+  // kickoff in the past on a game the feed never closed out is a game the
+  // feed stopped following, and it says so instead of naming an hour that
+  // has been and gone. This is the same rule the MLB side already applies to
+  // stale odds quotes -- when the data stops moving, say so, don't dress it
+  // up as current.
+  const kicked = (() => {
+    if (!g.kickoff) return false
+    const at = Date.parse(g.kickoff)
+    return Number.isFinite(at) && at < Date.now()
+  })()
+  if (kicked) {
+    return (
+      <span
+        title="This game's kickoff has passed and the feed never marked it live or final, so the bot has no result for it. The card below is the last thing the bot published about this game, not a live read."
+        style={{ fontSize: 9.5, fontWeight: 900, color: '#fbbf24', letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'help' }}
+      >Kickoff passed · not tracked</span>
+    )
+  }
   let t = g.detail
   if (!t && g.kickoff) {
     try {
@@ -225,8 +253,39 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
   const liveCount = games.filter((game) => game.state === 'in').length
   const finalCount = games.filter((game) => game.completed).length
 
+  // ── IS THERE ANY FOOTBALL LEFT ON THIS SLATE? ──────────────────────────
+  // (2026-08-29.) Every game on the published wave had kicked off days ago
+  // and the tab still called itself "the slate". One line at the top is the
+  // difference between a stale page and an honest one, and it costs nothing
+  // when there IS football: the banner only renders when the newest kickoff
+  // on the payload is already behind us.
+  const lastKickoff = games.reduce((newest, game) => {
+    const at = game.kickoff ? Date.parse(game.kickoff) : NaN
+    return Number.isFinite(at) && at > newest ? at : newest
+  }, 0)
+  const waveIsOver = lastKickoff > 0 && lastKickoff < Date.now()
+  const waveEnded = waveIsOver
+    ? new Date(lastKickoff).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : null
+
   return (
     <div>
+      {waveIsOver && (
+        <div
+          role="status"
+          style={{
+            marginBottom: 11, padding: '10px 14px', borderRadius: 12,
+            border: `1px solid ${C.yellow}45`, background: `${C.yellow}12`,
+            color: C.text2, fontSize: 11.5, lineHeight: 1.5,
+          }}
+        >
+          <b style={{ color: C.yellow }}>This wave is over.</b> The last kickoff on this
+          slate was {waveEnded} — every card below is the final published state of a game
+          that has already been played, kept here for reference rather than removed. The
+          bot builds one wave at a time and only looks ahead, so nothing new lands here
+          until the next slate does.
+        </div>
+      )}
       <section className="nfl-games-hero"><div><small>TUDDY GAME CENTER</small><h1>The slate, with the reasons attached.</h1><p>Scoreboard, The Six calls, each side&apos;s top TD board, matchup pressure, and honest feed limits in one card.</p></div><div><strong>{games.length}</strong><span>GAMES</span><strong>{liveCount}</strong><span>LIVE</span><strong>{finalCount}</strong><span>FINAL</span></div></section>
 
       <div style={{
