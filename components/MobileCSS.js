@@ -621,7 +621,14 @@ export default function MobileCSS() {
            under the desktop height on a big phone. The live pitch dots follow
            this automatically — their positions are calc(% - px), not px. */
         .zone-wrap { max-width: 100% !important; }
-        .zone-grid { height: min(84vw, 290px, 46vh) !important; }
+        /* 2026-08-29, Donovan: the zone map is "too small / cramped" on a
+           phone. The 46vh cap was the binding one on a tall screen — it made
+           the map smaller than the card it sits in for no reason, since
+           nothing needs to stay above the fold with it. Raised to 62vh and
+           the width cap to 92vw, which on a 390px phone takes the map from
+           about 180px to about 330px: the 3x3 cells go from roughly 30px to
+           55px, which is a real touch target rather than a pixel hunt. */
+        .zone-grid { height: min(92vw, 340px, 62vh) !important; }
 
         /* Spray field: drop the fixed pixel height so the SVG takes its own
            aspect ratio from the viewBox, then cap it. */

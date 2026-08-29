@@ -415,6 +415,9 @@ export default function SprayField({
   const [range, setRange] = useState('g5')
   const rangeTouched = useRef(false)
   const [bbPick, setBbPick] = useState(null)   // null = all batted-ball types
+  const [armPick, setArmPick] = useState('ALL')  // ALL | L | R — pitcher hand
+  const [sidePick, setSidePick] = useState('ALL') // ALL | pull | center | oppo
+  const [deepPick, setDeepPick] = useState('ALL') // ALL | 375 | 400 | pullair
   // PARK OVERLAY (2026-08-28, addendum N3: "would it have gone out here").
   // '' = off, showing only his real park's wall like every chart before this.
   // A selected park name re-tests every dot on screen against THAT park's
@@ -481,6 +484,19 @@ export default function SprayField({
       bb: clean(h?.bb_type, ''),
       pitch: pitch === 'nan' ? '' : pitch,
       date: clean(h?.date, ''),
+      // ── FIELDS THE CHART HAD AND NEVER FILTERED ON (2026-08-29) ─────────
+      // Donovan: "make sure the spray chart filters are good and add more if
+      // needed." The gap that mattered: the EV Log has had an ARM filter
+      // since it shipped and this chart never did — so the one question you
+      // most want a spray chart for, "where does he hit it against the hand
+      // he faces tonight", could not be asked here. `arm` is on every batted
+      // ball in the payload already; so are the direction and distance flags
+      // used below.
+      arm: clean(h?.arm || h?.pitcher_throws, ''),
+      side: clean(h?.spray_side, '').toLowerCase(),
+      far375: !!h?.is_375_plus,
+      far400: !!h?.is_400_plus,
+      pullAir: !!h?.is_pull_air,
       event,
     }
   }).filter(Boolean), [data])
@@ -616,8 +632,17 @@ export default function SprayField({
       : !h.hit
     const okPitch = !picked || picked.size === 0 || (h.pitch && picked.has(h.pitch))
     const okBB = !bbPick || bbPick.size === 0 || (h.bb && bbPick.has(h.bb))
-    return okClass && okPitch && okBB
-  }), [inRange, only, picked, bbPick])
+    // A ball with no arm stamped is KEPT rather than hidden: the field is not
+    // guaranteed on older cached rows, and silently dropping them would make
+    // the chart quietly under-report instead of saying so.
+    const okArm = armPick === 'ALL' || !h.arm || h.arm === armPick
+    const okSide = sidePick === 'ALL' || (h.side && h.side === sidePick)
+    const okDeep = deepPick === 'ALL'
+      || (deepPick === '375' && h.far375)
+      || (deepPick === '400' && h.far400)
+      || (deepPick === 'pullair' && h.pullAir)
+    return okClass && okPitch && okBB && okArm && okSide && okDeep
+  }), [inRange, only, picked, bbPick, armPick, sidePick, deepPick])
 
   // Tonight's balls, through the same transform as the season ones.
   // res/deepFly stamped here once (Pass 3) so the filter rows below and the
@@ -632,7 +657,7 @@ export default function SprayField({
     }
   }).filter(Boolean), [liveBalls])
 
-  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setRange('all'); setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null); setTestPark('') }
+  const reset = () => { setOnly('all'); setPicked(null); setBbPick(null); setArmPick('ALL'); setSidePick('ALL'); setDeepPick('ALL'); setRange('all'); setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null); setTestPark('') }
 
   const liveN = liveHits.length
   // In liveOnly the ● Tonight chip isn't rendered (it lives in the season
@@ -1025,6 +1050,65 @@ export default function SprayField({
             <span style={{ opacity: 0.65 }}> · {c.pct.toFixed(0)}%</span>
           </button>
         ))}
+      </div>
+      )}
+
+      {/* ── ARM, DIRECTION, DISTANCE (2026-08-29) ───────────────────────────
+          Donovan: "make sure the spray chart filters are good and add more if
+          needed."
+
+          ARM is the one that was actually missing: the EV Log has had a
+          pitcher-hand filter since it shipped and this chart never did, so
+          the single most useful question you bring to a spray chart — where
+          does he hit it against the hand he faces tonight — could not be
+          asked on the chart itself.
+
+          SIDE and the distance row are the same fields the EV Log's new
+          tiles read. Nothing here is computed: spray_side, is_375_plus,
+          is_400_plus and is_pull_air are flags spray_cache.py already writes
+          per batted ball. Every count beside a chip is over the balls
+          currently in the window, so a chip can never describe a wider
+          sample than the field is drawing. */}
+      {!liveOnly && (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Arm</span>
+        {[['ALL', 'All'], ['L', 'vs LHP'], ['R', 'vs RHP']].map(([k, label]) => {
+          const n = k === 'ALL' ? inRange.length : inRange.filter((h) => h.arm === k).length
+          return (
+            <button key={k} onClick={() => setArmPick(k)} disabled={n === 0 && k !== 'ALL'}
+              title={k === 'ALL' ? 'Every batted ball in the window' : `Only balls he hit off a ${k === 'L' ? 'left' : 'right'}-handed pitcher. Balls with no pitcher hand recorded are kept rather than hidden.`}
+              style={{ ...chipBtn(armPick === k, C.orange), opacity: (n || k === 'ALL') ? 1 : 0.35 }}>
+              {label}{k !== 'ALL' && <span style={{ opacity: 0.65 }}> {n}</span>}
+            </button>
+          )
+        })}
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 6 }}>Side</span>
+        {[['ALL', 'All'], ['pull', 'Pull'], ['center', 'Centre'], ['oppo', 'Oppo']].map(([k, label]) => {
+          const n = k === 'ALL' ? inRange.length : inRange.filter((h) => h.side === k).length
+          return (
+            <button key={k} onClick={() => setSidePick(k)} disabled={n === 0 && k !== 'ALL'}
+              title={k === 'ALL' ? 'Every direction' : `Only balls he hit to the ${k === 'oppo' ? 'opposite field' : k} side. Direction only — where it went, not how hard.`}
+              style={{ ...chipBtn(sidePick === k, '#fb9d3a'), opacity: (n || k === 'ALL') ? 1 : 0.35 }}>
+              {label}{k !== 'ALL' && <span style={{ opacity: 0.65 }}> {n}</span>}
+            </button>
+          )
+        })}
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 6 }}>Distance</span>
+        {[['ALL', 'All'], ['375', '375+ ft'], ['400', '400+ ft'], ['pullair', 'Pull-air']].map(([k, label]) => {
+          const n = k === 'ALL' ? inRange.length
+            : k === '375' ? inRange.filter((h) => h.far375).length
+              : k === '400' ? inRange.filter((h) => h.far400).length
+                : inRange.filter((h) => h.pullAir).length
+          return (
+            <button key={k} onClick={() => setDeepPick(k)} disabled={n === 0 && k !== 'ALL'}
+              title={k === 'ALL' ? 'Every batted ball in the window'
+                : k === 'pullair' ? 'Pulled AND in the air — the batted-ball shape that actually leaves buildings. The bot\u2019s own flag.'
+                  : `Balls that travelled ${k}+ feet — the same tiers the pitcher panel reports as distance given up.`}
+              style={{ ...chipBtn(deepPick === k, '#c084fc'), opacity: (n || k === 'ALL') ? 1 : 0.35 }}>
+              {label}{k !== 'ALL' && <span style={{ opacity: 0.65 }}> {n}</span>}
+            </button>
+          )
+        })}
       </div>
       )}
 

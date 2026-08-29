@@ -8,6 +8,7 @@ import {
   pitchTypes, zoneBox, zoneCell, zoneFrac, inZone as pitchInZone,
 } from '../lib/livePitches'
 import { divTone, seqColor } from '../lib/scales'
+import { clean } from '../lib/player'
 import { inkOn } from '../lib/palette'
 
 // STRIKE-ZONE MAP v3 — one map for both players.
@@ -303,6 +304,11 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
 
   const zp = bot?.zone_profile
   const pzp = bot?.pitcher_zone_profile
+  // Names for the "whose map is this" line below. Neither is required — the
+  // copy reads correctly without them ("this hitter", "tonight's starter"),
+  // which matters because the zones file is not guaranteed to carry either.
+  const batterName = clean(bot?.name || bot?.player_name, '')
+  const starterName = clean(bot?.pitcher_name || pzp?.pitcher_name, '')
   const hasBot = !!(zp && (zp.zones_13 || zp.zones_9))
   const isMatch = stat === 'matchup' && hasBot
 
@@ -361,7 +367,41 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   const kill = new Set(pzp?.kill_zones || [])
   const apiZs = api?.[stat === 'matchup' ? 'ev' : stat] || {}
 
-  if (!isMatch) {
+  const isArm = stat === 'arm' && !!pzp
+
+  if (isArm) {
+    // ── THE ARM, ON HIS OWN ────────────────────────────────────────────────
+    // Shaded by how much of his mix goes to each zone, because "where does he
+    // live" is the question this view exists to answer. The sub-line is what
+    // he has ALLOWED there, so a zone he throws to constantly and gets hurt in
+    // reads as two facts stacked rather than one blended score. Kill zones
+    // carry his own mark.
+    //
+    // Deliberately NOT blended into a single number: usage and damage are
+    // different units and averaging them would invent a statistic. Same rule
+    // the Matchup view already follows.
+    const uses = ZONES.map((k) => use[Number(k)]).filter((v) => Number.isFinite(v))
+    const maxUse = uses.length ? Math.max(...uses) : 0
+    ZONES.forEach((k) => {
+      const zn = Number(k)
+      const pct = use[zn]
+      const dmg = pd[zn]
+      if (!Number.isFinite(pct)) {
+        cells[k] = { main: '—', alpha: 0, title: `${ZONE_NAME[zn] || `zone ${k}`} — no published tendency for this arm here` }
+        return
+      }
+      const share = maxUse > 0 ? pct / maxUse : 0
+      cells[k] = {
+        main: fmtPct(pct),
+        sub: dmg?.slg != null ? `${Number(dmg.slg).toFixed(3)}` : null,
+        mark: kill.has(zn) ? '✕' : undefined,
+        alpha: 0.08 + 0.55 * share,
+        title: `${ZONE_NAME[zn] || `zone ${k}`} — ${starterName || 'this arm'} throws ${fmtPct(pct)} of his pitches here`
+          + (dmg?.slg != null ? `, and has allowed ${Number(dmg.slg).toFixed(3)} SLG on them` : ', with no published damage line here')
+          + (kill.has(zn) ? '. He marks this one as a kill zone — where he gets his outs.' : ''),
+      }
+    })
+  } else if (!isMatch) {
     // MLB's own five temp bands are ORDINAL — cold to hot — so they belong on
     // the sequential ramp rather than on five opacities of one hue. Same five
     // states, same order, but now they share the site's one magnitude scale
@@ -531,8 +571,42 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
     Object.keys(cells).forEach((k) => { cells[k] = { ...cells[k], sub: null } })
   }
 
-  const pills = [...(hasBot ? [{ key: 'matchup', label: '⚔ Matchup', hint: 'Both players on one map — where his zones and the starter’s pitches collide, and who wins each collision' }] : []), ...API_STATS]
+  // ── WHOSE MAP AM I LOOKING AT (2026-08-29) ────────────────────────────────
+  // Donovan: "idk the number, idk what i'm looking at ... idk if the zones
+  // match up, i can't really tell ... i wanted to be able to toggle the
+  // pitcher to see how zones go with that."
+  //
+  // Three separate complaints and all three were fair. Every view except
+  // Matchup showed the HITTER's number with nothing on screen saying so, the
+  // Matchup view showed a collision without ever letting you see either side
+  // on its own, and there was no way to ask the simple question "where does
+  // this arm actually throw it".
+  //
+  // THE ARM is that view. It is not new data — pzp.tendency (where he lives),
+  // pzp.damage (what he gives up there) and pzp.kill_zones are already
+  // fetched for the Matchup shading; this just draws them on their own, so
+  // you can look at one player at a time and then flip to Matchup to see
+  // where the two overlap. The line under the pills names the subject of
+  // whichever view is up, every time.
+  const pills = [
+    ...(hasBot ? [{ key: 'matchup', label: '⚔ Matchup', hint: 'Both players on one map — where his zones and the starter’s pitches collide, and who wins each collision' }] : []),
+    ...(pzp ? [{ key: 'arm', label: '🎯 The arm', hint: 'Tonight’s starter on his own: how often he throws to each zone, and what he has given up there' }] : []),
+    ...API_STATS,
+  ]
   const active = pills.find((s) => s.key === stat) || pills[0]
+
+  // One sentence, always on, naming who the numbers belong to. This is the
+  // whole answer to "idk what i'm looking at" — a map of nine tinted boxes
+  // cannot say it, so it is said in words above them.
+  const WHOSE = {
+    matchup: ['BOTH', `${batterName || 'the hitter'} vs ${starterName || 'tonight’s starter'} — the cell colour is who wins that zone`],
+    arm: ['THE STARTER', `${starterName || 'tonight’s starter'} — how much of his mix goes to each zone, and the damage he has allowed there`],
+    ev: ['THE HITTER', `${batterName || 'this hitter'} — his average exit velocity on balls from each zone`],
+    slg: ['THE HITTER', `${batterName || 'this hitter'} — his slugging on pitches in each zone`],
+    ops: ['THE HITTER', `${batterName || 'this hitter'} — his OPS on pitches in each zone`],
+    avg: ['THE HITTER', `${batterName || 'this hitter'} — his batting average on pitches in each zone`],
+  }
+  const whose = WHOSE[stat] || WHOSE.ev
 
   return (
     <div style={{
@@ -567,8 +641,23 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           ))}
         </div>
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
-          {isMatch ? `bot zone cache · ~${zp?.lookback || 120}d · him + tonight's starter` : 'live API · season · MLB grading'}
+          {isMatch || isArm ? `bot zone cache · ~${zp?.lookback || 120}d` : 'live API · season · MLB grading'}
         </span>
+      </div>
+
+      {/* WHOSE NUMBERS THESE ARE. Said in words, every view, because nine
+          tinted boxes cannot say it and the pill label alone was not enough —
+          "Exit velo" does not tell you whose exit velocity. */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap',
+        marginBottom: 8, padding: '5px 9px', borderRadius: 8,
+        background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
+      }}>
+        <span style={{
+          fontSize: 8, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT,
+          color: whose[0] === 'THE STARTER' ? '#f87171' : whose[0] === 'BOTH' ? '#a78bfa' : C.orange,
+        }}>{whose[0]}</span>
+        <span style={{ fontSize: 10, color: C.text2, lineHeight: 1.45 }}>{whose[1]}</span>
       </div>
 
       {/* HONEST EMPTY STATE. The grid below still carries the heat and the
