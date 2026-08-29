@@ -25,7 +25,7 @@ import { downloadTrackRecordCard } from './shareCard'
 const LOCK_DATE = '2026-08-06'   // the pick-lock commit went live this slate
 
 const CATS = [
-  { tier: 'TOP_PICKS', label: 'TOP', color: '#FCD34D', bar: 'HR', barLabel: 'homered' },
+  { tier: 'TOP_PICKS', label: 'LEGACY TOP', color: '#FCD34D', bar: 'HR', barLabel: 'homered' },
   { tier: 'HR_PICKS', label: 'HR', color: '#FB923C', bar: 'HR', barLabel: 'homered' },
   { tier: 'HIT_PICKS', label: 'HIT', color: '#60A5FA', bar: '1+ Hit', barLabel: 'got a hit' },
   { tier: 'HRR_PICKS', label: 'HRR', color: '#22d3ee', bar: '2+ HRR', barLabel: '2+ H+R+RBI' },

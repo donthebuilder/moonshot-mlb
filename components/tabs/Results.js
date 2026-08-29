@@ -1480,12 +1480,14 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                 HIT <B col={catColor('role', 'HIT')}>{archText(ARCHIVE.lanes.HIT)}</B> ·{' '}
                 HRR <B col={C.cyan}>{archText(ARCHIVE.lanes.HRR)}</B> ·{' '}
                 CONTACT <B col={verdictInk(true).color}>{archText(ARCHIVE.lanes.CONTACT)}</B> ·{' '}
-                TOP <B col="#FCD34D">{archText(ARCHIVE.lanes.TOP)}</B> on its HR bar ·{' '}
+                legacy TOP <B col="#FCD34D">{archText(ARCHIVE.lanes.TOP)}</B> on its HR bar ·{' '}
                 HR <B col={C.orange}>{archText(ARCHIVE.lanes.HR)}</B>.
               </div>
               <div style={{ marginTop: 6, color: C.text3 }}>
-                The bar matters more than the pick: the same TOP pick, the same night, judged on 1+ hit
-                instead of a homer went <B col={C.text}>{archText(ARCHIVE.topOnHits)}</B>. And taking a
+                The bar matters more than the pick: the same legacy per-game TOP pick, the same night,
+                judged on 1+ hit instead of a homer went <B col={C.text}>{archText(ARCHIVE.topOnHits)}</B>.
+                {' '}This archived tier is not The Four, which are the current four market headline calls.
+                {' '}And taking a
                 single pick per game — always the top-scored HIT pick — returned{' '}
                 <B col={C.text}>{archText(ARCHIVE.onePerGame)}</B>; count the voids as losses instead of
                 setting them aside and that floor is{' '}

@@ -17,7 +17,7 @@ import RollingForm from '../RollingForm'
 
 const TIER_LABEL = {
   TOP_15_BOARD: 'Top 15 board',
-  TOP_PICKS: 'Top picks',
+  TOP_PICKS: 'Legacy TOP · per game',
   HR_PICKS: 'HR picks',
   HRR_PICKS: 'HRR picks',
   HIT_PICKS: 'Hit picks',

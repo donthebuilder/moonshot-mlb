@@ -57,7 +57,7 @@ export const archText = (o) => `${o.k.toLocaleString()}/${o.n.toLocaleString()} 
 
 const PICK_META = {
   TOP15:    ['🏆', 'Top 15 Board'],
-  TOP:      ['🔥', 'Top Picks'],
+  TOP:      ['🔥', 'Legacy TOP · per game'],
   HR:       ['🚀', 'HR Picks'],
   HRR:      ['🎲', 'HRR Picks'],
   HIT:      ['🔷', 'Hit Picks'],
@@ -295,9 +295,10 @@ rows={tiers}
             counts. Both were the table again in a different shape. One
             representation of each fact: the table. */}
         <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
-          Top Picks are relative — picked as the best play in their game, so one only counts if it
-          out-produced our other picks from that same game. We only see our own picks, so that means
-          best <i>of the ones we tracked</i>, not best in the game.
+          Legacy TOP is the archived per-game designation — the best play among the picks tracked in
+          that game. It is not The Four, which are today&apos;s four market headline calls. A legacy TOP
+          only counts here if it out-produced the other tracked picks from its game; it never means
+          best player in the game.
         </div>
         {/* THE ARCHIVE, IN SENTENCES, UNDER THE ONE TABLE IT GRADES. Restated
             from the 62-night backtest rather than the older nine-day copy that
@@ -308,7 +309,7 @@ rows={tiers}
           <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.nights}</b> graded nights —{' '}
           <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.games.toLocaleString()}</b> games,{' '}
           <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.picks.toLocaleString()}</b> judgeable
-          designated picks, voids left out — the bot&apos;s TOP pick cleared its own HR bar{' '}
+          designated picks, voids left out — the legacy per-game TOP pick cleared its own HR bar{' '}
           <b style={{ fontFamily: NUM_FONT }}>{archText(ARCHIVE.lanes.TOP)}</b>. The identical man on
           the identical night got a base hit{' '}
           <b style={{ fontFamily: NUM_FONT, color: C.text }}>{archText(ARCHIVE.topOnHits)}</b> of the
