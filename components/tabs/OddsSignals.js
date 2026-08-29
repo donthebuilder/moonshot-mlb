@@ -5,6 +5,7 @@ import { nameOf, teamOf, oppOf, n } from '../../lib/player'
 import { edgeOf, fairOdds, fmtOdds, hrPerGame, impliedPct, normName } from '../../lib/odds'
 import { hrOverlayRead } from '../../lib/hrOverlay'
 import DenseTable from '../DenseTable'
+import OddsTimeline from '../OddsTimeline'
 import { btnStyle } from '../ui'
 
 const LARGE_MOVE_PP = 3
@@ -124,6 +125,7 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
           hrTier: overlay?.tierLabel || null,
           alignment,
           frozen: q.frozen ? 1 : 0,
+          _quote: q,
         })
       })
     })
@@ -236,6 +238,8 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
               columns={[
                 { key: 'player', label: 'Hitter', heat: false, w: 152, bold: true, sticky: true },
                 { key: 'market', label: 'Market', heat: false, w: 66, bold: true },
+                { key: '_quote', label: 'TREND', heat: false, w: 100,
+                  fmt: (v, row) => <OddsTimeline quote={row._quote} compact marketLabel={row.market} /> },
                 { key: 'opening', label: 'OPEN', w: 58, heat: false,
                   fmt: (v) => <span style={{ fontFamily: NUM_FONT }}>{fmtOdds(v)}</span> },
                 { key: 'current', label: 'NOW', w: 58, heat: false,

@@ -18,6 +18,7 @@ import {
   roleColor as verdictRoleColor,
 } from '../lib/verdict'
 import { quoteFor, fmtOdds } from '../lib/odds'
+import OddsTimeline from './OddsTimeline'
 import VerdictHero from './VerdictHero'
 import { Chip } from './ui'
 import Explain from './Explain'
@@ -527,15 +528,15 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
   const heroRole = apiOnly ? 'NONE' : (primaryRole(p) || 'NONE')
   const heroCol = apiOnly ? C.text3 : verdictRoleColor(heroRole)
   const heroScore = apiOnly ? null : verdictFor(heroRole).score(p)
-  const heroPrice = (() => {
+  const heroQuote = (() => {
     if (apiOnly || !odds) return null
     const cat = heroRole === 'WATCH' ? 'HR' : heroRole === 'NONE' ? null : heroRole
     if (!cat) return null
     const q = quoteFor(odds, p, cat)
-    if (!q || !q.matches) return null
-    const price = fmtOdds(q.over)
-    return price === '—' ? null : price
+    return q?.matches ? q : null
   })()
+  const heroPriceText = heroQuote ? fmtOdds(heroQuote.over) : '—'
+  const heroPrice = heroPriceText === '—' ? null : heroPriceText
 
   // Width follows the widest table on the tab. Pitch and Pitcher carry ten-plus
   // stat columns; Spray is a fixed-size chart and gets cramped, not helped, by
@@ -787,6 +788,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
                   not evidence, so it rides with the story; see the note where
                   it used to live, further down this tab. */}
               {!apiOnly && <PlayerRead p={p} odds={odds} />}
+              {!apiOnly && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
               {/* 💥 Two things that are easy to get wrong here, both checked:
                   (1) the prop is `p`, the slate row MERGED with the detail
                   file — batted_ball_log only exists in the detail file, so
