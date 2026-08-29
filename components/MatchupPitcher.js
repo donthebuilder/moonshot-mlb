@@ -5,6 +5,7 @@ import { n, clean, obj, arr, nameOf } from '../lib/player'
 import { pitcherDetailUrl } from '../lib/dataSource'
 import Explain from './Explain'
 import DenseTable from './DenseTable'
+import PitchMixChart from './PitchMixChart'
 import { rampColor, inkFor } from './Heatmap'
 import { armFormParts } from '../lib/armLeak'
 import { penFrom, penLineParts } from '../lib/bullpen'
@@ -683,6 +684,15 @@ export default function MatchupPitcher({ player, slateMode }) {
             label="Arsenal"
             sub={side === 'overall' ? 'overall usage — no side split published' : `his mix ${side}, the side this hitter bats from`}
             subColor={side === 'overall' ? C.text3 : C.orange}
+          />
+          {/* The readable layer first (2026-08-29, Donovan: the mix chart was
+              "bad and hard to read"). Same rows the table gets — the chart
+              answers the question, the table keeps every number. */}
+          <PitchMixChart
+            rows={arsenal}
+            accent={C.orange}
+            title="What he throws"
+            sub={side === 'overall' ? 'overall usage' : side}
           />
           <DenseTable
             heatMode="sorted"

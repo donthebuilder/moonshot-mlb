@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 
@@ -179,6 +179,27 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
   const [query, setQuery] = useState('')
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
+  // ── MOBILE PROGRESSIVE DISCLOSURE (2026-08-29) ─────────────────────────
+  // Fifteen fully-expanded cards made the phone page enormous (both reviews
+  // said so). On <=760px each card opens collapsed — teams, state, score,
+  // the designated calls, and each side's single best play — with the
+  // environment/defense intel and full top-3 lists one tap away. Desktop is
+  // untouched: every card renders full, nothing behind a tap, same vibe.
+  const [isMobile, setIsMobile] = useState(false)
+  const [openCards, setOpenCards] = useState(() => new Set())
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 760px)')
+    const sync = () => setIsMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+  const toggleCard = (id) => setOpenCards((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
   if (!games.length) {
     return (
       <div style={{
@@ -244,6 +265,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
         {sorted.map((g) => {
           const live = g.state === 'in'
           const hasScore = live || g.completed
+          const open = !isMobile || openCards.has(g.game_id)
           return (
             <div key={g.game_id} style={{
               background: live ? `linear-gradient(155deg, rgba(34,211,238,.08), ${C.bg2} 55%)` : C.bg2,
@@ -277,30 +299,70 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
                 : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Drive possession and down/distance are not published in the current feed · ESPN state: {g.detail || 'live'}</div>
               )}
 
-              {g.venue && (
-                <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 2 }}>
-                  {g.venue}{g.indoors ? ' · indoors' : ''}
-                </div>
+              {open ? (
+                <>
+                  {g.venue && (
+                    <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 2 }}>
+                      {g.venue}{g.indoors ? ' · indoors' : ''}
+                    </div>
+                  )}
+
+                  <GameIntel game={g} matchup={matchup} />
+
+                  <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
+                    <div style={{ marginBottom: 6, color: C.green, fontSize: 8, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.09em' }}>THE SIX · DESIGNATED CALLS IN THIS GAME</div>
+                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                    {[g.away, g.home].map((t) => (
+                      <div key={t}>
+                        <div style={{
+                          fontSize: 9.5, fontWeight: 900, color: C.text3,
+                          letterSpacing: '.08em', textTransform: 'uppercase',
+                        }}>{t}</div>
+                        <SidePicks players={players} team={t} onPlayerClick={onPlayerClick} />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ marginTop: 7, paddingTop: 7, borderTop: `1px solid ${C.border}` }}>
+                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 7 }}>
+                    {[g.away, g.home].map((t) => {
+                      const best = players
+                        .filter((p) => p.team === t && !p.low_sample)
+                        .sort((a, b) => (b.scores?.TD ?? 0) - (a.scores?.TD ?? 0))[0]
+                      if (!best) return null
+                      const bg = gradeFor(best.scores?.TD)
+                      return (
+                        <button key={t} onClick={() => onPlayerClick?.(best)} style={{
+                          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                          background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
+                          borderRadius: 8, padding: '5px 8px', cursor: 'pointer', textAlign: 'left',
+                        }}>
+                          <span style={{ fontSize: 8.5, fontWeight: 900, color: C.text3, fontFamily: NUM_FONT, minWidth: 28 }}>{t}</span>
+                          <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: bg.color, minWidth: 26 }}>{Math.round(best.scores?.TD ?? 0)}</span>
+                          <span style={{ fontSize: 11, color: C.text, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{best.name}</span>
+                          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{best.position}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
               )}
 
-              <GameIntel game={g} matchup={matchup} />
-
-              <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
-                <div style={{ marginBottom: 6, color: C.green, fontSize: 8, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.09em' }}>THE SIX · DESIGNATED CALLS IN THIS GAME</div>
-                <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
-                {[g.away, g.home].map((t) => (
-                  <div key={t}>
-                    <div style={{
-                      fontSize: 9.5, fontWeight: 900, color: C.text3,
-                      letterSpacing: '.08em', textTransform: 'uppercase',
-                    }}>{t}</div>
-                    <SidePicks players={players} team={t} onPlayerClick={onPlayerClick} />
-                  </div>
-                ))}
-              </div>
+              {isMobile && (
+                <button onClick={() => toggleCard(g.game_id)} aria-expanded={open} style={{
+                  width: '100%', marginTop: 9, padding: '7px 0',
+                  border: `1px solid ${C.border}`, borderRadius: 8,
+                  background: 'transparent', color: C.text3, cursor: 'pointer',
+                  font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em',
+                }}>{open ? 'COLLAPSE \u25B4' : 'WEATHER \u00B7 DEFENSE \u00B7 TOP 3 EACH SIDE \u25BE'}</button>
+              )}
             </div>
           )
         })}

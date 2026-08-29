@@ -254,7 +254,7 @@ export default function HRPitchProfile({ player, slateMode }) {
                 opacity: Number(r.seen) < 10 ? 0.5 : 1,
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, width: 86, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, width: 104, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {both ? '🎯 ' : ''}{r.pitch}
                   </span>
                   <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{r.code}</span>
@@ -262,26 +262,33 @@ export default function HRPitchProfile({ player, slateMode }) {
                     n={r.seen} · {r.hrs} HR{r.avgDist ? ` · ${Number(r.avgDist).toFixed(0)}ft` : ''}{r.maxDist ? ` (max ${Number(r.maxDist).toFixed(0)})` : ''}{r.avgEV ? ` · ${Number(r.avgEV).toFixed(1)} EV` : ''}
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
-                  <span style={{ fontSize: 8, color: '#fca63a', fontFamily: NUM_FONT, width: 58, flexShrink: 0, fontWeight: 800 }}>DMG {Number(r.rate || 0).toFixed(1)}%</span>
-                  <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,.05)', borderRadius: 3 }}>
-                    <div style={{ width: `${rateW}%`, height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, #7a5220, #fca63a)' }} />
+                {/* Legibility pass (2026-08-29, Donovan: "bad and hard to
+                    read"): the labels were 8px codes ("DMG"/"2NITE") on 6px
+                    bars. Words, bigger type, thicker bars, number at the end
+                    of each bar where the eye lands. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+                  <span style={{ fontSize: 9.5, color: '#fca63a', fontFamily: NUM_FONT, width: 74, flexShrink: 0, fontWeight: 800, letterSpacing: '.04em' }}>HITS IT</span>
+                  <div style={{ flex: 1, height: 9, background: 'rgba(255,255,255,.05)', borderRadius: 4 }}>
+                    <div style={{ width: `${rateW}%`, height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, #7a5220, #fca63a)' }} />
                   </div>
+                  <span style={{ fontSize: 10.5, color: '#fca63a', fontFamily: NUM_FONT, width: 46, flexShrink: 0, fontWeight: 900, textAlign: 'right' }}>{Number(r.rate || 0).toFixed(1)}%</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 3 }}>
-                  <span style={{ fontSize: 8, color: '#22d3ee', fontFamily: NUM_FONT, width: 58, flexShrink: 0, fontWeight: 800 }}>2NITE {Number(r.tonight || 0).toFixed(0)}%</span>
-                  <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,.05)', borderRadius: 3 }}>
-                    <div style={{ width: `${tonW}%`, height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, rgba(34,211,238,.35), #22d3ee)', opacity: 0.85 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <span style={{ fontSize: 9.5, color: '#22d3ee', fontFamily: NUM_FONT, width: 74, flexShrink: 0, fontWeight: 800, letterSpacing: '.04em' }}>SEES IT</span>
+                  <div style={{ flex: 1, height: 9, background: 'rgba(255,255,255,.05)', borderRadius: 4 }}>
+                    <div style={{ width: `${tonW}%`, height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, rgba(34,211,238,.35), #22d3ee)', opacity: 0.85 }} />
                   </div>
+                  <span style={{ fontSize: 10.5, color: '#22d3ee', fontFamily: NUM_FONT, width: 46, flexShrink: 0, fontWeight: 900, textAlign: 'right' }}>{Number(r.tonight || 0).toFixed(0)}%</span>
                 </div>
               </div>
             )
           })
         })()}
         <div style={{ fontSize: 9, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
-          Ember bar = his HR rate per batted ball against that pitch · cyan bar = how much of tonight&apos;s
-          starter&apos;s mix it is. 🎯 marks rows where BOTH run long — damage meeting supply. Bars are scaled
-          within this card; the numbers beside them are the truth. Small sample by construction.
+          <b style={{ color: '#fca63a' }}>HITS IT</b> = his HR rate per batted ball against that pitch ·{' '}
+          <b style={{ color: '#22d3ee' }}>SEES IT</b> = how much of tonight&apos;s starter&apos;s mix it is.
+          🎯 marks rows where BOTH run long — damage meeting supply. Bars are scaled within this card;
+          the numbers at the end of each bar are the truth. Small sample by construction.
         </div>
       </div>
     </div>
