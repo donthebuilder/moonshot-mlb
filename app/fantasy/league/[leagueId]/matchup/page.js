@@ -8,6 +8,7 @@ import LocalTime from '../../../../../components/fantasy/LocalTime'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import styles from '../../../fantasy.module.css'
+import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { generateSchedule } from './actions'
 
 const SEASON = 2026
@@ -67,7 +68,7 @@ export default async function MatchupPage({ params, searchParams }) {
       <NflGameCenter games={nflGames}/>
       {!featured && <section className={styles.scheduleEmpty}><span>VS</span><div><p className={styles.panelLabel}>SEASON SCHEDULE</p><h1>Your matchups are ready to be built.</h1><p>Franchise creates a balanced 14-week round-robin schedule from the teams currently in this league.</p></div>{membership.role==='commissioner'?<form action={generateSchedule}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Building…">Create schedule</SubmitButton></form>:<small>Waiting for the commissioner</small>}</section>}
       {featured && <>
-        <section className={styles.matchupHero}><div><small>HOME</small><h1>{home?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.home_score).toFixed(2)}</strong><em>{homeProjection.toFixed(1)} projected</em></div><span><b>WEEK {week}</b><i>{String(featured.status||'').toUpperCase()}</i></span><div><small>AWAY</small><h1>{away?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.away_score).toFixed(2)}</strong><em>{awayProjection.toFixed(1)} projected</em></div></section>
+        <section className={styles.matchupHero}><div><small>HOME</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={home}/>{home?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.home_score).toFixed(2)}</strong><em>{homeProjection.toFixed(1)} projected</em></div><span><b>WEEK {week}</b><i>{String(featured.status||'').toUpperCase()}</i></span><div><small>AWAY</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={away}/>{away?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.away_score).toFixed(2)}</strong><em>{awayProjection.toFixed(1)} projected</em></div></section>
         <section className={styles.marginBar} data-live={featured.status==='live'?'true':undefined}>
           <div className={styles.marginTrack}><i style={{ width: `${homeShare}%` }}/><b style={{ left: `${homeShare}%` }}/></div>
           <div className={styles.marginLegend}>
@@ -77,7 +78,7 @@ export default async function MatchupPage({ params, searchParams }) {
           </div>
         </section>
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring}/></div>
-        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b>{teams.find((team)=>team.id===game.home_team_id)?.name}</b><span>{game.status==='scheduled'?'vs':`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b>{teams.find((team)=>team.id===game.away_team_id)?.name}</b></div>)}</section>
+        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</span></b><span>{game.status==='scheduled'?'vs':`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</span><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
       </>}
     </div>
   </main>

@@ -58,5 +58,13 @@ export const config = {
     '/fantasy/:path*',
     '/auth/:path*',
     '/api/dash/:path*',
+    // The auth pages themselves (2026-08-29): /account reads the session and
+    // was never in the matcher; /login redirects the signed-in away; and
+    // /reset-password only renders its form when the recovery session the
+    // email link created is actually readable.
+    '/account',
+    '/login',
+    '/forgot-password',
+    '/reset-password',
   ],
 }

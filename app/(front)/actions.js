@@ -84,3 +84,38 @@ export async function dashSignOut(formData) {
   revalidatePath('/', 'layout')
   redirect(next)
 }
+
+// ── Password recovery ───────────────────────────────────────────────────────
+// The 2026-08-29 review: there was no forgot-password path anywhere on the
+// network — a person who lost their password lost their account. These two
+// actions are the whole flow: request a reset email, then set the new
+// password once the email link has signed them in (the recovery link goes
+// through /auth/callback, which exchanges the code for a real session and
+// forwards to /reset-password).
+
+export async function dashForgotPassword(formData) {
+  const supabase = await client('/forgot-password')
+  const email = clean(formData.get('email'), 200).toLowerCase()
+  if (!email) back('/forgot-password', 'error', 'Enter the email you signed up with')
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent('/reset-password')}`,
+  })
+  // Deliberately the same answer whether or not the email has an account —
+  // a different message for unknown addresses lets anyone probe who has one.
+  back('/forgot-password', 'message', 'If that email has an account, a reset link is on its way. Check spam too.')
+}
+
+export async function dashResetPassword(formData) {
+  const supabase = await client('/reset-password')
+  const password = String(formData.get('password') || '')
+  const confirm = String(formData.get('confirm') || '')
+  if (password.length < 8) back('/reset-password', 'error', 'The new password needs at least 8 characters')
+  if (password !== confirm) back('/reset-password', 'error', 'The two passwords do not match')
+
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) back('/reset-password', 'error', error.message)
+  revalidatePath('/', 'layout')
+  back('/', 'message', 'Password changed — you are signed in')
+}

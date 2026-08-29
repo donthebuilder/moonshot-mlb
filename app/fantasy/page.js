@@ -6,6 +6,8 @@ import {
   signUp,
 } from './actions'
 import Link from 'next/link'
+import PasswordInput from '../../components/PasswordInput'
+import TeamMark from '../../components/fantasy/TeamMark'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import styles from './fantasy.module.css'
 
@@ -81,7 +83,7 @@ function AuthScreen({ error, message }) {
           <p>One account lets you own teams in multiple private leagues.</p>
           <label>Your name<input name="displayName" autoComplete="name" maxLength="40" required /></label>
           <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-          <label>Password<input name="password" type="password" minLength="8" autoComplete="new-password" required /></label>
+          <label>Password<PasswordInput autoComplete="new-password" minLength={8} /></label>
           <SubmitButton pendingLabel="Creating your account…">Start my Franchise <span>→</span></SubmitButton>
           <small>No card. No payment. Just your league.</small>
         </form>
@@ -90,8 +92,9 @@ function AuthScreen({ error, message }) {
           <h3>Enter your front office</h3>
           <p>Use the email and password you created for Franchise.</p>
           <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-          <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+          <label>Password<PasswordInput autoComplete="current-password" /></label>
           <SubmitButton pendingLabel="Signing in…">Sign in <span>→</span></SubmitButton>
+          <small><Link href="/forgot-password">Forgot your password?</Link></small>
         </form>
         </div>
       </section>
@@ -271,7 +274,7 @@ export default async function FantasyPage({ searchParams }) {
                 <article className={styles.leagueCard} key={league.id}>
                   <div className={styles.leagueHead}><span>{membership?.role === 'commissioner' ? 'COMMISSIONER' : 'MEMBER'}</span><b>{memberTeams.length}/{league.team_count} teams</b></div>
                   <h3>{league.name}</h3>
-                  <p className={styles.teamName}>{myTeam?.name}</p>
+                  <p className={styles.teamName} style={{display:'flex',alignItems:'center',gap:8}}>{myTeam&&<TeamMark size={20} team={myTeam}/>}{myTeam?.name}</p>
                   <div className={styles.chips}><span>{scoringLabel[league.scoring]}</span><span>{league.draft_timer_seconds}s draft</span><span>{league.draft_order_method} order</span></div>
                   <div className={styles.invite}><small>INVITE CODE</small><strong>{league.invite_code}</strong></div>
                   <Link className={styles.enterLeague} href={`/fantasy/league/${league.id}`}>Enter league room →</Link>

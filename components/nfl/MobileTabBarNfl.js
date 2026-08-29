@@ -4,8 +4,9 @@ import MobileTabBar from '../MobileTabBar'
 // C3's NFL half: "if it feels right, NFL copies it" (dash-network-master-
 // plan-2026-08-28.md). MOONSHOT's mobile bar shape is 4 essential
 // destinations + a "More" catch-all, so this picks NFL's 4 most-reached-for
-// tabs the same way -- Home/Boards/Games/Picks, matching NflHeader.js's own
-// desktop PRIMARY_TABS order minus 'research' (which drops into More here to
+// tabs the same way -- Home/Boards/Games/Picks, now genuinely matching
+// NflHeader.js's PRIMARY_TABS order (the header was reordered 2026-08-29 to
+// agree with this bar) minus 'research' (which drops into More here to
 // keep the 4+More shape MOONSHOT's bar uses, rather than force-fitting 5
 // primaries into a bar built for 4). Icons are reused 1:1 from MOONSHOT's
 // own MAIN (⌂ home, ▥ boards, ◉ live/rundown, ✦ picks) on purpose -- same

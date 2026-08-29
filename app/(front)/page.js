@@ -32,6 +32,7 @@ import Link from 'next/link'
 
 import AlertsPanel from '../../components/AlertsPanel'
 import LegacyHashRedirect from '../../components/LegacyHashRedirect'
+import PasswordInput from '../../components/PasswordInput'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { getNetworkPulse } from '../../lib/dash/pulse'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
@@ -245,7 +246,7 @@ export default async function DashHome({ searchParams }) {
                 <input type="hidden" name="next" value="/" />
                 <label>Your name<input name="displayName" autoComplete="name" maxLength="40" required /></label>
                 <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-                <label>Password<input name="password" type="password" minLength="8" autoComplete="new-password" required /></label>
+                <label>Password<PasswordInput autoComplete="new-password" minLength={8} /></label>
                 <SubmitButton pendingLabel="Creating your account…">Create account <span>→</span></SubmitButton>
                 <small>No card, no payment screen.</small>
               </form>
@@ -254,9 +255,10 @@ export default async function DashHome({ searchParams }) {
                 <h3>Sign in</h3>
                 <input type="hidden" name="next" value="/" />
                 <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-                <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+                <label>Password<PasswordInput autoComplete="current-password" /></label>
                 <SubmitButton pendingLabel="Signing in…">Sign in <span>→</span></SubmitButton>
                 <small>Already have a Franchise login? That&apos;s this one.</small>
+                <small><Link href="/forgot-password">Forgot your password?</Link></small>
               </form>
             </div>
           </>

@@ -4,11 +4,15 @@ import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 import PaletteButton from '../PaletteButton'
 
+// Order matches the mobile bottom bar (MobileTabBarNfl.js: Home · Boards ·
+// Games · Picks) and MOONSHOT's own bar shape — the 2026-08-29 review caught
+// the two rails listing the same destinations in two different orders, which
+// makes muscle memory impossible for anyone who uses both widths.
 const PRIMARY_TABS = [
   ['home', 'Home'],
-  ['picks', 'Picks'],
-  ['games', 'Games'],
   ['boards', 'Boards'],
+  ['games', 'Games'],
+  ['picks', 'Picks'],
   ['research', 'Research'],
 ]
 const MORE_TABS = [
@@ -132,7 +136,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           </div>
         </div>
 
-        <div style={{
+        <div className="nfl-header-tiles" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           gap: 6, flexWrap: 'wrap', flex: '1 1 420px', minWidth: 0,
         }}>
@@ -149,6 +153,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           {live > 0 && <Tile label="Live" value={live} color={C.yellow} title="Games in progress" />}
           {isPre && (
             <div
+              className="nfl-header-preseason"
               title="Preseason: starters play two series, so weekly form does not exist yet. Every board here is built from last season's per-game baselines and says so on each row."
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
@@ -163,7 +168,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{
+          <span className="nfl-header-built" style={{
             fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
           }}>{meta?.built_at_human || data?.built_at_human || '—'}</span>
           <PaletteButton />
@@ -185,7 +190,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         </div>
       )}
 
-      <div className="rail" style={{
+      <div className="rail nfl-header-rail" style={{
         maxWidth: 1300, margin: '0 auto', padding: '0 16px',
         overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
       }}>
@@ -263,6 +268,20 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         header div::-webkit-scrollbar { display: none; }
         @media (max-width: 700px) {
           .nfl-simple-more { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+        }
+        /* Mobile header diet (2026-08-29 review): logo + 4 stat chips +
+           preseason banner + timestamp + tab rail was ~195px of fixed chrome,
+           and with the bottom bar the phone gave ~30% of its height to
+           navigation before content. At the bottom bar's own breakpoint
+           (760px, components/MobileTabBar.js) the bar owns tab switching, so
+           the rail goes; the stat chips and timestamp go too (Home's hero
+           repeats the slate context); the PRESEASON chip stays because it is
+           a data caveat, not furniture. Desktop is untouched. */
+        @media (max-width: 760px) {
+          .nfl-header-rail { display: none !important; }
+          .nfl-header-built { display: none !important; }
+          .nfl-header-tiles > *:not(.nfl-header-preseason) { display: none !important; }
+          .nfl-header-tiles { flex: 0 1 auto !important; }
         }
       `}</style>
     </header>

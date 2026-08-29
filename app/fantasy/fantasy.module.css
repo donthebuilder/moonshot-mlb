@@ -5164,3 +5164,50 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .resetZone { flex-direction: column; align-items: stretch; }
   .resetZone form { min-width: 0; }
 }
+
+/* ── Team look picker (C4 de-bland, 2026-08-29) ───────────────────────────
+   Owner-picked color + monogram, on the Team page's side rail. Radios are
+   visually swatches: the input stays in the DOM (keyboard + form semantics),
+   the span is the 26px chip, checked state is a ring in the chip's own hue. */
+.identityForm { display: grid; gap: 12px; }
+.identitySwatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.identitySwatches label { position: relative; display: block; cursor: pointer; }
+.identitySwatches input {
+  position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer;
+}
+.identitySwatches span {
+  display: block; height: 26px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.14);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.identitySwatches input:checked + span {
+  box-shadow: 0 0 0 2px #0f0e0d, 0 0 0 4px rgba(255,255,255,.85);
+  transform: scale(1.06);
+}
+.identitySwatches input:focus-visible + span {
+  outline: 2px solid var(--fx-gold); outline-offset: 2px;
+}
+.identityMonogram { display: grid; gap: 7px; color: var(--fx-muted); font: 800 9px/1.4 monospace; letter-spacing: .08em; text-transform: uppercase; }
+.identityMonogram input {
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1px solid #3a3732; border-radius: 9px; background: var(--fx-well);
+  color: var(--ink); font: 900 15px/1 monospace; letter-spacing: .2em; text-transform: uppercase;
+}
+.identityHint { color: var(--fx-muted); font-size: 9.5px; line-height: 1.5; }
+
+/* ── Native-control polish (2026-08-29 review) ────────────────────────────
+   The create-league and settings forms rendered OS-default select arrows and
+   checkboxes inside otherwise fully custom forms. Same fields, house arrow
+   and house accent. The chevron is an inline SVG data URI so nothing loads. */
+.card select,
+.settingsFields select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a09a93' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+}
+.checks input[type="checkbox"],
+.settingsChecks input[type="checkbox"] {
+  width: 16px; height: 16px; accent-color: var(--gold, #f2a33c);
+}

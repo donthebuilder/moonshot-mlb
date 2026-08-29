@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import styles from '../../../fantasy.module.css'
+import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { addFreeAgent, cancelWaiverClaim, processWaivers, submitWaiverClaim } from './actions'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
@@ -72,7 +73,7 @@ export default async function WirePage({params,searchParams}) {
           {!availablePlayers.length&&<p className={styles.emptyRoom}>No available players match this filter.</p>}
         </section>
         <aside className={styles.wireSide}><section><div className={styles.boardHead}><div><p className={styles.panelLabel}>MY CLAIMS</p><h2>Pending moves</h2></div><span>{myClaims.length}</span></div>{myClaims.map((claim)=><div className={styles.claimRow} key={claim.id}><div><b>{claim.player?.name}</b><small>{claim.player?.position} · clears in {remaining(claim.process_after)}</small></div><form action={cancelWaiverClaim}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="claimId" value={claim.id}/><SubmitButton pendingLabel="…">Cancel</SubmitButton></form></div>)}{!myClaims.length&&<p className={styles.emptyRoom}>You have no pending claims.</p>}</section>
-          <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>ROLLING PRIORITY</p><h2>Waiver order</h2></div></div>{safeTeams.map((team,index)=><div className={styles.priorityRow} key={team.id}><span>{index+1}</span><b>{team.name}</b><small>{team.id===myTeam?.id?'YOU':''}</small></div>)}</section>
+          <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>ROLLING PRIORITY</p><h2>Waiver order</h2></div></div>{safeTeams.map((team,index)=><div className={styles.priorityRow} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}><TeamMark size={22} team={team}/><b style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{team.name}</b></div><small>{team.id===myTeam?.id?'YOU':''}</small></div>)}</section>
           <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH COACH</p><h2>Wire basics</h2></div></div><p className={styles.emptyRoom}>{league.status==='active'?'Use free agency for immediate adds. A successful waiver claim moves your team to the back of the priority order.':'The Wire opens when the draft is complete.'}</p></section></aside>
       </div>
     </div>

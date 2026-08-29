@@ -4,6 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import LocalTime from './LocalTime'
+// fantasy.module.css is a CSS *module* — class names are hashed at build
+// time, so the plain string classNames this component used to render
+// ("liveMatchupControl") matched nothing. The section shipped completely
+// unstyled: default browser button, no spacing between the GAME CENTER
+// kicker and the headline. Import the module and use its exports.
+import styles from '../../app/fantasy/fantasy.module.css'
 
 const REFRESH_SECONDS = 30
 
@@ -48,8 +54,8 @@ export default function LiveMatchupCenter({ leagueId, live, lastUpdated }) {
   }, [live, seconds, refresh])
 
   return (
-    <section className={`liveMatchupControl ${live ? 'liveMatchupActive' : ''}`}>
-      <span className="liveMatchupPulse" />
+    <section className={`${styles.liveMatchupControl} ${live ? styles.liveMatchupActive : ''}`}>
+      <span className={styles.liveMatchupPulse} />
       <div>
         <small>{live ? 'LIVE GAME CENTER' : 'GAME CENTER'}</small>
         <strong>{live ? 'Fantasy scores are updating' : 'Waiting for NFL action'}</strong>

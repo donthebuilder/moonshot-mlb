@@ -23,6 +23,7 @@
 
 import Link from 'next/link'
 
+import PasswordInput from '../../components/PasswordInput'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import DeviceData from '../../components/DeviceData'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
@@ -117,8 +118,8 @@ export default async function AccountPage({ searchParams }) {
           <p className={styles.kicker}>YOUR PASSWORD</p>
           <h3>Change it</h3>
           <p className={styles.muted}>At least eight characters. You stay signed in here.</p>
-          <label>New password<input name="password" type="password" minLength="8" autoComplete="new-password" required /></label>
-          <label>Again<input name="confirm" type="password" minLength="8" autoComplete="new-password" required /></label>
+          <label>New password<PasswordInput autoComplete="new-password" minLength={8} /></label>
+          <label>Again<PasswordInput name="confirm" autoComplete="new-password" minLength={8} /></label>
           <SubmitButton pendingLabel="Changing…">Change password</SubmitButton>
         </form>
       </section>
