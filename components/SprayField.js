@@ -1242,19 +1242,6 @@ export default function SprayField({
       </div>
       )}
 
-      {/* 🏟 STADIUM (2026-08-29) — the same `shown` set the dots below draw
-          from, flown in 3D against the tested park's wall when one is picked,
-          his own otherwise. Additive: the SVG chart below never leaves. */}
-      {!liveOnly && stadium && (
-        <div style={{ marginBottom: 10 }}>
-          <SprayFieldStadium
-            hits={shown}
-            dims={testPark && PARKS[testPark] ? PARKS[testPark].d : dims}
-            heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
-            venue={testPark || venue}
-          />
-        </div>
-      )}
 
       {/* Pitch chips. This is the question the panel exists for: does he only
           do damage against one pitch, and does tonight's arm throw it? The
@@ -1336,6 +1323,22 @@ export default function SprayField({
             : ' — no side split published for him, so this is his overall usage.'}
           {' '}They start selected, so what you see first is the balls he put in play against
           pitches he&apos;ll see tonight.
+        </div>
+      )}
+
+
+      {/* 🏟 STADIUM (2026-08-29) — GB/LD and pitch-mix chips above (plus batted-ball type) already filter
+          this same `shown` set the dots below draw
+          from, flown in 3D against the tested park's wall when one is picked,
+          his own otherwise. Additive: the SVG chart below never leaves. */}
+      {!liveOnly && stadium && (
+        <div style={{ marginBottom: 10 }}>
+          <SprayFieldStadium
+            hits={shown}
+            dims={testPark && PARKS[testPark] ? PARKS[testPark].d : dims}
+            heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
+            venue={testPark || venue}
+          />
         </div>
       )}
 

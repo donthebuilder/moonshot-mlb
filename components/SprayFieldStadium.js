@@ -109,7 +109,23 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     key.position.set(-220, 380, -140)
     scene.add(key)
 
-    const P = (r, ang) => new THREE.Vector3(r * Math.sin(ang * DEG), 0, r * Math.cos(ang * DEG))
+    // 🪞 THE MIRROR FIX (2026-08-29). Donovan: "i think the spray chart is
+    // flipped" -- confirmed against the 2D chart (correct) and this one
+    // (was backwards for every player, not a handedness-specific thing).
+    // Root cause: this camera sits BEHIND home plate at negative Z, looking
+    // out toward the field at positive Z ("slightly first-base side like a
+    // broadcast camera", camera.position above) -- a 180°-yaw view compared
+    // to three.js's own default camera, which looks down -Z. Facing +Z
+    // instead of the default -Z swaps which world axis reads as screen-right
+    // to a viewer: +X reads as screen-LEFT here, not screen-right. The old
+    //  was written as if facing -Z (i.e., copied straight from
+    // SprayField.js's 2D , where it's correct), so every LF ball
+    // (negative ang) landed on world +X -- rendered on the viewer's RIGHT --
+    // and every RF ball landed on the viewer's LEFT. Negating x is the one
+    // fix: every position in this file (dots, tubes, wall panels, the number
+    // sprites) already routes through this single P(), so flipping it here
+    // flips the whole scene together and nothing drifts out of alignment.
+    const P = (r, ang) => new THREE.Vector3(-r * Math.sin(ang * DEG), 0, r * Math.cos(ang * DEG))
     const SEG = 96
 
     // ── the world outside the park, so the field isn't floating in space
