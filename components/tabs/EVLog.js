@@ -266,6 +266,22 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     // is_pull_air is spray_cache's own flag: pulled AND in the air — the
     // batted-ball shape that actually leaves buildings
     pullAir: h.is_pull_air ? 1 : 0,
+    // ── FIELDS THAT WERE ALREADY IN THE PAYLOAD AND NEVER DRAWN ───────────
+    // (2026-08-29, Donovan: "the ev log can be updated now with more stats
+    // that we know will help.") Every one of these is a key spray_cache.py
+    // already writes on each batted ball; none of it is new maths and none
+    // of it is estimated. Checked against a live detail file before adding,
+    // which is also how one earlier idea got dropped: there is NO xwOBA per
+    // batted ball in this payload, so a per-ball xwOBA column would have had
+    // to be invented, and it isn't here.
+    lane: String(h.lane || '').toUpperCase() || '—',
+    side: String(h.spray_side || '').replace(/_/g, ' ') || '—',
+    xbh: h.is_xbh ? 1 : 0,
+    // The distance tiers the pitcher panel already reports as "balls he's let
+    // travel" / "real distance given up" — the batter's side of the same fact.
+    d350: h.is_350_plus ? 1 : 0,
+    d375: h.is_375_plus ? 1 : 0,
+    d400: h.is_400_plus ? 1 : 0,
   })), [windowed, armFilter, batterHand, pitchSel, resFilter])
 
   const pid = player?.player_id || player?.id
@@ -482,8 +498,24 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           {resultTypes.map((r) => <option key={r} value={r}>{r === 'ALL' ? 'All results' : r.replace(/_/g, ' ')}</option>)}
         </select>
 
-        <span style={{ fontSize: 10, color: C.text3, marginLeft: 'auto', fontFamily: NUM_FONT }}>
+        {/* WHY IT SAYS 13 OF 25 (2026-08-29). Donovan flagged this counter as
+            possibly broken. It is not — the ARM filter defaults to tonight's
+            starter's hand, so a hitter with 25 balls in the window shows only
+            the ones he hit off that hand. The count was honest and the reason
+            was invisible, which is the same bug in a different coat. It now
+            names whichever filters are actually cutting the set. */}
+        <span style={{ fontSize: 10, color: C.text3, marginLeft: 'auto', fontFamily: NUM_FONT, textAlign: 'right' }}>
           {rows.length} of {windowed.length} shown
+          {rows.length !== windowed.length && (() => {
+            const why = []
+            if (armFilter !== 'ALL') why.push(`vs ${armFilter}HP`)
+            if (batterHand !== 'ALL') why.push(`as ${batterHand}HB`)
+            if (pitchSel && pitchSel.size) why.push(`${pitchSel.size} pitch type${pitchSel.size > 1 ? 's' : ''}`)
+            if (resFilter !== 'ALL') why.push(String(resFilter).replace(/_/g, ' '))
+            return why.length
+              ? <span style={{ color: C.orange }}> · filtered to {why.join(' · ')}</span>
+              : null
+          })()}
         </span>
       </div>
 
@@ -520,6 +552,13 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           return rows.length ? (100 * k) / rows.length : null
         }
         const pullAir = rows.filter((r) => r.pullAir).length
+        const sidePct = (name) => {
+          const k = rows.filter((r) => String(r.side).toLowerCase() === name).length
+          return rows.length ? (100 * k) / rows.length : null
+        }
+        const xbh = rows.filter((r) => r.xbh).length
+        const far = rows.filter((r) => r.d400).length
+        const mid = rows.filter((r) => r.d375).length
         const pct = (v) => `${v.toFixed(0)}%`
         const cells = [
           ['AVG EV', avg('ev'), (v) => v.toFixed(1), '#fca63a'],
@@ -534,6 +573,16 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           ['HARD HIT', hh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#fca63a'],
           ['BARRELS', brl, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#a78bfa'],
           ['HR', hr, (v) => `${v}`, '#4ade80'],
+          // Direction and real distance, from the flags spray_cache already
+          // writes. PULL / OPPO are the batted-ball direction split; 375+ and
+          // 400+ are the same "balls he's let travel" tiers the pitcher panel
+          // reports, read from the bat's side. All counted over exactly the
+          // rows below, like everything else in this strip.
+          ['PULL', sidePct('pull'), pct, '#fca63a'],
+          ['OPPO', sidePct('oppo'), pct, C.text2],
+          ['XBH', xbh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#22d3ee'],
+          ['375+ FT', mid, (v) => `${v}`, '#fca63a'],
+          ['400+ FT', far, (v) => `${v}`, '#f87171'],
         ]
         return (
           <div style={{
@@ -549,6 +598,96 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
             ))}
             <div style={{ marginLeft: 'auto', alignSelf: 'end', fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
               over the {rows.length} balls shown below
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── THE SHAPE, NOT JUST THE TABLE (2026-08-29) ─────────────────────
+          Donovan: "the ev log can be updated now with more stats that we
+          know will help." The most useful thing this page was missing is not
+          another number — it is the picture the numbers already make.
+
+          Exit velocity against launch angle, one dot per batted ball, with
+          the barrel region drawn behind them. Barrels are not a threshold on
+          either axis alone; they are a WEDGE — roughly 98 mph at 26-30
+          degrees, widening in both directions as the ball is hit harder —
+          which is exactly the thing a table of two columns cannot show and a
+          scatter shows instantly. A hitter whose dots cluster hard and low is
+          a different problem from one whose dots are high and soft, and both
+          can carry the same average EV.
+
+          NOTHING HERE IS MODELLED. Every dot is a real batted ball from the
+          rows below; the highlighted dots are the bot's own is_barrel flag,
+          not a re-derivation. The wedge is drawn as a GUIDE and labelled as
+          one — Statcast's barrel definition is a published rule, but this
+          shading is an approximation of its boundary for the eye, so the
+          flag decides which dots are lit, never the shape.
+       */}
+      {rows.filter((r) => Number.isFinite(r.ev) && Number.isFinite(r.la)).length >= 5 && (() => {
+        const pts = rows.filter((r) => Number.isFinite(r.ev) && Number.isFinite(r.la))
+        const W = 560, H = 210, PAD = 30
+        const EV0 = 50, EV1 = 118
+        const LA0 = -40, LA1 = 60
+        const x = (ev) => PAD + ((Math.min(EV1, Math.max(EV0, ev)) - EV0) / (EV1 - EV0)) * (W - PAD - 12)
+        const y = (la) => H - PAD - ((Math.min(LA1, Math.max(LA0, la)) - LA0) / (LA1 - LA0)) * (H - PAD - 14)
+        // The barrel wedge, as a guide: it opens at ~98 mph / 26-30 deg and
+        // widens with exit velocity. Drawn from a handful of points rather
+        // than a formula, because it is scenery for the eye and the bot's
+        // flag is what actually marks a barrel.
+        const wedge = [[98, 26], [98, 30], [104, 36], [110, 40], [116, 44], [116, 10], [110, 14], [104, 20]]
+          .map(([ev, la]) => `${x(ev).toFixed(1)},${y(la).toFixed(1)}`).join(' ')
+        return (
+          <div style={{
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
+            padding: '9px 12px 6px', marginBottom: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>
+                How he hits it — exit velo against launch angle
+              </span>
+              <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+                {pts.length} balls · ● barrel · ★ home run
+              </span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ minWidth: 340, display: 'block' }} role="img"
+                   aria-label={`Exit velocity against launch angle for ${pts.length} batted balls, with the barrel region shaded.`}>
+                <polygon points={wedge} fill="#a78bfa" opacity="0.10" />
+                <text x={x(112)} y={y(27)} fill="#a78bfa" fontSize="8" textAnchor="middle" opacity="0.85"
+                      fontFamily="ui-monospace, monospace" letterSpacing="0.08em">BARRELS</text>
+                {[60, 70, 80, 90, 100, 110].map((ev) => (
+                  <g key={ev}>
+                    <line x1={x(ev)} y1={14} x2={x(ev)} y2={H - PAD} stroke={C.border} strokeWidth="1" opacity="0.5" />
+                    <text x={x(ev)} y={H - PAD + 12} fill={C.text3} fontSize="8" textAnchor="middle" fontFamily="ui-monospace, monospace">{ev}</text>
+                  </g>
+                ))}
+                {[-20, 0, 25, 50].map((la) => (
+                  <g key={la}>
+                    <line x1={PAD} y1={y(la)} x2={W - 12} y2={y(la)} stroke={C.border} strokeWidth="1" opacity={la === 0 ? 0.9 : 0.4} />
+                    <text x={PAD - 5} y={y(la) + 3} fill={C.text3} fontSize="8" textAnchor="end" fontFamily="ui-monospace, monospace">{la}°</text>
+                  </g>
+                ))}
+                <text x={W - 12} y={H - 4} fill={C.text3} fontSize="8" textAnchor="end" fontFamily="ui-monospace, monospace">exit velo (mph) →</text>
+                {pts.map((r, i) => {
+                  const isHr = !!r.hr
+                  const isBrl = !!r.barrel
+                  const col = isHr ? '#4ade80' : isBrl ? '#a78bfa' : r.hard ? '#fca63a' : C.text3
+                  return isHr ? (
+                    <text key={r._key || i} x={x(r.ev)} y={y(r.la) + 4} fill={col} fontSize="11" textAnchor="middle">★</text>
+                  ) : (
+                    <circle key={r._key || i} cx={x(r.ev)} cy={y(r.la)} r={isBrl ? 4 : 3}
+                            fill={col} opacity={isBrl ? 0.95 : 0.6} />
+                  )
+                })}
+              </svg>
+            </div>
+            <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.5, marginTop: 2 }}>
+              One dot per batted ball in the window above — same rows, same filters. The shaded
+              wedge is roughly where barrels live (hard, and in a narrow angle band that widens the
+              harder it is hit); it is drawn as a <b style={{ color: C.text2 }}>guide for the eye</b>,
+              and which dots are lit comes from the bot&apos;s own barrel flag, not from the shape.
+              Dots below the 0° line are balls hit into the ground.
             </div>
           </div>
         )
@@ -570,6 +709,12 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           { key: 'barrel',  label: 'BRL',     flag: true, mark: '●', w: 32 },
           { key: 'hard',    label: 'HH',      flag: true, mark: '●', w: 32 },
           { key: 'hr',      label: 'HR',      flag: true, mark: '★', w: 32 },
+          { key: 'xbh',     label: 'XBH',     flag: true, mark: '●', w: 34,
+            explain: 'Extra-base hit — the bot\u2019s own flag on this batted ball.' },
+          { key: 'side',    label: 'Side',    heat: false, w: 64, dim: true,
+            title: 'Pull, centre or opposite field. Direction only — it says where the ball went, not how hard.' },
+          { key: 'lane',    label: 'Lane',    heat: false, w: 54, mono: true, dim: true,
+            title: 'Which slice of the outfield it landed in: LF, LCF, CF, RCF, RF. Straight off the hit coordinates, not modelled.' },
           { key: 'result',  label: 'Result',  heat: false, w: 116, dim: true },
           { key: 'traj',    label: 'Traj',    heat: false, w: 84, dim: true },
         ]}
