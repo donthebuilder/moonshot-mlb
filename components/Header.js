@@ -567,6 +567,17 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
         @media (max-width: 700px) {
           .simple-more-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
         }
+        /* Mobile header diet, MOONSHOT half (2026-08-29 — TUDDY got the same
+           treatment in NflHeader.js). At the bottom bar's breakpoint (760px,
+           components/MobileTabBar.js) the bar owns tab switching, so the top
+           rail was a second, differently-ordered navigation — it goes. The
+           vitals strip goes too; Home repeats the slate context. The date
+           badge and live/date mode switch STAY: they change what every tab
+           shows and have no equivalent in the bottom bar. */
+        @media (max-width: 760px) {
+          .rail { display: none !important; }
+          .hdr-vitals { display: none !important; }
+        }
       `}</style>
     </header>
   )

@@ -70,8 +70,11 @@ export default function Guide({ onNavigate }) {
             The reason it matters: ranking inside the slate forces a 0-100 spread every
             week, so the best goal-line back among six teams scores 100 whether
             he&apos;s a superstar or a backup. <b style={{ color: C.text }}>A thin card
-            should score thin</b> — and now it does. This preseason board tops out in the
-            60s and hands out no A+ at all.
+            should score thin</b> — and the league-wide scale lets it: a top grade only
+            appears where the evidence is genuinely elite, so how high a given board
+            reaches depends on who is on it, not on the week existing. (This paragraph
+            used to quote the current board&apos;s ceiling; a static claim about a live
+            board goes stale the day the board changes, so it doesn&apos;t anymore.)
           </div>
         </Card>
       </Section>

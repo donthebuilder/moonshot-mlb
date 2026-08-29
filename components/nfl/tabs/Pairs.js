@@ -293,7 +293,21 @@ export default function Pairs({ data, results, onPlayerClick }) {
   const openRow = (r) => onPlayerClick?.(r._raw, r._market)
   const gradedCount = results ? sameRows.filter((r) => r.gradeState === 'both').length : null
 
-  const lead = sameRows[0]
+  // The featured card used to be "sturdiest pair" unconditionally — which on
+  // a graded slate could put the 🧱 celebration frame around a pair that
+  // cleared NEITHER leg (caught in the 08-29 outside review: "the product is
+  // celebrating a pairing that failed both legs"). Once grades exist, feature
+  // the best pair that actually cleared BOTH; if nothing cleared, keep the
+  // top-rated pair but present it as a graded outcome, not a recommendation.
+  const bestCleared = sameRows.find((row) => row.gradeState === 'both')
+  const graded = sameRows.some((row) => ['both', 'one', 'none'].includes(row.gradeState))
+  const lead = graded ? (bestCleared || sameRows[0]) : sameRows[0]
+  const leadTitle = !graded
+    ? '🧱 STURDIEST PAIR'
+    : bestCleared ? '🧱 STURDIEST PAIR THAT CLEARED' : 'HOW THE TOP PAIR GRADED'
+  const leadCaption = !graded
+    ? 'best weaker-leg score on the board · ungraded until the games play'
+    : bestCleared ? 'best weaker-leg score among pairs that cleared both legs' : 'no pair cleared both legs on this graded run'
 
   return (
     <div>
@@ -315,9 +329,9 @@ export default function Pairs({ data, results, onPlayerClick }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
             <span style={{ fontSize: 9, fontWeight: 900, color: lead.color, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
-              🧱 STURDIEST PAIR
+              {leadTitle}
             </span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>best weaker-leg score on the board</span>
+            <span style={{ fontSize: 9.5, color: C.text3 }}>{leadCaption}</span>
             {results && <span style={{ marginLeft: 'auto' }}><GradeBadge state={lead.gradeState} /></span>}
           </div>
           <div

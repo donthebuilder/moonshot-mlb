@@ -139,7 +139,7 @@ export default async function DashHome({ searchParams }) {
           <Tile label="MLB GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
           <Tile label="CALLED SLOTS" value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
           <Tile label="CLEARED SO FAR" value={mlb?.cleared} sub={mlb?.started ? `of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
-          <Tile label="HRs ON THE SLATE" value={mlb?.homers} sub={pct(mlb?.capturePct) ? `${pct(mlb.capturePct)} on the sheet` : null} accent="mlb" />
+          <Tile label="HRs ON THE SLATE" value={mlb?.homers} sub={pct(mlb?.capturePct) ? `${pct(mlb.capturePct)} covered by the full sheet` : null} accent="mlb" />
           <Tile label="NFL GAMES" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
           <Tile label="PLAYERS SCORED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
         </div>

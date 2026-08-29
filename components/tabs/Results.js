@@ -328,7 +328,11 @@ function CaptureBanner({ report, uniqueReport }) {
     <Card style={{ padding: '12px 14px', marginBottom: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
         <div style={{ flex: 1, minWidth: 140 }}>
-          <div style={{ fontSize: 10, color: C.text3, marginBottom: 5, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sheet HR Capture</div>
+          {/* "Capture" read as prediction accuracy when it is COVERAGE — how
+              many of the night's homers appeared anywhere on the full sheet
+              (hundreds of names), not how many picks hit. Label it what it is
+              and say so on the card (08-29 outside review). */}
+          <div style={{ fontSize: 10, color: C.text3, marginBottom: 5, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full-sheet HR coverage</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <MiniBar value={pctVal} color={col} />
             <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 18, color: col, minWidth: 52 }}>{pctVal.toFixed(1)}%</span>
@@ -339,6 +343,10 @@ function CaptureBanner({ report, uniqueReport }) {
           <Chip color={C.red}>{missed} missed</Chip>
           <Chip color={C.text2}>{total} total HRs</Chip>
         </div>
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.5, marginBottom: uniqueReport?.unique_players_tracked ? 8 : 0 }}>
+        Coverage, not accuracy: this counts homers by anyone appearing anywhere on the
+        full scored sheet — not homers by picks. Pick accuracy is the graded card above.
       </div>
 
       {uniq.unique_players_tracked ? (

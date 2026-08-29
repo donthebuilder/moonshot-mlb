@@ -183,6 +183,11 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
           <div style={{ color: C.text3, marginTop: 3, fontSize: 9.5 }}>
             Form line = last 8 games · dotted line = market bar · arrow compares recent half with prior half
           </div>
+          {/* The single most common misread of the board (08-29 review): an 81
+              looks like an 81% chance. Say what it is where it first appears. */}
+          <div style={{ color: C.text3, marginTop: 3, fontSize: 9.5 }}>
+            The score is a <b style={{ color: C.text2 }}>league ranking on a 0–100 scale</b>, not a probability — 81 means far up the league on this market&apos;s inputs, not an 81% chance.
+          </div>
         </div>
       )}
 

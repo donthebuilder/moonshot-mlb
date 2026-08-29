@@ -272,8 +272,17 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
             )}
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-              <Stat label="Your full card" value={pctTxt(totals.cardMinePct)}
-                    sub={`${totals.cardMineWon}/${totals.cardMineN}`} />
+              {/* With zero overrides "your card" IS the bot's card, and showing
+                  the same 25/30 under both labels reads as a personal record
+                  the person never built (08-29 outside review). No card until
+                  they've actually changed something. */}
+              {totals.overrides > 0 ? (
+                <Stat label="Your full card" value={pctTxt(totals.cardMinePct)}
+                      sub={`${totals.cardMineWon}/${totals.cardMineN}`} />
+              ) : (
+                <Stat label="Your full card" value="—"
+                      sub="no card yet — swap a pick below to start one" />
+              )}
               <Stat label="Bot's full card" value={pctTxt(totals.cardBotPct)}
                     sub={`${totals.cardBotWon}/${totals.cardBotN}`} />
               <Stat label="Overrides" value={totals.overrides} sub="all time" />

@@ -69,7 +69,7 @@ function TheSix({ picks, playersById, onPlayerClick, onPicks }) {
   return (
     <section className="tuddy-six">
       <div className="tuddy-six-head">
-        <div><small>THE HEADLINE CARD</small><h2>The Six</h2><p>Six points. Six markets. One called shot in each.</p></div>
+        <div><small>THE HEADLINE CARD</small><h2>The Six</h2><p>Six points. Six markets. One called shot in each. Scores are league rankings, 0–100 — not probabilities.</p></div>
         <button onClick={onPicks}>Open the full card →</button>
       </div>
       <div className="tuddy-six-grid">

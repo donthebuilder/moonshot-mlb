@@ -146,7 +146,9 @@ const one = (v) => (Number.isFinite(v) ? (Math.round(10 * v) / 10).toFixed(1) : 
 // defaulting to the board, so the current Dashboard mount renders unchanged
 // until routing is rewired.
 const PAGE_VIEWS = [
-  ['board', '💵 Tonight’s board'],
+  // "Tonight's board" was a lie whenever the fetch was old (see the
+  // freshness gate below) — the label now claims nothing about when.
+  ['board', '💵 Odds board'],
   ['signals', '⚡ Moves & gaps'],
   ['trueprice', '🏷 True Price'],
 ]
@@ -162,6 +164,26 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
 
   const status = useOddsStatus()
   const live = MK[market] || MARKETS[0]
+
+  // ── FRESHNESS GATE (2026-08-29) ─────────────────────────────────────────
+  // The 08-29 outside review caught this page presenting an Aug-17 board as
+  // "tonight's" on Aug 29 — twelve-day-old prices next to current players,
+  // which is worse than no prices at all. A quote is a statement about a
+  // market that existed when it was pulled; past STALE_HOURS it is history,
+  // and history belongs in the archive views, not on a board implying you
+  // could still shop it. fetched_at is the bot's ISO stamp (odds_fetch.py
+  // publishes it alongside fetched_at_human); if it's missing we fall back
+  // to parsing the human string, and if NOTHING parses we fail open (an
+  // unparseable stamp on a fresh fetch shouldn't blank the board).
+  const STALE_HOURS = 24
+  const fetchedMs = (() => {
+    const iso = Date.parse(odds?.fetched_at || '')
+    if (Number.isFinite(iso)) return iso
+    const human = Date.parse(String(odds?.fetched_at_human || '').replace(' UTC', ' GMT'))
+    return Number.isFinite(human) ? human : NaN
+  })()
+  const boardAgeHours = Number.isFinite(fetchedMs) ? (Date.now() - fetchedMs) / 3_600_000 : null
+  const boardExpired = boardAgeHours != null && boardAgeHours >= STALE_HOURS
 
   // ── THE NIGHT ───────────────────────────────────────────────────────────
   //
@@ -411,6 +433,44 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       <div>
         {viewBar}
         <TruePrice onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
+
+  // ── EXPIRED BOARD ───────────────────────────────────────────────────────
+  // Covers the quote board AND signals (both read the stale payload); True
+  // Price is untouched because it fetches season-scale data of its own.
+  // Nothing is deleted — the board comes back the moment a fresh fetch
+  // publishes. Until then, showing the pull date and the reason beats
+  // showing a dead market as if it were live.
+  if (boardExpired && view !== 'trueprice') {
+    return (
+      <div>
+        {viewBar}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+          <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
+          <span style={{ fontSize: 10, color: C.red, fontFamily: NUM_FONT }}>
+            ● board pulled {night?.when || 'a while ago'} · EXPIRED
+          </span>
+        </div>
+        <OddsStatus status={status} />
+        <div style={{
+          border: `1px solid ${C.border2}`, borderRadius: 12, padding: '22px 20px',
+          marginTop: 10, maxWidth: 640, lineHeight: 1.65, fontSize: 12, color: C.text2,
+        }}>
+          <b style={{ color: C.text, display: 'block', marginBottom: 6 }}>
+            This board expired {Math.floor(boardAgeHours / 24) >= 1
+              ? `${Math.floor(boardAgeHours / 24)} day${Math.floor(boardAgeHours / 24) === 1 ? '' : 's'} ago`
+              : `${Math.floor(boardAgeHours)} hours after it was pulled`}.
+          </b>
+          Prices were pulled {night?.when || 'on an earlier slate'} — a quote that old
+          describes a market that no longer exists, so it is not shown next to
+          today&apos;s players. The board returns automatically with the next
+          successful odds fetch.
+          <span style={{ display: 'block', marginTop: 8, color: C.text3, fontSize: 11 }}>
+            True Price still works — it reads season-scale history, not live quotes.
+          </span>
+        </div>
       </div>
     )
   }
