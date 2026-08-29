@@ -1433,10 +1433,27 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             </Take>,
           )
           if (day === 'live' && stillLive > 0) {
+            // Tense guard (2026-08-29): "still live" was rendering on a slate
+            // whose calendar date had already passed — a bot-side flag lag
+            // this page can't fix, but it CAN stop asserting liveness it
+            // can't verify. Past-dated slate: same count, honest wording.
+            const slateBehind = Boolean(
+              slateDate && slateDate < new Date().toLocaleDateString('en-CA'),
+            )
             takes.push(
               <Take key="live" col={C.cyan}>
-                <B col={C.cyan}>{stillLive}</B> slot{stillLive > 1 ? 's are' : ' is'} still live — every sentence above
-                moves until the last out.
+                {slateBehind ? (
+                  <>
+                    <B col={C.cyan}>{stillLive}</B> slot{stillLive > 1 ? 's' : ''} on the {slateDate} slate{' '}
+                    {stillLive > 1 ? 'haven’t' : 'hasn’t'} been marked final in the feed yet — the
+                    numbers above may still settle when the grade lands.
+                  </>
+                ) : (
+                  <>
+                    <B col={C.cyan}>{stillLive}</B> slot{stillLive > 1 ? 's are' : ' is'} still live — every sentence above
+                    moves until the last out.
+                  </>
+                )}
               </Take>,
             )
           }

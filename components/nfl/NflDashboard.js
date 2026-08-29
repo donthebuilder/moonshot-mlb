@@ -21,6 +21,7 @@ import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
 import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
+import { liveOdds } from '../../lib/oddsFreshness'
 
 const NFL_TABS = new Set(['home', 'games', 'picks', 'boards', 'players', 'watchlist', 'research', 'matchups', 'report', 'accountability', 'pairs', 'guide'])
 
@@ -47,7 +48,11 @@ export default function NflDashboard() {
   // helpers. Reusing OddsStatus's default export (a pure `status` ->
   // banner component) works fine without that hook; see
   // components/nfl/tabs/Boards.js and Picks.js.
-  const [odds, setOdds] = useState(null)
+  // Same freshness gate as MLB (lib/oddsFreshness.js): quotes older than
+  // the stale window read as no quotes at all. NFL has no dedicated odds
+  // tab needing the raw payload, so the gate is total here.
+  const [oddsRaw, setOddsRaw] = useState(null)
+  const odds = liveOdds(oddsRaw)
   const [oddsStatus, setOddsStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)      // { player, market }
@@ -110,7 +115,7 @@ export default function NflDashboard() {
       // No validator: an absent results file is the normal state before
       // kickoff, and there is no committed snapshot to lose a race against.
       fetchNfl(nflResultsPaths()).then((j) => { if (alive) setNflResults(j) }),
-      fetchNfl(nflOddsPaths(), nflOddsLooksReal).then((j) => { if (alive) setOdds(j) }),
+      fetchNfl(nflOddsPaths(), nflOddsLooksReal).then((j) => { if (alive) setOddsRaw(j) }),
       // No validator, same reasoning as nflResultsPaths above: no_key/empty
       // is a normal, well-labelled status state, not a bad payload to reject.
       fetchNfl(nflOddsStatusPaths()).then((j) => { if (alive) setOddsStatus(j) }),

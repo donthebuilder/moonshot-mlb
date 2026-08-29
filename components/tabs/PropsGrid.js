@@ -176,9 +176,12 @@ const SOFT_CAP = 60
 // site — 21.8% against 74.3% for 1+ hit. One per market is the shape Donovan
 // described ("dividing up the picks") AND the shape that measured best.
 //
-// IT IS OFF BY DEFAULT. The bot publishes coverage on purpose and the study is
-// 25 nights, which is enough to offer this and not enough to impose it. The
-// pill states the measured rate so the choice is informed rather than a vibe.
+// DEFAULT FLIPPED TO "1 EACH" (2026-08-29). It shipped off-by-default while
+// the study was 25 nights; both the live review and the outside review then
+// found the same thing a fresh visitor finds — sixty cards on a page whose
+// job is a decision. The official cut leads now: The Four first, the full
+// coverage board one tap away on the same remembered pill. Anyone who has
+// ever picked a depth keeps their choice — localStorage still wins.
 const PRECISION = [
   { key: 0, label: 'All', title: 'Every badge the bot published tonight. Graded 41.2% across 2,048 picks over 25 nights.' },
   { key: 1, label: '🎯 1 each', title: 'The single best pick in each market — the same board as The Four on the Rundown. Graded 65.0% across 100 picks over 25 nights; its 95% floor clears the full board\u2019s ceiling.' },
@@ -189,12 +192,17 @@ const PRECISION = [
 export default function PropsGrid({ players = [], odds = null, onPlayerClick, onWatch, watchIds }) {
   const [market, setMarket] = useState('picks')
   const [all, setAll] = useState(false)
-  // Off by default — see the PRECISION note. Remembered, because it is a
-  // standing preference about how much board you want, not a momentary one.
-  const [precision, setPrecision] = useState(0)
+  // Defaults to the official cut (1 each — The Four); see the PRECISION
+  // note. Remembered, because it is a standing preference about how much
+  // board you want, not a momentary one.
+  const [precision, setPrecision] = useState(1)
   useEffect(() => {
     try {
-      const v = Number(window.localStorage.getItem('moonshot_precision_v1'))
+      // Number(null) is 0 — a missing key must NOT read as a saved "All",
+      // or the new official-cut default would never apply to anyone.
+      const raw = window.localStorage.getItem('moonshot_precision_v1')
+      if (raw === null) return
+      const v = Number(raw)
       if (Number.isFinite(v) && v >= 0 && v <= 3) setPrecision(v)
     } catch { /* private mode */ }
   }, [])

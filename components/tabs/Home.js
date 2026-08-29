@@ -260,6 +260,16 @@ export default function Home({
   const games = useMemo(() => groupGames(players), [players])
   const modelHr = useMemo(() => slateProjHr(players), [players])
   const isLive = results?.live_mode === true
+  // TENSE (2026-08-29, both reviews): the hero said "Tonight's sheet is
+  // ready" while showing yesterday's finished slate. A slate whose calendar
+  // date is behind the local clock — and which isn't live — is history, and
+  // the headline should say so. en-CA gives YYYY-MM-DD, same shape as
+  // slateDate, so plain string compare works.
+  const slateInPast = Boolean(
+    slateDate
+    && slateDate < new Date().toLocaleDateString('en-CA')
+    && !isLive,
+  )
 
   // First pitch: the earliest game that hasn't started yet, else the earliest.
   const firstPitch = useMemo(() => {
@@ -613,7 +623,7 @@ export default function Home({
         <h1 style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-.03em', margin: '0 0 6px', lineHeight: 1.15 }}>
           {hello}.{' '}
           <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            {empty ? 'The slate is still cooking.' : isLive ? 'The slate is live.' : 'Tonight’s sheet is ready.'}
+            {empty ? 'The slate is still cooking.' : isLive ? 'The slate is live.' : slateInPast ? 'That slate is in the books.' : 'Tonight’s sheet is ready.'}
           </span>
         </h1>
         {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").

@@ -47,6 +47,7 @@ import PropsGrid from './tabs/PropsGrid'
 import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
 import { follow, useFollowing } from '../lib/dash/follow'
+import { liveOdds } from '../lib/oddsFreshness'
 import { markDirty } from '../lib/dash/sync'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
@@ -67,7 +68,11 @@ export default function Dashboard() {
   const [data, setData] = useState(null)
   const [results, setResults] = useState(null)
   const [datedResults, setDatedResults] = useState(null)
-  const [odds, setOdds] = useState(null)
+  // Raw payload in state; everything below the gate sees liveOdds(oddsRaw) —
+  // null once the board is older than ODDS_STALE_HOURS — except the Odds tab,
+  // whose EXPIRED panel needs the raw pull date. See lib/oddsFreshness.js.
+  const [oddsRaw, setOddsRaw] = useState(null)
+  const odds = liveOdds(oddsRaw)
   const [pairSummary, setPairSummary] = useState(null)
   const [pairBuilder, setPairBuilder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -137,7 +142,7 @@ export default function Dashboard() {
       }),
       fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
       // No validator: no odds file is the normal state until a key is set.
-      fetchJSON(oddsPaths()).then((j) => { if (alive) setOdds(j) }),
+      fetchJSON(oddsPaths()).then((j) => { if (alive) setOddsRaw(j) }),
       fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
       fetchJSON(pairSummaryPaths()).then((j) => { if (alive) setPairSummary(j) }),
       fetchJSON(backtestPaths()).then((j) => { if (alive) setBacktest(j) }),
@@ -537,7 +542,7 @@ export default function Dashboard() {
             {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
             {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
-            {tab === 'odds'        && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} />}
+            {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />}
 
@@ -573,7 +578,7 @@ export default function Dashboard() {
             {tab === 'pairhist'    && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="history" />}
             {tab === 'mypicks'     && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="picks" />}
             {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
-            {tab === 'trueprice'   && <OddsBoard players={players} odds={odds} onPlayerClick={setModalPlayer} initialView="trueprice" />}
+            {tab === 'trueprice'   && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} initialView="trueprice" />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}

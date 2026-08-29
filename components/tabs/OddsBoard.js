@@ -5,6 +5,7 @@ import { nameOf, teamOf, oppOf, n, clean, hrScore, hitScore, prodScore, tbScore 
 import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName } from '../../lib/odds'
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
+import { oddsAgeHours, oddsExpired } from '../../lib/oddsFreshness'
 import TruePrice from './TruePrice'
 import OddsSignals from './OddsSignals'
 import { btnStyle } from '../ui'
@@ -175,15 +176,12 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
   // publishes it alongside fetched_at_human); if it's missing we fall back
   // to parsing the human string, and if NOTHING parses we fail open (an
   // unparseable stamp on a fresh fetch shouldn't blank the board).
-  const STALE_HOURS = 24
-  const fetchedMs = (() => {
-    const iso = Date.parse(odds?.fetched_at || '')
-    if (Number.isFinite(iso)) return iso
-    const human = Date.parse(String(odds?.fetched_at_human || '').replace(' UTC', ' GMT'))
-    return Number.isFinite(human) ? human : NaN
-  })()
-  const boardAgeHours = Number.isFinite(fetchedMs) ? (Date.now() - fetchedMs) / 3_600_000 : null
-  const boardExpired = boardAgeHours != null && boardAgeHours >= STALE_HOURS
+  // Shared clock since pass 5 — lib/oddsFreshness.js is the single
+  // definition of "too old"; the dashboards use the same one to null the
+  // payload for every OTHER consumer. This tab keeps the raw payload so the
+  // panel below can say when the board was pulled.
+  const boardAgeHours = oddsAgeHours(odds)
+  const boardExpired = oddsExpired(odds)
 
   // ── THE NIGHT ───────────────────────────────────────────────────────────
   //
