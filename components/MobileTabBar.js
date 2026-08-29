@@ -42,6 +42,11 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
       <aside className={`mobileMore ${open ? 'open' : ''}`} aria-hidden={!open}>
         <div className="mobileMoreHead"><div><small>{brand}</small><strong>More tools</strong></div><button onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
         <div className="mobileMoreGrid">
+          {/* Leaves the sport, so it is a link and not a tab — and it is first
+              because on a phone the switcher is the hardest thing to find. */}
+          <a className="mobileMoreHome" href="/">
+            <span>⌂ DASH Home</span><small>Tonight across all three products</small>
+          </a>
           {more.map(([key, label, detail]) => (
             <button key={key} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
               <span>{label}</span><small>{detail}</small>
@@ -81,6 +86,9 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileMoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
           .mobileMoreGrid button{text-align:left;min-height:59px;padding:9px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2}}
           .mobileMoreGrid button.active{border-color:#f9731670;background:#f9731614}
+          .mobileMoreHome{grid-column:1/-1;display:block;min-height:0;padding:10px;border:1px solid #f9731640;border-radius:10px;background:#f9731610;color:${C.text2};text-decoration:none}
+          .mobileMoreHome span{display:block;color:${C.orange};font-size:11px;font-weight:900}
+          .mobileMoreHome small{display:block;margin-top:4px;color:${C.text3};font-size:8px;line-height:1.25}
           .mobileMoreGrid span{display:block;font-size:11px;font-weight:900}
           .mobileMoreGrid small{display:block;margin-top:4px;color:${C.text3};font-size:8px;line-height:1.25}
         }

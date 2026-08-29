@@ -237,6 +237,15 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
             display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:6,
           }}>
+            {/* The front door, same placement as MOONSHOT's More drawer. */}
+            <a href="/" style={{
+              gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between',
+              padding:'9px 10px', border:`1px solid ${C.border}`, borderRadius:8,
+              background:C.glass, color:C.text2, fontSize:10, fontWeight:750, textDecoration:'none',
+            }}>
+              <span style={{ color:C.green }}>⌂ DASH HOME</span>
+              <span style={{ color:C.text3, fontWeight:600 }}>Tonight across MOONSHOT · TUDDY · FRANCHISE →</span>
+            </a>
             {MORE_TABS.map(([key,label]) => (
               <button key={key} onClick={() => go(key)} style={{
                 padding:'9px 10px', border:`1px solid ${tab === key ? C.green + '66' : C.border}`,

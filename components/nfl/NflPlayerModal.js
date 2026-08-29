@@ -6,6 +6,7 @@ import MatchupMap from './MatchupMap'
 import DvpTable, { GROUP } from './DvpTable'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
+import FollowButton from '../FollowButton'
 
 // Why this player scores what he scores.
 //
@@ -341,6 +342,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <FollowButton sport="nfl" id={player?.player_id} name={player?.name} team={player?.team} position={player?.position} compact />
             <button onClick={() => watchlist.toggle(player)}
               aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
               style={{

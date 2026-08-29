@@ -11,6 +11,14 @@
     {
       "path": "/api/fantasy/scoring",
       "schedule": "*/10 0-5 * * 1,2,5"
+    },
+    {
+      "path": "/api/dash/push/tick",
+      "schedule": "*/10 17-23 * * *"
+    },
+    {
+      "path": "/api/dash/push/tick",
+      "schedule": "*/10 0-6 * * *"
     }
   ]
 }

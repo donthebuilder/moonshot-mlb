@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { notify, requestPermission, ensureWorker, installHint, canNotify } from '../lib/notify'
+import { alertPrefs, alertWanted, setAlertMaster, ALERTS_EVENT } from '../lib/dash/alerts'
 import { nameOf, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../lib/liveSlate'
 import LiveWire from './LiveWire'
@@ -85,8 +86,17 @@ export default function MiniWire({
   }, [])
   const notifRef = useRef(notif)
   useEffect(() => { notifRef.current = notif }, [notif])
+  // The /dash Alerts panel writes the same master switch. Without this the
+  // bell would keep showing its old face until a reload.
+  useEffect(() => {
+    const sync = () => setNotif(alertPrefs().on ? 'on' : 'off')
+    window.addEventListener(ALERTS_EVENT, sync)
+    return () => window.removeEventListener(ALERTS_EVENT, sync)
+  }, [])
   const toggleNotif = async () => {
-    if (notif === 'on') { setNotif('off'); try { localStorage.setItem('wire_notif', 'off') } catch {} ; return }
+    // Through setAlertMaster so the bell and the /dash Alerts panel are the
+    // same switch rather than two that disagree.
+    if (notif === 'on') { setNotif('off'); setAlertMaster(false); return }
     if (!canNotify()) return
     // iOS grants nothing to a plain tab — say so instead of appearing broken.
     const hint = installHint()
@@ -97,12 +107,12 @@ export default function MiniWire({
     const perm = await requestPermission()
     if (perm === 'granted') {
       setNotif('on'); notifRef.current = 'on'
-      try { localStorage.setItem('wire_notif', 'on') } catch {}
+      setAlertMaster(true)
       // Self-verifying arm (2026-08-06): "did it work?" answers itself — a
       // demo toast fires instantly, and the same event hits the OS so you
       // see both channels the moment you opt in.
       addToasts([{ key: `test:${Date.now()}`, icon: '🔔', pri: 0, p: null,
-        text: 'Armed — 💥 homers and 🎤 "your pick is batting NOW" reach you even while you\'re looking at the site. Bar clears, on-deck and K-alerts wait until the tab is hidden.' }])
+        text: 'Armed — 💥 homers and 🎤 "your pick is batting NOW" reach you even while you\'re looking at the site. Bar clears, on-deck and K-alerts wait until the tab is hidden. Choose which ones on DASH Home → Alerts.' }])
     }
   }
   // Register early when permission is already granted, so the first alert of
@@ -205,6 +215,14 @@ export default function MiniWire({
     // and everything else still waits for the tab to be in the background.
     if (notifRef.current === 'on' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       const hidden = typeof document !== 'undefined' && document.hidden
+      // WHICH of these reach the OS is a setting now (/dash → Alerts, stored
+      // on the account). alertWanted keeps the rule this block already had —
+      // homers and at-the-plate arrive with the tab open, everything else
+      // waits for a hidden tab — and adds the one thing that was missing: a
+      // category you switched off never fires. An unknown kind falls back to
+      // the old priority test, so a new event type upstream is noisy rather
+      // than silently swallowed.
+      const prefs = alertPrefs()
       // AT THE PLATE NOTIFIES ALWAYS (2026-08-09, Donovan: "if a pick is at
       // the plate I need a noti"). pri 0.5 is the 🎤 up-now event; it used to
       // require a hidden tab, which meant the one alert with a SHELF LIFE —
@@ -214,7 +232,7 @@ export default function MiniWire({
       // Through the SERVICE WORKER now, not `new Notification` (lib/notify).
       // The page API is unreliable on Android and dies when the phone freezes
       // the tab — which is precisely the case these alerts exist for.
-      items.filter((t) => t.pri <= 0.5 || (hidden && t.pri <= 2)).slice(0, 3).forEach((t) => {
+      items.filter((t) => alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
         notify({ title: `${t.icon} Moonshot`, body: t.text, tag: t.key, silent: t.pri > 0.5 })
       })
     }
@@ -251,7 +269,10 @@ export default function MiniWire({
             const key = `${id}:${kind}:${now.hr}${now.d2}${now.d3}${now.k}${now.tb}`
             if (firedRef.current.has(key)) return
             firedRef.current.add(key)
-            out.push({ key, icon, text, p, pri })
+            // `kind` rides along now — the alert settings (lib/dash/alerts.js)
+            // switch categories on and off by kind, and priority alone can't
+            // tell a cleared bar from a strikeout script.
+            out.push({ key, icon, text, p, pri, kind })
           }
           if (now.hr > was.hr) {
             const hrKey = `${id}:hr:${now.hr}${now.d2}${now.d3}${now.k}${now.tb}`
@@ -287,7 +308,7 @@ export default function MiniWire({
           const key = `${id}:anyhr:${now.hr}`
           if (firedRef.current.has(key)) return
           firedRef.current.add(key)
-          out.push({ key, icon: '💥', p: p || null, pri: 3,
+          out.push({ key, icon: '💥', p: p || null, pri: 3, kind: 'anyhr',
             text: `${p ? nameOf(p) : (now.name || 'Someone')} goes deep${now.hr > 1 ? ` — that's ${now.hr}` : ''}` })
           enrichHr(key, now.pk, id, p, now)
         })
@@ -310,7 +331,7 @@ export default function MiniWire({
               // actionable on a phone lock screen without opening the site
               const arm = String(p?.pitcher_name || '').split(' ').slice(-1)[0]
               out.push({
-                key, icon: '🎤', p, pri: 0.5,
+                key, icon: '🎤', p, pri: 0.5, kind: 'up',
                 text: `UP NOW — ${nameOf(p)} (${who}) batting${arm ? ` vs ${arm}` : ''} · ${g.half}${g.inning}`,
               })
             }

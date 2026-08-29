@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+import FollowingStrip from '../../FollowingStrip'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -213,6 +214,18 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <div><small>DASH NETWORK · TUDDY</small><h1>{greeting} Football is on the board.</h1><p>{data?.label || `${data?.mode || 'NFL'} slate`} · every call ranked, every result kept public.</p></div>
         <div className="tuddy-hero-mark"><span>6</span><small>POINTS<br/>ONE TUDDY</small></div>
       </section>
+
+      {/* Following, on the page the week starts on — same reasoning as
+          MOONSHOT's Home. A list that outlives the slate should meet you
+          rather than wait on a tab you have to remember to open. */}
+      <FollowingStrip
+        sport="nfl"
+        liveIds={new Set(Object.keys(playersById))}
+        onPlayerClick={(row) => {
+          const player = playersById[String(row.id)]
+          if (player) onPlayerClick?.(player, 'TD')
+        }}
+      />
       <SlateStrip games={games} />
       <section className="tuddy-snapshot">
         <div><small>SLATE</small><strong>{games.length}</strong><span>games</span></div>

@@ -534,6 +534,18 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
             display:'grid', gridTemplateColumns:'repeat(6,minmax(0,1fr))', gap:6,
           }}>
+            {/* THE FRONT DOOR (2026-08-28). /dash was reachable only from the
+                floating switcher, which a person has to already know about.
+                First cell in More, spanning the row, because it leaves the
+                sport rather than moving inside it. */}
+            <a href="/" style={{
+              gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between',
+              padding:'9px 10px', border:`1px solid ${C.border}`, borderRadius:8,
+              background:C.glass, color:C.text2, fontSize:10, fontWeight:750, textDecoration:'none',
+            }}>
+              <span style={{ color:C.orange }}>⌂ DASH HOME</span>
+              <span style={{ color:C.text3, fontWeight:600 }}>Tonight across MOONSHOT · TUDDY · FRANCHISE →</span>
+            </a>
             {MORE_TABS.map(([key,label]) => (
               <button key={key} onClick={() => go(key)} style={{
                 padding:'9px 10px', border:`1px solid ${tab === key ? '#f9731666' : C.border}`,

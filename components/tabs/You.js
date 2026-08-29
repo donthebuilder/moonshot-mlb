@@ -4,6 +4,7 @@ import { C } from '../../lib/theme'
 import { btnStyle } from '../ui'
 import MyPicks from './MyPicks'
 import Watchlist from './Watchlist'
+import FollowingStrip from '../FollowingStrip'
 
 // 🫵 YOU — My Picks and the Watchlist under one roof (2026-08-16).
 //
@@ -70,6 +71,15 @@ export default function You({
         />
       )}
       {view === 'watch' && (
+        <>
+        <FollowingStrip
+          sport="mlb"
+          liveIds={new Set((players || []).map((p) => String(p?.player_id || '')))}
+          onPlayerClick={(row) => {
+            const live = (players || []).find((p) => String(p?.player_id || '') === String(row.id))
+            if (live) onPlayerClick?.(live)
+          }}
+        />
         <Watchlist
           items={watchItems}
           players={players}
@@ -81,6 +91,7 @@ export default function You({
           onAdd={onAdd}
           onPlayerClick={onPlayerClick}
         />
+        </>
       )}
     </div>
   )

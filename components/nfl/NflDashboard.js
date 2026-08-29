@@ -7,6 +7,7 @@ import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
 import MobileCSS from '../MobileCSS'
 import MobileTabBarNfl from './MobileTabBarNfl'
+import NflWire from './NflWire'
 
 import Home from './tabs/Home'
 import StatPortal from './tabs/StatPortal'
@@ -163,6 +164,10 @@ export default function NflDashboard() {
         )}
       </main>
       <MobileTabBarNfl tab={tab} setTab={setTab} />
+      {/* The live wire. Renders nothing until something actually happens to
+          one of your names, and polls nothing unless a game is in progress or
+          about to start — see components/nfl/NflWire.js. */}
+      <NflWire data={data} onPlayerClick={openPlayer} />
       <NflPlayerModal
         player={modal?.player}
         market={modal?.market}

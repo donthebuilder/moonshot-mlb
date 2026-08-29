@@ -75,7 +75,10 @@ self.addEventListener('message', (e) => {
     renotify: !silent && !!tag,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    data: { url: url || '/' },
+    // Defaults to the BOARD, not the front door (2026-08-28, when / became the
+    // front door and the board moved to /app). A homer alert that opened a
+    // marketing page would be the wrong end of the site.
+    data: { url: url || '/app' },
   }))
 })
 
@@ -83,7 +86,7 @@ self.addEventListener('message', (e) => {
 // open, not spawn a fifth copy of the site.
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  const target = e.notification?.data?.url || '/'
+  const target = e.notification?.data?.url || '/app'
   e.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const c of all) {
@@ -107,6 +110,6 @@ self.addEventListener('push', (e) => {
     tag: d.tag || undefined,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    data: { url: d.url || '/' },
+    data: { url: d.url || '/app' },
   }))
 })

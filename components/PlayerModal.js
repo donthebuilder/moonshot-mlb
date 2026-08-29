@@ -20,6 +20,7 @@ import {
 import { quoteFor, fmtOdds } from '../lib/odds'
 import OddsTimeline from './OddsTimeline'
 import VerdictHero from './VerdictHero'
+import FollowButton from './FollowButton'
 import { Chip } from './ui'
 import Explain from './Explain'
 import StatStrip, { HitRateBoxes, SlashLine } from './StatStrip'
@@ -667,6 +668,12 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               border: `1px dashed ${C.border}`, borderRadius: 7, display: 'inline-block',
             }}>
               Watch/slip unavailable — pulled live from the league, not from tonight's published slate yet.
+              {' '}Following still works: it saves the player, not the game.
+            </div>
+          )}
+          {apiOnly && (
+            <div style={{ marginBottom: 10 }}>
+              <FollowButton sport="mlb" id={clean(p?.player_id, '')} name={nameOf(p)} team={teamOf(p)} />
             </div>
           )}
           {/* Watchlist + slip. You could open a hitter from any board, decide
@@ -674,6 +681,7 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               card again to add him. Both actions live here now. */}
           {!apiOnly && (onAdd || onWatch) && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+              <FollowButton sport="mlb" id={clean(p?.player_id, '')} name={nameOf(p)} team={teamOf(p)} />
               {onWatch && (
                 <button
                   onClick={() => onWatch(p)}

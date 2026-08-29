@@ -46,6 +46,8 @@ import Pitchers from './tabs/Pitchers'
 import PropsGrid from './tabs/PropsGrid'
 import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
+import { follow, useFollowing } from '../lib/dash/follow'
+import { markDirty } from '../lib/dash/sync'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
 
@@ -323,6 +325,42 @@ export default function Dashboard() {
 
   const watchIds = useMemo(() => new Set(watch.map(playerId)), [watch])
 
+  // FOLLOWED NAMES COME BACK ON THEIR OWN.
+  //
+  // A followed hitter who is on tonight's board gets his star back without
+  // being re-starred — that is what "keeping track" has to mean for a list
+  // that is pruned nightly by design. Keyed on raw player_id, never on the
+  // composite `${player_id}-${game_pk}`: the composite is exactly what stops
+  // last night's entry from matching tonight's row (see the prune above), so
+  // matching on it here would restore nothing.
+  //
+  // ONE DIRECTION ONLY. This adds; it never removes. Un-starring tonight has
+  // to survive the next render, so a star is only added for a followed player
+  // who is on the board and not already present — and `relitRef` remembers
+  // who has been offered this slate so an un-star can't be undone by the next
+  // data poll.
+  const { rows: followedRows } = useFollowing('mlb')
+  const relitRef = useRef(new Set())
+  useEffect(() => {
+    if (!allPlayers?.length || !followedRows.length) return
+    const wanted = new Set(followedRows.map((row) => String(row.id)))
+    const already = new Set(watch.map((w) => clean(w?.player_id, '')))
+    const add = allPlayers.filter((p) => {
+      const pid = clean(p?.player_id, '')
+      if (!pid || !wanted.has(String(pid))) return false
+      if (already.has(pid) || relitRef.current.has(pid)) return false
+      return true
+    })
+    if (!add.length) return
+    add.forEach((p) => relitRef.current.add(clean(p?.player_id, '')))
+    setWatch((prev) => {
+      const ids = new Set(prev.map(playerId))
+      const next = [...prev, ...add.filter((p) => !ids.has(playerId(p)))]
+      try { localStorage.setItem(WATCH_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }, [allPlayers, followedRows, watch])
+
   const addSlip = (p, bet) => setSlip((s) => [...s, { p, bet }])
 
   // Jump to Pairs focused on a player. This USED TO BE what every click on
@@ -339,10 +377,23 @@ export default function Dashboard() {
 
   const clearFocus = () => setFocusPlayerId(null)
 
+  // ⭐ STAR = TONIGHT, FOLLOW = THE MAN (2026-08-28).
+  //
+  // The star stays exactly what it was: game-scoped, pruned against the board
+  // every night, for the reasons in the long comment above the prune effect.
+  // What was missing is the other half — Donovan, 08-28: "watch list data
+  // after as the days arent keeping track." Starring now also files the
+  // player in the durable, account-synced Following list (lib/dash/follow.js),
+  // and the effect below re-lights his star automatically the next time he
+  // turns up on a board. Un-starring is a statement about tonight and does
+  // NOT unfollow; that lives on the Following list itself.
   const toggleWatch = (p) => setWatch((prev) => {
     const id = playerId(p)
-    const next = prev.some((x) => playerId(x) === id) ? prev.filter((x) => playerId(x) !== id) : [...prev, p]
+    const on = prev.some((x) => playerId(x) === id)
+    const next = on ? prev.filter((x) => playerId(x) !== id) : [...prev, p]
     try { localStorage.setItem(WATCH_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+    if (!on) follow('mlb', { id: clean(p?.player_id, ''), name: nameOf(p), team: teamOf(p) })
+    markDirty()
     return next
   })
 

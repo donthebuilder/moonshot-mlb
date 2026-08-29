@@ -1,5 +1,6 @@
 import './globals.css'
 import DashNetworkNav from '../components/DashNetworkNav'
+import DashSync from '../components/DashSync'
 
 // C1 rebrand sweep (dash-network-master-plan-2026-08-28.md): title, footer,
 // and share cards were already DASH-branded; OG/Twitter card metadata never
@@ -67,7 +68,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}<DashNetworkNav /></body>
+      <body>{children}<DashNetworkNav /><DashSync /></body>
     </html>
   )
 }

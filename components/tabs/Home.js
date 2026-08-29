@@ -8,6 +8,7 @@ import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
+import FollowingStrip from '../FollowingStrip'
 import HomerLedger from '../HomerLedger'
 import ReadTeaser from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
@@ -535,6 +536,20 @@ export default function Home({
           column they can't have. Sits ABOVE the hero because a score is what
           you came to check. */}
       <ScoreRail players={players} results={results} onNavigate={onNavigate} />
+
+      {/* ⭐ FOLLOWING, ON THE PAGE THE NIGHT STARTS ON (2026-08-28). It was
+          only on the watchlist tab, which is a place you go on purpose — and
+          the whole point of a list that survives the slate is that it meets
+          you without being asked for. Dimmed names are the ones not on
+          tonight's board; a lit dot is a man playing. */}
+      <FollowingStrip
+        sport="mlb"
+        liveIds={new Set((players || []).map((p) => String(p?.player_id || '')))}
+        onPlayerClick={(row) => {
+          const live = (players || []).find((p) => String(p?.player_id || '') === String(row.id))
+          if (live) onPlayerClick?.(live)
+        }}
+      />
 
       {/* ── 🧾 THE HOMER LEDGER, WHERE PEOPLE ACTUALLY ARE (2026-08-16) ───
           Donovan: "the home run ledger [needs to be] somewhere else as well —
