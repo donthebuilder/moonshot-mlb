@@ -79,8 +79,24 @@ export default function PitchMixChart({
           const barW = Math.max(2, (100 * usage) / maxUsage)
           const tone = damageTone(Number(r.hrRate), Number(r.bbe))
           const thin = Number(r.bbe) > 0 && Number(r.bbe) < 10
+          // The per-pitch stat strip (2026-08-29, Donovan: "also show things
+          // like hh ev distance k% bb%"). Everything the feed publishes per
+          // pitch renders here; a missing stat is skipped, never zeroed.
+          // (Per-pitch BB% and distance-allowed aren't in the payload — K%
+          // and whiff% are the split's swing-and-miss story, EV/HH/Brl/xwOBA
+          // are the contact story.)
+          const stats = [
+            Number(r.ev) > 0 && ['EV', `${Number(r.ev).toFixed(1)}`],
+            r.hard != null && Number(r.hard) > 0 && ['HH', `${Number(r.hard).toFixed(0)}%`],
+            r.barrel != null && Number(r.barrel) > 0 && ['BRL', `${Number(r.barrel).toFixed(1)}%`],
+            r.kPct != null && ['K', `${Number(r.kPct).toFixed(0)}%`],
+            r.whiffPct != null && ['WHIFF', `${Number(r.whiffPct).toFixed(0)}%`],
+            r.ba != null && Number(r.ba) > 0 && ['BA', Number(r.ba).toFixed(3).replace(/^0/, '')],
+            r.xwoba != null && Number(r.xwoba) > 0 && ['xwOBA', Number(r.xwoba).toFixed(3).replace(/^0/, '')],
+          ].filter(Boolean)
           return (
-            <div key={r.code || r.pitch} style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+            <div key={r.code || r.pitch} style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
               <span style={{
                 fontSize: 12, fontWeight: 800, color: C.text, width: 96, flexShrink: 0,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -117,6 +133,19 @@ export default function PitchMixChart({
                   : '—'}
               </span>
             </div>
+            {stats.length > 0 && (
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: '2px 11px',
+                margin: '3px 0 1px 105px', minWidth: 0,
+              }}>
+                {stats.map(([label, value]) => (
+                  <span key={label} style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, whiteSpace: 'nowrap' }}>
+                    {label} <b style={{ color: C.text2, fontWeight: 800 }}>{value}</b>
+                  </span>
+                ))}
+              </div>
+            )}
+            </div>
           )
         })}
       </div>
@@ -126,7 +155,10 @@ export default function PitchMixChart({
         Right column = HR allowed per batted ball against that pitch:{' '}
         <span style={{ color: '#f87171' }}>red</span> is getting hit out ({DMG_HOT}%+),{' '}
         <span style={{ color: '#fbbf24' }}>amber</span> leaks ({DMG_WARM}%+), dimmed means under 10
-        balls in play. The full table below has every number behind this.
+        balls in play. Under each bar: exit velo, hard-hit%, barrel%, strikeout and whiff rate,
+        BA and xwOBA against that pitch — whatever the feed publishes for it (K/whiff ride the
+        lefty-righty split; per-pitch walk rate and distance aren&apos;t published). The full table
+        below has every number behind this.
       </div>
     </div>
   )

@@ -264,6 +264,12 @@ export default function MatchupPitcher({ player, slateMode }) {
     return {
       arsenal: use.map((a) => {
         const code = clean(a.pitch_code || a.pitch_type, '')
+        // The two payload shapes name their fields differently: the OVERALL
+        // arsenal publishes *_allowed (rates 0-1), the vs-LHB/RHB split
+        // publishes k_pct / whiff_pct / hard_hit_pct / avg_ev (already %).
+        // The old mapper only read the overall names, so a split row's
+        // damage columns quietly rendered 0 — fixed 2026-08-29 while adding
+        // the per-pitch K%/whiff%/BA/wOBA Donovan asked to see on the mix.
         return {
           _key: code,
           pitch: PITCH_NAMES[code] || code,
@@ -271,12 +277,20 @@ export default function MatchupPitcher({ player, slateMode }) {
           usage: n(a.usage_pct ?? a.usage, 0),
           seen: n(a.count, 0),
           bbe: n(a.bbe_allowed, 0),
-          hr: n(a.hr_allowed, 0),
-          hrRate: n(a.hr_per_bbe, 0) * 100,
-          ev: n(a.avg_ev_allowed, 0) || null,
-          barrel: n(a.barrel_rate_allowed, 0) * 100,
-          hard: n(a.hard_hit_rate_allowed, 0) * 100,
+          hr: n(a.hr_allowed ?? a.hr, 0),
+          hrRate: a.hr_per_bbe != null ? n(a.hr_per_bbe, 0) * 100
+            : (n(a.hr, 0) && n(a.bbe_allowed, 0) ? (100 * n(a.hr, 0)) / n(a.bbe_allowed, 1) : 0),
+          ev: n(a.avg_ev_allowed ?? a.avg_ev, 0) || null,
+          barrel: a.barrel_rate_allowed != null ? n(a.barrel_rate_allowed, 0) * 100 : null,
+          hard: a.hard_hit_rate_allowed != null ? n(a.hard_hit_rate_allowed, 0) * 100
+            : (a.hard_hit_pct != null ? n(a.hard_hit_pct, 0) : null),
           xwoba: a.xwoba_allowed == null ? null : n(a.xwoba_allowed, 0),
+          // Split-only extras — null on the overall arsenal, and the chart
+          // and table both skip nulls rather than printing 0.0.
+          kPct: a.k_pct == null ? null : n(a.k_pct, 0),
+          whiffPct: a.whiff_pct == null ? null : n(a.whiff_pct, 0),
+          ba: a.ba == null ? null : n(a.ba, 0),
+          woba: a.woba == null ? null : n(a.woba, 0),
         }
       }).sort((x, y) => y.usage - x.usage),
       side: split.length ? (effHand === 'L' ? 'vs LHB' : 'vs RHB') : 'overall',
@@ -712,8 +726,14 @@ rows={arsenal}
               { key: 'hrRate', label: 'HR/BBE%', w: 58, dp: 1,
                 explain: 'Home runs allowed on this pitch, as a share of batted balls against it — not of every pitch thrown.' },
               { key: 'ev',     label: 'EV alw', w: 52, dp: 1, title: 'Average exit velocity allowed on this pitch' },
-              { key: 'hard',   label: 'HH%',    w: 46, dp: 0 },
-              { key: 'barrel', label: 'Barrel%', w: 54, dp: 1 },
+              { key: 'hard',   label: 'HH%',    w: 46, dp: 0, fmt: (v) => (v == null ? '—' : Number(v).toFixed(0)) },
+              { key: 'barrel', label: 'Barrel%', w: 54, dp: 1, fmt: (v) => (v == null ? '—' : Number(v).toFixed(1)) },
+              // Published only on the vs-LHB/RHB split; '—' on the overall
+              // arsenal rather than a fake zero.
+              { key: 'kPct',   label: 'K%',     w: 44, dp: 1, fmt: (v) => (v == null ? '—' : Number(v).toFixed(1)),
+                title: 'Strikeout rate in at-bats ending on this pitch — split data only' },
+              { key: 'whiffPct', label: 'Whiff%', w: 52, dp: 1, fmt: (v) => (v == null ? '—' : Number(v).toFixed(1)),
+                title: 'Swings and misses per swing at this pitch — split data only' },
               { key: 'xwoba',  label: 'xwOBA',  w: 50, dp: 3, fmt: (v) => (v == null ? '—' : Number(v).toFixed(3)) },
             ]}
             initialSort="usage"
