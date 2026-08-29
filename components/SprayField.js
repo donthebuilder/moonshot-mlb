@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, catColor, verdictInk } from '../lib/scales'
 import { n, clean, obj, arr } from '../lib/player'
@@ -16,6 +17,13 @@ import { pitchColor, isDeepFlyOut } from '../lib/livePitches'
 // Donovan's redesign screenshots) — categories imported from that file, not
 // copied, so the two surfaces can't drift apart.
 import { outcomeOf, OUTCOME_TABS, QUALITY_TABS } from './BattedBallLog'
+
+// 🏟 The stadium view rides in on demand — three.js is ~600KB and belongs in
+// nobody's first paint. ssr:false because it is a WebGL canvas with no server
+// render, and the 2D chart below stays regardless (Donovan, 2026-08-29: the
+// 2D chart is the fallback and the screen-reader version).
+const SprayFieldStadium = dynamic(() => import('./SprayFieldStadium'), { ssr: false })
+import { solveFlight } from '../lib/trajectory'
 
 // Spray field — radar, not a ballpark illustration.
 //
@@ -51,40 +59,55 @@ import { outcomeOf, OUTCOME_TABS, QUALITY_TABS } from './BattedBallLog'
 // left means something different in each. Public park dimensions, matched on
 // the venue string the bot already publishes.
 const PARKS = {
-  'Fenway Park':            [310, 379, 390, 420, 302],
-  'Yankee Stadium':         [318, 399, 408, 385, 314],
-  'Coors Field':            [347, 390, 415, 375, 350],
-  'Dodger Stadium':         [330, 385, 395, 385, 330],
-  'UNIQLO Field at Dodger Stadium': [330, 385, 395, 385, 330],
-  'Oracle Park':            [339, 364, 399, 415, 309],
-  'Wrigley Field':          [355, 368, 400, 368, 353],
-  'Great American Ball Park': [328, 379, 404, 370, 325],
-  'Oriole Park at Camden Yards': [333, 364, 400, 373, 318],
-  'Truist Park':            [335, 375, 400, 375, 325],
-  'Citi Field':             [335, 358, 408, 398, 330],
-  'Petco Park':             [336, 390, 396, 391, 322],
-  'Progressive Field':      [325, 370, 405, 375, 325],
-  'Rogers Centre':          [328, 375, 400, 375, 328],
-  'Daikin Park':            [315, 362, 409, 373, 326],
-  'T-Mobile Park':          [331, 378, 401, 381, 326],
-  'Angel Stadium':          [330, 387, 396, 370, 330],
-  'Tropicana Field':        [315, 370, 404, 370, 322],
-  'Sutter Health Park':     [330, 375, 403, 375, 325],
-  'Busch Stadium':          [336, 375, 400, 375, 335],
-  'American Family Field':  [342, 370, 400, 374, 345],
-  'PNC Park':               [325, 383, 399, 375, 320],
-  'Kauffman Stadium':       [330, 387, 410, 387, 330],
-  'Target Field':           [339, 377, 404, 367, 328],
-  'Comerica Park':          [345, 370, 412, 365, 330],
-  'Guaranteed Rate Field':  [330, 377, 400, 372, 335],
-  'Rate Field':             [330, 377, 400, 372, 335],
-  'Nationals Park':         [336, 377, 402, 370, 335],
-  'Citizens Bank Park':     [329, 374, 401, 369, 330],
-  'loanDepot park':         [345, 386, 400, 387, 335],
-  'Chase Field':            [330, 374, 407, 374, 335],
-  'Globe Life Field':       [329, 372, 407, 374, 326],
+  'Fenway Park':                    { d: [310, 379, 390, 420, 302], h: [37.3, 37.3, 17.2, 4, 3.6] },
+  'Yankee Stadium':                 { d: [318, 399, 408, 385, 314], h: [8.1, 8.1, 8.2, 8.3, 7.7] },
+  'Coors Field':                    { d: [347, 390, 415, 375, 350], h: [12.4, 7.6, 7.6, 16.1, 16.2] },
+  'Dodger Stadium':                 { d: [330, 385, 395, 385, 330], h: [3.6, 7.6, 7.5, 7.6, 3.5] },
+  'UNIQLO Field at Dodger Stadium': { d: [330, 385, 395, 385, 330], h: [3.6, 7.6, 7.5, 7.6, 3.5] },
+  'Oracle Park':                    { d: [339, 364, 399, 415, 309], h: [8.2, 8.2, 9.1, 6.6, 23.8] },
+  'Wrigley Field':                  { d: [355, 368, 400, 368, 353], h: [11.3, 11.1, 10.9, 11.2, 11.1] },
+  'Great American Ball Park':       { d: [328, 379, 404, 370, 325], h: [11.4, 11.3, 7.7, 7.6, 11.8] },
+  'Oriole Park at Camden Yards':    { d: [333, 364, 400, 373, 318], h: [6.4, 6.3, 5.9, 5.9, 19.9] },
+  'Truist Park':                    { d: [335, 375, 400, 375, 325], h: [5.3, 8, 8, 15.3, 15.3] },
+  'Citi Field':                     { d: [335, 358, 408, 398, 330], h: [8.2, 7.8, 7.9, 7.5, 9.8] },
+  'Petco Park':                     { d: [336, 390, 396, 391, 322], h: [4.4, 6.2, 7.1, 7.3, 10.5] },
+  'Progressive Field':              { d: [325, 370, 405, 375, 325], h: [20.1, 20, 7.5, 7.5, 12] },
+  'Rogers Centre':                  { d: [328, 375, 400, 375, 328], h: [14.1, 10.2, 7.7, 10.8, 12.3] },
+  'Daikin Park':                    { d: [315, 362, 409, 373, 326], h: [18.2, 24.2, 9.4, 9.6, 6.3] },
+  'T-Mobile Park':                  { d: [331, 378, 401, 381, 326], h: [7.7, 7.7, 7.7, 7.7, 7.6] },
+  'Angel Stadium':                  { d: [330, 387, 396, 370, 330], h: [3.2, 6.6, 6.6, 6.6, 3.2] },
+  'Tropicana Field':                { d: [315, 370, 404, 370, 322], h: [4.8, 11.4, 9.1, 11.2, 8.9] },
+  'Sutter Health Park':             { d: [330, 375, 403, 375, 325], h: [7.9, 7.6, 7.9, 4.8, 13.3] },
+  'Busch Stadium':                  { d: [336, 375, 400, 375, 335], h: [7.4, 7.4, 7.4, 7.3, 7.3] },
+  'American Family Field':          { d: [342, 370, 400, 374, 345], h: [14.8, 6.7, 6.9, 6.8, 7.1] },
+  'PNC Park':                       { d: [325, 383, 399, 375, 320], h: [4.8, 4.8, 9.6, 9.6, 22.1] },
+  'Kauffman Stadium':               { d: [330, 387, 410, 387, 330], h: [8, 8, 8, 8, 8] },
+  'Target Field':                   { d: [339, 377, 404, 367, 328], h: [7.7, 7.7, 7.6, 23, 20.4] },
+  'Comerica Park':                  { d: [345, 370, 412, 365, 330], h: [7.9, 6.7, 6.7, 6.7, 9] },
+  'Guaranteed Rate Field':          { d: [330, 377, 400, 372, 335], h: [6.6, 6.8, 6.8, 6.6, 6.5] },
+  'Rate Field':                     { d: [330, 377, 400, 372, 335], h: [6.6, 6.8, 6.8, 6.6, 6.5] },
+  'Nationals Park':                 { d: [336, 377, 402, 370, 335], h: [8.6, 7.7, 7, 14.1, 16.3] },
+  'Citizens Bank Park':             { d: [329, 374, 401, 369, 330], h: [10.9, 9.6, 5.6, 12.5, 12.5] },
+  'loanDepot park':                 { d: [345, 386, 400, 387, 335], h: [11, 11, 8.3, 8.1, 11] },
+  'Chase Field':                    { d: [330, 374, 407, 374, 335], h: [8, 7.3, 24.5, 6.9, 8.3] },
+  'Globe Life Field':               { d: [329, 372, 407, 374, 326], h: [8, 8.1, 8.1, 6.4, 8] },
 }
 const DEFAULT_PARK = [330, 375, 400, 375, 330]
+// Heights are only consulted for the SELECTED test park, which always comes
+// from PARKS — this is the fallback for a venue we only know by distance.
+const DEFAULT_HEIGHTS = [8, 8, 8, 8, 8]
+
+// Flight solves are memoised per batted ball. A flight does not depend on the
+// park, so one solve serves every park in the picker. WeakMap, and module
+// scope on purpose: SprayField early-returns above the overlay code, so a
+// hook here would be called conditionally.
+const FLIGHT_CACHE = new WeakMap()
+function flightFor(h) {
+  if (FLIGHT_CACHE.has(h)) return FLIGHT_CACHE.get(h)
+  const f = solveFlight(h.ev, h.la, h.r)
+  FLIGHT_CACHE.set(h, f)
+  return f
+}
 
 // The bot already buckets every ball into five lanes and writes it as `lane`.
 // The old panel ignored that and re-derived three lanes from the angle, which
@@ -348,11 +371,11 @@ const resultColor = (h) => h.hr ? RESULT_COLORS.home_run
 //
 function dimsFor(player) {
   const venue = clean(player?.venue_name, '')
-  if (PARKS[venue]) return { dims: PARKS[venue], source: 'table' }
+  if (PARKS[venue]) return { dims: PARKS[venue].d, heights: PARKS[venue].h, source: 'table' }
   const d = obj(obj(player?.park_fit).dimensions)
   const vals = [d.lf, d.lcf, d.cf, d.rcf, d.rf].map((v) => n(v, 0))
-  if (vals.every((v) => v > 200)) return { dims: vals, source: 'bot' }
-  return { dims: DEFAULT_PARK, source: 'default' }
+  if (vals.every((v) => v > 200)) return { dims: vals, heights: DEFAULT_HEIGHTS, source: 'bot' }
+  return { dims: DEFAULT_PARK, heights: DEFAULT_HEIGHTS, source: 'default' }
 }
 
 // ── TONIGHT'S BALLS ON THE SAME FIELD ───────────────────────────────────────
@@ -428,6 +451,7 @@ export default function SprayField({
   // (Camden, Daikin, Fenway), so testing against anything else would be
   // testing against dimensions already known to be worse.
   const [testPark, setTestPark] = useState('')
+  const [stadium, setStadium] = useState(false)
   // tonight's layer
   const [live, setLive] = useState(false)   // drawn from a live Savant pull, not the bot's cache
   const [hoverLive, setHoverLive] = useState(null)
@@ -811,7 +835,7 @@ export default function SprayField({
 
   // Wall polygon from the five listed distances, interpolated across the arc.
   const venue = clean(player?.venue_name, '')
-  const { dims, source: dimSource } = dimsFor(player)
+  const { dims, heights, source: dimSource } = dimsFor(player)
   const knownPark = dimSource !== 'default'
   const wallAt = (ang) => {
     const t = (Math.max(-45, Math.min(45, ang)) + 45) / 90
@@ -824,11 +848,33 @@ export default function SprayField({
   // park's dims instead of his own. Undefined (not '') when no park is
   // picked, so every call site below can just check `wallAtTest &&`.
   const testDims = testPark ? PARKS[testPark] : null
-  const wallAtTest = testDims ? (ang) => {
+  const lerp5 = (arr, ang) => {
     const t = (Math.max(-45, Math.min(45, ang)) + 45) / 90
     const i = Math.min(3, Math.max(0, Math.floor(t * 4)))
-    const f = t * 4 - i
-    return testDims[i] + (testDims[i + 1] - testDims[i]) * f
+    return arr[i] + (arr[i + 1] - arr[i]) * (t * 4 - i)
+  }
+  const wallAtTest = testDims ? (ang) => lerp5(testDims.d, ang) : null
+  const wallHeightAtTest = testDims ? (ang) => lerp5(testDims.h, ang) : null
+
+  // ── DOES IT CLEAR? (2026-08-29) ────────────────────────────────────────────
+  // This was `h.r > wallAtTest(h.ang)` — landing radius past the fence LINE —
+  // labelled "would it have gone out here". Those are different questions
+  // wherever a wall is tall: a ball can land past Fenway's 308-ft line in left
+  // and still be a double off 37 feet of Monster. Height is in the math now.
+  //
+  // Only balls that actually reached the fence get a flight solved, and the
+  // solve is memoised per ball, so the first park costs a few ms and every
+  // park after it is free.
+  const clearsTest = wallAtTest && wallHeightAtTest ? (h) => {
+    const wd = wallAtTest(h.ang)
+    if (!(h.r > wd)) return false            // came down short of the fence line
+    const wh = wallHeightAtTest(h.ang)
+    if (!(wh > 0)) return true
+    const f = flightFor(h)
+    const ht = f ? f.heightAt(wd) : null
+    // No launch angle on this ball means no honest height. Fall back to the
+    // old distance-only answer rather than inventing one.
+    return ht == null ? true : ht > wh
   } : null
 
   // The payoff number: of what's ON SCREEN right now (the same `shown` set
@@ -840,12 +886,12 @@ export default function SprayField({
   // what "did it clear the fence" means geometrically, no distance-vs-carry
   // ambiguity (see the note at toPolar() on why radius, not hit_distance_sc,
   // is the right number for a location question).
-  const parkTest = wallAtTest ? shown.reduce((acc, h) => {
-    const clearsTest = h.r > wallAtTest(h.ang)
-    if (h.hr) { acc.realHR += 1; if (clearsTest) acc.stillClears += 1 }
-    else if (clearsTest) acc.wouldBeHR += 1
+  const parkTest = clearsTest ? shown.reduce((acc, h) => {
+    const clears = clearsTest(h)
+    if (h.hr) { acc.realHR += 1; if (clears) acc.stillClears += 1; else if (h.r > wallAtTest(h.ang)) acc.offWall += 1 }
+    else if (clears) acc.wouldBeHR += 1
     return acc
-  }, { realHR: 0, stillClears: 0, wouldBeHR: 0 }) : null
+  }, { realHR: 0, stillClears: 0, wouldBeHR: 0, offWall: 0 }) : null
 
   const laneCounts = LANE_ORDER.map((key) => ({
     key,
@@ -1193,15 +1239,46 @@ export default function SprayField({
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
+        {/* 🏟 the 3D toggle lives beside the park test because they answer
+            the same question from two angles — additive, the 2D chart never
+            leaves the page. */}
+        <button
+          onClick={() => setStadium((v) => !v)}
+          title="The same balls flown through the park in 3D — drag to orbit, scroll to zoom. The 2D chart stays; this is another way of looking at it."
+          style={{
+            padding: '2px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+            fontFamily: NUM_FONT,
+            border: `1px solid ${stadium ? C.orange : C.border}`,
+            background: stadium ? 'rgba(249,115,22,.12)' : 'transparent',
+            color: stadium ? C.orange : C.text3,
+          }}
+        >🏟 Stadium</button>
         {parkTest && (
           <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
             {parkTest.stillClears} of {parkTest.realHR} real HR{parkTest.realHR === 1 ? '' : 's'} still clear
+            {parkTest.offWall > 0 && (
+              <> · <b style={{ color: C.blue }}>{parkTest.offWall}</b> off the wall</>
+            )}
             {parkTest.wouldBeHR > 0 && (
               <> · <b style={{ color: C.orange }}>{parkTest.wouldBeHR}</b> more would go out here that didn&apos;t at his own park</>
             )}
           </span>
         )}
       </div>
+      )}
+
+      {/* 🏟 STADIUM (2026-08-29) — the same `shown` set the dots below draw
+          from, flown in 3D against the tested park's wall when one is picked,
+          his own otherwise. Additive: the SVG chart below never leaves. */}
+      {!liveOnly && stadium && (
+        <div style={{ marginBottom: 10 }}>
+          <SprayFieldStadium
+            hits={shown}
+            dims={testPark && PARKS[testPark] ? PARKS[testPark].d : dims}
+            heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
+            venue={testPark || venue}
+          />
+        </div>
       )}
 
       {/* Pitch chips. This is the question the panel exists for: does he only
@@ -1514,10 +1591,10 @@ export default function SprayField({
                       ball that did NOT clear his own wall but WOULD clear
                       this one gets a solid gold upgrade ring. Never both —
                       h.hr and !h.hr are mutually exclusive. */}
-                  {wallAtTest && h.hr && h.r <= wallAtTest(h.ang) && (
+                  {clearsTest && h.hr && !clearsTest(h) && (
                     <circle cx={x} cy={y} r={rr + 3.6} fill="none" stroke="#5fb8ff" strokeWidth="1.3" strokeDasharray="2 2" opacity={on ? 1 : 0.85} />
                   )}
-                  {wallAtTest && !h.hr && h.r > wallAtTest(h.ang) && (
+                  {clearsTest && !h.hr && clearsTest(h) && (
                     <circle cx={x} cy={y} r={rr + 3.6} fill="none" stroke="#ffd23f" strokeWidth="1.6" opacity={on ? 1 : 0.9} />
                   )}
                   {/* fixed white hover ring — see the geometry-colours note above; must stay a literal, not C.text */}
@@ -1675,12 +1752,20 @@ export default function SprayField({
                 {' · '}{shown[hover].lane || '—'}
                 {' · '}{shown[hover].date}
               </div>
-              {wallAtTest && (() => {
-                const clearsTest = shown[hover].r > wallAtTest(shown[hover].ang)
+              {clearsTest && (() => {
+                const h = shown[hover]
+                const wd = wallAtTest(h.ang)
+                const wh = wallHeightAtTest(h.ang)
+                const cleared = clearsTest(h)
+                const reached = h.r > wd
+                const f = reached ? flightFor(h) : null
+                const ht = f ? f.heightAt(wd) : null
                 return (
-                  <div style={{ color: clearsTest ? C.orange : C.text3, marginTop: 2 }}>
-                    At {testPark}: {clearsTest ? 'clears the wall' : 'does not clear the wall'}
-                    {shown[hover].hr && !clearsTest ? ' (was a HR at his own park)' : ''}
+                  <div style={{ color: cleared ? C.orange : C.text3, marginTop: 2 }}>
+                    At {testPark}: {cleared ? 'clears the wall' : reached ? 'off the wall' : 'short of the wall'}
+                    {' · '}{wd.toFixed(0)} ft out, {wh.toFixed(0)} ft tall
+                    {ht != null ? ` · ball at ${ht.toFixed(0)} ft` : ''}
+                    {h.hr && !cleared ? ' (was a HR at his own park)' : ''}
                   </div>
                 )
               })()}

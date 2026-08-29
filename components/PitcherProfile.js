@@ -44,80 +44,69 @@ function Panel({ title, children }) {
   )
 }
 
-// ── SIMPLE HAND-ROLLED SVG RADAR/SPIDER CHART (2026-08-24) ──────────────────
+// ── TWO CHARTS, TWO SHAPES (2026-08-29, replaces the radars) ────────────────
 //
-// Donovan: "i really just don't like the chart style at all ... maybe like
-// radar or something, kiss it, soup it up." Confirmed direction: replace the
-// plain Meatball%/Whiff%/etc and platoon Row-grids with radar charts where a
-// shape actually helps a read, hand-built rather than a new dependency —
-// package.json carries no charting library, and the Arsenal donut just above
-// already proves the house style: a few lines of SVG path math, no npm.
+// Donovan on the 08-24 radars: the two spider charts read as the same chart
+// twice, and a per-axis self-scaled radar is genuinely hard to read — the
+// shape can't be compared across spokes when every spoke is its own scale.
+// So each question now gets the shape that answers it:
 //
-// KISS: one component draws N axes as spokes from a centre, one polygon per
-// series (1 for the command profile, 2 overlaid for platoon splits), each
-// axis independently scaled to its own 0-100 display range so a WHIP axis
-// and an HR/9 axis can share one chart without one swallowing the other.
-// Every axis value is ALSO printed as a number at its spoke tip — the shape
-// is the at-a-glance read, the number is still there for anyone checking its
-// working, same rule as every meter on this site.
-function RadarChart({ axes, series, size = 230 }) {
-  const n = axes.length
-  if (n < 3) return null
-  const R = size / 2 - 46
-  const cx = size / 2, cy = size / 2
-  const angleFor = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / n
-  const pt = (i, frac) => {
-    const a = angleFor(i)
-    const r = R * Math.max(0, Math.min(1, frac))
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)]
-  }
-  // Concentric rings at 25/50/75/100% as the grid — no numbers on the rings
-  // themselves, since each axis carries its own scale and a shared ring
-  // label would lie about at least one of them.
-  const rings = [0.25, 0.5, 0.75, 1]
-  const ringPath = (frac) => axes.map((_, i) => pt(i, frac).join(',')).join(' ')
-
+//   Command / swing profile → DIALS. One horizontal gauge per rate, each on
+//   its stated display range with the value printed at the end. Colour says
+//   whose number it is: warm = trouble for HIM (meatballs), cool = his
+//   weapon (whiff/swstr/putaway/first-pitch strikes).
+//
+//   Platoon splits → TUG OF WAR. One row per stat, LHB pulling left and RHB
+//   pulling right from a centre spine, each pair sharing one scale (the
+//   worse side reaches full length). Which way the chart leans IS the
+//   answer — the side it leans toward is the side to attack.
+function Dial({ label, v, max, warm, note }) {
+  const frac = v == null ? 0 : Math.max(0, Math.min(1, v / max))
+  const col = warm ? C.orange : '#60A5FA'
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} style={{ width: '100%', maxWidth: size, height: 'auto' }}>
-      {rings.map((f) => (
-        <polygon key={f} points={ringPath(f)} fill="none" stroke={C.border} strokeWidth={f === 1 ? 1.2 : 0.7} />
-      ))}
-      {axes.map((ax, i) => {
-        const [x, y] = pt(i, 1)
-        return <line key={ax.key} x1={cx} y1={cy} x2={x} y2={y} stroke={C.border} strokeWidth={0.7} />
-      })}
-      {series.map((s) => {
-        const pts = axes.map((ax, i) => pt(i, ax.scale ? ax.scale(s.values[ax.key]) : 0))
-        const has = pts.some(([, ], i) => (s.values[axes[i].key] ?? null) != null)
-        if (!has) return null
-        return (
-          <polygon key={s.key} points={pts.map((p) => p.join(',')).join(' ')}
-            fill={s.color} fillOpacity={s.fillOpacity ?? 0.22}
-            stroke={s.color} strokeWidth={1.6} />
-        )
-      })}
-      {axes.map((ax, i) => {
-        const [lx, ly] = pt(i, 1.22)
-        return (
-          <text key={`lbl-${ax.key}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-            fontSize="8.5" fontWeight="700" fill={C.text3} fontFamily={NUM_FONT}>
-            {ax.label}
-          </text>
-        )
-      })}
-    </svg>
+    <div title={`${label} — drawn 0–${max}%. ${note || ''}`} style={{ padding: '4px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 9.5, color: C.text3, width: 96, flexShrink: 0 }}>{label}</span>
+        <div style={{ flex: 1, height: 9, borderRadius: 5, background: C.bg3, overflow: 'hidden' }}>
+          {v != null && (
+            <div style={{ width: `${(100 * frac).toFixed(1)}%`, height: '100%', borderRadius: 5,
+              background: `linear-gradient(90deg, ${col}55, ${col})` }} />
+          )}
+        </div>
+        <span style={{ fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT, color: v == null ? C.text3 : col, width: 44, textAlign: 'right', flexShrink: 0 }}>
+          {v == null ? '—' : `${v.toFixed(1)}%`}
+        </span>
+      </div>
+    </div>
   )
 }
 
-function RadarLegend({ series }) {
+function TugRow({ label, l, r, dp = 2 }) {
+  const has = l != null || r != null
+  const mx = Math.max(l ?? 0, r ?? 0)
+  const fl = has && mx > 0 && l != null ? l / mx : 0
+  const fr = has && mx > 0 && r != null ? r / mx : 0
+  const worse = l != null && r != null ? (l > r ? 'L' : r > l ? 'R' : null) : null
+  const fmt = (v) => (v == null ? '—' : v.toFixed(dp))
   return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
-      {series.map((s) => (
-        <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9.5 }}>
-          <span style={{ width: 9, height: 9, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-          <span style={{ color: C.text2, fontWeight: 700 }}>{s.label}</span>
+    <div title={`${label}: vs LHB ${fmt(l)} · vs RHB ${fmt(r)} — the longer side is the side that hurts him`}
+      style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0' }}>
+      <span style={{ fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT, width: 40, textAlign: 'right', flexShrink: 0,
+        color: worse === 'L' ? '#60A5FA' : C.text3 }}>{fmt(l)}</span>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', height: 9 }}>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ width: `${(100 * fl).toFixed(1)}%`, height: 9, borderRadius: '5px 0 0 5px',
+            background: worse === 'L' ? 'rgba(96,165,250,.9)' : 'rgba(96,165,250,.35)' }} />
         </div>
-      ))}
+        <div style={{ width: 2, alignSelf: 'stretch', background: C.border2, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ width: `${(100 * fr).toFixed(1)}%`, height: 9, borderRadius: '0 5px 5px 0',
+            background: worse === 'R' ? 'rgba(249,115,22,.9)' : 'rgba(249,115,22,.35)' }} />
+        </div>
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT, width: 40, flexShrink: 0,
+        color: worse === 'R' ? C.orange : C.text3 }}>{fmt(r)}</span>
+      <span style={{ fontSize: 8.5, color: C.text3, width: 34, flexShrink: 0 }}>{label}</span>
     </div>
   )
 }
@@ -258,13 +247,6 @@ export default function PitcherProfile({ pitcher }) {
   const putawayPct = n(src('pitcher_putaway_pct'), null)
   const fpsPct = n(src('pitcher_first_pitch_strike_pct'), null)
   const asPct100 = (v) => (v == null ? null : (v <= 1 ? v * 100 : v))
-  const cmdAxes = [
-    { key: 'meatball', label: 'Meatball%', scale: (v) => (v == null ? 0 : v / 20) },
-    { key: 'whiff', label: 'Whiff%', scale: (v) => (v == null ? 0 : v / 45) },
-    { key: 'swstr', label: 'SwStr%', scale: (v) => (v == null ? 0 : v / 20) },
-    { key: 'putaway', label: 'Putaway%', scale: (v) => (v == null ? 0 : v / 40) },
-    { key: 'fps', label: '1st-pitch K%', scale: (v) => (v == null ? 0 : v / 80) },
-  ]
   const cmdValues = {
     meatball: asPct100(meatballPct), whiff: asPct100(whiffPct), swstr: asPct100(swstrPct),
     putaway: asPct100(putawayPct), fps: asPct100(fpsPct),
@@ -286,25 +268,6 @@ export default function PitcherProfile({ pitcher }) {
   const whipL = n(src('pitcher_whip_vs_lhb'), null)
   const whipR = n(src('pitcher_whip_vs_rhb'), null)
   const slgL = n(src('pitcher_side_slug'), null) // published as one side-agnostic pair below; kept as caption, not an axis
-  const platoonPairs = {
-    hr9: [hr9L, hr9R], whip: [whipL, whipR], hrct: [hrCtL, hrCtR], xbh: [xbhL, xbhR],
-  }
-  const pairScale = (key) => (v, side) => {
-    const [l, r] = platoonPairs[key]
-    const mx = Math.max(Number.isFinite(l) ? l : 0, Number.isFinite(r) ? r : 0)
-    if (!(mx > 0) || v == null) return 0
-    return v / mx
-  }
-  const platAxes = [
-    { key: 'hr9', label: 'HR/9', scale: pairScale('hr9') },
-    { key: 'whip', label: 'WHIP', scale: pairScale('whip') },
-    { key: 'hrct', label: 'HR', scale: pairScale('hrct') },
-    { key: 'xbh', label: 'XBH', scale: pairScale('xbh') },
-  ]
-  const platSeries = [
-    { key: 'lhb', label: 'vs LHB', color: '#60A5FA', values: { hr9: hr9L, whip: whipL, hrct: hrCtL, xbh: xbhL } },
-    { key: 'rhb', label: 'vs RHB', color: C.orange, values: { hr9: hr9R, whip: whipR, hrct: hrCtR, xbh: xbhR } },
-  ]
   const platHasAny = [hr9L, hr9R, whipL, whipR, hrCtL, hrCtR, xbhL, xbhR].some((v) => v != null)
 
   return (
@@ -315,12 +278,17 @@ export default function PitcherProfile({ pitcher }) {
       }}>
         <Panel title="Command / swing profile">
           {cmdHasAny ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0' }}>
-              <RadarChart axes={cmdAxes}
-                series={[{ key: 'cmd', label: 'Season', color: C.orange, values: cmdValues }]} />
-              <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4, lineHeight: 1.5, textAlign: 'center' }}>
-                Each spoke is its own display scale (see caption below) — the shape says how full each dial runs, not
-                good vs bad. <b style={{ color: C.orange }}>Meatball%</b> high is bad for him; <b style={{ color: C.orange }}>Whiff / SwStr / Putaway</b> high is good for him.
+            <div style={{ padding: '6px 0 2px' }}>
+              <Dial label="Meatball%" v={asPct100(meatballPct)} max={20} warm
+                note="pitches down the middle — his mistake rate, the one warm dial" />
+              <Dial label="Whiff%" v={asPct100(whiffPct)} max={45} note="misses per swing — his weapon" />
+              <Dial label="SwStr%" v={asPct100(swstrPct)} max={20} note="swing and miss per pitch — his weapon" />
+              <Dial label="Putaway%" v={asPct100(putawayPct)} max={40} note="two-strike counts he finishes — his weapon" />
+              <Dial label="1st-pitch K%" v={asPct100(fpsPct)} max={80} note="how often he gets ahead — his weapon" />
+              <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
+                Each gauge is drawn on its own stated 0–max range (hover for it).{' '}
+                <b style={{ color: C.orange }}>Warm</b> = trouble for him — good for the bats;{' '}
+                <b style={{ color: '#60A5FA' }}>cool</b> = his weapon.
               </div>
             </div>
           ) : (
@@ -345,12 +313,20 @@ export default function PitcherProfile({ pitcher }) {
 
         <Panel title="Platoon splits">
           {platHasAny ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0' }}>
-              <RadarChart axes={platAxes} series={platSeries} />
-              <RadarLegend series={platSeries} />
-              <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4, lineHeight: 1.5, textAlign: 'center' }}>
-                Each axis is scaled to its own LHB/RHB pair — whichever side is worse fills the spoke, so a lopsided
-                shape names the side to attack. Raw numbers below.
+            <div style={{ padding: '6px 0 2px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, fontWeight: 800,
+                letterSpacing: '.08em', fontFamily: NUM_FONT, marginBottom: 2 }}>
+                <span style={{ color: '#60A5FA' }}>◀ VS LHB</span>
+                <span style={{ color: C.orange }}>VS RHB ▶</span>
+              </div>
+              <TugRow label="HR/9" l={hr9L} r={hr9R} />
+              <TugRow label="WHIP" l={whipL} r={whipR} />
+              <TugRow label="HR" l={hrCtL} r={hrCtR} dp={0} />
+              <TugRow label="XBH" l={xbhL} r={xbhR} dp={0} />
+              <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
+                Each row is one stat pulled both ways — the pair shares one scale, the worse side reaches
+                full length and full colour. The side this chart leans toward is the side that hurts him
+                {weakSide ? <> — the bot calls it <b style={{ color: C.orange }}>{weakSide}</b></> : null}.
               </div>
             </div>
           ) : (

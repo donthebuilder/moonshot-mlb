@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf } from '../lib/player'
 import { runningGame, runningGameLine } from '../lib/running'
@@ -138,12 +138,40 @@ function SplitStat({ label, value, fmt, anchor, ceiling, tip }) {
   )
 }
 
-function SplitsControl({ src }) {
+// Bot situational keys → the live StatsAPI sitCode that answers the same
+// question, so the picker can always offer the split and simply prefer the
+// bot's number when it exists (validated data beats a live pull; a live pull
+// beats a dead pill).
+const SIT_TO_LIVE = { home: 'h', away: 'a', day: 'd', night: 'n', risp: 'risp', ahead: 'ac', behind: 'bc' }
+
+function SplitsControl({ src, pitcherId }) {
   const num = (k) => { const v = Number(src(k)); return Number.isFinite(v) ? v : null }
   const sit = src('pitcher_situational_splits') || {}
   const f2 = (v) => v.toFixed(2)
   const f0 = (v) => String(Math.round(v))
   const l3n = num('pitcher_l3_starts_found') || 0
+
+  // ── ALL OF THEM (2026-08-29) ─────────────────────────────────────────────
+  // Donovan: "where are ALL of them. not just four." The seven situational
+  // pills were data-gated on the bot's pitcher_situational_splits, so on a
+  // night the bot hadn't published them the picker shrank to Season/LHB/RHB
+  // and looked like the site only knew four cuts. The StatsAPI has had every
+  // one of these all along — one batched statSplits call per pitcher (see
+  // lib/situational.js pitcherSplitBoard, fields verified live 2026-08-29) —
+  // so a split the bot hasn't published now falls back to the live number,
+  // tagged as live, instead of vanishing. Plus three cuts the bot has never
+  // published at all: pitches 1–75 / 76+ (the fatigue window) and the first
+  // inning. Bot data still wins whenever it exists.
+  const [liveBoard, setLiveBoard] = useState({})
+  useEffect(() => {
+    if (!pitcherId) return undefined
+    let alive = true
+    import('../lib/situational')
+      .then(({ pitcherSplitBoard }) => pitcherSplitBoard(pitcherId))
+      .then((b) => { if (alive) setLiveBoard(b || {}) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [pitcherId])
 
   const SIT_LABELS = [
     ['home', 'In park', 'his numbers at home — the "in park" split'],
@@ -154,13 +182,20 @@ function SplitsControl({ src }) {
     ['ahead', 'Ahead', 'when ahead in the count'],
     ['behind', 'Behind', 'when behind in the count — the blowup count state'],
   ]
+  const LIVE_ONLY = [
+    ['pi000', 'P 1–75', 'his first 75 pitches — live from MLB StatsAPI'],
+    ['pi760', 'P 76+', 'pitch 76 on — the fatigue window, the API\'s stand-in for times through the order'],
+    ['i01', '1st inn', 'the first inning — some arms bleed before they settle'],
+  ]
   const options = [
     { key: 'season', label: 'Season' },
     ...(num('pitcher_hr9_vs_lhb') != null ? [{ key: 'lhb', label: 'vs LHB' }] : []),
     ...(num('pitcher_hr9_vs_rhb') != null ? [{ key: 'rhb', label: 'vs RHB' }] : []),
     ...(l3n > 0 ? [{ key: 'l3', label: `Last ${l3n}` }] : []),
-    ...SIT_LABELS.filter(([k]) => sit[k] && sit[k].hr9 != null)
+    ...SIT_LABELS.filter(([k]) => (sit[k] && sit[k].hr9 != null) || liveBoard[SIT_TO_LIVE[k]])
       .map(([k, label, title]) => ({ key: `sit:${k}`, label, title })),
+    ...LIVE_ONLY.filter(([code]) => liveBoard[code])
+      .map(([code, label, title]) => ({ key: `live:${code}`, label, title })),
   ]
   const [split, setSplit] = useState('season')
   if (options.length <= 1) return null
@@ -196,7 +231,14 @@ function SplitsControl({ src }) {
     ]
     footer = `a direction, not a rate — ${l3n} start${l3n === 1 ? '' : 's'} is a handful of innings · trend: ${clean(src('pitcher_trend_direction'), 'unknown')}`
   } else {
-    const b = sit[active.slice(4)] || {}
+    // sit:<key> prefers the bot's published split; live:<code> (and a sit key
+    // the bot hasn't published) reads the live board. Either way the shape is
+    // the same five tiles, and the footer says which source it is.
+    const isLiveOnly = active.startsWith('live:')
+    const sitKey = isLiveOnly ? null : active.slice(4)
+    const botRow = sitKey ? sit[sitKey] : null
+    const fromBot = !!(botRow && botRow.hr9 != null)
+    const b = fromBot ? botRow : (liveBoard[isLiveOnly ? active.slice(5) : SIT_TO_LIVE[sitKey]] || {})
     const dim = sampleDim(b.bf, 40)
     stats = [
       { label: 'HR/9', value: b.hr9, fmt: f2, anchor: 1.15, ceiling: 0.8, tip: 'in this split' },
@@ -205,7 +247,8 @@ function SplitsControl({ src }) {
       { label: 'HR', value: b.hr, fmt: f0, anchor: 0, ceiling: 1e9, tip: 'homers allowed in this split (count)' },
       { label: 'IP', value: b.ip, fmt: (v) => v.toFixed(1), anchor: 0, ceiling: 1e9, tip: 'innings in this split (the denominator)' },
     ]
-    footer = dim.thin ? `${b.bf ?? 0} batters faced — ${dim.title}` : `${b.bf} batters faced`
+    const sample = dim.thin ? `${b.bf ?? 0} batters faced — ${dim.title}` : `${b.bf} batters faced`
+    footer = fromBot ? sample : `${sample} · live from MLB StatsAPI — context only, not in any score`
   }
 
   return (
@@ -502,7 +545,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
           })()}
 
           <ModalBand title="Who gets him" note="the same arm, cut by hand, park and situation">
-            <SplitsControl src={src} />
+            <SplitsControl src={src} pitcherId={pitcher?.pitcher_id} />
           </ModalBand>
 
           {/* 🧭 the story in sentences — same flow pass the batter modal got

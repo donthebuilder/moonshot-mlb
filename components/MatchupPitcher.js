@@ -6,6 +6,7 @@ import { pitcherDetailUrl } from '../lib/dataSource'
 import Explain from './Explain'
 import DenseTable from './DenseTable'
 import PitchMixChart from './PitchMixChart'
+import MixDuel from './MixDuel'
 import { rampColor, inkFor } from './Heatmap'
 import { armFormParts } from '../lib/armLeak'
 import { penFrom, penLineParts } from '../lib/bullpen'
@@ -249,12 +250,35 @@ export default function MatchupPitcher({ player, slateMode }) {
   // often want that when you're deciding which half of a lineup to attack.
   // 'auto' follows the hitter; L/R force it; 'all' is his overall usage.
   const [handView, setHandView] = useState('auto')
+
+  // ── THE FULL SPLIT BOARD, LIVE (2026-08-29) ─────────────────────────────
+  // Donovan: "the splits for the pitcher — where are ALL of them. not just
+  // four." This picker offered exactly four (this hitter / LHB / RHB /
+  // Overall). The situational cuts — home, road, day, night, RISP, ahead,
+  // behind, the fatigue window, the first inning — now ride the same batched
+  // StatsAPI call the pitcher's own modal uses (lib/situational.js
+  // pitcherSplitBoard, fields verified live). Picking one shows that split's
+  // line; the hand splits keep driving the arsenal below, since a situational
+  // cut has no arsenal of its own.
+  const [liveBoard, setLiveBoard] = useState({})
+  useEffect(() => {
+    if (!pitcherId) return undefined
+    let alive = true
+    import('../lib/situational')
+      .then(({ pitcherSplitBoard }) => pitcherSplitBoard(pitcherId))
+      .then((b) => { if (alive) setLiveBoard(b || {}) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [pitcherId])
   // Detail is collapsed by default. The tab was ~14 stat tiles and three tables
   // open at once, which is everything the bot knows and no indication of what
   // to do with it. The verdict answers the question; the rest is there when you
   // want to check its working.
   const [showDetail, setShowDetail] = useState(false)
-  const effHand = handView === 'auto' ? bats : handView === 'all' ? '' : handView
+  const sitView = handView.startsWith('sit:') ? handView.slice(4) : null
+  // A situational split has no side, so the arsenal and side tiles stay on
+  // this hitter's own hand while one is selected.
+  const effHand = sitView ? bats : handView === 'auto' ? bats : handView === 'all' ? '' : handView
 
   const { arsenal, side } = useMemo(() => {
     const key = effHand === 'L' ? 'pitcher_pitch_mix_vs_lhb' : effHand === 'R' ? 'pitcher_pitch_mix_vs_rhb' : null
@@ -517,6 +541,15 @@ export default function MatchupPitcher({ player, slateMode }) {
           { k: 'L', label: 'vs LHB' },
           { k: 'R', label: 'vs RHB' },
           { k: 'all', label: 'Overall' },
+          // ALL of them (2026-08-29) — every situational cut the live board
+          // answered for this arm. Offered whenever the API has the sample;
+          // the strip below the pills carries the split's own line.
+          ...[
+            ['h', 'Home'], ['a', 'Road'], ['d', 'Day'], ['n', 'Night'],
+            ['risp', 'RISP'], ['ac', 'Ahead'], ['bc', 'Behind'],
+            ['pi000', 'P 1–75'], ['pi760', 'P 76+'], ['i01', '1st inn'],
+          ].filter(([code]) => liveBoard[code])
+            .map(([code, label]) => ({ k: `sit:${code}`, label })),
         ].map((o) => {
           const on = handView === o.k
           return (
@@ -533,12 +566,52 @@ export default function MatchupPitcher({ player, slateMode }) {
             >{o.label}</button>
           )
         })}
-        {handView !== 'auto' && handView !== 'all' && handView !== bats && (
+        {!sitView && handView !== 'auto' && handView !== 'all' && handView !== bats && (
           <span style={{ fontSize: 9.5, color: C.orange, fontFamily: NUM_FONT }}>
             not this hitter&apos;s side — {bats || '?'}HB
           </span>
         )}
       </div>
+
+      {/* The selected situational split's own line — five tiles, same anchors
+          the pitcher modal's split control uses, tagged live because it is. */}
+      {sitView && liveBoard[sitView] && (() => {
+        const b = liveBoard[sitView]
+        const tone = (v, anchor, ceiling) => {
+          if (v == null) return C.text
+          const d = (v - anchor) / ceiling
+          return d >= 0.35 ? C.orange : d <= -0.35 ? C.blue : C.text
+        }
+        const cells = [
+          ['HR/9', b.hr9, (v) => v.toFixed(2), 1.15, 0.8],
+          ['WHIP', b.whip, (v) => v.toFixed(2), 1.28, 0.45],
+          ['OPS ag', b.ops, (v) => v.toFixed(3), 0.72, 0.18],
+          ['HR', b.hr, (v) => String(Math.round(v)), null, null],
+          ['IP', b.ip, (v) => v.toFixed(1), null, null],
+        ]
+        return (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {cells.map(([label, v, fmt, anchor, ceiling]) => (
+                <span key={label} style={{
+                  display: 'flex', flexDirection: 'column', gap: 1, minWidth: 64,
+                  padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`,
+                  background: 'rgba(255,255,255,.02)',
+                }}>
+                  <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, fontFamily: NUM_FONT, color: anchor != null ? tone(v, anchor, ceiling) : C.text }}>
+                    {v == null ? '—' : fmt(v)}
+                  </span>
+                </span>
+              ))}
+            </div>
+            <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>
+              {b.bf != null ? `${b.bf} batters faced · ` : ''}warm = good for the bat ·
+              live from MLB StatsAPI — context only, not in any score
+            </div>
+          </div>
+        )
+      })()}
 
       {/* THE THREE GROUPS. Everything here is "how good is this for the guy at
           the plate", not "how good is this pitcher" — and now the grouping
@@ -699,15 +772,43 @@ export default function MatchupPitcher({ player, slateMode }) {
             sub={side === 'overall' ? 'overall usage — no side split published' : `his mix ${side}, the side this hitter bats from`}
             subColor={side === 'overall' ? C.text3 : C.orange}
           />
-          {/* The readable layer first (2026-08-29, Donovan: the mix chart was
-              "bad and hard to read"). Same rows the table gets — the chart
-              answers the question, the table keeps every number. */}
-          <PitchMixChart
-            rows={arsenal}
-            accent={C.orange}
-            title="What he throws"
-            sub={side === 'overall' ? 'overall usage' : side}
-          />
+          {/* The readable layer first. When this batter's own per-pitch
+              profile is on hand (it rides his detail file into the modal),
+              the mix is drawn as the DUEL — his usage against this batter's
+              damage, pitch by pitch — because "what does he throw" and "what
+              does this bat do to it" were two charts nobody could hold in
+              their head at once (Donovan, 2026-08-29: "hard to even make
+              out"). Without the profile the plain mix ladder stands. */}
+          {(() => {
+            const armSide = clean(player?.pitcher_throws, '').toUpperCase().slice(0, 1)
+            const prof = player?.batter_pitch_type_profile
+            const byPitch = (armSide === 'L' ? prof?.vs_lhp?.by_pitch : armSide === 'R' ? prof?.vs_rhp?.by_pitch : null)
+              || prof?.by_pitch || {}
+            const duelRows = arsenal.map((a) => {
+              const d = byPitch[a.code] || {}
+              return {
+                pt: a.code, use: a.usage,
+                xw: d.xwoba == null ? null : Number(d.xwoba),
+                bbe: Number(d.bbe) || 0, hr: Number(d.hr) || 0,
+              }
+            })
+            const hasProfile = duelRows.some((r) => r.xw != null)
+            return hasProfile ? (
+              <MixDuel
+                rows={duelRows}
+                pitcherName={clean(player.pitcher_name, 'the arm')}
+                batterName={nameOf(player)}
+                sideNote={side === 'overall' ? 'overall usage' : `his mix ${side}`}
+              />
+            ) : (
+              <PitchMixChart
+                rows={arsenal}
+                accent={C.orange}
+                title="What he throws"
+                sub={side === 'overall' ? 'overall usage' : side}
+              />
+            )
+          })()}
           <DenseTable
             heatMode="sorted"
 rows={arsenal}
