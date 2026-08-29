@@ -141,7 +141,15 @@ export const CATEGORIES = [
     blurb: 'Base-hit floor', score: hitScore },
   { role: 'HRR',     label: 'HRR',     icon: null, color: '#22d3ee',
     blurb: 'Runs + RBI',     score: prodScore },
-  { role: 'CONTACT', label: 'CONTACT', icon: '⚾', color: '#4ade80',
+  // ── NO LONE EMOJI (2026-08-29) ────────────────────────────────────────
+  // Donovan: "the four, put the emojis associated with the categories —
+  // looks off only having contact like that, or just remove whatever is
+  // easier." CONTACT was the only one of the four carrying an icon, which
+  // made the row look unfinished rather than decorated. Removed: each
+  // category already has its own colour, its own label and its own blurb,
+  // which is what tells them apart. The render below skips a null icon, so
+  // nothing else had to change.
+  { role: 'CONTACT', label: 'CONTACT', icon: null, color: '#4ade80',
     blurb: 'Total bases',    score: tbScore },
 ]
 
@@ -283,7 +291,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <span style={{ fontSize: 12 }}>{f.icon}</span>
+                {f.icon && <span style={{ fontSize: 12 }}>{f.icon}</span>}
                 <span style={{
                   fontSize: 10, fontWeight: 900, color: f.color,
                   letterSpacing: '.09em', fontFamily: NUM_FONT,

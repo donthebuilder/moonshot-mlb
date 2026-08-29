@@ -632,12 +632,53 @@ export default function Home({
             </span>
           )}
         </div>
-        <h1 style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-.03em', margin: '0 0 6px', lineHeight: 1.15 }}>
-          {hello}.{' '}
-          <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            {empty ? 'The slate is still cooking.' : isLive ? 'The slate is live.' : slateInPast ? 'That slate is in the books.' : 'Tonight’s sheet is ready.'}
-          </span>
+        {/* ── THE FACT FIRST, THE VOICE SECOND (2026-08-29) ────────────────
+            Donovan: "use a new set-up lingo for the opening lines. burning
+            the midnight oil — make it intuitive and user friendly", then, on
+            which register: both plain AND keep the personality.
+
+            So the h1 is now the state of the night in words anyone gets on
+            the first read — how many games, how many live, whether it has
+            been graded yet — and the line under it keeps the greeting and
+            the metaphor. Nothing was thrown away; "Burning the midnight oil"
+            still shows up at 1am, it just no longer has to carry the job of
+            telling a stranger what this page is.
+
+            The headline is computed, so it is never furniture: it says
+            something different at 9am to an unbuilt slate than it does at
+            midnight with six games running. */}
+        <h1 style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-.03em', margin: '0 0 4px', lineHeight: 1.15 }}>
+          {empty ? (
+            <>Tonight&apos;s board isn&apos;t built yet.</>
+          ) : slateInPast ? (
+            <>That slate is done.{' '}
+              <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Every pick is graded.
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontFamily: NUM_FONT }}>{games.length}</span>
+              {games.length === 1 ? ' game' : ' games'} tonight
+              {isLive && liveGames > 0 && (
+                <>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>
+              )}
+              .{' '}
+              <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                {isLive ? 'Grading as they land.' : 'The sheet is ready.'}
+              </span>
+            </>
+          )}
         </h1>
+        <div style={{ fontSize: 12, color: C.text2, margin: '0 0 8px', fontWeight: 600 }}>
+          {hello} {icon} — {empty
+            ? 'the bot posts the board once tonight\u2019s card is final.'
+            : isLive
+              ? 'every pick on this page is being graded in public, right now.'
+              : slateInPast
+                ? 'the receipts are at the foot of this page.'
+                : 'every pick is graded in public, receipts at the foot of this page.'}
+        </div>
         {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
             The old body was the same mission statement every single day —
             furniture. This is the slate itself, assembled from the numbers

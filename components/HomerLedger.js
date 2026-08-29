@@ -192,45 +192,100 @@ function LookOut({ players }) {
     return { arms: arms.slice(0, 8), milestones: milestones.slice(0, 8) }
   }, [players])
 
+  // ── SAID ONCE, IN CHIPS (2026-08-29) ──────────────────────────────────────
+  // Donovan: "like all the words, i feel some of the stuff can be slimmed down
+  // and put in bubbles, made more style than just text. like the arms to
+  // target seems like extra — 'pitchers, 6 alarms'."
+  //
+  // He is describing the same sentence printed eight times. The arms row read
+  // "Bailey Ober (MIN vs CWS) — BLOWUP RISK, 6 alarms · Daniel Lynch IV
+  // (KC vs CLE) — BLOWUP RISK, 6 alarms · ..." — the phrase BLOWUP RISK
+  // occupying more of the line than the eight names it was describing. Same
+  // shape below it: "sits on 29 — one swing from 30", nine times.
+  //
+  // The repeated words move into the row's own label, once, and each entry
+  // becomes a chip carrying only what differs: who, which game, how many
+  // alarms. Nothing is dropped — the alarm count is still on every chip, the
+  // evidence sentence is still in its tooltip, and a non-blowup arm still
+  // shows what tripped it. It is the same eight arms in a third of the height.
+  //
+  // The footnote moves into the header for the same reason: a caveat nobody
+  // reaches is not a caveat.
   if (!model.arms.length && !model.milestones.length) return null
   return (
-    <div style={{
+    <div className="lookout" style={{
       background: 'rgba(255,255,255,.02)', border: `1px solid ${C.border}`,
-      borderRadius: 10, padding: '8px 11px', marginBottom: 9,
+      borderRadius: 10, padding: '9px 11px', marginBottom: 9,
     }}>
-      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.07em', color: C.text3, textTransform: 'uppercase', marginBottom: 5 }}>
-        👀 The look-out — tonight, before it happens
+      <div className="lookout-head">
+        <span>👀 The look-out — tonight, before it happens</span>
+        <em>lookups, not predictions</em>
       </div>
+
       {model.arms.length > 0 && (
-        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.7 }}>
-          <b style={{ color: C.text }}>Arms to watch:</b>{' '}
-          {model.arms.map((a, i) => (
-            <span key={a.pid} title={`${a.leaks} independent alarms${a.tiring ? ' · wear signal live' : ''}`}>
-              {i > 0 && ' · '}
-              <b style={{ color: a.blowup ? C.orange : C.text }}>{a.name}</b>
-              {a.team ? ` (${a.team}${a.opp ? ` vs ${a.opp}` : ''})` : ''}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
-                {' '}— {a.blowup ? `BLOWUP RISK, ${a.leaks} alarms` : a.evidence}
+        <div className="lookout-row">
+          <span className="lookout-label">
+            Arms to watch
+            <i title="An arm lands here when the tag rules trip at least two independent alarms on it, or a live wear signal fires. BLOWUP RISK is the tag set's own label for the worst of them. The rules run live off tonight's rows — these are lookups, not predictions.">
+              BLOWUP RISK · alarms
+            </i>
+          </span>
+          <div className="lookout-chips">
+            {model.arms.map((a) => (
+              <span
+                key={a.pid}
+                className={a.blowup ? 'chip chip-hot' : 'chip'}
+                title={`${a.leaks} independent alarms${a.tiring ? ' · wear signal live' : ''}${a.evidence ? ` — ${a.evidence}` : ''}`}
+              >
+                <b>{a.name}</b>
+                {a.team && <small>{a.team}{a.opp ? `·${a.opp}` : ''}</small>}
+                <em>{a.leaks}🔔</em>
               </span>
-            </span>
-          ))}
+            ))}
+          </div>
         </div>
       )}
+
       {model.milestones.length > 0 && (
-        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.7, marginTop: model.arms.length ? 4 : 0 }}>
-          <b style={{ color: C.text }}>Who needs what:</b>{' '}
-          {model.milestones.map((m, i) => (
-            <span key={m.pid}>
-              {i > 0 && ' · '}
-              {m.name}{m.team ? ` (${m.team})` : ''}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}> sits on {m.hr} — one swing from {m.next}</span>
-            </span>
-          ))}
+        <div className="lookout-row">
+          <span className="lookout-label">
+            Who needs what
+            <i title="A hitter one home run short of the next multiple of ten. A round number is a counting fact, not a reason to expect a swing — it is here because it is the thing people notice, and it is labelled as a lookup for that reason.">
+              one swing from a round number
+            </i>
+          </span>
+          <div className="lookout-chips">
+            {model.milestones.map((m) => (
+              <span key={m.pid} className="chip">
+                <b>{m.name}</b>
+                {m.team && <small>{m.team}</small>}
+                <em>{m.hr}→{m.next}</em>
+              </span>
+            ))}
+          </div>
         </div>
       )}
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>
-        lookups, not predictions — the arms row is the tag rules run live (hover for the alarm count); pool load arrives when the bot publishes pool membership
+
+      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6 }}>
+        Pool load arrives when the bot publishes pool membership.
       </div>
+
+      <style jsx>{`
+        .lookout-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:7px}
+        .lookout-head span{font-size:9px;font-weight:800;letter-spacing:.07em;color:${C.text3};text-transform:uppercase}
+        .lookout-head em{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;white-space:nowrap}
+        .lookout-row{margin-top:7px}
+        .lookout-label{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:5px;font-size:10.5px;font-weight:800;color:${C.text}}
+        .lookout-label i{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;letter-spacing:.06em;text-transform:uppercase;cursor:help;border-bottom:1px dotted ${C.border2}}
+        .lookout-chips{display:flex;flex-wrap:wrap;gap:5px}
+        .lookout-chips :global(.chip){display:inline-flex;align-items:baseline;gap:5px;padding:4px 8px;border:1px solid ${C.border};border-radius:999px;background:${C.bg};cursor:help}
+        .lookout-chips :global(.chip-hot){border-color:rgba(249,115,22,.45);background:rgba(249,115,22,.08)}
+        .lookout-chips :global(.chip b){font-size:10.5px;font-weight:800;color:${C.text}}
+        .lookout-chips :global(.chip-hot b){color:${C.orange}}
+        .lookout-chips :global(.chip small){color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;letter-spacing:.04em}
+        .lookout-chips :global(.chip em){color:${C.text2};font-family:${NUM_FONT};font-size:9px;font-weight:900;font-style:normal}
+        .lookout-chips :global(.chip-hot em){color:${C.orange}}
+      `}</style>
     </div>
   )
 }
@@ -1247,23 +1302,32 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <LookOut players={players} />
+              {/* Chips, for the reason the look-out above got them
+                  (2026-08-29): four names each followed by the same
+                  "29→30 ★" shape reads as a sentence you have to parse. The
+                  count and the caveat live in the label, once; each name is
+                  a tappable chip carrying only its own two numbers. */}
               {pre.milestones.length > 0 && (
-                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
-                  <b style={{ color: '#FCD34D' }}>One away from a round number.</b>{' '}
-                  {pre.milestones.length} of tonight&apos;s {pre.total} hitters — closest to the
-                  bot&apos;s picks:{' '}
-                  {pre.milestones.slice(0, 4).map((m, i) => (
-                    <span key={`${m.name}-${m.next}`}>
-                      {i > 0 && ' · '}
-                      <span
+                <div className="ledger-chip-row">
+                  <span className="ledger-chip-label" style={{ color: '#FCD34D' }}>
+                    One away from a round number
+                    <i>{pre.milestones.length} of {pre.total} hitters · ★ = the bot designated him</i>
+                  </span>
+                  <div className="ledger-chips">
+                    {pre.milestones.slice(0, 4).map((m) => (
+                      <button
+                        type="button"
+                        key={`${m.name}-${m.next}`}
+                        className="ledger-chip"
                         onClick={onPlayerClick ? () => onPlayerClick(m._raw) : undefined}
-                        style={{ cursor: onPlayerClick ? 'pointer' : 'default', color: C.text, fontWeight: 700 }}
-                      >{m.name}</span>
-                      <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
-                        {' '}{m.at}→{m.next}{m.designated ? ' ★' : ''}
-                      </span>
-                    </span>
-                  ))}
+                        disabled={!onPlayerClick}
+                      >
+                        <b>{m.name}</b>
+                        <em>{m.at}→{m.next}</em>
+                        {m.designated && <span className="ledger-chip-star">★</span>}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               {pre.jerseys.length > 0 && (
@@ -1316,6 +1380,18 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             </div>
           </>
         )}
+        <style jsx>{`
+          .ledger-chip-row{display:flex;flex-direction:column;gap:5px}
+          .ledger-chip-label{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;font-size:10.5px;font-weight:800}
+          .ledger-chip-label i{color:${C.text3};font-family:${NUM_FONT};font-size:8.5px;font-weight:700;font-style:normal;letter-spacing:.03em}
+          .ledger-chips{display:flex;flex-wrap:wrap;gap:5px}
+          .ledger-chip{display:inline-flex;align-items:baseline;gap:5px;padding:4px 9px;border:1px solid ${C.border};border-radius:999px;background:${C.bg};color:inherit;font-family:inherit;cursor:pointer}
+          .ledger-chip:disabled{cursor:default}
+          .ledger-chip:hover:not(:disabled){border-color:rgba(252,211,77,.45);background:rgba(252,211,77,.07)}
+          .ledger-chip b{font-size:10.5px;font-weight:800;color:${C.text}}
+          .ledger-chip em{color:${C.text3};font-family:${NUM_FONT};font-size:9px;font-weight:900;font-style:normal}
+          .ledger-chip-star{color:#FCD34D;font-size:9px}
+        `}</style>
       </div>
     )
   }
