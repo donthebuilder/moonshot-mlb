@@ -17,6 +17,9 @@ import { pitchColor, isDeepFlyOut } from '../lib/livePitches'
 // Donovan's redesign screenshots) — categories imported from that file, not
 // copied, so the two surfaces can't drift apart.
 import { outcomeOf, OUTCOME_TABS, QUALITY_TABS } from './BattedBallLog'
+// Real park geometry: distances + wall HEIGHTS, one source, regenerable
+// from Baseball Savant (bots/fetch_park_dimensions.py in the bot repo).
+import { PARK_WALLS as PARKS } from '../lib/parkWalls'
 
 // 🏟 The stadium view rides in on demand — three.js is ~600KB and belongs in
 // nobody's first paint. ssr:false because it is a WebGL canvas with no server
@@ -53,45 +56,12 @@ import { solveFlight } from '../lib/trajectory'
 //   - brightness is exit velocity on a fixed 65–110 scale, not per-player
 // Per-player scaling on either one makes two charts look alike that aren't.
 
-// Real outfield dimensions, LF / LCF / CF / RCF / RF in feet. The payload gives
-// venue_name but no geometry, and a generic arc is the reason the chart didn't
-// look like anywhere -- Fenway and Coors are not the same shape, and a ball to
-// left means something different in each. Public park dimensions, matched on
-// the venue string the bot already publishes.
-const PARKS = {
-  'Fenway Park':                    { d: [310, 379, 390, 420, 302], h: [37.3, 37.3, 17.2, 4, 3.6] },
-  'Yankee Stadium':                 { d: [318, 399, 408, 385, 314], h: [8.1, 8.1, 8.2, 8.3, 7.7] },
-  'Coors Field':                    { d: [347, 390, 415, 375, 350], h: [12.4, 7.6, 7.6, 16.1, 16.2] },
-  'Dodger Stadium':                 { d: [330, 385, 395, 385, 330], h: [3.6, 7.6, 7.5, 7.6, 3.5] },
-  'UNIQLO Field at Dodger Stadium': { d: [330, 385, 395, 385, 330], h: [3.6, 7.6, 7.5, 7.6, 3.5] },
-  'Oracle Park':                    { d: [339, 364, 399, 415, 309], h: [8.2, 8.2, 9.1, 6.6, 23.8] },
-  'Wrigley Field':                  { d: [355, 368, 400, 368, 353], h: [11.3, 11.1, 10.9, 11.2, 11.1] },
-  'Great American Ball Park':       { d: [328, 379, 404, 370, 325], h: [11.4, 11.3, 7.7, 7.6, 11.8] },
-  'Oriole Park at Camden Yards':    { d: [333, 364, 400, 373, 318], h: [6.4, 6.3, 5.9, 5.9, 19.9] },
-  'Truist Park':                    { d: [335, 375, 400, 375, 325], h: [5.3, 8, 8, 15.3, 15.3] },
-  'Citi Field':                     { d: [335, 358, 408, 398, 330], h: [8.2, 7.8, 7.9, 7.5, 9.8] },
-  'Petco Park':                     { d: [336, 390, 396, 391, 322], h: [4.4, 6.2, 7.1, 7.3, 10.5] },
-  'Progressive Field':              { d: [325, 370, 405, 375, 325], h: [20.1, 20, 7.5, 7.5, 12] },
-  'Rogers Centre':                  { d: [328, 375, 400, 375, 328], h: [14.1, 10.2, 7.7, 10.8, 12.3] },
-  'Daikin Park':                    { d: [315, 362, 409, 373, 326], h: [18.2, 24.2, 9.4, 9.6, 6.3] },
-  'T-Mobile Park':                  { d: [331, 378, 401, 381, 326], h: [7.7, 7.7, 7.7, 7.7, 7.6] },
-  'Angel Stadium':                  { d: [330, 387, 396, 370, 330], h: [3.2, 6.6, 6.6, 6.6, 3.2] },
-  'Tropicana Field':                { d: [315, 370, 404, 370, 322], h: [4.8, 11.4, 9.1, 11.2, 8.9] },
-  'Sutter Health Park':             { d: [330, 375, 403, 375, 325], h: [7.9, 7.6, 7.9, 4.8, 13.3] },
-  'Busch Stadium':                  { d: [336, 375, 400, 375, 335], h: [7.4, 7.4, 7.4, 7.3, 7.3] },
-  'American Family Field':          { d: [342, 370, 400, 374, 345], h: [14.8, 6.7, 6.9, 6.8, 7.1] },
-  'PNC Park':                       { d: [325, 383, 399, 375, 320], h: [4.8, 4.8, 9.6, 9.6, 22.1] },
-  'Kauffman Stadium':               { d: [330, 387, 410, 387, 330], h: [8, 8, 8, 8, 8] },
-  'Target Field':                   { d: [339, 377, 404, 367, 328], h: [7.7, 7.7, 7.6, 23, 20.4] },
-  'Comerica Park':                  { d: [345, 370, 412, 365, 330], h: [7.9, 6.7, 6.7, 6.7, 9] },
-  'Guaranteed Rate Field':          { d: [330, 377, 400, 372, 335], h: [6.6, 6.8, 6.8, 6.6, 6.5] },
-  'Rate Field':                     { d: [330, 377, 400, 372, 335], h: [6.6, 6.8, 6.8, 6.6, 6.5] },
-  'Nationals Park':                 { d: [336, 377, 402, 370, 335], h: [8.6, 7.7, 7, 14.1, 16.3] },
-  'Citizens Bank Park':             { d: [329, 374, 401, 369, 330], h: [10.9, 9.6, 5.6, 12.5, 12.5] },
-  'loanDepot park':                 { d: [345, 386, 400, 387, 335], h: [11, 11, 8.3, 8.1, 11] },
-  'Chase Field':                    { d: [330, 374, 407, 374, 335], h: [8, 7.3, 24.5, 6.9, 8.3] },
-  'Globe Life Field':               { d: [329, 372, 407, 374, 326], h: [8, 8.1, 8.1, 6.4, 8] },
-}
+// Real outfield dimensions AND wall heights, LF / LCF / CF / RCF / RF in feet.
+// Was a hand-typed object living in this file; pulled out to lib/parkWalls.js
+// (2026-08-29) as the one source, regenerable from Baseball Savant by
+// bots/fetch_park_dimensions.py, so this component and anything else that
+// needs a real wall (lib/walls.js's distance-only statsapi pull included)
+// can eventually read the same numbers instead of two sources disagreeing.
 const DEFAULT_PARK = [330, 375, 400, 375, 330]
 // Heights are only consulted for the SELECTED test park, which always comes
 // from PARKS — this is the fallback for a venue we only know by distance.
@@ -428,6 +398,11 @@ export default function SprayField({
   const [only, setOnly] = useState('all')
   const [picked, setPicked] = useState(null)   // null = all pitches; else Set
   const [hover, setHover] = useState(null)
+  // Bumped on every hover-enter so the flight animation below remounts
+  // (SVG key change) and restarts from home plate instead of continuing
+  // mid-flight or not playing again on the same dot (Donovan, 2026-08-29:
+  // "see trajectory for single event like a moving thing when i hover").
+  const [hoverNonce, setHoverNonce] = useState(0)
   // The methodology essays live behind this now — see the cleanliness pass.
   const [showHelp, setShowHelp] = useState(false)
   // L5 BY DEFAULT (2026-08-08, "auto spray to last 5 · auto open"): the
@@ -1603,7 +1578,7 @@ export default function SprayField({
                 <circle
                   cx={x} cy={y} r="9"
                   fill="transparent"
-                  onMouseEnter={() => setHover(i)}
+                  onMouseEnter={() => { setHover(i); setHoverNonce((v) => v + 1) }}
                   onMouseLeave={() => setHover((v) => (v === i ? null : v))}
                   /* tap-to-toggle: `on` is this dot's hover-state from the last
                      completed render — a touch tap fires a synthetic mouseenter
@@ -1619,6 +1594,52 @@ export default function SprayField({
               </g>
             )
           })}
+
+          {/* 🎞 THE HOVER FLIGHT (2026-08-29). Donovan: "i want to see
+              trajectory for single event like a moving thing when i hover
+              over it." The chart is top-down, so there's no literal height
+              axis to animate along — the ball travels the same straight
+              home-plate-to-landing line the static dot already sits on. What
+              sells the arc on a flat plane is everything ELSE changing along
+              the way: it grows and brightens rising to apex, then shrinks and
+              fades coming back down, timed to the REAL solved trajectory
+              (lib/trajectory.js — same physics fit the park-overlay math
+              uses, not a fake ease curve) rather than a constant-speed dot,
+              so a towering fly ball visibly hangs near the top the way it did
+              in the air, and a screaming liner just streaks across.
+              `key` includes hoverNonce so re-hovering the SAME ball restarts
+              it from home plate instead of continuing wherever it left off or
+              silently not playing a second time. */}
+          {hover != null && shown[hover] && (() => {
+            const h = shown[hover]
+            const flight = flightFor(h)
+            if (!flight) return null // grounder/chopper: solveFlight declines rather than fake an arc
+            const ang = Math.max(-EDGE, Math.min(EDGE, h.ang))
+            const [tx, ty] = pt(Math.min(h.r, R), ang)
+            const frames = flight.timeFrames(20)
+            // Real hang time, clamped to stay watchable — a 0.3s squibber and
+            // an 8s moonshot both need to actually be SEEN, not just be honest.
+            const dur = Math.max(0.9, Math.min(3.2, flight.hangS))
+            const BASE_R = 3.4, APEX_BUMP = 3.2
+            const rValues = frames.map((f) => (BASE_R + f.heightFrac * APEX_BUMP).toFixed(2)).join(';')
+            const opValues = frames.map((f) => (0.55 + f.heightFrac * 0.45).toFixed(2)).join(';')
+            const keyTimes = frames.map((f) => f.t.toFixed(4)).join(';')
+            const keyPoints = frames.map((f) => Math.min(1, f.distFrac).toFixed(4)).join(';')
+            return (
+              <g key={`flight-${hover}-${hoverNonce}`} style={{ pointerEvents: 'none' }}>
+                <line x1={cx} y1={cy} x2={tx} y2={ty} stroke="#fff" strokeWidth="0.7" strokeDasharray="1.5 2.5" opacity="0.35" />
+                <circle r={BASE_R} fill="#fff" stroke="#0a0806" strokeWidth="0.8">
+                  <animateMotion
+                    dur={`${dur}s`} fill="freeze" calcMode="linear"
+                    keyPoints={keyPoints} keyTimes={keyTimes}
+                    path={`M${cx},${cy} L${tx},${ty}`}
+                  />
+                  <animate attributeName="r" dur={`${dur}s`} fill="freeze" calcMode="linear" values={rValues} keyTimes={keyTimes} />
+                  <animate attributeName="opacity" dur={`${dur}s`} fill="freeze" calcMode="linear" values={opValues} keyTimes={keyTimes} />
+                </circle>
+              </g>
+            )
+          })()}
 
           {/* TONIGHT'S BALLS — same field, same colour language, drawn last so
               they sit on top of the season sample. The white ring is the only

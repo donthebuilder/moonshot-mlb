@@ -359,6 +359,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       dot.position.set(v.x, 1.4, v.z)
       if (big) dot.scale.setScalar(1.35)
       dot.userData.info = info
+      if (f) dot.userData.flightIndex = flightIdx
       scene.add(dot)
       pickables.push(dot)
     })
@@ -368,6 +369,46 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //    re-renders the scene.
     const ray = new THREE.Raycaster()
     const ptr = new THREE.Vector2()
+    // ── HOVER FLIGHT (2026-08-29). Donovan, after the same request landed on
+    // the 2D chart: "continue on the hover work on the 3d" — hovering one ball
+    // here already got a tooltip; it never actually flew BY ITSELF the way the
+    // global ▶ replay flies everything at once. This reuses that exact same
+    // `flights` data (so the arc is identical, not a second computation) for
+    // just the one ball under the cursor, so mousing around the field plays
+    // each hit's real trajectory on demand instead of only at page-load.
+    // Distinct from `replay`: a separate mesh/state pair so hovering during
+    // the load-time replay (or after it) never fights over the same ball.
+    let hoverFlight = null // { flightIndex, mesh, t0 }
+    const clearHoverFlight = () => {
+      if (!hoverFlight) return
+      scene.remove(hoverFlight.mesh)
+      hoverFlight.mesh.material.dispose()
+      hoverFlight = null
+    }
+    const startHoverFlight = (flightIndex) => {
+      if (hoverFlight?.flightIndex === flightIndex) return // already flying this one
+      clearHoverFlight()
+      const fl = flights[flightIndex]
+      if (!fl) return
+      const mesh = new THREE.Mesh(flyGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }))
+      mesh.position.copy(fl.pts[0])
+      scene.add(mesh)
+      hoverFlight = { flightIndex, mesh, t0: performance.now() }
+    }
+    const stepHoverFlight = (now) => {
+      if (!hoverFlight) return
+      const fl = flights[hoverFlight.flightIndex]
+      // Real hang time, same 4x-ish feel as the full replay, clamped so a
+      // routine grounder-turned-flyout and a moonshot are both watchable.
+      const dur = Math.max(700, Math.min(3200, fl.hang * 400))
+      const p = (now - hoverFlight.t0) / dur
+      const idx = Math.min(fl.pts.length - 1, Math.max(0, Math.floor(p * fl.pts.length)))
+      hoverFlight.mesh.position.copy(fl.pts[idx])
+      // Holds at the landing point (like the site's 2D hover animation) —
+      // rather than disappearing or looping — until the cursor actually
+      // leaves that ball, so a still cursor shows a still-standing result.
+    }
+
     const onMove = (e) => {
       const tip = tipRef.current
       if (!tip) return
@@ -376,8 +417,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       ptr.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
       ray.setFromCamera(ptr, camera)
       const hit = ray.intersectObjects(pickables, false)[0]
-      if (!hit) { tip.style.display = 'none'; renderer.domElement.style.cursor = ''; return }
+      if (!hit) { tip.style.display = 'none'; renderer.domElement.style.cursor = ''; clearHoverFlight(); return }
       const i = hit.object.userData.info
+      const fi = hit.object.userData.flightIndex
+      if (fi != null) startHoverFlight(fi); else clearHoverFlight()
       const bits = []
       if (i.ev != null) bits.push(`${i.ev.toFixed(1)} mph`)
       if (i.la != null) bits.push(`${i.la.toFixed(0)}°`)
@@ -391,7 +434,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       tip.style.top = `${Math.max(e.clientY - rect.top - 14, 6)}px`
       renderer.domElement.style.cursor = 'pointer'
     }
-    const onLeave = () => { if (tipRef.current) tipRef.current.style.display = 'none' }
+    const onLeave = () => { if (tipRef.current) tipRef.current.style.display = 'none'; clearHoverFlight() }
     renderer.domElement.addEventListener('pointermove', onMove)
     renderer.domElement.addEventListener('pointerleave', onLeave)
 
@@ -439,7 +482,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     if (!reduceMotion) runReplay()
 
     let raf
-    const tick = (now) => { controls.update(); stepReplay(now || performance.now()); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
+    const tick = (now) => { controls.update(); stepReplay(now || performance.now()); stepHoverFlight(now || performance.now()); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
     tick()
 
     const onResize = () => {

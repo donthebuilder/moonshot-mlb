@@ -10,6 +10,7 @@ import PasswordInput from '../../components/PasswordInput'
 import TeamMark from '../../components/fantasy/TeamMark'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import styles from './fantasy.module.css'
+import NetworkSwitch from '../../components/NetworkSwitch'
 
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
@@ -30,7 +31,11 @@ function AuthScreen({ error, message }) {
     <main className={styles.launchApp}>
       {(error || message) && <div className={styles.authBanner}><Notice error={error} message={message} /></div>}
       <header className={styles.launchHeader}>
-        <Link className={styles.launchBrand} href="/"><img src="/icon-192.png" alt="" width="39" height="39"/><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
+        {/* Straight to the actual board, not the marketing front door
+            (2026-08-29, same fix as app/login/page.js's brand link — a
+            person stuck on Franchise's sign-in screen was one click from the
+            front door and no closer to MOONSHOT/TUDDY than before). */}
+        <Link className={styles.launchBrand} href="/app#sport=mlb&tab=home"><img src="/icon-192.png" alt="" width="39" height="39"/><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
         <nav><a href="#product">See the product</a><a href="#sign-in">Sign in</a><a className={styles.launchNavCta} href="#create-account">Start free</a></nav>
       </header>
 
@@ -252,9 +257,26 @@ export default async function FantasyPage({ searchParams }) {
   return (
     <main className={styles.app}>
       <header className={styles.topbar}>
-        <div><p>DASH NETWORK</p><strong>FRANCHISE</strong></div>
+        {/* This was plain text, not a link -- the one screen in Franchise with
+            NO way back to the actual site (Donovan, 2026-08-29 screenshot:
+            "i need to be able to get to the home page"). Every other header
+            in Franchise (the logged-out launch screen, /login) already goes
+            straight to /app; this authenticated "Your franchises" screen was
+            the gap. */}
+        <Link href="/app#sport=mlb&tab=home" style={{display:'flex',flexDirection:'column',textDecoration:'none',color:'inherit'}}><p>DASH NETWORK</p><strong>FRANCHISE</strong></Link>
         <form action={signOut}><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form>
       </header>
+      {/* Donovan, 2026-08-29: "there no nav" -- the brand-link fix above made
+          the logo clickable, but this screen still had nothing that read as
+          NAVIGATION -- no visible way to see MOONSHOT/TUDDY exist from here at
+          all unless you already knew to click the logo. NetworkSwitch is the
+          same three-tile MOONSHOT/TUDDY/FRANCHISE switcher the mobile dock
+          shows (components/NetworkSwitch.js) -- that one is CSS-hidden on
+          desktop because league ROOM pages have their own "← FRANCHISE" +
+          room nav there. This top-level Franchise page has neither, on any
+          screen size, so it gets the switch inline instead of relying on a
+          dock that doesn't show here. */}
+      <div style={{maxWidth:420,margin:'14px auto 0'}}><NetworkSwitch/></div>
       <section className={styles.welcome}>
         <p className={styles.eyebrow}>YOUR FRONT OFFICE</p>
         <h1>Make every move count.</h1>
