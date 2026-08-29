@@ -64,6 +64,8 @@ function numberSprite(text) {
 
 export default function SprayFieldStadium({ hits = [], dims, heights, venue = '' }) {
   const mountRef = useRef(null)
+  const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
+  const replayRef = useRef(null)   // set by the effect to the replay function
   const [ok, setOk] = useState(true)
 
   useEffect(() => {
@@ -292,6 +294,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const COL_OUT = new THREE.Color(0x62626c)
     const dotGeo = new THREE.SphereGeometry(2.6, 12, 12)
 
+    // Everything hoverable, and everything flyable. `info` is the readout the
+    // tooltip prints; `flights` feeds the replay.
+    const pickables = []
+    const flights = []
     hits.forEach((h) => {
       if (!Number.isFinite(h?.r) || !Number.isFinite(h?.ang)) return
       const f = Number.isFinite(h?.ev) && Number.isFinite(h?.la) && h.la > 0
@@ -302,6 +308,18 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const over = reached && (hAtWall == null ? true : hAtWall > wallH(h.ang))
       const big = h.hr || over || reached
       const col = h.hr || over ? COL_HR : reached ? COL_WALL : h.hit ? COL_HIT : COL_OUT
+      const info = {
+        verdict: h.hr ? 'HOME RUN' : over ? 'clears this wall' : reached ? 'off this wall' : (h.event || (h.hit ? 'hit' : 'out')),
+        col: '#' + col.getHexString(),
+        ev: Number.isFinite(h?.ev) && h.ev > 0 ? h.ev : null,
+        la: Number.isFinite(h?.la) && h.la !== 0 ? h.la : null,
+        dist: Math.round(h.r),
+        apex: f ? Math.round(f.apexFt) : null,
+        hang: f ? f.hangS : null,
+        pitch: h.pitch || '',
+        date: h.date || '',
+        event: (h.event || '').replace(/_/g, ' '),
+      }
 
       if (f) {
         const N = 40
@@ -312,6 +330,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
           const v = P(d, h.ang)
           pts.push(new THREE.Vector3(v.x, Math.max(0, y), v.z))
         }
+        flights.push({ pts, col, big, hang: f.hangS })
         if (big) {
           const curve = new THREE.CatmullRomCurve3(pts)
           const tube = new THREE.Mesh(
@@ -323,7 +342,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
               color: col, transparent: true, opacity: h.hr || over ? 0.96 : 0.88,
             }),
           )
+          tube.userData.info = info
           scene.add(tube)
+          pickables.push(tube)
         } else {
           scene.add(new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(pts),
@@ -337,11 +358,88 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const v = P(h.r, h.ang)
       dot.position.set(v.x, 1.4, v.z)
       if (big) dot.scale.setScalar(1.35)
+      dot.userData.info = info
       scene.add(dot)
+      pickables.push(dot)
     })
 
+    // ── HOVER READOUT. Raycast the dots and tubes; the tooltip is a plain
+    //    absolutely-positioned div driven outside React, so hovering never
+    //    re-renders the scene.
+    const ray = new THREE.Raycaster()
+    const ptr = new THREE.Vector2()
+    const onMove = (e) => {
+      const tip = tipRef.current
+      if (!tip) return
+      const rect = renderer.domElement.getBoundingClientRect()
+      ptr.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+      ptr.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+      ray.setFromCamera(ptr, camera)
+      const hit = ray.intersectObjects(pickables, false)[0]
+      if (!hit) { tip.style.display = 'none'; renderer.domElement.style.cursor = ''; return }
+      const i = hit.object.userData.info
+      const bits = []
+      if (i.ev != null) bits.push(`${i.ev.toFixed(1)} mph`)
+      if (i.la != null) bits.push(`${i.la.toFixed(0)}°`)
+      bits.push(`${i.dist} ft`)
+      if (i.apex != null) bits.push(`apex ${i.apex} ft`)
+      if (i.hang != null) bits.push(`${i.hang.toFixed(1)}s hang`)
+      tip.innerHTML = `<b style="color:${i.col}">${i.verdict}</b><br>${bits.join(' · ')}`
+        + (i.pitch || i.date ? `<br><span style="opacity:.7">${[i.pitch, i.date].filter(Boolean).join(' · ')}</span>` : '')
+      tip.style.display = 'block'
+      tip.style.left = `${Math.min(e.clientX - rect.left + 14, rect.width - 190)}px`
+      tip.style.top = `${Math.max(e.clientY - rect.top - 14, 6)}px`
+      renderer.domElement.style.cursor = 'pointer'
+    }
+    const onLeave = () => { if (tipRef.current) tipRef.current.style.display = 'none' }
+    renderer.domElement.addEventListener('pointermove', onMove)
+    renderer.domElement.addEventListener('pointerleave', onLeave)
+
+    // ── THE REPLAY. Every solvable ball flies its arc off the bat, staggered
+    //    so the night reads as a sequence rather than a firework. Runs once
+    //    on load (unless the viewer asked for reduced motion) and again from
+    //    the ▶ replay button. Time scale: real hang times are 3–7s; ~4x speed
+    //    keeps a 60-ball night under ten seconds.
+    const flyGeo = new THREE.SphereGeometry(1.9, 10, 10)
+    let replay = null
+    const runReplay = () => {
+      if (!flights.length || replay) return
+      const balls = flights.map((fl) => {
+        const m = new THREE.Mesh(flyGeo, new THREE.MeshBasicMaterial({
+          color: fl.col, transparent: true, opacity: fl.big ? 1 : 0.5,
+        }))
+        m.visible = false
+        scene.add(m)
+        return m
+      })
+      replay = { t0: performance.now(), balls }
+    }
+    const stepReplay = (now) => {
+      if (!replay) return
+      let alive = false
+      flights.forEach((fl, i) => {
+        const start = replay.t0 + i * 70
+        const dur = Math.max(500, fl.hang * 260)
+        const p = (now - start) / dur
+        const ball = replay.balls[i]
+        if (p < 0) { alive = true; return }
+        if (p >= 1) { ball.visible = false; return }
+        alive = true
+        ball.visible = true
+        const idx = Math.min(fl.pts.length - 1, Math.floor(p * fl.pts.length))
+        ball.position.copy(fl.pts[idx])
+      })
+      if (!alive) {
+        replay.balls.forEach((b) => { scene.remove(b); b.material.dispose() })
+        replay = null
+      }
+    }
+    replayRef.current = runReplay
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!reduceMotion) runReplay()
+
     let raf
-    const tick = () => { controls.update(); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
+    const tick = (now) => { controls.update(); stepReplay(now || performance.now()); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
     tick()
 
     const onResize = () => {
@@ -356,6 +454,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', onResize)
+      renderer.domElement.removeEventListener('pointermove', onMove)
+      renderer.domElement.removeEventListener('pointerleave', onLeave)
+      replayRef.current = null
       controls.dispose()
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose()
@@ -380,9 +481,28 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
   return (
     <div>
-      <div ref={mountRef} style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
+      <div style={{ position: 'relative' }}>
+        <div ref={mountRef} style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
+        {/* the hover readout — display driven directly by the raycaster */}
+        <div ref={tipRef} style={{
+          display: 'none', position: 'absolute', zIndex: 5, pointerEvents: 'none',
+          maxWidth: 180, padding: '6px 9px', borderRadius: 8,
+          background: 'rgba(9,9,11,.92)', border: `1px solid ${C.border2}`,
+          fontSize: 10, lineHeight: 1.5, color: C.text2, fontFamily: NUM_FONT,
+        }} />
+        <button
+          onClick={() => replayRef.current && replayRef.current()}
+          title="Fly every ball along its reconstructed arc again, in sequence"
+          style={{
+            position: 'absolute', right: 8, top: 8, zIndex: 4,
+            padding: '3px 10px', fontSize: 10, fontWeight: 700, borderRadius: 7,
+            cursor: 'pointer', fontFamily: NUM_FONT,
+            border: `1px solid ${C.border2}`, background: 'rgba(9,9,11,.75)', color: C.text2,
+          }}
+        >▶ replay</button>
+      </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        drag to orbit · scroll to zoom{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
+        drag to orbit · scroll to zoom · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
         <b style={{ color: C.orange }}>orange</b> over the wall ·{' '}
         <b style={{ color: '#fbbf24' }}>amber</b> off the wall ·{' '}

@@ -224,6 +224,13 @@ function StatGroup({ icon, title, blurb, color, children }) {
 
 export default function MatchupPitcher({ player, slateMode }) {
   const [detail, setDetail] = useState(null)
+  // 🔴 LIVE ARSENAL FALLBACK (2026-08-29). The batter side got this in Pass
+  // 11; the pitcher side kept its dead end. When no detail file exists for
+  // this starter, pull his whole season of pitches from Statcast (the CSV
+  // returns EVERY pitch, so usage% and whiff% are computed on their true
+  // denominators — see lib/savant.js savantPitcherArsenal). Tagged live
+  // wherever it renders; the bot's file always wins when it exists.
+  const [liveArs, setLiveArs] = useState(null)
   const [state, setState] = useState('idle')
 
   const pitcherId = player?.pitcher_id
@@ -240,6 +247,16 @@ export default function MatchupPitcher({ player, slateMode }) {
       .catch(() => { if (alive) setState('error') })
     return () => { alive = false }
   }, [pitcherId, slateMode])
+
+  useEffect(() => {
+    if (!pitcherId || (state !== 'missing' && state !== 'error')) { setLiveArs(null); return undefined }
+    let alive = true
+    import('../lib/savant')
+      .then(({ savantPitcherArsenal }) => savantPitcherArsenal(pitcherId))
+      .then((a) => { if (alive) setLiveArs(a) })
+      .catch(() => { if (alive) setLiveArs(null) })
+    return () => { alive = false }
+  }, [pitcherId, state])
 
   // Arsenal, taken from the split that matches which side this hitter stands
   // on. The overall mix is the fallback and is labelled as such — a starter's
@@ -280,11 +297,24 @@ export default function MatchupPitcher({ player, slateMode }) {
   // this hitter's own hand while one is selected.
   const effHand = sitView ? bats : handView === 'auto' ? bats : handView === 'all' ? '' : handView
 
-  const { arsenal, side } = useMemo(() => {
+  const { arsenal, side, liveSource } = useMemo(() => {
     const key = effHand === 'L' ? 'pitcher_pitch_mix_vs_lhb' : effHand === 'R' ? 'pitcher_pitch_mix_vs_rhb' : null
     const split = key ? arr(obj(detail?.[key]).pitch_type_summary) : []
     const overall = arr(detail?.pitcher_pitch_arsenal_detail)
     const use = split.length ? split : overall
+    // No bot file at all → the live Statcast arsenal, already in this memo's
+    // output shape (lib/savant.js). Side split honoured when the live pull
+    // has it; fields the export can't honestly compute arrive null and the
+    // table draws em-dashes for them exactly as it does for bot rows.
+    if (!use.length && liveArs) {
+      const sideRows = effHand === 'L' ? liveArs.vsL : effHand === 'R' ? liveArs.vsR : liveArs.overall
+      const rows = (sideRows?.length ? sideRows : liveArs.overall) || []
+      return {
+        arsenal: rows.map((a) => ({ ...a, pitch: PITCH_NAMES[a.code] || a.code })),
+        side: sideRows?.length && effHand ? `vs ${effHand}HB` : 'overall',
+        liveSource: true,
+      }
+    }
     return {
       arsenal: use.map((a) => {
         const code = clean(a.pitch_code || a.pitch_type, '')
@@ -319,7 +349,7 @@ export default function MatchupPitcher({ player, slateMode }) {
       }).sort((x, y) => y.usage - x.usage),
       side: split.length ? (effHand === 'L' ? 'vs LHB' : 'vs RHB') : 'overall',
     }
-  }, [detail, effHand])
+  }, [detail, effHand, liveArs])
 
   const spots = useMemo(() => Object.values(obj(detail?.pitcher_lineup_spot_damage)).map((s) => ({
     _key: String(s.spot),
@@ -760,8 +790,13 @@ export default function MatchupPitcher({ player, slateMode }) {
       {state === 'loading' && <div style={{ fontSize: 11, color: C.text3 }}>Loading his detail file…</div>}
       {(state === 'missing' || state === 'error') && (
         <div style={{ fontSize: 11, color: C.text3, padding: '8px 0' }}>
-          No detail file published for this starter, so the arsenal and lineup-damage tables below are
-          unavailable. The season numbers above come off the slate row and are unaffected.
+          {liveArs
+            ? <>No detail file published for this starter — the arsenal below is a <b style={{ color: C.orange }}>live Statcast pull</b> of
+              his {liveArs.pitches} pitches this season, not the bot&apos;s file. Usage and whiff rates are computed on their true
+              denominators; xwOBA/K% need plate-appearance accounting this export doesn&apos;t carry and show as dashes.
+              The lineup-damage tables still need the bot&apos;s file.</>
+            : <>No detail file published for this starter, so the arsenal and lineup-damage tables below are
+              unavailable{liveArs === null ? ' (live Statcast pull unavailable too)' : ''}. The season numbers above come off the slate row and are unaffected.</>}
         </div>
       )}
 
@@ -769,8 +804,10 @@ export default function MatchupPitcher({ player, slateMode }) {
         <>
           <SectionTitle
             label="Arsenal"
-            sub={side === 'overall' ? 'overall usage — no side split published' : `his mix ${side}, the side this hitter bats from`}
-            subColor={side === 'overall' ? C.text3 : C.orange}
+            sub={liveSource
+              ? `${side === 'overall' ? 'overall usage' : `his mix ${side}`} · 🔴 live Statcast pull — not the bot's file`
+              : side === 'overall' ? 'overall usage — no side split published' : `his mix ${side}, the side this hitter bats from`}
+            subColor={liveSource || side !== 'overall' ? C.orange : C.text3}
           />
           {/* The readable layer first. When this batter's own per-pitch
               profile is on hand (it rides his detail file into the modal),
