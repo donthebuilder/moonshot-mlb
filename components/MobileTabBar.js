@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import NetworkSwitch from './NetworkSwitch'
 
 const MAIN = [
   ['home', '⌂', 'Home'],
@@ -42,11 +43,15 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
       <aside className={`mobileMore ${open ? 'open' : ''}`} aria-hidden={!open}>
         <div className="mobileMoreHead"><div><small>{brand}</small><strong>More tools</strong></div><button onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
         <div className="mobileMoreGrid">
-          {/* Leaves the sport, so it is a link and not a tab — and it is first
-              because on a phone the switcher is the hardest thing to find. */}
-          <a className="mobileMoreHome" href="/">
-            <span>⌂ DASH Home</span><small>Tonight across all three products</small>
-          </a>
+          {/* THE NETWORK SWITCH LIVES HERE NOW (2026-08-29). Donovan: "remove
+              the little floating ico, its redundant now — just make it so we
+              can navigate the different sites from the nav thing at the
+              bottom." The draggable launcher that used to float over every
+              page is deleted; this row is its replacement, and it is first in
+              the sheet because on a phone the switcher is the hardest thing
+              to find. Leaving the sport is a link, not a tab, so it sits
+              outside the grid of tabs below. */}
+          <NetworkSwitch onNavigate={() => setOpen(false)} />
           {more.map(([key, label, detail]) => (
             <button key={key} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
               <span>{label}</span><small>{detail}</small>

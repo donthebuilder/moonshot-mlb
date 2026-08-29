@@ -1,9 +1,11 @@
 // 🏠 THE FRONT DOOR.
 //
 // 2026-08-28, Donovan: "we dont have a front door." He's right, and the
-// switcher wasn't one — components/DashNetworkNav.js is good in-app
-// navigation and a bad first impression: a floating button in a corner that
-// already assumes you know what MOONSHOT is.
+// floating switcher wasn't one: a button in a corner that already assumes
+// you know what MOONSHOT is. (That switcher is gone entirely as of
+// 2026-08-29 — its three destinations live in the bottom bar's More sheet
+// now, via components/NetworkSwitch.js. This page is unchanged by that; it
+// was never where the switcher belonged.)
 //
 // This page answers three questions in the order a person actually asks them:
 //

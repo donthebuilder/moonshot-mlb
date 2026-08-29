@@ -319,7 +319,24 @@ export default function MobileCSS() {
           min-width: 0;
         }
         .hdr-meta > * { flex-shrink: 0; }
-        .sport-switch button { min-height: 32px !important; }
+        /* ── THE SPORT PILLS ARE GONE ON A PHONE (2026-08-29) ─────────
+           Donovan: "do you see the bubbles at the top nfl and mlb, do we
+           even need those any more, plus look at them, theyre off."
+
+           Both halves of that are right. They were off: the thumb-target
+           rule that used to live on this line forced min-height 32px (44px
+           on a coarse pointer) onto pills the header draws at 22px, so a
+           10px label sat inside a 39x44 box — the ellipses in the
+           screenshots, not pills, and the reason MOONSHOT's 2026-08-23
+           geometry fix never held on an actual phone.
+
+           And they are no longer needed here: the bottom bar's More sheet
+           now carries the whole network switch (MOONSHOT / TUDDY /
+           FRANCHISE, marked with where you are), which is a better switcher
+           than two unlabelled circles wedged beside the wordmark. Hidden
+           under 760px only — the desktop header keeps its pills, where
+           they render correctly and there is no bottom bar. */
+        .sport-switch { display: none !important; }
       }
 
       @media (max-width: 390px) {
@@ -343,7 +360,6 @@ export default function MobileCSS() {
          under the 44px a thumb needs. */
       @media (pointer: coarse) {
         .dense-scroll td button { min-height: 44px !important; }
-        .sport-switch button { min-height: 44px !important; padding: 8px 10px !important; }
         .slate-tiles-viewport { padding-right: 50px !important; }
         .slate-ticker-toggle {
           width: 44px !important; min-width: 44px !important;

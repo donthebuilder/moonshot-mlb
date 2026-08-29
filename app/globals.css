@@ -1,3 +1,24 @@
+/* ── iOS TEXT INFLATION, OFF (2026-08-29) ───────────────────────────────
+   Donovan, with screenshots: "doesnt seem like its a lot of words and its
+   taking up the page on most of the picks ... like the pairs you cant even
+   see the names because the stats are so big."
+
+   It was never a font-size we set. WebKit on iPhone runs its own text
+   autosizing: it decides a block is "wide", and silently scales the text
+   inside it UP, choosing its own multiplier per block. That is why the
+   screenshots show one sentence rendering at two different sizes — the
+   proportional runs got boosted, the monospace spans in the same line did
+   not — and why the Pairs rows had giant stats crushing the names. Nothing
+   on desktop was affected, which is why it never showed up in any pass.
+
+   Pinning this to 100% tells WebKit to render the sizes this site actually
+   asked for. It changes nothing on desktop, and nothing about our own
+   responsive type — MobileCSS's phone sizes still apply. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -18,4 +39,41 @@ a {
 
 button {
   font-family: inherit;
+}
+
+/* ── FRANCHISE'S NETWORK DOCK (2026-08-29) ─────────────────────────────────
+   Mounted once in app/fantasy/layout.js — see the note there for why it lives
+   at the layout level and not in each of the nine league-room pages.
+
+   Phone only. It is fixed so it is reachable without scrolling to the end of
+   a draft board, and it sits 74px up so it clears Franchise's own 64px
+   .mobileNav on the league index instead of covering it. The spacer is a
+   normal in-flow block of the same height: Franchise's page padding lives in
+   a CSS module with hashed class names that a global sheet can't reach, so
+   the layout reserves the space itself rather than reaching into it.
+
+   Desktop shows neither. There the room header's "← FRANCHISE" link and the
+   front door already carry you out, and a docked bar over a wide layout is
+   furniture. */
+.fantasyNetworkDock,
+.fantasyNetworkDockSpacer {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .fantasyNetworkDock {
+    position: fixed;
+    z-index: 6;
+    display: block;
+    left: 10px;
+    right: 10px;
+    bottom: calc(74px + env(safe-area-inset-bottom));
+    border-radius: 13px;
+    background: rgba(11, 11, 10, .96);
+    backdrop-filter: blur(12px);
+  }
+  .fantasyNetworkDockSpacer {
+    display: block;
+    height: calc(96px + env(safe-area-inset-bottom));
+  }
 }

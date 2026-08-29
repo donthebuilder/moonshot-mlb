@@ -1,5 +1,4 @@
 import './globals.css'
-import DashNetworkNav from '../components/DashNetworkNav'
 import DashSync from '../components/DashSync'
 
 // C1 rebrand sweep (dash-network-master-plan-2026-08-28.md): title, footer,
@@ -68,7 +67,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}<DashNetworkNav /><DashSync /></body>
+      <body>{children}<DashSync /></body>
     </html>
   )
 }

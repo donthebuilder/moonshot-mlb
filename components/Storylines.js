@@ -769,16 +769,25 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
           {' '}is <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{m.need}</b> away
           from <b style={{ fontFamily: NUM_FONT }}>{m.t.toLocaleString()}</b> {m.word}
           {m.need === 1 ? ` — could land ${dayWord}` : ''}
-          {/* THE WINDOW, WRITTEN DOWN (2026-08-22). These rungs are ordered by
-              need ÷ window, not by need, and the two disagree constantly: 3
-              homers from 40 (a 5-homer window) sits BELOW 8 hits from 500 (a
-              20-hit window). The row printed the 3 and the 8 and none of the
-              windows, so the order looked broken. It was not — it was just
-              never drawn. */}
+          {/* THE WINDOW, WRITTEN DOWN (2026-08-22) — AND THEN SAID IN WORDS
+              (2026-08-29). These rungs are ordered by need ÷ window, not by
+              need, and the two disagree constantly: 3 homers from 40 (a
+              5-homer window) sits BELOW 8 hits from 500 (a 20-hit window).
+              The row printed the 3 and the 8 and none of the windows, so the
+              order looked broken. It was not — it was just never drawn.
+
+              Drawing it as "1/2 of the window" fixed the ordering complaint
+              and created a new one. Donovan: "the window thing on the
+              storyline, what does that mean." Fair — "window" is this file's
+              private word for the per-stat cutoff in RUNGS above (homers make
+              the list at 2 away, RBI at 4, total bases at 8), and nothing on
+              screen said so. The row already prints how far away he is, so
+              the only thing left to say is where the list ends. It now says
+              that, in words, and the ranking rule stays in the tooltip. */}
           <span
-            title={`Ordered by how far through its window each milestone is — ${m.need} of a ${m.within}-${/homer/i.test(m.word) ? 'homer' : 'unit'} window is ${(100 * (1 - m.prox)).toFixed(0)}% of the way there. A big number inside a wide window can be closer than a small one inside a narrow one, which is why the fraction is what ranks these and not the raw gap.`}
+            title={`He needs ${m.need}, and a ${m.word.replace(/^career /, '')} chase only makes this list at ${m.within} or fewer away — so he is ${(100 * (1 - m.prox)).toFixed(0)}% of the way through the stretch that counts as close. That fraction is what orders these rows, not the raw gap: a big number inside a wide cutoff can be nearer than a small one inside a tight cutoff, which is why 3 homers can rank above 8 hits.`}
             style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 6, cursor: 'help' }}
-          >{m.need}/{m.within} of the window</span>
+          >this list stops at {m.within}</span>
           {/homer/i.test(m.word) && hrToday(m.p) && (
             <Cashed>{m.need <= (lineOf(m.p)?.hr || 0) ? 'HIT THE NUMBER' : `homered — ${m.need - (lineOf(m.p)?.hr || 0)} to go`}</Cashed>
           )}

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 import PaletteButton from '../PaletteButton'
@@ -8,6 +8,94 @@ import PaletteButton from '../PaletteButton'
 // Games · Picks) and MOONSHOT's own bar shape — the 2026-08-29 review caught
 // the two rails listing the same destinations in two different orders, which
 // makes muscle memory impossible for anyone who uses both widths.
+// ── THE TICKER SHELL ────────────────────────────────────────────────────────
+// Renders its children twice inside one clipped track and lets MobileCSS's
+// .slate-tiles animation move it (see the note at the call site). Paused, the
+// echo is hidden and the real row becomes a normal sideways scroll — the same
+// contract MOONSHOT's SlateTiles.js offers, so the two products behave
+// identically for anyone who uses both.
+function TickerStrip({ children }) {
+  const [paused, setPaused] = useState(false)
+  // HOW MANY COPIES (2026-08-29). MOONSHOT's ticker hardcodes two copies and a
+  // 0 -> -50% slide, which is only seamless while ONE copy is at least as wide
+  // as the strip that clips it. MOONSHOT runs seven tiles, so it always is.
+  // TUDDY runs four, and on a 1280px header one copy is about a third of the
+  // width — with two copies the track runs out mid-slide and the row scrolls
+  // into an empty gap. So the set is repeated until the track is at least
+  // twice the viewport, and the slide is 100/copies% (exactly one copy's
+  // width) instead of a fixed 50%. Measured after layout, remeasured on
+  // resize, and it degrades to the plain two-copy case if measurement is
+  // unavailable.
+  const [copies, setCopies] = useState(2)
+  const viewportRef = useRef(null)
+  const setRef = useRef(null)
+  useEffect(() => {
+    const measure = () => {
+      const viewport = viewportRef.current?.clientWidth || 0
+      const one = setRef.current?.scrollWidth || 0
+      if (!viewport || !one) return
+      // Capped at 6: a set narrow enough to need more than that is a set
+      // with nothing in it (an unpublished slate renders three empty tiles),
+      // and repeating that twelve times is DOM for no one.
+      setCopies(Math.min(6, Math.max(2, Math.ceil((2 * viewport) / one))))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [children])
+
+  const shift = (100 / copies).toFixed(4)
+  const name = `nflTicker${copies}`
+  return (
+    <div
+      className={`nfl-ticker-shell slate-tiles-shell${paused ? ' ticker-paused' : ''}`}
+      style={{ position: 'relative', flex: '1 1 320px', minWidth: 0 }}
+    >
+      <div ref={viewportRef} className="slate-tiles-viewport" style={{ width: '100%', minWidth: 0, overflow: 'hidden', paddingRight: 38 }}>
+        {/* The animation is applied through a CLASS, not an inline style:
+            MobileCSS's own `.ticker-paused .slate-tiles { animation: none }`
+            and its reduced-motion rule are class rules, and an inline
+            animation would outrank both — the pause button and the OS
+            motion setting would stop working. */}
+        <div
+          className="slate-tiles nfl-ticker-track"
+          style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'stretch', width: 'max-content' }}
+        >
+          {Array.from({ length: copies }, (_, index) => (
+            <div
+              key={index}
+              ref={index === 0 ? setRef : undefined}
+              className={index === 0 ? 'nfl-tiles-set' : 'nfl-tiles-set slate-tiles-echo'}
+              aria-hidden={index === 0 ? undefined : 'true'}
+            >{children}</div>
+          ))}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="slate-ticker-toggle"
+        aria-pressed={paused}
+        aria-label={paused ? 'Resume moving slate ticker' : 'Pause moving slate ticker'}
+        title={paused ? 'Resume ticker' : 'Pause ticker'}
+        onClick={() => setPaused((value) => !value)}
+        style={{
+          position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
+          zIndex: 2, width: 32, height: 32, minHeight: 32, padding: 0,
+          display: 'grid', placeItems: 'center', borderRadius: 999,
+          border: `1px solid ${C.border}`, background: C.bg2, color: C.text2,
+          cursor: 'pointer', fontSize: 11, fontWeight: 900,
+        }}
+      >{paused ? '\u25B6' : '\u2161'}</button>
+      <style jsx global>{`
+        @keyframes ${name} { from { transform: translateX(0); } to { transform: translateX(-${shift}%); } }
+        .nfl-ticker-track { animation-name: ${name}; animation-duration: ${8 * copies}s; }
+        .ticker-paused .nfl-ticker-track { animation: none; }
+        @media (prefers-reduced-motion: reduce) { .nfl-ticker-track { animation: none; } }
+      `}</style>
+    </div>
+  )
+}
+
 const PRIMARY_TABS = [
   ['home', 'Home'],
   ['boards', 'Boards'],
@@ -113,20 +201,39 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                 WebkitTextFillColor: 'transparent',
               }}>TUDDY</span>
               {/* Tuddy is the NFL product inside DASH Network. */}
-              <span className="sport-switch" style={{ display: 'flex', gap: 3, marginLeft: 5, alignSelf: 'center' }}>
-                <button
-                  onClick={() => setSport('mlb')}
-                  style={{
-                    fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
-                    padding: '1px 7px', borderRadius: 999, cursor: 'pointer',
-                    border: `1px solid ${C.border2}`, background: 'transparent', color: C.text3,
-                  }}
-                >MLB</button>
-                <span style={{
-                  fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
-                  padding: '1px 7px', borderRadius: 999,
-                  background: `${C.green}26`, border: `1px solid ${C.green}73`, color: C.green,
-                }}>NFL</span>
+              {/* ── TUDDY'S PILLS GET MOONSHOT'S FIX (2026-08-29) ──────────
+                  Donovan's screenshot showed the NFL bubble riding above the
+                  MLB one on a phone. Same two stacked bugs MOONSHOT fixed on
+                  2026-08-23 and this file never got: MLB was a <button> and
+                  NFL a plain <span>, so the blanket thumb-target rule hit one
+                  and not the other, and the row had no align-items, so the
+                  span stretched to match. Now both are buttons with the same
+                  explicit capsule geometry, and the row centres instead of
+                  stretching. (On a phone the whole strip is hidden anyway —
+                  the bottom bar's More sheet owns product switching now — but
+                  the desktop pair has to be right, and a shape bug that only
+                  hides is still a shape bug.) */}
+              <span className="sport-switch" style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 5, alignSelf: 'center' }}>
+                {[['mlb', 'MLB'], ['nfl', 'NFL']].map(([key, label]) => {
+                  const on = key === 'nfl'
+                  return (
+                    <button
+                      key={key}
+                      onClick={on ? undefined : () => setSport(key)}
+                      aria-pressed={on}
+                      aria-label={on ? 'TUDDY · NFL (current)' : 'Switch to MOONSHOT · MLB'}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        height: 22, minHeight: 22, padding: '0 10px', lineHeight: 1,
+                        fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+                        borderRadius: 999, cursor: on ? 'default' : 'pointer',
+                        border: `1px solid ${on ? `${C.green}73` : C.border2}`,
+                        background: on ? `${C.green}26` : 'transparent',
+                        color: on ? C.green : C.text3,
+                      }}
+                    >{label}</button>
+                  )
+                })}
               </span>
             </div>
             <div style={{
@@ -140,17 +247,38 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           gap: 6, flexWrap: 'wrap', flex: '1 1 420px', minWidth: 0,
         }}>
-          <Tile label="Games" value={games} color={C.blue} title="Games on this slate" />
-          <Tile
-            label="Proj TD"
-            value={projTd ? projTd.toFixed(1) : '—'}
-            color={C.green}
-            title={`Expected touchdowns across the ${rows.length} players scored on this slate — the sum of each man's xTD.${
-              isPre ? ' Preseason caveat: xTD is last season\'s per-game rate at full usage, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
-          />
-          <Tile label="A-grade" value={aGrade} color={C.cyan}
-                title="Players clearing A- (62) in at least one market" />
-          {live > 0 && <Tile label="Live" value={live} color={C.yellow} title="Games in progress" />}
+          {/* ── TUDDY GETS THE MOVING STRIP (2026-08-29) ────────────────────
+              Donovan: "we need to add the moving headline thing on top for
+              nfl." MOONSHOT has had it since 2026-08-24 (SlateTiles.js); NFL
+              had the same numbers sitting still in a wrapped grid.
+
+              The animation, the seamless-loop trick and the pause control all
+              already exist as CSS in components/MobileCSS.js, which
+              NflDashboard.js already mounts — so this reuses those classes
+              rather than shipping a second ticker: the set renders twice into
+              one track, the track runs 0 -> -50%, and because the halves are
+              byte-identical the restart is invisible. The echo is aria-hidden
+              (a visual repeat, not new content) and nothing in the strip is
+              clickable, so an animated row can't steal a tap.
+
+              Layout is TUDDY's own (.nfl-tiles-set) because these tiles size
+              from their content, not MOONSHOT's fixed 104px cells. The
+              PRESEASON chip deliberately stays OUTSIDE the ticker: it is a
+              data caveat that must not scroll away, and it is the one thing
+              the mobile header diet keeps. */}
+          <TickerStrip>
+            <Tile label="Games" value={games} color={C.blue} title="Games on this slate" />
+            <Tile
+              label="Proj TD"
+              value={projTd ? projTd.toFixed(1) : '—'}
+              color={C.green}
+              title={`Expected touchdowns across the ${rows.length} players scored on this slate — the sum of each man's xTD.${
+                isPre ? ' Preseason caveat: xTD is last season\'s per-game rate at full usage, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
+            />
+            <Tile label="A-grade" value={aGrade} color={C.cyan}
+                  title="Players clearing A- (62) in at least one market" />
+            {live > 0 && <Tile label="Live" value={live} color={C.yellow} title="Games in progress" />}
+          </TickerStrip>
           {isPre && (
             <div
               className="nfl-header-preseason"
@@ -277,9 +405,16 @@ export default function NflHeader({ tab, setTab, data, meta }) {
            the rail goes; the stat chips and timestamp go too (Home's hero
            repeats the slate context); the PRESEASON chip stays because it is
            a data caveat, not furniture. Desktop is untouched. */
+        .nfl-tiles-set {
+          display: flex; align-items: stretch; gap: 6px;
+          padding-right: 6px; flex: none; min-width: max-content;
+        }
         @media (max-width: 760px) {
           .nfl-header-rail { display: none !important; }
           .nfl-header-built { display: none !important; }
+          /* The ticker goes with the rest of the diet — Home's hero repeats
+             the slate context on a phone. The PRESEASON chip stays, because
+             it is a caveat about the data and not furniture. */
           .nfl-header-tiles > *:not(.nfl-header-preseason) { display: none !important; }
           .nfl-header-tiles { flex: 0 1 auto !important; }
         }
