@@ -183,3 +183,17 @@
 .closedSite small { display: block; max-width: 520px; margin-top: 5px; color: var(--dim); font-size: 10.5px; line-height: 1.5; }
 .closedSite button { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: #191817; color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .06em; cursor: pointer; }
 .closedSite button[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* ── account ── */
+.signOutRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.signOutRow button {
+  padding: 11px 16px; border: 1px solid var(--line); border-radius: 10px;
+  background: #191817; color: var(--ink); font: 800 11px/1 inherit; cursor: pointer;
+}
+.danger { border-color: #7f2d2d !important; background: rgba(127, 45, 45, .16) !important; color: #ffb4b4 !important; }
+.deviceData { margin-top: 16px; }
+.deviceData ul { list-style: none; display: grid; gap: 1px; margin: 0 0 12px; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.deviceData li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 13px; background: var(--panel); }
+.deviceData li span { font-size: 11.5px; }
+.deviceData li b { color: var(--dim); font: 900 10px/1 monospace; }
+.deviceData button { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: #191817; color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .06em; cursor: pointer; }

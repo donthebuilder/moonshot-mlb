@@ -110,7 +110,7 @@ export default async function DashHome({ searchParams }) {
           <a href="#products">Products</a>
           <a href="#alerts">Alerts</a>
           {me.user
-            ? <form action={dashSignOut}><input type="hidden" name="next" value="/dash" /><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form>
+            ? <><Link href="/account">Account</Link><form action={dashSignOut}><input type="hidden" name="next" value="/" /><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form></>
             : <a className={styles.barCta} href="#sign-in">Sign in</a>}
         </nav>
       </header>
@@ -222,7 +222,10 @@ export default async function DashHome({ searchParams }) {
               Watchlist, Following, and My Picks on both sports save to this account and turn up on
               any device you sign in on. Sign out and they stay on this browser only.
             </p>
-            <form action={dashSignOut}><input type="hidden" name="next" value="/dash" /><SubmitButton pendingLabel="Signing out…">Sign out</SubmitButton></form>
+            <div className={styles.signOutRow}>
+              <Link className={styles.barCta} href="/account">Account settings →</Link>
+              <form action={dashSignOut}><input type="hidden" name="next" value="/" /><SubmitButton pendingLabel="Signing out…">Sign out</SubmitButton></form>
+            </div>
           </div>
         ) : me.configured ? (
           <>
@@ -239,7 +242,7 @@ export default async function DashHome({ searchParams }) {
               <form action={dashSignUp} className={styles.card} id="create-account">
                 <p className={styles.kicker}>NEW HERE · FREE</p>
                 <h3>Create an account</h3>
-                <input type="hidden" name="next" value="/dash" />
+                <input type="hidden" name="next" value="/" />
                 <label>Your name<input name="displayName" autoComplete="name" maxLength="40" required /></label>
                 <label>Email<input name="email" type="email" autoComplete="email" required /></label>
                 <label>Password<input name="password" type="password" minLength="8" autoComplete="new-password" required /></label>
@@ -249,7 +252,7 @@ export default async function DashHome({ searchParams }) {
               <form action={dashSignIn} className={styles.card}>
                 <p className={styles.kicker}>WELCOME BACK</p>
                 <h3>Sign in</h3>
-                <input type="hidden" name="next" value="/dash" />
+                <input type="hidden" name="next" value="/" />
                 <label>Email<input name="email" type="email" autoComplete="email" required /></label>
                 <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
                 <SubmitButton pendingLabel="Signing in…">Sign in <span>→</span></SubmitButton>

@@ -16,10 +16,12 @@ import { createSupabaseServerClient } from '../../lib/supabase/server'
 const clean = (value, max = 60) => String(value || '').trim().slice(0, max)
 
 // Only same-origin paths, and never a protocol-relative one — a `next` that
-// can point off-site turns the sign-in form into an open redirect.
+// can point off-site turns the sign-in form into an open redirect. The
+// fallback is the front door, which is `/` since the move (it was /dash for
+// about a day).
 function safeNext(value) {
-  const next = String(value || '/dash')
-  return next.startsWith('/') && !next.startsWith('//') ? next : '/dash'
+  const next = String(value || '/')
+  return next.startsWith('/') && !next.startsWith('//') ? next : '/'
 }
 
 function back(next, type, message) {
