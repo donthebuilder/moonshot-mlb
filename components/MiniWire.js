@@ -486,8 +486,19 @@ export default function MiniWire({
         </div>
       )}
 
-      {/* the strip — hidden on the Scoreboard (full wire lives there) */}
-      {tab !== 'scoreboard' && live.length > 0 && (
+      {/* ── THE STRIP, AND WHERE IT IS REDUNDANT (2026-08-29) ──────────────
+          Hidden on the Scoreboard because the full wire lives there — and now
+          on Home too. Donovan: "the live wire shows twice on the top of the
+          page, i dont like that." He is right, and it was two components
+          saying the same thing: Home mounts <ScoreRail>, which is every game,
+          its score, its state and how the bot's picks in that game are doing
+          — a superset of this one-line strip, sitting directly beneath it.
+          Two live bars stacked at the top of the busiest page on the site.
+
+          The strip is worth keeping everywhere else: that is the entire point
+          of a live layer that follows you around. It just has nothing to add
+          on the two pages that already carry the fuller version. */}
+      {tab !== 'scoreboard' && tab !== 'home' && live.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'baseline', gap: 10, width: '100%',
           background: 'linear-gradient(90deg, rgba(74,222,128,.06), rgba(74,222,128,.015))',
@@ -536,7 +547,7 @@ export default function MiniWire({
       )}
 
       {/* The wire, in place. Same component the Rundown mounts. */}
-      {tab !== 'scoreboard' && wireOpen && live.length > 0 && (
+      {tab !== 'scoreboard' && tab !== 'home' && wireOpen && live.length > 0 && (
         <div style={{ marginBottom: 10 }}>
           <LiveWire
             players={players}

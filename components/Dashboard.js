@@ -8,6 +8,7 @@ import { fetchLiveSlate } from '../lib/liveSlate'
 import { Empty } from './ui'
 import Header from './Header'
 import MiniWire from './MiniWire'
+import { setSport } from '../lib/sport'
 import TabExplainer from './TabExplainer'
 import Controls from './Controls'
 import Slip from './Slip'
@@ -92,6 +93,37 @@ export default function Dashboard() {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
     const t = h.get('tab')
     if (t) setTabRaw(t)
+  }, [])
+
+  // ── THE URL HAS TO MEAN SOMETHING AFTER THE FIRST PAINT (2026-08-29) ──────
+  //
+  // Donovan asked for "nav smooth". Reproduced on the live site: set the
+  // address to #sport=nfl&tab=boards on an open page and the URL changes
+  // while the page carries on showing MOONSHOT · Home. The effect above reads
+  // the hash EXACTLY ONCE, at mount — and a hash change never remounts a
+  // single-page app.
+  //
+  // What that actually broke, none of which is exotic:
+  //   · the BACK button. Every tab switch writes a new hash, so going back
+  //     rewrites the address and moves nothing. The browser looks broken.
+  //   · any in-page link to another tab or sport.
+  //   · a second visit to a link already open in that tab.
+  //
+  // A hashchange listener is the whole fix. It applies the tab, and hands the
+  // sport to lib/sport.js the same way the header's own toggle does, so the
+  // two paths cannot drift. Guarded against echoing our own writes: the
+  // write-back effect below sets hashWroteRef, and applying a value that is
+  // already current is a no-op in React anyway.
+  useEffect(() => {
+    const apply = () => {
+      const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      const t = h.get('tab')
+      if (t) setTabRaw(t)
+      const sp = h.get('sport')
+      if (sp === 'mlb' || sp === 'nfl') setSport(sp)
+    }
+    window.addEventListener('hashchange', apply)
+    return () => window.removeEventListener('hashchange', apply)
   }, [])
 
   const [focusPlayerId, setFocusPlayerId] = useState(null)

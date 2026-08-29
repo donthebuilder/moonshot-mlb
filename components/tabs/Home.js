@@ -8,6 +8,7 @@ import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
+import BotPicksStrip from '../BotPicksStrip'
 import FollowingStrip from '../FollowingStrip'
 import HomerLedger from '../HomerLedger'
 import ReadTeaser from '../ReadTeaser'
@@ -449,7 +450,10 @@ export default function Home({
   const lines = useMemo(() => {
     const out = []
     if (isLive && homersSoFar > 0) out.push(`⚡ ${homersSoFar} ball${homersSoFar > 1 ? 's have' : ' has'} already left a yard tonight — the Scoreboard is grading live.`)
-    if (picks > 0) out.push(`🎯 The bot designated ${picks} picks on this slate — The Four on the Scoreboard is the headline cut.`)
+    // 2026-08-29: this line used to end "— The Four on the Scoreboard is the
+    // headline cut", which was the front door telling you the headline lived
+    // on another tab. The Four is mounted on this page now, a screen above.
+    if (picks > 0) out.push(`🎯 The bot designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
     if (weakStars > 0) out.push(`★ ${weakStars} hitters sit in a weak lineup spot against tonight's arm — the stars on every board.`)
     if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — confirmed picks homer at a meaningfully higher clip.`)
     // "the projection tile has the range" until 2026-08-16 — there is no tile
@@ -467,6 +471,18 @@ export default function Home({
   // above. `airLine` is the spoken air for one game, straight out of
   // lib/conditions — the same clause GameStrip, Games and the park board use.
   const confirmedGames = useMemo(() => games.filter((g) => g.lineup_confirmed).length, [games])
+  // Snapshot-tile values (2026-08-29). liveGames counts what is actually on
+  // the field right now; topHr is the board's leader, taken with the same
+  // hrScore() every board on the site sorts by, so the tile can never
+  // disagree with the list it links into.
+  const liveGames = useMemo(
+    () => games.filter((g) => g?.row?.game_state === 'live' || g?.live === true).length,
+    [games],
+  )
+  const topHr = useMemo(
+    () => [...players].filter((p) => Number.isFinite(hrScore(p))).sort((a, b) => hrScore(b) - hrScore(a))[0] || null,
+    [players],
+  )
   const airLine = (g) => airParts(g?.row).map((x) => x.text).join(', ')
   const airTitle = (g) => airParts(g?.row).map((x) => `${x.text} — ${x.title}`).join('\n')
 
@@ -483,7 +499,7 @@ export default function Home({
 
   const DOORS = [
     { tab: 'scoreboard', icon: '📊', title: 'The Scoreboard', color: C.orange,
-      body: 'Every hitter on the slate, every column, live once first pitch lands. The Four — the bot’s headline picks — sit right on top.' },
+      body: 'Every hitter on the slate, every column, live once first pitch lands. The Four — the bot’s headline picks, the same card as on Home — sit right on top.' },
     { tab: 'games', icon: '⚾', title: 'Game by game', color: C.cyan,
       body: 'Tonight matchup by matchup: the arm, the park, the lineup, and the designated picks for each game.' },
     { tab: 'results', icon: '✅', title: 'The receipts', color: C.green,
@@ -541,25 +557,21 @@ export default function Home({
         @keyframes homeFade { from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none} }
       `}</style>
 
-      {/* 🛰 THE RAIL — every game, always visible, with your picks in it.
-          2026-08-15: taken from ESPN's front-page strip and given the one
-          column they can't have. Sits ABOVE the hero because a score is what
-          you came to check. */}
-      <ScoreRail players={players} results={results} onNavigate={onNavigate} />
+      {/* ── ORIENT, THEN READ (2026-08-29) ────────────────────────────────
+          Donovan, comparing this page to TUDDY's: "just want it to be more
+          user friendly and nav smooth. i like the creative aspect — i feel
+          that is missing from the other parts of the site."
 
-      {/* ⭐ FOLLOWING, ON THE PAGE THE NIGHT STARTS ON (2026-08-28). It was
-          only on the watchlist tab, which is a place you go on purpose — and
-          the whole point of a list that survives the slate is that it meets
-          you without being asked for. Dimmed names are the ones not on
-          tonight's board; a lit dot is a man playing. */}
-      <FollowingStrip
-        sport="mlb"
-        liveIds={new Set((players || []).map((p) => String(p?.player_id || '')))}
-        onPlayerClick={(row) => {
-          const live = (players || []).find((p) => String(p?.player_id || '') === String(row.id))
-          if (live) onPlayerClick?.(live)
-        }}
-      />
+          So nothing here is cut and no sentence is rewritten. What changed is
+          what you land on. The rail and the Following strip used to sit ABOVE
+          the greeting (the rail's old note argued "a score is what you came to
+          check"), which meant the page opened on two strips of chrome before
+          it said a word. They move to directly under the hero — still the
+          first things after it, still above everything else — and the hero
+          leads, followed by four tiles and The Four, so the top of the page
+          answers "what is tonight" before it starts talking.
+
+          Everything below is exactly where it was. */}
 
       {/* ── 🧾 THE HOMER LEDGER, WHERE PEOPLE ACTUALLY ARE (2026-08-16) ───
           Donovan: "the home run ledger [needs to be] somewhere else as well —
@@ -703,6 +715,86 @@ export default function Home({
           }}>{pulse}</div>
         )}
       </div>
+
+      <ScoreRail players={players} results={results} onNavigate={onNavigate} />
+
+      {/* ⭐ FOLLOWING, ON THE PAGE THE NIGHT STARTS ON (2026-08-28). It was
+          only on the watchlist tab, which is a place you go on purpose — and
+          the whole point of a list that survives the slate is that it meets
+          you without being asked for. Dimmed names are the ones not on
+          tonight's board; a lit dot is a man playing. */}
+      <FollowingStrip
+        sport="mlb"
+        liveIds={new Set((players || []).map((p) => String(p?.player_id || '')))}
+        onPlayerClick={(row) => {
+          const live = (players || []).find((p) => String(p?.player_id || '') === String(row.id))
+          if (live) onPlayerClick?.(live)
+        }}
+      />
+
+      {/* ── THE SNAPSHOT (2026-08-29) ──────────────────────────────────────
+          Four tiles, straight off TUDDY's Home, which has had them since it
+          shipped: slate size, what state the night is in, how many hitters
+          the bot scored, and the top HR score with the man's name on it.
+
+          Every number here is already on this page in a sentence somewhere —
+          this is the same night, said in four glances instead of a paragraph,
+          for the read where you have not got a paragraph's worth of attention.
+          The last tile is a button because a name is a thing you want to open,
+          and the score carries its own "not a probability" line, same as
+          everywhere else on the site. */}
+      {players.length > 0 && (
+        <div className="home-snapshot">
+          <div>
+            <small>SLATE</small>
+            <strong>{games.length}</strong>
+            <span>{confirmedGames > 0 ? `${confirmedGames} confirmed` : 'games tonight'}</span>
+          </div>
+          <div>
+            <small>STATE</small>
+            <strong>{isLive ? liveGames || games.length : homersSoFar || '—'}</strong>
+            <span>{isLive ? 'live now' : homersSoFar ? 'homers so far' : 'before first pitch'}</span>
+          </div>
+          <div>
+            <small>HITTERS</small>
+            <strong>{players.length}</strong>
+            <span>{picks > 0 ? `${picks} designated` : 'scored names'}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => topHr && onPlayerClick?.(topHr)}
+            title="The highest HR score on tonight's board. A board ranking from 0-100, not a chance of anything — the same scale every board on this site uses."
+          >
+            <small>TOP HR SCORE</small>
+            <strong>{topHr ? hrScore(topHr).toFixed(1) : '—'}</strong>
+            <span>{topHr ? nameOf(topHr) : 'awaiting the slate'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── THE FOUR, ON THE PAGE INSTEAD OF ONE TAB AWAY (2026-08-29) ──────
+          TUDDY puts The Six on its Home. MOONSHOT's own headline cut sat on
+          the Scoreboard, and this page's rotating pulse line literally read
+          "The Four on the Scoreboard is the headline cut" — the front door
+          telling you the headline is somewhere else.
+
+          Mounted, not forked: components/BotPicksStrip.js is the same
+          component the Scoreboard renders, so there is one source for what
+          The Four is and no chance of the two disagreeing. It carries its own
+          empty state, so a slate with no designations renders nothing rather
+          than an empty frame. */}
+      <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
+
+      <style>{`
+        .home-snapshot{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
+        .home-snapshot>div,.home-snapshot>button{display:flex;flex-direction:column;align-items:flex-start;min-height:84px;padding:12px 14px;border:1px solid ${C.border};border-radius:11px;background:${C.bg2};color:inherit;text-align:left;font-family:inherit}
+        .home-snapshot>button{cursor:pointer}
+        .home-snapshot>button:hover{border-color:rgba(249,115,22,.45)}
+        .home-snapshot small{color:${C.text3};font:900 8px/1 ${NUM_FONT};letter-spacing:.08em}
+        .home-snapshot strong{margin-top:7px;color:${C.orange};font:900 24px/1 ${NUM_FONT}}
+        .home-snapshot span{margin-top:5px;color:${C.text2};font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+        @media(max-width:800px){.home-snapshot{grid-template-columns:1fr 1fr}}
+      `}</style>
 
       {/* 🧾 THE LEDGER — directly under the welcome, per his ordering: the
           greeting owns the top of the page, the ledger is the first thing
