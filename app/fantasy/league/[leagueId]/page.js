@@ -5,7 +5,9 @@ import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import NflTeamMark from '../../../../components/fantasy/NflTeamMark'
 import { colorForPosition } from '../../../../components/fantasy/positionColor'
 import styles from '../../fantasy.module.css'
+import DraftBanner from '../../../../components/fantasy/DraftBanner'
 import DraftRoomLive from '../../../../components/fantasy/DraftRoomLive'
+import StartDraftButton from '../../../../components/fantasy/StartDraftButton'
 import SubmitButton from '../../../../components/fantasy/SubmitButton'
 import { addToQueue, assignDraftPick, draftPlayer, prepareDraft, removeFromQueue, runAutoPick, setDraftState, startDraft, syncPlayerCatalog, tickAutoPick } from './actions'
 
@@ -64,7 +66,7 @@ export default async function LeagueRoom({ params, searchParams }) {
       <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
       <nav aria-label="League sections" className={styles.roomNav}><a aria-current="page" className={styles.roomActive}>Draft</a><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link>{membership.role==='commissioner'&&<Link href={`/fantasy/league/${leagueId}/settings`}>Settings</Link>}</nav>
       <div className={styles.roomBody}>
-        {(query?.error || query?.message) && <p className={query.error ? styles.error : styles.message}>{query.error || query.message}</p>}
+        <DraftBanner error={query?.error} message={query?.message}/>
         <section className={styles.draftHero}>
           <div><p className={styles.panelLabel}>LIVE LEAGUE ROOM</p><h1>{draft?.status === 'live' ? `Pick ${draft.current_overall_pick} is on the clock` : 'Build the draft board.'}</h1><p>{draft?.status === 'live' ? `${currentTeam?.name || 'Next team'} · ${draft.timer_seconds} second timer` : `${String(league.scoring||'ppr').replace('_','-').toUpperCase()} · ${league.draft_order_method} order · ${league.draft_timer_seconds}s picks`}</p></div>
           <div className={styles.roomStats}><span><small>PLAYERS</small><b>{players.length}</b></span><span><small>DRAFTED</small><b>{draftedIds.size}</b></span><span><small>ROSTER</small><b>{myRoster.length}</b></span></div>
@@ -90,7 +92,7 @@ export default async function LeagueRoom({ params, searchParams }) {
             <div><p className={styles.panelLabel}>COMMISSIONER CONTROLS</p><strong>Catalog → order → live draft</strong></div>
             <form action={syncPlayerCatalog}><input type="hidden" name="leagueId" value={leagueId}/><button>Refresh NFL players</button></form>
             <form action={prepareDraft} className={styles.orderForm}><input type="hidden" name="leagueId" value={leagueId}/>{league.draft_order_method === 'manual' && teams.map((team,index)=><label key={team.id}>{team.name}<select name={`position_${team.id}`} defaultValue={index+1}>{teams.map((_,i)=><option key={i+1}>{i+1}</option>)}</select></label>)}<SubmitButton disabled={!players.length} pendingLabel="Preparing…">Prepare snake draft</SubmitButton></form>
-            <form action={startDraft}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton disabled={!draft || draft.status !== 'setup'} pendingLabel="Starting…">Start draft</SubmitButton></form>
+            <form action={startDraft}><input type="hidden" name="leagueId" value={leagueId}/><StartDraftButton disabled={!draft || draft.status !== 'setup'} expected={league.team_count} joined={teams.length}/></form>
             {draft?.status==='live'&&<form action={runAutoPick}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Forcing…">Force expired pick</SubmitButton></form>}
             {['live','paused'].includes(draft?.status) && <form action={setDraftState}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="state" value={draft.status === 'live' ? 'paused' : 'live'}/><SubmitButton pendingLabel="Updating…">{draft.status === 'live' ? 'Pause draft' : 'Resume draft'}</SubmitButton></form>}
           </section>

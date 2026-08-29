@@ -42,3 +42,28 @@ export async function deleteLeague(formData) {
   revalidatePath('/fantasy')
   redirect('/fantasy?message=League%20deleted')
 }
+
+// Starting a draft used to be a one-way door: the league leaves 'setup', the
+// invite code stops working, and prepare/start both refuse forever. A single
+// test draft therefore burned a league. This is the way back.
+export async function resetDraft(formData) {
+  const leagueId = String(formData.get('leagueId') || '')
+  const confirmation = String(formData.get('confirmation') || '')
+  const supabase = await createSupabaseServerClient()
+  if (!supabase) redirect('/fantasy')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/fantasy')
+  const route = `/fantasy/league/${leagueId}/settings`
+  const { data, error } = await supabase.rpc('reset_fantasy_draft', {
+    p_league_id: leagueId, p_confirmation: confirmation,
+  })
+  if (error) {
+    const missing = /reset_fantasy_draft/i.test(error.message) && /does not exist/i.test(error.message)
+    redirect(`${route}?error=${encodeURIComponent(missing
+      ? 'The reset function is not installed yet — run DRAFT-NIGHT-FIXES.sql in the Supabase SQL editor first.'
+      : error.message)}`)
+  }
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
+  revalidatePath('/fantasy')
+  redirect(`${route}?message=${encodeURIComponent(`Draft reset — ${data || 0} picks cleared and the invite code is open again`)}`)
+}

@@ -195,3 +195,60 @@ revoke all on function public.commissioner_assign_fantasy_pick(uuid,integer,uuid
 grant execute on function public.run_expired_fantasy_auto_pick(uuid) to authenticated;
 grant execute on function public.commissioner_assign_fantasy_pick(uuid,integer,uuid) to authenticated;
 grant execute on function public.make_fantasy_draft_pick(uuid,uuid) to authenticated;
+
+-- 5. THERE WAS NO WAY BACK. Once start_fantasy_draft ran, the league left
+--    'setup' forever: prepare and start both refuse afterwards, the invite
+--    code stops working (join_fantasy_league requires status='setup'), and
+--    nothing anywhere resets a draft. A test draft therefore consumed a
+--    league permanently -- which is exactly what happened before the first
+--    real draft. Roster entries are read-only to the client (there is no
+--    write policy on fantasy_roster_entries), so this cannot live in the app;
+--    it has to be a security-definer function.
+--
+--    Deliberately narrow: commissioner only, refuses once real games exist,
+--    and requires the league name typed back exactly, the same confirmation
+--    shape league deletion already uses.
+create or replace function public.reset_fantasy_draft(p_league_id uuid, p_confirmation text)
+returns integer language plpgsql security definer set search_path = public as $$
+declare
+  v_league public.fantasy_leagues%rowtype;
+  v_draft public.fantasy_drafts%rowtype;
+  v_cleared integer := 0;
+begin
+  if not public.is_fantasy_commissioner(p_league_id) then raise exception 'Commissioner access required'; end if;
+  select * into v_league from public.fantasy_leagues where id = p_league_id for update;
+  if not found then raise exception 'League not found'; end if;
+  if coalesce(trim(p_confirmation),'') <> v_league.name then
+    raise exception 'Type the league name exactly to reset the draft';
+  end if;
+  -- once the season has scored anything, a reset would orphan real results
+  if exists (select 1 from public.fantasy_matchups where league_id = p_league_id and status <> 'scheduled') then
+    raise exception 'This league has played games — the draft can no longer be reset';
+  end if;
+
+  select * into v_draft from public.fantasy_drafts where league_id = p_league_id for update;
+  if found then
+    delete from public.fantasy_draft_queue where draft_id = v_draft.id;
+    update public.fantasy_draft_picks
+      set player_id = null, picked_at = null, assignment_type = 'live'
+      where draft_id = v_draft.id and player_id is not null;
+    get diagnostics v_cleared = row_count;
+    update public.fantasy_drafts
+      set status = 'setup', current_overall_pick = 1, pick_deadline = null,
+          started_at = null, completed_at = null
+      where id = v_draft.id;
+  end if;
+
+  delete from public.fantasy_roster_entries
+    where league_id = p_league_id and acquired_via in ('draft','commissioner');
+  delete from public.fantasy_lineup_slots
+    where team_id in (select id from public.fantasy_teams where league_id = p_league_id);
+
+  -- back to 'setup' is what re-opens the invite code for anyone who missed it
+  update public.fantasy_leagues set status = 'setup' where id = p_league_id;
+  return v_cleared;
+end;
+$$;
+
+revoke all on function public.reset_fantasy_draft(uuid,text) from public;
+grant execute on function public.reset_fantasy_draft(uuid,text) to authenticated;

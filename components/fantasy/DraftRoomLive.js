@@ -24,6 +24,11 @@ export default function DraftRoomLive({ leagueId, status, deadline, currentPick,
     if (!watching) return undefined
     const id = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      // Never re-render underneath someone mid-interaction: refreshing while a
+      // <select> is open swaps its options and silently changes what they
+      // picked. The commissioner's manual assignment is exactly that.
+      const active = typeof document !== 'undefined' ? document.activeElement : null
+      if (active && ['SELECT','INPUT','TEXTAREA'].includes(active.tagName)) return
       router.refresh()
     }, live ? 5000 : 8000)
     return () => clearInterval(id)
