@@ -396,13 +396,45 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
     // a bug.
     let alive = true
     setDetailState('loading'); setDetail(null)
-    const url = player?.api_only ? archiveDetailUrl(pid) : detailUrl(pid, slateMode)
+    const archive = !!player?.api_only
+    const url = archive ? archiveDetailUrl(pid) : detailUrl(pid, slateMode)
     fetch(url)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive) { setDetail(j); setDetailState(j ? 'done' : 'missing') } })
+      .then((j) => {
+        if (!alive) return
+        // ── A DETAIL FILE FROM ANOTHER NIGHT IS NOT THIS MAN'S FILE ───────
+        // (2026-08-29.) The slate detail directory on the data branch was
+        // found holding a complete snapshot of a night that was on NEITHER
+        // slate published beside it — 0 of 17 game_pks in common. A hitter
+        // who plays most nights keeps his player_id, so his stale
+        // batter_<id>.json was fetched, matched, and rendered: last week's
+        // batted balls drawn as tonight's spray chart, with nothing on
+        // screen saying so.
+        //
+        // The real repair is bot-side (make_slim.py stamps each directory
+        // with its slate and publish_data.sh refuses to ship one that
+        // disagrees). This is the second lock: if the file says it belongs
+        // to a different game than the row that opened this modal, it is
+        // treated as missing, which every panel below already renders
+        // honestly. Note this is the same symptom as the 2026-08-24 Tatis
+        // watchlist bug — a detail game_pk of 823262 against a slate
+        // game_pk of 823260 — which was read at the time as an hourly
+        // republish clock skew. It was this.
+        //
+        // The archive file is exempt: it is slate-independent by design and
+        // carries no game of its own.
+        const mine = player?.game_pk
+        if (!archive && j && mine != null && j.game_pk != null && String(j.game_pk) !== String(mine)) {
+          setDetail(null)
+          setDetailState('missing')
+          return
+        }
+        setDetail(j)
+        setDetailState(j ? 'done' : 'missing')
+      })
       .catch(() => { if (alive) setDetailState('error') })
     return () => { alive = false }
-  }, [pid, slateMode, player?.api_only])
+  }, [pid, slateMode, player?.api_only, player?.game_pk])
 
   // An API-only player can land while a bot-only tab is open — snap home.
   useEffect(() => { if (player?.api_only) setTab('overview') }, [player])
