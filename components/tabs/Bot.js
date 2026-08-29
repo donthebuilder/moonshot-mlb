@@ -122,7 +122,7 @@ function BoardRow({ p, i, onPlayerClick }) {
           <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.team}</span>
           {flagsAll.length > 0 && (
-            <span title={flagTitle} style={{ fontSize: 10.5, cursor: 'help', flexShrink: 0, letterSpacing: 1 }}>
+            <span title={flagTitle} style={{ fontSize: 10.5, cursor: 'default', flexShrink: 0, letterSpacing: 1 }}>
               {flagsAll.slice(0, 2).map(([e]) => e).join('')}
             </span>
           )}

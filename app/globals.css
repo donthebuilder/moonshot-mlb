@@ -77,3 +77,32 @@ button {
     height: calc(96px + env(safe-area-inset-bottom));
   }
 }
+
+/* ── NO QUESTION-MARK CURSOR, ANYWHERE (2026-08-29) ────────────────────────
+   Donovan: "site wide, i dont like when i hover over something or a name /
+   player and its a question mark. fix that please."
+
+   Fifty-one elements carried `cursor: help` — stat labels, tiles, chips, and
+   in a few places the player's own name. The help cursor is the browser's
+   standard "there is an explanation here" affordance, which is why it had
+   spread; the trouble is that it fires on hover over content you are reading,
+   not over a control, so the whole page starts asking you a question.
+
+   Every one of them is now `default`. NOTHING WAS TAKEN AWAY: each of those
+   elements keeps its title attribute, so the tooltip still appears on hover
+   exactly as before, and the ⓘ glyphs the site already draws next to
+   explainable stats are doing the discoverability job the cursor was doing
+   badly. Clickable things are unaffected — they were always `pointer`.
+
+   This rule is the belt to that braces: any element that gains a title
+   attribute later, anywhere on the site, cannot bring the question mark back
+   with it. Buttons, links and anything explicitly set to pointer are excluded
+   so a control never loses its own cursor. */
+[title] {
+  /* `inherit`, not `default`: a span with a tooltip INSIDE a button or a link
+     inherits that control's pointer and keeps behaving like part of the
+     control, while a standalone label inherits the page's ordinary arrow.
+     A flat `default` here would have quietly stolen the pointer from every
+     titled span sitting inside a clickable row. */
+  cursor: inherit;
+}

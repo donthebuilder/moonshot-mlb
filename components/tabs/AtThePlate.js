@@ -120,7 +120,7 @@ function Sequence({ pitches }) {
           <div key={i}
             title={`Pitch ${p.seq} of the at-bat, on ${p.cnt}. ${PITCH_NAMES[p.type] || p.typeName || p.type || 'pitch'}${p.velo != null ? ` at ${p.velo.toFixed(1)} mph` : ''} — ${p.call || KIND_WORD[p.kind] || p.kind}.`}
             style={{
-              minWidth: 54, cursor: 'help',
+              minWidth: 54, cursor: 'default',
               border: `1px solid ${missed ? '#f87171' : took ? 'rgba(255,255,255,.14)' : `${col}66`}`,
               background: missed ? 'rgba(248,113,113,.12)' : `${col}12`,
               borderRadius: 9, padding: '4px 8px 5px', textAlign: 'center',
@@ -157,7 +157,7 @@ function Arsenal({ rows, pitcherName }) {
         <span key={r.code}
           title={`${pitcherName || 'He'} has thrown ${r.n} ${PITCH_NAMES[r.code] || r.code}${r.n === 1 ? '' : 's'} tonight — ${r.pct.toFixed(0)}% of his pitches${r.velo != null ? `, averaging ${r.velo.toFixed(1)} mph` : ''}${r.swings ? `. ${r.whiffs} whiff${r.whiffs === 1 ? '' : 's'} on ${r.swings} swing${r.swings === 1 ? '' : 's'}` : ''}. Counted from this game only.`}
           style={{
-            fontSize: 9, fontFamily: NUM_FONT, cursor: 'help', whiteSpace: 'nowrap',
+            fontSize: 9, fontFamily: NUM_FONT, cursor: 'default', whiteSpace: 'nowrap',
             color: pitchColor(r.code), border: `1px solid ${pitchColor(r.code)}44`,
             background: `${pitchColor(r.code)}10`, borderRadius: 999, padding: '1px 8px',
           }}>
@@ -392,7 +392,7 @@ function Situation({ outs, on1, on2, on3 }) {
   return (
     <span style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start', flexShrink: 0 }}>
       <span title={`${outs} out${outs === 1 ? '' : 's'}${who ? ` · on base: ${who}` : ' · bases empty'}`}
-        style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'help' }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'default' }}>
         <span style={{ position: 'relative', width: 25, height: 16, display: 'inline-block' }}>
           {bases.map(([k, name, pos]) => (
             <span key={k} style={{
@@ -765,7 +765,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                 </span>
               )}
               {a.p && (
-                <span title="The bot's HR score for him tonight" style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, cursor: 'help' }}>
+                <span title="The bot's HR score for him tonight" style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, cursor: 'default' }}>
                   board <b style={{ color: C.orange }}>{hrScore(a.p).toFixed(0)}</b>
                 </span>
               )}
@@ -803,7 +803,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                 <div
                   title={`Plate appearance number ${facing} against this arm tonight. Hitters historically do better the third time through — the pitcher has shown them everything by then.`}
                   style={{
-                    fontSize: 8.5, fontFamily: NUM_FONT, marginTop: 5, cursor: 'help',
+                    fontSize: 8.5, fontFamily: NUM_FONT, marginTop: 5, cursor: 'default',
                     color: facing >= 3 ? C.orange : C.text3, fontWeight: facing >= 3 ? 800 : 400,
                   }}>
                   {facing === 1 ? '1st look at him' : facing === 2 ? '2nd look' : `${facing}${facing === 3 ? 'rd' : 'th'} time through`}

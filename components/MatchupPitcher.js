@@ -144,7 +144,7 @@ function ReadLine({ lead, parts, tail }) {
         <span key={p.key}>
           {i > 0 && (i === parts.length - 1 ? ' and ' : ', ')}
           <span title={p.title} style={{
-            color: toneColor(p.tone), fontWeight: p.tone === 'plain' ? 400 : 700, cursor: 'help',
+            color: toneColor(p.tone), fontWeight: p.tone === 'plain' ? 400 : 700, cursor: 'default',
           }}>{p.text}</span>
         </span>
       ))}

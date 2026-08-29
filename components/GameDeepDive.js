@@ -105,7 +105,7 @@ function AirLine({ any, venue, confirmed }) {
       {shown.map((p) => (
         <span key={p.key} title={p.title} style={{
           fontSize: 9.5, fontWeight: 700, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-          padding: '2px 7px', borderRadius: 999, cursor: 'help',
+          padding: '2px 7px', borderRadius: 999, cursor: 'default',
           color: p.tone && p.tone !== 'plain' ? toneColor(p.tone) : C.text2,
           border: `1px solid ${p.tone && p.tone !== 'plain' ? alpha(toneColor(p.tone), 0.4) : C.border}`,
           background: p.tone && p.tone !== 'plain' ? alpha(toneColor(p.tone), 0.08) : C.glass,
@@ -232,7 +232,7 @@ function ArmStat({ label, value, tone, title }) {
       minWidth: 0, textAlign: 'center', padding: '5px 4px', borderRadius: 9,
       border: `1px solid ${tone ? alpha(col, 0.4) : C.border}`,
       background: tone ? alpha(col, 0.07) : C.glass,
-      cursor: title ? 'help' : 'default',
+      cursor: title ? 'inherit' : 'default',
     }}>
       <span style={{
         display: 'block', fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em',

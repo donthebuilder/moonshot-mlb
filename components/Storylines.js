@@ -786,7 +786,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
               that, in words, and the ranking rule stays in the tooltip. */}
           <span
             title={`He needs ${m.need}, and a ${m.word.replace(/^career /, '')} chase only makes this list at ${m.within} or fewer away — so he is ${(100 * (1 - m.prox)).toFixed(0)}% of the way through the stretch that counts as close. That fraction is what orders these rows, not the raw gap: a big number inside a wide cutoff can be nearer than a small one inside a tight cutoff, which is why 3 homers can rank above 8 hits.`}
-            style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 6, cursor: 'help' }}
+            style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 6, cursor: 'default' }}
           >this list stops at {m.within}</span>
           {/homer/i.test(m.word) && hrToday(m.p) && (
             <Cashed>{m.need <= (lineOf(m.p)?.hr || 0) ? 'HIT THE NUMBER' : `homered — ${m.need - (lineOf(m.p)?.hr || 0)} to go`}</Cashed>

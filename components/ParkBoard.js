@@ -578,7 +578,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                     whiteSpace: 'normal', overflowWrap: 'anywhere',
                   }}>
                     {cells.map((c, ci) => (
-                      <span key={c.k} title={c.tip} style={{ cursor: 'help', whiteSpace: 'nowrap' }}>
+                      <span key={c.k} title={c.tip} style={{ cursor: 'default', whiteSpace: 'nowrap' }}>
                         {ci > 0 && <span style={{ color: C.border2 }}>{'  ·  '}</span>}
                         <b style={{ color: c.col, fontFamily: NUM_FONT, fontWeight: 800 }}>{phrase(c)}</b>
                       </span>
@@ -606,7 +606,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 return (
                   <div
                     title={`Park HR factor ×${g.parkHR.toFixed(2)} — this building ${above ? 'adds' : 'removes'} about ${pctTxt.replace(/[+−]/, '')} of home-run rate versus a neutral park, before any weather. The bot's own park number. Track runs ${LO}–${HI} (a fixed display range covering every park published, not a percentile); the pale tick is neutral 1.00.`}
-                    style={{ marginTop: 4, cursor: 'help' }}
+                    style={{ marginTop: 4, cursor: 'default' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{
@@ -676,7 +676,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                         <span
                           key={`pen-${tm}`}
                           title={`${tm} bullpen yesterday: ${t2.used} relievers, ${t2.pitches} pitches — ${t2.names.map((r2) => `${String(r2.name).split(' ').slice(-1)[0]} ${r2.pitches}p`).join(', ')}. Tired relief gives up homers; the late innings are the window.`}
-                          style={{ color: tier.col, fontWeight: 900, cursor: 'help' }}
+                          style={{ color: tier.col, fontWeight: 900, cursor: 'default' }}
                         >{tier.icon} {tm} {tier.word}</span>
                       )
                     })}
@@ -698,7 +698,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                         <span
                           title={tip}
                           style={{
-                            color: '#a1a1aa', fontWeight: 800, cursor: 'help',
+                            color: '#a1a1aa', fontWeight: 800, cursor: 'default',
                             border: '1px solid rgba(255,255,255,.13)', borderRadius: 999,
                             padding: '0px 6px', background: 'rgba(255,255,255,.04)',
                           }}
@@ -717,7 +717,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                       const h = new Date(g.time).getHours()
                       if (Number.isNaN(h) || h < 16) return null
                       return (
-                        <span title="Warm evening start in an open-air park: the air cools and thickens as the game goes — carry favors the EARLY innings tonight. Directional read, not a forecast number." style={{ color: '#fbbf24', cursor: 'help' }}>
+                        <span title="Warm evening start in an open-air park: the air cools and thickens as the game goes — carry favors the EARLY innings tonight. Directional read, not a forecast number." style={{ color: '#fbbf24', cursor: 'default' }}>
                           🌇 cools late
                         </span>
                       )

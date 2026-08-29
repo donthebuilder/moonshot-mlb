@@ -120,7 +120,7 @@ function MixCell({ read }) {
   if (thin) {
     return (
       <span title={`${title} — under ${SHAPE_MIN_N} classified homers, so counts only: a share off ${nn} homer${nn === 1 ? '' : 's'} is not a mix.`}
-        style={{ display: 'inline-flex', gap: 6, alignItems: 'baseline', cursor: 'help' }}>
+        style={{ display: 'inline-flex', gap: 6, alignItems: 'baseline', cursor: 'default' }}>
         {mix.map((m) => (
           <span key={m.key} style={{ fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800, color: m.color }}>
             {m.count} {m.label.toLowerCase()}
@@ -131,7 +131,7 @@ function MixCell({ read }) {
   }
   return (
     <span title={`${title}. Segment width is his share, the number inside is the count.`}
-      style={{ display: 'flex', width: '100%', height: 13, borderRadius: 3, overflow: 'hidden', cursor: 'help' }}>
+      style={{ display: 'flex', width: '100%', height: 13, borderRadius: 3, overflow: 'hidden', cursor: 'default' }}>
       {mix.map((m) => (
         <span key={m.key} style={{
           flex: `${m.count} 0 0`, background: m.color, color: inkFor(m.color),
@@ -162,7 +162,7 @@ function BaselineStrip({ base }) {
         const b = HR_BANDS[k]
         return (
           <span key={k} title={`${b.label} — ${b.blurb}`} style={{
-            display: 'inline-flex', gap: 6, alignItems: 'baseline', cursor: 'help',
+            display: 'inline-flex', gap: 6, alignItems: 'baseline', cursor: 'default',
             border: `1px solid ${b.color}55`, background: `${b.color}12`,
             borderRadius: 999, padding: '2px 10px',
           }}>
@@ -311,7 +311,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
       title: 'His most common homer band — or the reason there isn’t one. Sorts alphabetically, which groups the board by type.',
       explain: `The band most of his homers fall in, claimed only at ${SHAPE_MIN_N}+ classified homers, only when his top two bands are not level, and only when the bot has not flagged his shape as unreliable. Below any of those bars the cell says WHY instead of showing a band — "too thin (2 HR)", "tied: Laser / Standard", "no tracked HR". Hover a cell for the count behind it.`,
       fmt: (v, r) => (
-        <span title={r._typeWhy} style={{ cursor: 'help', color: r._typeColor || C.text3, fontWeight: r._typeColor ? 800 : 500 }}>{v}</span>
+        <span title={r._typeWhy} style={{ cursor: 'default', color: r._typeColor || C.text3, fontWeight: r._typeColor ? 800 : 500 }}>{v}</span>
       ) },
     { key: 'n', label: 'n HR', w: 46, primary: true,
       title: 'Classified homers — the denominator under every share on this row',
@@ -346,7 +346,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
         explain: 'The same three words the hitter’s own card uses, from the same threshold, so a board and a card four inches apart cannot disagree about whether he is trending. "thin recent" = his window is fine but there are too few recent hard-hit balls; "thin HR" = too few classified homers to build a window; "no HR" = none at all.',
         fmt: (v, r) => (
           <span title={r._verdict ? r._verdict.label : 'The bot did not rate this reading — no number is shown rather than a zero standing in for a missing one.'}
-            style={{ cursor: 'help', color: r._verdict?.key === 'toward' ? C.green : r._verdict?.key === 'away' ? C.red : C.text3 }}>{v}</span>
+            style={{ cursor: 'default', color: r._verdict?.key === 'toward' ? C.green : r._verdict?.key === 'away' ? C.red : C.text3 }}>{v}</span>
         ) },
       { key: 'recent', label: 'Rec%', w: 48, dp: 0,
         title: 'Recent share of hard-hit contact inside his own homer window — the front half of the In-form delta',

@@ -67,7 +67,7 @@ function StateBadge({ g }) {
     return (
       <span
         title="This game's kickoff has passed and the feed never marked it live or final, so the bot has no result for it. The card below is the last thing the bot published about this game, not a live read."
-        style={{ fontSize: 9.5, fontWeight: 900, color: '#fbbf24', letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'help' }}
+        style={{ fontSize: 9.5, fontWeight: 900, color: '#fbbf24', letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'default' }}
       >Kickoff passed · not tracked</span>
     )
   }

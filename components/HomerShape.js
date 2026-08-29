@@ -86,7 +86,7 @@ export default function HomerShape({ player }) {
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: f.laLo != null ? 6 : 0 }}>
         {f.mix.map((m) => (
           <span key={m.key} title={`${m.label} — ${m.blurb}`} style={{
-            display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'help',
+            display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'default',
             border: `1px solid ${m.color}55`, background: `${m.color}12`,
             borderRadius: 999, padding: '2px 9px',
           }}>

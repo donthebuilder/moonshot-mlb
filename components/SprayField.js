@@ -429,6 +429,7 @@ export default function SprayField({
   // testing against dimensions already known to be worse.
   const [testPark, setTestPark] = useState('')
   // tonight's layer
+  const [live, setLive] = useState(false)   // drawn from a live Savant pull, not the bot's cache
   const [hoverLive, setHoverLive] = useState(null)
   const [liveOn, setLiveOn] = useState(true)
   // Tonight-only cuts: contact quality and the pitch that produced the ball.
@@ -457,7 +458,39 @@ export default function SprayField({
     const url = player?.api_only ? archiveDetailUrl(pid) : detailUrl(pid, slateMode)
     fetch(url)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive) { setData(j); setState('done') } })
+      .then((j) => {
+        if (!alive) return
+        // ── 🔴 THE SAME LIVE PULL THE EV LOG HAS HAD SINCE 2026-08-08 ──────
+        // Donovan, on a hitter sitting at #146 of tonight's 303: "this should
+        // never happen for a player. all stats and spray chart, ev and pitch
+        // log should come up. fix that. still should have a tag as not on the
+        // bot, but all the stats need to be shown."
+        //
+        // He is right, and the fix belongs here rather than in the copy. The
+        // EV Log already falls back to a live Statcast pull when the bot has
+        // no cached file — same season, same batted balls, straight from
+        // Savant — and it has been quietly doing that for three weeks while
+        // this chart, one tab across, rendered "No tracked batted balls" for
+        // the same man. One panel resourceful and its neighbour helpless is
+        // not a data problem, it is a wiring one.
+        //
+        // The published file still WINS whenever it exists: this only fires
+        // when there is nothing cached, and the chart says out loud which pipe
+        // it drew from. lib/savant.js now returns hc_x/hc_y and the same flags
+        // spray_cache.py writes, so the live rows go through exactly the same
+        // transform as cached ones and every filter keeps working.
+        const cached = Array.isArray(j?.spray_chart) ? j.spray_chart : []
+        if (cached.length) { setData(j); setState('done'); setLive(false); return }
+        import('../lib/savant')
+          .then(({ savantBattedBalls }) => savantBattedBalls(pid))
+          .then((rows) => {
+            if (!alive) return
+            if (rows && rows.length) { setData({ ...(j || {}), spray_chart: rows }); setLive(true) }
+            else { setData(j); setLive(false) }
+            setState('done')
+          })
+          .catch(() => { if (alive) { setData(j); setLive(false); setState('done') } })
+      })
       .catch(() => { if (alive) setState('error') })
     return () => { alive = false }
   }, [pid, slateMode, liveOnly, player?.api_only])
@@ -748,7 +781,12 @@ export default function SprayField({
     return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Couldn&apos;t load his batted-ball detail.</div>
   }
   if (!hits.length && !liveN) {
-    return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>No tracked batted balls for this hitter.</div>
+    return (
+      <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
+        No tracked batted balls for this hitter — nothing in the bot&apos;s cache, and the live
+        Statcast pull came back empty too. That is every source this chart has.
+      </div>
+    )
   }
 
   // Fixed 450 ft field, drawn out to ±58° so foul-territory balls have somewhere
@@ -1051,6 +1089,26 @@ export default function SprayField({
           </button>
         ))}
       </div>
+      )}
+
+      {/* WHICH PIPE THIS CAME DOWN. Same badge the EV Log has carried since
+          the live fallback shipped — a reader must never have to guess whether
+          a chart is the bot's own cache or a live pull, because the two are
+          the same data and NOT the same provenance. */}
+      {!liveOnly && live && (
+        <div style={{
+          display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap',
+          marginBottom: 7, padding: '5px 9px', borderRadius: 8,
+          border: '1px solid rgba(248,113,113,.3)', background: 'rgba(248,113,113,.07)',
+          fontSize: 9.5, color: C.text3, lineHeight: 1.5,
+        }}>
+          <span style={{ color: '#f87171', fontWeight: 900 }}>🔴 Live Statcast pull</span>
+          <span>
+            he isn&apos;t in the bot&apos;s cache for this slate, so these {hits.length} batted balls came
+            straight from Savant just now — same season, same balls, different pipe. Barrel,
+            hard-hit and pull use Savant&apos;s own definitions.
+          </span>
+        </div>
       )}
 
       {/* ── ARM, DIRECTION, DISTANCE (2026-08-29) ───────────────────────────

@@ -100,7 +100,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
                     border: `1px solid ${col}44`, borderRadius: 999, padding: '3px 10px',
                     background: today ? 'rgba(74,222,128,.10)' : 'transparent',
                     boxShadow: today ? '0 0 10px rgba(74,222,128,.25)' : 'none',
-                    color: C.text2, cursor: 'help', whiteSpace: 'nowrap',
+                    color: C.text2, cursor: 'default', whiteSpace: 'nowrap',
                   }}>
                   <b style={{ color: col }}>{today ? 'TODAY' : `${since}d`}</b>
                   {clean(pr?.player_1, '?').split(' ').slice(-1)[0]} + {clean(pr?.player_2, '?').split(' ').slice(-1)[0]}

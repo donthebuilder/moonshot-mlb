@@ -44,7 +44,7 @@ export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pct
         ? alpha(C.text3, 0.14)
         : `conic-gradient(from 180deg, ${col} ${pct}%, ${alpha(col, 0.13)} ${pct}%)`,
       boxShadow: pct == null ? 'none' : `0 0 14px ${alpha(col, 0.22)}`,
-      cursor: title ? 'help' : 'default',
+      cursor: title ? 'inherit' : 'default',
     }}>
       <div style={{
         width: inner, height: inner, borderRadius: '50%', background: C.bg,

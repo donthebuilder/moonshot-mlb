@@ -26,7 +26,7 @@ function Tag({ t }) {
   return (
     <span title={t.why} style={{
       display: 'inline-flex', alignItems: 'baseline', gap: 5,
-      padding: '3px 9px', borderRadius: 7, cursor: 'help',
+      padding: '3px 9px', borderRadius: 7, cursor: 'default',
       background: s.bg, border: `1px solid ${alpha(s.fg === C.text2 ? C.text3 : s.fg, 0.25)}`,
     }}>
       <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.05em', color: s.fg }}>

@@ -96,7 +96,7 @@ function useRotating(lines, ms = 6500) {
 // number inside a sentence, still monospaced, still carrying its own tooltip.
 function Fig({ children, col = C.text, title }) {
   return (
-    <b title={title} style={{ color: col, fontFamily: NUM_FONT, cursor: title ? 'help' : 'inherit' }}>{children}</b>
+    <b title={title} style={{ color: col, fontFamily: NUM_FONT, cursor: title ? 'inherit' : 'inherit' }}>{children}</b>
   )
 }
 
@@ -122,7 +122,7 @@ function Stat({ label, value, sub, col = C.text, title }) {
     <span title={title} style={{
       display: 'flex', alignItems: 'baseline', gap: 5, minWidth: 0,
       border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.025)',
-      borderRadius: 8, padding: '4px 9px', cursor: title ? 'help' : 'inherit',
+      borderRadius: 8, padding: '4px 9px', cursor: title ? 'inherit' : 'inherit',
     }}>
       <span style={{
         fontSize: 8.5, color: C.text3, letterSpacing: '.06em', fontFamily: NUM_FONT,
@@ -898,11 +898,11 @@ export default function Home({
               <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.65, marginTop: 7 }}>
                 Its three best power bats sum to{' '}
                 <b title="The sum of this game's three highest HR scores — the ranking key for this section. A 0-100 board score, not a chance of anything."
-                  style={{ color: C.orange, fontFamily: NUM_FONT, cursor: 'help' }}>{headline.heat.toFixed(1)}</b>
+                  style={{ color: C.orange, fontFamily: NUM_FONT, cursor: 'default' }}>{headline.heat.toFixed(1)}</b>
                 {', the highest on the slate.'}
                 {parts.length > 0 && (
                   <>{' '}{venue ? `${venue} is playing ` : 'The air reads '}
-                    <span title={parts.map((x) => `${x.text} — ${x.title}`).join('\n')} style={{ cursor: 'help', color: C.text2 }}>
+                    <span title={parts.map((x) => `${x.text} — ${x.title}`).join('\n')} style={{ cursor: 'default', color: C.text2 }}>
                       {parts.map((x) => x.text).join(', ')}
                     </span>.
                   </>
@@ -1084,7 +1084,7 @@ export default function Home({
                     hid behind — on a rebuilt slate his last game is today. */}
                 {' '}went deep {isTmrwSlate ? 'today' : 'last night'} — {isTmrwSlate ? 'tomorrow' : 'tonight'} is the encore try.
                 <span title="Every name here is checked against the graded results for that night, by player id. If that file hasn't published, this line doesn't render at all."
-                  style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'help' }}>✓ verified</span>
+                  style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
               </span>
             </div>
           )}
@@ -1316,7 +1316,7 @@ export default function Home({
               <span
                 title={`Leak score ${leakBy.get(a.nm).leak}/100 — ranked against tonight's ${ranked.length} starters only, not the league. Built from ${leakBy.get(a.nm).scoredOn} published fields: ${leakBy.get(a.nm).terms.map((t) => `${t.label} ${t.text}`).join(' · ')}.${leakBy.get(a.nm).thin ? ' Small Statcast sample — the contact-quality terms are thin.' : ''} Display ranking only; it never touches a pick.`}
                 style={{
-                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, flexShrink: 0, cursor: 'help',
+                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, flexShrink: 0, cursor: 'default',
                   color: '#f87171', border: '1px solid rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)',
                   borderRadius: 999, padding: '0 6px',
                 }}>

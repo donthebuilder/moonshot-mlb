@@ -187,7 +187,7 @@ function SectionHead({ color, icon, title, rate, rateTitle, count, children }) {
         <span style={{ fontSize: 14 }}>{icon}</span>
         <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{title}</span>
         <span title={rateTitle} style={{
-          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color, cursor: 'help',
+          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color, cursor: 'default',
           border: `1px solid ${color}55`, borderRadius: 999, padding: '1px 8px',
         }}>{rate}</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{count} players</span>

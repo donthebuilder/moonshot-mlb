@@ -530,7 +530,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           {' · '}<b style={{ color: C.blue }}>{theirZones.length} the starter&apos;s</b>
           {theirZones.length > 0 && <span style={{ color: C.text3 }}> ({theirZones.map((z) => ZONE_NAME[z]).join(', ')})</span>}
         </> : <span style={{ color: C.text3 }}> — his zones and the starter&apos;s traffic barely overlap; the map below is relative shading only</span>}
-        <span title="A zone counts only when the starter throws there ≥7% AND the hitter slugs ≥.500 (his) or runs ≤.280 xwOBA (theirs), with a real sample. The map's colors are normalized per side; this count is absolute." style={{ cursor: 'help', color: C.text3 }}> ⓘ</span>
+        <span title="A zone counts only when the starter throws there ≥7% AND the hitter slugs ≥.500 (his) or runs ≤.280 xwOBA (theirs), with a real sample. The map's colors are normalized per side; this count is absolute." style={{ cursor: 'default', color: C.text3 }}> ⓘ</span>
       </div>
     ) : null
     verdict = (

@@ -276,9 +276,9 @@ function LookOut({ players }) {
         .lookout-head em{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;white-space:nowrap}
         .lookout-row{margin-top:7px}
         .lookout-label{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:5px;font-size:10.5px;font-weight:800;color:${C.text}}
-        .lookout-label i{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;letter-spacing:.06em;text-transform:uppercase;cursor:help;border-bottom:1px dotted ${C.border2}}
+        .lookout-label i{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px dotted ${C.border2}}
         .lookout-chips{display:flex;flex-wrap:wrap;gap:5px}
-        .lookout-chips :global(.chip){display:inline-flex;align-items:baseline;gap:5px;padding:4px 8px;border:1px solid ${C.border};border-radius:999px;background:${C.bg};cursor:help}
+        .lookout-chips :global(.chip){display:inline-flex;align-items:baseline;gap:5px;padding:4px 8px;border:1px solid ${C.border};border-radius:999px;background:${C.bg}}
         .lookout-chips :global(.chip-hot){border-color:rgba(249,115,22,.45);background:rgba(249,115,22,.08)}
         .lookout-chips :global(.chip b){font-size:10.5px;font-weight:800;color:${C.text}}
         .lookout-chips :global(.chip-hot b){color:${C.orange}}
@@ -1330,26 +1330,6 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
                   </div>
                 </div>
               )}
-              {pre.jerseys.length > 0 && (
-                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
-                  <b style={{ color: '#38bdf8' }}>Number meets number.</b>{' '}
-                  {pre.jerseys.length} hitters whose home run count is level with their
-                  shirt or one short of it:{' '}
-                  {pre.jerseys.slice(0, 3).map((j, i) => (
-                    <span key={`${j.name}-${j.jersey}`}>
-                      {i > 0 && ' · '}
-                      <span
-                        onClick={onPlayerClick ? () => onPlayerClick(j._raw) : undefined}
-                        style={{ cursor: onPlayerClick ? 'pointer' : 'default', color: C.text, fontWeight: 700 }}
-                      >{j.name}</span>
-                      <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
-                        {' '}#{j.jersey}, {j.hr} HR{j.kind === 'reaches' ? ' — one to match' : ' — level'}
-                      </span>
-                    </span>
-                  ))}
-                  <span style={{ color: C.text3 }}> · coincidence, and labelled as one.</span>
-                </div>
-              )}
               {pre.stack && (
                 <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
                   <b style={{ color: '#f97316' }}>Where the picks are batting.</b>{' '}
@@ -1360,21 +1340,77 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
                   came from, so this is the same column, before the fact.
                 </div>
               )}
-              {pre.echoes.length > 0 && (
-                <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
-                  <b style={{ color: '#c084fc' }}>Names that rhyme tonight.</b>{' '}
-                  {pre.echoes.map((e, i) => (
-                    <span key={`${e.kind}-${e.key}`}>
-                      {i > 0 && ' · '}
-                      <span style={{ color: C.text, fontWeight: 700 }}>{e.names.join(' + ')}</span>
-                      <span style={{ color: C.text3 }}>{` (same ${e.kind === 'first' ? 'first name' : 'surname'})`}</span>
-                    </span>
-                  ))}
-                  <span style={{ color: C.text3 }}>
-                    {' '}· raw counts among the {pre.picks} picks. No significance test is
-                    possible before the fact — the sample and the population would be the
-                    same people — so this claims nothing about likelihood.
-                  </span>
+              {/* ── FOR FUN, AND SAID SO (2026-08-29) ────────────────────
+                  Donovan, asked how the coincidence blocks should read after
+                  the rebuild: "i like one and two, but do what's best."
+
+                  What's best is the first with the second's care. These two —
+                  shirt numbers landing on home-run counts, and hitters whose
+                  names rhyme — are the only things on this page that are pure
+                  overlap. Everything else here is a countable fact about
+                  tonight's board with a reason to be looked at. Mixed into the
+                  same column, at the same weight, in the same voice, a reader
+                  has no way to tell which is which — and the prettier the
+                  containers around them get, the worse that gets. That is the
+                  actual integrity problem in this rebuild, and it is this one.
+
+                  So: their own panel, headed with the disclaimer instead of
+                  trailing it, drawn a step quieter than the measured blocks —
+                  no accent colour on the labels, no large numerals, a dimmer
+                  ground. Not hidden, not shrunk to a link, not rewritten: the
+                  writing is the part he likes and every word of it survives.
+                  They simply cannot be mistaken for a finding any more.
+
+                  Nothing is dropped. Full counts, full names, same clicks. */}
+              {(pre.jerseys.length > 0 || pre.echoes.length > 0) && (
+                <div className="ledger-forfun">
+                  <div className="ledger-forfun-head">
+                    <span>🎲 For fun · not evidence</span>
+                    <em>overlap, not signal</em>
+                  </div>
+                  <p className="ledger-forfun-caveat">
+                    Raw counts across tonight&apos;s {pre.picks} picks, noticed after the fact. No
+                    significance test is possible before the fact — the sample and the population
+                    would be the same people — so nothing below claims anything about likelihood.
+                    None of it is graded and none of it feeds any score.
+                  </p>
+
+                  {pre.jerseys.length > 0 && (
+                    <div className="ledger-forfun-row">
+                      <span className="ledger-forfun-label">Number meets number</span>
+                      <span className="ledger-forfun-body">
+                        {pre.jerseys.length} hitters whose home run count is level with their shirt
+                        or one short of it:{' '}
+                        {pre.jerseys.slice(0, 3).map((j, i) => (
+                          <span key={`${j.name}-${j.jersey}`}>
+                            {i > 0 && ' · '}
+                            <span
+                              onClick={onPlayerClick ? () => onPlayerClick(j._raw) : undefined}
+                              style={{ cursor: onPlayerClick ? 'pointer' : 'default', color: C.text2, fontWeight: 700 }}
+                            >{j.name}</span>
+                            <span style={{ fontFamily: NUM_FONT }}>
+                              {' '}#{j.jersey}, {j.hr} HR{j.kind === 'reaches' ? ' — one to match' : ' — level'}
+                            </span>
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
+
+                  {pre.echoes.length > 0 && (
+                    <div className="ledger-forfun-row">
+                      <span className="ledger-forfun-label">Names that rhyme tonight</span>
+                      <span className="ledger-forfun-body">
+                        {pre.echoes.map((e, i) => (
+                          <span key={`${e.kind}-${e.key}`}>
+                            {i > 0 && ' · '}
+                            <span style={{ color: C.text2, fontWeight: 700 }}>{e.names.join(' + ')}</span>
+                            <span>{` (same ${e.kind === 'first' ? 'first name' : 'surname'})`}</span>
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1391,6 +1427,17 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           .ledger-chip b{font-size:10.5px;font-weight:800;color:${C.text}}
           .ledger-chip em{color:${C.text3};font-family:${NUM_FONT};font-size:9px;font-weight:900;font-style:normal}
           .ledger-chip-star{color:#FCD34D;font-size:9px}
+          /* A step quieter than everything above it, on purpose: no accent on
+             the labels, no large numerals, a dimmer ground and a dashed edge.
+             It has to be readable and it must not look like a board. */
+          .ledger-forfun{margin-top:4px;padding:9px 11px;border:1px dashed ${C.border2};border-radius:10px;background:rgba(255,255,255,.015)}
+          .ledger-forfun-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+          .ledger-forfun-head span{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:${C.text3}}
+          .ledger-forfun-head em{font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;color:${C.text3};opacity:.8}
+          .ledger-forfun-caveat{margin:5px 0 8px;font-size:9px;line-height:1.55;color:${C.text3}}
+          .ledger-forfun-row{display:flex;flex-wrap:wrap;gap:4px 8px;padding:5px 0;border-top:1px solid rgba(255,255,255,.05)}
+          .ledger-forfun-label{flex:0 0 auto;font-size:9.5px;font-weight:800;color:${C.text3};letter-spacing:.02em}
+          .ledger-forfun-body{flex:1 1 220px;min-width:0;font-size:10px;line-height:1.6;color:${C.text3}}
         `}</style>
       </div>
     )

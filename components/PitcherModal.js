@@ -45,7 +45,7 @@ function Tile({ label, value, tone, tip }) {
       display: 'flex', flexDirection: 'column', gap: 1, minWidth: 62, padding: '5px 10px',
       border: `1px solid ${tone === 'hot' ? 'rgba(249,115,22,.5)' : tone === 'cold' ? 'rgba(96,165,250,.45)' : C.border}`,
       background: tone === 'hot' ? 'rgba(249,115,22,.07)' : tone === 'cold' ? 'rgba(96,165,250,.06)' : 'rgba(255,255,255,.02)',
-      borderRadius: 8, cursor: tip ? 'help' : 'default',
+      borderRadius: 8, cursor: tip ? 'inherit' : 'default',
     }}>
       <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
       <span style={{ fontSize: 13, fontWeight: 900, fontFamily: NUM_FONT, color: tone === 'hot' ? C.orange : tone === 'cold' ? '#60a5fa' : C.text }}>{value}</span>
@@ -461,7 +461,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             const cell = (label, value, sub, tip) => (
               <span key={label} title={tip} style={{
                 flex: '1 1 76px', minWidth: 76, padding: '5px 9px', borderRadius: 9,
-                border: `1px solid ${C.border}`, background: C.glass, cursor: 'help',
+                border: `1px solid ${C.border}`, background: C.glass, cursor: 'default',
               }}>
                 <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, letterSpacing: '.09em',
                   color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>

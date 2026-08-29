@@ -450,7 +450,7 @@ const Row = ({ p, accent }) => {
           {p.hr_allowed_today} HR
         </div>
         <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? verdictInk(false).color : C.text3, cursor: 'help' }}>{p.k_today} K</span>
+          {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? verdictInk(false).color : C.text3, cursor: 'default' }}>{p.k_today} K</span>
         </div>
       </div>
     </div>

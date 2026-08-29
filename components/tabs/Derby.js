@@ -230,7 +230,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
                 title={label === 'THE BOT'
                   ? `The bot drafts greedily: highest HR score first, taking any hitter it can still afford, until it has ${SQUAD} or the ${CAP} cap runs out. The number on each chip is his cost — his HR score, floored at 20 — so the order you see is the order it picked in.`
                   : `Your squad. Same ${CAP} cap, same costs; a hitter costs his HR score, floored at 20.`}
-                style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.09em', color: col, fontFamily: NUM_FONT, cursor: 'help' }}
+                style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.09em', color: col, fontFamily: NUM_FONT, cursor: 'default' }}
               >{label}</span>
               <span style={{ fontSize: 22, fontWeight: 900, fontFamily: NUM_FONT, color: r.ft ? col : C.text3 }}>
                 {Math.round(r.ft).toLocaleString()} <span style={{ fontSize: 10 }}>ft</span>

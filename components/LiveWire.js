@@ -316,7 +316,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                   + `typically produces about ${Math.round(exp)}. `
                   + `${done ? 'All those games are final.' : 'Games are still in progress, so the count is still climbing.'}`
                 : `${t.hits} base hits across ${t.started} game${t.started === 1 ? '' : 's'} under way. Loading the league average to compare against.`}
-              style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3, cursor: 'help' }}>
+              style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3, cursor: 'default' }}>
               🥎 <b style={{ color: col }}>{t.hits}</b> hits
               {exp != null && (
                 <span style={{ color: C.text3 }}>

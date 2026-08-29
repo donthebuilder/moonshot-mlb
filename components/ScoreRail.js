@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { scheduleFor, slateDay } from '../lib/boxscore'
 import { mlbId } from '../lib/player'
 import { pickCleared } from '../lib/liveSlate'
+import MlbTeamMark from './MlbTeamMark'
 
 // 🛰 THE RAIL — every game on the slate, at a glance, with your side of it.
 //
@@ -177,11 +178,23 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
                   display: 'flex', justifyContent: 'space-between', gap: 10,
                   alignItems: 'baseline', lineHeight: 1.22,
                 }}>
-                  <span style={{
-                    fontFamily: NUM_FONT, fontSize: 11.5,
-                    fontWeight: w === side ? 800 : 600,
-                    color: w && w !== side ? C.text3 : C.text2,
-                  }}>{t.abbr || t.name}</span>
+                  {/* ── THE CLUB, NOT JUST ITS LETTERS (2026-08-29) ────────
+                      Donovan, on blending FRANCHISE's look into MOONSHOT:
+                      team identity marks are the biggest "looks modern" win
+                      available and they add zero claims. This rail rendered
+                      thirty clubs in identical grey monospace, which is the
+                      one place on the site where you are meant to find YOUR
+                      game at a glance.
+
+                      The mark carries the club's own colour and nothing else
+                      — no logo (licensing, and thirty image requests on a
+                      strip that has to stay fast). The losing side still
+                      dims, because that is how this rail says who won and a
+                      club colour must never take that job over.
+
+                      A club colour is an IDENTITY here, never a data colour:
+                      see lib/mlbTeams.js. */}
+                  <MlbTeamMark abbr={t.abbr || t.name} dim={!!(w && w !== side)} />
                   {/* Principle 2 — the score is the biggest thing here by a
                       factor the old 12px never gave it. The winner is told by
                       the loser dimming, not by an accent. */}

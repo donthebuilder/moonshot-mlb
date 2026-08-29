@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import DenseTable from '../DenseTable'
 
@@ -91,12 +91,87 @@ export default function PitchBreakdown({ player }) {
   const [batterVs, setBatterVs] = useState(initialBatterVs) // batter's numbers vs this arm side
   const [view, setView] = useState('damage')
 
+  // Fetched only when the published profile is empty — the same pull the EV
+  // Log makes, and lib/savant.js caches per player id, so opening both tabs
+  // on one hitter costs one request, not two.
+  const pidKey = player?.player_id || player?.id
+  const hasBotProfile = !!Object.keys(player?.batter_pitch_type_profile?.by_pitch || {}).length
+  const [liveLog, setLiveLog] = useState(null)
+  useEffect(() => {
+    if (hasBotProfile || !pidKey) { setLiveLog(null); return undefined }
+    let alive = true
+    import('../../lib/savant')
+      .then(({ savantBattedBalls }) => savantBattedBalls(pidKey))
+      .then((rows) => { if (alive) setLiveLog(rows || []) })
+      .catch(() => { if (alive) setLiveLog([]) })
+    return () => { alive = false }
+  }, [pidKey, hasBotProfile])
+
+  // ── 🔴 LIVE STATCAST FALLBACK FOR THE PITCH PROFILE (2026-08-29) ─────────
+  // Donovan: a hitter at #146 of tonight's 303 showed "No pitch-type profile
+  // published ... nothing to break down here", while the EV Log one tab over
+  // pulled 335 batted balls live from Savant for the same man. His words:
+  // "all stats and spray chart, ev and pitch log should come up ... still
+  // should have a tag as not on the bot, but all the stats need to be shown."
+  //
+  // WHAT THIS FALLBACK CAN AND CANNOT DO, and why the difference is drawn
+  // exactly here: Savant's batted-ball export is BALLS PUT IN PLAY. From it,
+  // per pitch type, we can honestly count balls in play, home runs, exit
+  // velocity, hard-hit rate and barrel rate — every one of those has batted
+  // balls as its true denominator.
+  //
+  // We CANNOT get BA, xwOBA, whiff%, K%, BB% or usage% from it, because those
+  // need plate appearances or every pitch thrown, and this export has neither.
+  // So they are not computed, not approximated and not left to render as
+  // zeroes: on a live-pull row they are absent, the table says so, and the
+  // caption names which columns are unavailable and why. A batted-ball-only
+  // BA would be the exact kind of invented number this file's own history
+  // section exists to prevent.
+  const liveByPitch = useMemo(() => {
+    const rows = Array.isArray(liveLog) ? liveLog : []
+    if (!rows.length) return null
+    const pick = rows.filter((h) => (
+      batterVs === 'ALL' || !batterVs ? true : String(h.arm || '').toUpperCase() === batterVs
+    ))
+    if (!pick.length) return null
+    const acc = {}
+    pick.forEach((h) => {
+      const code = String(h.pitch_type || '').trim()
+      if (!code || code === 'nan') return
+      const a = acc[code] || (acc[code] = { bbe: 0, hr: 0, evSum: 0, evN: 0, hard: 0, brl: 0 })
+      a.bbe += 1
+      if (h.is_hr) a.hr += 1
+      if (h.is_hard_hit) a.hard += 1
+      if (h.is_barrel) a.brl += 1
+      const ev = Number(h.ev)
+      if (Number.isFinite(ev)) { a.evSum += ev; a.evN += 1 }
+    })
+    const out = {}
+    Object.entries(acc).forEach(([code, a]) => {
+      out[code] = {
+        bbe: a.bbe,
+        hr: a.hr,
+        ev: a.evN ? a.evSum / a.evN : null,
+        hh: a.bbe ? (100 * a.hard) / a.bbe : null,
+        brl: a.bbe ? (100 * a.brl) / a.bbe : null,
+        // Deliberately absent, not zero — see the note above.
+        ba: null, xwoba: null, whiff: null, k: null, bb: null, use: null,
+        _live: true,
+      }
+    })
+    return Object.keys(out).length ? out : null
+  }, [liveLog, batterVs])
+
   // ── Batter vs pitch type, splittable by the HAND OF PITCHER faced ──
-  const byPitch = useMemo(() => {
+  const botByPitch = useMemo(() => {
     if (batterVs === 'L') return player?.batter_pitch_type_profile?.vs_lhp?.by_pitch || player?.batter_pitch_type_profile?.by_pitch || {}
     if (batterVs === 'R') return player?.batter_pitch_type_profile?.vs_rhp?.by_pitch || player?.batter_pitch_type_profile?.by_pitch || {}
     return player?.batter_pitch_type_profile?.by_pitch || {}
   }, [player, batterVs])
+
+  // The published profile always wins; the live pull only fills a hole.
+  const usingLive = !Object.keys(botByPitch).length && !!liveByPitch
+  const byPitch = usingLive ? liveByPitch : botByPitch
 
   // ── Pitcher arsenal — switch by batter hand toggle ──
   const pitcherSummary = useMemo(() => {
@@ -368,6 +443,26 @@ export default function PitchBreakdown({ player }) {
         </div>
       )}
 
+      {/* WHICH PIPE, said before the table rather than after it. */}
+      {usingLive && (
+        <div style={{
+          display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap',
+          margin: '0 0 8px', padding: '6px 10px', borderRadius: 8,
+          border: '1px solid rgba(248,113,113,.3)', background: 'rgba(248,113,113,.07)',
+          fontSize: 9.5, color: C.text3, lineHeight: 1.55,
+        }}>
+          <span style={{ color: '#f87171', fontWeight: 900 }}>🔴 Live Statcast pull</span>
+          <span>
+            he isn&apos;t in the bot&apos;s cache for this slate, so this table is built from his
+            batted balls straight off Savant. Balls in play, HR, exit velo, hard-hit% and barrel%
+            are all real counts over those balls.{' '}
+            <b style={{ color: C.text2 }}>BA, xwOBA, whiff%, K% and usage% are blank on purpose</b> —
+            they need plate appearances or every pitch thrown, and a batted-ball export has neither.
+            They will fill in when the bot publishes this hitter&apos;s profile.
+          </span>
+        </div>
+      )}
+
       {/* ── Section 1: Batter vs pitch type ── */}
       {Object.keys(byPitch).length > 0 ? (
         <div style={{marginBottom:16}}>
@@ -422,13 +517,16 @@ export default function PitchBreakdown({ player }) {
             dimRow={(r) => Number(r.bbe || 0) < MIN_BBE}
             initialSort="use"
             maxHeight={340}
-            caption={`SAMPLE GATE: ${thinCount} of ${allPitches.length} pitches here rest on fewer than ${MIN_BBE} balls in play. Those rows are dimmed and their rates are in parentheses — a 1.000 BA on five pitches is one swing, not a strength, and it used to sit in this table wearing the brightest cell on the row because 1.000 sorts above .268. They are still sortable and still counted; they are just not allowed to look like findings. GB%, Whiff% and K% are inverted so bright still means good for the hitter. Use% carries no judgement — it's how often tonight's arm throws the pitch. Switch Columns above for shape and discipline, or Everything for all eighteen.`}
+            caption={`SAMPLE GATE: ${thinCount} of ${allPitches.length} pitches here rest on fewer than ${MIN_BBE} balls in play. Those rows are dimmed, their rates are in parentheses, and \u2014 as of 2026-08-29 \u2014 they are excluded from the colour SCALE as well: a row resting on two balls in play used to define the top of every ramp on this table, so the qualifying rows were all squashed into the bottom of the gradient while the unqualified one sat at the ceiling. The scale is now built from qualifying rows only; thin rows keep their real values, stay sortable and stay counted, they simply clamp to the ends of an honest scale instead of setting it. A 1.000 BA on five pitches is one swing, not a strength. GB%, Whiff% and K% are inverted so bright still means good for the hitter. Use% carries no judgement — it's how often tonight's arm throws the pitch. Switch Columns above for shape and discipline, or Everything for all eighteen.`}
           />
         </div>
       ) : (
         <div style={{padding:'10px 0',fontSize:11,color:C.text3,fontFamily:NUM_FONT}}>
           No pitch-type profile published for {player.name}
-          {batterVs !== 'ALL' ? ` against ${batterVs}HP` : ''} — nothing to break down here.
+          {batterVs !== 'ALL' ? ` against ${batterVs}HP` : ''}
+          {liveLog === null
+            ? ' — checking Statcast directly…'
+            : ' — and the live Statcast pull came back empty too. That is every source this tab has.'}
         </div>
       )}
 

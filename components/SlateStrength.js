@@ -87,7 +87,7 @@ export default function SlateStrength({ players = [], onGameClick }) {
   const gHi = Math.max(...vals, 1)
 
   const Stat = ({ label, value, tip, accent }) => (
-    <div title={tip} style={{ cursor: 'help', minWidth: 0 }}>
+    <div title={tip} style={{ cursor: 'default', minWidth: 0 }}>
       <div style={{
         fontSize: 8, letterSpacing: '.06em', textTransform: 'uppercase',
         color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap',

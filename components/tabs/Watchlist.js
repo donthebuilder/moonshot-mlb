@@ -546,7 +546,7 @@ function WatchTracker({ items, nightOf, slateDate, mode, onLedger }) {
               <span key={r.date}
                 title={`${r.date} — ${r.hr} of ${r.n} saved hitters homered${r.void ? `, ${r.void} never batted` : ''}`}
                 style={{
-                  width: 12, height: h, borderRadius: 2, cursor: 'help',
+                  width: 12, height: h, borderRadius: 2, cursor: 'default',
                   background: r.hr ? '#4ade80' : 'rgba(255,255,255,.10)',
                   boxShadow: r.hr ? '0 0 6px rgba(74,222,128,.35)' : 'none',
                 }} />

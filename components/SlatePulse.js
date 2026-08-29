@@ -301,7 +301,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                                 color: k === 'dropped' ? (it.demoted ? '#f87171' : C.text3) : C.text2,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                               }} title={it.why || (it.demoted ? 'On tonight’s slate but stripped of the pick — a real demotion' : undefined)}>
-                                {it.label}{it.demoted ? ' ▾' : ''}{it.why ? <span style={{ fontSize: 8.5, marginLeft: 3, cursor: 'help' }}>📓</span> : null}
+                                {it.label}{it.demoted ? ' ▾' : ''}{it.why ? <span style={{ fontSize: 8.5, marginLeft: 3, cursor: 'default' }}>📓</span> : null}
                               </span>
                               <span style={{
                                 marginLeft: 'auto', fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0,

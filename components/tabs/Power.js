@@ -140,7 +140,7 @@ function AirClause({ p }) {
   return (
     <>
       {parts.map((part, i) => (
-        <span key={part.key} title={part.title} style={{ cursor: 'help' }}>
+        <span key={part.key} title={part.title} style={{ cursor: 'default' }}>
           {i > 0 && (i === parts.length - 1 ? ' and ' : ', ')}
           <b style={{
             fontFamily: NUM_FONT, fontWeight: 800,

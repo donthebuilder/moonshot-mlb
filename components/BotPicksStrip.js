@@ -262,7 +262,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
             + 'not the ranking, and it has been priced out.\n\n'
             + 'bots/precision_study.py, re-run monthly.'}
           style={{
-            marginLeft: 'auto', flexShrink: 0, cursor: 'help',
+            marginLeft: 'auto', flexShrink: 0, cursor: 'default',
             fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text3,
             border: `1px solid ${C.border}`, borderRadius: 999, padding: '2px 9px',
           }}

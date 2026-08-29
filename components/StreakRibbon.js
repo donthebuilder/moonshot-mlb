@@ -67,7 +67,7 @@ export default function StreakRibbon({ streak, label = 'the bar', max = 40, heig
             ].filter(Boolean).join('\n')}
             style={{
               flex: `${r.drawn} 1 0`, minWidth: 3, height,
-              borderRadius: 3, cursor: 'help',
+              borderRadius: 3, cursor: 'default',
               background: r.ok ? alpha(warm, 0.28 + 0.5 * Math.min(1, r.len / 6)) : alpha(cool, 0.22),
               border: `1px solid ${alpha(r.ok ? warm : cool, r.ok ? 0.55 : 0.3)}`,
             }}
@@ -99,7 +99,7 @@ export function StreakLine({ streak, label = 'the bar' }) {
       display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap',
       fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, minWidth: 0,
     }}>
-      <span title={`His live run on ${label}, newest games first`} style={{ cursor: 'help' }}>
+      <span title={`His live run on ${label}, newest games first`} style={{ cursor: 'default' }}>
         <b style={{ color: col, fontSize: 12, fontWeight: 900 }}>{cur.len}</b>
         {' '}{cur.ok ? 'straight' : 'straight miss'}
       </span>
@@ -107,7 +107,7 @@ export function StreakLine({ streak, label = 'the bar' }) {
           carry: the run that just ended, and the night it ended on. */}
       {streak.ended && (
         <span title={streak.ended.broke ? `ended on ${gameLabel(cur.broke || streak.ended.games?.[0])}` : ''}
-          style={{ cursor: streak.ended.broke ? 'help' : 'inherit' }}>
+          style={{ cursor: streak.ended.broke ? 'inherit' : 'inherit' }}>
           broke a {streak.ended.len}-game {streak.ended.ok ? 'run' : 'drought'}
           {cur.broke ? ` on ${cur.broke.date}` : ''}
         </span>

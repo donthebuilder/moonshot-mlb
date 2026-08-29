@@ -495,7 +495,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                         title. */}
                     {c.wx && (
                       <span title={c.wx.title} style={{
-                        whiteSpace: 'nowrap', cursor: 'help', fontWeight: 700,
+                        whiteSpace: 'nowrap', cursor: 'default', fontWeight: 700,
                         color: c.wx.tone === 'carrying' ? verdictInk(true).color
                           : c.wx.tone === 'dead' ? verdictInk(false).color : C.text3,
                       }}>{c.wx.text}</span>

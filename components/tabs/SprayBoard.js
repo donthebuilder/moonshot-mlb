@@ -27,7 +27,7 @@ function FenceLine({ playerId }) {
   if (board === undefined || !board?.rows?.length) return null
   const r = board.rows.find((x) => String(x.player_id) === String(playerId))
   const cell = (v, label, col, tip) => (
-    <span title={tip} style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3, cursor: 'help' }}>
+    <span title={tip} style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3, cursor: 'default' }}>
       <b style={{ color: col, fontSize: 12, fontWeight: 900 }}>{v}</b> {label}
     </span>
   )

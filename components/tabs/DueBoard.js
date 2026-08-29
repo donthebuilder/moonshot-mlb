@@ -390,7 +390,7 @@ export default function DueBoard({ players = [], onWatch, watchIds, onPlayerClic
         of whom <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{elite}</b>{' '}
         <span
           title="HR/PA ≥ .045 — roughly a homer every 22 plate appearances, the rate at which a drought is worth reading at all"
-          style={{ cursor: 'help', textDecoration: 'underline dotted' }}
+          style={{ cursor: 'default', textDecoration: 'underline dotted' }}
         >carry elite power</span> (HR/PA ≥ <span style={{ fontFamily: NUM_FONT }}>.045</span>). The longest
         drought on the board runs <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{longest}</b>{' '}
         game{longest === 1 ? '' : 's'}, the median due score is{' '}

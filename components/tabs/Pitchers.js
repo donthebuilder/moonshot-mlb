@@ -97,7 +97,7 @@ function Clauses({ lead, parts, size = 9.5, color, style, tail = null }) {
         <span key={p.key}>
           {i > 0 && (i === parts.length - 1 ? ' and ' : ', ')}
           <span title={p.title} style={{
-            color: toneColor(p.tone), fontWeight: p.tone === 'plain' ? 400 : 700, cursor: 'help',
+            color: toneColor(p.tone), fontWeight: p.tone === 'plain' ? 400 : 700, cursor: 'default',
           }}>{p.text}</span>
         </span>
       ))}
@@ -433,7 +433,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                 ? `Slate-published bullpen line for ${r.ab}: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN, liveHr9: r.st?.hr9 }).map((x) => x.text).join(', ')}.`
                 : `No bullpen line published on tonight's slate for ${r.ab}`}
                 style={{
-                  fontFamily: NUM_FONT, fontSize: 8.5, width: 128, flexShrink: 0, cursor: 'help',
+                  fontFamily: NUM_FONT, fontSize: 8.5, width: 128, flexShrink: 0, cursor: 'default',
                   color: r.line?.quality === 'weak' ? C.orange : r.line?.quality === 'strong' ? C.text3 : C.text2,
                 }}>
                 {r.line
@@ -453,7 +453,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                     ? `Bullpen attack score ${r.line.attack.toFixed(0)} — the bot's 0-100 rating of how attackable this pen is against the bats it faces tonight, on a slate spread of ${attackRange ? `${attackRange[0].toFixed(0)}–${attackRange[1].toFixed(0)}` : 'n/a'}. A score, not a chance of anything. This is the number the Attack sort uses.`
                     : `No bullpen attack score published for ${r.ab} tonight — a blank, not a zero, so the Attack sort puts it last.`}
                   style={{
-                    fontFamily: NUM_FONT, fontSize: 9, width: 44, flexShrink: 0, cursor: 'help',
+                    fontFamily: NUM_FONT, fontSize: 9, width: 44, flexShrink: 0, cursor: 'default',
                     textAlign: 'right',
                     fontWeight: sortKey === 'attack' ? 900 : 700,
                     color: sortKey === 'attack' ? C.orange : C.text3,
@@ -485,7 +485,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   {r.fat.used}a / {r.fat.pitches}p
                 </span>
               ) : (
-                <span title="No reliever workload logged for this club yesterday — an off day, or the boxscore hasn't landed. Unknown, NOT rested." style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'help' }}>
+                <span title="No reliever workload logged for this club yesterday — an off day, or the boxscore hasn't landed. Unknown, NOT rested." style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'default' }}>
                   no log
                 </span>
               )}
@@ -689,7 +689,7 @@ function ArmStat({ label, value, sub, tone, tip }) {
       flex: '1 1 68px', minWidth: 68, padding: '5px 8px', borderRadius: 9,
       border: `1px solid ${tone ? alpha(col, 0.32) : C.border}`,
       background: tone ? alpha(col, 0.07) : C.glass,
-      cursor: tip ? 'help' : 'default',
+      cursor: tip ? 'inherit' : 'default',
     }}>
       <span style={{
         display: 'block', fontSize: 7.5, fontWeight: 800, letterSpacing: '.09em',
@@ -1188,7 +1188,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                   <span style={{ fontSize: 8.5, fontWeight: 900, color: '#60a5fa', letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
                   <span
                     title={leak ? `Leak score ${leak.leak}/100 against tonight's starters — the same scale the attack cards use.` : 'Season and recent-form blend.'}
-                    style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT, cursor: 'help' }}>
+                    style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT, cursor: 'default' }}>
                     {leak ? leak.leak : ov.toFixed(0)}
                   </span>
                 </div>

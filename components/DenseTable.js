@@ -143,17 +143,39 @@ export default function DenseTable({
     return text ? text.key : null
   }, [columns])
 
+  // ── A THIN ROW MUST NOT SET THE SCALE (2026-08-29) ───────────────────────
+  //
+  // Donovan, on the pitch table: a K-Curve line resting on TWO balls in play
+  // showed (100.0) BRL% and still read as the brightest thing on the board.
+  // dimRow was already wired and the row was already dimmed and its rates
+  // already parenthesised — and it did not help, because dimming a row does
+  // not stop it OWNING THE TOP OF THE RAMP. Every other row on that table was
+  // being coloured as a fraction of a number produced by two swings, so the
+  // real rows were squashed into the bottom of the gradient while the
+  // unqualified one sat at the ceiling wearing 42% opacity.
+  //
+  // The gate now applies to the SCALE, not just the row: when a table supplies
+  // dimRow, the min and max come from qualifying rows only. Thin rows keep
+  // their real values, stay sortable, stay counted, and clamp to the ends of
+  // the honest scale rather than defining it.
+  //
+  // Guard: if fewer than three rows qualify there is no meaningful scale to
+  // build from them, so every row is used, exactly as before. A table where
+  // almost nothing clears the gate should look flat — that is the truth about
+  // it — rather than pick a ramp out of two numbers.
   const ranges = useMemo(() => {
     const out = {}
+    const qualified = typeof dimRow === 'function' ? rows.filter((r) => !dimRow(r)) : rows
+    const scaleRows = qualified.length >= 3 ? qualified : rows
     heatCols.forEach((c) => {
       // numOf, not Number: a column where half the arms published nothing was
       // computing its ramp against a floor of phantom zeroes, so the arms that
       // DID publish were all squashed into the top of the gradient.
-      const vals = rows.map((r) => numOf(r[c.key])).filter(Number.isFinite)
+      const vals = scaleRows.map((r) => numOf(r[c.key])).filter(Number.isFinite)
       out[c.key] = vals.length ? [Math.min(...vals), Math.max(...vals)] : [0, 1]
     })
     return out
-  }, [rows, heatCols])
+  }, [rows, heatCols, dimRow])
 
   // ── FIELD ANCHORS ─────────────────────────────────────────────────────────
   // A column that asked for `anchor: DIV_FIELD` gets its zero from the rows on
@@ -180,15 +202,19 @@ export default function DenseTable({
   const cuts = useMemo(() => {
     if (heatMode !== 'standouts') return {}
     const out = {}
+    // Same gate as `ranges` above: a percentile band built including rows that
+    // do not clear the sample gate is a band drawn around noise.
+    const qualified = typeof dimRow === 'function' ? rows.filter((r) => !dimRow(r)) : rows
+    const scaleRows = qualified.length >= 5 ? qualified : rows
     heatCols.forEach((c) => {
-      const vals = rows.map((r) => Number(r[c.key])).filter(Number.isFinite).sort((a, b) => a - b)
+      const vals = scaleRows.map((r) => Number(r[c.key])).filter(Number.isFinite).sort((a, b) => a - b)
       if (vals.length < 5) { out[c.key] = null; return }
       const lo = vals[Math.floor(vals.length * STANDOUT_SLICE)]
       const hi = vals[Math.ceil(vals.length * (1 - STANDOUT_SLICE)) - 1]
       out[c.key] = [lo, hi]
     })
     return out
-  }, [rows, heatCols, heatMode])
+  }, [rows, heatCols, heatMode, dimRow])
 
   // Does this cell get colour at all, under the current mode?
   const lit = (c, num) => {
@@ -520,7 +546,7 @@ export default function DenseTable({
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         maxWidth: c.w, borderRight: `1px solid ${C.border}`,
                         borderBottom: `1px solid ${C.bg}`,
-                        cursor: textTitle ? 'help' : undefined,
+                        cursor: textTitle ? 'inherit' : undefined,
                         ...(light ? cellTint(light.color) : {}),
                         // The 3px bar belongs on the row's first cell, which is
                         // the element that actually paints there.

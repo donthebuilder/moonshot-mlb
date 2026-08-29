@@ -111,7 +111,7 @@ function Cell({ children, w, mono = true, color, title, right }) {
       width: w, flexShrink: 0, minWidth: 0, textAlign: right ? 'right' : 'left',
       fontFamily: mono ? NUM_FONT : undefined, fontSize: 11, color: color || C.text2,
       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      cursor: title ? 'help' : 'inherit',
+      cursor: title ? 'inherit' : 'inherit',
     }}>{children}</span>
   )
 }

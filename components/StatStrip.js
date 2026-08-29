@@ -40,7 +40,7 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
             key={s.id}
             title={toneTitle(tone, scale, s)}
             style={{
-              minWidth: 0, textAlign: 'center', cursor: 'help',
+              minWidth: 0, textAlign: 'center', cursor: 'default',
               background: tone === 'mid' || !tone ? 'rgba(255,255,255,.03)' : `${col}12`,
               border: `1px solid ${tone === 'mid' || !tone ? C.border : `${col}44`}`,
               borderRadius: 7, padding: sm ? '3px 2px 4px' : '4px 3px 5px',
@@ -141,7 +141,7 @@ export function SlashLine({ p, type = 'hr', style }) {
       )}
       <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
         {counts.map(([lab, v, tip], i) => (
-          <span key={lab} title={tip} style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text2, cursor: 'help', whiteSpace: 'nowrap' }}>
+          <span key={lab} title={tip} style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text2, cursor: 'default', whiteSpace: 'nowrap' }}>
             <b style={{ color: i === 0 ? C.orange : C.text, fontWeight: 800 }}>{v}</b>
             <span style={{ color: C.text3, fontSize: 8.5 }}> {lab}</span>
           </span>
@@ -181,7 +181,7 @@ export function HitRateBoxes({ p, style }) {
           <div key={b.id}
             title={`${b.num} home run${b.num === 1 ? '' : 's'} in his last ${b.den} ${b.unit === 'G' ? 'games' : 'plate appearances'}.`}
             style={{
-              minWidth: 0, textAlign: 'center', cursor: 'help',
+              minWidth: 0, textAlign: 'center', cursor: 'default',
               background: hot ? `${C.orange}12` : 'rgba(255,255,255,.03)',
               border: `1px solid ${hot ? `${C.orange}44` : C.border}`,
               borderRadius: 7, padding: '4px 3px 5px',
