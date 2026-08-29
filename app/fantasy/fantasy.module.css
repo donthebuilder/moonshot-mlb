@@ -4895,3 +4895,171 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .roomApp .slotRow button { grid-column: 1/4; width: 100%; }
   .slotGroupHead { top: 0; }
 }
+
+/* == REMAINING SCREENS · LOOK PASS 1 ===================================== */
+/* Matchup, League HQ, Wire, Trades, Feed, Coach, Settings brought onto the
+   same surface scale as the draft room and the lineup board. Palette
+   unchanged. */
+
+.roomApp .matchupLineup,
+.roomApp .weekGames,
+.roomApp .standings,
+.roomApp .powerBoard,
+.roomApp .nflGameCenter,
+.roomApp .wireSide>section,
+.roomApp .tradeCard,
+.roomApp .tradeBuilder,
+.roomApp .feedPost,
+.roomApp .feedSide>section,
+.roomApp .coachSide>section,
+.roomApp .coachRecommendations,
+.roomApp .settingsPanel,
+.roomApp .settingsSide>section {
+  border: 1px solid var(--fx-edge-2);
+  border-radius: 14px;
+  background: var(--fx-s1);
+  box-shadow: 0 1px 0 rgba(255,255,255,.02) inset, 0 10px 30px rgba(0,0,0,.32);
+}
+.roomApp .matchupHero { border-color: #37281f; background: radial-gradient(circle at 50% 45%,rgba(246,169,40,.12),transparent 36%),var(--fx-s1); }
+.roomApp .leagueHero { border-color: #26382f; background: radial-gradient(circle at 88% 14%,rgba(24,200,120,.10),transparent 42%),var(--fx-s1); }
+.roomApp .wireHero,
+.roomApp .settingsHero,
+.roomApp .coachHero { background-color: var(--fx-s1); }
+
+.roomApp .matchupPlayer,
+.roomApp .weekGame,
+.roomApp .standingRow,
+.roomApp .standingHead,
+.roomApp .claimRow,
+.roomApp .priorityRow,
+.roomApp .wirePlayer,
+.roomApp .settingsTeam,
+.roomApp .feedOwner { border-top: 1px solid var(--fx-edge); }
+.roomApp .matchupPlayer:hover,
+.roomApp .weekGame:hover,
+.roomApp .standingRow:hover,
+.roomApp .wirePlayer:hover,
+.roomApp .priorityRow:hover { background: var(--fx-s2); }
+.roomApp .standingHead { background: var(--fx-s2); color: var(--fx-muted-2); }
+
+/* --- matchup: who is actually ahead, as a shape ------------------------- */
+.marginBar {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--fx-edge-2);
+  border-radius: 12px;
+  background: var(--fx-s1);
+}
+.marginTrack {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: #2a2723;
+  overflow: hidden;
+}
+.marginTrack i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg,var(--fx-accent),var(--fx-gold));
+  transition: width .3s ease;
+}
+.marginTrack b {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--fx-ink);
+  box-shadow: 0 0 8px rgba(0,0,0,.7);
+}
+.marginBar[data-live="true"] .marginTrack i { background: linear-gradient(90deg,var(--fx-good),#4de29a); }
+.marginLegend {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 10px;
+}
+.marginLegend span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fx-muted);
+  font: 700 10px/1.3 monospace;
+}
+.marginLegend span:last-child { text-align: right; }
+.marginLegend em {
+  flex: 0 0 auto;
+  color: var(--fx-ink);
+  font: 900 10px/1 monospace;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- matchup: a starter's state reads on the row ------------------------ */
+.playerState {
+  justify-self: end;
+  padding: 4px 6px;
+  border: 1px solid var(--fx-edge-2);
+  border-radius: 5px;
+  color: var(--fx-dim);
+  font: 900 7px/1 monospace;
+  letter-spacing: .08em;
+}
+.playerState[data-state="live"] { border-color: #2c4c3d; color: var(--fx-good); }
+.playerState[data-state="final"] { border-color: #3a352e; color: var(--fx-muted); }
+.roomApp .matchupPlayer { grid-template-columns: 44px 1fr auto 54px; gap: 9px; }
+.roomApp .matchupPlayer b { font-size: 12px; }
+.roomApp .matchupPlayer strong { font-variant-numeric: tabular-nums; }
+
+/* --- game center: cards that fit, and LIVE that reads ------------------- */
+.roomApp .nflGameGrid { grid-template-columns: repeat(auto-fit,minmax(132px,1fr)); }
+.roomApp .nflGameGrid article {
+  border-color: var(--fx-edge-2);
+  background: var(--fx-s2);
+  transition: border-color .14s ease, transform .14s ease;
+}
+.roomApp .nflGameGrid article:hover { transform: translateY(-1px); border-color: #3f3a33; }
+.roomApp .nflGameGrid .nflGameLive { box-shadow: 0 0 0 1px rgba(24,200,120,.16); }
+
+/* --- league HQ: the playoff cut is a line, not a label ------------------ */
+.roomApp .standingRow { font-variant-numeric: tabular-nums; }
+.roomApp .standingRow[data-cut="true"] { border-bottom: 2px solid var(--fx-gold); }
+.roomApp .standingRow[data-mine="true"] { background: linear-gradient(90deg,rgba(246,169,40,.07),transparent 40%); }
+.roomApp .standingRow[data-mine="true"] small { color: var(--fx-gold); }
+.roomApp .standingRow strong { font-variant-numeric: tabular-nums; }
+.roomApp .leagueViews a { border-radius: 999px; transition: color .14s ease, border-color .14s ease; }
+.roomApp .leagueViews a:hover { color: var(--fx-ink); }
+.roomApp .weekStrip a { border-radius: 8px; font-variant-numeric: tabular-nums; }
+
+/* --- wire, trades, feed, coach ------------------------------------------ */
+.roomApp .wirePlayer strong,
+.roomApp .coachMetric b { font-variant-numeric: tabular-nums; }
+.roomApp .freeStatus { color: var(--fx-good); }
+.roomApp .waiverStatus { color: var(--fx-gold); }
+.roomApp .reactionBar button {
+  border-radius: 999px;
+  transition: background .13s ease, border-color .13s ease, transform .1s ease;
+}
+.roomApp .reactionBar button:hover { transform: translateY(-1px); }
+.roomApp .reactionBar .reacted { border-color: #6b4a20; background: #241a10; }
+.roomApp .coachRecommendations article { border-top: 1px solid var(--fx-edge); }
+.roomApp .coachRecommendations article:hover { background: var(--fx-s2); }
+.roomApp .settingsFields input:focus,
+.roomApp .settingsFields select:focus,
+.roomApp .feedComposer textarea:focus,
+.roomApp .commentForm input:focus {
+  outline: none;
+  border-color: var(--fx-gold);
+  color: var(--fx-ink);
+}
+.roomApp .dangerZone { border-color: #4a2622; }
+
+@media(max-width:760px) {
+  .roomApp .matchupPlayer { grid-template-columns: 38px 1fr auto 50px; }
+  .marginLegend span { font-size: 9px; }
+  .roomApp .nflGameGrid { grid-template-columns: repeat(auto-fit,minmax(116px,1fr)); }
+}

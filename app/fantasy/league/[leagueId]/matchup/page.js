@@ -68,6 +68,14 @@ export default async function MatchupPage({ params, searchParams }) {
       {!featured && <section className={styles.scheduleEmpty}><span>VS</span><div><p className={styles.panelLabel}>SEASON SCHEDULE</p><h1>Your matchups are ready to be built.</h1><p>Franchise creates a balanced 14-week round-robin schedule from the teams currently in this league.</p></div>{membership.role==='commissioner'?<form action={generateSchedule}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Building…">Create schedule</SubmitButton></form>:<small>Waiting for the commissioner</small>}</section>}
       {featured && <>
         <section className={styles.matchupHero}><div><small>HOME</small><h1>{home?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.home_score).toFixed(2)}</strong><em>{homeProjection.toFixed(1)} projected</em></div><span><b>WEEK {week}</b><i>{String(featured.status||'').toUpperCase()}</i></span><div><small>AWAY</small><h1>{away?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.away_score).toFixed(2)}</strong><em>{awayProjection.toFixed(1)} projected</em></div></section>
+        <section className={styles.marginBar} data-live={featured.status==='live'?'true':undefined}>
+          <div className={styles.marginTrack}><i style={{ width: `${homeShare}%` }}/><b style={{ left: `${homeShare}%` }}/></div>
+          <div className={styles.marginLegend}>
+            <span>{home?.name}</span>
+            <em>{featured.status==='scheduled' ? `${Math.abs(homeProjection-awayProjection).toFixed(1)} projected margin` : `${leader} by ${margin.toFixed(2)}`}</em>
+            <span>{away?.name}</span>
+          </div>
+        </section>
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring}/></div>
         <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b>{teams.find((team)=>team.id===game.home_team_id)?.name}</b><span>{game.status==='scheduled'?'vs':`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b>{teams.find((team)=>team.id===game.away_team_id)?.name}</b></div>)}</section>
       </>}
@@ -76,7 +84,7 @@ export default async function MatchupPage({ params, searchParams }) {
 }
 
 function Lineup({ title, rows, scoring }) {
-  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div><b>{row.player?.name}</b><small>{row.player?.position} · {row.player?.team} · {active?row.weekStats.status.toUpperCase():'PROJECTED'}</small></div><strong className={active?styles.livePlayerScore:''}>{(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
+  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div><b>{row.player?.name}</b><small>{row.player?.position} · {row.player?.team}</small></div><span className={styles.playerState} data-state={active?row.weekStats.status:'projected'}>{active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active?styles.livePlayerScore:''}>{(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
 function NflGameCenter({games}) {
