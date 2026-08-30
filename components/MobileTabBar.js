@@ -13,14 +13,21 @@ const MAIN = [
   ['games', '▤', 'Slate'],
 ]
 
+// 2026-08-30, Donovan: "the results need to be organized better...to
+// flow." Regrouped from an arbitrary list into build-your-card, then
+// review, then reference -- so the sheet reads top to bottom the way you'd
+// actually use it on a slate night instead of alphabetical-ish clutter.
 const MORE = [
-  ['props', 'Props', 'Player lines and quick cards'],
+  // 1) what to back tonight
   ['bot', 'Picks', 'What the bot says to back tonight'],
+  ['props', 'Props', 'Player lines and quick cards'],
   ['pitchers', 'Pitchers', 'Starting arms and matchup pressure'],
   ['combos', 'Combos', 'Pairs, alignments, pools, and builder'],
   ['odds', 'Odds', 'Prices, movement, and true price'],
+  // 2) yours / how it went
   ['you', 'You', 'Watchlist and your saved picks'],
   ['results', 'Results', 'Receipts and settled outcomes'],
+  // 3) reference, last because it's the least-used stop
   ['guide', 'Guide', 'How every part of MOONSHOT works'],
 ]
 
