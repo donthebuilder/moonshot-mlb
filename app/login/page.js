@@ -41,16 +41,7 @@ export default async function LoginPage({ searchParams }) {
   return (
     <main className={styles.page}>
       <div className={styles.bar}>
-        {/* Straight to the actual board, not the marketing front door —
-            Donovan, 2026-08-29: "the login page didn't have a way to get to
-            the actual home page of dash, not just the fantasy login". This
-            was `href="/"`, which lands on the front door (app/(front)/page.js)
-            rather than the app someone landing here is actually trying to
-            reach, and the front door's own header still offers a "Sign in"
-            CTA to a not-yet-recognized visitor — so a person bouncing off
-            this page could round-trip right back to a login prompt instead
-            of ever seeing the board. */}
-        <Link className={styles.brand} href="/app#sport=mlb&tab=home">
+        <Link className={styles.brand} href="/">
           <img src="/icon-192.png" alt="" width="34" height="34" />
           <div><small>DASH</small><strong>NETWORK</strong></div>
         </Link>

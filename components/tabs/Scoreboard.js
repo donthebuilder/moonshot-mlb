@@ -16,6 +16,7 @@ import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_ad
 import BotPicksStrip from '../BotPicksStrip'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
+import HomerLedger from '../HomerLedger'
 import LiveWire from '../LiveWire'
 import NearMisses, { nearMissRows } from '../NearMisses'
 import ProjectedOutput, { slateProjHr } from '../ProjectedOutput'
@@ -746,19 +747,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const projHr = useMemo(() => slateProjHr(players), [players])
   const secProjected = (
     <Fold key="projected" label={`📈 Projected output — ${projHr != null ? `${projHr.toFixed(1)} HR projected slate-wide` : "the slate's expected count"}`}>
-      <ProjectedOutput games={projGames} players={players} watchIds={watchIds} />
+      <ProjectedOutput games={projGames} players={players} />
     </Fold>
   )
-  // 🧾 the ledger was pulled off this page (2026-08-30, Donovan: "the
-  // rundown page needs to actually show the projected output, it gets
-  // lost" + confirmed cutting the duplicate). It's the SAME card that
-  // already lives on Home — this page was rendering it a second time,
-  // which is real weight that had nothing to do with this page's own job
-  // (the sortable board + projected output). Home is the front door and
-  // keeps it; Rundown no longer does. secLedger stays defined as null so
-  // the `order` arrays below don't need a second edit if this needs to
-  // come back.
-  const secLedger = null
+  // 🧾 the ledger builds through the night — lives with the live layer.
+  // 2026-08-13: passes `results` now instead of HomerLedger fetching its own
+  // copy of the identical payload — see the note in HomerLedger.js.
+  const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
   // Does the slate carry an HR-luck reading at all tonight? See the note on
   // the column below — the field ships zero-filled and a zero-filled column
   // reads as a finding.
@@ -910,13 +905,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // those two now default CLOSED with their headline number stated right on
   // the fold (see where they're built, above) instead of force-open. Gone
   // yard stays open live — it's the moment's actual news, not analysis.
-  // Projected Output pulled forward (2026-08-30) so the page's own promised
-  // centerpiece shows up before Near Misses' chart rather than after it —
-  // that ordering, not the ledger removal above, is what was actually
-  // burying it.
   const order = liveNow
-    ? [secPicks, secWire, secGone, secProjected, secNear, secStart, secPulse, secWeak]
-    : [secPicks, secStart, secPulse, secProjected, secNear, secWire, secGone, secWeak]
+    ? [secPicks, secWire, secGone, secLedger, secNear, secProjected, secStart, secPulse, secWeak]
+    : [secPicks, secStart, secPulse, secNear, secProjected, secWire, secGone, secLedger, secWeak]
 
   return (
     <div>

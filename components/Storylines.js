@@ -352,7 +352,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // front page kept publishing the unverified version of the same claim for
   // days. One implementation, two callers, no drift.
   const setupHr = useSetupHomers(dateKey)
-  const { list: b2bAll, verified: b2bVerified } = backToBack(players, setupHr, null, dateKey)
+  const { list: b2bAll, verified: b2bVerified } = backToBack(players, setupHr)
   const b2b = b2bAll
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
 
@@ -746,34 +746,17 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
         </div>
       )}
 
-      {/* 🌙 DAY-OFF GAP, NAMED HONESTLY (2026-08-30). backToBack() now also
-          proves a hitter whose last game was 2+ days back (own-row proof,
-          see lib/b2b.js) — before this, EVERY row here said "homered last
-          night" unconditionally, which was flatly wrong for a day-off
-          return: he didn't homer last night, he homered before the day(s)
-          off. _b2bGapDays (1 = literal back-to-back, 2+ = days off in
-          between) picks the honest phrase instead of assuming the tightest
-          case every time. */}
-      {b2b.slice(0, 6).map((x, i) => {
-        const gap = x?._b2bGapDays ?? 1
-        const whenText = gap <= 1
-          ? (isTmrw ? 'today' : 'last night')
-          : `${gap - 1} game${gap - 1 === 1 ? '' : 's'} ago`
-        const claim = gap <= 1 ? `back-to-back watch for ${dayWord}` : `returning from a day off for ${dayWord}`
-        return (
-          <Row key={`bb${i}`} icon={gap <= 1 ? '🔁' : '🌙'} p={x}>
-            {/* the day is NAMED, so nobody has to guess which night the setup
-                homer was (2026-08-10 user report). On a tomorrow slate the
-                setup is today's game; on a today slate it's last night's —
-                unless it's a day-off return, in which case it's honestly
-                further back than that. */}
-            <b style={{ color: C.text }}>{nameOf(x)}</b> homered{' '}
-            <b style={{ color: '#f87171' }}>{whenText}</b> — {claim}
-            <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
-            {b2bVerified && hrToday(x) && <Cashed>HOMERED AGAIN TODAY</Cashed>}
-          </Row>
-        )
-      })}
+      {b2b.slice(0, 6).map((x, i) => (
+        <Row key={`bb${i}`} icon="🔁" p={x}>
+          {/* the day is NAMED, so nobody has to guess which night the setup
+              homer was (2026-08-10 user report). On a tomorrow slate the
+              setup is today's game; on a today slate it's last night's. */}
+          <b style={{ color: C.text }}>{nameOf(x)}</b> homered{' '}
+          <b style={{ color: '#f87171' }}>{isTmrw ? 'today' : 'last night'}</b> — back-to-back watch for {dayWord}
+          <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
+          {b2bVerified && hrToday(x) && <Cashed>HOMERED AGAIN TODAY</Cashed>}
+        </Row>
+      ))}
       {!compact && b2b.length > 6 && (
         <Row icon="🔁">
           <span style={{ color: C.text3 }}>+ {b2b.length - 6} more homered their last game — full list lives on the Due tab at window 1</span>

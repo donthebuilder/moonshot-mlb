@@ -26,7 +26,6 @@ import MobileFold, { useIsPhone } from '../MobileFold'
 import GameSwitcher from '../GameSwitcher'
 import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
 import { downloadGameCard } from '../shareCard'
-import ProjectedOutput from '../ProjectedOutput'
 
 // A game card's pick chip, stat-first.
 //
@@ -227,12 +226,7 @@ function sidesOf(g) {
 //     on the Live view once routing lands. First render only: it seeds the
 //     mode state and is never read again, so the pills stay in charge.
 export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateMode = 'today', initialMode }) {
-  // 2026-08-30, Donovan: "have the games open up full table instead of
-  // cards first, the game chips take up too much screen space." Table is
-  // the SAME sortable/filterable board ProjectedOutput already builds for
-  // Rundown -- reused here as the landing view instead of a second table
-  // implementation. Cards and Boxes are one tap away, unchanged.
-  const [gview, setGview] = useState('table')
+  const [gview, setGview] = useState('games')
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
   // Donovan: "make sure the live wire and games can update the lineups — does
@@ -500,7 +494,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   if (mode === 'live' && gview !== 'boxes') {
     return (
       <div>
-        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
         <PanelTitle
           title="Slate"
           sub="the live batter's room — who is standing in right now, the count, every pitch, tonight's zone and spray"
@@ -557,27 +551,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   if (gview === 'boxes') {
     return (
       <div>
-        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
         <Boxes players={allPlayers.length ? allPlayers : players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-      </div>
-    )
-  }
-
-  // 📊 TABLE — the new default (2026-08-30). Same board Rundown uses, so a
-  // filter or sort learned there works here too. allPlayers, not players,
-  // same reasoning as Boxes just above: this view isn't subject to the
-  // header's team filter.
-  if (gview === 'table') {
-    return (
-      <div>
-        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
-        <ProjectedOutput games={games} players={allPlayers.length ? allPlayers : players} watchIds={watchIds} />
       </div>
     )
   }
   return (
     <div>
-      <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+      <ViewPills views={[['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
       {/* 🌬 AirBoard used to mount here (2026-08-15, same day it was built).
           Deleted: components/ParkBoard.js — "Tonight's conditions", the
           launch-pads board on Power and behind Scoreboard's "Parks ranked" —

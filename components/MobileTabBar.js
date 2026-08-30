@@ -3,31 +3,21 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
 
-// 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
-// bottom... slate replaces picks on the bar." Picks (bot) moves into the More
-// sheet in its old Slate slot; Slate (games) takes the bar spot Picks had.
 const MAIN = [
   ['home', '⌂', 'Home'],
   ['board', '▥', 'Boards'],
   ['scoreboard', '◉', 'Rundown'],
-  ['games', '▤', 'Slate'],
+  ['bot', '✦', 'Picks'],
 ]
 
-// 2026-08-30, Donovan: "the results need to be organized better...to
-// flow." Regrouped from an arbitrary list into build-your-card, then
-// review, then reference -- so the sheet reads top to bottom the way you'd
-// actually use it on a slate night instead of alphabetical-ish clutter.
 const MORE = [
-  // 1) what to back tonight
-  ['bot', 'Picks', 'What the bot says to back tonight'],
   ['props', 'Props', 'Player lines and quick cards'],
+  ['games', 'Slate', 'Every game and live context'],
   ['pitchers', 'Pitchers', 'Starting arms and matchup pressure'],
   ['combos', 'Combos', 'Pairs, alignments, pools, and builder'],
   ['odds', 'Odds', 'Prices, movement, and true price'],
-  // 2) yours / how it went
   ['you', 'You', 'Watchlist and your saved picks'],
   ['results', 'Results', 'Receipts and settled outcomes'],
-  // 3) reference, last because it's the least-used stop
   ['guide', 'Guide', 'How every part of MOONSHOT works'],
 ]
 
