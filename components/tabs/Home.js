@@ -312,7 +312,7 @@ export default function Home({
   const isTmrwSlate = b2bDateKey > new Date().toLocaleDateString('en-CA')
   const setupHr = useSetupHomers(b2bDateKey)
   const { list: b2b, verified: b2bVerified } = useMemo(
-    () => backToBack(players, setupHr, hrScore), [players, setupHr],
+    () => backToBack(players, setupHr, hrScore, b2bDateKey), [players, setupHr, b2bDateKey],
   )
 
   const [fence, setFence] = useState(null)

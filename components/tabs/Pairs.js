@@ -1887,7 +1887,7 @@ export function GroupTicketBuilder({
   const dateKey = slateDate || slateDateOf(players) || new Date().toLocaleDateString('en-CA')
   const setupHr = useSetupHomers(dateKey)
   const { list: b2bList, verified: b2bVerified } = useMemo(
-    () => backToBack(players, setupHr), [players, setupHr],
+    () => backToBack(players, setupHr, null, dateKey), [players, setupHr, dateKey],
   )
   const b2bIds = useMemo(
     () => new Set(b2bList.map((p) => Number(p?.player_id ?? p?.id))), [b2bList],

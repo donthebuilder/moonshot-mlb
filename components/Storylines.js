@@ -352,7 +352,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // front page kept publishing the unverified version of the same claim for
   // days. One implementation, two callers, no drift.
   const setupHr = useSetupHomers(dateKey)
-  const { list: b2bAll, verified: b2bVerified } = backToBack(players, setupHr)
+  const { list: b2bAll, verified: b2bVerified } = backToBack(players, setupHr, null, dateKey)
   const b2b = b2bAll
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
 

@@ -408,7 +408,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[view] || null)
   const { filtered, state } = filterState
   const setupHomers = useSetupHomers(slateDate)
-  const b2b = useMemo(() => backToBack(allPlayers.length ? allPlayers : players, setupHomers, hrScore), [allPlayers, players, setupHomers])
+  const b2b = useMemo(() => backToBack(allPlayers.length ? allPlayers : players, setupHomers, hrScore, slateDate), [allPlayers, players, setupHomers, slateDate])
   const b2bCashed = useMemo(() => {
     const ids = new Set()
     if (!results || (slateDate && results.date && String(results.date) !== String(slateDate))) return ids
