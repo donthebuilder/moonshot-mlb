@@ -321,6 +321,14 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
         books: n(q.books, 0),
         best: n(q.best_over, over),
         bestBook: clean(q.best_book, ''),
+        // 2026-08-30, Donovan: "bump upgrades" -- the real intraday-move
+        // fields (movement.from_open_pp etc.) already fed the Moves & gaps
+        // tab but never showed up on the main board, so you had to switch
+        // tabs to see if a price you were looking at had actually moved.
+        // Same field the signals tab reads, surfaced here as the arrow.
+        moveOpen: q.movement?.from_open_pp != null && Number.isFinite(Number(q.movement.from_open_pp))
+          ? Number(q.movement.from_open_pp) : null,
+        lineChanged: !!q.movement?.line_changed,
       })
     })
     return out
@@ -797,9 +805,23 @@ key={`${market}-${plusOnly}-${offStd}-${need}`}
               ) : '—'),
             },
             {
-              key: 'over', label: 'PRICE', w: 58, heat: false,
-              title: 'The over, as the book prices it. Green is plus money.',
-              fmt: (v) => <b style={{ fontFamily: NUM_FONT, color: v > 0 ? '#4ade80' : C.text }}>{fmtOdds(v)}</b>,
+              key: 'over', label: 'PRICE', w: 76, heat: false,
+              title: 'The over, as the book prices it. Green is plus money. The arrow is real intraday movement since the line opened — ▲ shortened (the book likes it more now), ▼ drifted, ⟲ the line itself changed. Same numbers as ⚡ Moves & gaps, just here without a tab switch.',
+              fmt: (v, r) => (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <b style={{ fontFamily: NUM_FONT, color: v > 0 ? '#4ade80' : C.text }}>{fmtOdds(v)}</b>
+                  {r?.lineChanged ? (
+                    <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, color: '#60a5fa' }}>⟲</span>
+                  ) : Number.isFinite(r?.moveOpen) && Math.abs(r.moveOpen) >= 1.5 ? (
+                    <span style={{
+                      fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,
+                      color: r.moveOpen >= 3 ? '#4ade80' : r.moveOpen <= -3 ? '#f87171' : C.text3,
+                    }}>
+                      {r.moveOpen > 0 ? '▲' : '▼'}{Math.abs(r.moveOpen).toFixed(1)}
+                    </span>
+                  ) : null}
+                </span>
+              ),
             },
             {
               key: 'need', label: 'NEED %', w: 56, dp: 1, invert: true,
