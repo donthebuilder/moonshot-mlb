@@ -3,16 +3,19 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
 
+// 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
+// bottom... slate replaces picks on the bar." Picks (bot) moves into the More
+// sheet in its old Slate slot; Slate (games) takes the bar spot Picks had.
 const MAIN = [
   ['home', '⌂', 'Home'],
   ['board', '▥', 'Boards'],
   ['scoreboard', '◉', 'Rundown'],
-  ['bot', '✦', 'Picks'],
+  ['games', '▤', 'Slate'],
 ]
 
 const MORE = [
   ['props', 'Props', 'Player lines and quick cards'],
-  ['games', 'Slate', 'Every game and live context'],
+  ['bot', 'Picks', 'What the bot says to back tonight'],
   ['pitchers', 'Pitchers', 'Starting arms and matchup pressure'],
   ['combos', 'Combos', 'Pairs, alignments, pools, and builder'],
   ['odds', 'Odds', 'Prices, movement, and true price'],

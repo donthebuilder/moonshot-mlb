@@ -2,7 +2,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, oppOf, hrScore, hitScore, n, clean } from '../lib/player'
-import Heatmap from './Heatmap'
 import { penStatsFor } from '../lib/bullpen'
 import { xpaFor } from '../lib/xpa'
 import { projectPool, projectionPublished } from '../lib/projection'
@@ -287,6 +286,13 @@ const LENSES = [
 
 export default function ProjectedOutput({ games = [], players: allPlayers = [] }) {
   const [lenses, setLenses] = useState(() => new Set())
+  // 🔀 SORTABLE TABLE (2026-08-30, Donovan: "make it sortable and add
+  // filters" -- the filters (LENSES below) already existed; this is the
+  // missing half. Click a header to sort by it, click again to flip
+  // direction. Defaults to Proj HR descending, same order the table has
+  // always shipped in, so nothing changes for someone who never touches it.
+  const [sortCol, setSortCol] = useState('Proj HR')
+  const [sortDir, setSortDir] = useState('desc')
   const players = useMemo(() => {
     if (!lenses.size) return allPlayers
     const on = LENSES.filter((l) => lenses.has(l.key))
@@ -421,12 +427,19 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [] }
 
       return { label, values, _count: pool.length }
     })
-      .sort((a, b) => b.values['Proj HR'] - a.values['Proj HR'])
+      .sort((a, b) => {
+        const av = sortCol === 'label' ? a.label : a.values[sortCol]
+        const bv = sortCol === 'label' ? b.label : b.values[sortCol]
+        const cmp = sortCol === 'label' ? String(av).localeCompare(String(bv)) : (bv - av)
+        return sortDir === 'asc' ? -cmp : cmp
+      })
       // RANK IN THE LABEL (2026-08-08, "turn that up some more"): the table
-      // is sorted by Proj HR but nothing SAID so — a rank number makes the
-      // ordering legible and gives the rows something to be quoted by.
+      // is sorted by whatever column is active but nothing SAID so — a rank
+      // number makes the ordering legible and gives the rows something to be
+      // quoted by. Ranking now follows the live sort (2026-08-30), not
+      // always Proj HR, so "#1" means #1 by whatever you clicked.
       .map((r, i) => ({ ...r, label: `${i + 1}.  ${r.label}` }))
-  }, [games, players, by, pens, formNorm, prodNorm, parkNorm, armNorm])
+  }, [games, players, by, pens, formNorm, prodNorm, parkNorm, armNorm, sortCol, sortDir])
 
   if (!rows.length) return null
 
@@ -597,15 +610,110 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [] }
         )
       })()}
 
-      <Heatmap
-        rows={rows}
-        columns={[...COLUMNS, ...(pens ? ['Adj HR'] : [])]}
-        title="Projected output — expected count, not a score"
-        labelWidth={150}
-        fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-        caption="THE THREE COUNT COLUMNS ARE REAL EXPECTED COUNTS NOW (2026-08-16). They used to be probabilities summed and labelled as counts — Proj hits was the number of hitters expected to get AT LEAST ONE hit, and Proj bases was the number expected to record AT LEAST TWO total bases, which is why bases came out BELOW hits. A game cannot produce more hits than bases; every hit is at least one base. Hits, TB and HRR are now built from each hitter\u2019s own season line — his average, his ISO, his walk rate — adjusted by what his score band actually produced over the graded archive, and scaled by the plate appearances his lineup slot expects. A weak hitter projects weak because HIS line is weak, which no band-only model could do: the spread across games widened from 0.9 hits to 2.7. Against reality the slate now projects 16.1 hits, 27.1 total bases and 74.4 plate appearances a game, where MLB runs about 17.0, 27.6 and 76. TB \u2265 hits \u2265 HR is enforced on every row, not hoped for. Proj HR keeps its own model, which was never the broken column: each hitter\u2019s HR score band blended 50/50 with his season-ISO band \u2014 the audit\u2019s strongest single HR predictor \u2014 then scaled by expected PA and last-5 form. Adj HR layers the environment and the OPPOSING BULLPEN on top: park factor, the published weather effect, the pitcher\u2019s trend, and the pen\u2019s live HR/9 weighted at the ~38% of innings pens cover \u2014 because homers don\u2019t stop when the starter leaves. Proj HR is calibrated; Adj HR is calibrated \u00d7 modeled, and when they disagree the gap is the environment and the pen. A HIGHER SCORE DOES NOT ALWAYS MEAN A HIGHER PROJECTION, and that is the archive talking: the 85+ band produced 16.1% where the 70 band produced 18.7%."
-
-      />
+      {/* 🎯 SORTABLE TABLE, GRADED PILLS INSTEAD OF A FULL HEATMAP WASH
+          (2026-08-30, Donovan: "b and c [chart mockups]... i also do like
+          when it helps with colors showing games to target or high in
+          something. i like how the hr score coloring is wit[h] arrows up or
+          down" + "make it sortable and add filters"). Heatmap.js shaded
+          EVERY cell against its own column range, which is what made this
+          read as noisy rather than scannable. Only Proj HR and Adj HR get a
+          colored pill now — the same grammar HRW's "88 ▲" badge already uses
+          elsewhere on this site — and only when a game sits clearly above or
+          below the SLATE'S OWN mean for that column, so color only fires
+          when it is actually telling you something. Every header is a sort
+          control; the filters above (LENSES) already existed and keep
+          working exactly as before — this table just recomputes under them
+          like everything else on the page. */}
+      {(() => {
+        const cols = [...COLUMNS, ...(pens ? ['Adj HR'] : [])]
+        const pillCols = new Set(['Proj HR', 'Adj HR'])
+        const means = {}
+        cols.forEach((c) => {
+          const xs = rows.map((r) => r.values[c]).filter((v) => Number.isFinite(v))
+          means[c] = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0
+        })
+        const gradeOf = (col, v) => {
+          if (!pillCols.has(col) || !Number.isFinite(v)) return null
+          const mean = means[col] || 1
+          const d = (v - mean) / (mean || 1)
+          if (d > 0.15) return { cls: 'hot', arrow: '▲' }
+          if (d > 0.05) return { cls: 'warm', arrow: '▲' }
+          if (d < -0.15) return { cls: 'cold', arrow: '▼' }
+          if (d < -0.05) return { cls: 'cool', arrow: '▼' }
+          return null
+        }
+        const pillColor = { hot: C.orange, warm: '#e2985f', cool: '#7fb4f2', cold: '#6c8bb0' }
+        const pillBg = { hot: `${C.orange}26`, warm: `${C.orange}14`, cool: '#60a5fa1f', cold: '#60a5fa14' }
+        const headerClick = (col) => {
+          if (sortCol === col) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
+          else { setSortCol(col); setSortDir('desc') }
+        }
+        return (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <thead>
+                <tr>
+                  <th
+                    onClick={() => headerClick('label')}
+                    style={{
+                      textAlign: 'left', padding: '5px 8px', borderBottom: `1px solid ${C.border}`,
+                      color: sortCol === 'label' ? C.orange : C.text3, fontWeight: 700, fontSize: 9,
+                      textTransform: 'uppercase', letterSpacing: '.05em', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >{by === 'game' ? 'Game' : 'Team'}{sortCol === 'label' ? (sortDir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
+                  {cols.map((c) => (
+                    <th
+                      key={c}
+                      onClick={() => headerClick(c)}
+                      title="Click to sort"
+                      style={{
+                        textAlign: 'right', padding: '5px 8px', borderBottom: `1px solid ${C.border}`,
+                        color: sortCol === c ? C.orange : C.text3, fontWeight: 700, fontSize: 9,
+                        textTransform: 'uppercase', letterSpacing: '.05em', cursor: 'pointer', whiteSpace: 'nowrap',
+                      }}
+                    >{c}{sortCol === c ? (sortDir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.label}>
+                    <td style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, fontWeight: 700, whiteSpace: 'nowrap' }}>{r.label}</td>
+                    {cols.map((c) => {
+                      const v = r.values[c]
+                      const g = gradeOf(c, v)
+                      const text = Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—'
+                      return (
+                        <td key={c} style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, textAlign: 'right', fontFamily: NUM_FONT }}>
+                          {g ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6,
+                              fontWeight: 800, background: pillBg[g.cls], color: pillColor[g.cls],
+                            }}>{text} {g.arrow}</span>
+                          ) : (
+                            <span style={{ fontWeight: 600, color: C.text2 }}>{text}</span>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, marginTop: 8 }}>
+              THE THREE COUNT COLUMNS ARE REAL EXPECTED COUNTS (2026-08-16) — Hits, TB and HRR are built from
+              each hitter&apos;s own season line (average, ISO, walk rate), adjusted by his score band&apos;s
+              measured rate and scaled by expected PA from his lineup slot. TB ≥ hits ≥ HR is enforced on every
+              row. Proj HR keeps its own calibrated model (score band blended 50/50 with season-ISO band, scaled
+              by PA and last-5 form). Adj HR layers park, the published weather effect, pitcher trend and the
+              opposing pen&apos;s live HR/9 on top — Proj HR is calibrated, Adj HR is calibrated × modeled, and
+              a colored pill on either column means that game sits clearly above (▲) or below (▼) tonight&apos;s
+              own average, not a hard threshold. A higher score does not always mean a higher projection: the
+              85+ band produced 16.1% where the 70 band produced 18.7%, straight from the graded archive.
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
