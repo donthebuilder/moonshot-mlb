@@ -519,7 +519,7 @@ const VIEWS = [
   { key: 'read',     label: 'The Read' },
 ]
 
-export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = null }) {
+export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = null, onWatch, watchIds = null }) {
   const [view, setView] = useState('short')
 
   return (
@@ -540,7 +540,7 @@ export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = nul
       />
 
       {view === 'read'     && <TheRead players={players} onPlayerClick={onPlayerClick} odds={odds} />}
-      {view === 'short'    && <Shortlist players={players} odds={odds} onPlayerClick={onPlayerClick} />}
+      {view === 'short'    && <Shortlist players={players} odds={odds} onPlayerClick={onPlayerClick} onWatch={onWatch} watchIds={watchIds} />}
       {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
       {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
     </div>

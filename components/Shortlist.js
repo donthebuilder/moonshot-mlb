@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, oppOf } from '../lib/player'
+import { nameOf, teamOf, oppOf, playerId } from '../lib/player'
 import { hrScore } from '../lib/player'
 import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
@@ -41,7 +41,7 @@ const READ = {
   none: { word: 'no price posted', tone: C.text3, rank: 0 },
 }
 
-export default function Shortlist({ players = [], odds = null, onPlayerClick }) {
+export default function Shortlist({ players = [], odds = null, onPlayerClick, onWatch, watchIds = null }) {
   const [view, setView] = useState('profile')
 
   const rows = useMemo(() => {
@@ -68,6 +68,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick }) 
         return {
           _key: `${p.player_id}`,
           _raw: p,
+          watched: !!watchIds?.has(playerId(p)),
           name: nameOf(p),
           team: teamOf(p),
           opp: oppOf(p),
@@ -88,7 +89,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick }) 
         ? b.score - a.score
         : (b.room ?? -1e9) - (a.room ?? -1e9) || b.score - a.score))
       .slice(0, 40)
-  }, [players, odds, view])
+  }, [players, odds, view, watchIds])
 
   if (!rows.length) return <Empty text="No slate loaded, so there is nothing to rank yet." />
 
@@ -131,6 +132,23 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick }) 
         heatMode="sorted"
         maxHeight={560}
         columns={[
+          // 2026-08-30, Donovan: the shortlist ("i like the short list tho")
+          // was missing the one action every other player row on the site
+          // has — no way to save a name here without leaving to find him on
+          // another tab. Same ★/☆ button and behavior as PlayerCard.
+          ...(onWatch ? [{
+            key: 'watched', label: '', heat: false, w: 28,
+            fmt: (v, r) => (
+              <button
+                onClick={(e) => { e.stopPropagation(); onWatch(r._raw) }}
+                title={v ? 'Remove from watchlist' : 'Add to watchlist'}
+                style={{
+                  background: 'transparent', border: 0, cursor: 'pointer',
+                  color: v ? C.yellow : C.text3, fontSize: 13, lineHeight: 1, padding: 0,
+                }}
+              >{v ? '★' : '☆'}</button>
+            ),
+          }] : []),
           { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
           { key: 'opp', label: 'Opp', heat: false, w: 40, mono: true, dim: true },
