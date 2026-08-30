@@ -375,7 +375,13 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       dot.position.set(v.x, 1.4, v.z)
       if (big) dot.scale.setScalar(1.35)
       dot.userData.info = info
-      if (f) dot.userData.flightIndex = flightIdx
+      // BUG (crashed the stadium view on click): flightIdx was never
+      // declared anywhere -- reading an undeclared identifier throws a
+      // ReferenceError in JS, which fired the moment any hit had a
+      // solvable flight, i.e. basically immediately. The flight for THIS
+      // hit was just pushed to `flights` above, in the same `if (f)`
+      // block, so its index is simply the last slot in that array.
+      if (f) dot.userData.flightIndex = flights.length - 1
       scene.add(dot)
       pickables.push(dot)
     })
