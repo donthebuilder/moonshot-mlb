@@ -11,7 +11,7 @@ import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
-import { useSetupHomers, backToBack } from '../../lib/b2b'
+import { useSetupHomers, backToBack, B2B_VALIDATED } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
 
 // Which BoardFilters score-slider a view means by "Score" — mirrors the keys
@@ -344,7 +344,54 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 // rows emoji-free site-wide — only the top-level nav tabs get emoji prefixes).
 const GROUPS = [['boards', 'Boards'], ['power', 'Power'], ['patterns', 'Patterns'], ['steals', 'Steals']]
 
+// 🌙 DAY-OFF SPLIT (2026-08-30, Donovan: "i also like to track day offs like
+// instead of back back games the me[i]ss the back to back and go a 'day off'
+// or a game off add that as well also if you can run the data on the
+// percentage"). lib/b2b.js now tags every proven player with `_b2bGapDays` --
+// 1 for a literal back-to-back (played the very next day), 2+ for however
+// many calendar days he sat in between. Split the one list into two rows
+// instead of quietly folding a day-off return into "back-to-back", which
+// they no longer are.
+function b2bRow(label, rate, players, cashed, onPlayerClick, accent) {
+  if (!players.length) return null
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+        <span style={{ fontSize: 8.5, color: accent, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
+        {rate != null && (
+          <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>
+            validated {rate.pct}% ({rate.hits}/{rate.n} archive)
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 1 }}>
+        {players.map((player) => {
+          const id = mlbId(player)
+          const hitAgain = cashed.has(id)
+          return (
+            <button key={id || nameOf(player)} onClick={() => onPlayerClick?.(player)} style={{
+              flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8,
+              minWidth: 165, padding: '7px 9px', borderRadius: 9, cursor: 'pointer',
+              border: `1px solid ${hitAgain ? C.green : C.border2}`,
+              background: hitAgain ? `${C.green}12` : C.bg2, color: C.text, textAlign: 'left',
+            }}>
+              <span style={{
+                display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8,
+                background: `${hitAgain ? C.green : C.orange}18`, color: hitAgain ? C.green : C.orange,
+                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900,
+              }}>{teamOf(player) || 'MLB'}</span>
+              <span><b style={{ display: 'block', fontSize: 10 }}>{nameOf(player)}</b><small style={{ display: 'block', marginTop: 3, color: hitAgain ? C.green : C.text3, fontFamily: NUM_FONT, fontSize: 8 }}>{hitAgain ? '✓ HOMERED AGAIN' : `HR score ${Math.round(hrScore(player) || 0)}`}</small></span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
+  const strict = list.filter((p) => (p._b2bGapDays ?? 1) <= 1)
+  const dayOff = list.filter((p) => (p._b2bGapDays ?? 1) > 1)
   return (
     <section style={{
       margin: '-2px 0 11px', padding: '9px 11px', border: `1px solid ${C.orange}4d`,
@@ -357,27 +404,14 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
         </span>
         <span style={{ marginLeft: 'auto', color: C.text3, fontSize: 8.5 }}>last-game homer proven · no hit-rate claim</span>
       </div>
+      {strict.length > 0 && b2bRow('🔁 back-to-back — played the very next game', B2B_VALIDATED.backToBack, strict, cashed, onPlayerClick, C.orange)}
+      {dayOff.length > 0 && b2bRow('🌙 returning from a day off', B2B_VALIDATED.oneDayOff, dayOff, cashed, onPlayerClick, C.blue || C.orange)}
       {list.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingTop: 8, paddingBottom: 1 }}>
-          {list.map((player) => {
-            const id = mlbId(player)
-            const hitAgain = cashed.has(id)
-            return (
-              <button key={id || nameOf(player)} onClick={() => onPlayerClick?.(player)} style={{
-                flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8,
-                minWidth: 165, padding: '7px 9px', borderRadius: 9, cursor: 'pointer',
-                border: `1px solid ${hitAgain ? C.green : C.border2}`,
-                background: hitAgain ? `${C.green}12` : C.bg2, color: C.text, textAlign: 'left',
-              }}>
-                <span style={{
-                  display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8,
-                  background: `${hitAgain ? C.green : C.orange}18`, color: hitAgain ? C.green : C.orange,
-                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900,
-                }}>{teamOf(player) || 'MLB'}</span>
-                <span><b style={{ display: 'block', fontSize: 10 }}>{nameOf(player)}</b><small style={{ display: 'block', marginTop: 3, color: hitAgain ? C.green : C.text3, fontFamily: NUM_FONT, fontSize: 8 }}>{hitAgain ? '✓ HOMERED AGAIN' : `HR score ${Math.round(hrScore(player) || 0)}`}</small></span>
-              </button>
-            )
-          })}
+        <div style={{ marginTop: 7, fontSize: 8, color: C.text3, lineHeight: 1.5 }}>
+          Validated against 70 nights of the graded archive: back-to-back clears at {B2B_VALIDATED.backToBack.pct}%,
+          a day-off return at {B2B_VALIDATED.oneDayOff.pct}% — statistically the same rate, both under the
+          {' '}{B2B_VALIDATED.baseline.pct}% baseline for any graded slot. A day off neither helps nor hurts an
+          encore chase; treat both rows as the same claim, not two different edges.
         </div>
       )}
     </section>
