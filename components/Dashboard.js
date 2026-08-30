@@ -572,7 +572,7 @@ export default function Dashboard() {
                 per Donovan's sequencing call: the grid stays an entry point,
                 the drill-down is the existing player modal on top of it. */}
             {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />}
-            {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} />}
+            {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}

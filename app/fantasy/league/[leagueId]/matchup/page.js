@@ -57,6 +57,20 @@ export default async function MatchupPage({ params, searchParams }) {
   const homeProjection = homeLineup.reduce((sum,row)=>sum+projectedFantasyPoints(row.player,league.scoring),0)
   const awayProjection = awayLineup.reduce((sum,row)=>sum+projectedFantasyPoints(row.player,league.scoring),0)
   const hasLiveGames=nflGames.some((game)=>game.status==='live')
+  // 🐛 the margin bar and its legend read homeShare/leader/margin, but nothing
+  // in this file ever computed them -- a ReferenceError on every render where
+  // `featured` is set, i.e. any league with a schedule (Donovan, 2026-08-29:
+  // "the matchup page broke"; a draft in progress was not the cause -- this
+  // throws whether the draft is done or not, the instant a schedule exists).
+  // Mirrors the scheduled-vs-live split the legend text already made: before
+  // kickoff the bar reads on the season projection, live/final reads on the
+  // real score, so the fill and the sentence next to it always agree.
+  const featuredHomeScore = featured ? (featured.status==='scheduled' ? homeProjection : Number(featured.home_score)) : 0
+  const featuredAwayScore = featured ? (featured.status==='scheduled' ? awayProjection : Number(featured.away_score)) : 0
+  const featuredTotal = featuredHomeScore + featuredAwayScore
+  const homeShare = featuredTotal > 0 ? Math.min(100, Math.max(0, (featuredHomeScore / featuredTotal) * 100)) : 50
+  const leader = featuredHomeScore === featuredAwayScore ? null : (featuredHomeScore > featuredAwayScore ? home?.name : away?.name)
+  const margin = Math.abs(featuredHomeScore - featuredAwayScore)
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>WEEK {week}</small><strong>{league.name}</strong></div><span>{matchups.length} matchups</span></header>
@@ -73,7 +87,7 @@ export default async function MatchupPage({ params, searchParams }) {
           <div className={styles.marginTrack}><i style={{ width: `${homeShare}%` }}/><b style={{ left: `${homeShare}%` }}/></div>
           <div className={styles.marginLegend}>
             <span>{home?.name}</span>
-            <em>{featured.status==='scheduled' ? `${Math.abs(homeProjection-awayProjection).toFixed(1)} projected margin` : `${leader} by ${margin.toFixed(2)}`}</em>
+            <em>{featured.status==='scheduled' ? `${Math.abs(homeProjection-awayProjection).toFixed(1)} projected margin` : (leader ? `${leader} by ${margin.toFixed(2)}` : `Tied, ${margin.toFixed(2)}`)}</em>
             <span>{away?.name}</span>
           </div>
         </section>

@@ -312,7 +312,7 @@ export default function Home({
   const isTmrwSlate = b2bDateKey > new Date().toLocaleDateString('en-CA')
   const setupHr = useSetupHomers(b2bDateKey)
   const { list: b2b, verified: b2bVerified } = useMemo(
-    () => backToBack(players, setupHr, hrScore), [players, setupHr],
+    () => backToBack(players, setupHr, hrScore, b2bDateKey), [players, setupHr, b2bDateKey],
   )
 
   const [fence, setFence] = useState(null)
@@ -1064,30 +1064,61 @@ export default function Home({
             </div>
           )}
 
-          {b2b.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
-              <span style={{ flexShrink: 0 }}>🔁</span>
-              <span style={{ minWidth: 0 }}>
-                <b style={{ color: C.text }}>Back-to-back watch</b> —{' '}
-                {b2b.slice(0, 3).map((p, i) => (
-                  <span key={i}>
-                    {i > 0 && ', '}
-                    <button onClick={() => onPlayerClick?.(p)} style={{
-                      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                      fontSize: 12, fontWeight: 800, color: '#f87171', textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
-                    }}>{nameOf(p)}</button>
-                    <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}</span>
-                  </span>
-                ))}
-                {b2b.length > 3 && <span style={{ color: C.text3 }}> and {b2b.length - 3} more</span>}
-                {/* Names the actual day. "last game" was the ambiguity the bug
-                    hid behind — on a rebuilt slate his last game is today. */}
-                {' '}went deep {isTmrwSlate ? 'today' : 'last night'} — {isTmrwSlate ? 'tomorrow' : 'tonight'} is the encore try.
-                <span title="Every name here is checked against the graded results for that night, by player id. If that file hasn't published, this line doesn't render at all."
-                  style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
+          {/* 🌙 DAY-OFF SPLIT, CARRIED HERE TOO (2026-08-30, Donovan:
+              "wondering where[] the other[] looks a[r]e[] on here for the
+              b2b watch and such"). HitsHRR.js's B2B WATCH card split strict
+              back-to-backs from day-off returns; this line was still one
+              flat list. Same _b2bGapDays tag backToBack() already attaches
+              (this call already passes b2bDateKey, so it's already there —
+              this is a display-only change), split the same way, so a
+              hitter's Home mention and his HitsHRR mention read the same
+              claim instead of two different-looking ones. */}
+          {b2b.length > 0 && (() => {
+            const strict = b2b.filter((p) => (p._b2bGapDays ?? 1) <= 1)
+            const dayOff = b2b.filter((p) => (p._b2bGapDays ?? 1) > 1)
+            const nameList = (arr) => arr.slice(0, 3).map((p, i) => (
+              <span key={i}>
+                {i > 0 && ', '}
+                <button onClick={() => onPlayerClick?.(p)} style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 800, color: '#f87171', textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
+                }}>{nameOf(p)}</button>
+                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}</span>
               </span>
-            </div>
-          )}
+            ))
+            return (
+              <>
+                {strict.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+                    <span style={{ flexShrink: 0 }}>🔁</span>
+                    <span style={{ minWidth: 0 }}>
+                      <b style={{ color: C.text }}>Back-to-back watch</b> —{' '}
+                      {nameList(strict)}
+                      {strict.length > 3 && <span style={{ color: C.text3 }}> and {strict.length - 3} more</span>}
+                      {/* Names the actual day. "last game" was the ambiguity the bug
+                          hid behind — on a rebuilt slate his last game is today. */}
+                      {' '}went deep {isTmrwSlate ? 'today' : 'last night'} — {isTmrwSlate ? 'tomorrow' : 'tonight'} is the encore try.
+                      <span title="Every name here is checked against the graded results for that night, by player id. If that file hasn't published, this line doesn't render at all."
+                        style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
+                    </span>
+                  </div>
+                )}
+                {dayOff.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+                    <span style={{ flexShrink: 0 }}>🌙</span>
+                    <span style={{ minWidth: 0 }}>
+                      <b style={{ color: C.text }}>Returning from a day off</b> —{' '}
+                      {nameList(dayOff)}
+                      {dayOff.length > 3 && <span style={{ color: C.text3 }}> and {dayOff.length - 3} more</span>}
+                      {' '}homered in his last game, then sat — {isTmrwSlate ? 'tomorrow' : 'tonight'} is his first shot back.
+                      <span title="Validated against the graded archive: a day-off return clears at about the same rate as a literal back-to-back, both a touch under the baseline for any graded slot. Not an edge, just tracked the same way."
+                        style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
+                    </span>
+                  </div>
+                )}
+              </>
+            )
+          })()}
 
           {fenceRider && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
