@@ -746,7 +746,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const projHr = useMemo(() => slateProjHr(players), [players])
   const secProjected = (
     <Fold key="projected" label={`📈 Projected output — ${projHr != null ? `${projHr.toFixed(1)} HR projected slate-wide` : "the slate's expected count"}`}>
-      <ProjectedOutput games={projGames} players={players} />
+      <ProjectedOutput games={projGames} players={players} watchIds={watchIds} />
     </Fold>
   )
   // 🧾 the ledger was pulled off this page (2026-08-30, Donovan: "the

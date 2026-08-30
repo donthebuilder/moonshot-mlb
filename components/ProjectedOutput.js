@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { teamOf, oppOf, hrScore, hitScore, n, clean } from '../lib/player'
+import { teamOf, oppOf, hrScore, hitScore, n, clean, playerId } from '../lib/player'
 import { penStatsFor } from '../lib/bullpen'
 import { xpaFor } from '../lib/xpa'
 import { projectPool, projectionPublished } from '../lib/projection'
@@ -282,9 +282,22 @@ const LENSES = [
     tip: 'Only hitters facing a starter giving up 1.30 HR/9 or worse.' },
   { key: 'hot', label: '🔥 Hot bats', hit: (p) => n(p?.last5_hr, 0) >= 1,
     tip: 'Only hitters with a home run in their last five games.' },
+  // 2026-08-30, Donovan: "projected output needs more/better filters."
+  // Three more, same shape as the five above -- a boolean over the same
+  // per-hitter fields the model already reads, nothing new fetched.
+  { key: 'cold', label: '🧊 Due (cold)', hit: (p) => n(p?.last5_hr, 0) === 0 && n(p?.games_since_last_hr, 0) >= 5,
+    tip: "The mirror of Hot bats -- no homer in the last five games and it's been 5+ games since the last one. A drought, not a projection." },
+  { key: 'weather', label: '🌬 Weather boost', hit: (p) => {
+      const wpct = n(p?.weather_hr_effect_pct, NaN)
+      if (p?.weather_has_data && Number.isFinite(wpct)) return wpct >= 3
+      return /out/i.test(clean(p?.wind_direction_label ?? p?.weather_wind_direction_label, ''))
+    },
+    tip: 'Only games where the published weather read is adding homers -- wind blowing out or a +3% or better effect.' },
+  { key: 'watch', label: '⭐ My watchlist', hit: () => false,
+    tip: 'Only hitters on your watchlist.' },
 ]
 
-export default function ProjectedOutput({ games = [], players: allPlayers = [] }) {
+export default function ProjectedOutput({ games = [], players: allPlayers = [], watchIds = null }) {
   const [lenses, setLenses] = useState(() => new Set())
   // 🔀 SORTABLE TABLE (2026-08-30, Donovan: "make it sortable and add
   // filters" -- the filters (LENSES below) already existed; this is the
@@ -296,8 +309,15 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [] }
   const players = useMemo(() => {
     if (!lenses.size) return allPlayers
     const on = LENSES.filter((l) => lenses.has(l.key))
-    return (allPlayers || []).filter((p) => on.every((l) => l.hit(p)))
-  }, [allPlayers, lenses])
+    // 'watch' has no static hit() -- it needs watchIds, which the lens table
+    // above (a module-level const) can't close over. Checked separately so
+    // adding it doesn't change the shape every other lens follows.
+    const wantsWatch = lenses.has('watch')
+    return (allPlayers || []).filter((p) =>
+      on.every((l) => (l.key === 'watch' ? true : l.hit(p))) &&
+      (!wantsWatch || watchIds?.has(playerId(p)))
+    )
+  }, [allPlayers, lenses, watchIds])
   const [by, setBy] = useState('game')
 
   // Opposing-pen stats, live from the MLB StatsAPI team `rp` split. Loaded
