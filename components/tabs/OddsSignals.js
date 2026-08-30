@@ -4,6 +4,8 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n } from '../../lib/player'
 import { edgeOf, fairOdds, fmtOdds, hrPerGame, impliedPct, normName } from '../../lib/odds'
 import { hrOverlayRead } from '../../lib/hrOverlay'
+import { hrGameBand, edgeBand } from '../../lib/hrRateBand'
+import { MoveSpread } from '../OddsChart'
 import DenseTable from '../DenseTable'
 import OddsTimeline from '../OddsTimeline'
 import { btnStyle } from '../ui'
@@ -53,6 +55,13 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
       if (pa < MIN_HR_PA || rate == null || !Number.isFinite(over)) return
       const edge = edgeOf(q, rate)
       if (!edge || edge.need > 40) return
+      // GAP had no error bar at all — a screening signal presented to one
+      // decimal off a season sample that varies from 160 trips to 600.
+      // lib/hrRateBand.js supplies the 95% band on his own counts, so the
+      // column can separate "the book and his season disagree" from "his
+      // season is too short to have an opinion".
+      const band = hrGameBand(p)
+      const eb = band ? edgeBand(edge.need, band) : null
       out.push({
         _key: `gap-${p?.player_id}-${p?.game_pk}`,
         _raw: p,
@@ -61,6 +70,12 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
         need: edge.need,
         modelRate: edge.have,
         gap: edge.diff,
+        // Two bounds, never a ±: Wilson is deliberately asymmetric at small
+        // counts, so a half-width printed beside the point estimate describes
+        // an interval that does not exist. See OddsBoard's note.
+        gapLo: eb?.lo != null ? Math.round(10 * eb.lo) / 10 : null,
+        gapHi: eb?.hi != null ? Math.round(10 * eb.hi) / 10 : null,
+        gapClears: eb?.clears ? 1 : 0,
         fair: fairOdds(rate),
         pa,
         verdict: edge.verdict === 'value' ? 'VALUE'
@@ -190,8 +205,19 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
                 fmt: (v) => <span style={{ fontFamily: NUM_FONT }}>{fmtOdds(v)}</span> },
               { key: 'need', label: 'NEED %', w: 58, dp: 1, invert: true },
               { key: 'modelRate', label: 'RATE %', w: 58, dp: 1 },
-              { key: 'gap', label: 'GAP', w: 52, dp: 1,
-                fmt: (v) => <b style={{ fontFamily: NUM_FONT, color: v >= 5 ? C.green : v <= -5 ? C.red : C.text2 }}>{v > 0 ? '+' : ''}{one(v)}</b> },
+              { key: 'gap', label: 'GAP', w: 74, dp: 1,
+                title: 'The hitter\u2019s shrunk season HR/PA estimate minus the book\u2019s break-even. The second line is the 95% Wilson interval on that gap, from his own season homer counts; a \u25cf means that whole band sits on one side of this price, so his sample is not the reason to doubt the sign.',
+                fmt: (v, r) => (
+                  <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
+                    <b style={{ color: v >= 5 ? C.green : v <= -5 ? C.red : C.text2 }}>{v > 0 ? '+' : ''}{one(v)}</b>
+                    {r?.gapClears ? <span style={{ fontSize: 8, marginLeft: 3, color: v > 0 ? C.green : C.red }}>●</span> : null}
+                    {r?.gapLo != null && (
+                      <span style={{ display: 'block', fontSize: 8, color: C.text3 }}>
+                        {r.gapLo > 0 ? '+' : ''}{one(r.gapLo)}…{r.gapHi > 0 ? '+' : ''}{one(r.gapHi)}
+                      </span>
+                    )}
+                  </span>
+                ) },
               { key: 'verdict', label: 'READ', w: 82, heat: false,
                 fmt: (v) => <b style={{ color: v === 'VALUE' ? C.green : v === 'PRICED OUT' ? C.red : C.text3 }}>{v}</b> },
               { key: 'pa', label: 'PA', w: 42, heat: false, dim: true },
@@ -223,6 +249,20 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
               )}
             </div>
           )}
+          {/* ── "403 LARGE" IS A COUNT WITH NO SHAPE (2026-08-30) ───────────
+              The screen calls a move large at 3.0 break-even points, and
+              whether that threshold picks out anything at all depends entirely
+              on what the rest of the board did tonight: if the bulk of prices
+              moved two and a half points, three is a rounding error with an
+              alert attached. The histogram answers that in one look — where
+              the mass sits, how fat the tails are, and where the line falls on
+              it — using the same from-open numbers the table below prints. */}
+          <MoveSpread
+            values={movements.map((r) => r.moveOpen).filter((v) => Number.isFinite(v))}
+            threshold={LARGE_MOVE_PP}
+            footer={`Counts only prices with a comparable delta: a changed betting line has no price move to plot (0.5 and 1.5 are different bets), which is why this total is smaller than the Large filter's. The dashed lines are the ${LARGE_MOVE_PP.toFixed(1)}-point alert threshold. A tall centre and thin tails means the threshold is finding genuine outliers; a broad hump spilling past the lines means tonight's whole board moved and the alert is describing the market, not a player.`}
+          />
+
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9 }}>
             {[
               ['large', `Large ${large.length}`], ['short', 'Shortening'], ['drift', 'Drifting'],

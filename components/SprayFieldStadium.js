@@ -62,11 +62,66 @@ function numberSprite(text) {
   return s
 }
 
-export default function SprayFieldStadium({ hits = [], dims, heights, venue = '' }) {
+// A short line of text as a sprite. numberSprite() above is tuned for a
+// two- or three-digit wall number; this one is a phrase, so it measures the
+// text and sizes its own canvas rather than cropping at 128px.
+function labelSprite(text, hex) {
+  const cv = document.createElement('canvas')
+  const g0 = cv.getContext('2d')
+  g0.font = '900 40px SF Mono, Menlo, monospace'
+  const w = Math.ceil(g0.measureText(text).width) + 24
+  cv.width = w; cv.height = 60
+  const g = cv.getContext('2d')
+  g.font = '900 40px SF Mono, Menlo, monospace'
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillStyle = hex
+  g.globalAlpha = 0.95
+  g.fillText(text, w / 2, 32)
+  const tex = new THREE.CanvasTexture(cv)
+  tex.anisotropy = 4
+  const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })
+  const sp = new THREE.Sprite(m)
+  sp.scale.set(w * 0.155, 9.2, 1)
+  return sp
+}
+
+// 🌬 WIND — THE SAME HONESTY THE 2D CHART ALREADY ENFORCES.
+//
+// 2026-08-30, Donovan: "i want to see wind on the 3d chart as well."
+//
+// SprayField.js has carried wind since 08-24 and its comment there is the
+// binding constraint, restated here because this file draws in world space and
+// the temptation to use the compass degrees is stronger:
+//
+//   weather_wind_deg IS A COMPASS BEARING, and the payload publishes no park
+//   orientation, so there is no way to turn 113° into "toward right field" for
+//   a given yard. Drawing streaks off the degrees would point them somewhere
+//   unrelated to the field underneath them — confidently wrong, which is worse
+//   than absent.
+//
+// weather_wind_direction_label IS park-relative, and the six values it takes
+// resolve to out / in / across. So this draws the COMPONENT THAT MATTERS FOR
+// CARRY and claims nothing finer. A crosswind is drawn on the axis without
+// picking a side, because left-to-right versus right-to-left is not in the
+// data either.
+//
+// The bearing convention matches P() below: 0° is straight out to centre,
+// which in this scene's world space is +Z.
+const WIND_DIR = (toDeg) => new THREE.Vector3(-Math.sin(toDeg * DEG), 0, Math.cos(toDeg * DEG)).normalize()
+
+export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
   const replayRef = useRef(null)   // set by the effect to the replay function
   const [ok, setOk] = useState(true)
+
+  // Flattened out of the object so the effect's dependency list can be four
+  // primitives instead of an object literal the caller rebuilds every render —
+  // which would tear down and rebuild the whole scene on every parent update.
+  const windMph = Number(wind?.mph) > 0 ? Number(wind.mph) : 0
+  const windLabel = String(wind?.label || '')
+  const windTo = Number.isFinite(Number(wind?.to)) ? Number(wind.to) : 0
+  const windHex = String(wind?.color || C.text3)
 
   useEffect(() => {
     const mount = mountRef.current
@@ -460,6 +515,113 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     renderer.domElement.addEventListener('pointermove', onMove)
     renderer.domElement.addEventListener('pointerleave', onLeave)
 
+    // ── 🌬 WIND (2026-08-30) ────────────────────────────────────────────
+    //
+    // Three objects, in decreasing order of how much they claim:
+    //
+    //   1. STREAKS — a slab of short segments drifting across the park along
+    //      the park-relative bearing. This is the ambient read: you should be
+    //      able to tell out from in without looking at any text. Speed scales
+    //      with mph, so a 3 mph breeze creeps and a 15 mph wind visibly runs.
+    //   2. AN ARROW over the infield, drawn once, pointing the same way. The
+    //      streaks alone are ambiguous on a still frame or a screenshot.
+    //   3. THE LABEL, which is the only thing that says a number.
+    //
+    // All three are omitted entirely when the payload has no wind, rather than
+    // drawn at zero — a still wind sock is a claim ("no wind tonight") and a
+    // missing field is not the same fact.
+    let windGroup = null
+    let windStep = null
+    if (windMph > 0 && windLabel) {
+      const dir = WIND_DIR(windTo)
+      const ink = new THREE.Color(windHex)
+      windGroup = new THREE.Group()
+
+      // The streak slab. Segments are laid out on a grid across the fair
+      // wedge and lifted to head height and above, then the whole GROUP is
+      // translated along the bearing and snapped back a cell at a time — one
+      // moving object instead of six hundred, which keeps this free on a
+      // phone and makes the drift perfectly uniform.
+      const cell = 40
+      const reach = maxD * 1.05
+      const len = 10 + windMph * 1.9
+      const verts = []
+      for (let a = -reach; a <= reach; a += cell) {
+        for (let b = -reach * 0.1; b <= reach; b += cell) {
+          // KEEP THE STREAKS OVER THE BALLPARK. The first cut filled the whole
+          // bounding square, which put most of them in the black void outside
+          // the wall where they read as rain on the page rather than wind in
+          // the yard. Same wedge the grass uses, plus a short apron.
+          const r = Math.hypot(a, b)
+          if (r > maxD * 1.02) continue
+          const ang = Math.atan2(-a, b) / DEG
+          if (Math.abs(ang) > 52) continue
+          for (const yy of [22, 66, 116]) {
+            const jitter = ((a * 7 + b * 13 + yy * 3) % 23) - 11
+            const x0 = a + jitter
+            const z0 = b + jitter * 0.6
+            verts.push(x0, yy, z0, x0 + dir.x * len, yy + 1.5, z0 + dir.z * len)
+          }
+        }
+      }
+      const streakGeo = new THREE.BufferGeometry()
+      streakGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
+      const streaks = new THREE.LineSegments(
+        streakGeo,
+        new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: 0.38, depthWrite: false }),
+      )
+      windGroup.add(streaks)
+
+      // The arrow: a shaft and a head, floating over the infield where it
+      // never sits on top of a ball's landing spot.
+      {
+        const arrow = new THREE.Group()
+        const shaft = new THREE.Mesh(
+          new THREE.CylinderGeometry(1.5, 1.5, 62, 8),
+          new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0.85 }),
+        )
+        shaft.rotation.x = Math.PI / 2
+        arrow.add(shaft)
+        const head = new THREE.Mesh(
+          new THREE.ConeGeometry(6, 18, 12),
+          new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0.9 }),
+        )
+        head.position.z = 40
+        head.rotation.x = Math.PI / 2
+        arrow.add(head)
+        // The group is built pointing at +Z (= out to centre, bearing 0), so
+        // the bearing is one Y rotation. Negated for the same reason P()
+        // negates x: this camera faces +Z, so the handedness is flipped.
+        arrow.rotation.y = -windTo * DEG
+        // PARKED IN FOUL GROUND, not over the infield. First cut floated it
+        // above the mound at head height, which is exactly where sixty
+        // reconstructed arcs pass through — the arrow disappeared into them
+        // and the label sat on top of the whole night. Out past the left-field
+        // line the sky is empty, and a reader looking for the wind finds it in
+        // the same place every time.
+        const post = P(maxD * 0.50, -53)
+        arrow.position.set(post.x, 46, post.z)
+        windGroup.add(arrow)
+
+        const label = labelSprite(`${windMph.toFixed(0)} MPH ${windLabel.toUpperCase()}`, windHex)
+        label.position.set(post.x, 68, post.z)
+        windGroup.add(label)
+      }
+
+      scene.add(windGroup)
+      // mph is a real speed; the scene is in feet. 1 mph ≈ 1.47 ft/s, scaled
+      // down so a 15 mph wind reads as weather rather than a car chase.
+      const feetPerSec = windMph * 1.47 * 0.55
+      let travelled = 0
+      let last = performance.now()
+      windStep = (now) => {
+        const dt = Math.min(0.1, (now - last) / 1000)
+        last = now
+        travelled = (travelled + feetPerSec * dt) % cell
+        streaks.position.set(dir.x * travelled, 0, dir.z * travelled)
+      }
+    }
+
     // ── THE REPLAY. Every solvable ball flies its arc off the bat, staggered
     //    so the night reads as a sequence rather than a firework. Runs once
     //    on load (unless the viewer asked for reduced motion) and again from
@@ -504,7 +666,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     if (!reduceMotion) runReplay()
 
     let raf
-    const tick = (now) => { controls.update(); stepReplay(now || performance.now()); stepHoverFlight(now || performance.now()); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
+    const tick = (now) => { const t = now || performance.now(); controls.update(); if (windStep) windStep(t); stepReplay(t); stepHoverFlight(t); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
     tick()
 
     const onResize = () => {
@@ -533,7 +695,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [hits, dims, heights])
+  }, [hits, dims, heights, windMph, windLabel, windTo, windHex])
 
   if (!ok) {
     return (
@@ -569,6 +731,14 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         drag to orbit · scroll to zoom · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
+        {windMph > 0 && windLabel && (
+          <>
+            <b style={{ color: windHex }}>wind {windMph.toFixed(1)} mph {windLabel}</b> — the streaks and
+            the arrow show the component that matters for carry (out, in or across) and nothing finer:
+            the published direction is park-relative, not a compass bearing, and the arcs are drawn
+            WITHOUT it, so the wind is context beside the geometry, never folded into it ·{' '}
+          </>
+        )}
         <b style={{ color: C.orange }}>orange</b> over the wall ·{' '}
         <b style={{ color: '#fbbf24' }}>amber</b> off the wall ·{' '}
         grey in play — arcs are reconstructed from EV + launch angle so each ball lands where its dot is

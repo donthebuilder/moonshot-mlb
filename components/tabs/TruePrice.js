@@ -7,8 +7,11 @@ import OddsStatus, { useOddsStatus } from '../OddsStatus'
 import { oddsHistoryPaths } from '../../lib/dataSource'
 import { fmtOdds } from '../../lib/odds'
 import {
-  flatten, priceText, historyLooksReal, readsAs, roiRows, roiVerdict, MARKET_LABEL, MARKET_ORDER,
+  flatten, priceText, historyLooksReal, readsAs, roiRows, roiVerdict, gapSe, MARKET_LABEL, MARKET_ORDER,
 } from '../../lib/oddsHistory'
+import { wilson, wilsonLower } from '../../lib/interval'
+import { benjaminiHochberg, expectedFalseAlarms } from '../../lib/fdr'
+import { RoiErrorBars, GapFunnel, GapIntervals } from '../OddsChart'
 
 // 🏷 TRUE PRICE
 //
@@ -48,11 +51,18 @@ import {
 
 const SORTS = [
   ['gap', 'Biggest gap'],
+  ['support', 'Best-supported rate'],
   ['rate', 'Hit rate'],
   ['n', 'Most nights'],
   ['price', 'Longest true price'],
   ['name', 'Name'],
 ]
+
+// The false-discovery rate the page controls at. 10% is the working number in
+// screening work and it reads as a plain sentence: at most one row in ten that
+// this page calls real is expected to be noise. Tighter than that and a ten-
+// night archive returns nothing, which is a filter that hides everything.
+const FDR_Q = 0.10
 
 // ── MIN NIGHTS ──────────────────────────────────────────────────────────────
 //
@@ -140,7 +150,21 @@ export default function TruePrice({ onPlayerClick }) {
     const down = real.filter((r) => r.edge < 0)
     const loudest = [...real].sort((a, b) => Math.abs(b.z ?? 0) - Math.abs(a.z ?? 0))[0] || null
     const best = [...pool].sort((a, b) => (b.edge ?? 0) - (a.edge ?? 0))[0] || null
-    return { pool, real, up, down, loudest, best }
+    // ── THE SEARCH ITSELF IS A HYPOTHESIS TEST (2026-08-30) ─────────────
+    // Every row above got its own two-sigma test and passed or failed it
+    // alone. Nothing had ever asked what happens when the SAME test is run
+    // across two thousand lines at once: at 5% each, about one line in
+    // twenty comes back "holds up" on a board where nothing is true, and
+    // those false positives are big gaps by construction, so they sort to
+    // the top. Benjamini–Hochberg over the same z-scores answers the
+    // question a bettor actually has — of the rows I would act on, how many
+    // are noise — and `expected` is the count that makes the difference
+    // between the two readings visible in one sentence.
+    const fdr = benjaminiHochberg(pool, (r) => r.z, FDR_Q)
+    const expected = expectedFalseAlarms(pool.length)
+    const survivors = new Set()
+    fdr.pass.forEach((i) => { if (pool[i]) survivors.add(pool[i].id) })
+    return { pool, real, up, down, loudest, best, fdr, expected, survivors }
   }, [rows, minN])
 
   // Rows sort by how much the sample backs them FIRST, so a proven small gap
@@ -150,6 +174,23 @@ export default function TruePrice({ onPlayerClick }) {
   // itself was fixed to actually reload between tabs.)
   const RANK = { real: 3, leaning: 2, noise: 1, thin: 0 }
   const rank = (r) => RANK[r.trust] ?? 0
+
+  // The price the funnel is drawn at. gapSe() takes a break-even rate, and a
+  // funnel needs ONE — so it uses the median of the prices actually on the
+  // board rather than a made-up 50%, which would draw a bar wider than any row
+  // on a longshot-heavy board and narrower than reality on a short one. Median
+  // over mean because a handful of +1500 quotes should not move the curve.
+  const medianImplied = useMemo(() => {
+    const v = rows.map((r) => Number(r.avgImplied)).filter(Number.isFinite).sort((a, b) => a - b)
+    if (!v.length) return 50
+    return v[Math.floor(v.length / 2)]
+  }, [rows])
+
+  // "39–86%" — the sample's own resolution, beside the rate it qualifies.
+  const ciOf = (r) => {
+    const ci = wilson(r.hits, r.n)
+    return ci ? `${ci[0].toFixed(0)}\u2013${ci[1].toFixed(0)}%` : null
+  }
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -161,6 +202,11 @@ export default function TruePrice({ onPlayerClick }) {
       // eleven nights ranking above a 9-point gap on ninety would be the page
       // telling a lie with a sort order.
       gap: (a, b) => (rank(b) - rank(a)) || (b.edge - a.edge),
+      // THE SORT THAT ACCOUNTS FOR ITS OWN DENOMINATOR. lib/interval.js's
+      // own header makes the case: 8-for-12 (66.7%) leads 30-for-50 (60.0%)
+      // on the raw rate and trails it on the lower bound, and the lower
+      // bound is the order you would pick in if you had to put money on one.
+      support: (a, b) => (wilsonLower(b.hits, b.n) ?? -1) - (wilsonLower(a.hits, a.n) ?? -1),
       rate: (a, b) => b.rate - a.rate,
       n: (a, b) => b.n - a.n,
       price: (a, b) => (b.truePrice ?? -1e9) - (a.truePrice ?? -1e9),
@@ -168,6 +214,17 @@ export default function TruePrice({ onPlayerClick }) {
     }
     return [...r].sort(by[sort] || by.gap)
   }, [rows, market, minN, sort, q])
+
+  // How many different sample sizes the CHARTED rows actually span — the rows
+  // after the rung filter, not flatten()'s whole output. Caught in render
+  // 2026-08-30: flatten() returns every row at every n (the rung only changes
+  // the trust tier), so counting there said "ten distinct sizes" while every
+  // visible row sat at exactly five, and the funnel drew a stripe anyway.
+  const distinctN = useMemo(
+    () => new Set((shown.length ? shown : lead.pool).map((r) => r.n)).size,
+    [shown, lead.pool],
+  )
+
 
   if (hist === undefined) {
     return <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, padding: 18 }}>Loading the price history…</div>
@@ -249,6 +306,29 @@ export default function TruePrice({ onPlayerClick }) {
           )}
         </Line>
 
+        {/* ── HOW MANY OF THOSE ARE THE SEARCH TALKING (2026-08-30) ────
+            The line above counts the rows that clear their own error bar. It
+            has never said how many rows a board of this size would hand back
+            if NOTHING were true, and that number is not small: at 5% each,
+            2,000 lines produce about ninety. This is the only sentence on the
+            page that judges the page rather than a player. */}
+        {lead.pool.length >= 10 && (
+          <Line icon="🎯">
+            Those verdicts come from testing <B>{lead.pool.length.toLocaleString()}</B> lines at
+            once, and a board that size hands back about <B>{Math.round(lead.expected)}</B> two-sigma
+            &ldquo;findings&rdquo; even when nothing is true.{' '}
+            {lead.fdr.pass.size
+              ? <>Controlling the false-discovery rate at <B>{Math.round(FDR_Q * 100)}%</B> leaves{' '}
+                <B col={verdictInk(true).color}>{lead.fdr.pass.size}</B> of them standing — of which
+                about <B>{lead.fdr.expectedFalse}</B> is still expected to be noise. Those rows wear a{' '}
+                <b style={{ color: verdictInk(true).color }}>survives the board</b> mark below.</>
+              : <>Not one row survives that correction, which is the honest state of a{' '}
+                <B>{hist.days.length}</B>-night archive: the individual verdicts are real tests, and
+                the board as a whole has not yet found anything the search alone would not have
+                produced.</>}
+          </Line>
+        )}
+
         {lead.loudest && (
           <Line icon="📣">
             The loudest is{' '}
@@ -293,6 +373,32 @@ export default function TruePrice({ onPlayerClick }) {
       </div>
 
       <RealityCheck hist={hist} />
+
+      {/* ── THE PAGE'S OWN RULE, DRAWN (2026-08-30) ───────────────────────
+          Donovan: "make these pages more precise and better stats and chart
+          wise." Everything the funnel shows was already true in the table —
+          it is the same gap against the same two-standard-error bar the
+          Reads-as column runs — but as a chip beside a number it took sixty
+          separate readings to notice that every dot on a ten-night archive
+          sits inside the funnel. That is the page's real answer and it was
+          invisible. Clicking a dot opens the same receipts the row does. */}
+      {/* The funnel needs the sample size to VARY; on a young archive every row
+          sits at the same n and it collapses to a stripe. So the page picks:
+          intervals always work, the funnel earns its place once the archive has
+          rows at three different sample sizes. Neither is ever both. */}
+      {distinctN >= 3 ? (
+        <GapFunnel
+          rows={shown.length ? shown : lead.pool}
+          seAt={(n) => gapSe(medianImplied, n)}
+          onPick={(r) => setOpen(open === r.id ? null : r.id)}
+        />
+      ) : (
+        <GapIntervals
+          rows={shown.length ? shown : lead.pool}
+          seAt={(n) => gapSe(medianImplied, n)}
+          onPick={(r) => setOpen(open === r.id ? null : r.id)}
+        />
+      )}
 
       {/* ── controls ── */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
@@ -401,9 +507,16 @@ export default function TruePrice({ onPlayerClick }) {
                       </td>
                       <td style={{ fontSize: 10.5, color: C.text2, padding: '4px 6px', whiteSpace: 'nowrap' }}>{r.label}</td>
                       <td style={{ ...cell, color: C.text3 }} title={`${r.hits} of ${r.n}`}>{r.n}</td>
+                      {/* THE RATE, WITH ITS OWN RESOLUTION UNDER IT. A bare
+                          "80%" off five nights and a "80%" off eighty nights
+                          are the same three characters and different facts;
+                          the Wilson range is the difference, printed. */}
                       <td style={{ ...cell, color: C.text, fontWeight: 900 }}
-                        title={`${r.hits}/${r.n} · ±${r.se} points of error at this sample`}>
+                        title={`${r.hits}/${r.n} · 95% Wilson interval ${ciOf(r) || 'n/a'} · the gap's own error bar is ±${r.se} points`}>
                         {r.rate.toFixed(0)}%
+                        {ciOf(r) && (
+                          <div style={{ fontSize: 8, fontWeight: 700, color: C.text3, marginTop: 1 }}>{ciOf(r)}</div>
+                        )}
                       </td>
                       <td style={{ ...cell, color: C.orange, fontWeight: 900 }}>
                         {priceText(r.truePrice, r.rate, r.n)}
@@ -423,6 +536,17 @@ export default function TruePrice({ onPlayerClick }) {
                           borderRadius: 999, border: `1px solid ${t.tone}55`, background: `${t.tone}14`, color: t.tone,
                         }}>{t.label}</span>
                         {r.z != null && <span style={{ fontSize: 8.5, color: C.text3, marginLeft: 6 }}>{r.z > 0 ? '+' : ''}{r.z}σ</span>}
+                        {lead.survivors.has(r.id) && (
+                          <span
+                            title={`This row survives a Benjamini–Hochberg correction at ${Math.round(FDR_Q * 100)}% across all ${lead.pool.length.toLocaleString()} lines tested — it is not just significant on its own, it is significant given how many lines were searched to find it.`}
+                            style={{
+                              fontSize: 8, fontWeight: 900, letterSpacing: '.04em', marginLeft: 6,
+                              padding: '1.5px 6px', borderRadius: 999,
+                              border: `1px solid ${verdictInk(true).color}55`,
+                              color: verdictInk(true).color,
+                            }}
+                          >survives the board</span>
+                        )}
                       </td>
                     </tr>
                     {isOpen && (
@@ -536,6 +660,21 @@ function RealityCheck({ hist }) {
           </div>
         )
       })}
+      {/* THE SAME SIX NUMBERS, ON ONE SCALE (2026-08-30). The sentences stay —
+          they carry the clause a chart cannot. What the chart carries and the
+          sentences cannot is that Hits is measured to ±5.8 and home runs to
+          ±21.4: the two markets are not even resolved to the same precision,
+          which is the most useful fact on this panel and read as a footnote. */}
+      <RoiErrorBars
+        rows={rows.map((r) => ({
+          label: r.label,
+          value: Number(r.all.roi),
+          se: Number(r.all.roi_se),
+          n: Number(r.all.n),
+        })).filter((r) => Number.isFinite(r.value) && Number.isFinite(r.se))}
+        footer="Each bar is two standard errors around the measured return. A bar that touches the zero line is a market that has not said anything yet — which, on this much history, is most of them."
+      />
+
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         ROI&apos;s error bar comes from the RETURNS, not the win rate — one +900 winner moves a small
         book more than twenty −150 winners — so a book can post +30% and still be break-even. Hover a

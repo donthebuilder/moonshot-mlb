@@ -26,6 +26,7 @@ import { PARK_WALLS as PARKS } from '../lib/parkWalls'
 // render, and the 2D chart below stays regardless (Donovan, 2026-08-29: the
 // 2D chart is the fallback and the screen-reader version).
 const SprayFieldStadium = dynamic(() => import('./SprayFieldStadium'), { ssr: false })
+import { windRead } from '../lib/conditions'
 import { solveFlight } from '../lib/trajectory'
 
 // Spray field — radar, not a ballpark illustration.
@@ -891,14 +892,20 @@ export default function SprayField({
   // in, or across — and does not pretend to a precise bearing. Left-to-right
   // vs right-to-left on a crosswind isn't in the data either, so a crosswind is
   // drawn on the axis without claiming a side.
-  const windMph = n(player?.wind_mph ?? player?.weather_wind_mph, 0)
-  const windLabel = clean(player?.wind_direction_label ?? player?.weather_wind_direction_label, '')
-  const windOut = /out/i.test(windLabel)
-  const windIn = /^in\b|in from/i.test(windLabel)
-  const windCross = /cross/i.test(windLabel)
-  // Field-relative bearing: 0 = straight out to centre, 180 = straight in.
-  const windTo = windCross ? 90 : windOut ? (/corner/i.test(windLabel) ? 28 : 0)
-    : windIn ? (/corner/i.test(windLabel) ? 152 : 180) : 0
+  //
+  // ── MOVED TO lib/conditions.js (2026-08-30) ─────────────────────────────
+  // The 3D stadium needed the same bearing and the same colour, and this
+  // block was the only place either existed. windRead() is a straight lift —
+  // same regexes, same 28/152 corner bearings, same verdictInk pair — so the
+  // 2D chart's numbers are unchanged; it just stopped being the only owner of
+  // them. The essay above travelled with the function.
+  const _wind = windRead(player)
+  const windMph = _wind.mph
+  const windLabel = _wind.label
+  const windOut = _wind.out
+  const windIn = _wind.in
+  const windCross = _wind.cross
+  const windTo = _wind.to
   // This IS the site-wide verdict pair, not a one-off ternary: the footer a
   // few hundred lines down spells out the same good/bad framing in words
   // ("helping carry" / "hurting carry" / "pushing sideways"), and the two
@@ -909,8 +916,8 @@ export default function SprayField({
   // here, same precedence as the ternary this replaces, so "crosswind (out)"
   // labels still resolve to the warm/true side exactly as before -- no
   // branching logic changed, only the colour source.
-  const windCol = verdictInk(windOut ? true : windIn ? false : null).color
-  const hasWind = windMph > 0 && !!windLabel
+  const windCol = _wind.color
+  const hasWind = _wind.has
   const chipBtn = (on, col) => ({
     padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
     cursor: 'pointer', fontFamily: NUM_FONT,
@@ -1338,6 +1345,7 @@ export default function SprayField({
             dims={testPark && PARKS[testPark] ? PARKS[testPark].d : dims}
             heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
             venue={testPark || venue}
+            wind={hasWind ? { mph: windMph, label: windLabel, to: windTo, color: windCol } : null}
           />
         </div>
       )}

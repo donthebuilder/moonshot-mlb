@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean, hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
 import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName } from '../../lib/odds'
+import { verdictInk } from '../../lib/scales'
+import { hrGameBand, edgeBand } from '../../lib/hrRateBand'
+import { CalibrationScatter } from '../OddsChart'
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
 import { oddsAgeHours, oddsExpired } from '../../lib/oddsFreshness'
@@ -303,6 +306,17 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       const onBar = Number.isFinite(line) && Math.abs(line - live.std) < 1e-9
       const rate = market === 'batter_home_runs' && onBar ? hrPerGame(p) : null
       const edge = rate != null && need != null ? rate - need : null
+      // ── THE EDGE'S OWN ERROR BAR (2026-08-30) ─────────────────────────
+      // EDGE has printed to one decimal since the day this table shipped,
+      // and a tenth of a point is a resolution the underlying sample almost
+      // never has: 12 homers in 480 trips and 4 in 160 both render as
+      // "+7.1". lib/hrRateBand.js puts a 95% Wilson band on the season
+      // counts and pushes it through hrPerGame()'s own per-game transform,
+      // so the column can say which of those two it is. It is a floor on
+      // the uncertainty and nothing more — park, weather and the arm are
+      // all outside it, and the tooltip says so.
+      const band = rate != null ? hrGameBand(p) : null
+      const eb = band ? edgeBand(need, band) : null
       out.push({
         _key: `${p?.player_id}-${p?.game_pk}`,
         _raw: p,
@@ -316,6 +330,18 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
         score: HAS_SCORE.has(market) ? (Math.round(10 * scoreFor(p, market)) / 10 || null) : null,
         rate: rate != null ? Math.round(10 * rate) / 10 : null,
         edge: edge != null ? Math.round(10 * edge) / 10 : null,
+        // THE BAND IS NOT SYMMETRIC AND MUST NOT BE PRINTED AS IF IT WERE.
+        // Caught in render, 2026-08-30: the first cut showed "±7.8" beside
+        // "+7.1", which reads as "-0.7 to +14.9" — and the actual interval
+        // was +4.2 to +19.7. Wilson is skewed at small counts by design (that
+        // is why it is used), so the two bounds are the only honest form.
+        edgeLo: eb?.lo != null ? Math.round(10 * eb.lo) / 10 : null,
+        edgeHi: eb?.hi != null ? Math.round(10 * eb.hi) / 10 : null,
+        edgeClears: eb?.clears ? 1 : 0,
+        rateLo: band?.lo != null ? Math.round(10 * band.lo) / 10 : null,
+        rateHi: band?.hi != null ? Math.round(10 * band.hi) / 10 : null,
+        rateThin: band?.thin ? 1 : 0,
+        rateWhy: band?.why || '',
         fair: rate != null ? fairOdds(rate) : null,
         frozen: q.frozen ? 1 : 0,
         books: n(q.books, 0),
@@ -776,6 +802,36 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
         </span>
       </div>
 
+      {/* ── THE BOARD'S SHAPE, BEFORE ITS ROWS (2026-08-30) ─────────────────
+          Donovan: "make these pages more precise and better stats and chart
+          wise." EDGE is a subtraction between two columns three cells apart,
+          and reading the board means performing it sixty times in your head.
+          Plotted, the subtraction IS the distance from the diagonal — and the
+          thing sixty subtractions never showed is the SHAPE: whether the model
+          disagrees with the book everywhere or only on the longshots, and
+          whether the disagreements are the thin samples. Folded, because the
+          board is still what he came for. HR only: it is the only market with
+          a real rate, so it is the only one with a diagonal that means
+          anything. */}
+      {market === 'batter_home_runs' && shown.filter((r) => r.rate != null).length >= 4 && (
+        <details style={{ marginBottom: 10 }}>
+          <summary style={{ cursor: 'pointer', fontSize: 10.5, color: C.text3, listStyle: 'revert' }}>
+            <span style={{ color: C.text2 }}>See the board as a picture</span>
+            {' '}— his rate against what each price needs, with the sampling band on every dot
+          </summary>
+          <div style={{ marginTop: 8 }}>
+            <CalibrationScatter
+              rows={shown.filter((r) => r.rate != null).map((r) => ({
+                id: r._key, name: r.player, need: r.need, rate: r.rate,
+                lo: r.rateLo, hi: r.rateHi, thin: !!r.rateThin,
+              }))}
+              onPick={(r) => onPlayerClick?.(shown.find((x) => x._key === r.id)?._raw)}
+              footer={`Each vertical bar is the 95% Wilson interval on that hitter's season homer counts, converted to a per-game rate the same way the RATE column is. A bar that crosses the diagonal is a hitter whose own season cannot tell you which side of tonight's price he belongs on — which, on this board, is most of them. Hollow dots are under ${LEAD_MIN_PA} plate appearances and are the same rows the table dims.`}
+            />
+          </div>
+        </details>
+      )}
+
       {!rows.length ? (
         <div style={{
           background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
@@ -832,17 +888,37 @@ key={`${market}-${plusOnly}-${offStd}-${need}`}
               title: "The bot's 0-100 confidence on THIS market. Not a probability — never compare it to NEED.",
             }] : []),
             ...(market === 'batter_home_runs' ? [
-              { key: 'rate', label: 'HIS RATE %', w: 62, dp: 1,
-                title: `His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes — and blank on any row where the book has moved off the ${live.std} bar, because that price is for two homers and this rate is for one.` },
+              { key: 'rate', label: 'HIS RATE %', w: 78, dp: 1,
+                title: `His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes — and blank on any row where the book has moved off the ${live.std} bar, because that price is for two homers and this rate is for one. The small range under it is the 95% Wilson interval on his season homer counts, pushed through the same per-game conversion: it is how much resolution the number actually has.`,
+                fmt: (v, r) => (v == null ? '—' : (
+                  <span style={{ display: 'inline-block', lineHeight: 1.15 }}>
+                    <b style={{ fontFamily: NUM_FONT }}>{v.toFixed(1)}</b>
+                    {r?.rateLo != null && (
+                      <span style={{ display: 'block', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>
+                        {r.rateLo.toFixed(1)}–{r.rateHi.toFixed(1)}
+                      </span>
+                    )}
+                  </span>
+                )) },
               { key: 'fair', label: 'FAIR', w: 52, heat: false,
                 title: 'What his own rate says the price should be.',
                 fmt: (v) => (v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text3 }}>{fmtOdds(v)}</span>) },
-              { key: 'edge', label: 'EDGE', w: 54, dp: 1,
-                title: 'His rate minus the break-even. Positive means the book is paying more than his season says it should. Blank off the standard line — there the book is pricing a different bet.',
-                fmt: (v) => (v == null ? '—' : (
-                  <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>
-                    {v > 0 ? '+' : ''}{v.toFixed(1)}
-                  </b>
+              { key: 'edge', label: 'EDGE', w: 76, dp: 1,
+                title: 'His rate minus the break-even. Positive means the book is paying more than his season says it should. Blank off the standard line — there the book is pricing a different bet. The second line is the 95% interval on that edge, from his own season counts: a ● means the whole 95% band sits on one side of the price, so his SAMPLE is not the reason to doubt the sign. Park, weather, the arm and one book being one opinion are all still outside it.',
+                fmt: (v, r) => (v == null ? '—' : (
+                  <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
+                    <b style={{ color: v >= 3 ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>
+                      {v > 0 ? '+' : ''}{v.toFixed(1)}
+                    </b>
+                    {r?.edgeClears ? (
+                      <span title="The whole 95% band on his season rate sits on one side of this price." style={{ fontSize: 8, marginLeft: 3, color: verdictInk(v > 0).color }}>●</span>
+                    ) : null}
+                    {r?.edgeLo != null && (
+                      <span style={{ display: 'block', fontSize: 8, color: C.text3 }}>
+                        {r.edgeLo > 0 ? '+' : ''}{r.edgeLo.toFixed(1)}…{r.edgeHi > 0 ? '+' : ''}{r.edgeHi.toFixed(1)}
+                      </span>
+                    )}
+                  </span>
                 )) },
             ] : []),
             { key: 'frozen', label: '❄', w: 32, flag: true, mark: '❄',
