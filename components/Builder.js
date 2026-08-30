@@ -321,6 +321,14 @@ export default function Builder({
               // as a clipping bug instead of as "there is more, scroll".
               maxHeight: tallChips ? 188 : 68, overflowY: 'auto',
               scrollbarWidth: 'none',
+              // The whole-rows intent above only holds at scrollTop 0. The
+              // moment this box is scrolled it lands wherever the wheel left
+              // it, and with the scrollbar hidden a half-row at the top edge
+              // reads as exactly the clipping bug the comment set out to
+              // avoid — visible in Donovan's 08-30 screenshot, where the row
+              // under the pinned hitter is sawn in half. Snapping on the block
+              // axis makes every resting position a whole row again.
+              scrollSnapType: 'y proximity',
             }}>
               {chipList.slice(0, 200).map((p2) => {
                 const on = pinnedKeys.has(String(mlbId(p2)))
@@ -333,6 +341,7 @@ export default function Builder({
                     style={{
                       padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
                       fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap',
+                      scrollSnapAlign: 'start',
                       border: `1px solid ${on ? C.orange : C.border}`,
                       background: on ? 'rgba(249,115,22,.12)' : C.bg2,
                       color: on ? C.orange : C.text2,
@@ -465,7 +474,33 @@ export default function Builder({
             summary={pairHistorySummary}
             players={pool}
             onPlayerClick={onPlayerClick}
-            initialAnchors={pins.map((p) => playerId(p))}
+            // ── THE PIN NEVER REACHED THIS PANEL (2026-08-30) ────────────
+            //
+            // Donovan's screenshot: BUILD AROUND said Jarren Duran, and the
+            // BUILDING AROUND panel three inches below said Tristan Peters.
+            //
+            // This line passed `playerId(p)`, which is the COMPOSITE key —
+            // "680776-776543", player id glued to game_pk. PairBuilder seeds
+            // its selection with refKey(), which reads `player_id ?? id` and
+            // falls back to the name; on a bare string both are undefined, so
+            // refKey returned '' for every entry, .filter(Boolean) emptied the
+            // list, and the seeding effect early-returned on `if (!seedKey)`.
+            // anchorKeys stayed [] and `active` fell through to its default —
+            // anchors[0], the top hitter by tonight's score. Tristan Peters
+            // led the HR board at 69.7, which is why HE was there.
+            //
+            // So the pin was not being ignored some of the time; it has never
+            // arrived. Any pin looked like "the builder picked someone else".
+            //
+            // Passing the ROWS lets refKey do what it was written to do: id
+            // when there is one, normalised name when there isn't. The `key`
+            // above still remounts on a pin change, so the seed re-runs.
+            //
+            // The warning was already in this file — line ~175 says "mlbId,
+            // NOT the composite playerId — see the 08-17 ID-mismatch note in
+            // git" — and this call site used the composite anyway. Same bug,
+            // same file, second time.
+            initialAnchors={pins}
             marketKey={market}
             onMarketChange={setMarket}
             bare

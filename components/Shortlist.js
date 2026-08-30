@@ -1,8 +1,9 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, teamOf, oppOf, playerId } from '../lib/player'
+import { nameOf, teamOf, oppOf, playerId, n, clean } from '../lib/player'
 import { hrScore } from '../lib/player'
+import { roleBadge } from '../lib/roleBadge'
 import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
@@ -65,6 +66,37 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           // as the wrong absence.
           read = 'norate'
         }
+        // ── WHAT KIND OF PICK IS THIS (2026-08-30) ───────────────────
+        //
+        // Donovan: "need to know the type of pick wither watch top and
+        // therne threr role too and more stats". Fair — this table ranked
+        // by HR score and never said what the BOT had called the man. A
+        // 55.7 the bot tagged POWER WATCH and a 55.8 it tagged HR BET are
+        // different objects and the shortlist printed them identically.
+        //
+        // Two different fields, and not the same question:
+        //   final_hr_role   the conviction tier — HR BET / HR LEAN / POWER
+        //                   WATCH / AVOID. What the bot thinks of the bat.
+        //   game_pick_role  the slot he was designated in for HIS game —
+        //                   TOP / HR / HRR / HIT / CONTACT / WATCH. One per
+        //                   group per game, so this is scarcity, not opinion.
+        // Both published on every row; neither was on screen.
+        //
+        // Resolved through lib/roleBadge.js rather than by reading the
+        // string: colour used to be keyed on the emoji, so a de-emojified
+        // value fell through to orange. Its tier is the semantic one and it
+        // survives the bot changing format — which it has (see the ship note).
+        const role = roleBadge(p?.final_hr_role, C)
+        // KEEP EVERY PART. game_pick_role is multi-valued on the live slate —
+        // 'HIT/WATCH', 'TOP/CONTACT', 'HIT/CONTACT/WATCH' — and the first cut
+        // took .split('/')[0] like TheRead does. That drops WATCH whenever it
+        // is not first, and WATCH is the single most common designation on the
+        // board (29 of the 89 designated rows tonight). It is also the exact
+        // thing this column was added to show, so it is kept whole.
+        const pick = clean(p?.game_pick_role, '')
+          .split('/').map((x) => x.trim().toUpperCase()).filter(Boolean)
+        const hr = n(p?.season_hr, null)
+        const pa = n(p?.season_pa, null)
         return {
           _key: `${p.player_id}`,
           _raw: p,
@@ -72,6 +104,16 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           name: nameOf(p),
           team: teamOf(p),
           opp: oppOf(p),
+          role: role.known ? role.label : (role.label === '—' ? '' : role.label),
+          _roleColor: role.color,
+          pick: pick.join('/'),
+          _pickParts: pick,
+          spot: n(p?.lineup_spot, null),
+          hr,
+          pa,
+          iso: n(p?.season_iso, null),
+          hrw: n(p?.hrw_score, null),
+          arm: n(p?.pitcher_hr9, null),
           score,
           rate,
           price: priced ? q.over : null,
@@ -152,6 +194,39 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
           { key: 'opp', label: 'Opp', heat: false, w: 40, mono: true, dim: true },
+          // The bot's own verdict on the bat, as a typographic tag rather
+          // than the emoji the payload ships (lib/roleBadge.js explains why).
+          { key: 'role', label: 'Role', heat: false, w: 74,
+            title: 'What the bot calls this bat: HR BET / HR LEAN / POWER (watch) / HRR / CONTACT / AVOID. Its conviction tier, published per player — not derived here.',
+            fmt: (v, r) => (!v ? <span style={{ color: C.text3 }}>—</span> : (
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.05em',
+                padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap',
+                border: `1px solid ${r._roleColor}55`, background: `${r._roleColor}14`, color: r._roleColor,
+              }}>{v}</span>
+            )) },
+          // Different question from Role, and the reason both are here: the
+          // bot designates exactly ONE hitter per group per game, so a TOP
+          // is scarce in a way a high score is not. 124px, not 92: three tags
+          // is a real value ('HIT/CONTACT/WATCH') and at 92 the third one
+          // overflowed into Spot. Caught in render, not in reasoning.
+          { key: 'pick', label: 'Pick', heat: false, w: 124,
+            title: 'The slot(s) the bot designated him in for his own game — TOP, HR, HRR, HIT, CONTACT, WATCH. A hitter can carry more than one and all of them are shown. Blank means he was not designated in that game, which on a full slate is most of the board.',
+            fmt: (v, r) => (!r._pickParts?.length ? <span style={{ color: C.text3 }}>—</span> : (
+              <span style={{ display: 'inline-flex', gap: 3, flexWrap: 'nowrap' }}>
+                {r._pickParts.map((part) => (
+                  <span key={part} style={{
+                    fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.04em',
+                    padding: '1px 4px', borderRadius: 4, whiteSpace: 'nowrap',
+                    border: `1px solid ${part === 'WATCH' ? C.border2 : `${C.orange}55`}`,
+                    color: part === 'WATCH' ? C.text3 : C.orange,
+                  }}>{part}</span>
+                ))}
+              </span>
+            )) },
+          { key: 'spot', label: 'Spot', heat: false, w: 40, mono: true, dim: true,
+            title: 'His lineup slot. Not decoration here: the rate column converts hr_per_pa through the plate appearances this slot actually gets, so a leadoff man and a nine-hole hitter with the same per-PA rate do not have the same per-game one.',
+            fmt: (v) => (v == null ? '—' : v) },
           // ── A SCORE AND A PROBABILITY STOPPED SHARING A RAMP (2026-08-22)
           //
           // These two columns sat side by side on one auto-normalised ramp:
@@ -170,6 +245,22 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
             title: 'The bot’s 0-100 HR score — the profile. Not a probability. Drawn against the middle of this shortlist: ▲ above it, ▼ below.' },
           { key: 'rate', label: 'His rate', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
             title: 'His real per-game 1+ HR probability: hr_per_pa through his lineup spot’s plate appearances. This IS a probability, which is why it’s the only column the price gets compared to — and why it is not painted on the same scale as the score.' },
+          // THE DENOMINATOR BEHIND "HIS RATE", which the column above cannot
+          // show. 22 HR in 391 trips and 7 in 127 both render as a tidy
+          // percentage; only this says which one you are reading.
+          { key: 'hr', label: 'HR / PA', heat: false, w: 68, mono: true,
+            title: 'Season home runs over season plate appearances — the sample the rate beside it is computed from. A rate is only as good as its denominator, and this table would otherwise never show one.',
+            fmt: (v, r) => (v == null || r.pa == null
+              ? <span style={{ color: C.text3 }}>—</span>
+              : <span style={{ fontFamily: NUM_FONT }}>{v}<span style={{ color: C.text3 }}> / {r.pa}</span></span>) },
+          { key: 'iso', label: 'ISO', w: 48, dp: 3, mono: true,
+            title: 'Season isolated power — slugging minus average, so it is extra-base ability with singles taken out. The most direct power stat on the row.',
+            fmt: (v) => (v == null ? '—' : String(v.toFixed(3)).replace(/^0/, '')) },
+          { key: 'hrw', label: 'HRW', w: 50, dp: 1,
+            title: "The HR score with tonight's park and weather folded in. Compare it to HR score: a gap between the two IS the ballpark and the air, and the direction tells you which way they cut." },
+          { key: 'arm', label: 'Arm HR9', w: 58, dp: 2, mono: true, invert: true,
+            title: "Home runs allowed per nine by tonight's starter. Higher is better for the hitter, so this column is inverted — the heat reads the way the bat reads it.",
+            fmt: (v) => (v == null ? '—' : v.toFixed(2)) },
           { key: 'price', label: 'Price', heat: false, w: 56, mono: true,
             fmt: (v, r) => r.priceTxt,
             title: 'The book’s 1+ HR price. ≠ means the book is on a different line — a multi-homer bet, not this one.' },

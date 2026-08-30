@@ -8,7 +8,11 @@
 // the store and for why the master switch is still `wire_notif`.
 //
 // SAYS WHAT IT CANNOT DO. Three limits, all real, all stated on the page
-// rather than discovered: nothing arrives with the site fully closed; iOS
+// rather than discovered: with the site closed only homers and touchdowns
+// arrive, and only every ten minutes (2026-08-30 — the first sentence used to
+// read "nothing arrives with the site fully closed", which the panel's own
+// "Also when the site is closed" block below has contradicted since push
+// shipped on 08-28); iOS
 // grants notifications only to a site added to the Home Screen; and the
 // permission itself is per-browser, so arming this phone says nothing about
 // the laptop. The choice of WHICH alerts you want does follow the account —
