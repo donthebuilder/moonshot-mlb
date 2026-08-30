@@ -37,6 +37,36 @@ const makeResolver = (players) => {
   return (mb) => byId.get(String(mb?.player_id ?? '')) || byName.get(_pnorm(mb?.name)) || null
 }
 
+function PoolLadder({ hit = 0, total = 4, estimated2 = null, live = false }) {
+  const tot = Math.max(1, Number(total) || 4)
+  // A 3-man pool's "3+" and its "3/3" are the same event, and drawing them as
+  // two rungs makes the ladder claim a step that does not exist. The strong
+  // rung only appears when there is something above it.
+  const steps = [
+    { key: '1+', label: '1+', sub: 'tracked', on: hit >= 1, color: C.orange },
+    { key: '2+', label: '2+', sub: 'target', on: hit >= Math.min(2, tot), color: C.green },
+    ...(tot > 3 ? [{ key: '3+', label: '3+', sub: 'strong', on: hit >= 3, color: C.cyan }] : []),
+    { key: 'perfect', label: `${tot}/${tot}`, sub: 'perfect', on: hit >= tot, color: C.yellow },
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))`, gap: 4, marginTop: 8 }}>
+      {steps.map((step) => (
+        <div key={step.key} title={step.key === '2+' && Number.isFinite(estimated2) ? `Pregame estimate for 2+: ${(100 * estimated2).toFixed(1)}%` : `${step.label} ${step.sub}`}
+          style={{
+            minHeight: 34, borderRadius: 7, border: `1px solid ${step.on ? step.color + '88' : C.border}`,
+            background: step.on ? `${step.color}18` : 'rgba(255,255,255,.025)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+          }}>
+          <b style={{ fontSize: 10.5, color: step.on ? step.color : C.text3, fontFamily: NUM_FONT }}>{step.label}</b>
+          <span style={{ fontSize: 7.5, color: C.text3, fontFamily: NUM_FONT }}>
+            {step.key === '2+' && Number.isFinite(estimated2) && !live ? `${(100 * estimated2).toFixed(1)}%` : step.sub}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function LivePools({ results, players = [], onPlayerClick }) {
   const pools = (results?.pair_pool_results?.graded_pools) || []
   const resolve = makeResolver(players)
@@ -107,6 +137,7 @@ function LivePools({ results, players = [], onPlayerClick }) {
                   fontWeight: 800, color: col === C.border ? C.text3 : col,
                 }}>{hit}/{tot} HR <span style={{ fontSize: 9, color: C.text3, fontWeight: 600 }}>· need {bar}</span></span>
               </div>
+              <PoolLadder hit={hit} total={tot} live />
               {/* GRID, not flow (2026-08-06): inline-wrapped names broke mid-
                   list and left orphans hanging off the line. Two even columns,
                   every name on its own line slot. */}
@@ -270,6 +301,7 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }
                 {pl.kind} · need 2{Number.isFinite(p2) ? ` · est ${(100 * p2).toFixed(1)}%` : ''}
               </span>
             </div>
+            <PoolLadder hit={0} total={arr(pl.players).length || (pl.kind === '3-man' ? 3 : 4)} estimated2={Number.isFinite(p2) ? p2 : null} />
             <div style={{ display: 'grid', gap: '3px 10px', marginTop: 6, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
               {arr(pl.players).map((mb, j) => {
                 const row = resolve(mb)

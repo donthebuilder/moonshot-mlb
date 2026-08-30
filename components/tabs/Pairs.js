@@ -1594,6 +1594,74 @@ const B = ({ children, color }) => (
   <b style={{ color: color || C.text, fontWeight: 800 }}>{children}</b>
 )
 
+const PAIR_STYLES = [
+  { key: 'safe_hits', label: 'Safe Hits', groups: ['TOP', 'HIT'], shape: 'spread', size: 2, signals: [], note: 'best hit-rate bats first: TOP on the hit bar plus the game HIT leg' },
+  { key: 'hit_hrr', label: 'HIT + HRR', groups: ['HIT', 'HRR'], shape: 'spread', size: 2, signals: [], note: 'one floor leg with one production leg, the cleanest mixed-market build' },
+  { key: 'hrr_ladder', label: 'HRR Ladder', groups: ['HRR', 'HIT'], shape: 'spread', size: 3, signals: [], note: 'three legs when you want HRR upside but still want one hit-rate anchor' },
+  { key: 'bases_gaps', label: 'Bases / Gaps', groups: ['CONTACT', 'HIT'], shape: 'spread', size: 2, signals: [], note: '2+ total-base legs backed by hit volume and bases environment' },
+  { key: 'hr_moonshot', label: 'HR Moonshot', groups: ['TOP', 'HR'], shape: 'spread', size: 2, signals: ['aligned'], note: 'hardest bar, so it starts with the strongest HR signal composite' },
+]
+
+const pct = (v) => {
+  const x = Number(v)
+  if (!Number.isFinite(x)) return ''
+  return `${Math.round(x > 1 ? x : x * 100)}%`
+}
+
+const stat = (v, dp = 0) => {
+  const x = Number(v)
+  return Number.isFinite(x) ? x.toFixed(dp) : ''
+}
+
+function legStrengthFacts(leg) {
+  const p = leg.player || {}
+  const out = [`score ${stat(leg.score)}`]
+  if (leg.distinct?.length) out.push(`${leg.distinct.length} signal${leg.distinct.length === 1 ? '' : 's'}`)
+  if (leg.group === 'HIT') {
+    if (n(p?.last5_hits, 0) > 0) out.push(`L5 ${n(p.last5_hits, 0)} H`)
+    if (n(p?.last10_hits, 0) > 0) out.push(`L10 ${n(p.last10_hits, 0)} H`)
+    if (n(p?.season_k_rate, 0) > 0) out.push(`K ${pct(p.season_k_rate)}`)
+  } else if (leg.group === 'HRR') {
+    if (n(p?.last5_runs, 0) + n(p?.last5_rbi, 0) > 0) out.push(`L5 R+RBI ${n(p.last5_runs, 0) + n(p.last5_rbi, 0)}`)
+    if (n(p?.lineup_context_score, 0) > 0) out.push(`lineup ${stat(p.lineup_context_score)}`)
+    if (n(p?.pitcher_whip, 0) > 0) out.push(`arm WHIP ${stat(p.pitcher_whip, 2)}`)
+  } else if (leg.group === 'CONTACT') {
+    if (n(p?.last7_xbh, 0) > 0) out.push(`L7 ${n(p.last7_xbh, 0)} XBH`)
+    if (n(p?.last10_hits, 0) > 0) out.push(`L10 ${n(p.last10_hits, 0)} H`)
+    if (n(p?.contact_score, 0) > 0) out.push(`TB ${stat(p.contact_score)}`)
+  } else {
+    if (n(p?.season_iso, 0) > 0) out.push(`ISO ${stat(p.season_iso, 3).replace(/^0/, '')}`)
+    if (n(p?.hrw_score, 0) > 0) out.push(`HRW ${stat(p.hrw_score)}`)
+    if (n(p?.recent_ev, 0) > 0) out.push(`EV ${stat(p.recent_ev, 1)}`)
+  }
+  return out.slice(0, 5)
+}
+
+/**
+ * The three facts that are about the SPOT rather than the hitter.
+ *
+ * Deliberately excludes last-7 XBH and last-10 hits even though both are in
+ * the bases finding: legStrengthFacts() already prints them one chip to the
+ * left for a CONTACT leg, and the first render of this row showed
+ * "L7 7 XBH · L10 14 H" immediately followed by "L7 XBH 7 · L10 H 14". A
+ * number printed twice in one line reads as two findings and is one.
+ *
+ * What is left is exactly what the strength strip cannot say, and what the
+ * archive actually pointed at: park_hits_factor 52.1% vs 31.2% top-to-bottom,
+ * low park_k_factor 45.1% vs 26.4%, low pitcher putaway 45.1% vs 28.5%. The
+ * bases angle is a game and a park and an arm before it is a bat.
+ */
+function basesEnvironmentFacts(p) {
+  const out = []
+  const parkHits = Number(p?.park_hits_factor)
+  const parkK = Number(p?.park_k_factor)
+  const putaway = Number(p?.pitcher_putaway_pct)
+  if (Number.isFinite(parkHits)) out.push(`park hits ${parkHits.toFixed(2)}`)
+  if (Number.isFinite(parkK)) out.push(`park K ${parkK.toFixed(2)}`)
+  if (Number.isFinite(putaway)) out.push(`putaway ${pct(putaway)}`)
+  return out
+}
+
 /**
  * One leg, stated. Name, where he is, the group he fills, the bar he has to
  * clear, what that bar has measured at, the signals he is carrying, and the
@@ -1615,6 +1683,8 @@ function LegSentence({ leg, odds, reserved = false }) {
   // Aligned swallows weak spot and pitch match — see spokenSignals(). The
   // filter still sees all three; only the sentence and the count collapse them.
   const spoken = leg.distinct || spokenSignals(leg.signals)
+  const strength = legStrengthFacts(leg)
+  const basesEnv = leg.group === 'CONTACT' ? basesEnvironmentFacts(p) : []
 
   return (
     <div style={{
@@ -1625,6 +1695,23 @@ function LegSentence({ leg, odds, reserved = false }) {
       borderLeft: reserved ? `2px solid ${C.green}` : 'none',
       paddingLeft: reserved ? 10 : 0,
     }}>
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 4 }}>
+        {strength.map((x) => (
+          <span key={x} style={{
+            border: `1px solid ${col}44`, background: `${col}12`, color: C.text2,
+            borderRadius: 7, padding: '1px 6px', fontSize: 9.5, fontFamily: NUM_FONT,
+          }}>{x}</span>
+        ))}
+        {basesEnv.length > 0 && (
+          <span title="Bases environment: the archive pointed more to game/park/arm shape than one magic total-bases hitter."
+            style={{
+              border: `1px solid ${C.green}44`, background: `${C.green}12`, color: C.green,
+              borderRadius: 7, padding: '1px 6px', fontSize: 9.5, fontFamily: NUM_FONT,
+            }}>
+            bases env: {basesEnv.join(' · ')}
+          </span>
+        )}
+      </div>
       <B color={col}>{nameOf(p)}</B>
       {' — '}{gamePhrase(p)}
       {spot ? `, batting ${spot}` : ''}
@@ -1871,6 +1958,7 @@ export function GroupTicketBuilder({
   const [signals, setSignals] = useState([])
   const [shape, setShape] = useState('spread')
   const [size, setSize] = useState(defaultSize)
+  const [styleKey, setStyleKey] = useState('custom')
 
   const odds = useSlateOdds(oddsProp)
 
@@ -1934,7 +2022,17 @@ export function GroupTicketBuilder({
   // so it is named as a repeat instead.
   const signalIsRepeat = !!signalTicket && built.tickets.some((t) => t.key === signalTicket.key)
 
-  const toggle = (arr, set, key) => set(arr.includes(key) ? arr.filter((x) => x !== key) : [...arr, key])
+  const toggle = (arr, set, key) => {
+    setStyleKey('custom')
+    set(arr.includes(key) ? arr.filter((x) => x !== key) : [...arr, key])
+  }
+  const applyStyle = (style) => {
+    setStyleKey(style.key)
+    setGroups(style.groups)
+    setSignals(style.signals || [])
+    setShape(style.shape || 'spread')
+    setSize(style.size || 2)
+  }
 
   const designated = useMemo(
     () => players.filter((p) => String(p?.game_pick_role || '').trim()).length, [players],
@@ -1998,6 +2096,18 @@ export function GroupTicketBuilder({
 
       {/* ── controls ── */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Style</span>
+        {PAIR_STYLES.map((style) => (
+          <button
+            key={style.key}
+            onClick={() => applyStyle(style)}
+            title={style.note}
+            style={btnStyle(style.key === 'bases_gaps' ? C.green : style.key === 'hr_moonshot' ? C.orange : C.purple, styleKey === style.key)}
+          >{style.label}</button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Groups</span>
         {GROUP_ORDER.map((g) => {
           const meta = GROUP_META[g]
@@ -2039,11 +2149,11 @@ export function GroupTicketBuilder({
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Shape</span>
-        <button onClick={() => setShape('spread')} style={btnStyle(C.purple, shape === 'spread')}>Across games</button>
-        <button onClick={() => setShape('game')} style={btnStyle(C.cyan, shape === 'game')}>All in one game</button>
+        <button onClick={() => { setStyleKey('custom'); setShape('spread') }} style={btnStyle(C.purple, shape === 'spread')}>Across games</button>
+        <button onClick={() => { setStyleKey('custom'); setShape('game') }} style={btnStyle(C.cyan, shape === 'game')}>All in one game</button>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 6 }}>Legs</span>
         {[2, 3, 4].map((k) => (
-          <button key={k} onClick={() => setSize(k)} style={btnStyle(C.orange, size === k)}>
+          <button key={k} onClick={() => { setStyleKey('custom'); setSize(k) }} style={btnStyle(C.orange, size === k)}>
             {k === 2 ? '2 legs · pair' : `${k} legs · pool`}
           </button>
         ))}
