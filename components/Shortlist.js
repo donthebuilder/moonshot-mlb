@@ -4,6 +4,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, playerId, n, clean } from '../lib/player'
 import { hrScore } from '../lib/player'
 import { roleBadge } from '../lib/roleBadge'
+import { hitterArchetype, marketFamily, primaryRole } from '../lib/verdict'
+import { catColor } from '../lib/scales'
 import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
@@ -42,8 +44,43 @@ const READ = {
   none: { word: 'no price posted', tone: C.text3, rank: 0 },
 }
 
+// ── THE STAT PACKS (2026-08-31) ─────────────────────────────────────────────
+//
+// Donovan: "this page need more stats on the players". The columns he wanted
+// all exist and all publish on every row of the slate -- exit velocity, barrel
+// rate, hard-hit rate, fly-ball rate, pull rate, strikeout rate, the locked
+// last-five line, park factor -- and every one of them was already in the
+// payload and on none of the screen.
+//
+// They are NOT all added as columns. Fifteen more columns is the odds board's
+// mistake ("cant read that", 2026-08-30) repeated on a wider table. Instead the
+// middle of the row swaps: identity, the bot's read and the odds verdict are
+// permanent, and the block between them answers one question at a time.
+//
+//   PROFILE  the ranking as it was -- score, real rate, the denominator
+//            behind it, ISO, park-adjusted score, the arm
+//   CONTACT   how the ball is actually leaving the bat: EV, barrel, hard-hit,
+//            lift, pull, and the strikeout rate that caps all of it
+//   FORM      what he has actually done lately, plus the two shape scores and
+//            the ballpark
+//
+// Every one of these is a real published field, not a derivation invented for
+// the table. Nothing here is computed from the odds -- the price columns stay
+// downstream of the profile, which is the whole reason the READ column is
+// allowed to speak.
+const PACKS = [
+  ['profile', 'Profile'],
+  ['contact', 'Contact quality'],
+  ['form', 'Recent form'],
+]
+
+// Rates publish as fractions (barrel .267 max, hard-hit .759 max); printed as
+// whole percents because nobody reads a barrel rate as ".04".
+const pct1 = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
+
 export default function Shortlist({ players = [], odds = null, onPlayerClick, onWatch, watchIds = null }) {
   const [view, setView] = useState('profile')
+  const [pack, setPack] = useState('profile')
 
   const rows = useMemo(() => {
     return (players || [])
@@ -86,7 +123,39 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         // string: colour used to be keyed on the emoji, so a de-emojified
         // value fell through to orange. Its tier is the semantic one and it
         // survives the bot changing format — which it has (see the ship note).
-        const role = roleBadge(p?.final_hr_role, C)
+        const tier = roleBadge(p?.final_hr_role, C)
+        // ── THE TYPE OF BAT, NOT THE TIER (2026-08-31) ───────────────
+        //
+        // Donovan: "i thought we did away the the hr lean and and stuff
+        // and use like ther role catergories hit machince mulit hit
+        // those ones."
+        //
+        // He is right, and this column was the last place still leading
+        // with the tier. HR BET / HR LEAN / POWER WATCH is a conviction
+        // ladder -- it says how much the bot likes him and nothing about
+        // what kind of hitter he is, so four rows in a row read "HR LEAN"
+        // and the column carried no information across them. lib/verdict's
+        // hitterArchetype has answered the other question since 2026-08-23
+        // and is what the props cards, the modals and The Read already say:
+        // Moonshooter, Laser, Matchup Hunter, Pull-Side Threat, Heater,
+        // Hit Machine, Multi-Hit Threat, Contact King.
+        //
+        // The archetype is read in HIS OWN designated market's family, so
+        // a bat the bot designated HIT reads "Hit Machine" rather than
+        // being forced through the home-run ladder; an undesignated hitter
+        // falls back to his strongest lane, which on this table is the
+        // home-run one. That is hitterArchetype's own default and it is
+        // deliberately not overridden here -- a shortlist that renamed a
+        // hit bat into a power archetype would be the same category error
+        // the tier column was making.
+        //
+        // The tier is NOT lost. It moves into the tooltip, where a
+        // conviction ladder belongs: it is one sentence of context on a
+        // hitter you are already looking at, not a sortable column.
+        const famRole = primaryRole(p) || 'HR'
+        const arch = hitterArchetype(p, famRole)
+        const fam = marketFamily(famRole)
+        const archColor = catColor('role', fam === 'BASES' ? 'CONTACT' : fam) || C.orange
         // KEEP EVERY PART. game_pick_role is multi-valued on the live slate —
         // 'HIT/WATCH', 'TOP/CONTACT', 'HIT/CONTACT/WATCH' — and the first cut
         // took .split('/')[0] like TheRead does. That drops WATCH whenever it
@@ -104,8 +173,12 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           name: nameOf(p),
           team: teamOf(p),
           opp: oppOf(p),
-          role: role.known ? role.label : (role.label === '—' ? '' : role.label),
-          _roleColor: role.color,
+          type: arch.label,
+          _typeColor: archColor,
+          _typeTitle: `${arch.label} — ${arch.why}`
+            + `\nRead in his ${fam === 'HR' ? 'home-run' : fam === 'HIT' ? '1+ hit' : fam === 'HRR' ? 'H+R+RBI' : 'total-bases'} lane.`
+            + (tier.known ? `\nThe bot's conviction tier on the bat: ${tier.label}.` : ''),
+          _tier: tier.known ? tier.label : '',
           pick: pick.join('/'),
           _pickParts: pick,
           spot: n(p?.lineup_spot, null),
@@ -114,6 +187,20 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           iso: n(p?.season_iso, null),
           hrw: n(p?.hrw_score, null),
           arm: n(p?.pitcher_hr9, null),
+          // CONTACT pack — all published on 251 of 251 rows tonight.
+          ev: n(p?.recent_ev, null),
+          barrel: n(p?.recent_barrel_rate, null),
+          hard: n(p?.recent_hard_hit_rate, null),
+          fb: n(p?.recent_fb_rate, null),
+          pull: n(p?.recent_pull_rate, null),
+          krate: n(p?.season_k_rate, null),
+          // FORM pack — the locked last-five line plus two shape scores.
+          l5h: n(p?.last5_hits, null),
+          l5hr: n(p?.last5_hr, null),
+          l5xbh: n(p?.last5_xbh, null),
+          multi: n(p?.multi_hit_score, null),
+          damage: n(p?.damage_conversion_score, null),
+          park: n(p?.park_hr_factor, null),
           score,
           rate,
           price: priced ? q.over : null,
@@ -161,13 +248,33 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           </span>
         )}
       </div>
+      {/* The stat pack swaps the MIDDLE of the row only. Identity, the type
+          of bat, the designation and the whole odds verdict never move, so
+          switching packs never costs you the thing you were reading. */}
+      <div style={{ display: 'flex', gap: 5, marginBottom: 9, alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Stats</span>
+        {PACKS.map(([k, label]) => (
+          <button key={k} onClick={() => setPack(k)} style={{
+            padding: '2.5px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+            fontWeight: 800, fontFamily: NUM_FONT,
+            border: `1px solid ${pack === k ? C.orange : C.border}`,
+            background: pack === k ? 'rgba(249,115,22,.14)' : 'transparent',
+            color: pack === k ? C.orange : C.text3,
+          }}>{label}</button>
+        ))}
+        <span style={{ fontSize: 9, color: C.text3 }}>
+          {pack === 'profile' ? 'the ranking and what it is built from'
+            : pack === 'contact' ? 'how the ball is leaving the bat — every one a batted-ball measurement, not a score'
+              : 'what he has actually done in the locked last five, and tonight’s park'}
+        </span>
+      </div>
 
       {/* key={view}: DenseTable keeps its own sort stack, and once a header
           has been clicked that stack overrides row order — so the profile/fit
           pills re-highlighted and nothing moved (the audit's find). Remounting
           on the toggle resets the stack, which is what the pill promises. */}
       <DenseTable
-        key={view}
+        key={`${view}-${pack}`}
         rows={rows}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
         initialSort={null}
@@ -194,22 +301,22 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
           { key: 'opp', label: 'Opp', heat: false, w: 40, mono: true, dim: true },
-          // The bot's own verdict on the bat, as a typographic tag rather
-          // than the emoji the payload ships (lib/roleBadge.js explains why).
-          { key: 'role', label: 'Role', heat: false, w: 74,
-            title: 'What the bot calls this bat: HR BET / HR LEAN / POWER (watch) / HRR / CONTACT / AVOID. Its conviction tier, published per player — not derived here.',
+          // ── TYPE, NOT TIER (2026-08-31) ───────────────────────────
+          // The archetype from lib/verdict.js — the same words the props
+          // cards and both modals already use, so a bat cannot be called
+          // one thing here and another thing one click away. Wider than
+          // the tier badge was (118 vs 74) because "Multi-Hit Threat" and
+          // "Matchup Hunter" are real values and a clipped archetype is
+          // worse than no archetype.
+          { key: 'type', label: 'Type', heat: false, w: 118,
+            title: 'What KIND of hitter he is, read in his own designated market’s lane — Moonshooter, Laser, Matchup Hunter, Pull-Side Threat, Heater, Hit Machine, Multi-Hit Threat, Contact King. Hover a row for the reason and for the bot’s conviction tier on the bat.',
             fmt: (v, r) => (!v ? <span style={{ color: C.text3 }}>—</span> : (
-              <span style={{
-                fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.05em',
+              <span title={r._typeTitle} style={{
+                fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.03em',
                 padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap',
-                border: `1px solid ${r._roleColor}55`, background: `${r._roleColor}14`, color: r._roleColor,
+                border: `1px solid ${r._typeColor}55`, background: `${r._typeColor}14`, color: r._typeColor,
               }}>{v}</span>
             )) },
-          // Different question from Role, and the reason both are here: the
-          // bot designates exactly ONE hitter per group per game, so a TOP
-          // is scarce in a way a high score is not. 124px, not 92: three tags
-          // is a real value ('HIT/CONTACT/WATCH') and at 92 the third one
-          // overflowed into Spot. Caught in render, not in reasoning.
           { key: 'pick', label: 'Pick', heat: false, w: 124,
             title: 'The slot(s) the bot designated him in for his own game — TOP, HR, HRR, HIT, CONTACT, WATCH. A hitter can carry more than one and all of them are shown. Blank means he was not designated in that game, which on a full slate is most of the board.',
             fmt: (v, r) => (!r._pickParts?.length ? <span style={{ color: C.text3 }}>—</span> : (
@@ -245,6 +352,14 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
             title: 'The bot’s 0-100 HR score — the profile. Not a probability. Drawn against the middle of this shortlist: ▲ above it, ▼ below.' },
           { key: 'rate', label: 'His rate', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
             title: 'His real per-game 1+ HR probability: hr_per_pa through his lineup spot’s plate appearances. This IS a probability, which is why it’s the only column the price gets compared to — and why it is not painted on the same scale as the score.' },
+          // ── THE SWAPPABLE MIDDLE (2026-08-31) ─────────────────────
+          // Only this block changes with the Stats pill. Spot, HR score
+          // and His rate stay because the first is what the rate is
+          // computed through and the other two are the ranking itself;
+          // every price column below stays because the READ verdict is
+          // the point of the table. Nothing here is derived from the
+          // odds -- that separation is what lets the verdict speak.
+          ...(pack === 'profile' ? [
           // THE DENOMINATOR BEHIND "HIS RATE", which the column above cannot
           // show. 22 HR in 391 trips and 7 in 127 both render as a tidy
           // percentage; only this says which one you are reading.
@@ -261,6 +376,51 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           { key: 'arm', label: 'Arm HR9', w: 58, dp: 2, mono: true, invert: true,
             title: "Home runs allowed per nine by tonight's starter. Higher is better for the hitter, so this column is inverted — the heat reads the way the bat reads it.",
             fmt: (v) => (v == null ? '—' : v.toFixed(2)) },
+          ] : pack === 'contact' ? [
+            // Every column below is a MEASUREMENT of batted balls, not a
+            // model score, so none of them can be circular with the HR
+            // score beside them. Recent-window fields (recent_*), which
+            // is why a hot month shows here before it shows in ISO.
+            { key: 'ev', label: 'EV', w: 52, dp: 1, mono: true,
+              title: 'Average exit velocity over the recent window, in mph. The single most stable batted-ball measurement a hitter has — it moves slower than results do, which is exactly why it is worth watching.',
+              fmt: (v) => (v == null ? '—' : v.toFixed(1)) },
+            { key: 'barrel', label: 'Barrel%', w: 60, mono: true,
+              title: 'Share of batted balls hit at the exit-velocity-and-angle combination that historically produces extra bases. The closest thing to a home-run rate that is not itself a home-run rate.',
+              fmt: pct1 },
+            { key: 'hard', label: 'Hard%', w: 56, mono: true,
+              title: 'Share of batted balls hit 95+ mph. Broader and noisier than barrel rate, and it fills in the hitters who hit the ball hard without lifting it.',
+              fmt: pct1 },
+            { key: 'fb', label: 'FB%', w: 50, mono: true,
+              title: 'Fly-ball share. Lift is the half of a home run that exit velocity cannot supply — a hard-hit ground ball has never left a yard.',
+              fmt: pct1 },
+            { key: 'pull', label: 'Pull%', w: 52, mono: true,
+              title: 'Pull share. The short part of every ballpark is on the pull side, so pull intent turns raw distance into home-run distance.',
+              fmt: pct1 },
+            { key: 'krate', label: 'K%', w: 48, mono: true, invert: true,
+              title: 'Season strikeout rate. Inverted, because it is the one column here where lower is better: a strikeout is the one outcome that produces no batted ball for any of the columns to its left to measure.',
+              fmt: pct1 },
+          ] : [
+            // The locked last-five line is FINISHED games only, so it can
+            // never move under you mid-slate the way a season rate can.
+            { key: 'l5h', label: 'L5 H', w: 46, mono: true,
+              title: 'Hits in his locked last five games. Locked means completed games only — it does not change while tonight is being played.',
+              fmt: (v) => (v == null ? '—' : v) },
+            { key: 'l5hr', label: 'L5 HR', w: 50, mono: true,
+              title: 'Home runs in his locked last five games. Small by construction: two is a lot, three is the top of the slate.',
+              fmt: (v) => (v == null ? '—' : v) },
+            { key: 'l5xbh', label: 'L5 XBH', w: 54, mono: true,
+              title: 'Extra-base hits in the locked last five. It catches the bat that is driving the ball without the homers having landed yet.',
+              fmt: (v) => (v == null ? '—' : v) },
+            { key: 'multi', label: 'Multi-hit', w: 62, dp: 1,
+              title: 'The bot’s 0-100 multi-hit score. A score, not a probability — drawn against the middle of this shortlist like the HR score is.',
+              scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
+            { key: 'damage', label: 'Damage', w: 60, dp: 1,
+              title: 'Damage-conversion score: how much of his hard contact actually turns into extra bases rather than loud outs.',
+              scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
+            { key: 'park', label: 'Park', w: 48, dp: 2, mono: true,
+              title: 'Tonight’s park home-run factor. 1.00 is neutral; above it the yard helps, below it the yard takes homers away. Narrow by nature — the whole league runs about 0.87 to 1.09.',
+              fmt: (v) => (v == null ? '—' : v.toFixed(2)) },
+          ]),
           { key: 'price', label: 'Price', heat: false, w: 56, mono: true,
             fmt: (v, r) => r.priceTxt,
             title: 'The book’s 1+ HR price. ≠ means the book is on a different line — a multi-homer bet, not this one.' },

@@ -263,38 +263,97 @@ export function GapFunnel({ rows = [], seAt, maxN = null, onPick }) {
 export function GapIntervals({ rows = [], seAt, limit = 22, onPick }) {
   const pts = rows.filter((r) => r && Number.isFinite(r.edge) && Number.isFinite(r.n)).slice(0, limit)
   if (pts.length < 2) return null
-  const rowH = 16
-  const padT = 14
-  const padB = 24
+  const rowH = 17
+  // ── THE LEGEND IS PART OF THE PLOT (2026-08-31) ──────────────────────────
+  //
+  // Donovan, on this exact chart: "i dont understand this chart make better."
+  //
+  // He was right, and the failure was not the drawing — it was that the
+  // drawing answered a question the reader had not been told was being asked.
+  // Twenty-two grey lines through a zero line is a correct picture of
+  // "nothing here has separated from break-even yet" and reads as a smear.
+  // Three things were missing, all of them words rather than marks:
+  //
+  //   1. THE ANSWER, up front. The chart's whole verdict is a count — how
+  //      many of these have actually said something — and it was left for
+  //      the reader to derive by eye across twenty-two rows.
+  //   2. WHICH WAY IS GOOD. A signed axis labelled "-45 … +45" does not tell
+  //      anyone that right means the book is paying more than the man's rate
+  //      deserves. Now each half is named, in the same words the READ column
+  //      uses, so the chart and the table cannot be read differently.
+  //   3. WHAT A ROW IS. The dot is the measurement, the bar is the range the
+  //      truth could actually be in given how few nights there are. That is
+  //      the entire idea and it was in a footnote. It is now drawn once, at
+  //      the top, as a worked example with its parts called out.
+  //
+  // Nothing about the statistics changed. Same estimate, same two standard
+  // errors at the same price-anchored rate. What changed is that the picture
+  // now states its own question before answering it.
+  const legendH = 44
+  const padT = 14 + legendH
+  // 40, not 26: three things live under the plot — the tick numbers, the
+  // words "break even" under the zero line, and the axis caption. At 26 the
+  // last two landed on the same baseline and printed on top of each other.
+  // Caught in render, not in reasoning.
+  const padB = 40
   const height = padT + pts.length * rowH + padB
   const bars = pts.map((r) => ({ ...r, se: seAt(r.n) || 0 }))
   const reach = Math.max(10, Math.ceil(Math.max(...bars.map((r) => Math.abs(r.edge) + 2 * r.se)) / 10) * 10)
+  const decidedCount = bars.filter((r) => (r.edge - 2 * r.se) > 0 || (r.edge + 2 * r.se) < 0).length
 
   return (
     <Frame
       title="🎯 Every gap with its own error bar"
-      sub="the bar is two standard errors at that row's sample — a bar touching the zero line has not said anything yet"
+      sub={decidedCount
+        ? `${decidedCount} of ${bars.length} rows have separated from break-even — the rest have not said anything yet`
+        : `none of these ${bars.length} rows has separated from break-even yet — every bar still touches the zero line`}
       height={height}
-      footer="The bar is computed at the PRICE'S break-even rate, the same test the Reads-as column runs, so a bar's position and its chip can never disagree. Sorted the same way the table is."
+      footer="Read one row at a time: the DOT is the gap actually measured, the BAR is the range the true gap could be in given how few nights this row has. A bar that touches the zero line is a row that has not ruled out break-even, whatever its dot says. The bar is computed at the PRICE'S break-even rate, the same test the Reads-as column runs, so a bar's position and its chip can never disagree."
     >
       {(W) => {
         // The names are the y-axis, so they get a real share of a phone's
         // width — but never so much that the plot has nowhere left to go.
-        const labelW = Math.max(96, Math.min(210, Math.round(W * 0.42)))
+        const labelW = Math.max(96, Math.min(210, Math.round(W * 0.36)))
+        // A right gutter for the SAMPLE, because the sample is the entire
+        // reason these bars are as wide as they are. A reader who cannot see
+        // n has no way to know why one row's bar is twice another's.
+        const gutter = W > 520 ? 62 : 40
         const plotL = labelW + 10
-        const plotR = W - 12
+        const plotR = W - 12 - gutter
         const x = (v) => plotL + ((v + reach) / (2 * reach)) * (plotR - plotL)
         const ticks = [-reach, -reach / 2, 0, reach / 2, reach]
+        const good = verdictInk(true).color
+        const bad = verdictInk(false).color
+        // The worked example sits on the same x scale as the rows below it,
+        // so its width IS a real error bar rather than a decorative one.
+        const exC = 0
+        const exSe = reach / 4
+        const exY = 26
         return (
           <>
+            {/* ── the worked example ─────────────────────────────────── */}
+            <text x={labelW} y={exY + 3} textAnchor="end" style={{ ...AX, fontSize: 9, fill: C.text2, fontWeight: 700 }}>how to read a row</text>
+            <line x1={x(exC - exSe)} x2={x(exC + exSe)} y1={exY} y2={exY} stroke={C.text3} strokeWidth="1.8" opacity="0.45" strokeLinecap="round" />
+            <circle cx={x(exC)} cy={exY} r="3" fill={C.text2} />
+            <line x1={x(exC)} x2={x(exC)} y1={exY - 9} y2={exY - 4} stroke={C.text3} strokeWidth="0.8" />
+            <text x={x(exC)} y={exY - 12} textAnchor="middle" style={{ ...AX, fontSize: 8 }}>measured</text>
+            <line x1={x(exC + exSe)} x2={x(exC + exSe)} y1={exY + 4} y2={exY + 9} stroke={C.text3} strokeWidth="0.8" />
+            <text x={x(exC + exSe) + 4} y={exY + 15} textAnchor="start" style={{ ...AX, fontSize: 8 }}>could really be anywhere in the bar</text>
+            {/* ── which half is which, in the READ column's own words ── */}
+            <text x={(plotL + x(0)) / 2} y={padT - 8} textAnchor="middle" style={{ ...AX, fontSize: 8.5, fill: bad, fontWeight: 700 }}>← needs better odds</text>
+            <text x={(x(0) + plotR) / 2} y={padT - 8} textAnchor="middle" style={{ ...AX, fontSize: 8.5, fill: good, fontWeight: 700 }}>market’s behind him →</text>
             {ticks.map((t) => (
               <g key={t}>
-                <line x1={x(t)} x2={x(t)} y1={padT - 6} y2={height - padB + 2}
+                <line x1={x(t)} x2={x(t)} y1={padT - 4} y2={height - padB + 2}
                   stroke={t === 0 ? C.border2 : C.border} strokeDasharray={t === 0 ? undefined : '2 4'} />
                 <text x={x(t)} y={height - padB + 14} textAnchor="middle" {...AX}>{t > 0 ? `+${t}` : t}</text>
               </g>
             ))}
-            <text x={(plotL + plotR) / 2} y={height - 3} textAnchor="middle" style={{ ...AX, fontSize: 8 }}>his rate minus what the price needed, in points</text>
+            <text x={x(0)} y={height - padB + 25} textAnchor="middle" style={{ ...AX, fontSize: 8, fill: C.text2 }}>break even</text>
+            <text x={(plotL + plotR) / 2} y={height - 5} textAnchor="middle" style={{ ...AX, fontSize: 8 }}>his rate minus what the price needed, in points</text>
+            {gutter >= 62 && (
+              <text x={plotR + 8} y={padT - 8} textAnchor="start" style={{ ...AX, fontSize: 8 }}>hit / of</text>
+            )}
             {bars.map((r, i) => {
               const cy = padT + i * rowH + rowH / 2
               const lo = r.edge - 2 * r.se
@@ -303,18 +362,32 @@ export function GapIntervals({ rows = [], seAt, limit = 22, onPick }) {
               const ink = decided ? verdictInk(r.edge > 0).color : C.text3
               return (
                 <g key={r.id} style={{ cursor: onPick ? 'pointer' : 'default' }} onClick={onPick ? () => onPick(r) : undefined}>
-                  <title>{r.name} · {r.label} · {r.hits}/{r.n} against prices needing {r.avgImplied}% — {r.edge > 0 ? '+' : ''}{r.edge.toFixed(0)} pts, 95% band {lo.toFixed(0)} to {hi.toFixed(0)}{decided ? '' : ' — spans zero'}</title>
+                  <title>{r.name} · {r.label} · {r.hits}/{r.n} against prices needing {r.avgImplied}% — {r.edge > 0 ? '+' : ''}{r.edge.toFixed(0)} pts, 95% band {lo.toFixed(0)} to {hi.toFixed(0)}{decided ? ' — clear of break-even' : ' — spans zero, so it has not said anything yet'}</title>
                   {/* Mono at 9px is ~5.4px a character, so the label is cut
                       to what the gutter can actually hold. Caught on a 390px
                       phone: "Kevin McGonigle · 1+ Home runs" ran off the left
                       edge of the chart entirely. The full string stays in the
                       <title> above, so nothing is lost, only shortened. */}
-                  <text x={labelW} y={cy + 3} textAnchor="end" style={{ ...AX, fontSize: 9, fill: C.text2 }}>
+                  <text x={labelW} y={cy + 3} textAnchor="end" style={{ ...AX, fontSize: 9, fill: decided ? C.text : C.text2 }}>
                     {clip(`${r.name} · ${r.label}`, Math.floor((labelW - 6) / 5.4))}
                   </text>
                   <line x1={x(Math.max(-reach, lo))} x2={x(Math.min(reach, hi))} y1={cy} y2={cy}
-                    stroke={ink} strokeWidth="1.8" opacity="0.4" strokeLinecap="round" />
-                  <circle cx={x(Math.max(-reach, Math.min(reach, r.edge)))} cy={cy} r="3" fill={ink} />
+                    stroke={ink} strokeWidth={decided ? 2.2 : 1.8} opacity={decided ? 0.75 : 0.32} strokeLinecap="round" />
+                  {/* A decided row gets end caps. Two identical grey lines of
+                      different length is the thing that made this chart read
+                      as a smear; a cap is a mark you can find at a glance. */}
+                  {decided && (
+                    <>
+                      <line x1={x(Math.max(-reach, lo))} x2={x(Math.max(-reach, lo))} y1={cy - 4} y2={cy + 4} stroke={ink} strokeWidth="1.4" />
+                      <line x1={x(Math.min(reach, hi))} x2={x(Math.min(reach, hi))} y1={cy - 4} y2={cy + 4} stroke={ink} strokeWidth="1.4" />
+                    </>
+                  )}
+                  <circle cx={x(Math.max(-reach, Math.min(reach, r.edge)))} cy={cy} r={decided ? 3.4 : 3} fill={ink} />
+                  {gutter >= 62 && (
+                    <text x={plotR + 8} y={cy + 3} textAnchor="start" style={{ ...AX, fontSize: 8.5, fill: C.text3 }}>
+                      {r.hits}/{r.n}
+                    </text>
+                  )}
                 </g>
               )
             })}
