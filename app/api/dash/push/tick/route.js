@@ -32,7 +32,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails } from '../../../../../lib/dash/vapid'
-import { mlbEventsFrom, nflEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, mlbEventsFrom, nflEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -77,14 +77,14 @@ const service = () => {
 // league dates its own games in. There is no second opinion about the day.
 const today = () => easternToday()
 
-async function mlbEvents() {
+async function mlbEvents(audience) {
   const snap = await fetchLiveSlate({ force: true }).catch(() => null)
-  return mlbEventsFrom(snap, today())
+  return mlbEventsFrom(snap, today(), audience)
 }
 
-async function nflEvents() {
+async function nflEvents(audience) {
   const snap = await fetchNflLive({ force: true }).catch(() => null)
-  return nflEventsFrom(snap, today())
+  return nflEventsFrom(snap, today(), audience)
 }
 
 // ── HOW MANY MESSAGES, AND WHEN ────────────────────────────────────────────
@@ -132,16 +132,37 @@ async function claimQuietSlot(db, endpoint) {
  * where five names read as news.
  */
 function bundle(events) {
-  const head = events[0]
-  if (events.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url }
-  const brand = String(head.title).split('\u00b7')[0].trim()
-  const groups = new Set(events.map((e) => e.group).filter(Boolean))
+  // ONE LINE PER PERSON. A hitter who homers, clears HRR and passes four total
+  // bases inside the same minute is one man having a good night, not three
+  // bullet points with his name on each. Keep his loudest event and drop the
+  // rest -- they are all saying the same thing about the same at-bat.
+  const best = new Map()
+  const solo = []
+  for (const e of events) {
+    const who = e.playerId || e.playerName
+    if (!who) { solo.push(e); continue }
+    const prev = best.get(who)
+    if (!prev || priorityOf(e) < priorityOf(prev)) best.set(who, e)
+  }
+  // A GAME-level event -- first pitch, kickoff -- is worth a line only when it
+  // is telling you about somebody the bundle has not already named. "Schwarber,
+  // Harper and Judge are underway" underneath "Schwarber, Harper, Judge" is the
+  // same sentence twice.
+  const kept = solo.filter((e) => {
+    const named = [...(e.playerIds || []), ...(e.playerNames || [])].map(String)
+    return !named.length || !named.every((n) => best.has(n))
+  })
+  const list = [...best.values(), ...kept].sort((a, b) => priorityOf(a) - priorityOf(b))
+
+  const head = list[0]
+  if (list.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url }
+  const groups = new Set(list.map((e) => e.group).filter(Boolean))
   const verb = groups.size === 1 ? [...groups][0] : ''
-  const parts = events.map((e) => e.short || e.body)
+  const parts = list.map((e) => e.short || e.body)
   const shown = parts.slice(0, BODY_CAP)
   const more = parts.length - shown.length
   return {
-    title: `${brand} \u00b7 ${events.length} ${verb || 'of your guys'}`,
+    title: `${head.brand || 'DASH'} \u00b7 ${list.length} ${verb || 'of your guys'}`,
     body: shown.join(' \u00b7 ') + (more > 0 ? ` \u00b7 +${more} more` : ''),
     tag: `bundle:${head.key}`,
     url: head.url,
@@ -157,7 +178,29 @@ export async function GET(request) {
   const { data: subs } = await db.from('dash_push_subscriptions').select('endpoint,user_id,p256dh,auth')
   if (!subs?.length) return Response.json({ sent: 0, reason: 'no-subscriptions' })
 
-  const events = [...(await mlbEvents()), ...(await nflEvents())]
+  // WHO IS LISTENING, BEFORE WHAT HAPPENED.
+  //
+  // The settings used to be loaded after the events, which was fine when two
+  // categories existed. It is not fine now: a fifteen-game slate with lineups,
+  // first pitches, on-deck spots and six in-game bars per hitter manufactures
+  // several hundred events a minute, every one of which is then written to the
+  // dedupe table and thrown away because nobody follows the man. Loading the
+  // follow lists first turns that into "produce nothing for players no
+  // subscriber has ever named", which is most of the league.
+  const userIds = [...new Set(subs.map((s) => s.user_id))]
+  const { data: stateRows } = await db
+    .from('dash_user_state')
+    .select('user_id,key,value')
+    .in('user_id', userIds)
+    .in('key', ['dash_alerts_v1', 'dash_follow_v1'])
+
+  const stateByUser = {}
+  for (const row of stateRows || []) {
+    stateByUser[row.user_id] = { ...(stateByUser[row.user_id] || {}), [row.key]: row.value }
+  }
+  const audience = audienceFrom(stateByUser)
+
+  const events = [...(await mlbEvents(audience)), ...(await nflEvents(audience))]
   if (!events.length) return Response.json({ sent: 0, reason: 'nothing-happening' })
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.
@@ -171,18 +214,6 @@ export async function GET(request) {
   const fresh = new Set((claimed || []).map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
   if (!toSend.length) return Response.json({ sent: 0, seen: events.length, reason: 'all-already-sent' })
-
-  const userIds = [...new Set(subs.map((s) => s.user_id))]
-  const { data: stateRows } = await db
-    .from('dash_user_state')
-    .select('user_id,key,value')
-    .in('user_id', userIds)
-    .in('key', ['dash_alerts_v1', 'dash_follow_v1'])
-
-  const stateByUser = {}
-  for (const row of stateRows || []) {
-    stateByUser[row.user_id] = { ...(stateByUser[row.user_id] || {}), [row.key]: row.value }
-  }
 
   webpush.setVapidDetails(vapidDetails().subject, vapidDetails().publicKey, vapidDetails().privateKey)
 
