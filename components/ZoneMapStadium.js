@@ -108,7 +108,7 @@ function textSprite(txt, hex, px = 42, worldW = 0.42) {
   return sp
 }
 
-export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, zoneDetail = null, killZones = null, statLabel = '', label = '' }) {
+export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, zoneDetail = null, zoneCells = null, killZones = null, statLabel = '', label = '' }) {
   const mountRef = useRef(null)
   const [hoverZone, setHoverZone] = useState(null)
   const [ok, setOk] = useState(true)
@@ -179,6 +179,26 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.copy(target)
     controls.enableDamping = true
+
+    // ── ONE FINGER SCROLLS THE PAGE (2026-08-31). Donovan: "using the 3D
+    //    zone map on mobile is a little finicky or sticky."
+    //
+    //    It was not lag — it was a fight over the gesture. A WebGL canvas
+    //    that claims one-finger drag inside a scrolling page means every
+    //    swipe that begins on the chart is swallowed: the page refuses to
+    //    move and the scene lurches instead. On a phone the chart is most of
+    //    the viewport, so it is very hard to scroll PAST it at all.
+    //
+    //    Two fingers to orbit, one finger to scroll. That is the convention
+    //    every embedded map uses, for exactly this reason, and it is the only
+    //    arrangement where both gestures can coexist. Desktop is untouched —
+    //    a mouse has no such ambiguity.
+    const coarse = typeof window !== 'undefined'
+      && window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+    if (coarse) {
+      controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE }
+      renderer.domElement.style.touchAction = 'pan-y'
+    }
     controls.maxPolarAngle = Math.PI * 0.62
     controls.minDistance = 2.2
     controls.maxDistance = 70
@@ -440,6 +460,78 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         let glyph = null
         let glyphCol = C.text3
 
+        // ── THE FLAT MAP'S OWN NUMBERS, FIRST (2026-08-31). Donovan, with a
+        //    screenshot of each: "make the 3D colour wise like that."
+        //
+        //    They disagreed because they were two different calculations. The
+        //    flat grid weighs his xSLG against the arm's traffic and bleed,
+        //    then divides by ABSOLUTE full-collision points (H_FULL / P_FULL)
+        //    so a night where nothing collides reads as nothing. This file
+        //    was doing damage/maxSlg − usage/maxUse, normalised to whichever
+        //    nine cells happened to be on screen — a cruder model that
+        //    guarantees a brightest cell every night whether or not anything
+        //    is happening. On his card the flat map showed a real spread and
+        //    this one showed nine identical blues.
+        //
+        //    So it is not recomputed here at all any more. ZoneMap hands the
+        //    finished cells down and this draws them. Opacities mirror
+        //    divTone's own floor/max (0.10 → 0.66) so the two grids land on
+        //    the same tint for the same edge, and the ⚡/⚠ extremes get the
+        //    lit ring the flat map gives them — which is the "point out the
+        //    matchup better" ask: the two cells that decide the at-bat should
+        //    not look like the seven that do not.
+        const fc = zoneCells && (zoneCells[zn] || zoneCells[String(zn).padStart(2, '0')])
+        if (fc && fc.strength != null) {
+          const st = Math.min(1, Math.abs(fc.strength))
+          if (st < 0.10) {
+            tone = DEAD_TILE
+            opacity = 0.30
+            glyph = fc.mark || DIV_FLAT
+            glyphCol = C.text2
+          } else {
+            tone = fc.hitterWins ? C.orange : C.blue
+            opacity = 0.10 + 0.56 * st
+            depth = 0.06 + st * 0.13
+            glyph = fc.mark || (fc.hitterWins ? DIV_UP : DIV_DOWN)
+            glyphCol = st >= 0.62 ? INK_DARK : C.text
+          }
+          const t = putTile(cx, cy, tone, opacity, depth, zn)
+          // THE BIG NUMBER is his xSLG, exactly as on the flat map — the
+          // thing the cell is actually about, rather than a symbol standing
+          // in for it.
+          if (fc.main && fc.main !== '—') {
+            const n = textSprite(fc.main, glyphCol, 40, 0.40)
+            n.position.copy(PT(cx, cy + ch * 0.10, GLYPH_Z))
+            matchGroup.add(n)
+          }
+          if (fc.sub) {
+            const sb = textSprite(fc.sub, C.text2, 22, 0.46)
+            sb.position.copy(PT(cx, cy - ch * 0.20, GLYPH_Z))
+            matchGroup.add(sb)
+          }
+          if (glyph) {
+            const g3 = glyphSprite(glyph, glyphCol, 60, 0.15)
+            g3.position.copy(PT(cx - cw * 0.30, cy + ch * 0.28, GLYPH_Z))
+            matchGroup.add(g3)
+          }
+          // The lit ring on the two strongest cells.
+          if (st >= 0.70) {
+            const w2 = cw - GAP * 2, h2 = ch - GAP * 2
+            const pts2 = [[-w2 / 2, -h2 / 2], [w2 / 2, -h2 / 2], [w2 / 2, h2 / 2], [-w2 / 2, h2 / 2], [-w2 / 2, -h2 / 2]]
+            const rg = new THREE.BufferGeometry().setFromPoints(
+              pts2.map(([dx, dy]) => PT(cx + dx, cy + dy, GLYPH_Z - 0.015)),
+            )
+            matchGroup.add(new THREE.Line(rg, new THREE.LineBasicMaterial({
+              color: fc.hitterWins ? C.orange : C.blue, transparent: true, opacity: 0.95,
+            })))
+          }
+          const num0 = glyphSprite(String(zn), C.text3, 40, 0.13)
+          num0.position.copy(PT(cx - cw * 0.30, cy - ch * 0.30, GLYPH_Z))
+          num0.material.opacity = 0.55
+          matchGroup.add(num0)
+          continue
+        }
+
         const profileHere = hasProfile && use[zn] != null
         if (profileHere) {
           const edge = edges[zn] || 0
@@ -630,7 +722,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [pitches, pzp, zoneStats, mode])
+  }, [pitches, pzp, zoneStats, zoneCells, mode])
 
   if (!ok) {
     return (
@@ -725,6 +817,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
           </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         {label ? `${label} · ` : ''}Catcher&apos;s view.{' '}
+        <span className="zm3d-touch">Two fingers to orbit — one finger scrolls the page.{' '}</span>
         {hasPitches
           ? <>Plate crossings are measured; the path between release and the plate is
             drawn from movement, not tracked — geometry, not telemetry.{' '}</>

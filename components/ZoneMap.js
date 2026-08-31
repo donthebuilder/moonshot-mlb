@@ -533,6 +533,16 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
         main: fmt3(b.xslg),
         sub: [useTxt, hrTxt].filter(Boolean).join(' · ') || null,
         mark,
+        // Carried for the 3D view, unused by the flat one. The stadium grid
+        // used to compute its OWN edge from raw usage and slg normalised to
+        // this grid's maxima -- a cruder model than this one, and a different
+        // answer: on the same card the flat map showed a real spread and the
+        // 3D showed nine identical blues. Two maps of one fact disagreeing is
+        // the bug; the fix is that there is now only one calculation, done
+        // here, where the absolute H_FULL / P_FULL gates live.
+        edge,
+        strength,
+        hitterWins,
         bg: t.bg === 'transparent' ? C.bg3 : t.bg,
         ink: t.fg,
         ring: strength >= 0.7 ? t.fg : C.border,
@@ -813,6 +823,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 pzp={pzp}
                 zoneStats={apiZs}
                 zoneDetail={zoneDetail}
+                zoneCells={isMatch ? cells : null}
                 killZones={pzp?.kill_zones || null}
                 statLabel={(WHOSE[stat] || WHOSE.ev)[0]}
                 label={liveLabel || starterName || ''}

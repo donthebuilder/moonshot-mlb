@@ -178,10 +178,28 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const camera = new THREE.PerspectiveCamera(44, W / H, 1, 4000)
     // Fit the park: high enough to see the shape, close enough to fill the
     // frame, slightly first-base side like a broadcast camera.
-    // Opens wider than it did — Donovan: "the 3d should open a little more
-    // zoomed out." The old frame cropped the bowl to just the near rim, which
-    // is the other half of why the park did not read as a building.
-    camera.position.set(maxD * 0.21, maxD * 0.60, -maxD * 0.76)
+    // ── THE OPENING FRAME, AND IT IS NOT ONE FRAME (2026-08-31).
+    //
+    //    "The 3D should open a little more zoomed out" was a DESKTOP note,
+    //    and 0.21/0.60/-0.76 answered it there. On his phone the same numbers
+    //    put the park in the middle third of a tall narrow canvas with dead
+    //    black above and below it — "can the spray chart open up from that
+    //    distance." Same camera, opposite problem, because the aspect ratio
+    //    is the thing that changed and the camera never knew.
+    //
+    //    A portrait viewport is narrow, so a park fitted by WIDTH is small;
+    //    the fix is to come in and drop the elevation, which trades the
+    //    top-down overview — worth little on a phone — for a park that fills
+    //    the frame. Keyed off the canvas's own aspect rather than a media
+    //    query, because what matters is the shape of THIS box, not the
+    //    device: the same chart in a narrow desktop column has the same
+    //    problem.
+    const narrow = W / H < 1.15
+    camera.position.set(
+      maxD * (narrow ? 0.14 : 0.21),
+      maxD * (narrow ? 0.46 : 0.60),
+      -maxD * (narrow ? 0.58 : 0.76),
+    )
     const target = new THREE.Vector3(0, 6, maxD * 0.40)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -200,6 +218,16 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     controls.minDistance = maxD * 0.25
     controls.maxDistance = maxD * 2.2
     controls.enableDamping = true
+
+    // Two fingers to orbit on a touch device, one to scroll past the chart —
+    // same reasoning as ZoneMapStadium: a canvas that claims one-finger drag
+    // inside a scrolling page swallows every swipe that starts on it, and on
+    // a phone this chart is most of the viewport.
+    if (typeof window !== 'undefined' && window.matchMedia
+        && window.matchMedia('(pointer: coarse)').matches) {
+      controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE }
+      renderer.domElement.style.touchAction = 'pan-y'
+    }
 
     // ── THE RIG (2026-08-31). This is the change that closed the gap
     //    between the prototype and the shipped view, and it was all here:
@@ -1413,7 +1441,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         >▶ replay</button>
       </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        drag to orbit · scroll to zoom · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
+        drag to orbit · scroll to zoom · two fingers on a phone · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
         {windMph > 0 && windLabel && (
           <>
