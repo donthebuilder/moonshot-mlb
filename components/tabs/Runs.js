@@ -532,6 +532,78 @@ export default function Runs({ players = [], onPlayerClick }) {
           : `Nobody on tonight's card has five ${split === 'all' ? '' : 'qualifying '}games logged for ${label}.`} />
       ) : (
         <>
+          {/* ── WHERE TONIGHT'S RUNS ACTUALLY SIT (2026-08-31) ────────────
+              Donovan: "make the patters page cooler."
+
+              The cards were six big numbers with nothing to be big AGAINST.
+              A 13 and a 4 sat in the same row wearing the same green, and the
+              only way to learn that 13 was the tail of the board was to scroll
+              the whole board. This is that scroll, as one row: every hitter's
+              active run on this bar, stacked by length.
+
+              It is a histogram of the thing the board is sorted by, so it can
+              never disagree with the cards under it — same rows, same `run`,
+              just counted. Hot to the right, cold to the left, and the column
+              a card belongs to is the one wearing its own colour. */}
+          {(() => {
+            const buckets = new Map()
+            rows.forEach(({ r }) => {
+              // Anything past 8 in either direction lives in one end column;
+              // beyond that the bars are ones and twos and the shape is noise.
+              const v = Math.max(-8, Math.min(8, r.run))
+              buckets.set(v, (buckets.get(v) || 0) + 1)
+            })
+            const cols = []
+            for (let v = -8; v <= 8; v += 1) { if (v !== 0) cols.push([v, buckets.get(v) || 0]) }
+            const top = Math.max(1, ...cols.map(([, c2]) => c2))
+            const longest = Math.max(0, ...rows.map(({ r }) => r.run))
+            const coldest = Math.min(0, ...rows.map(({ r }) => r.run))
+            return (
+              <div style={{
+                border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px',
+                background: C.bg2, marginBottom: 11,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
+                  <b style={{ fontSize: 11 }}>Every active run on the board</b>
+                  <span style={{ fontSize: 9, color: C.text3 }}>
+                    {rows.length} hitters on {label} · longest{' '}
+                    <b style={{ color: '#4ade80', fontFamily: NUM_FONT }}>{longest}</b>
+                    {coldest < 0 ? <> · deepest drought <b style={{ color: '#f87171', fontFamily: NUM_FONT }}>{Math.abs(coldest)}</b></> : null}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 54 }}>
+                  {cols.map(([v, c2]) => {
+                    const hotCol = v > 0
+                    const tone = hotCol ? '#4ade80' : '#f87171'
+                    return (
+                      <div key={v} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}
+                        title={`${c2} hitter${c2 === 1 ? '' : 's'} ${hotCol ? 'on a run of' : 'in a drought of'} ${Math.abs(v)}${Math.abs(v) === 8 ? ' or more' : ''} game${Math.abs(v) === 1 ? '' : 's'} for ${label}.`}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: 8, color: c2 ? tone : C.text3 }}>{c2 || ''}</span>
+                        <span style={{
+                          width: '100%', height: Math.max(2, Math.round((c2 / top) * 34)),
+                          borderRadius: 2, background: c2 ? alpha(tone, 0.55) : C.border,
+                        }} />
+                        <span style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3 }}>
+                          {Math.abs(v) === 8 ? `${Math.abs(v)}+` : Math.abs(v)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+                  <span style={{ fontSize: 8, color: '#f87171', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>← DROUGHT</span>
+                  <span style={{ fontSize: 8, color: '#4ade80', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>RUN →</span>
+                </div>
+                <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+                  The same {rows.length} rows the board is sorted by, counted rather than listed — so a card&apos;s
+                  number can be read against the field instead of against the card beside it. Most of any board
+                  lives in the first two columns on each side; that is what a run board looks like when nothing
+                  unusual is happening, and it is the shape to compare a long one against.
+                </div>
+              </div>
+            )
+          })()}
+
           {/* ── the leaders, as cards ── */}
           <div style={{
             display: 'grid', gap: 7, marginBottom: 12,
@@ -553,8 +625,45 @@ export default function Runs({ players = [], onPlayerClick }) {
                   <div style={{
                     fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, marginTop: 2,
                     color: hot ? '#4ade80' : '#f87171',
+                    display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap',
                   }}>
-                    {Math.abs(r.run)} game {hot ? 'run' : 'drought'}
+                    <span>{Math.abs(r.run)} game {hot ? 'run' : 'drought'}</span>
+                    {/* ── HOW BIG IS THIS FOR HIM (2026-08-31) ─────────────
+                        "13 game run" is a number, not a statement. Thirteen is
+                        enormous for a hitter whose best in the window is six
+                        and unremarkable for one who has done fourteen twice,
+                        and the board could not tell those apart — so every long
+                        run read the same. His own best over the same games is
+                        the cheapest honest context there is: it comes off rows
+                        already in hand, needs no request, and turns a length
+                        into a rank. */}
+                    {(() => {
+                      // "His longest" alone is a weak fact on a board sorted
+                      // by run length — a 13 in a 30-game window is almost
+                      // always his longest, so the badge fired on all six
+                      // leaders and said nothing. Caught in render. What
+                      // varies is the longest run he has that ISN'T this one.
+                      const best = hot ? r.bestHit : r.bestMiss
+                      const prev = hot ? r.prevBestHit : r.prevBestMiss
+                      const word = hot ? 'run' : 'drought'
+                      if (!best) return null
+                      if (r.atBest) {
+                        return (
+                          <span style={{ fontSize: 9, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
+                            title={prev
+                              ? `Nothing else in these ${r.n} games comes close: his next-longest ${word} is ${prev}. Strict consecutive, both measured the same way.`
+                              : `The only ${word} of any length he has in these ${r.n} games.`}>
+                            {prev ? <>past a previous <b style={{ color: hot ? '#4ade80' : '#f87171' }}>{prev}</b></> : 'his first of any length'}
+                          </span>
+                        )
+                      }
+                      return (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
+                          title={`He has been on a longer ${word} inside these ${r.n} games — ${best}. Strict consecutive, the same rule this one is measured against, so the two numbers compare.`}>
+                          he has had <b style={{ color: C.text2 }}>{best}</b>
+                        </span>
+                      )
+                    })()}
                   </div>
                   <div style={{ margin: '5px 0 4px' }}
                     title={`His last ${Math.min(r.strip.length, 30)} games for ${label} — oldest on the left, tonight would come next on the right. Bright green is the active run.`}>
