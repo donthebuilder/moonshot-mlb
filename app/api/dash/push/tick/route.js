@@ -33,6 +33,7 @@ import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
+import { franchiseEventsFrom } from '../../../../../lib/dash/franchise'
 import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 
 export const dynamic = 'force-dynamic'
@@ -228,6 +229,11 @@ export async function GET(request) {
     ...(await mlbEvents(audience)),
     ...(await pregameEvents(db, audience)),
     ...(await nflEvents(audience)),
+    // FRANCHISE needs no audience: these are addressed to the owner of a team,
+    // not to whoever follows a player. It also runs on every tick rather than
+    // behind a window claim -- a draft clock is ninety seconds long, and there
+    // is no version of "you are on the clock" that is worth sending late.
+    ...(await franchiseEventsFrom(db)),
   ]
   if (!events.length) return Response.json({ sent: 0, reason: 'nothing-happening' })
 
@@ -259,7 +265,14 @@ export async function GET(request) {
   const dead = []
   await Promise.all(subs.map(async (sub) => {
     const state = stateByUser[sub.user_id]
-    const mine = toSend.filter((e) => wants(state, e)).sort((a, b) => priorityOf(a) - priorityOf(b))
+    // An owned event goes to its owner's devices and to nobody else's. This
+    // is the gate that makes "you are on the clock" mean YOU: it is checked
+    // here, against this subscription's user, rather than inside wants(),
+    // which only ever sees settings and never sees whose they are.
+    const mine = toSend
+      .filter((e) => !e.owner || e.owner === sub.user_id)
+      .filter((e) => wants(state, e))
+      .sort((a, b) => priorityOf(a) - priorityOf(b))
     if (!mine.length) return
 
     const urgent = mine.filter((e) => priorityOf(e) === 0)
