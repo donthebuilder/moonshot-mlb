@@ -8,6 +8,7 @@ import styles from '../../../fantasy.module.css'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { TEAM_COLORS, teamColor, teamMonogram } from '../../../../../components/fantasy/teamIdentity'
+import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_LAST_WEEK, FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { saveLineupSlot, saveTeamIdentity } from './actions'
@@ -48,10 +49,14 @@ export default async function TeamPage({ params, searchParams }) {
   ])
   if (!league) notFound()
   if (!team) return <main className={styles.roomApp}><div className={styles.roomBody}><section className={styles.waitingRoom}><span>◷</span><div><p className={styles.panelLabel}>NO TEAM YET</p><strong>You don&apos;t have a team in this league.</strong><small>Ask the commissioner to add you, then your lineup board opens here.</small></div></section><p><Link href={`/fantasy/league/${leagueId}`}>← Back to the league</Link></p></div></main>
-  const [{ data: rosterRows }, { data: lineupRows }] = await Promise.all([
+  const [{ data: rosterRows }, { data: lineupRows }, { data: weekGames }] = await Promise.all([
     supabase.from('fantasy_roster_entries').select('id,player:nfl_players(id,name,position,team,injury_status,source_payload)').eq('team_id',team.id).is('released_at',null),
     supabase.from('fantasy_lineup_slots').select('*').eq('team_id',team.id).eq('season',SEASON).eq('week',WEEK),
+    supabase.from('nfl_week_games').select('home_team,away_team,season_type').eq('season',SEASON).eq('week',WEEK),
   ])
+  // Null when the slate is too thin to be sure -- see lib/fantasy/bye.js. Every
+  // use below checks, because "everybody is on bye" is the failure mode.
+  const byeTeams = byeTeamsFor(weekGames)
   const roster = rosterRows || []
   const lineup = lineupRows || []
   const players = roster.map((entry)=>entry.player).filter(Boolean)
@@ -68,7 +73,11 @@ export default async function TeamPage({ params, searchParams }) {
     ['BENCH','Available, not scoring',(slot)=>slot==='BENCH'],
     ['IR','Injured reserve',(slot)=>slot==='IR'],
   ]
-  const projectionFor = (player) => player ? projectedFantasyPoints(player, league.scoring) : null
+  // A PLAYER ON BYE PROJECTS NOTHING (2026-08-31). He used to carry a full
+  // projection into this column and into the PROJECTED total in the hero,
+  // which is how a lineup can look complete and score twelve points short.
+  const projectionFor = (player) =>
+    !player ? null : isOnBye(player, byeTeams) ? 0 : projectedFantasyPoints(player, league.scoring)
   const startersProjected = slotRows
     .filter(([slot])=>!['BENCH','IR'].includes(slot))
     .reduce((sum,[slot,index])=>{
@@ -89,7 +98,7 @@ export default async function TeamPage({ params, searchParams }) {
         <section className={styles.lineupBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>ACTIVE ROSTER</p><h2>Set your lineup</h2></div><span>Individual game locks</span></div>
           {GROUPS.map(([title,note,test])=>{const rows=slotRows.filter(([slot])=>test(slot));if(!rows.length)return null;const filled=rows.filter(([slot,index])=>lineup.some((row)=>row.slot===slot&&row.slot_index===index&&row.player_id)).length;return <div className={styles.slotGroup} key={title}>
             <div className={styles.slotGroupHead}><span>{title}</span><small>{note}</small><b>{filled}/{rows.length}</b></div>
-            {rows.map(([slot,index])=>{const assigned=lineup.find((row)=>row.slot===slot&&row.slot_index===index);const assignedPlayer=players.find((player)=>player.id===assigned?.player_id);const locked=Boolean(assigned?.locked_at);const starter=!['BENCH','IR'].includes(slot);const projection=projectionFor(assignedPlayer);return <form action={saveLineupSlot} className={`${styles.slotRow} ${locked?styles.slotLocked:''}`} data-empty={!assignedPlayer?'true':undefined} data-locked={locked?'true':undefined} data-starter={starter?'true':undefined} key={`${slot}-${index}`}><span className={styles.slotBadge} style={{ color: colorForPosition(assignedPlayer?.position || slot), borderColor: `${colorForPosition(assignedPlayer?.position || slot)}55` }}>{slot}{index>1?index:''}</span><div className={styles.lineupIdentity}>{assignedPlayer&&<NflTeamMark team={assignedPlayer.team}/>}<span><b>{assignedPlayer?.name||'Open slot'}</b><small>{assignedPlayer?`${assignedPlayer.position} · ${assignedPlayer.team}${assignedPlayer.injury_status?` · ${assignedPlayer.injury_status}`:''}`:'Choose an eligible player'}</small></span></div><span className={styles.slotProjection}>{projection===null?'—':projection.toFixed(1)}<i>PROJ</i></span><select name="playerId" defaultValue={assignedPlayer?.id||''} disabled={locked}><option value="">— Empty —</option>{players.filter((player)=>eligible(player,slot,league)&&(player.id===assignedPlayer?.id||!usedIds.has(player.id))).map((player)=><option value={player.id} key={player.id}>{player.position} · {player.name} · {player.team}{slotOf.get(player.id)&&slotOf.get(player.id)!==`${slot}${index>1?index:''}`?` (${slotOf.get(player.id)})`:''}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="slot" value={slot}/><input type="hidden" name="slotIndex" value={index}/><SubmitButton disabled={locked} pendingLabel="Saving…">{locked?'🔒 Locked':'Save'}</SubmitButton></form>})}
+            {rows.map(([slot,index])=>{const assigned=lineup.find((row)=>row.slot===slot&&row.slot_index===index);const assignedPlayer=players.find((player)=>player.id===assigned?.player_id);const locked=Boolean(assigned?.locked_at);const starter=!['BENCH','IR'].includes(slot);const projection=projectionFor(assignedPlayer);return <form action={saveLineupSlot} className={`${styles.slotRow} ${locked?styles.slotLocked:''}`} data-empty={!assignedPlayer?'true':undefined} data-locked={locked?'true':undefined} data-starter={starter?'true':undefined} key={`${slot}-${index}`}><span className={styles.slotBadge} style={{ color: colorForPosition(assignedPlayer?.position || slot), borderColor: `${colorForPosition(assignedPlayer?.position || slot)}55` }}>{slot}{index>1?index:''}</span><div className={styles.lineupIdentity}>{assignedPlayer&&<NflTeamMark team={assignedPlayer.team}/>}<span><b>{assignedPlayer?.name||'Open slot'}</b><small>{assignedPlayer?`${assignedPlayer.position} · ${assignedPlayer.team}${isOnBye(assignedPlayer,byeTeams)?' · BYE':''}${assignedPlayer.injury_status?` · ${assignedPlayer.injury_status}`:''}`:'Choose an eligible player'}</small></span></div><span className={styles.slotProjection}>{projection===null?'—':isOnBye(assignedPlayer,byeTeams)?'—':projection.toFixed(1)}<i>{isOnBye(assignedPlayer,byeTeams)?'BYE':'PROJ'}</i></span><select name="playerId" defaultValue={assignedPlayer?.id||''} disabled={locked}><option value="">— Empty —</option>{players.filter((player)=>eligible(player,slot,league)&&(player.id===assignedPlayer?.id||!usedIds.has(player.id))).map((player)=><option value={player.id} key={player.id}>{player.position} · {player.name} · {player.team}{isOnBye(player,byeTeams)?' · BYE':''}{slotOf.get(player.id)&&slotOf.get(player.id)!==`${slot}${index>1?index:''}`?` (${slotOf.get(player.id)})`:''}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="slot" value={slot}/><input type="hidden" name="slotIndex" value={index}/><SubmitButton disabled={locked} pendingLabel="Saving…">{locked?'🔒 Locked':'Save'}</SubmitButton></form>})}
           </div>})}
         </section>
         <aside className={styles.teamSide}><section><div className={styles.boardHead}><div><p className={styles.panelLabel}>ROSTER BUILD</p><h2>Position count</h2></div></div>{['QB','RB','WR','TE','K','DEF'].map((position)=><div className={styles.positionCount} key={position}><span>{position}</span><b>{players.filter((player)=>player.position===position).length}</b></div>)}</section><section><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH COACH</p><h2>Lineup check</h2></div></div><p className={styles.emptyRoom}>{players.length?`${Math.max(0,starterCount-lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).length)} starting slots still need attention.`:'Draft players first, then DASH Coach will flag lineup gaps and risky starts.'}</p></section>

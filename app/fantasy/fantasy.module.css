@@ -5011,6 +5011,10 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .playerState[data-state="live"] { border-color: #2c4c3d; color: var(--fx-good); }
 .playerState[data-state="final"] { border-color: #3a352e; color: var(--fx-muted); }
+/* BYE (2026-08-31). It has to read as a warning, not as another status: this
+   is a starter who cannot score, and the whole point of the badge is that you
+   notice it while there is still time to move him. */
+.playerState[data-state="bye"] { border-color: #5a3a22; color: var(--orange2); }
 .roomApp .matchupPlayer { grid-template-columns: 44px 1fr auto 54px; gap: 9px; }
 .roomApp .matchupPlayer b { font-size: 12px; }
 .roomApp .matchupPlayer strong { font-variant-numeric: tabular-nums; }

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
+import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { fantasyPointsFromStats, projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
 import LiveMatchupCenter from '../../../../../components/fantasy/LiveMatchupCenter'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
@@ -51,11 +52,17 @@ export default async function MatchupPage({ params, searchParams }) {
   let weeklyStats=[]
   if(playerIds.length){const {data=[]}=await supabase.from('nfl_player_week_stats').select('player_id,game_id,stats,status,updated_at').in('player_id',playerIds).eq('season',SEASON).eq('week',week);weeklyStats=data||[]}
   const statsByPlayer=new Map(weeklyStats.map((item)=>[item.player_id,item]))
+  // Null when the slate is too thin to be sure -- never "nobody is on bye".
+  const byeTeams=byeTeamsFor(nflGames)
   const withLiveScores=(rows)=>rows.map((row)=>({...row,weekStats:statsByPlayer.get(row.player_id)}))
   const scoredHomeLineup=withLiveScores(homeLineup)
   const scoredAwayLineup=withLiveScores(awayLineup)
-  const homeProjection = homeLineup.reduce((sum,row)=>sum+projectedFantasyPoints(row.player,league.scoring),0)
-  const awayProjection = awayLineup.reduce((sum,row)=>sum+projectedFantasyPoints(row.player,league.scoring),0)
+  // A starter on bye contributed a full projection to this total, so a matchup
+  // could be projected 118-112 when eleven of those points belonged to players
+  // who were not going to be on a field. See lib/fantasy/bye.js.
+  const projectOne = (row) => isOnBye(row.player, byeTeams) ? 0 : projectedFantasyPoints(row.player, league.scoring)
+  const homeProjection = homeLineup.reduce((sum,row)=>sum+projectOne(row),0)
+  const awayProjection = awayLineup.reduce((sum,row)=>sum+projectOne(row),0)
   const hasLiveGames=nflGames.some((game)=>game.status==='live')
   // 🐛 the margin bar and its legend read homeShare/leader/margin, but nothing
   // in this file ever computed them -- a ReferenceError on every render where
@@ -91,15 +98,15 @@ export default async function MatchupPage({ params, searchParams }) {
             <span>{away?.name}</span>
           </div>
         </section>
-        <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring}/></div>
+        <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams}/></div>
         <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</span></b><span>{game.status==='scheduled'?'vs':`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</span><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
       </>}
     </div>
   </main>
 }
 
-function Lineup({ title, rows, scoring }) {
-  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div><b>{row.player?.name}</b><small>{row.player?.position} · {row.player?.team}</small></div><span className={styles.playerState} data-state={active?row.weekStats.status:'projected'}>{active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active?styles.livePlayerScore:''}>{(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
+function Lineup({ title, rows, scoring, byeTeams }) {
+  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div><b>{row.player?.name}</b><small>{row.player?.position} · {row.player?.team}{bye?' · BYE':''}</small></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
 function NflGameCenter({games}) {
