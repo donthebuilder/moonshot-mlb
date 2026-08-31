@@ -26,12 +26,12 @@
 
 import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
-import { timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails } from '../../../../../lib/dash/vapid'
-import { mlbEventsFrom, nflEventsFrom, wants } from '../../../../../lib/dash/pushRules'
+import { mlbEventsFrom, nflEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -69,6 +69,67 @@ async function mlbEvents() {
 async function nflEvents() {
   const snap = await fetchNflLive({ force: true }).catch(() => null)
   return nflEventsFrom(snap, today())
+}
+
+// ── HOW MANY MESSAGES, AND WHEN ────────────────────────────────────────────
+//
+// At */10 a flat cap of three per run was enough. At */1 it is not: three a
+// minute is a hundred and eighty an hour, which is how a notification channel
+// gets muted and never turned back on. Two rules replace the cap.
+//
+//   BUNDLE. Everything going to one device in one tick goes as ONE
+//   notification. Three of your guys doing something is one buzz that names
+//   three men, not three buzzes. BODY_CAP keeps the text readable past that.
+//
+//   THROTTLE THE QUIET ONES. Priority 0 -- the homer, the touchdown -- is
+//   never held; that is the whole promise of the channel. Everything else gets
+//   at most one message per QUIET_WINDOW_MS per device. The slot is claimed
+//   exactly the way an event is: an insert into dash_push_seen that either
+//   sticks or does not, so two overlapping runs can never both decide they own
+//   this window. No new table, no new column, no clock to trust.
+//
+// Quiet events that lose the claim are DROPPED, not queued. They are already
+// marked seen, and "he doubled" arriving eleven minutes late is worth less
+// than the silence it costs.
+const QUIET_WINDOW_MS = 10 * 60 * 1000
+const BODY_CAP = 5
+
+const shortId = (s) => createHash('sha1').update(String(s)).digest('hex').slice(0, 16)
+
+async function claimQuietSlot(db, endpoint) {
+  const key = `quiet:${shortId(endpoint)}:${Math.floor(Date.now() / QUIET_WINDOW_MS)}`
+  const { data } = await db
+    .from('dash_push_seen')
+    .upsert([{ event_key: key }], { onConflict: 'event_key', ignoreDuplicates: true })
+    .select('event_key')
+  return Boolean(data?.length)
+}
+
+/**
+ * One notification out of one event or many.
+ *
+ * A single event keeps EXACTLY the shape it had before this existed -- same
+ * title, same body, same tag -- so nothing about the one-thing-happened case
+ * changed. Past that it collapses: when everything in the bundle is the same
+ * kind of thing, the count carries the verb ("5 went deep") and the body is
+ * just the names, because five lines all ending in "goes yard" read as noise
+ * where five names read as news.
+ */
+function bundle(events) {
+  const head = events[0]
+  if (events.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url }
+  const brand = String(head.title).split('\u00b7')[0].trim()
+  const groups = new Set(events.map((e) => e.group).filter(Boolean))
+  const verb = groups.size === 1 ? [...groups][0] : ''
+  const parts = events.map((e) => e.short || e.body)
+  const shown = parts.slice(0, BODY_CAP)
+  const more = parts.length - shown.length
+  return {
+    title: `${brand} \u00b7 ${events.length} ${verb || 'of your guys'}`,
+    body: shown.join(' \u00b7 ') + (more > 0 ? ` \u00b7 +${more} more` : ''),
+    tag: `bundle:${head.key}`,
+    url: head.url,
+  }
 }
 
 export async function GET(request) {
@@ -110,17 +171,28 @@ export async function GET(request) {
   webpush.setVapidDetails(vapidDetails().subject, vapidDetails().publicKey, vapidDetails().privateKey)
 
   let sent = 0
+  let held = 0
   const dead = []
   await Promise.all(subs.map(async (sub) => {
     const state = stateByUser[sub.user_id]
-    const mine = toSend.filter((e) => wants(state, e))
-    // Three at most per run per device. A six-homer inning should be a nudge,
-    // not a takeover of somebody's lock screen.
-    for (const event of mine.slice(0, 3)) {
+    const mine = toSend.filter((e) => wants(state, e)).sort((a, b) => priorityOf(a) - priorityOf(b))
+    if (!mine.length) return
+
+    const urgent = mine.filter((e) => priorityOf(e) === 0)
+    const quiet = mine.filter((e) => priorityOf(e) !== 0)
+
+    const notes = []
+    if (urgent.length) notes.push(bundle(urgent))
+    if (quiet.length) {
+      if (await claimQuietSlot(db, sub.endpoint)) notes.push(bundle(quiet))
+      else held += quiet.length
+    }
+
+    for (const note of notes) {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify({ title: event.title, body: event.body, tag: event.key, url: event.url }),
+          JSON.stringify(note),
         )
         sent += 1
       } catch (err) {
@@ -133,5 +205,5 @@ export async function GET(request) {
   if (dead.length) await db.from('dash_push_subscriptions').delete().in('endpoint', dead)
   await db.rpc('dash_push_seen_prune')
 
-  return Response.json({ sent, events: events.length, fresh: toSend.length, dropped: dead.length })
+  return Response.json({ sent, held, events: events.length, fresh: toSend.length, dropped: dead.length })
 }

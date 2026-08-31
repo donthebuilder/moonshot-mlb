@@ -4,7 +4,7 @@
   "buildCommand": "next build",
   "installCommand": "npm install --no-audit --no-fund",
   "crons": [
-    { "path": "/api/dash/push/tick", "schedule": "*/10 16-23 * * *" },
-    { "path": "/api/dash/push/tick", "schedule": "*/10 0-6 * * *" }
+    { "path": "/api/dash/push/tick", "schedule": "* 17-23 * * *" },
+    { "path": "/api/dash/push/tick", "schedule": "* 0-7 * * *" }
   ]
 }
