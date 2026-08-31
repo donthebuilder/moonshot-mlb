@@ -188,6 +188,82 @@ function bundle(events) {
   }
 }
 
+// ── HOW FAST AN EVENT CAN REACH YOU ────────────────────────────────────────
+//
+// Donovan: "make the notis a little faster, specifically for the event-based
+// ones like HRs, XBH."
+//
+// The data was never the problem. lib/liveSlate.js pulls statsapi.mlb.com
+// directly -- the schedule with a hydrated linescore, then a live boxscore per
+// started game -- and this route already calls it with force:true, so the
+// batting line it reads is seconds old. The whole delay is the CRON, and the
+// cron is already as fast as Vercel goes: once a minute is the floor on Pro.
+//
+// So the invocation does the waiting instead of the scheduler. One run sweeps
+// three times, eighteen seconds apart, inside the sixty seconds it is already
+// allowed (maxDuration above). Worst case for a home run goes from about sixty
+// seconds to about twenty.
+//
+// WHY THIS IS SAFE TO REPEAT. The dedupe claim is an atomic upsert into
+// dash_push_seen, so a sweep that finds nothing new sends nothing -- and that
+// is already true of two cron runs overlapping, which is exactly what this is.
+// Nothing here needs a lock it did not already need.
+//
+// WHAT IT COSTS, AND WHAT KEEPS THAT HONEST. Each extra sweep is one schedule
+// call plus one boxscore per live game. Fifteen live games is sixteen requests,
+// three times a minute -- under a request a second, against an API that serves
+// the league. It is gated so a night with nothing on pays none of it: no live
+// game, or nobody following anybody, and the run returns after one sweep the
+// way it always did. The elapsed-time guard is the other half: a slow MLB
+// response must never push this past maxDuration and get the function killed
+// halfway through sending.
+const SWEEP_GAP_MS = 18000
+const MAX_SWEEPS = 3
+// Everything must be finished by here. maxDuration is 60s and being killed
+// mid-send is the one outcome worth engineering against, so five seconds of
+// the sixty are simply not spent.
+const SWEEP_DEADLINE_MS = 55000
+
+// THE DEADLINE IS CHECKED AGAINST A MEASUREMENT, NOT A GUESS.
+//
+// Two wrong versions of this got written before the right one, and both read
+// perfectly well:
+//
+//   "stop if we are past most of the budget" -- checked BEFORE an eighteen
+//   second sleep and the sweep after it, so a first pass that hung on a slow
+//   MLB response passed the check at forty seconds and was killed mid-send at
+//   sixty-three. A deadline has to account for what comes AFTER it.
+//
+//   "stop unless elapsed + gap + TEN SECONDS still fits" -- better, and still
+//   wrong, because the ten seconds was invented. Simulated at a twenty-nine
+//   second sweep it cleared the guard at twenty-nine and finished at
+//   seventy-six.
+//
+// So the loop times its own last sweep and projects with that. A slow night
+// makes the projection pessimistic and the run gives up early, which is the
+// direction a guess should fail in.
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Is there anything actually happening that a faster sweep would catch?
+ *
+ * Uses the in-process cache rather than force -- the sweep that just ran
+ * pulled this, and asking the league again to answer "was anything live fifty
+ * milliseconds ago" would be the sort of request this file exists to avoid.
+ */
+async function worthSweepingAgain(audience) {
+  if (audience?.mlb?.size) {
+    const snap = await fetchLiveSlate().catch(() => null)
+    if (snap?.games?.some((g) => g?.state === 'Live')) return true
+  }
+  if (audience?.nfl?.size) {
+    const snap = await fetchNflLive().catch(() => null)
+    if (snap?.games?.some((g) => g?.state === 'in')) return true
+  }
+  return false
+}
+
 export async function GET(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   const vapidBad = vapidProblem()
@@ -225,21 +301,68 @@ export async function GET(request) {
   }
   const audience = audienceFrom(stateByUser)
 
+  // Called once per run and able to throw on a malformed key or subject.
+  // Unguarded this took the whole tick down as a 500 the moment anything was
+  // actually worth sending -- which is to say, on the one night it mattered.
+  try {
+    const v = vapidDetails()
+    webpush.setVapidDetails(v.subject, v.publicKey, v.privateKey)
+  } catch (err) {
+    console.error('[push] setVapidDetails refused the keys: ' + String(err?.message || err))
+    return Response.json({ sent: 0, reason: 'vapid-rejected' })
+  }
+
+  const totals = { sent: 0, held: 0, events: 0, fresh: 0, sweeps: 0 }
+  const dead = []
+  const startedAt = Date.now()
+  let lastSweepMs = 0
+
+  // FIRST SWEEP DOES EVERYTHING. The later ones do the live half only: the
+  // pregame board, the franchise tables and the lineup gap all describe things
+  // that change on the hour, and re-reading them twice more a minute would buy
+  // nothing and cost a board fetch and four queries each time.
+  for (let n = 0; n < MAX_SWEEPS; n += 1) {
+    if (n > 0) {
+      // The wait AND the sweep after it both have to fit, and the best
+      // estimate of the next sweep is how long the last one actually took.
+      if (Date.now() - startedAt + SWEEP_GAP_MS + lastSweepMs > SWEEP_DEADLINE_MS) break
+      if (!(await worthSweepingAgain(audience))) break
+      await sleep(SWEEP_GAP_MS)
+    }
+    totals.sweeps += 1
+    const sweepStart = Date.now()
+    const r = await sweep(db, subs, stateByUser, audience, { full: n === 0 })
+    lastSweepMs = Date.now() - sweepStart
+    totals.sent += r.sent
+    totals.held += r.held
+    totals.events += r.events
+    totals.fresh += r.fresh
+    for (const e of r.dead) if (!dead.includes(e)) dead.push(e)
+  }
+
+  if (dead.length) await db.from('dash_push_subscriptions').delete().in('endpoint', dead)
+  await db.rpc('dash_push_seen_prune')
+  return Response.json({ ...totals, dropped: dead.length })
+}
+
+/** One pass: what happened, who has not been told, tell them. */
+async function sweep(db, subs, stateByUser, audience, { full }) {
+  const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [] }
   const events = [
     ...(await mlbEvents(audience)),
-    ...(await pregameEvents(db, audience)),
     ...(await nflEvents(audience)),
+    ...(full ? await pregameEvents(db, audience) : []),
     // FRANCHISE needs no audience: these are addressed to the owner of a team,
     // not to whoever follows a player. It also runs on every tick rather than
     // behind a window claim -- a draft clock is ninety seconds long, and there
     // is no version of "you are on the clock" that is worth sending late.
-    ...(await franchiseEventsFrom(db)),
+    ...(full ? await franchiseEventsFrom(db) : []),
     // Same shape, same owner gate, its own producer because it reads a
     // completely different set of tables and must not be able to take the
     // draft clock down with it.
-    ...(await lineupGapEventsFrom(db)),
+    ...(full ? await lineupGapEventsFrom(db) : []),
   ]
-  if (!events.length) return Response.json({ sent: 0, reason: 'nothing-happening' })
+  if (!events.length) return nothing
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.
   // Doing it as one insert with ignoreDuplicates makes the check atomic — two
@@ -251,18 +374,7 @@ export async function GET(request) {
 
   const fresh = new Set((claimed || []).map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
-  if (!toSend.length) return Response.json({ sent: 0, seen: events.length, reason: 'all-already-sent' })
-
-  // Called once per run and able to throw on a malformed key or subject.
-  // Unguarded this took the whole tick down as a 500 the moment anything was
-  // actually worth sending -- which is to say, on the one night it mattered.
-  try {
-    const v = vapidDetails()
-    webpush.setVapidDetails(v.subject, v.publicKey, v.privateKey)
-  } catch (err) {
-    console.error('[push] setVapidDetails refused the keys: ' + String(err?.message || err))
-    return Response.json({ sent: 0, reason: 'vapid-rejected', events: events.length })
-  }
+  if (!toSend.length) return { ...nothing, events: events.length }
 
   let sent = 0
   let held = 0
@@ -303,8 +415,5 @@ export async function GET(request) {
     }
   }))
 
-  if (dead.length) await db.from('dash_push_subscriptions').delete().in('endpoint', dead)
-  await db.rpc('dash_push_seen_prune')
-
-  return Response.json({ sent, held, events: events.length, fresh: toSend.length, dropped: dead.length })
+  return { sent, held, events: events.length, fresh: toSend.length, dead }
 }
