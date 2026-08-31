@@ -32,7 +32,8 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails } from '../../../../../lib/dash/vapid'
-import { audienceFrom, mlbEventsFrom, nflEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
+import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -80,6 +81,23 @@ const today = () => easternToday()
 async function mlbEvents(audience) {
   const snap = await fetchLiveSlate({ force: true }).catch(() => null)
   return mlbEventsFrom(snap, today(), audience)
+}
+
+// BEFORE FIRST PITCH. Costs a board read, so it is gated three ways: somebody
+// has to follow somebody, at least one game has to still be in Preview, and
+// this run has to win the fetch window against every other run in the same five
+// minutes. All three fail cheaply and the common case does no work at all.
+//
+// fetchLiveSlate is called WITHOUT force here on purpose: mlbEvents has just
+// pulled it, so this is the in-process cache rather than a second trip to the
+// league.
+async function pregameEvents(db, audience) {
+  if (!audience?.mlb?.size) return []
+  const snap = await fetchLiveSlate().catch(() => null)
+  if (!snap?.games?.some((g) => g?.state === 'Preview')) return []
+  if (!(await claimBoardWindow(db))) return []
+  const rows = await fetchBoard('today')
+  return rows ? pregameEventsFrom(rows, snap, today(), audience) : []
 }
 
 async function nflEvents(audience) {
@@ -200,7 +218,11 @@ export async function GET(request) {
   }
   const audience = audienceFrom(stateByUser)
 
-  const events = [...(await mlbEvents(audience)), ...(await nflEvents(audience))]
+  const events = [
+    ...(await mlbEvents(audience)),
+    ...(await pregameEvents(db, audience)),
+    ...(await nflEvents(audience)),
+  ]
   if (!events.length) return Response.json({ sent: 0, reason: 'nothing-happening' })
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.
