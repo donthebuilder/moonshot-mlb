@@ -37,6 +37,7 @@ import DashAuthCard from '../../components/DashAuthCard'
 import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { getNetworkPulse } from '../../lib/dash/pulse'
+import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { dashSignOut } from './actions'
@@ -96,7 +97,7 @@ export default async function DashHome({ searchParams }) {
   // Set by dashSignUp on a successful sign-up that produced a session.
   const welcomeName = typeof params.welcome === 'string' && params.welcome ? params.welcome.slice(0, 40) : ''
   const [pulse, me] = await Promise.all([getNetworkPulse(), account()])
-  const { mlb, nfl } = pulse
+  const { mlb, nfl, record } = pulse
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
 
   return (
@@ -175,6 +176,74 @@ export default async function DashHome({ searchParams }) {
           {nfl?.label ? ` NFL: ${nfl.label}.` : ''}
         </p>
       </section>
+
+      {/* ── THE RECORD (2026-08-31) ────────────────────────────────────────
+          The headline on this page is "Every call, graded in public." What a
+          stranger actually got underneath it was tonight's COUNTS — 14 games,
+          56 called slots, 31 homers — and not one number about whether any of
+          it has ever been right. The most persuasive thing this site can show
+          was the one thing the front door was withholding, and it has been in
+          backtest_summary.json all along.
+
+          EACH ROW ON ITS OWN BAR. An HR call is graded on homers, a HIT call
+          on getting a hit, an HRR call on 2+ H+R+RBI, a CONTACT call on 2+
+          total bases. Reading 69% against 16% would be comparing four
+          different questions, so every rate prints the bar beside it and the
+          rows are never ranked against each other.
+
+          AND EVERY ROW CARRIES ITS INTERVAL. A percentage with no denominator
+          is the thing this whole site exists not to do — lib/interval.js's
+          Wilson bounds are the same ones the Results page uses, on the same
+          counts. */}
+      {record?.rows?.length ? (
+        <section className={styles.record} id="record">
+          <div className={styles.slateHead}>
+            <p className={styles.kicker}>THE RECORD</p>
+            <h2>Graded in public means this.</h2>
+          </div>
+          <div className={styles.recordRows}>
+            {record.rows.map((r) => {
+              // wilson() returns [lo, hi] ALREADY IN PERCENT, not a
+              // {lo, hi} in 0..1. The first cut of this block assumed the
+              // object form and printed "95% band NaN–NaN%" on all four rows —
+              // caught in render, which is the only place it could have been.
+              const ci = wilson(r.ok, r.n)
+              const [lo, hi] = ci || [null, null]
+              if (lo == null) return null
+              return (
+                <div key={r.key} className={styles.recordRow}>
+                  <div className={styles.recordHead}>
+                    <strong>{r.label}</strong>
+                    <span>graded on {r.bar}</span>
+                  </div>
+                  <div className={styles.recordNum}>
+                    <b>{r.pct.toFixed(1)}%</b>
+                    <span>{r.ok} of {r.n}</span>
+                  </div>
+                  {/* The bar is the RATE; the paler band behind its right edge
+                      is the 95% interval, drawn at the same scale. A reader
+                      should not have to take the point estimate on faith when
+                      the uncertainty can simply be shown. */}
+                  <div className={styles.recordBar} title={`${r.ok} of ${r.n} cleared ${r.bar}. 95% interval ${lo.toFixed(1)}% to ${hi.toFixed(1)}%.`}>
+                    <span className={styles.recordCi} style={{ left: `${lo}%`, width: `${hi - lo}%` }} />
+                    <span className={styles.recordFill} style={{ width: `${r.pct}%` }} />
+                  </div>
+                  <div className={styles.recordCiText}>
+                    95% band {lo.toFixed(1)}–{hi.toFixed(1)}%
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <p className={styles.stamp}>
+            {record.nights} graded nights, pooled — the real totals divided, not an average of nightly
+            percentages, which would weight a six-pick night the same as a thirty-pick one. Each row is
+            scored on the bar that call was made for, so the four are four different questions and are
+            never ranked against each other. Every night behind these numbers is on the{' '}
+            <Link href="/app#sport=mlb&tab=results">Results page</Link>, one row at a time.
+          </p>
+        </section>
+      ) : null}
 
       <section className={styles.products} id="products">
         <article className={`${styles.product} ${styles.mlb}`}>
