@@ -667,7 +667,15 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   //    maps would start disagreeing about the same zone — the LINES are built
   //    here, where bz / use / pd / kill and the formatters already live, and
   //    handed down as plain strings. ZoneMapStadium stays a renderer.
-  const zoneDetail = useMemo(() => {
+  //
+  // NOT useMemo, deliberately. bz / use / pd / kill are rebuilt as fresh
+  // objects on every render a few hundred lines up, so their identity always
+  // changes and a memo keyed on them would recompute every render anyway --
+  // it would buy nothing and cost a hook. (It also crashed: useMemo was never
+  // imported in this file, and mine was its only use. A bundler does not flag
+  // an unimported hook -- it is just an undefined identifier until it runs,
+  // so the build was clean and the EV Log threw the moment it rendered.)
+  const zoneDetail = (() => {
     const out = {}
     for (let zn = 1; zn <= 9; zn++) {
       const b = bz[zn]
@@ -703,7 +711,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
       }
     }
     return out
-  }, [bz, apiZs, use, pd, kill, pzp, stat])
+  })()
 
   const zone3dAble = allLive.length > 0
     || !!(pzp?.tendency?.length || pzp?.kill_zones?.length)
