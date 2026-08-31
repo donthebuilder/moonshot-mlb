@@ -28,6 +28,7 @@ import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
 import { createHash, timingSafeEqual } from 'node:crypto'
 
+import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails } from '../../../../../lib/dash/vapid'
@@ -59,7 +60,22 @@ const service = () => {
 // The shapes and the rules live in lib/dash/pushRules.js so they can be tested
 // without a database or a live feed; these two just do the fetching.
 
-const today = () => new Date().toLocaleDateString('en-CA')
+// THE DAY AN EVENT BELONGS TO IS AN EASTERN CALENDAR DAY, never this
+// machine's. `new Date()` here runs on Vercel, and Vercel is UTC -- so the
+// old `toLocaleDateString('en-CA')` rolled the day at 00:00 UTC, which is
+// 8pm ET: the middle of a baseball evening, every single night.
+//
+// The dedupe key is `mlb:${day}:${id}:hr:${hr}`. At 8pm ET the `day` in that
+// key changed, so every followed hitter who had already gone deep produced a
+// brand new key for the SAME home run, missed the seen-check, and was pushed
+// about it a second time. Nobody had caught it because with no subscribers
+// nothing was ever sent; the first night with a real subscriber would have
+// been a duplicate blast at 8:00pm ET.
+//
+// lib/data.js's easternToday is the frame the rest of the site settled on
+// (2026-08-17, the slate-is-an-Eastern-calendar-day fix) and the frame the
+// league dates its own games in. There is no second opinion about the day.
+const today = () => easternToday()
 
 async function mlbEvents() {
   const snap = await fetchLiveSlate({ force: true }).catch(() => null)
