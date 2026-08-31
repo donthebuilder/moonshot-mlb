@@ -5,6 +5,9 @@
   "installCommand": "npm install --no-audit --no-fund",
   "crons": [
     { "path": "/api/dash/push/tick", "schedule": "* 17-23 * * *" },
-    { "path": "/api/dash/push/tick", "schedule": "* 0-7 * * *" }
+    { "path": "/api/dash/push/tick", "schedule": "* 0-7 * * *" },
+    { "path": "/api/fantasy/scoring", "schedule": "*/10 17-23 * * *" },
+    { "path": "/api/fantasy/scoring", "schedule": "*/10 0-7 * * *" },
+    { "path": "/api/fantasy/scoring", "schedule": "0 8-16 * * *" }
   ]
 }
