@@ -637,7 +637,17 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   // The 3D view needs either tracked pitches to fly or a published per-zone
   // profile to shade. With neither there is nothing to draw, so the toggle is
   // not offered — an empty canvas is worse than no canvas.
-  const zone3dAble = allLive.length > 0 || !!(pzp?.tendency?.length || pzp?.kill_zones?.length)
+  //
+  // 2026-08-31: this used to require tracked pitches OR a pitcher profile, and
+  // on a night with no games there is neither — so the button never appeared
+  // at all, which is not "nothing to draw", it is a hidden feature. The map
+  // itself is never empty: hotColdZones() gives the batter's own per-zone
+  // season values with no bot payload involved. So the 3D is offered whenever
+  // the flat grid has something, and the component says which of its modes
+  // have data rather than drawing an empty box.
+  const zone3dAble = allLive.length > 0
+    || !!(pzp?.tendency?.length || pzp?.kill_zones?.length)
+    || Object.keys(apiZs).length > 0
 
   return (
     <div style={{
@@ -726,7 +736,13 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
             }}
           >🎯 Zone in 3D</button>
           {zone3d && (
-            <ZoneMapStadium pitches={allLive} pzp={pzp} label={liveLabel || starterName || ''} />
+            <ZoneMapStadium
+              pitches={allLive}
+              pzp={pzp}
+              zoneStats={apiZs}
+              statLabel={(WHOSE[stat] || WHOSE.ev)[0]}
+              label={liveLabel || starterName || ''}
+            />
           )}
         </div>
       )}

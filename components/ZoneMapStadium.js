@@ -7,6 +7,10 @@ import { C, NUM_FONT } from '../lib/theme'
 // value, so the glyphs drawn on light tiles take it from there.
 import { INK_DARK } from '../lib/palette'
 import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } from '../lib/livePitches'
+// The same sequential ramp the 2D grid paints its temp bands with. Importing
+// it — rather than picking colours here — is what keeps the two maps from
+// disagreeing about what "hot" looks like, and keeps this file free of hex.
+import { seqColor, inkOn } from '../lib/scales'
 
 // 🎯 THE STRIKE ZONE, IN SPACE — the zone map's stadium view.
 //
@@ -42,6 +46,9 @@ import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } fro
 
 const REL_FT = 54          // release distance from the plate
 const PLATE_HALF = 0.708   // half of a 17in plate, feet
+// The one grey a zone tile takes when there is nothing to say about it.
+// Named once so the ratchet counts one literal, not one per branch.
+const DEAD_TILE = 0x39404b
 
 export function webglOk() {
   try {
@@ -69,10 +76,36 @@ function glyphSprite(txt, hex, px = 64, scale = 0.5) {
   return s
 }
 
-export default function ZoneMapStadium({ pitches = [], pzp = null, label = '' }) {
+// MLB's five temp bands, cold → hot, in the same order the 2D map uses.
+const TEMP_ORDER = ['cold', 'cool', 'lukewarm', 'warm', 'hot']
+
+// Same idea as glyphSprite, but sized for a short STRING rather than one
+// character — '104.2' needs a wide canvas or it renders squeezed.
+function textSprite(txt, hex, px = 42, w = 0.42) {
+  const cv = document.createElement('canvas')
+  cv.width = 256; cv.height = 128
+  const g = cv.getContext('2d')
+  g.font = `900 ${px}px ${'SF Mono, Menlo, monospace'}`
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillStyle = hex
+  g.fillText(String(txt), 128, 68)
+  const tex = new THREE.CanvasTexture(cv)
+  tex.anisotropy = 4
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }))
+  s.scale.set(w, w / 2, 1)
+  return s
+}
+
+export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, statLabel = '', label = '' }) {
   const mountRef = useRef(null)
   const [ok, setOk] = useState(true)
-  const [mode, setMode] = useState('flight')   // flight | tunnel | matchup
+  const hasPitches = (pitches || []).length > 0
+  // WHY THE DEFAULT MOVES. Flight and tunnel are both drawn FROM tracked
+  // pitches. On a night with no live game there are none, so opening on
+  // 'flight' opened on an empty box — which read as broken rather than as
+  // empty. Matchup needs no pitches, so that is the honest first view.
+  const [mode, setMode] = useState(hasPitches ? 'flight' : 'matchup')
+  const hasMatchup = !!(pzp?.tendency?.length || pzp?.damage?.length || pzp?.kill_zones?.length)
 
   useEffect(() => {
     const mount = mountRef.current
@@ -275,36 +308,65 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, label = '' })
       const use = {}; (pzp?.tendency || []).forEach((t) => { use[t.zone] = t.pct })
       const dmg = {}; (pzp?.damage || []).forEach((d) => { dmg[d.zone] = d })
       const kill = new Set(pzp?.kill_zones || [])
+      const hasProfile = Object.keys(use).length > 0 || Object.keys(dmg).length > 0 || kill.size > 0
       const uses = Object.values(use).filter((v) => Number.isFinite(v))
       const maxUse = uses.length ? Math.max(...uses) : 0
       const slgs = Object.values(dmg).map((d) => Number(d?.slg)).filter(Number.isFinite)
       const maxSlg = slgs.length ? Math.max(...slgs) : 0
 
       const cw = (2 * PLATE_HALF) / 3, ch = ZH / 3, GAP = 0.045
-      for (let z = 0; z < 9; z++) {
-        const cx = -PLATE_HALF + cw * ((z % 3) + 0.5)
-        const cy = ZT - ch * (Math.floor(z / 3) + 0.5)
-        const zn = z + 1
-        const traffic = maxUse > 0 && Number.isFinite(use[zn]) ? use[zn] / maxUse : 0
-        const damage = maxSlg > 0 && Number.isFinite(Number(dmg[zn]?.slg)) ? Number(dmg[zn].slg) / maxSlg : 0
-        const edge = damage - traffic
-        const mag = Math.min(1, Math.abs(edge))
-        const tone = !use[zn] ? 0x39404b : (edge >= 0 ? C.orange : C.red)
-        const depth = 0.06 + mag * 0.10
+      const tileAt = (z) => ({
+        cx: -PLATE_HALF + cw * ((z % 3) + 0.5),
+        cy: ZT - ch * (Math.floor(z / 3) + 0.5),
+      })
+      const putTile = (cx, cy, tone, opacity, depth) => {
         const tile = new THREE.Mesh(
           new THREE.BoxGeometry(cw - GAP * 2, ch - GAP * 2, depth),
-          new THREE.MeshLambertMaterial({
-            color: tone, transparent: true,
-            opacity: !use[zn] ? 0.16 : 0.30 + mag * 0.5, side: THREE.DoubleSide,
-          }),
+          new THREE.MeshLambertMaterial({ color: tone, transparent: true, opacity, side: THREE.DoubleSide }),
         )
         tile.position.copy(PT(cx, cy, -depth / 2 - 0.02))
         matchGroup.add(tile)
-        if (use[zn]) {
-          const g2 = glyphSprite(kill.has(zn) ? '✕' : (edge >= 0 ? '⚡' : '⚠'),
-            kill.has(zn) ? C.text : INK_DARK, 72, 0.30)
-          g2.position.copy(PT(cx, cy, 0.26))
-          matchGroup.add(g2)
+      }
+
+      if (hasProfile) {
+        for (let z = 0; z < 9; z++) {
+          const { cx, cy } = tileAt(z)
+          const zn = z + 1
+          const traffic = maxUse > 0 && Number.isFinite(use[zn]) ? use[zn] / maxUse : 0
+          const damage = maxSlg > 0 && Number.isFinite(Number(dmg[zn]?.slg)) ? Number(dmg[zn].slg) / maxSlg : 0
+          const edge = damage - traffic
+          const mag = Math.min(1, Math.abs(edge))
+          const tone = !use[zn] ? DEAD_TILE : (edge >= 0 ? C.orange : C.red)
+          putTile(cx, cy, tone, !use[zn] ? 0.16 : 0.30 + mag * 0.5, 0.06 + mag * 0.10)
+          if (use[zn]) {
+            const g2 = glyphSprite(kill.has(zn) ? '✕' : (edge >= 0 ? '⚡' : '⚠'),
+              kill.has(zn) ? C.text : INK_DARK, 72, 0.30)
+            g2.position.copy(PT(cx, cy, 0.26))
+            matchGroup.add(g2)
+          }
+        }
+      } else {
+        // ── NO BOT PROFILE. There is no matchup without a pitcher, and
+        //    inventing one would be worse than showing nothing. But the
+        //    HITTER's own per-zone season line is already on this page —
+        //    it is what the 2D grid paints when there is no matchup — so
+        //    this falls back to exactly that, on exactly the same ramp,
+        //    and says whose numbers they are rather than implying an edge.
+        const zs = zoneStats || {}
+        for (let z = 0; z < 9; z++) {
+          const { cx, cy } = tileAt(z)
+          const zn = z + 1
+          const cell = zs[zn] || zs[String(zn)]
+          const idx = cell ? TEMP_ORDER.indexOf(cell.temp) : -1
+          const hex = idx >= 0 ? seqColor(idx, [0, TEMP_ORDER.length - 1]) : null
+          const mag = idx >= 0 ? idx / (TEMP_ORDER.length - 1) : 0
+          putTile(cx, cy, hex ? new THREE.Color(hex).getHex() : DEAD_TILE,
+            hex ? 0.34 + mag * 0.5 : 0.14, 0.06 + mag * 0.10)
+          if (cell && cell.value != null && cell.value !== '—') {
+            const t = textSprite(cell.value, hex ? inkOn(hex) : C.text3, 40, 0.40)
+            t.position.copy(PT(cx, cy, 0.26))
+            matchGroup.add(t)
+          }
         }
       }
     }
@@ -335,7 +397,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, label = '' })
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [pitches, pzp, mode])
+  }, [pitches, pzp, zoneStats, mode])
 
   if (!ok) {
     return (
@@ -345,19 +407,30 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, label = '' })
     )
   }
 
-  const btn = (m, txt) => (
-    <button
-      key={m}
-      onClick={() => setMode(m)}
-      style={{
-        padding: '2px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
-        fontFamily: NUM_FONT,
-        border: `1px solid ${mode === m ? C.orange : C.border}`,
-        background: mode === m ? 'rgba(249,115,22,.12)' : 'transparent',
-        color: mode === m ? C.orange : C.text3,
-      }}
-    >{txt}</button>
-  )
+  // Flight and tunnel are drawn from tracked pitches. With none, they are not
+  // a view with nothing in it — they are a view that cannot exist yet, and a
+  // disabled button that says so beats an empty box that looks broken.
+  const needsPitches = { flight: true, tunnel: true, matchup: false }
+  const btn = (m, txt) => {
+    const off = needsPitches[m] && !hasPitches
+    return (
+      <button
+        key={m}
+        onClick={() => { if (!off) setMode(m) }}
+        disabled={off}
+        title={off ? 'No tracked pitches yet — this view needs a live or completed at-bat.' : ''}
+        style={{
+          padding: '2px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
+          cursor: off ? 'not-allowed' : 'pointer',
+          fontFamily: NUM_FONT,
+          opacity: off ? 0.42 : 1,
+          border: `1px solid ${mode === m ? C.orange : C.border}`,
+          background: mode === m ? 'rgba(249,115,22,.12)' : 'transparent',
+          color: mode === m ? C.orange : C.text3,
+        }}
+      >{txt}</button>
+    )
+  }
 
   return (
     <div>
@@ -368,11 +441,20 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, label = '' })
       </div>
       <div ref={mountRef} style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        {label ? `${label} · ` : ''}Catcher&apos;s view. Plate crossings are measured;
-        the path between release and the plate is drawn from movement, not tracked —
-        geometry, not telemetry. Matchup reads the bot&apos;s own per-zone profile:{' '}
-        <b style={{ color: C.orange }}>orange</b> where damage outruns his usage,{' '}
-        <b style={{ color: C.red }}>red</b> where he gets away with it, ✕ his kill zones.
+        {label ? `${label} · ` : ''}Catcher&apos;s view.{' '}
+        {hasPitches
+          ? <>Plate crossings are measured; the path between release and the plate is
+            drawn from movement, not tracked — geometry, not telemetry.{' '}</>
+          : <>No tracked pitches yet, so Flight and Release + tunnel are off — they are
+            drawn from real crossings and there are none to draw.{' '}</>}
+        {hasMatchup
+          ? <>Matchup reads the bot&apos;s own per-zone profile:{' '}
+            <b style={{ color: C.orange }}>orange</b> where damage outruns his usage,{' '}
+            <b style={{ color: C.red }}>red</b> where he gets away with it, ✕ his kill zones.</>
+          : <>No pitcher profile is published for this card, so the grid falls back to{' '}
+            {statLabel ? `${String(statLabel).toLowerCase()}'s` : 'the hitter\u2019s'} own
+            per-zone season line — the same numbers and the same ramp as the flat map.
+            It is a heat map, not an edge.</>}
       </div>
     </div>
   )
