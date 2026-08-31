@@ -93,6 +93,8 @@ async function account() {
 
 export default async function DashHome({ searchParams }) {
   const params = (await searchParams) || {}
+  // Set by dashSignUp on a successful sign-up that produced a session.
+  const welcomeName = typeof params.welcome === 'string' && params.welcome ? params.welcome.slice(0, 40) : ''
   const [pulse, me] = await Promise.all([getNetworkPulse(), account()])
   const { mlb, nfl } = pulse
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
@@ -114,10 +116,26 @@ export default async function DashHome({ searchParams }) {
           <a href="#alerts">Alerts</a>
           {me.user
             ? <><Link href="/account">Account</Link><form action={dashSignOut}><input type="hidden" name="next" value="/" /><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form></>
-            : <a className={styles.barCta} href="#sign-in">Sign in</a>}
+            : <>
+              {/* ── THE LABEL WAS THE BUG (2026-08-31) ────────────────────
+                  Donovan, on a 45+ user: "couldn't find sign-up at all."
+                  He was right, and it was not buried — it was MISLABELLED.
+                  The only auth control on this page read "Sign in", and it
+                  pointed at a card whose DEFAULT TAB is Create an account.
+                  A first-time visitor reads "Sign in", concludes it is for
+                  people who already have accounts, and never clicks the one
+                  thing that would have signed them up.
+                  Two controls now, and the one a stranger needs is the one
+                  wearing the button. */}
+              <a href="#sign-in">Sign in</a>
+              <a className={styles.barCta} href="#create-account">Create account</a>
+            </>}
         </nav>
       </header>
 
+      {/* Still here for anyone who lands at the top — but this used to be the
+          ONLY place a sign-up error appeared, roughly 1,500px above the form
+          it was describing. The card carries its own copy now. */}
       {(params.error || params.message) && (
         <p className={params.error ? styles.error : styles.message}>{params.error || params.message}</p>
       )}
@@ -131,7 +149,10 @@ export default async function DashHome({ searchParams }) {
         </p>
         <div className={styles.heroActions}>
           <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board <b>→</b></Link>
-          {!me.user && me.configured ? <a href="#sign-in">Sign in to save your list</a> : null}
+          {/* The hero is what a first-timer actually reads; the auth section is
+              at the bottom of a long page. This said "Sign in to save your
+              list" — again addressed to somebody who already has an account. */}
+          {!me.user && me.configured ? <a href="#create-account">Create a free account</a> : null}
         </div>
       </section>
 
@@ -217,6 +238,30 @@ export default async function DashHome({ searchParams }) {
       </section>
 
       <section className={styles.auth} id="sign-in">
+        {/* ── WHAT NOW (2026-08-31) ────────────────────────────────────────
+            Donovan's third sign-up report: "didn't know what to do after
+            signing up." The old flow redirected to `/` — the very page they
+            were already on — with no acknowledgement that anything had
+            happened. An account was created and the site said nothing.
+            Three destinations, because three is a choice and eight is a
+            menu, and each one names what it is FOR rather than where it
+            goes. */}
+        {welcomeName ? (
+          <div className={styles.welcome}>
+            <p className={styles.kicker}>YOU&apos;RE IN</p>
+            <h2>Welcome, {welcomeName}.</h2>
+            <p>
+              That&apos;s the whole sign-up — nothing else is needed. Your watchlist, who you
+              follow and your picks now save to this account and turn up on any device you sign
+              in on. Here is where most people go first.
+            </p>
+            <div className={styles.welcomeSteps}>
+              <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board<span>MOONSHOT&apos;s read on tonight&apos;s baseball, graded by morning.</span></Link>
+              <Link href="/app#sport=mlb&tab=bot">Star a few hitters<span>The ☆ on any player saves him to your watchlist — that is the thing an account is for.</span></Link>
+              <Link href="/account">Turn on alerts<span>Get told when one of your names goes deep, on this device or off it.</span></Link>
+            </div>
+          </div>
+        ) : null}
         {me.user ? (
           <div className={styles.signedIn}>
             <p className={styles.kicker}>YOUR ACCOUNT</p>
@@ -242,7 +287,19 @@ export default async function DashHome({ searchParams }) {
               </span>
             </div>
             <div className={styles.authGrid}>
-              <DashAuthCard next="/" />
+              {/* notice/defaults come from back() in actions.js: a failed
+                  attempt returns here with the name and email already typed,
+                  the right tab open, and the reason next to the field rather
+                  than at the top of the page. The password is deliberately
+                  never carried in a URL. */}
+              <DashAuthCard
+                next="/"
+                notice={params.error || params.message || null}
+                noticeType={params.error ? 'error' : 'message'}
+                defaultEmail={typeof params.em === 'string' ? params.em : ''}
+                defaultName={typeof params.nm === 'string' ? params.nm : ''}
+                confirmEmail={typeof params.confirm === 'string' ? params.confirm : ''}
+              />
             </div>
           </>
         ) : (

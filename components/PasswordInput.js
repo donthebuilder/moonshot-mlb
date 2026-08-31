@@ -24,18 +24,28 @@ export default function PasswordInput({ name = 'password', autoComplete, minLeng
         name={name}
         placeholder={placeholder}
         required={required}
-        style={{ paddingRight: 58 }}
+        style={{ paddingRight: 74 }}
         type={shown ? 'text' : 'password'}
       />
       <button
         aria-label={shown ? 'Hide password' : 'Show password'}
         aria-pressed={shown}
         onClick={() => setShown((value) => !value)}
+        // ── A TAP TARGET, NOT A DECAL (2026-08-31) ────────────────────────
+        // This was 8.5px monospace in a 4x8 box: roughly 28x16 CSS pixels,
+        // against Apple's 44x44 minimum, in the site's dimmest grey. The
+        // affordance existed and was, for the 45+ user who could not finish
+        // sign-up, effectively invisible and effectively unhittable. Now 44
+        // tall, 11px type, and readable ink — the button that exists to stop
+        // somebody typing a password blind cannot itself be the thing they
+        // cannot see.
         style={{
-          position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-          width: 'auto', margin: 0, padding: '4px 8px', border: '1px solid #3a3732',
-          borderRadius: 7, background: 'transparent', color: '#8a8580',
-          font: '800 8.5px/1 monospace', letterSpacing: '.08em', cursor: 'pointer',
+          position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+          width: 'auto', minHeight: 44, margin: 0, padding: '0 12px',
+          display: 'inline-flex', alignItems: 'center',
+          border: '1px solid #4a4742',
+          borderRadius: 8, background: '#171615', color: '#c9c4bd',
+          font: '800 11px/1 monospace', letterSpacing: '.08em', cursor: 'pointer',
         }}
         type="button"
       >{shown ? 'HIDE' : 'SHOW'}</button>

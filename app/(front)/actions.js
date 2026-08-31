@@ -24,9 +24,38 @@ function safeNext(value) {
   return next.startsWith('/') && !next.startsWith('//') ? next : '/'
 }
 
-function back(next, type, message) {
+// ── A BOUNCE USED TO COST YOU THE WHOLE FORM (2026-08-31) ───────────────────
+//
+// Donovan, reporting a 45+ user who could not get through sign-up: "the sign
+// up process is hard on both mobile and desktop."
+//
+// This function was most of the reason. It redirected to `next` — which is `/`
+// — with the message in the query string. The front door renders that message
+// as a <p> directly under the nav bar, and the auth card is at the BOTTOM of a
+// 275-line marketing page. So one mistyped password did all of this at once:
+//
+//   · threw you to the top of a long page you had already scrolled past
+//   · put the explanation ~1,500px away from the form it was about
+//   · emptied every field, including the name and email that were fine
+//
+// The person then has to work out where the form went, scroll back down to it,
+// and retype everything to fix one field. That is not a hard form, it is a
+// form that punishes a typo, and it is exactly where somebody gives up.
+//
+// Now the bounce lands ON the card (the #hash), and carries back what was
+// already typed so only the broken field needs attention. The password is
+// deliberately NOT carried — a password in a URL ends up in history, in
+// server logs and in the back button, and no amount of convenience is worth
+// that.
+function back(next, type, message, keep = {}) {
   const target = safeNext(next)
-  redirect(`${target}${target.includes('?') ? '&' : '?'}${type}=${encodeURIComponent(message)}`)
+  const q = new URLSearchParams({ [type]: message })
+  if (keep.email) q.set('em', keep.email)
+  if (keep.name) q.set('nm', keep.name)
+  // Which tab to reopen, so a failed sign-up does not reappear as a sign-in
+  // form with the person's details missing from it.
+  const hash = keep.mode === 'signin' ? '#sign-in' : '#create-account'
+  redirect(`${target}${target.includes('?') ? '&' : '?'}${q.toString()}${hash}`)
 }
 
 async function client(next) {
@@ -38,11 +67,12 @@ async function client(next) {
 export async function dashSignIn(formData) {
   const next = safeNext(formData.get('next'))
   const supabase = await client(next)
+  const email = clean(formData.get('email'), 200).toLowerCase()
   const { error } = await supabase.auth.signInWithPassword({
-    email: clean(formData.get('email'), 200).toLowerCase(),
+    email,
     password: String(formData.get('password') || ''),
   })
-  if (error) back(next, 'error', error.message)
+  if (error) back(next, 'error', error.message, { email, mode: 'signin' })
   revalidatePath('/', 'layout')
   redirect(next)
 }
@@ -54,8 +84,16 @@ export async function dashSignUp(formData) {
   const password = String(formData.get('password') || '')
   const displayName = clean(formData.get('displayName'), 40)
 
-  if (!email || password.length < 8 || !displayName) {
-    back(next, 'error', 'Enter a name, email, and a password of at least 8 characters')
+  const keep = { email, name: displayName, mode: 'create' }
+
+  // Say WHICH of the three is wrong. "Enter a name, email, and a password of
+  // at least 8 characters" is three requirements in one sentence and leaves
+  // the reader to work out which one they missed — on a form that had just
+  // emptied itself.
+  if (!displayName) back(next, 'error', 'Add your name — it is what the site calls you.', keep)
+  if (!email) back(next, 'error', 'Add your email address.', keep)
+  if (password.length < 8) {
+    back(next, 'error', `Your password needs at least 8 characters — that one has ${password.length}.`, keep)
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
@@ -68,13 +106,27 @@ export async function dashSignUp(formData) {
     },
   })
 
-  if (error) back(next, 'error', error.message)
+  if (error) back(next, 'error', error.message, keep)
   if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-    back(next, 'error', 'That account already exists — sign in with the same email and password')
+    // Reopen the SIGN-IN tab with the email already in it: the answer to "that
+    // account exists" is a sign-in, and making the person find the other tab
+    // and retype the address is the same punishment in a smaller box.
+    back(next, 'error', 'You already have an account with that email — sign in below.', { email, mode: 'signin' })
   }
-  if (!data.session) back(next, 'message', 'Check your email to confirm your account')
+  // Email confirmation is not a toast. It is the whole of what happens next,
+  // and until 2026-08-31 it rendered as one line at the top of a page whose
+  // form was 1,500px further down, still sitting there looking like nothing
+  // had happened. `confirm` makes the card replace itself with the
+  // instruction — see components/DashAuthCard.js.
+  if (!data.session) {
+    redirect(`${safeNext(next)}?confirm=${encodeURIComponent(email)}#create-account`)
+  }
   revalidatePath('/', 'layout')
-  redirect(next)
+  // WHAT NOW. Donovan's third report was "didn't know what to do after signing
+  // up", and the old code redirected to `/` — the same page, no acknowledgement
+  // that anything had happened at all. `welcome` turns the auth section into a
+  // short first-run panel with the three things worth doing first.
+  redirect(`${safeNext(next)}?welcome=${encodeURIComponent(displayName)}#sign-in`)
 }
 
 export async function dashSignOut(formData) {
