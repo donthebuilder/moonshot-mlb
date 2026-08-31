@@ -201,6 +201,11 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               }} />
             )}
           </div>
+          <span style={{
+            alignSelf:'center', marginLeft:7, padding:'3px 7px', borderRadius:7,
+            border:`1px solid ${C.border}`, background:C.glass, color:C.text3,
+            fontSize:9, fontWeight:800, letterSpacing:'.08em', whiteSpace:'nowrap',
+          }}>⌂ HOME</span>
           </a>
 
           <div>

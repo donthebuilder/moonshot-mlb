@@ -6,8 +6,15 @@ import NetworkSwitch from './NetworkSwitch'
 // 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
 // bottom... slate replaces picks on the bar." Picks (bot) moves into the More
 // sheet in its old Slate slot; Slate (games) takes the bar spot Picks had.
+// 2026-08-31, Donovan: "i think we need a true home button too."
+// This slot used to be a HOUSE labelled Home, and it goes to MOONSHOT's own
+// overview tab -- not to the network front door. Two different places were
+// wearing the same glyph and the same word, and the one people actually
+// reach for when they want out is the other one. The tab is unchanged and
+// still first; it is just called what it is. The house is now spoken for by
+// exactly one thing on the whole site, and that thing is the front door.
 const MAIN = [
-  ['home', '⌂', 'Home'],
+  ['home', '◎', 'Tonight'],
   ['board', '▥', 'Boards'],
   ['scoreboard', '◉', 'Rundown'],
   ['games', '▤', 'Slate'],

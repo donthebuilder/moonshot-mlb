@@ -12,8 +12,10 @@ import MobileTabBar from '../MobileTabBar'
 // own MAIN (⌂ home, ▥ boards, ◉ live/rundown, ✦ picks) on purpose -- same
 // glyph, same meaning, cross-sport, matching the shared DASH Network design
 // language rather than inventing a second icon vocabulary.
+// The house belongs to the front door, network-wide (2026-08-31). See the
+// note on MAIN in components/MobileTabBar.js.
 const MAIN = [
-  ['home', '⌂', 'Home'],
+  ['home', '◎', 'Tonight'],
   ['boards', '▥', 'Boards'],
   ['games', '◉', 'Games'],
   ['picks', '✦', 'Picks'],

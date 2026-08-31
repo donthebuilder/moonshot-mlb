@@ -34,6 +34,11 @@ export default function AuthPageHeader({ styles: s = styles }) {
         <div><small>DASH</small><strong>NETWORK</strong></div>
       </Link>
       <nav className={s.barNav}>
+        {/* 2026-08-31: the mark was the only way home and carried no word.
+            A labelled one sits beside the board link, so the two exits from
+            this page look like exits. Plain, because .barNav a already
+            styles it and .barNavSection is the only thing a phone hides. */}
+        <Link href="/" aria-label="DASH Network home">⌂ Home</Link>
         <Link className={s.barCta} href="/app#sport=mlb&tab=home">Open the board</Link>
       </nav>
     </header>

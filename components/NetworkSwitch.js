@@ -40,7 +40,7 @@ export default function NetworkSwitch({ onNavigate }) {
     <div className="networkSwitch">
       <div className="networkSwitchHead">
         <small>DASH NETWORK</small>
-        <a href="/">All three tonight →</a>
+        <a href="/" aria-label="DASH Network home">⌂ DASH HOME</a>
       </div>
       <div className="networkSwitchRow">
         {PRODUCTS.map((product) => (
