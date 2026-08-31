@@ -131,6 +131,36 @@ export default function StealBoard({ players = [], onPlayerClick }) {
 
   const total = (players || []).filter((p) => sbOf(p) > 0).length
 
+  // ── SAY IT WHEN THE ARM DATA DIDN'T ARRIVE (2026-08-31) ─────────────────
+  //
+  // This board's own header records that "no catcher data" was a written
+  // refusal until 2026-08-23, when the bot went and got it. On the 2026-08-30
+  // slate it is silently gone again: pop time, arm strength and
+  // caught-stealing rate are null on all 251 rows, opp_catcher_sb_attempts is
+  // 0 on all 251, and every one of the 28 catchers — Rutschman, Raleigh, Kirk,
+  // Murphy, Hedges — carries status "unqualified".
+  //
+  // Those men are not unqualified. Nobody is. The Savant map came back empty
+  // wearing an "ok", and mlb_dashboard's status ladder then blames the catcher
+  // (fixed on the bot side; see savant_feeds.py). But the board was the last
+  // line of defence and it never read the status at all — it printed "no
+  // caught-stealing rate published" per row, which reads as a fact about THAT
+  // CATCHER and is how a league-wide outage passed for a quiet night for
+  // weeks.
+  //
+  // The rule this board already lives by, applied one level up: a reader who
+  // cannot tell a hard matchup from an unmeasured one cannot use either.
+  const feed = useMemo(() => {
+    const rowsWithCatcher = (players || []).filter((p) => txt(p?.opp_catcher_name))
+    if (!rowsWithCatcher.length) return null
+    const withArm = rowsWithCatcher.filter((p) => catcherOf(p) != null
+      || p?.opp_catcher_pop_time != null || p?.opp_catcher_arm_strength != null)
+    if (withArm.length) return null
+    const names = new Set(rowsWithCatcher.map((p) => txt(p.opp_catcher_name)))
+    const st = txt(rowsWithCatcher[0]?.opp_catcher_status)
+    return { catchers: names.size, status: st }
+  }, [players])
+
   if (!total) {
     return (
       <div style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.6 }}>
@@ -155,6 +185,24 @@ export default function StealBoard({ players = [], onPlayerClick }) {
         belongs to somebody else. No prices yet — whether the book even lists a stolen-base prop
         is unknown until a real odds fetch lands.
       </div>
+
+      {feed && (
+        <div style={{
+          border: `1px solid ${C.orange}59`, borderRadius: 10, padding: '8px 11px',
+          background: alpha(C.orange, 0.07), marginBottom: 10, maxWidth: 760,
+        }}>
+          <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 10 }}>⚠ NO ARM DATA TONIGHT</b>
+          <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 4 }}>
+            Not one of the <b style={{ color: C.text2 }}>{feed.catchers}</b> catchers on this slate has a
+            published caught-stealing rate, pop time or arm strength
+            {feed.status ? <> — every row reads <code style={{ fontFamily: NUM_FONT }}>{feed.status}</code></> : null}.
+            That is the whole league at once, so read it as the feed not landing rather than as a slate
+            full of unmeasured backups. <b style={{ color: C.text2 }}>Half of the Spot score is missing</b>{' '}
+            on every row below: what is left is the runner&apos;s own history and how easily the arm gets
+            run on, with nothing about who is behind the plate.
+          </div>
+        </div>
+      )}
 
       <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
         <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase' }}>Sort</span>
