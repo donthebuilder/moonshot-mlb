@@ -209,7 +209,7 @@ export default function ReportCard({ backtest }) {
           />
           <Record
             kicker="✅ Since the lock"
-            kickerCol="#4ade80"
+            kickerCol={C.green}
             value={lockN ? `${lockOk}/${lockN}` : 'building…'}
             pctVal={lockPct}
             ci={lockN > 0 ? ciText(lockOk, lockN) : null}

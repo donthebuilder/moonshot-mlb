@@ -795,7 +795,7 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
               {band.icon} {band.word}
             </span>
           )}
-          {hasWeak && <Chip color="#f59e0b">⭐ {pitcher.weak_spot_count} weak spot{pitcher.weak_spot_count > 1 ? 's' : ''}</Chip>}
+          {hasWeak && <Chip color={C.yellow}>⭐ {pitcher.weak_spot_count} weak spot{pitcher.weak_spot_count > 1 ? 's' : ''}</Chip>}
           <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
             {pitcher.team} vs {pitcher.opponent_team} · {localTime(pitcher.game_time)}
             {pitcher.venue_name ? ` · ${pitcher.venue_name}` : ''}

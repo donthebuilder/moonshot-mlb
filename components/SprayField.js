@@ -452,7 +452,13 @@ export default function SprayField({
   // A retractable roof is a VIEWING choice, so it is a control, not a
   // constant. Fixed domes (Tropicana) never get the toggle — there is
   // nothing to choose — and open-air parks never see it at all.
-  const [roofOpen, setRoofOpen] = useState(false)
+  // OPEN is the default at a retractable park, because open is what those
+  // parks mostly are: the roof shuts for weather, not as the normal state.
+  // Closed was the old default, which meant every retractable park opened on
+  // the one view with no sky, no towers and no skyline — the dullest thing
+  // this renderer draws, shown first, at nine parks. Fixed domes (Tropicana)
+  // ignore this entirely: roofShut is true for them whatever this says.
+  const [roofOpen, setRoofOpen] = useState(true)
   // tonight's layer
   const [live, setLive] = useState(false)   // drawn from a live Savant pull, not the bot's cache
   const [hoverLive, setHoverLive] = useState(null)
@@ -1479,7 +1485,7 @@ export default function SprayField({
           <path
             d={wedge(-45, 45, wallAt)}
             fill="#3d2612"
-            stroke="#f97316"
+            stroke={C.orange}
             strokeWidth="1.6"
             strokeLinejoin="round"
           />
@@ -1550,7 +1556,7 @@ export default function SprayField({
           {/* foul lines */}
           {[-45, 45].map((a) => {
             const [x, y] = pt(R, a)
-            return <line key={a} x1={cx} y1={cy} x2={x} y2={y} stroke="#f97316" strokeWidth="1.2" opacity="0.65" />
+            return <line key={a} x1={cx} y1={cy} x2={x} y2={y} stroke={C.orange} strokeWidth="1.2" opacity="0.65" />
           })}
           {/* Lane dividers, drawn where the bot's cuts actually fall: vertical
               bands in hc_x, clipped to the field. Radial spokes would be a lie
@@ -1701,7 +1707,7 @@ export default function SprayField({
               <g key={`live-${i}`}>
                 <g style={{ pointerEvents: 'none' }} opacity={focus ? 1 : 0.28}>
                   {/* fixed near-white ring — coincidentally equals ember's C.text but must NOT read C.text (near-black in light theme); see the geometry-colours note above */}
-                  <circle cx={x} cy={y} r={rr} fill={col} stroke="#f4f4f5" strokeWidth={focus ? 1.3 : 0.8} />
+                  <circle cx={x} cy={y} r={rr} fill={col} stroke={C.text} strokeWidth={focus ? 1.3 : 0.8} />
                   {b.hr && <circle cx={x} cy={y} r={rr + 3.4} fill="none" stroke={col} strokeWidth="1.1" opacity="0.85" />}
                   {/* fixed white hover ring — same as the season dots above, must stay a literal */}
                   {on && <circle cx={x} cy={y} r="12" fill="none" stroke="#fff" strokeWidth="1.1" opacity="0.9" />}

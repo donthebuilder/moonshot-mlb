@@ -182,8 +182,23 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
   )
 }
 
-// per-pitch chip colors — matches the site's pitch language elsewhere
-const P_COLORS = { FF: C.red, SI: '#fb923c', FC: '#fbbf24', SL: C.cyan, ST: '#67e8f9', CU: C.purple, KC: '#c4b5fd', CH: C.green, FS: '#86efac', OTHER: '#9ca3af' }
+// PER-PITCH CHIP COLOURS — deleted, 2026-08-31. This file kept its own ten-key
+// P_COLORS while calling pitchColor() from livePitches two hundred lines below
+// for the live dots: ONE COMPONENT, TWO SOURCES for the same fact.
+//
+// The ten keys agreed with livePitches exactly, so nothing here changes colour.
+// What was broken is what was MISSING: P_COLORS had no FA, FT, SV, CS, FO, KN
+// or EP, so a two-seam, a slurve, a slow curve or a knuckleball fell through to
+// grey OTHER on the chip strip while the very same pitch was drawn in its real
+// colour on the dots directly beneath it. A subset is a quieter bug than a
+// contradiction and it is the same bug.
+//
+// NOTE FOR THE NEXT PASS. There is still a third source: HotZoneMap uses
+// catColor('pitch', code) from lib/scales, and CAT.pitch DISAGREES with
+// PITCH_COLORS — a changeup is green here and blue there, a cutter amber here
+// and green there. Collapsing those two is a real decision about what a pitch
+// looks like site-wide, not a mechanical edit, so it is Donovan's call and not
+// bundled into this one.
 
 // ── TONIGHT'S PITCHES, ON THIS MAP ──────────────────────────────────────────
 //
@@ -755,7 +770,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
       {pitchInfo && pitchInfo.length > 0 && (
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
           {pitchInfo.map((pi) => {
-            const col = P_COLORS[pi.code] || P_COLORS.OTHER
+            const col = pitchColor(pi.code)
             return (
               <span key={pi.code}
                 title={`${pi.code}${pi.usage != null ? ` — ${pi.usage.toFixed(0)}% of tonight's starter's mix` : ''}. His batted balls vs this pitch (tracked window): ${pi.seen}${pi.hr ? `, ${pi.hr} HR` : ''}${pi.avgEv ? `, avg EV ${pi.avgEv.toFixed(1)}` : ''}. No zone-by-pitch split exists in the data — this is his line vs the pitch, not a per-cell map.`}

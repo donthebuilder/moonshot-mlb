@@ -111,7 +111,13 @@ const EXEMPT = new Set([
 //         the tokens themselves. Those forty-two are the interesting half:
 //         each was a colour that LOOKED like the theme and did not follow it,
 //         which is the exact failure mode this budget is a proxy for.
-const HEX_BUDGET = 836
+//    809  2026-08-31, second pass: the double-quoted JSX attributes the
+//         first pass deliberately skipped (stroke="#f97316" and friends,
+//         21 of them), plus ZoneMap's P_COLORS folded into livePitches.
+//         The uppercase spellings went too — #60A5FA and #60a5fa are the
+//         same colour and two spellings defeat exactly the grep this
+//         budget is counted with.
+const HEX_BUDGET = 809
 
 let hexTotal = 0
 const perFile = []

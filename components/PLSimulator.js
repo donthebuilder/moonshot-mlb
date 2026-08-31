@@ -246,7 +246,7 @@ export default function PLSimulator() {
           {sim.cats.map((k) => (
             <path key={k} d={path(sim.series[k])} fill="none" stroke={CAT_COLORS[k]} strokeWidth="1.1" opacity="0.75" />
           ))}
-          <path d={path(sim.series.TOTAL)} fill="none" stroke="#f4f4f5" strokeWidth="2.2" />
+          <path d={path(sim.series.TOTAL)} fill="none" stroke={C.text} strokeWidth="2.2" />
           {/* date ticks: first, middle, last */}
           {[0, Math.floor((nDays - 1) / 2), nDays - 1].map((i) => (
             <text key={i} x={x(i)} y={H - 5} textAnchor="middle" fill="#71717a" fontSize="8.5" fontFamily="monospace">

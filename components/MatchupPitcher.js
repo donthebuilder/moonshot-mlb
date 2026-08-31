@@ -703,7 +703,7 @@ export default function MatchupPitcher({ player, slateMode }) {
             <StatGroup
               icon="🛡"
               title="His weapons"
-              color="#60A5FA"
+              color={C.blue}
               blurb="How he beats hitters. A big number in this group is bad news for the bat — no bars and no shading here on purpose, so nothing in it can be misread as an edge."
             >
               <Stat label="K%" value={pctOf(player.pitcher_k_rate)}
@@ -721,7 +721,7 @@ export default function MatchupPitcher({ player, slateMode }) {
             <StatGroup
               icon="📍"
               title="Location & fit"
-              color="#a78bfa"
+              color={C.purple}
               blurb="Where he puts it, who it suits, and how much of his line is luck. Bars fill right when it favours the bat."
             >
               <Stat label="Meatball%" value={meatball == null ? '—' : `${meatball.toFixed(1)}%`}

@@ -247,8 +247,8 @@ export default function Backtest({ backtest }) {
         )
         return (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '2px 0 12px' }}>
-            <Tile label="Bot overall base hit" value={`${acc.toFixed(1)}%`} sub="every pick, every graded day" col="#60A5FA" />
-            {bestLane && <Tile label="Best lane (did its job)" value={`${bestLane.v.toFixed(0)}%`} sub={bestLane.k} col="#4ade80" />}
+            <Tile label="Bot overall base hit" value={`${acc.toFixed(1)}%`} sub="every pick, every graded day" col={C.blue} />
+            {bestLane && <Tile label="Best lane (did its job)" value={`${bestLane.v.toFixed(0)}%`} sub={bestLane.k} col={C.green} />}
             <Tile label="Graded days" value={days} sub="the sample behind everything here" col={C.orange} />
           </div>
         )

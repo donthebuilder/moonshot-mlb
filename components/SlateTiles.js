@@ -104,7 +104,7 @@ function TileSet({ stats, projected, capture, staleSlate }) {
         dot
       />
       {stats.settled > 0 && (
-        <Tile label="Settled" value={stats.settled} delta="graded" color="#4ade80" />
+        <Tile label="Settled" value={stats.settled} delta="graded" color={C.green} />
       )}
     </>
   )

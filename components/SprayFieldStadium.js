@@ -1160,7 +1160,22 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [hits, dims, heights, windMph, windLabel, windTo, windHex])
+    // DEPS. roofOpen and venue were both missing here, and roofOpen missing
+    // meant the roof chip DID NOTHING — the prop changed, React re-rendered,
+    // and this effect (which is what actually builds the scene) never re-ran.
+    // A toggle that flips its own label and changes nothing on screen is worse
+    // than no toggle, because it reads as a broken renderer rather than as a
+    // missing wire.
+    //
+    // venue was masked rather than harmless: switching parks also changes
+    // dims/heights, so the rebuild happened for the wrong reason. Two parks
+    // with the same wall profile and different bowls would have exposed it.
+    //
+    // Rebuilding the whole scene on a roof toggle is correct, not wasteful —
+    // a closed roof removes the sky, the stars, the moon, the towers and the
+    // skyline and lights the room from the ceiling instead. There is no
+    // cheaper edit than building it again.
+  }, [hits, dims, heights, venue, roofOpen, windMph, windLabel, windTo, windHex])
 
   if (!ok) {
     return (

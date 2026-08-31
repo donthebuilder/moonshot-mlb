@@ -218,7 +218,7 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
         onPlayerClick={onPlayerClick}
       />
       <SectionHead
-        color="#f59e0b" icon="⭐" title="Weak Spot Matchups"
+        color={C.yellow} icon="⭐" title="Weak Spot Matchups"
         rate="18.0% HR"
         rateTitle="Validated: flagged hitters homered 18.0% vs 13.9% baseline across the graded archive"
         count={ws.length}
@@ -259,7 +259,7 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
         onPlayerClick={onPlayerClick}
       />
       <SectionHead
-        color="#a78bfa" icon="🧩" title="Aligned Signals"
+        color={C.purple} icon="🧩" title="Aligned Signals"
         rate="29.2% HR"
         rateTitle="The measured stack: 29.2% HR across 154 graded slots — the strongest validated combo on the site"
         count={aligned.length}
@@ -303,7 +303,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
         onPlayerClick={onPlayerClick}
       />
       <SectionHead
-        color="#22d3ee" icon="🎯" title="Matchup Edge"
+        color={C.cyan} icon="🎯" title="Matchup Edge"
         rate="23.9% HR"
         rateTitle="Backtested separator: 23.9% HR with the flag vs 9.5% without"
         count={edge.length}
