@@ -94,7 +94,10 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
       && (position === 'all' || p.position === position)
       && (!needle || String(p.name || '').toLowerCase().includes(needle))
     ))
-    return kept.sort((a, b) => b.scores[market] - a.scores[market]).slice(0, 60)
+    // 60 was most of a 102-player preseason pool. Week 1 scores 500+, so 60
+    // is a silent truncation of the board this tab exists to be -- and there
+    // was no "showing 60 of N" anywhere to say so.
+    return kept.sort((a, b) => b.scores[market] - a.scores[market]).slice(0, 200)
   }, [data, market, showLow, query, team, position])
 
   const filterOptions = useMemo(() => {

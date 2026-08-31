@@ -119,7 +119,8 @@ export default function NflWire({ data, onPlayerClick }) {
         // and the fired-key set makes that exactly once.
         const tds = tdsIn(line)
         if (tds > (wasLine ? tdsIn(wasLine) : 0)) {
-          const key = `${id}:td:${tds}`
+          // Scoped to the GAME, not to the player. See the note above.
+          const key = `${line.game_id || 'g'}:${id}:td:${tds}`
           if (!firedRef.current.has(key)) {
             firedRef.current.add(key)
             out.push({ key, kind: 'nfltd', icon: '🏈', player,
@@ -136,7 +137,7 @@ export default function NflWire({ data, onPlayerClick }) {
           if (now === null) continue
           const before = wasLine ? marketValue(wasLine, market) : 0
           if (now >= bar && (before === null || before < bar)) {
-            const key = `${id}:${market}:${bar}`
+            const key = `${line.game_id || 'g'}:${id}:${market}:${bar}`
             if (firedRef.current.has(key)) continue
             firedRef.current.add(key)
             out.push({ key, kind: 'nflbar', icon: '✓', player,
@@ -149,6 +150,10 @@ export default function NflWire({ data, onPlayerClick }) {
       push(out)
     }
 
+    // Longer than any football game, including a delay. Past this a game the
+    // payload still calls neither live nor complete is stale data.
+    const STALE_AFTER_MS = 6 * 60 * 60 * 1000
+
     // Only poll when there is something to poll for.
     const worthPolling = () => {
       const games = data?.games || []
@@ -158,7 +163,12 @@ export default function NflWire({ data, onPlayerClick }) {
         if (g.state === 'in') return true
         if (g.completed || g.state === 'post') return false
         const t = g.kickoff ? new Date(g.kickoff).getTime() : NaN
-        return Number.isFinite(t) && t - now < PREGAME_WINDOW_MS
+        if (!Number.isFinite(t)) return false
+        // Soon, or recently started. STALE_AFTER_MS is the far side the
+        // original test was missing: a game whose kickoff was six hours ago
+        // and which never reported completing is a bad payload, not a game
+        // worth polling for, and no amount of asking ESPN will fix it.
+        return t - now < PREGAME_WINDOW_MS && now - t < STALE_AFTER_MS
       })
     }
 

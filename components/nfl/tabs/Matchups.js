@@ -147,7 +147,9 @@ export default function Matchups({ matchup, data }) {
     .filter((p) => p.opp === active && matchup?.field?.player_pass?.[p.player_id])
     .map((p) => ({ ...p, best: Math.max(...Object.values(p.scores || { x: 0 })) }))
     .sort((a, b) => b.best - a.best)
-    .slice(0, 14), [data, active, matchup])
+    // 14 covered ~6 players facing a preseason defense. A real team's
+    // pass-catchers and backs alone are more than that.
+    .slice(0, 30), [data, active, matchup])
 
   const picked = facing.find((p) => p.player_id === pid) || null
   const role = picked ? matchup?.roles?.[picked.player_id] : null
