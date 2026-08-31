@@ -20,6 +20,9 @@ import { outcomeOf, OUTCOME_TABS, QUALITY_TABS } from './BattedBallLog'
 // Real park geometry: distances + wall HEIGHTS, one source, regenerable
 // from Baseball Savant (bots/fetch_park_dimensions.py in the bot repo).
 import { PARK_WALLS as PARKS } from '../lib/parkWalls'
+// Seating shape, and whether this park's roof is one that actually moves.
+// Only used here to decide whether the roof control is worth showing.
+import { bowlFor } from '../lib/parkBowls'
 
 // 🏟 The stadium view rides in on demand — three.js is ~600KB and belongs in
 // nobody's first paint. ssr:false because it is a WebGL canvas with no server
@@ -428,6 +431,10 @@ export default function SprayField({
   // testing against dimensions already known to be worse.
   const [testPark, setTestPark] = useState('')
   const [stadium, setStadium] = useState(false)
+  // A retractable roof is a VIEWING choice, so it is a control, not a
+  // constant. Fixed domes (Tropicana) never get the toggle — there is
+  // nothing to choose — and open-air parks never see it at all.
+  const [roofOpen, setRoofOpen] = useState(false)
   // tonight's layer
   const [live, setLive] = useState(false)   // drawn from a live Savant pull, not the bot's cache
   const [hoverLive, setHoverLive] = useState(null)
@@ -1235,6 +1242,13 @@ export default function SprayField({
             color: stadium ? C.orange : C.text3,
           }}
         >🏟 Stadium</button>
+        {stadium && bowlFor(testPark || venue).roof === 'retract' && (
+          <button
+            onClick={() => setRoofOpen((v) => !v)}
+            title="This park's roof opens. Closed puts a ceiling on it and takes away the sky, the towers and the skyline — which is what the building actually looks like from a seat."
+            style={{ ...chipBtn(!roofOpen, C.cyan), padding: '2px 9px' }}
+          >{roofOpen ? '☀ Roof open' : '⌂ Roof closed'}</button>
+        )}
         {parkTest && (
           <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
             {parkTest.stillClears} of {parkTest.realHR} real HR{parkTest.realHR === 1 ? '' : 's'} still clear
@@ -1346,6 +1360,7 @@ export default function SprayField({
             heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
             venue={testPark || venue}
             wind={hasWind ? { mph: windMph, label: windLabel, to: windTo, color: windCol } : null}
+            roofOpen={roofOpen}
           />
         </div>
       )}

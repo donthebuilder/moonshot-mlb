@@ -4,6 +4,10 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
 import { solveFlight } from '../lib/trajectory'
+// Seating shape — the half of a park parkWalls.js does not describe. Falls
+// back to a plain two-tier ring for any venue it has no entry for, so a park
+// we have walls for but no bowl for still draws.
+import { bowlFor, isOpenSector } from '../lib/parkBowls'
 
 // 🏟 THE STADIUM VIEW — second pass (2026-08-29, "please make better").
 //
@@ -109,7 +113,7 @@ function labelSprite(text, hex) {
 // which in this scene's world space is +Z.
 const WIND_DIR = (toDeg) => new THREE.Vector3(-Math.sin(toDeg * DEG), 0, Math.cos(toDeg * DEG)).normalize()
 
-export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null }) {
+export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, roofOpen = false }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
   const replayRef = useRef(null)   // set by the effect to the replay function
@@ -150,6 +154,11 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H)
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
+    // ACES rolls the highlights off instead of clipping them: the top rail and
+    // the arc cores read as HOT rather than as flat white. Exposure under 1
+    // keeps the midtones where the rest of this file was tuned.
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 0.88
     mount.appendChild(renderer.domElement)
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -355,6 +364,98 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         s.position.set(v.x, wallH(a) + 9, v.z)
         scene.add(s)
       })
+    }
+
+    // ── THE BOWL (2026-08-31). Until now the park stopped at the wall, and
+    //    every venue read as the same ring with different numbers on it.
+    //    parkBowls.js says where the seats AREN'T, which is the strongest tell
+    //    there is: McCovey Cove eats Oracle's right field, the warehouse eats
+    //    Camden's, the Allegheny eats PNC's. Deck segments are cut against
+    //    `open`, so those sectors simply have no stands.
+    //
+    //    Parametric, not surveyed — nothing scores off this, it is for the eye.
+    const bowl = bowlFor(venue)
+    const roofShut = bowl.roof === 'fixed' || (bowl.roof === 'retract' && !roofOpen)
+    {
+      const clamp = (a) => Math.max(-45, Math.min(45, a))
+      const deck = (a0, a1, off, depth, y0, y1, cLo, cHi, crowd) => {
+        const pos = [], col = [], pts = []
+        const A = new THREE.Color(cLo), B = new THREE.Color(cHi)
+        for (let a = a0; a < a1; a += 2.5) {
+          const b = Math.min(a1, a + 2.5)
+          if (isOpenSector(bowl, a) || isOpenSector(bowl, b)) continue
+          const i0 = P(wallD(clamp(a)) + off, a), i1 = P(wallD(clamp(b)) + off, b)
+          const o0 = P(wallD(clamp(a)) + off + depth, a), o1 = P(wallD(clamp(b)) + off + depth, b)
+          pos.push(
+            i0.x, y0, i0.z, i1.x, y0, i1.z, o1.x, y1, o1.z,
+            i0.x, y0, i0.z, o1.x, y1, o1.z, o0.x, y1, o0.z,
+          )
+          for (let k = 0; k < 3; k++) col.push(A.r, A.g, A.b)
+          for (let k = 0; k < 3; k++) col.push(B.r, B.g, B.b)
+          if (crowd) for (let k = 0; k < 16; k++) {
+            const u = Math.random(), v = Math.random()
+            pts.push(
+              i0.x + (o0.x - i0.x) * v + (i1.x - i0.x) * u,
+              y0 + (y1 - y0) * v + 0.6,
+              i0.z + (o0.z - i0.z) * v + (i1.z - i0.z) * u,
+            )
+          }
+        }
+        if (!pos.length) return
+        const g = new THREE.BufferGeometry()
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+        g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
+        g.computeVertexNormals()
+        scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({
+          vertexColors: true, side: THREE.DoubleSide,
+        })))
+        if (pts.length) {
+          const pg = new THREE.BufferGeometry()
+          pg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
+          scene.add(new THREE.Points(pg, new THREE.PointsMaterial({
+            color: 0xc9a781, size: 2.3, transparent: true, opacity: 0.16,
+          })))
+        }
+      }
+
+      deck(-72, 72, 16, 92, 6, 46, 0x101319, 0x191d26, true)
+      if (bowl.bleach) deck(bowl.bleach[0], bowl.bleach[1], 14, 58, 4, 26, 0x0e1218, 0x161a22, true)
+      if (bowl.up) deck(bowl.up[0], bowl.up[1], 116, 96, 62, 112, 0x0c0f14, 0x151922, true)
+      if (bowl.tiers > 2) {
+        const u = bowl.up || [-46, 46]
+        deck(u[0], u[1], 220, 84, 128, 172, 0x0a0d12, 0x12161e, true)
+      }
+
+      // A shut roof is opaque AND hides everything outside it, so a camera that
+      // drifts above the ceiling sees a black nothing. OrbitControls already
+      // owns the limits — tighten them rather than fighting it in the tick.
+      if (roofShut) {
+        const R = maxD + 330
+        const roof = new THREE.Mesh(
+          new THREE.CircleGeometry(R, 64),
+          new THREE.MeshLambertMaterial({ color: 0x0c1016, side: THREE.DoubleSide }),
+        )
+        roof.rotation.x = Math.PI / 2
+        roof.position.y = 232
+        scene.add(roof)
+        for (let i = 0; i < 8; i++) {
+          const rib = new THREE.Mesh(
+            new THREE.BoxGeometry(R * 2, 3, 5),
+            new THREE.MeshBasicMaterial({ color: 0x1b222c }),
+          )
+          rib.position.y = 229
+          rib.rotation.y = (-90 + i * 22.5) * DEG
+          scene.add(rib)
+        }
+        // lit from the ceiling, because a closed dome is
+        ;[[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].forEach(([ox, oz]) => {
+          const pl = new THREE.PointLight(0xffe6c4, 0.30, 1200)
+          pl.position.set(ox * 210, 206, maxD * 0.45 + oz * 182)
+          scene.add(pl)
+        })
+        controls.maxPolarAngle = Math.PI * 0.46
+        controls.maxDistance = Math.min(controls.maxDistance, R * 0.62)
+      }
     }
 
     // ── THE BALLS. Same verdicts as pass one; the drawing is what changed:
@@ -571,6 +672,72 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: 0.38, depthWrite: false }),
       )
       windGroup.add(streaks)
+
+      // THE CARRY BAND (2026-08-31). Donovan: "have some visibility so we see
+      // the direction and if it helps ball carry." Direction was already
+      // readable; whether it HELPED was not — a ball to right and a ball to
+      // left live in the same wind and do not get the same help from it.
+      //
+      // For every sector of the fence, how much of the wind is pushing OUT
+      // along that bearing: align = wind · outward, in [-1, 1]. Warm where it
+      // pushes out, cool where it pushes back, and the band fades to nothing
+      // at the crossover, which is exactly where the wind stops mattering.
+      //
+      // THIS IS ALIGNMENT, NOT A DISTANCE MODEL. It says "the wind is behind a
+      // ball hit here", never "this ball carries N more feet" — nothing in
+      // this payload supports a number, and a coloured band that implies one
+      // would be the kind of claim this file exists to avoid.
+      {
+        const carry = []
+        const cols = []
+        const warm = new THREE.Color(C.orange)
+        const cool = new THREE.Color(C.cyan)
+        const strength = Math.min(1, windMph / 15)
+        for (let ang = -46; ang < 46; ang += 2) {
+          const b = ang + 2
+          const u0 = P(1, ang), u1 = P(1, b)
+          const align = dir.x * u0.x + dir.z * u0.z
+          const mag = Math.abs(align) * strength
+          if (mag < 0.05) continue
+          const tint = align >= 0 ? warm : cool
+          const r0a = wallD(ang) - 34, r1a = wallD(ang) - 4
+          const r0b = wallD(b) - 34, r1b = wallD(b) - 4
+          const i0 = P(r0a, ang), o0 = P(r1a, ang)
+          const i1 = P(r0b, b), o1 = P(r1b, b)
+          carry.push(i0.x, 2, i0.z, i1.x, 2, i1.z, o1.x, 2, o1.z)
+          carry.push(i0.x, 2, i0.z, o1.x, 2, o1.z, o0.x, 2, o0.z)
+          for (let k = 0; k < 6; k++) cols.push(tint.r * mag, tint.g * mag, tint.b * mag)
+        }
+        if (carry.length) {
+          const cg = new THREE.BufferGeometry()
+          cg.setAttribute('position', new THREE.Float32BufferAttribute(carry, 3))
+          cg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3))
+          windGroup.add(new THREE.Mesh(cg, new THREE.MeshBasicMaterial({
+            vertexColors: true, transparent: true, opacity: 0.55,
+            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+          })))
+        }
+        // Name the two ends, so a screenshot still says which way it helped.
+        let bestA = 0, bestV = -2, worstA = 0, worstV = 2
+        for (let ang = -44; ang <= 44; ang += 2) {
+          const u = P(1, ang)
+          const v = dir.x * u.x + dir.z * u.z
+          if (v > bestV) { bestV = v; bestA = ang }
+          if (v < worstV) { worstV = v; worstA = ang }
+        }
+        if (bestV > 0.25) {
+          const t = labelSprite('WIND HELPS', C.orange)
+          const v = P(wallD(bestA) - 19, bestA)
+          t.position.set(v.x, 16, v.z)
+          windGroup.add(t)
+        }
+        if (worstV < -0.25) {
+          const t = labelSprite('WIND HOLDS', C.cyan)
+          const v = P(wallD(worstA) - 19, worstA)
+          t.position.set(v.x, 16, v.z)
+          windGroup.add(t)
+        }
+      }
 
       // The arrow: a shaft and a head, floating over the infield where it
       // never sits on top of a ball's landing spot.

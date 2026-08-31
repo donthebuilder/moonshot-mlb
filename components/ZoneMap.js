@@ -10,6 +10,13 @@ import {
 import { divTone, seqColor } from '../lib/scales'
 import { clean } from '../lib/player'
 import { inkOn } from '../lib/palette'
+import dynamic from 'next/dynamic'
+
+// 🎯 The zone in space rides in on demand, same deal as the spray chart's
+// stadium: three.js is ~600KB and belongs in nobody's first paint, ssr:false
+// because it is a WebGL canvas, and the grid below never leaves — it is the
+// fallback and the only version a screen reader can read.
+const ZoneMapStadium = dynamic(() => import('./ZoneMapStadium'), { ssr: false })
 
 // STRIKE-ZONE MAP v3 — one map for both players.
 //
@@ -271,6 +278,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   const [api, setApi] = useState(undefined)
   const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
+  const [zone3d, setZone3d] = useState(false)
   // 🔍 hover popout (2026-08-08, Donovan: "i wish it was like hover over pop
   // out") — a real card instead of the browser's sluggish title bubble. It
   // carries EVERYTHING the Hot Zones tab knows about the cell: his line, his
@@ -608,6 +616,11 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   }
   const whose = WHOSE[stat] || WHOSE.ev
 
+  // The 3D view needs either tracked pitches to fly or a published per-zone
+  // profile to shade. With neither there is nothing to draw, so the toggle is
+  // not offered — an empty canvas is worse than no canvas.
+  const zone3dAble = allLive.length > 0 || !!(pzp?.tendency?.length || pzp?.kill_zones?.length)
+
   return (
     <div style={{
       background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.03))`,
@@ -674,6 +687,31 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
 
       {verdict}
       {isMatch && <ZoneMatchStrip zp={zp} pzp={pzp} />}
+
+      {/* 🎯 THE ZONE IN SPACE (2026-08-31). Additive, behind a toggle. It
+          answers the two things a flat grid structurally cannot: where the arm
+          slot is, and how far the ball gets before two pitches stop looking
+          alike. With no tracked pitches it still draws the matchup from the
+          bot's own per-zone profile, which is why it belongs on a player page
+          and not only on a live one. */}
+      {zone3dAble && (
+        <div style={{ marginBottom: 9 }}>
+          <button
+            onClick={() => setZone3d((v) => !v)}
+            title="The same zone in 3D — release points, the tunnel, and the matchup shading on a grid you can orbit. The map below stays."
+            style={{
+              padding: '2px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+              fontFamily: NUM_FONT, marginBottom: zone3d ? 7 : 0,
+              border: `1px solid ${zone3d ? C.orange : C.border}`,
+              background: zone3d ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: zone3d ? C.orange : C.text3,
+            }}
+          >🎯 Zone in 3D</button>
+          {zone3d && (
+            <ZoneMapStadium pitches={allLive} pzp={pzp} label={liveLabel || starterName || ''} />
+          )}
+        </div>
+      )}
 
       {/* per-pitch strip (2026-08-08, Donovan: "if there's per-pitch data
           show that"). His batted-ball line against each of tonight's
