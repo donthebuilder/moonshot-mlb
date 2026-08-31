@@ -188,7 +188,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // the arc cores read as HOT rather than as flat white. Exposure under 1
     // keeps the midtones where the rest of this file was tuned.
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 0.86
+    renderer.toneMappingExposure = 0.88
     mount.appendChild(renderer.domElement)
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -341,19 +341,25 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       shape.lineTo(0, 0)
       const g = new THREE.ShapeGeometry(shape)
       g.rotateX(-Math.PI / 2)
-      // Near-black forest green, not kelly. Rule one of this look is that the
-      // field is the darkest thing on screen and the data is the only
-      // saturated thing on it. 0x2e5c3a under the old rig was brighter than
-      // most of the arcs crossing it.
-      const grass = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x18331f, side: THREE.DoubleSide }))
+      // HALFWAY (2026-08-31). Donovan: "the park looked good before with the
+      // regular colors." He is right that 0x18331f went too far — it took the
+      // park out of the picture entirely, and the park is the thing he wanted
+      // rendered. This is the exact midpoint between that and the original
+      // 0x2e5c3a: clearly green and clearly a ballpark, still a step below the
+      // arcs crossing it so the data stays the brightest thing on screen.
+      //
+      // The FLATNESS was never the green — it was the hemisphere light, and
+      // that fix stays. Colour and lighting are separate problems and the
+      // earlier pass conflated them.
+      const grass = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x23472c, side: THREE.DoubleSide }))
       grass.position.y = -0.3
       scene.add(grass)
 
       const minD = Math.min(...dims)
-      // The mow band is a WHISPER above the base green, not a stripe painted
-      // on it. High-contrast bands are the second-loudest tell that a field
-      // was generated; a real one you have to look for.
-      const stripeMat = new THREE.MeshLambertMaterial({ color: 0x1e3d26, side: THREE.DoubleSide })
+      // The mow band rides the same midpoint. Still a band you have to look
+      // for rather than a painted stripe — that part of the last pass was
+      // right and is kept.
+      const stripeMat = new THREE.MeshLambertMaterial({ color: 0x2c5637, side: THREE.DoubleSide })
       for (let r0 = 30; r0 < minD - 16; r0 += 56) {
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(r0, Math.min(r0 + 28, minD - 16), 64, 1, -3 * Math.PI / 4, Math.PI / 2),
@@ -576,12 +582,19 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         scene.add(hz2)
       }
 
-      deck(-72, 72, 16, 92, 6, 46, 0x101319, 0x191d26, true)
-      if (bowl.bleach) deck(bowl.bleach[0], bowl.bleach[1], 14, 58, 4, 26, 0x0e1218, 0x161a22, true)
-      if (bowl.up) deck(bowl.up[0], bowl.up[1], 116, 96, 62, 112, 0x0c0f14, 0x151922, true)
+      // THE STANDS HAVE TO BE THERE. Donovan: "the field out need to be
+      // visually present... more visual representations of the stadiums."
+      // These decks were 0x10–0x19 — within a couple of steps of the sky, so
+      // the whole building read as absent and the wedge looked like a paper
+      // triangle floating in black. Roughly doubled across all four rings.
+      // They are still the quietest thing on screen; they are no longer
+      // invisible, and a ballpark you cannot see is not a ballpark.
+      deck(-72, 72, 16, 92, 6, 46, 0x1e242e, 0x2b323f, true)
+      if (bowl.bleach) deck(bowl.bleach[0], bowl.bleach[1], 14, 58, 4, 26, 0x1a2029, 0x272e3a, true)
+      if (bowl.up) deck(bowl.up[0], bowl.up[1], 116, 96, 62, 112, 0x171c24, 0x252c38, true)
       if (bowl.tiers > 2) {
         const u = bowl.up || [-46, 46]
-        deck(u[0], u[1], 220, 84, 128, 172, 0x0a0d12, 0x12161e, true)
+        deck(u[0], u[1], 220, 84, 128, 172, 0x141920, 0x212832, true)
       }
 
       // A shut roof is opaque AND hides everything outside it, so a camera that
@@ -873,13 +886,15 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //
     // Three objects, in decreasing order of how much they claim:
     //
-    //   1. STREAKS — a slab of short segments drifting across the park along
-    //      the park-relative bearing. This is the ambient read: you should be
-    //      able to tell out from in without looking at any text. Speed scales
-    //      with mph, so a 3 mph breeze creeps and a 15 mph wind visibly runs.
-    //   2. AN ARROW over the infield, drawn once, pointing the same way. The
-    //      streaks alone are ambiguous on a still frame or a screenshot.
-    //   3. THE LABEL, which is the only thing that says a number.
+    //   1. A FLAG on a pole in foul ground. This is the ambient read, and it
+    //      carries BOTH facts in one object: it flies with the wind, and how
+    //      hard it snaps and how far it lifts scale with mph. Everyone who
+    //      has sat in a ballpark reads a flag without being taught.
+    //   2. AN ARROW parked opposite it on the third-base side, drawn once,
+    //      pointing the same way. The flag alone is ambiguous on a screenshot,
+    //      and the two bracket the park instead of stacking.
+    //   3. THE CARRY BAND along the wall, warm where the wind pushes out.
+    //   4. THE LABEL, which is the only thing that says a number.
     //
     // All three are omitted entirely when the payload has no wind, rather than
     // drawn at zero — a still wind sock is a claim ("no wind tonight") and a
@@ -891,54 +906,93 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const ink = new THREE.Color(windHex)
       windGroup = new THREE.Group()
 
-      // The streak slab. Segments are laid out on a grid across the fair
-      // wedge and lifted to head height and above, then the whole GROUP is
-      // translated along the bearing and snapped back a cell at a time — one
-      // moving object instead of six hundred, which keeps this free on a
-      // phone and makes the drift perfectly uniform.
-      const cell = 40
-      const reach = maxD * 1.05
-      const len = 10 + windMph * 1.9
-      const verts = []
-      const scols = []
-      for (let a = -reach; a <= reach; a += cell) {
-        for (let b = -reach * 0.1; b <= reach; b += cell) {
-          // KEEP THE STREAKS OVER THE BALLPARK. The first cut filled the whole
-          // bounding square, which put most of them in the black void outside
-          // the wall where they read as rain on the page rather than wind in
-          // the yard. Same wedge the grass uses, plus a short apron.
-          const r = Math.hypot(a, b)
-          if (r > maxD * 1.02) continue
-          const ang = Math.atan2(-a, b) / DEG
-          if (Math.abs(ang) > 52) continue
-          for (const yy of [22, 66, 116]) {
-            const jitter = ((a * 7 + b * 13 + yy * 3) % 23) - 11
-            const x0 = a + jitter
-            const z0 = b + jitter * 0.6
-            // Length varies per streak. A slab of identical segments is a
-            // hatch pattern; air is not uniform, and the eye reads the
-            // variation as depth before it reads it as anything else.
-            const vary = 0.55 + (((a * 11 + b * 5 + yy) % 17) / 17) * 0.9
-            const L = len * vary
-            verts.push(x0, yy, z0, x0 + dir.x * L, yy + 1.5, z0 + dir.z * L)
-            // TAPER. Each segment is dark at the tail and full at the head,
-            // which is what makes it read as something MOVING rather than as
-            // a line someone drew. Per-vertex, so it costs one attribute and
-            // no second draw call.
-            const f = 0.25 + vary * 0.45
-            scols.push(ink.r * 0.05, ink.g * 0.05, ink.b * 0.05,
-                       ink.r * f, ink.g * f, ink.b * f)
-          }
+      // ── THE FLAG (2026-08-31). Donovan: "instead of wind particles just add
+      //    a DASH network flag in the stadium showing the wind direction and
+      //    speed visually."
+      //
+      //    The streak slab it replaces is deleted, not hidden. Six hundred
+      //    line segments drifting across the yard were doing one job — say
+      //    which way the air is going — and doing it as weather effect rather
+      //    than as an instrument. A flag does the same job the way a ballpark
+      //    already does it: everyone who has sat in one reads a flag without
+      //    being taught, and it costs two triangles instead of six hundred
+      //    lines on a phone.
+      //
+      //    IT CARRIES BOTH FACTS AT ONCE, which the streaks never did:
+      //      · DIRECTION — the flag flies with the wind, so the pole is
+      //        upwind and the fly end points where the air is going. One Y
+      //        rotation, the same bearing the arrow uses.
+      //      · SPEED — the ripple rate and how far the cloth lifts off the
+      //        pole both scale with mph. A 3 mph breeze barely stirs and
+      //        hangs; a 15 mph wind snaps out straight and travels. That is
+      //        how a real flag reads and it needs no legend.
+      //
+      //    THE CLOTH IS A GRID, not a plane, because a plane cannot wave. Two
+      //    travelling sine waves along its length, amplitude ramped from zero
+      //    at the pole to full at the fly end — a flag is pinned at one edge,
+      //    so any wave that moves the pinned edge looks wrong immediately.
+      const FLAG_W = 46, FLAG_H = 27, FW = 22, FH = 10
+      const flagGeo = new THREE.PlaneGeometry(FLAG_W, FLAG_H, FW, FH)
+      // Shift the mesh so x = 0 is the POLE edge, which is the edge that must
+      // not move. PlaneGeometry centres on the origin.
+      flagGeo.translate(FLAG_W / 2, 0, 0)
+      const flagBase = flagGeo.attributes.position.array.slice()
+
+      // MOONSHOT's own accent on the hoist half, the wind's ink on the fly
+      // half, split hard rather than blended — the site's colour language is
+      // categorical, and a gradient here would read as a measurement.
+      const flagCols = new Float32Array(flagGeo.attributes.position.count * 3)
+      {
+        const a = new THREE.Color(C.orange), b = new THREE.Color(windHex)
+        for (let vi = 0; vi < flagGeo.attributes.position.count; vi++) {
+          const fx = flagBase[vi * 3] / FLAG_W
+          const c = fx < 0.42 ? a : b
+          // A little shading down the length so the cloth has a lit side.
+          const k = 0.72 + 0.28 * fx
+          flagCols[vi * 3] = c.r * k; flagCols[vi * 3 + 1] = c.g * k; flagCols[vi * 3 + 2] = c.b * k
         }
+        flagGeo.setAttribute('color', new THREE.BufferAttribute(flagCols, 3))
       }
-      const streakGeo = new THREE.BufferGeometry()
-      streakGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
-      streakGeo.setAttribute('color', new THREE.Float32BufferAttribute(scols, 3))
-      const streakMat = new THREE.LineBasicMaterial({
-        vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false,
-      })
-      const streaks = new THREE.LineSegments(streakGeo, streakMat)
-      windGroup.add(streaks)
+      const flagMesh = new THREE.Mesh(flagGeo, new THREE.MeshLambertMaterial({
+        vertexColors: true, side: THREE.DoubleSide,
+      }))
+
+      // The pole, and the whole rig parked in foul ground on the first-base
+      // side — opposite the arrow, which lives on the third-base line, so the
+      // two wind reads bracket the park instead of stacking on each other.
+      const flagRig = new THREE.Group()
+      {
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(1.1, 1.4, 128, 8),
+          new THREE.MeshLambertMaterial({ color: 0x6b7280 }),
+        )
+        pole.position.y = 64
+        flagRig.add(pole)
+        const finial = new THREE.Mesh(
+          new THREE.SphereGeometry(2.6, 12, 12),
+          new THREE.MeshBasicMaterial({ color: C.orange }),
+        )
+        finial.position.y = 130
+        flagRig.add(finial)
+        flagMesh.position.set(0, 112, 0)
+        flagRig.add(flagMesh)
+
+        const post = P(maxD * 0.52, 53)
+        flagRig.position.set(post.x, 0, post.z)
+        // Built along +X, so the bearing is one Y rotation — negated for the
+        // same reason P() negates x (this camera faces +Z).
+        flagRig.rotation.y = -windTo * DEG + Math.PI / 2
+        windGroup.add(flagRig)
+
+        const tag = labelSprite(`${windMph.toFixed(0)} MPH ${windLabel.toUpperCase()}`, windHex)
+        tag.position.set(post.x, 152, post.z)
+        windGroup.add(tag)
+      }
+
+      // How hard it flies. Below ~4 mph a flag hangs and only stirs; by ~15 it
+      // is straight out and snapping. Both the lift and the ripple rate come
+      // off the same number so they can never disagree.
+      const flagStrength = Math.min(1, Math.max(0.12, windMph / 15))
 
       // THE CARRY BAND (2026-08-31). Donovan: "have some visibility so we see
       // the direction and if it helps ball carry." Direction was already
@@ -1043,25 +1097,28 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       }
 
       scene.add(windGroup)
-      // mph is a real speed; the scene is in feet. 1 mph ≈ 1.47 ft/s, scaled
-      // down so a 15 mph wind reads as weather rather than a car chase.
-      const feetPerSec = windMph * 1.47 * 0.55
-      let travelled = 0
-      let last = performance.now()
-      // GUSTING. Constant-velocity streaks at constant opacity are the single
-      // thing that made this read as a screensaver rather than as weather.
-      // Two slow sines at incommensurate periods (7.3s and 11.9s) never line
-      // up, so the field breathes without ever looking like a loop. The
-      // amplitude is deliberately small — this is atmosphere, not a claim
-      // that the wind actually gusted; the mph in the label stays exact.
+
+      // ── THE CLOTH, PER FRAME. Two travelling waves along the length at
+      //    incommensurate periods so the flag never visibly loops, plus a
+      //    slow twist across the height so it is cloth and not a ribbon.
+      //    Amplitude is ZERO at the pole and full at the fly end, because a
+      //    flag is pinned along one edge and any wave that moves that edge
+      //    reads as broken instantly.
+      const pos = flagGeo.attributes.position
       windStep = (now) => {
-        const dt = Math.min(0.1, (now - last) / 1000)
-        last = now
-        const ts = now / 1000
-        const gust = 1 + 0.28 * Math.sin(ts / 7.3) + 0.14 * Math.sin(ts / 11.9)
-        travelled = (travelled + feetPerSec * gust * dt) % cell
-        streaks.position.set(dir.x * travelled, 0, dir.z * travelled)
-        streakMat.opacity = 0.30 + 0.16 * gust
+        const t = (now / 1000) * (0.9 + flagStrength * 2.6)
+        for (let vi = 0; vi < pos.count; vi++) {
+          const bx = flagBase[vi * 3], by = flagBase[vi * 3 + 1]
+          const f = bx / FLAG_W                       // 0 at the pole, 1 at the fly
+          const amp = f * f * (5.5 + flagStrength * 9)
+          pos.array[vi * 3 + 2] =
+            Math.sin(bx * 0.17 - t * 3.1) * amp
+            + Math.sin(bx * 0.09 + by * 0.11 - t * 1.9) * amp * 0.45
+          // A hanging flag droops; a flying one lifts. Same one number.
+          pos.array[vi * 3 + 1] = by - (1 - flagStrength) * f * 11
+        }
+        pos.needsUpdate = true
+        flagGeo.computeVertexNormals()
       }
     }
 
@@ -1239,8 +1296,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         published distances ·{' '}
         {windMph > 0 && windLabel && (
           <>
-            <b style={{ color: windHex }}>wind {windMph.toFixed(1)} mph {windLabel}</b> — the streaks and
-            the arrow show the component that matters for carry (out, in or across) and nothing finer:
+            <b style={{ color: windHex }}>wind {windMph.toFixed(1)} mph {windLabel}</b> — the flag flies
+            with it and its snap scales with the speed; the arrow and the band along the wall show the
+            component that matters for carry (out, in or across) and nothing finer:
             the published direction is park-relative, not a compass bearing, and the arcs are drawn
             WITHOUT it, so the wind is context beside the geometry, never folded into it ·{' '}
           </>

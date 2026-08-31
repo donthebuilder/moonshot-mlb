@@ -193,12 +193,10 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
 // colour on the dots directly beneath it. A subset is a quieter bug than a
 // contradiction and it is the same bug.
 //
-// NOTE FOR THE NEXT PASS. There is still a third source: HotZoneMap uses
-// catColor('pitch', code) from lib/scales, and CAT.pitch DISAGREES with
-// PITCH_COLORS — a changeup is green here and blue there, a cutter amber here
-// and green there. Collapsing those two is a real decision about what a pitch
-// looks like site-wide, not a mechanical edit, so it is Donovan's call and not
-// bundled into this one.
+// RESOLVED 2026-08-31. That third source is gone: lib/livePitches no longer
+// holds a hex table at all — pitchColor() defers to catColor('pitch'), the
+// same call HotZoneMap makes. One source, and because CAT holds token names
+// rather than hexes, pitch colour now follows the theme toggle.
 
 // ── TONIGHT'S PITCHES, ON THIS MAP ──────────────────────────────────────────
 //
@@ -751,13 +749,44 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
             }}
           >🎯 Zone in 3D</button>
           {zone3d && (
-            <ZoneMapStadium
-              pitches={allLive}
-              pzp={pzp}
-              zoneStats={apiZs}
-              statLabel={(WHOSE[stat] || WHOSE.ev)[0]}
-              label={liveLabel || starterName || ''}
-            />
+            <div style={{ position: 'relative' }}>
+              <ZoneMapStadium
+                pitches={liveType ? allLive.filter((p) => p.type === liveType) : allLive}
+                pzp={pzp}
+                zoneStats={apiZs}
+                statLabel={(WHOSE[stat] || WHOSE.ev)[0]}
+                label={liveLabel || starterName || ''}
+              />
+
+              {/* The spray chart's dock, in miniature. Same rule: it REPORTS
+                  the state the controls above own, it does not duplicate the
+                  controls. The pitch filter is the only one that changes what
+                  this scene draws, so it is the only one that appears — and
+                  it appears because a 3D view of "every pitch" and one of
+                  "sliders only" are indistinguishable without being told. */}
+              <div style={{
+                position: 'absolute', top: 8, left: 8, zIndex: 3,
+                background: 'rgba(9,9,11,.82)', border: `1px solid ${C.border}`,
+                borderRadius: 9, padding: '4px 8px', backdropFilter: 'blur(6px)',
+                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800,
+                letterSpacing: '.06em', color: C.text2, display: 'flex',
+                alignItems: 'center', gap: 7,
+              }}>
+                <span style={{ color: C.text3 }}>SHOWING</span>
+                <span style={{ color: C.orange }}>
+                  {(liveType ? allLive.filter((p) => p.type === liveType) : allLive).length}
+                </span>
+                <span style={{ color: C.text3, fontWeight: 700 }}>of {allLive.length} pitches</span>
+                {liveType && (
+                  <button onClick={() => setLiveType(null)} title={`Turn off: ${LIVE_PITCH_NAMES[liveType] || liveType} only`}
+                    style={{
+                      fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 700, borderRadius: 999,
+                      padding: '0 6px', cursor: 'pointer', border: `1px solid ${C.orange}55`,
+                      color: C.orange, background: 'rgba(249,115,22,.10)', whiteSpace: 'nowrap',
+                    }}>{LIVE_PITCH_NAMES[liveType] || liveType} ✕</button>
+                )}
+              </div>
+            </div>
           )}
         </div>
       )}

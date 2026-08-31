@@ -454,11 +454,22 @@ export default function SprayField({
   // nothing to choose — and open-air parks never see it at all.
   // OPEN is the default at a retractable park, because open is what those
   // parks mostly are: the roof shuts for weather, not as the normal state.
+  //
+  // AND IT SAYS WHICH ONE IT IS DRAWING. Donovan: "make sure it is noted if
+  // actually open or closed." The chip now reads "Drawn roof OPEN/CLOSED"
+  // rather than "Roof open", because the old wording was a claim about
+  // tonight's ballpark and this is only a claim about the picture. Nothing in
+  // the slate payload carries the real roof state, so the honest thing is to
+  // say the setting out loud and never imply the fact. If a roof-state field
+  // ever lands in the feed, THAT is when this may state the condition.
   // Closed was the old default, which meant every retractable park opened on
   // the one view with no sky, no towers and no skyline — the dullest thing
   // this renderer draws, shown first, at nine parks. Fixed domes (Tropicana)
   // ignore this entirely: roofShut is true for them whatever this says.
   const [roofOpen, setRoofOpen] = useState(true)
+  // The on-canvas dock starts OPEN the first time, because its whole reason
+  // for existing is that you could not tell what was on the chart.
+  const [dockOpen, setDockOpen] = useState(true)
   // tonight's layer
   const [live, setLive] = useState(false)   // drawn from a live Savant pull, not the bot's cache
   const [hoverLive, setHoverLive] = useState(null)
@@ -1269,9 +1280,9 @@ export default function SprayField({
         {stadium && bowlFor(testPark || venue).roof === 'retract' && (
           <button
             onClick={() => setRoofOpen((v) => !v)}
-            title="This park's roof opens. Closed puts a ceiling on it and takes away the sky, the towers and the skyline — which is what the building actually looks like from a seat."
+            title={`This park's roof opens, and the view is currently drawn with it ${roofOpen ? 'OPEN' : 'CLOSED'}. This is a VIEW SETTING, not a report — nothing in the slate payload says whether the roof is actually open tonight, so the chart must not be read as saying it is. Closed puts a ceiling on the park and takes away the sky, the towers and the skyline, which is what the building looks like from a seat with the roof shut.`}
             style={{ ...chipBtn(!roofOpen, C.cyan), padding: '2px 9px' }}
-          >{roofOpen ? '☀ Roof open' : '⌂ Roof closed'}</button>
+          >{roofOpen ? '☀ Drawn roof OPEN' : '⌂ Drawn roof CLOSED'}</button>
         )}
         {parkTest && (
           <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
@@ -1377,7 +1388,7 @@ export default function SprayField({
           from, flown in 3D against the tested park's wall when one is picked,
           his own otherwise. Additive: the SVG chart below never leaves. */}
       {!liveOnly && stadium && (
-        <div style={{ marginBottom: 10 }}>
+        <div style={{ marginBottom: 10, position: 'relative' }}>
           <SprayFieldStadium
             hits={shown}
             dims={testPark && PARKS[testPark] ? PARKS[testPark].d : dims}
@@ -1386,6 +1397,103 @@ export default function SprayField({
             wind={hasWind ? { mph: windMph, label: windLabel, to: windTo, color: windCol } : null}
             roofOpen={roofOpen}
           />
+
+          {/* ── THE DOCK (2026-08-31). Donovan: "what happened to those on
+              screen filters."
+
+              The prototypes carried a filter panel ON the canvas and the repo
+              version never did — the site's own filter rows sit above the
+              chart, and once the 3D scene fills the frame those rows are off
+              the top of it. You end up looking at sixty arcs with no idea
+              which sixty, which is the same complaint as the 2D chart having
+              a legend and this one not.
+
+              IT REPORTS, IT DOES NOT DUPLICATE. Every control still lives in
+              exactly one place — the rows above. Rebuilding them here would
+              be a second set of controls over one piece of state, which is
+              how two surfaces start disagreeing about what is selected. So
+              this shows WHAT IS ON and the count, and offers the one action
+              that cannot be ambiguous: clear it. */}
+          {(() => {
+            const RES = { all: null, hr: 'HR only', '3b': 'Triples', '2b': 'Doubles', '1b': 'Singles', out: 'Outs' }
+            const SIDE = { ALL: null, pull: 'Pull', center: 'Centre', oppo: 'Oppo' }
+            const ARM = { ALL: null, L: 'vs LHP', R: 'vs RHP' }
+            const DEEP = { ALL: null, 375: '375+ ft', 400: '400+ ft', pullair: 'Pull-air' }
+            const on = []
+            if (RES[only]) on.push(['res', RES[only], () => setOnly('all')])
+            if (ARM[armPick]) on.push(['arm', ARM[armPick], () => setArmPick('ALL')])
+            if (SIDE[sidePick]) on.push(['side', SIDE[sidePick], () => setSidePick('ALL')])
+            if (DEEP[deepPick]) on.push(['deep', DEEP[deepPick], () => setDeepPick('ALL')])
+            if (bbPick) on.push(['bb', String(bbPick).toUpperCase(), () => setBbPick(null)])
+            if (picked && picked.size) on.push(['pit', `${picked.size} pitch type${picked.size > 1 ? 's' : ''}`, () => setPicked(null)])
+            if (testPark) on.push(['park', `vs ${testPark}`, () => setTestPark('')])
+
+            return (
+              <div style={{
+                position: 'absolute', top: 10, left: 10, zIndex: 3, maxWidth: '58%',
+                background: 'rgba(9,9,11,.82)', border: `1px solid ${C.border}`,
+                borderRadius: 10, padding: dockOpen ? '7px 9px' : '4px 8px',
+                backdropFilter: 'blur(6px)', pointerEvents: 'auto',
+              }}>
+                <button
+                  onClick={() => setDockOpen((v) => !v)}
+                  title={dockOpen ? 'Collapse' : 'Show what is on this chart'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7, width: '100%',
+                    background: 'transparent', border: 0, padding: 0, cursor: 'pointer',
+                    fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,
+                    letterSpacing: '.07em', color: C.text2,
+                  }}>
+                  <span style={{ color: C.text3 }}>{dockOpen ? '▾' : '▸'}</span>
+                  <span>SHOWING</span>
+                  <span style={{ color: on.length ? C.orange : C.text2 }}>
+                    {shown.length}
+                  </span>
+                  <span style={{ color: C.text3, fontWeight: 700 }}>of {inRange.length}</span>
+                  {!dockOpen && on.length > 0 && (
+                    <span style={{
+                      color: C.orange, fontWeight: 900, fontSize: 8.5,
+                      border: `1px solid ${C.orange}66`, borderRadius: 999, padding: '0 5px',
+                    }}>{on.length}</span>
+                  )}
+                </button>
+
+                {dockOpen && (
+                  <div style={{ marginTop: 6 }}>
+                    {on.length === 0 ? (
+                      <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
+                        No filters on — every batted ball in the window is in the park.
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {on.map(([k, txt, clear]) => (
+                            <button key={k} onClick={clear} title={`Turn off: ${txt}`}
+                              style={{
+                                fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700,
+                                borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
+                                border: `1px solid ${C.orange}55`, color: C.orange,
+                                background: 'rgba(249,115,22,.10)', whiteSpace: 'nowrap',
+                              }}>{txt} ✕</button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setOnly('all'); setArmPick('ALL'); setSidePick('ALL')
+                            setDeepPick('ALL'); setBbPick(null); setPicked(null); setTestPark('')
+                          }}
+                          style={{
+                            marginTop: 6, fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 900,
+                            letterSpacing: '.07em', background: 'transparent', border: 0,
+                            padding: 0, cursor: 'pointer', color: C.text3,
+                          }}>CLEAR ALL</button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
 

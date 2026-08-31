@@ -111,6 +111,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
   // empty. Matchup needs no pitches, so that is the honest first view.
   const [mode, setMode] = useState(hasPitches ? 'flight' : 'matchup')
   const hasMatchup = !!(pzp?.tendency?.length || pzp?.damage?.length || pzp?.kill_zones?.length)
+  const hasZoneStats = Object.keys(zoneStats || {}).length > 0
 
   useEffect(() => {
     const mount = mountRef.current
@@ -333,46 +334,91 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         matchGroup.add(tile)
       }
 
-      if (hasProfile) {
-        for (let z = 0; z < 9; z++) {
-          const { cx, cy } = tileAt(z)
-          const zn = z + 1
+      // ── NOTHING MAY RENDER BLANK. Donovan, 2026-08-31: "on the 3d
+      //    strikezone map on the matchup nothing shows up at all."
+      //
+      //    He was right, and the cause was a design fault rather than a
+      //    crash: with no pitcher profile AND no season zones, every one of
+      //    the nine tiles fell to DEAD_TILE at 0.14 opacity with no text on
+      //    it. Nine near-invisible grey tiles inside a frame that DOES draw
+      //    reads exactly like a broken renderer.
+      //
+      //    Three rules now, and they hold in all four data states:
+      //      · every cell is legible — the floor opacity is visible, and the
+      //        zone NUMBER is always drawn, so there is never nothing to read
+      //      · the empty state says so ON THE CANVAS, not only in the caption
+      //        under it, because the canvas is where he was looking
+      //      · an absent number is drawn as an absence, never as a zero
+      const hasStats = Object.keys(zoneStats || {}).length > 0
+
+      for (let z = 0; z < 9; z++) {
+        const { cx, cy } = tileAt(z)
+        const zn = z + 1
+        let tone = DEAD_TILE
+        let opacity = 0.28          // the FLOOR — an empty cell is quiet, not gone
+        let depth = 0.05
+        let glyph = null
+        let glyphCol = C.text3
+
+        if (hasProfile) {
           const traffic = maxUse > 0 && Number.isFinite(use[zn]) ? use[zn] / maxUse : 0
           const damage = maxSlg > 0 && Number.isFinite(Number(dmg[zn]?.slg)) ? Number(dmg[zn].slg) / maxSlg : 0
           const edge = damage - traffic
           const mag = Math.min(1, Math.abs(edge))
-          const tone = !use[zn] ? DEAD_TILE : (edge >= 0 ? C.orange : C.red)
-          putTile(cx, cy, tone, !use[zn] ? 0.16 : 0.30 + mag * 0.5, 0.06 + mag * 0.10)
           if (use[zn]) {
-            const g2 = glyphSprite(kill.has(zn) ? '✕' : (edge >= 0 ? '⚡' : '⚠'),
-              kill.has(zn) ? C.text : INK_DARK, 72, 0.30)
-            g2.position.copy(PT(cx, cy, 0.26))
-            matchGroup.add(g2)
+            tone = edge >= 0 ? C.orange : C.red
+            opacity = 0.34 + mag * 0.5
+            depth = 0.06 + mag * 0.10
+            glyph = kill.has(zn) ? '✕' : (edge >= 0 ? '⚡' : '⚠')
+            glyphCol = kill.has(zn) ? C.text : INK_DARK
           }
-        }
-      } else {
-        // ── NO BOT PROFILE. There is no matchup without a pitcher, and
-        //    inventing one would be worse than showing nothing. But the
-        //    HITTER's own per-zone season line is already on this page —
-        //    it is what the 2D grid paints when there is no matchup — so
-        //    this falls back to exactly that, on exactly the same ramp,
-        //    and says whose numbers they are rather than implying an edge.
-        const zs = zoneStats || {}
-        for (let z = 0; z < 9; z++) {
-          const { cx, cy } = tileAt(z)
-          const zn = z + 1
-          const cell = zs[zn] || zs[String(zn)]
+        } else if (hasStats) {
+          const cell = (zoneStats || {})[zn] || (zoneStats || {})[String(zn)]
           const idx = cell ? TEMP_ORDER.indexOf(cell.temp) : -1
           const hex = idx >= 0 ? seqColor(idx, [0, TEMP_ORDER.length - 1]) : null
-          const mag = idx >= 0 ? idx / (TEMP_ORDER.length - 1) : 0
-          putTile(cx, cy, hex ? new THREE.Color(hex).getHex() : DEAD_TILE,
-            hex ? 0.34 + mag * 0.5 : 0.14, 0.06 + mag * 0.10)
-          if (cell && cell.value != null && cell.value !== '—') {
-            const t = textSprite(cell.value, hex ? inkOn(hex) : C.text3, 40, 0.40)
-            t.position.copy(PT(cx, cy, 0.26))
-            matchGroup.add(t)
+          if (hex) {
+            const mag = idx / (TEMP_ORDER.length - 1)
+            tone = new THREE.Color(hex).getHex()
+            opacity = 0.34 + mag * 0.5
+            depth = 0.06 + mag * 0.10
+            glyphCol = inkOn(hex)
           }
+          // The VALUE is the glyph here, not a symbol. An em dash where the
+          // API published no number for a zone — never a 0, which would be a
+          // measurement this data does not contain.
+          glyph = cell && cell.value != null && cell.value !== '' ? String(cell.value) : '—'
         }
+
+        putTile(cx, cy, tone, opacity, depth)
+
+        if (glyph) {
+          const g2 = glyph.length > 1
+            ? textSprite(glyph, glyphCol, 40, 0.40)
+            : glyphSprite(glyph, glyphCol, 72, 0.30)
+          g2.position.copy(PT(cx, cy, 0.26))
+          matchGroup.add(g2)
+        }
+
+        // THE ZONE NUMBER, always, small and dim in the corner. It is the one
+        // mark that never depends on data arriving, so the grid can never be
+        // blank — and it is also how someone new to zones learns which box is
+        // which without a legend beside the chart.
+        const num = glyphSprite(String(zn), C.text3, 40, 0.13)
+        num.position.copy(PT(cx - cw * 0.30, cy - ch * 0.30, 0.26))
+        num.material.opacity = 0.55
+        matchGroup.add(num)
+      }
+
+      // THE EMPTY STATE, ON THE CANVAS. Not in the caption — he was looking at
+      // the picture, and a picture that explains itself somewhere else has not
+      // explained itself.
+      if (!hasProfile && !hasStats) {
+        const t = textSprite('NO MATCHUP DATA', C.text3, 30, 1.15)
+        t.position.copy(PT(0, ZT + 0.42, 0.3))
+        matchGroup.add(t)
+        const t2 = textSprite('no pitcher profile, no season zones', C.text3, 20, 1.5)
+        t2.position.copy(PT(0, ZB - 0.34, 0.3))
+        matchGroup.add(t2)
       }
     }
 
@@ -452,7 +498,11 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
             drawn from movement, not tracked — geometry, not telemetry.{' '}</>
           : <>No tracked pitches yet, so Flight and Release + tunnel are off — they are
             drawn from real crossings and there are none to draw.{' '}</>}
-        {hasMatchup
+        {!hasMatchup && !hasZoneStats
+          ? <>There is no pitcher profile and no published season zones for this
+            card, so Matchup has nothing to shade — the grid is drawn empty on
+            purpose, numbered so you can still see which box is which.</>
+          : hasMatchup
           ? <>Matchup reads the bot&apos;s own per-zone profile:{' '}
             <b style={{ color: C.orange }}>orange</b> where damage outruns his usage,{' '}
             <b style={{ color: C.red }}>red</b> where he gets away with it, ✕ his kill zones.</>
