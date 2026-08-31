@@ -558,7 +558,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     return (
       <div>
         <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
-        <Boxes players={allPlayers.length ? allPlayers : players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+        <Boxes players={allPlayers.length ? allPlayers : players} watchIds={watchIds} onPlayerClick={onPlayerClick} results={results} />
       </div>
     )
   }

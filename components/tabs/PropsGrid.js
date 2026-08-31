@@ -196,6 +196,46 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
   // note. Remembered, because it is a standing preference about how much
   // board you want, not a momentary one.
   const [precision, setPrecision] = useState(1)
+  // ── THREE MORE FILTERS AND A SORT (2026-08-31) ──────────────────────────
+  //
+  // Donovan: "the for the props page any wqay to make better and or add mroe
+  // fileters?"
+  //
+  // The page had exactly two controls — which market, and how deep a cut —
+  // and both answer "what am I looking at". Nothing answered "of these, which
+  // ones can I still act on", which is the question you have on a props page
+  // at 6pm with four games already in the third inning.
+  //
+  // These three are deliberately the only ones added, and each is a hard fact
+  // off the row rather than a judgement:
+  //
+  //   PRICED       the book has posted a number ON THIS PICK'S OWN BAR.
+  //                quoteFor's `matches` is what makes that honest: a 1+ HR
+  //                pick cannot borrow a 2+ price to look priced.
+  //   NOT STARTED  his game_time is still in the future. This is the one that
+  //                earns its place after about 4pm, when half the board is
+  //                already unactionable and looked identical to the half that
+  //                wasn't.
+  //   WATCHLIST    your saved names only.
+  //
+  // They compose (all three can be on) and they apply BEFORE the precision
+  // cut, so "top 1 per market, priced only" means the best priced card in
+  // each market — not the best card, hidden if it happens to be unpriced.
+  // Getting that order backwards is the whole difference between a filter and
+  // a blindfold.
+  //
+  // No "value" filter, and that omission is deliberate: a real per-game rate
+  // to compare a price against is published for HOME RUNS and nothing else,
+  // so a value pill would silently mean something different in every market
+  // block on the page. The shortlist is where that comparison lives, and it
+  // says so.
+  const [onlyPriced, setOnlyPriced] = useState(false)
+  const [onlyUpcoming, setOnlyUpcoming] = useState(false)
+  const [onlyWatched, setOnlyWatched] = useState(false)
+  const [sortBy, setSortBy] = useState('score')
+  // One clock read per render pass rather than one per row: Date.now() inside
+  // a filter callback over 250 rows is 250 different "nows".
+  const now = useMemo(() => Date.now(), [players, onlyUpcoming])
   useEffect(() => {
     try {
       // Number(null) is 0 — a missing key must NOT read as a saved "All",
@@ -252,6 +292,17 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
     if (market === 'picks') out = out.filter((r) => rolesOf(r).length)
     else if (single) out = out.filter((r) => rolesOf(r).includes(market))
 
+    // BEFORE the precision cut, on purpose — see the note on the state above.
+    if (onlyWatched) out = out.filter((r) => watchIds?.has(playerId(r)))
+    if (onlyUpcoming) out = out.filter((r) => {
+      const t = Date.parse(r?.game_time || '')
+      return Number.isFinite(t) && t > now
+    })
+    if (onlyPriced) out = out.filter((r) => {
+      const q = quoteFor(odds, r, PRICE_ROLE[primaryRole(r) || market] || 'HR')
+      return !!q && q.over != null && q.matches !== false
+    })
+
     const buckets = new Map()
     for (const r of out) {
       const k = single ? market : (primaryRole(r) || 'NONE')
@@ -260,13 +311,25 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
     }
     return GROUP_ORDER.filter((k) => buckets.has(k)).map((k) => {
       const sc = (r) => verdictFor(k).score(r) ?? -1
-      return {
-        key: k,
-        rows: buckets.get(k).sort((a, b) => sc(b) - sc(a) ||
-          String(nameOf(a)).localeCompare(String(nameOf(b)))),
-      }
+      // Sorting stays INSIDE the market block, always. The house rule is that
+      // cards only ever rank against cards measured the same way, and that is
+      // as true of a price or a first pitch as it is of a score.
+      const cmp = sortBy === 'price'
+        ? (a, b) => {
+          const pa = quoteFor(odds, a, PRICE_ROLE[k] || 'HR')
+          const pb = quoteFor(odds, b, PRICE_ROLE[k] || 'HR')
+          // Longest price first; an unpriced card sinks rather than sorting
+          // as if it were even money.
+          const va = pa && pa.over != null && pa.matches !== false ? Number(pa.over) : -1e9
+          const vb = pb && pb.over != null && pb.matches !== false ? Number(pb.over) : -1e9
+          return vb - va || sc(b) - sc(a)
+        }
+        : sortBy === 'time'
+          ? (a, b) => (Date.parse(a?.game_time || '') || 9e15) - (Date.parse(b?.game_time || '') || 9e15) || sc(b) - sc(a)
+          : (a, b) => sc(b) - sc(a) || String(nameOf(a)).localeCompare(String(nameOf(b)))
+      return { key: k, rows: buckets.get(k).sort(cmp) }
     })
-  }, [rows, market])
+  }, [rows, market, onlyPriced, onlyUpcoming, onlyWatched, watchIds, odds, now, sortBy])
 
   // The cut. Per market, on the ordering the group already has — see PRECISION.
   const shown = useMemo(() => (
@@ -319,6 +382,45 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
           >{o.label}</FilterPill>
         ))}
       </div>
+      {/* ── SHOW ME ONLY (2026-08-31) ─────────────────────────────────────
+          Three hard facts off the row, not judgements, and they compose. They
+          apply BEFORE the precision cut so "top 1 per market, priced only"
+          means the best PRICED card in each market rather than the best card
+          hidden when it happens to be unpriced. */}
+      <div className="chip-row" style={{
+        display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8,
+      }}>
+        <span style={{
+          fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
+          textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0,
+        }}>Only</span>
+        <FilterPill active={onlyPriced} onClick={() => setOnlyPriced(!onlyPriced)}
+          title="Cards where the book has posted a number on this pick's OWN bar. A 1+ HR pick cannot borrow a 2+ price to look priced.">
+          💵 Priced
+        </FilterPill>
+        <FilterPill active={onlyUpcoming} onClick={() => setOnlyUpcoming(!onlyUpcoming)}
+          title="Games that have not started yet. The one that earns its place after about 4pm, when half the board is already unactionable and looked identical to the half that wasn't.">
+          ⏱ Not started
+        </FilterPill>
+        <FilterPill active={onlyWatched} onClick={() => setOnlyWatched(!onlyWatched)}
+          title="Only names on your watchlist.">
+          ★ Watchlist
+        </FilterPill>
+        <span style={{ width: 6 }} />
+        <span style={{
+          fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
+          textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0,
+        }}>Sort</span>
+        {[['score', 'Score'], ['price', 'Longest price'], ['time', 'First pitch']].map(([k, label]) => (
+          <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
+            title={k === 'score' ? "Each market's own score, which is the page's default and the only ranking the house rule allows across a whole block."
+              : k === 'price' ? 'Longest price first, within each market block. An unpriced card sinks rather than sorting as if it were even money.'
+                : 'Earliest first pitch first, within each market block.'}>
+            {label}
+          </FilterPill>
+        ))}
+      </div>
+
       {/* ── PRECISION (2026-08-23) ────────────────────────────────────────
           "lets focus on precision instead of coverage." Measured, not
           asserted — the rate on each pill is bots/precision_study.py's own
@@ -358,7 +460,10 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
 
       {total === 0 ? (
         <div style={{ fontSize: 11.5, color: C.text3, marginTop: 10 }}>
-          Nothing matches — no slate published yet, or the filter left nobody. Clear it above.
+          Nothing matches.{' '}
+          {onlyPriced || onlyUpcoming || onlyWatched
+            ? `The ${[onlyPriced && 'Priced', onlyUpcoming && 'Not started', onlyWatched && 'Watchlist'].filter(Boolean).join(' + ')} filter left nobody in this market — turn one off above.`
+            : 'No slate published yet, or the market filter left nobody. Clear it above.'}
         </div>
       ) : (
         <>

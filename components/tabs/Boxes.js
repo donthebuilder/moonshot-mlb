@@ -1,7 +1,8 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { playerId, mlbId } from '../../lib/player'
+import { playerId, mlbId, nameOf } from '../../lib/player'
+import { dedupeGraded } from '../../lib/graded'
 import { Empty } from '../ui'
 import { scheduleFor, fullBox, forget, slateDay } from '../../lib/boxscore'
 import { BattingBox, PitchingBox, LineScore } from '../BoxTable'
@@ -44,7 +45,55 @@ function statusLine(g) {
   return { text: t || 'Scheduled', tone: C.text3 }
 }
 
-function GameCard({ g, open, onToggle, watchIds, onPlayerClick }) {
+// ── WHAT MOONSHOT HAS RIDING ON THIS GAME (2026-08-31) ──────────────────────
+//
+// Donovan: "update the box scores page make it better and more intuitive."
+//
+// The page was a competent generic box-score viewer and that was exactly the
+// problem: nothing on it knew it was part of MOONSHOT. Fourteen cards in
+// schedule order, identical to each other, and the one question a person
+// actually opens this page with — "how are MY names doing" — could only be
+// answered by opening every card and reading two nine-man tables per game.
+//
+// Every slate row publishes `game_pk`, and it is the same number the league's
+// schedule uses, so the join is exact and needs nothing fetched. Each card now
+// says up front how many of the bot's designated picks are in that game, how
+// many of your watchlist names are, and — once a graded file exists — how many
+// have cleared and how many have gone deep. Then the list SORTS by it, so a
+// live game with three of your names is never buried under four finals.
+//
+// Counts only, plus at most three names. This is a strip on a collapsed card,
+// not a second board; the full detail is one tap away and always was.
+function StakeStrip({ stake, compact = false }) {
+  if (!stake || (!stake.picks.length && !stake.watched.length)) return null
+  const bits = []
+  if (stake.picks.length) bits.push({ k: 'p', txt: `${stake.picks.length} pick${stake.picks.length === 1 ? '' : 's'}`, tone: C.orange })
+  if (stake.hr) bits.push({ k: 'hr', txt: `${stake.hr} HR`, tone: '#4ade80' })
+  if (stake.graded) bits.push({ k: 'c', txt: `${stake.cleared}/${stake.graded} cleared`, tone: stake.cleared ? '#4ade80' : C.text3 })
+  if (stake.watched.length) bits.push({ k: 'w', txt: `★ ${stake.watched.length}`, tone: C.yellow })
+  const names = [...stake.watched, ...stake.picks].slice(0, compact ? 2 : 3)
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+      marginTop: 5, paddingTop: 5, borderTop: `1px dashed ${C.border}`,
+    }}>
+      {bits.map((b) => (
+        <span key={b.k} style={{
+          fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.04em',
+          padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap',
+          border: `1px solid ${b.tone}44`, background: `${b.tone}12`, color: b.tone,
+        }}>{b.txt}</span>
+      ))}
+      {names.length > 0 && (
+        <span style={{ fontSize: 9, color: C.text3, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {names.join(' · ')}{(stake.picks.length + stake.watched.length) > names.length ? ' …' : ''}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function GameCard({ g, open, onToggle, watchIds, onPlayerClick, stake }) {
   const [box, setBox] = useState(undefined)
   const st = statusLine(g)
   const started = g.live || g.final || g.suspended
@@ -115,6 +164,10 @@ function GameCard({ g, open, onToggle, watchIds, onPlayerClick }) {
         <span style={{ color: C.text3, fontSize: 11, flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
       </div>
 
+      {/* Outside the click row so it can wrap on a phone without pushing the
+          score column around. */}
+      <div style={{ padding: '0 13px 8px' }}><StakeStrip stake={stake} /></div>
+
       {open && (
         <div style={{ padding: '0 13px 12px', borderTop: `1px solid ${C.border}` }}>
           {!started ? (
@@ -159,15 +212,28 @@ function GameCard({ g, open, onToggle, watchIds, onPlayerClick }) {
   )
 }
 
-export default function Boxes({ watchIds, onPlayerClick, players = [] }) {
+// `results` is optional and BOTH mounts do not yet pass it. The Games tab
+// does; the Home tab's mount is left alone in this pass on purpose, because
+// components/tabs/Home.js is already being changed by SHIP-PASS-19 and two
+// scripts pinned to the same file is exactly how a pass ends up unapplyable
+// (see the pass-16 note). Without it the two graded chips simply do not
+// render — the picks and watchlist counts, which are the useful half, come
+// off the slate and need nothing fetched.
+export default function Boxes({ watchIds, onPlayerClick, players = [], results = null }) {
   const [day, setDay] = useState(() => slateDay(0))
   const [games, setGames] = useState(undefined)
-  const [open, setOpen] = useState(null)
+  // A SET, not a single pk (2026-08-31). One-open-at-a-time meant comparing
+  // two games was a close, a scroll and a re-open, and the box you closed had
+  // to be re-fetched to come back. Games are independent things; there is no
+  // reason opening one should shut another.
+  const [open, setOpen] = useState(() => new Set())
+  const [sortBy, setSortBy] = useState('yours')
+  const [q, setQ] = useState('')
 
   useEffect(() => {
     let alive = true
     setGames(undefined)
-    setOpen(null)
+    setOpen(new Set())
     scheduleFor(day).then((g) => { if (alive) setGames(g || null) }).catch(() => { if (alive) setGames(null) })
     return () => { alive = false }
   }, [day])
@@ -210,8 +276,84 @@ export default function Boxes({ watchIds, onPlayerClick, players = [] }) {
     if (row) onPlayerClick(row)
   }, [onPlayerClick, players])
 
+  // ── THE JOIN (2026-08-31) ───────────────────────────────────────────────
+  //
+  // game_pk is published on every slate row AND is the league's own schedule
+  // id, so this is an exact key match with nothing fetched and nothing
+  // guessed. A name-or-team match would have been the obvious shortcut and is
+  // the one that breaks on a doubleheader, where two games share both teams.
+  const stakes = useMemo(() => {
+    const out = new Map()
+    const touch = (pk) => {
+      const k = Number(pk)
+      if (!k) return null
+      if (!out.has(k)) out.set(k, { picks: [], watched: [], hr: 0, cleared: 0, graded: 0 })
+      return out.get(k)
+    }
+    ;(players || []).forEach((p) => {
+      const e = touch(p?.game_pk)
+      if (!e) return
+      if (String(p?.game_pick_role || '').trim()) e.picks.push(nameOf(p))
+      if (watchIds?.has(playerId(p))) e.watched.push(nameOf(p))
+    })
+    // The graded half is optional on purpose: on most of any given day there
+    // is no graded file for the date on screen, and a card that renders
+    // "0/0 cleared" against a slate nobody has graded yet is worse than a card
+    // that says nothing. Absent results simply drop these two chips.
+    if (results && (!results.date || !day || String(results.date) === String(day))) {
+      const byId = new Map()
+      ;(players || []).forEach((p) => {
+        const id = Number(p?.player_id ?? p?.id)
+        if (id) byId.set(id, Number(p?.game_pk) || null)
+      })
+      dedupeGraded(results?.graded_slots || results?.results || []).forEach((r) => {
+        const e = touch(byId.get(Number(r?.player_id)))
+        if (!e) return
+        e.graded += 1
+        if (Number(r?.actual_hr) > 0) e.hr += 1
+        if (r?.hit === true || r?.cleared === true || r?.result === 'HIT' || Number(r?.cleared) > 0) e.cleared += 1
+      })
+    }
+    return out
+  }, [players, watchIds, results, day])
+
+  // ── ORDER BY WHAT YOU CAME HERE FOR ─────────────────────────────────────
+  //
+  // Schedule order is the league's answer to "what order did these start in",
+  // which is nobody's question on this page. Default is YOURS FIRST: a live
+  // game you have names in, then any live game, then a game you have names in,
+  // then everything still to come, then the finals. Start time is still one
+  // tap away for anyone who wants the league's own order back.
+  const shown = useMemo(() => {
+    let list = games || []
+    const needle = q.trim().toLowerCase()
+    if (needle) {
+      list = list.filter((g) => [g.away?.name, g.away?.abbr, g.home?.name, g.home?.abbr, g.venue]
+        .some((t) => String(t || '').toLowerCase().includes(needle)))
+    }
+    if (sortBy === 'time') return list
+    const rank = (g) => {
+      const st = stakes.get(Number(g.pk))
+      const mine = st ? st.picks.length + st.watched.length : 0
+      if (g.live) return mine ? 0 : 1
+      if (!g.final && !g.postponed) return mine ? 2 : 3
+      return mine ? 4 : 5
+    }
+    return [...list].sort((a, b) => {
+      const d = rank(a) - rank(b)
+      if (d) return d
+      const sa = stakes.get(Number(a.pk)); const sb = stakes.get(Number(b.pk))
+      const ma = sa ? sa.picks.length + sa.watched.length : 0
+      const mb = sb ? sb.picks.length + sb.watched.length : 0
+      return mb - ma
+    })
+  }, [games, q, sortBy, stakes])
+
   const live = games?.filter((g) => g.live).length || 0
   const done = games?.filter((g) => g.final).length || 0
+  const mineCount = useMemo(() => (games || [])
+    .filter((g) => { const s2 = stakes.get(Number(g.pk)); return s2 && (s2.picks.length || s2.watched.length) })
+    .length, [games, stakes])
 
   return (
     <div>
@@ -221,12 +363,15 @@ export default function Boxes({ watchIds, onPlayerClick, players = [] }) {
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
             {games.length} game{games.length === 1 ? '' : 's'}
             {live ? ` · ${live} live` : ''}{done ? ` · ${done} final` : ''}
+            {mineCount ? ` · ${mineCount} with your names` : ''}
           </span>
         )}
       </div>
       <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, maxWidth: 760, marginBottom: 10 }}>
         Every game on the date, and the full box under any of them — both lineups, both staffs,
-        live or final. Click a game to open it.
+        live or final. Click a game to open it; open as many as you like. Each card says what
+        the bot has designated in that game and which of your watchlist names are in it, so the
+        games you care about sort to the top instead of sitting in schedule order.
       </div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
@@ -246,6 +391,35 @@ export default function Boxes({ watchIds, onPlayerClick, players = [] }) {
         </span>
       </div>
 
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Order</span>
+        <button onClick={() => setSortBy('yours')} style={chip(sortBy === 'yours')}>Yours first</button>
+        <button onClick={() => setSortBy('time')} style={chip(sortBy === 'time')}>Start time</button>
+        <input
+          value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="Filter by team or park…"
+          style={{
+            fontSize: 10.5, padding: '4px 10px', borderRadius: 999, minWidth: 168,
+            border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, outline: 'none',
+          }}
+        />
+        {q && (
+          <button onClick={() => setQ('')} style={{
+            background: 'transparent', border: 0, cursor: 'pointer', color: C.text3, fontSize: 11,
+          }}>clear</button>
+        )}
+        {games && games.length > 1 && (
+          <button
+            onClick={() => setOpen(open.size ? new Set() : new Set(shown.filter((g) => g.live || g.final).map((g) => g.pk)))}
+            style={{
+              marginLeft: 'auto', padding: '3px 11px', borderRadius: 999, cursor: 'pointer',
+              fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+              border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
+            }}
+          >{open.size ? 'Collapse all' : 'Expand all played'}</button>
+        )}
+      </div>
+
       {games === undefined ? (
         <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, padding: 14 }}>Loading the schedule…</div>
       ) : !games ? (
@@ -253,10 +427,17 @@ export default function Boxes({ watchIds, onPlayerClick, players = [] }) {
       ) : !games.length ? (
         <Empty text={`No games on ${day}.`} />
       ) : (
-        games.map((g) => (
-          <GameCard key={g.pk} g={g} open={open === g.pk}
-            onToggle={(pk) => setOpen(open === pk ? null : pk)}
+        !shown.length ? (
+          <Empty text={`No game on ${day} matches “${q}”.`} />
+        ) : shown.map((g) => (
+          <GameCard key={g.pk} g={g} open={open.has(g.pk)}
+            onToggle={(pk) => setOpen((prev) => {
+              const next = new Set(prev)
+              if (next.has(pk)) next.delete(pk); else next.add(pk)
+              return next
+            })}
             watchIds={watchedIds}
+            stake={stakes.get(Number(g.pk))}
             onPlayerClick={openPlayer} />
         ))
       )}
