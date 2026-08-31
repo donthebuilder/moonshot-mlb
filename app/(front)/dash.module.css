@@ -26,17 +26,58 @@
 }
 
 /* ── bar ── */
-.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; }
-.brand { display: flex; align-items: center; gap: 9px; }
+/* ── THE HEADER STAYS (2026-08-31) ───────────────────────────────────────────
+   Donovan, on the same 45+ user who could not finish sign-up: "it was hard for
+   them to find a home button on the sign up."
+
+   There wasn't one. This bar was static, and the auth card sits at the BOTTOM
+   of a 275-line page — measured, you reach the form at scrollY ~1,940 on a
+   phone, by which point the brand, the nav and every route on the site are a
+   page and a half off the top. You are in a dark box at the end of a long page
+   with no visible way anywhere. Not hard to find: absent.
+
+   Sticky costs nothing on a page this long and gives the way out back at every
+   scroll position. The solid background matters — at 92% opacity the card read
+   straight through the bar, tab row and heading both legible under the logo. A
+   sticky bar has to be a surface, not a tint. Caught in render. */
+.bar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; margin-bottom: 4px;
+  background: #0b0a0a;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+/* ── ANCHORS HAVE TO CLEAR THE STICKY BAR ────────────────────────────────────
+   The other half of the same render. Every nav item on this page is a #hash,
+   and the moment the header became sticky each one scrolled its target UNDER
+   the header — so clicking "Create account" put the top of the auth card, tabs
+   and all, behind the logo. One line, and it fixes every anchor on the page
+   including the bare #create-account span inside the card. */
+:global(html) { scroll-padding-top: 84px; }
+/* The brand is a link on every other surface of the network as of 2026-08-31
+   (components/Header.js, components/nfl/NflHeader.js). It was a bare <div>
+   here — on the one page where a lost person is most likely to reach for it. */
+a.brand { text-decoration: none; color: inherit; }
+/* On a phone the nav would wrap into two rows under a sticky bar and eat a
+   third of the viewport. The section anchors are the ones worth dropping: they
+   are shortcuts to places you also reach by scrolling. The auth controls are
+   not — see the note where the old rule used to be. */
+@media (max-width: 620px) {
+  .barNav .barNavSection { display: none; }
+  .barNav { gap: 10px; }
+}
+.brand { display: flex; align-items: center; min-height: 44px; gap: 9px; }
 .brand img { border-radius: 10px; }
 .brand small { display: block; color: var(--mlb); font: 900 7px/1 monospace; letter-spacing: .16em; }
 .brand strong { display: block; margin-top: 4px; font: 900 12px/1 monospace; letter-spacing: .08em; }
 .barNav { display: flex; align-items: center; gap: 14px; }
-.barNav a { color: var(--dim); font-size: 11px; text-decoration: none; }
+.barNav a { display: inline-flex; align-items: center; min-height: 40px; color: var(--dim); font-size: 12px; text-decoration: none; }
 .barNav a:hover { color: var(--ink); }
 .barCta, .barNav form button {
-  padding: 8px 13px; border: 1px solid var(--line); border-radius: 9px;
-  background: #191817; color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .06em; cursor: pointer;
+  display: inline-flex; align-items: center; min-height: 40px;
+  padding: 8px 14px; border: 1px solid var(--line); border-radius: 9px;
+  background: #191817; color: var(--ink); font: 800 11px/1 monospace; letter-spacing: .06em; cursor: pointer;
 }
 .ghost { background: transparent; }
 
@@ -111,6 +152,11 @@
 .auth { padding: 30px 0; border-top: 1px solid var(--line); }
 .authIntro h2 { margin: 8px 0 10px; font-size: 24px; letter-spacing: -.025em; }
 .authIntro span { display: block; max-width: 640px; color: var(--dim); font-size: 12px; line-height: 1.65; }
+/* The way out of the form for somebody who does not want an account. The
+   section copy has always SAID the site is readable without one; this is the
+   first time it has been reachable from here. */
+.authEscape { margin-top: 14px; font-size: 12px; color: var(--dim); }
+.authEscape a { color: var(--ink); }
 .authGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin-top: 20px; }
 .card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .card h3 { margin: 8px 0 14px; font-size: 17px; }
@@ -183,7 +229,12 @@
 @media (max-width: 620px) {
   .page { padding: 0 13px 110px; }
   .hero { padding: 30px 0 24px; }
-  .barNav a:not(.barCta) { display: none; }
+  /* Was `.barNav a:not(.barCta) { display: none }` — which hid EVERY nav link
+     on a phone except the single CTA. That is why the mobile front door had
+     exactly one auth control: whichever one happened to be the button. It is
+     also half of why sign-up could not be found, since that button said
+     "Sign in". The section anchors are the ones worth dropping; Sign in,
+     Create account, Account and Sign out are not. See .barNavSection above. */
 }
 
 /* ── alerts ── */

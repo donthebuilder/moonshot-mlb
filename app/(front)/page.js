@@ -106,14 +106,18 @@ export default async function DashHome({ searchParams }) {
           done on the server. */}
       <LegacyHashRedirect />
       <header className={styles.bar}>
-        <div className={styles.brand}>
+        {/* A link, not a div. On the network's other surfaces the mark went
+            home in pass 19; here — the one page where somebody stuck in a form
+            reaches for it — it was inert. #top rather than "/" so it does not
+            reload the page you are already on. */}
+        <a className={styles.brand} href="#top" aria-label="Back to the top of DASH Network">
           <img src="/icon-192.png" alt="" width="34" height="34" />
           <div><small>DASH</small><strong>NETWORK</strong></div>
-        </div>
+        </a>
         <nav className={styles.barNav}>
-          <a href="#tonight">Tonight</a>
-          <a href="#products">Products</a>
-          <a href="#alerts">Alerts</a>
+          <a className={styles.barNavSection} href="#tonight">Tonight</a>
+          <a className={styles.barNavSection} href="#products">Products</a>
+          <a className={styles.barNavSection} href="#alerts">Alerts</a>
           {me.user
             ? <><Link href="/account">Account</Link><form action={dashSignOut}><input type="hidden" name="next" value="/" /><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form></>
             : <>
@@ -300,6 +304,10 @@ export default async function DashHome({ searchParams }) {
                 defaultName={typeof params.nm === 'string' ? params.nm : ''}
                 confirmEmail={typeof params.confirm === 'string' ? params.confirm : ''}
               />
+              <p className={styles.authEscape}>
+                Don&apos;t want an account? <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board anyway →</Link>{' '}
+                Everything on MOONSHOT and TUDDY is readable without one.
+              </p>
             </div>
           </>
         ) : (
