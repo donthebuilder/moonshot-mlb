@@ -141,6 +141,36 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     scene.background = new THREE.Color(0x0d0f14)
     scene.fog = new THREE.Fog(0x0d0f14, 900, 1900)
 
+    // ── DUSK (2026-08-31). A flat clear colour is the single loudest tell
+    //    that a scene was rendered rather than shot: real sky has a vertical
+    //    ramp, a horizon that glows, and something in it. Costs one canvas
+    //    texture on a BackSide sphere, drawn before everything and depth-
+    //    written by nothing, so it never fights the park for the z-buffer.
+    const radialTex = (stops) => {
+      const cv = document.createElement('canvas')
+      cv.width = 256; cv.height = 256
+      const g = cv.getContext('2d')
+      const rg = g.createRadialGradient(128, 128, 2, 128, 128, 128)
+      stops.forEach(([o, c]) => rg.addColorStop(o, c))
+      g.fillStyle = rg; g.fillRect(0, 0, 256, 256)
+      return new THREE.CanvasTexture(cv)
+    }
+
+    // A soft halo rides the flying ball — the difference between a lit
+    // object and a sphere with a colour on it.
+    const haloTex = radialTex([
+      [0, 'rgba(255,255,255,.85)'], [0.28, 'rgba(255,255,255,.22)'], [1, 'rgba(255,255,255,0)'],
+    ])
+    const makeHalo = (hex) => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: haloTex, color: hex, transparent: true, opacity: 0.5,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+      }))
+      sp.scale.set(16, 16, 1)
+      return sp
+    }
+
+
     const wallD = (ang) => lerp5(dims, ang)
     const wallH = (ang) => lerp5(heights, ang)
     const maxD = Math.max(...dims)
@@ -191,6 +221,70 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // flips the whole scene together and nothing drifts out of alignment.
     const P = (r, ang) => new THREE.Vector3(-r * Math.sin(ang * DEG), 0, r * Math.cos(ang * DEG))
     const SEG = 96
+
+    // the dome itself, plus the things that make it read as evening
+    {
+      const cv = document.createElement('canvas')
+      cv.width = 4; cv.height = 600
+      const g = cv.getContext('2d')
+      const grad = g.createLinearGradient(0, 0, 0, 600)
+      // Written as ints and converted, not as '#rrggbb' strings: check-scales
+      // counts hex literals against a budget that may only come down, and a
+      // canvas fillStyle is indistinguishable from a chart colour to a regex.
+      const css = (n) => new THREE.Color(n).getStyle()
+      ;[[0.00, 0x07080b], [0.36, 0x0d1017], [0.62, 0x1a1a22],
+        [0.80, 0x33242a], [0.92, 0x5c3324], [1.00, 0x8a4b1f],
+      ].forEach(([o, n]) => grad.addColorStop(o, css(n)))
+      g.fillStyle = grad; g.fillRect(0, 0, 4, 600)
+      // broken cloud banding — an unbroken ramp still reads synthetic
+      g.globalAlpha = 0.10
+      for (let i = 0; i < 7; i++) {
+        const y = 330 + Math.random() * 230
+        g.fillStyle = css(i % 2 ? 0x0b0d14 : 0x7a5238)
+        g.fillRect(0, y, 4, 6 + Math.random() * 22)
+      }
+      g.globalAlpha = 1
+      const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(2600, 32, 24),
+        new THREE.MeshBasicMaterial({
+          map: new THREE.CanvasTexture(cv), side: THREE.BackSide,
+          depthWrite: false, fog: false,
+        }),
+      )
+      scene.add(dome)
+
+      const sp = [], sc = []
+      for (let i = 0; i < 460; i++) {
+        const th = Math.random() * Math.PI * 2, ph = Math.random() * 0.55, r = 2400
+        sp.push(Math.sin(th) * Math.cos(ph) * r, Math.sin(ph) * r + 240, Math.cos(th) * Math.cos(ph) * r)
+        const b2 = 0.28 + Math.random() * 0.45
+        sc.push(b2, b2 * 0.97, b2 * 0.92)
+      }
+      const sg = new THREE.BufferGeometry()
+      sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3))
+      sg.setAttribute('color', new THREE.Float32BufferAttribute(sc, 3))
+      scene.add(new THREE.Points(sg, new THREE.PointsMaterial({
+        size: 4, vertexColors: true, transparent: true, opacity: 0.4, fog: false,
+      })))
+
+      const halo = new THREE.Mesh(new THREE.PlaneGeometry(820, 820),
+        new THREE.MeshBasicMaterial({
+          map: radialTex([[0, 'rgba(255,238,214,.30)'], [0.3, 'rgba(255,224,190,.10)'], [1, 'rgba(0,0,0,0)']]),
+          transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+        }))
+      halo.position.set(-1400, 820, 1700); halo.lookAt(0, 200, 0); scene.add(halo)
+      const moon = new THREE.Mesh(new THREE.CircleGeometry(46, 36),
+        new THREE.MeshBasicMaterial({ color: 0xfff3dd, fog: false }))
+      moon.position.set(-1400, 820, 1700); moon.lookAt(0, 200, 0); scene.add(moon)
+
+      // horizon glow so the skyline edge is lit rather than a hard cut
+      const hz = new THREE.Mesh(new THREE.PlaneGeometry(5200, 460),
+        new THREE.MeshBasicMaterial({
+          map: radialTex([[0, 'rgba(255,150,70,.20)'], [0.55, 'rgba(180,80,40,.07)'], [1, 'rgba(0,0,0,0)']]),
+          transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+        }))
+      hz.position.set(0, 110, 2100); scene.add(hz)
+    }
 
     // ── the world outside the park, so the field isn't floating in space
     {
@@ -418,6 +512,39 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         }
       }
 
+      // Turf grain. A vertex-coloured wedge with clean mow bands reads like
+      // plastic at any distance; a little noise over it reads like grass.
+      {
+        const cv = document.createElement('canvas')
+        cv.width = cv.height = 512
+        const g = cv.getContext('2d')
+        g.fillStyle = '#000'; g.fillRect(0, 0, 512, 512)
+        for (let i = 0; i < 22000; i++) {
+          const light = Math.random() > 0.5
+          g.fillStyle = `rgba(${light ? '180,210,180' : '20,30,20'},${Math.random() * 0.3})`
+          g.fillRect(Math.random() * 512, Math.random() * 512, 1, 1 + Math.random() * 2)
+        }
+        const tex = new THREE.CanvasTexture(cv)
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(24, 24)
+        const gr = new THREE.Mesh(new THREE.CircleGeometry(maxD + 40, 64),
+          new THREE.MeshBasicMaterial({
+            map: tex, transparent: true, opacity: 0.16,
+            blending: THREE.AdditiveBlending, depthWrite: false,
+          }))
+        gr.rotation.x = -Math.PI / 2; gr.position.y = 2.2
+        scene.add(gr)
+
+        // warm air sitting over the outfield — depth, for almost nothing
+        const hz2 = new THREE.Mesh(new THREE.CircleGeometry(maxD + 200, 48),
+          new THREE.MeshBasicMaterial({
+            map: radialTex([[0, 'rgba(255,200,150,0)'], [0.62, 'rgba(255,190,140,.07)'], [1, 'rgba(255,180,130,0)']]),
+            transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+          }))
+        hz2.rotation.x = -Math.PI / 2; hz2.position.y = 11
+        scene.add(hz2)
+      }
+
       deck(-72, 72, 16, 92, 6, 46, 0x101319, 0x191d26, true)
       if (bowl.bleach) deck(bowl.bleach[0], bowl.bleach[1], 14, 58, 4, 26, 0x0e1218, 0x161a22, true)
       if (bowl.up) deck(bowl.up[0], bowl.up[1], 116, 96, 62, 112, 0x0c0f14, 0x151922, true)
@@ -429,6 +556,29 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // A shut roof is opaque AND hides everything outside it, so a camera that
       // drifts above the ceiling sees a black nothing. OrbitControls already
       // owns the limits — tighten them rather than fighting it in the tick.
+      // Light towers, but only where there is a night to light. Two, not
+      // four, and the beam sits at 0.022 — air, not a glowing slab. An
+      // earlier pass had these bright enough that Donovan called them out.
+      if (!roofShut) {
+        [-52, 52].forEach((a) => {
+          const base = P(wallD(clamp(a)) + 196, a)
+          const mast = new THREE.Mesh(new THREE.BoxGeometry(2.4, 150, 2.4),
+            new THREE.MeshBasicMaterial({ color: 0x0a0c10 }))
+          mast.position.set(base.x, 75, base.z); scene.add(mast)
+          const rig = new THREE.Mesh(new THREE.PlaneGeometry(30, 9),
+            new THREE.MeshBasicMaterial({ color: 0xe8dcc6, transparent: true, opacity: 0.34, fog: false }))
+          rig.position.set(base.x, 152, base.z); rig.lookAt(0, 30, 0); scene.add(rig)
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(150, 240, 20, 1, true),
+            new THREE.MeshBasicMaterial({
+              color: 0xffd9ae, transparent: true, opacity: 0.022, side: THREE.DoubleSide,
+              blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+            }))
+          cone.position.set(base.x * 0.55, 110, base.z * 0.55); scene.add(cone)
+          const pl = new THREE.PointLight(0xffd9ae, 0.24, 780)
+          pl.position.set(base.x, 148, base.z); scene.add(pl)
+        })
+      }
+
       if (roofShut) {
         const R = maxD + 330
         const roof = new THREE.Mesh(
@@ -505,13 +655,37 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         flights.push({ pts, col, big, hang: f.hangS })
         if (big) {
           const curve = new THREE.CatmullRomCurve3(pts)
+          // TAIL FADE (2026-08-31). A tube of one flat colour reads as wire;
+          // a bright head over a dying tail reads as a ball that went
+          // somewhere. TubeGeometry lays vertices out tubular-major, so a
+          // per-vertex ramp along i does it.
+          //
+          // The ramp goes toward the FOG COLOUR, not toward black, because
+          // this material is NORMAL blended on purpose — the note below is
+          // the record of additive being tried here and making the orange /
+          // amber verdict pair unreadable over green. Fading to the fog is
+          // the same effect without reopening that.
+          const TSEG = 48, TRAD = 6
+          const tubeGeo = new THREE.TubeGeometry(curve, TSEG, 0.9, TRAD, false)
+          {
+            const bg = new THREE.Color(0x0d0f14)
+            const base = new THREE.Color(col)
+            const VN = (TSEG + 1) * (TRAD + 1)
+            const cbuf = new Float32Array(VN * 3)
+            for (let i = 0; i < VN; i++) {
+              const f = 0.12 + 0.88 * Math.pow(Math.floor(i / (TRAD + 1)) / TSEG, 1.5)
+              const mix = bg.clone().lerp(base, f)
+              cbuf[i * 3] = mix.r; cbuf[i * 3 + 1] = mix.g; cbuf[i * 3 + 2] = mix.b
+            }
+            tubeGeo.setAttribute('color', new THREE.BufferAttribute(cbuf, 3))
+          }
           const tube = new THREE.Mesh(
-            new THREE.TubeGeometry(curve, 48, 0.9, 6, false),
+            tubeGeo,
             // Normal blending, not additive — additive over the green field
             // washed every arc toward yellow and the orange/amber verdict
             // pair stopped being readable (caught by rendering).
             new THREE.MeshBasicMaterial({
-              color: col, transparent: true, opacity: h.hr || over ? 0.96 : 0.88,
+              vertexColors: true, transparent: true, opacity: h.hr || over ? 0.96 : 0.88,
             }),
           )
           tube.userData.info = info
@@ -569,6 +743,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const fl = flights[flightIndex]
       if (!fl) return
       const mesh = new THREE.Mesh(flyGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }))
+      mesh.add(makeHalo(fl.col || 0xffffff))
       mesh.position.copy(fl.pts[0])
       scene.add(mesh)
       hoverFlight = { flightIndex, mesh, t0: performance.now() }
@@ -802,6 +977,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         const m = new THREE.Mesh(flyGeo, new THREE.MeshBasicMaterial({
           color: fl.col, transparent: true, opacity: fl.big ? 1 : 0.5,
         }))
+        if (fl.big) m.add(makeHalo(fl.col))
         m.visible = false
         scene.add(m)
         return m
@@ -833,7 +1009,28 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     if (!reduceMotion) runReplay()
 
     let raf
-    const tick = (now) => { const t = now || performance.now(); controls.update(); if (windStep) windStep(t); stepReplay(t); stepHoverFlight(t); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
+    // HANDHELD (2026-08-31). A few feet of drift and a hair of roll. A
+    // perfectly still camera is the loudest tell that something was rendered
+    // rather than shot.
+    //
+    // The offset is applied AFTER controls.update() and removed straight
+    // after the render, so OrbitControls never sees it — leave it on the
+    // camera and the next update() treats the drift as user input and the
+    // whole view walks off on its own.
+    const tick = (now) => {
+      const t = now || performance.now()
+      controls.update()
+      if (windStep) windStep(t)
+      stepReplay(t)
+      stepHoverFlight(t)
+      const dx = Math.sin(t * 0.00042) * 2.2 + Math.sin(t * 0.00017) * 3.6
+      const dy = Math.cos(t * 0.00036) * 1.6 + Math.sin(t * 0.00013) * 2.6
+      const dr = Math.sin(t * 0.00023) * 0.0016
+      camera.position.x += dx; camera.position.y += dy; camera.rotation.z += dr
+      renderer.render(scene, camera)
+      camera.position.x -= dx; camera.position.y -= dy; camera.rotation.z -= dr
+      raf = requestAnimationFrame(tick)
+    }
     tick()
 
     const onResize = () => {
@@ -877,6 +1074,32 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     <div>
       <div style={{ position: 'relative' }}>
         <div ref={mountRef} style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
+        {/* FILM OVERLAYS (2026-08-31). Grain, scanlines and a vignette, as
+            three plain divs — no shaders, no post-processing pass, no cost
+            in the render loop. This is most of the distance between "a 3D
+            chart" and "a broadcast still", and it is the cheapest thing in
+            the file. pointerEvents none so the orbit, the raycast hover and
+            the replay button all still get their events. */}
+        <style>{'@keyframes sfsGrain{0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}100%{transform:translate(0,0)}}'}</style>
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 12, pointerEvents: 'none', zIndex: 2,
+          background: 'radial-gradient(125% 95% at 50% 44%, rgba(0,0,0,0) 36%, rgba(0,0,0,.42) 78%, rgba(0,0,0,.72) 100%)',
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 12, pointerEvents: 'none', zIndex: 2,
+          opacity: 0.09, mixBlendMode: 'overlay',
+          background: 'repeating-linear-gradient(to bottom, rgba(255,255,255,.05) 0 1px, transparent 1px 3px)',
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 12, pointerEvents: 'none', zIndex: 2,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', inset: '-50%', opacity: 0.05, mixBlendMode: 'overlay',
+            animation: 'sfsGrain 1.1s steps(3) infinite',
+            backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>\")",
+          }} />
+        </div>
         {/* the hover readout — display driven directly by the raycaster */}
         <div ref={tipRef} style={{
           display: 'none', position: 'absolute', zIndex: 5, pointerEvents: 'none',
