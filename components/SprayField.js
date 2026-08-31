@@ -20,6 +20,22 @@ import { outcomeOf, OUTCOME_TABS, QUALITY_TABS } from './BattedBallLog'
 // Real park geometry: distances + wall HEIGHTS, one source, regenerable
 // from Baseball Savant (bots/fetch_park_dimensions.py in the bot repo).
 import { PARK_WALLS as PARKS } from '../lib/parkWalls'
+
+// Cheap one-time WebGL probe. The 3D views REPLACE the 2D one when they are
+// open (2026-08-31, Donovan: "when you click on the 3-d the 2d disappears"),
+// but only when 3D can actually draw — otherwise hiding the flat chart would
+// take away the fallback and the screen-reader version at the same time, and
+// the standing rule is that the 2D one never leaves.
+let _webgl = null
+const canWebgl = () => {
+  if (_webgl !== null) return _webgl
+  try {
+    const c = document.createElement('canvas')
+    _webgl = !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')))
+  } catch { _webgl = false }
+  return _webgl
+}
+
 // Seating shape, and whether this park's roof is one that actually moves.
 // Only used here to decide whether the roof control is worth showing.
 import { bowlFor } from '../lib/parkBowls'
@@ -431,6 +447,8 @@ export default function SprayField({
   // testing against dimensions already known to be worse.
   const [testPark, setTestPark] = useState('')
   const [stadium, setStadium] = useState(false)
+  const [webgl3d, setWebgl3d] = useState(false)
+  useEffect(() => { setWebgl3d(canWebgl()) }, [])
   // A retractable roof is a VIEWING choice, so it is a control, not a
   // constant. Fixed domes (Tropicana) never get the toggle — there is
   // nothing to choose — and open-air parks never see it at all.
@@ -1365,6 +1383,7 @@ export default function SprayField({
         </div>
       )}
 
+      {!(stadium && webgl3d) && (
       <div className="spray-wrap" style={{
         display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
@@ -1966,6 +1985,7 @@ export default function SprayField({
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }

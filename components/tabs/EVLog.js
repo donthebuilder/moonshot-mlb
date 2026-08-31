@@ -603,95 +603,10 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         )
       })()}
 
-      {/* ── THE SHAPE, NOT JUST THE TABLE (2026-08-29) ─────────────────────
-          Donovan: "the ev log can be updated now with more stats that we
-          know will help." The most useful thing this page was missing is not
-          another number — it is the picture the numbers already make.
-
-          Exit velocity against launch angle, one dot per batted ball, with
-          the barrel region drawn behind them. Barrels are not a threshold on
-          either axis alone; they are a WEDGE — roughly 98 mph at 26-30
-          degrees, widening in both directions as the ball is hit harder —
-          which is exactly the thing a table of two columns cannot show and a
-          scatter shows instantly. A hitter whose dots cluster hard and low is
-          a different problem from one whose dots are high and soft, and both
-          can carry the same average EV.
-
-          NOTHING HERE IS MODELLED. Every dot is a real batted ball from the
-          rows below; the highlighted dots are the bot's own is_barrel flag,
-          not a re-derivation. The wedge is drawn as a GUIDE and labelled as
-          one — Statcast's barrel definition is a published rule, but this
-          shading is an approximation of its boundary for the eye, so the
-          flag decides which dots are lit, never the shape.
-       */}
-      {rows.filter((r) => Number.isFinite(r.ev) && Number.isFinite(r.la)).length >= 5 && (() => {
-        const pts = rows.filter((r) => Number.isFinite(r.ev) && Number.isFinite(r.la))
-        const W = 560, H = 210, PAD = 30
-        const EV0 = 50, EV1 = 118
-        const LA0 = -40, LA1 = 60
-        const x = (ev) => PAD + ((Math.min(EV1, Math.max(EV0, ev)) - EV0) / (EV1 - EV0)) * (W - PAD - 12)
-        const y = (la) => H - PAD - ((Math.min(LA1, Math.max(LA0, la)) - LA0) / (LA1 - LA0)) * (H - PAD - 14)
-        // The barrel wedge, as a guide: it opens at ~98 mph / 26-30 deg and
-        // widens with exit velocity. Drawn from a handful of points rather
-        // than a formula, because it is scenery for the eye and the bot's
-        // flag is what actually marks a barrel.
-        const wedge = [[98, 26], [98, 30], [104, 36], [110, 40], [116, 44], [116, 10], [110, 14], [104, 20]]
-          .map(([ev, la]) => `${x(ev).toFixed(1)},${y(la).toFixed(1)}`).join(' ')
-        return (
-          <div style={{
-            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
-            padding: '9px 12px 6px', marginBottom: 8,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>
-                How he hits it — exit velo against launch angle
-              </span>
-              <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-                {pts.length} balls · ● barrel · ★ home run
-              </span>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ minWidth: 340, display: 'block' }} role="img"
-                   aria-label={`Exit velocity against launch angle for ${pts.length} batted balls, with the barrel region shaded.`}>
-                <polygon points={wedge} fill="#a78bfa" opacity="0.10" />
-                <text x={x(112)} y={y(27)} fill="#a78bfa" fontSize="8" textAnchor="middle" opacity="0.85"
-                      fontFamily="ui-monospace, monospace" letterSpacing="0.08em">BARRELS</text>
-                {[60, 70, 80, 90, 100, 110].map((ev) => (
-                  <g key={ev}>
-                    <line x1={x(ev)} y1={14} x2={x(ev)} y2={H - PAD} stroke={C.border} strokeWidth="1" opacity="0.5" />
-                    <text x={x(ev)} y={H - PAD + 12} fill={C.text3} fontSize="8" textAnchor="middle" fontFamily="ui-monospace, monospace">{ev}</text>
-                  </g>
-                ))}
-                {[-20, 0, 25, 50].map((la) => (
-                  <g key={la}>
-                    <line x1={PAD} y1={y(la)} x2={W - 12} y2={y(la)} stroke={C.border} strokeWidth="1" opacity={la === 0 ? 0.9 : 0.4} />
-                    <text x={PAD - 5} y={y(la) + 3} fill={C.text3} fontSize="8" textAnchor="end" fontFamily="ui-monospace, monospace">{la}°</text>
-                  </g>
-                ))}
-                <text x={W - 12} y={H - 4} fill={C.text3} fontSize="8" textAnchor="end" fontFamily="ui-monospace, monospace">exit velo (mph) →</text>
-                {pts.map((r, i) => {
-                  const isHr = !!r.hr
-                  const isBrl = !!r.barrel
-                  const col = isHr ? '#4ade80' : isBrl ? '#a78bfa' : r.hard ? '#fca63a' : C.text3
-                  return isHr ? (
-                    <text key={r._key || i} x={x(r.ev)} y={y(r.la) + 4} fill={col} fontSize="11" textAnchor="middle">★</text>
-                  ) : (
-                    <circle key={r._key || i} cx={x(r.ev)} cy={y(r.la)} r={isBrl ? 4 : 3}
-                            fill={col} opacity={isBrl ? 0.95 : 0.6} />
-                  )
-                })}
-              </svg>
-            </div>
-            <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.5, marginTop: 2 }}>
-              One dot per batted ball in the window above — same rows, same filters. The shaded
-              wedge is roughly where barrels live (hard, and in a narrow angle band that widens the
-              harder it is hit); it is drawn as a <b style={{ color: C.text2 }}>guide for the eye</b>,
-              and which dots are lit comes from the bot&apos;s own barrel flag, not from the shape.
-              Dots below the 0° line are balls hit into the ground.
-            </div>
-          </div>
-        )
-      })()}
+      {/* The exit-velo-against-launch-angle scatter lived here and is gone
+          (2026-08-31, Donovan: "remove this chart"). The wedge was scenery
+          for the eye, and the barrel/HR facts it drew are already carried by
+          the flags on the rows below, so nothing factual left with it. */}
 
       <DenseTable
         rows={rows}

@@ -10,6 +10,22 @@ import {
 import { divTone, seqColor } from '../lib/scales'
 import { clean } from '../lib/player'
 import { inkOn } from '../lib/palette'
+
+// Cheap one-time WebGL probe. The 3D views REPLACE the 2D one when they are
+// open (2026-08-31, Donovan: "when you click on the 3-d the 2d disappears"),
+// but only when 3D can actually draw — otherwise hiding the flat chart would
+// take away the fallback and the screen-reader version at the same time, and
+// the standing rule is that the 2D one never leaves.
+let _webgl = null
+const canWebgl = () => {
+  if (_webgl !== null) return _webgl
+  try {
+    const c = document.createElement('canvas')
+    _webgl = !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')))
+  } catch { _webgl = false }
+  return _webgl
+}
+
 import dynamic from 'next/dynamic'
 
 // 🎯 The zone in space rides in on demand, same deal as the spray chart's
@@ -279,6 +295,8 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
   const [zone3d, setZone3d] = useState(false)
+  const [webgl3d, setWebgl3d] = useState(false)
+  useEffect(() => { setWebgl3d(canWebgl()) }, [])
   // 🔍 hover popout (2026-08-08, Donovan: "i wish it was like hover over pop
   // out") — a real card instead of the browser's sluggish title bubble. It
   // carries EVERYTHING the Hot Zones tab knows about the cell: his line, his
@@ -799,6 +817,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
       {/* .zone-wrap / .zone-grid are phone hooks only — MobileCSS widens the
           wrap to the full card and shrinks the grid to a viewport-relative
           square. On a desktop these classes carry nothing. */}
+      {!(zone3d && webgl3d) && (
       <div className="zone-wrap" style={{ maxWidth: 250, margin: '0 auto' }}>
         <div className="zone-grid" style={{
           position: 'relative', height: ZG.h,
@@ -964,6 +983,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           })()}
         </div>
       </div>
+      )}
 
       {/* LIVE KEY — the shapes, in the same row height and type as the rest
           of this card, so nothing here reads as a borrowed chart. */}
