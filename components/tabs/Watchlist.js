@@ -397,7 +397,20 @@ function WatchTracker({ items, nightOf, slateDate, mode, onLedger }) {
         // pid rides along so the night can also be remembered per hitter. It
         // is the MLB id, the same key nightOf is built on — never the
         // composite row key, which is the bug this whole layer died of once.
-        return g ? { pid: id, ab: n(g.actual_ab, 0), hr: n(g.actual_hr, 0), hits: n(g.actual_hits, 0) } : null
+        // The four extra fields are what let the ledger score the same bars
+        // the bot is graded on (lib/liveSlate.js pickCleared). All four are
+        // published on every graded row — see lib/graded.js's field list.
+        return g ? {
+          pid: id,
+          ab: n(g.actual_ab, 0),
+          hr: n(g.actual_hr, 0),
+          hits: n(g.actual_hits, 0),
+          doubles: n(g.actual_doubles, 0),
+          triples: n(g.actual_triples, 0),
+          tb: n(g.actual_tb, 0),
+          runs: n(g.actual_runs, 0),
+          rbi: n(g.actual_rbi, 0),
+        } : null
       }).filter(Boolean)
       // THE FIELD ON THE SAME NIGHT: every tracked hitter in the graded file
       // who batted, not just your stars. Both sides are read off the same map
@@ -532,9 +545,44 @@ function WatchTracker({ items, nightOf, slateDate, mode, onLedger }) {
       <div className="watch-track" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         {cell('Went deep', led.hrPct == null ? '—' : `${led.hrPct.toFixed(1)}%`, `${led.hr} of ${led.n} starts`, led.hr ? '#4ade80' : C.text3)}
         {cell('Got a hit', led.hitPct == null ? '—' : `${led.hitPct.toFixed(1)}%`, `${led.hit} of ${led.n}`, '#a78bfa')}
+        {/* ── THE FOUR NEWER BARS CARRY THEIR OWN DENOMINATOR ─────────────
+            Nights recorded before 2026-08-31 have no XBH key on them, and
+            folding those in as zeroes would print "an extra-base hit in 0 of
+            240 starts" about a stretch nobody was counting. `extras` is null
+            until a night measures them, and its `n` is the starts on those
+            nights only — which is why these tiles say "of {extras.n}" and the
+            two above say "of {led.n}". Two different denominators, printed as
+            two different denominators. Same rule the field baseline follows. */}
+        {led.extras && led.extras.n > 0 && [
+          ['Multi-hit', led.extras.mh, '#a78bfa', 'two hits or more'],
+          ['XBH', led.extras.xbh, '#22d3ee', 'a double, triple or homer'],
+          ['H+R+RBI 2+', led.extras.hrr, '#FCD34D', 'the bot’s HRR bar'],
+          ['2+ bases', led.extras.tb2, '#f97316', 'the bot’s CONTACT bar'],
+        ].map(([label, v, col, note]) => cell(
+          label,
+          `${((100 * v) / led.extras.n).toFixed(1)}%`,
+          `${v} of ${led.extras.n} · ${note}`,
+          col,
+        ))}
         {cell('Starts tracked', led.n, `across ${led.nights} night${led.nights === 1 ? '' : 's'}`, C.orange)}
         {cell('Void', led.void, 'saved but never batted', C.text3)}
       </div>
+      {led.extras && led.extras.nights < led.nights && (
+        <div style={{ fontSize: 9, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
+          Multi-hit, XBH, H+R+RBI and 2+ bases cover the{' '}
+          <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{led.extras.nights}</b> night
+          {led.extras.nights === 1 ? '' : 's'} recorded since this page started counting them —
+          not the full {led.nights}. The earlier nights are not zeroes on those bars, they are
+          unmeasured, so they sit out rather than dragging the rate down.
+        </div>
+      )}
+      {led.extras && led.extras.n > 0 && (
+        <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8, fontFamily: NUM_FONT }}>
+          Raw totals over those nights: <b style={{ color: C.text2 }}>{led.extras.totalHits}</b> hits ·{' '}
+          <b style={{ color: C.text2 }}>{led.extras.totalTb}</b> total bases ·{' '}
+          <b style={{ color: C.text2 }}>{led.extras.totalHr}</b> homers.
+        </div>
+      )}
       {spark.length > 1 && (
         <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', marginBottom: 6 }}>
           {spark.map((r) => {
@@ -797,14 +845,37 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             ['Avg HR score', avgHr.toFixed(1), '#f97316', ''],
             ['Weak spots', weak, '#FCD34D', ''],
             ['Confirmed', `${conf}/${items.length}`, conf === items.length ? '#4ade80' : '#a78bfa', 'lineups locked'],
+            // ── TONIGHT, ON ALL SIX BARS (2026-08-31) ──────────────────
+            //
+            // Donovan: "i think it should trakc a few more like xbh or hrr...
+            // maybe like total hits."
+            //
+            // The four that matter are not a judgement call: pickCleared() in
+            // lib/liveSlate.js already defines the bars the BOT is graded on —
+            // 1+ HR, 1+ hit, 2+ H+R+RBI, 2+ total bases. Tracking two of them
+            // meant your saved list and the bot's picks were being measured
+            // with different rulers and could not be compared. Now they can.
+            //
+            // XBH and multi-hit ride along because the raw counts already
+            // answer them and nobody was asking: a double is not a homer and
+            // is not nothing, and one hit is not three.
             ...(() => {
               const graded = items.map((p) => nightOf.get(mlbId(p))).filter(Boolean)
               if (!graded.length) return []
-              const hrs = graded.filter((g) => Number(g.actual_hr) > 0).length
-              const hits = graded.filter((g) => Number(g.actual_hits) > 0).length
+              const N = graded.length
+              const cnt = (f) => graded.filter(f).length
+              const xbh = (g) => Number(g.actual_doubles || 0) + Number(g.actual_triples || 0) + Number(g.actual_hr || 0)
+              const combo = (g) => Number(g.actual_hits || 0) + Number(g.actual_runs || 0) + Number(g.actual_rbi || 0)
+              const hrs = cnt((g) => Number(g.actual_hr) > 0)
+              const half = (v) => (v > N / 2 ? '#4ade80' : '#a78bfa')
               return [
-                ['💥 Went deep', `${hrs}/${graded.length}`, hrs ? '#4ade80' : C.text3, 'saved hitters who homered tonight'],
-                ['Got a hit', `${hits}/${graded.length}`, hits > graded.length / 2 ? '#4ade80' : '#a78bfa', 'tonight, of those graded so far'],
+                ['💥 Went deep', `${hrs}/${N}`, hrs ? '#4ade80' : C.text3, 'Saved hitters who homered tonight. The bot\u2019s HR and TOP bar.'],
+                ['Got a hit', `${cnt((g) => Number(g.actual_hits) > 0)}/${N}`, half(cnt((g) => Number(g.actual_hits) > 0)), 'One hit or more \u2014 the bot\u2019s HIT bar, of those graded so far.'],
+                ['Multi-hit', `${cnt((g) => Number(g.actual_hits || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_hits || 0) >= 2)), 'Two hits or more. One hit and three hits are not the same night.'],
+                ['XBH', `${cnt((g) => xbh(g) > 0)}/${N}`, half(cnt((g) => xbh(g) > 0)), 'A double, a triple or a homer. A double is not a homer and is not nothing.'],
+                ['H+R+RBI 2+', `${cnt((g) => combo(g) >= 2)}/${N}`, half(cnt((g) => combo(g) >= 2)), 'The bot\u2019s HRR bar, scored exactly as pickCleared() scores it.'],
+                ['2+ bases', `${cnt((g) => Number(g.actual_tb || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_tb || 0) >= 2)), 'The bot\u2019s CONTACT bar: two or more total bases.'],
+                ['Total hits', graded.reduce((a, g) => a + (Number(g.actual_hits) || 0), 0), C.orange, 'Raw hits across every saved hitter tonight \u2014 a count, not a rate, so it has no denominator to be honest about.'],
               ]
             })(),
           ].map(([l, v, c2, note]) => (
