@@ -31,7 +31,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
-import { hasVapid, vapidDetails } from '../../../../../lib/dash/vapid'
+import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 
@@ -189,7 +189,13 @@ function bundle(events) {
 
 export async function GET(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!hasVapid()) return Response.json({ skipped: 'vapid-not-configured' })
+  const vapidBad = vapidProblem()
+  if (vapidBad) {
+    // Named, and at error level, so it shows up in the log filter rather than
+    // hiding inside a 200 that says "skipped".
+    console.error('[push] tick cannot send: ' + vapidBad)
+    return Response.json({ skipped: 'vapid-not-configured', problem: vapidBad })
+  }
   const db = service()
   if (!db) return Response.json({ skipped: 'supabase-service-key-missing' })
 
@@ -237,7 +243,16 @@ export async function GET(request) {
   const toSend = events.filter((e) => fresh.has(e.key))
   if (!toSend.length) return Response.json({ sent: 0, seen: events.length, reason: 'all-already-sent' })
 
-  webpush.setVapidDetails(vapidDetails().subject, vapidDetails().publicKey, vapidDetails().privateKey)
+  // Called once per run and able to throw on a malformed key or subject.
+  // Unguarded this took the whole tick down as a 500 the moment anything was
+  // actually worth sending -- which is to say, on the one night it mattered.
+  try {
+    const v = vapidDetails()
+    webpush.setVapidDetails(v.subject, v.publicKey, v.privateKey)
+  } catch (err) {
+    console.error('[push] setVapidDetails refused the keys: ' + String(err?.message || err))
+    return Response.json({ sent: 0, reason: 'vapid-rejected', events: events.length })
+  }
 
   let sent = 0
   let held = 0

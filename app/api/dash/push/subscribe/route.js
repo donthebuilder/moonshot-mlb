@@ -26,7 +26,7 @@ import webpush from 'web-push'
 
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { hasSupabaseConfig } from '../../../../../lib/supabase/config'
-import { hasVapid, vapidDetails } from '../../../../../lib/dash/vapid'
+import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -70,6 +70,8 @@ const WELCOME = {
 }
 
 async function welcome(sub) {
+  const bad = vapidProblem()
+  if (bad) { console.error('[push] cannot send: ' + bad); return false }
   try {
     const v = vapidDetails()
     webpush.setVapidDetails(v.subject, v.publicKey, v.privateKey)
@@ -78,20 +80,30 @@ async function welcome(sub) {
       JSON.stringify(WELCOME),
     )
     return true
-  } catch {
+  } catch (err) {
+    // Was a silent `catch { return false }`, which is how a broken key pair
+    // stayed invisible for a day. Loud in the log, quiet to the caller.
+    console.error('[push] welcome failed: ' + String(err?.statusCode || '') + ' ' + String(err?.message || err))
     return false
   }
 }
 
 export async function GET() {
+  // `problem` is deliberately readable without signing in: it names an
+  // environment variable and its expected shape, never any part of a value,
+  // and it is the difference between "push is broken" and "push is broken
+  // BECAUSE".
+  const problem = vapidProblem()
   return Response.json({
-    configured: hasVapid(),
-    publicKey: hasVapid() ? process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY : null,
+    configured: !problem,
+    problem,
+    publicKey: problem ? null : process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   })
 }
 
 export async function POST(request) {
-  if (!hasVapid()) return Response.json({ error: 'Push is not configured on this deploy' }, { status: 503 })
+  const problem = vapidProblem()
+  if (problem) return Response.json({ error: 'Push is not configured on this deploy', problem }, { status: 503 })
   const { supabase, user: me } = await user()
   if (!me) return Response.json({ error: 'Sign in first — a subscription belongs to an account' }, { status: 401 })
 
