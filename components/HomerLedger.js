@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { alpha } from '../lib/scales'
 import { nameOf, teamOf, n, clean } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 import { pickSplit } from '../lib/seasonSplit'
@@ -11,7 +12,7 @@ import { WhatThis } from './ui'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive, readAlignArchive, shiftDateKey, usePeople, axesOf } from '../lib/alignments'
-import { listLedgerNights } from '../lib/ledgerArchive'
+import { listLedgerNights, readLedgerNight } from '../lib/ledgerArchive'
 import { gradedResultsUrl } from '../lib/dataSource'
 import { findNameEchoes, nameParts, pairEcho, cadenceShape } from '../lib/namePatterns'
 import NamePatterns from './NamePatterns'
@@ -378,23 +379,81 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   // is a panel.
   const NightPicker = () => {
     if (!research || nights.length === 0) return null
+    // ── PICK A NIGHT BY LOOKING AT IT (2026-08-31) ─────────────────────────
+    //
+    // This was a wrap of identical date pills — "08-24 08-25 08-26 …" — and on
+    // a browser holding sixty archived nights that is sixty identical objects
+    // with nothing to choose between them. The question anyone actually has in
+    // front of an archive is WHICH NIGHT IS WORTH OPENING, and a row of dates
+    // cannot answer it, so people open a few at random and stop.
+    //
+    // Every archived night already carries its own homer total (entry.total,
+    // written by lib/ledgerArchive.js). So the picker draws it: one bar per
+    // night, height scaled to that night's homers, newest on the right like
+    // every other strip on this site. A big night looks like a big night.
+    //
+    // The bars are read straight off localStorage, no fetch, and a night the
+    // store has no count for still renders as a selectable stub rather than
+    // disappearing — an unknown count is not zero homers.
+    const counts = nights.map((d) => {
+      const rec = readLedgerNight(d)
+      const total = Number(rec?.total)
+      return { date: d, total: Number.isFinite(total) ? total : null }
+    })
+    const top = Math.max(1, ...counts.map((c) => c.total || 0))
+    const cell = (key, label, sub, total, isOn) => (
+      <button key={key} onClick={() => setNight(key)}
+        // Tonight is not an archived night with a missing count — it is the
+        // live slate, and telling somebody their device has no count for it
+        // reads as a fault. Caught in render.
+        title={key === ''
+          ? 'Tonight — the live slate, counted as it happens rather than read off the archive.'
+          : total == null
+            ? `${label} — this device has the night archived but no homer count stored for it.`
+            : `${label} — ${total} homer${total === 1 ? '' : 's'} on that slate.`}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          padding: '4px 5px 3px', borderRadius: 8, cursor: 'pointer', flex: '0 0 auto',
+          border: `1px solid ${isOn ? C.orange : 'transparent'}`,
+          background: isOn ? `${C.orange}14` : 'transparent',
+        }}>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 8, color: isOn ? C.orange : C.text3, lineHeight: 1 }}>
+          {total == null ? '·' : total}
+        </span>
+        <span style={{
+          width: 12, borderRadius: 2,
+          height: total == null ? 3 : Math.max(3, Math.round((total / top) * 26)),
+          background: total == null ? C.border2 : (isOn ? C.orange : alpha(C.orange, 0.42)),
+        }} />
+        <span style={{ fontFamily: NUM_FONT, fontSize: 8, color: isOn ? C.text2 : C.text3, whiteSpace: 'nowrap' }}>
+          {sub}
+        </span>
+      </button>
+    )
     return (
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', margin: '7px 0 9px' }}>
-        {[['', 'Tonight'], ...nights.map((d) => [d, d.slice(5)])].map(([k, label]) => (
-          <button key={k || 'today'} onClick={() => setNight(k)} style={{
-            fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800, cursor: 'pointer',
-            padding: '3px 9px', borderRadius: 999,
-            border: `1px solid ${night === k ? C.orange : C.border}`,
-            background: night === k ? `${C.orange}18` : 'transparent',
-            color: night === k ? C.orange : C.text3,
-          }}>{label}</button>
-        ))}
-        {nightState === 'loading' && <span style={{ fontSize: 9, color: C.text3 }}>loading…</span>}
-        {nightState === 'empty' && night && (
-          <span style={{ fontSize: 9, color: C.yellow }}>
-            no graded file published for {night}
+      <div style={{ margin: '7px 0 9px' }}>
+        <div className="dense-scroll" style={{
+          display: 'flex', gap: 2, alignItems: 'flex-end', overflowX: 'auto',
+          paddingBottom: 2, WebkitOverflowScrolling: 'touch',
+        }}>
+          {cell('', 'Tonight', 'now', null, night === '')}
+
+          {/* Oldest on the left, newest on the right — the same direction as
+              the run strips and the sparklines, so the eye does not have to
+              relearn which way time runs on this page. */}
+          {[...counts].reverse().map((c) => cell(c.date, c.date, c.date.slice(5), c.total, night === c.date))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginTop: 3 }}>
+          <span style={{ fontSize: 8.5, color: C.text3 }}>
+            bar height is that night&apos;s homers · newest on the right
           </span>
-        )}
+          {nightState === 'loading' && <span style={{ fontSize: 9, color: C.text3 }}>loading…</span>}
+          {nightState === 'empty' && night && (
+            <span style={{ fontSize: 9, color: C.yellow }}>
+              no graded file published for {night}
+            </span>
+          )}
+        </div>
       </div>
     )
   }
