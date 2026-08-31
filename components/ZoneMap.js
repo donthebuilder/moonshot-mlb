@@ -80,9 +80,9 @@ const fmtPct = (v) => (v == null ? '—' : `${(100 * v).toFixed(v >= 0.1 ? 0 : 1
 // top-3 that is ALSO in the pitcher's top-3 damage zones, sample-gated.
 // Says "no match" out loud when nothing lines up.
 const MATCH_STATS = [
-  { key: 'hr_rate', label: 'HR',  col: '#f87171' },
-  { key: 'ba',      label: 'BA',  col: '#4ade80' },
-  { key: 'fb_rate', label: 'FLY', col: '#22d3ee' },
+  { key: 'hr_rate', label: 'HR',  col: C.red },
+  { key: 'ba',      label: 'BA',  col: C.green },
+  { key: 'fb_rate', label: 'FLY', col: C.cyan },
   { key: 'gb_rate', label: 'GB',  col: '#FCD34D' },
 ]
 const topZones = (cells, key, n = 3) => [...(cells || [])]
@@ -183,7 +183,7 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
 }
 
 // per-pitch chip colors — matches the site's pitch language elsewhere
-const P_COLORS = { FF: '#f87171', SI: '#fb923c', FC: '#fbbf24', SL: '#22d3ee', ST: '#67e8f9', CU: '#a78bfa', KC: '#c4b5fd', CH: '#4ade80', FS: '#86efac', OTHER: '#9ca3af' }
+const P_COLORS = { FF: C.red, SI: '#fb923c', FC: '#fbbf24', SL: C.cyan, ST: '#67e8f9', CU: C.purple, KC: '#c4b5fd', CH: C.green, FS: '#86efac', OTHER: '#9ca3af' }
 
 // ── TONIGHT'S PITCHES, ON THIS MAP ──────────────────────────────────────────
 //
@@ -659,14 +659,14 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
         {liveOnly && (
           <span title="On this page the only dots are tonight's pitches to this hitter. The cell colour and the starter's usage percentage stay as background context." style={{
             fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
-            color: '#4ade80', border: '1px solid rgba(74,222,128,.5)', background: 'rgba(74,222,128,.10)',
+            color: C.green, border: '1px solid rgba(74,222,128,.5)', background: 'rgba(74,222,128,.10)',
             borderRadius: 999, padding: '2px 8px',
           }}>● TONIGHT ONLY {allLive.length}</span>
         )}
         {!liveOnly && hasLive && (
           <span title={`${allLive.length} tracked pitches from tonight's feed, plotted on this same map`} style={{
             fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
-            color: '#4ade80', border: '1px solid rgba(74,222,128,.45)', background: 'rgba(74,222,128,.10)',
+            color: C.green, border: '1px solid rgba(74,222,128,.45)', background: 'rgba(74,222,128,.10)',
             borderRadius: 999, padding: '2px 8px',
           }}>● LIVE {allLive.length}</span>
         )}
@@ -696,7 +696,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
       }}>
         <span style={{
           fontSize: 8, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT,
-          color: whose[0] === 'THE STARTER' ? '#f87171' : whose[0] === 'BOTH' ? '#a78bfa' : C.orange,
+          color: whose[0] === 'THE STARTER' ? C.red : whose[0] === 'BOTH' ? C.purple : C.orange,
         }}>{whose[0]}</span>
         <span style={{ fontSize: 10, color: C.text2, lineHeight: 1.45 }}>{whose[1]}</span>
       </div>
@@ -781,8 +781,8 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
               ['PITCHES', String(lsum.n), C.text, `Every tracked pitch to ${liveLabel || 'this hitter'} tonight`],
               ['STRIKE', lsum.n ? `${Math.round((100 * lsum.strikes) / lsum.n)}%` : '—', '#fbbf24', 'Called, swung at, fouled or put in play'],
               ['IN ZONE', lsum.n ? `${Math.round((100 * lsum.inZone) / lsum.n)}%` : '—', C.cyan, "Inside the batter's own measured zone"],
-              ['WHIFF', lsum.swings ? `${Math.round((100 * lsum.whiffs) / lsum.swings)}%` : '—', '#f87171', `${lsum.whiffs} misses on ${lsum.swings} swings`],
-              ['CHASE', lsum.outZone ? `${Math.round((100 * lsum.chases) / lsum.outZone)}%` : '—', '#a78bfa', `${lsum.chases} swings at ${lsum.outZone} pitches out of the zone`],
+              ['WHIFF', lsum.swings ? `${Math.round((100 * lsum.whiffs) / lsum.swings)}%` : '—', C.red, `${lsum.whiffs} misses on ${lsum.swings} swings`],
+              ['CHASE', lsum.outZone ? `${Math.round((100 * lsum.chases) / lsum.outZone)}%` : '—', C.purple, `${lsum.chases} swings at ${lsum.outZone} pitches out of the zone`],
               ['AVG V', lsum.veloAvg != null ? lsum.veloAvg.toFixed(1) : '—', '#fb923c', 'Average release speed of the pitches shown'],
             ].map(([k, v, col, tip]) => (
               <span key={k} title={tip} style={{
@@ -945,7 +945,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 background: C.bg2, border: `1px solid ${isKill ? C.orange : C.border2}`,
                 borderRadius: 8, padding: '7px 10px', boxShadow: `0 6px 20px ${C.glass}`,
               }}>
-                <div style={{ fontSize: 9.5, fontWeight: 900, color: isKill ? '#f87171' : C.text, marginBottom: 2, whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: isKill ? C.red : C.text, marginBottom: 2, whiteSpace: 'nowrap' }}>
                   {ZONE_NAME[zn]}{isKill ? ' · KILL ZONE' : ''}
                 </div>
                 {b ? (<>
@@ -969,7 +969,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                   const here = liveByCell[zn] || []
                   return (
                     <div style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
-                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.08em', color: '#4ade80', fontFamily: NUM_FONT }}>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.08em', color: C.green, fontFamily: NUM_FONT }}>
                         ● TONIGHT
                       </div>
                       {here.length === 0 ? (
@@ -1005,7 +1005,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           of this card, so nothing here reads as a borrowed chart. */}
       {hasLive && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 7, fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-          <span style={{ color: '#4ade80', fontWeight: 900, letterSpacing: '.07em' }}>● TONIGHT</span>
+          <span style={{ color: C.green, fontWeight: 900, letterSpacing: '.07em' }}>● TONIGHT</span>
           {LIVE_KINDS.map((k) => (
             <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <span style={{ display: 'inline-flex', width: 17, height: 17, alignItems: 'center', justifyContent: 'center' }}>
@@ -1022,7 +1022,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           the order it happened, with the count before each pitch. */}
       {hasLive && lastAb.length > 0 && (
         <div style={{ marginTop: 7, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 9px', background: 'rgba(74,222,128,.035)' }}>
-          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.07em', color: '#4ade80', fontFamily: NUM_FONT, marginBottom: 3 }}>
+          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.07em', color: C.green, fontFamily: NUM_FONT, marginBottom: 3 }}>
             LATEST PLATE APPEARANCE
             {lastAb[0].batterName ? ` · ${lastAb[0].batterName}` : ''}
             {lastAb[0].pitcherName ? ` vs ${lastAb[0].pitcherName}` : ''}
@@ -1036,7 +1036,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 <span style={{ color: pitchColor(p.type), fontWeight: 800, width: 26, flexShrink: 0 }}>{p.type || '—'}</span>
                 <span style={{ color: C.text2, width: 30, flexShrink: 0 }}>{p.velo != null ? p.velo.toFixed(0) : '—'}</span>
                 <span style={{
-                  color: p.kind === 'whiff' ? '#f87171' : p.kind === 'inplay' ? '#4ade80' : p.kind === 'called' ? '#fbbf24' : C.text3,
+                  color: p.kind === 'whiff' ? C.red : p.kind === 'inplay' ? C.green : p.kind === 'called' ? '#fbbf24' : C.text3,
                   fontWeight: p.kind === 'whiff' || p.kind === 'inplay' ? 800 : 500,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
                 }}>{p.call || KIND_LABEL[p.kind]}</span>
@@ -1051,7 +1051,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
 
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         {hasLive && <>
-          <b style={{ color: '#4ade80' }}>Tonight&apos;s dots</b> are the live feed&apos;s own pX/pZ, laid over the
+          <b style={{ color: C.green }}>Tonight&apos;s dots</b> are the live feed&apos;s own pX/pZ, laid over the
           same grid: the dashed box is the batter&apos;s measured zone ({lbox.bot.toFixed(2)}–{lbox.top.toFixed(2)} ft
           {lbox.measured ? '' : ', league default — no measured zone in this feed yet'}), anything outside it sits
           in the shadow corners. Hover a dot for the pitch, the call and the count; hover a cell for what was

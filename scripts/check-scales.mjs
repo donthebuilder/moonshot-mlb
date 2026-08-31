@@ -79,13 +79,39 @@ const EXEMPT = new Set([
   'lib/hrShape.js',        // HR_BANDS: one definition, four consumers, already right
   'lib/nfl/theme.js',      // the NFL fork — its own problem, tracked separately
   'components/shareCard.js', // a PNG poster: 32 team colours, dark by construction
+
+  // ── THE TWO CLUB REGISTRIES (added 2026-08-31) ───────────────────────────
+  // Exempt on the SAME stated ground as shareCard.js above, and on the rule
+  // lib/mlbTeams.js's own header already declares: a team colour is an
+  // IDENTITY, not a data colour. It may never shade a value, fill a bar or
+  // rank anything, so it is not a colour this checker can make answerable —
+  // it is answerable already, by the club.
+  //
+  // Both are single-valued by construction, one entry per club, which is the
+  // property check #2 exists to enforce everywhere else. mlbTeams.js was an
+  // oversight: shareCard.js was exempted for holding the same thirty-two
+  // colours while the table it reads from was not.
+  //
+  // THIS IS NOT A LOOPHOLE FOR NEW COLOUR. Only a registry whose entries are
+  // externally defined — a club's own published palette — belongs here. A
+  // colour the site chose is never externally defined, and never goes in one
+  // of these files to duck the budget.
+  'lib/mlbTeams.js',       // the thirty, one primary each
+  'lib/nfl/teamColors.js', // the thirty-two, one pair each
 ])
 
 // 1161 was the audit's count on 2026-08-22. Ratcheted after each pass:
 //   1161  the audit
 //    875  after the colour/chart pass (five charts + the system)
 //    871  after the Rundown pass
-const HEX_BUDGET = 854
+//    836  2026-08-31: the two club registries moved out of render code and
+//         exempted on the identity-not-data rule, and 42 literals in
+//         SprayField / ZoneMap / Pairs that were already theme tokens
+//         (#4ade80 = C.green, #f87171 = C.red, and four more) converted to
+//         the tokens themselves. Those forty-two are the interesting half:
+//         each was a colour that LOOKED like the theme and did not follow it,
+//         which is the exact failure mode this budget is a proxy for.
+const HEX_BUDGET = 836
 
 let hexTotal = 0
 const perFile = []

@@ -318,8 +318,8 @@ const BB_TYPES = [
 // All three flagged in place below, same as Results.js's TOP case: reported,
 // not resolved.
 const RESULT_COLORS = {
-  home_run: '#f87171',   // C.red — NOT catColor('result','home_run') (=C.orange); see the flag above
-  double:   '#4ade80',   // C.green — NOT catColor('result','double') (=C.cyan); see the flag above
+  home_run: C.red,   // C.red — NOT catColor('result','home_run') (=C.orange); see the flag above
+  double:   C.green,   // C.green — NOT catColor('result','double') (=C.cyan); see the flag above
   out:      '#3f3f46',   // near-black grey, the majority case kept silent — NOT catColor('result','out') (=C.text3); see the flag above
 }
 // triple/single ARE byte-identical to the registry (catColor('result',
@@ -1155,7 +1155,7 @@ export default function SprayField({
           border: '1px solid rgba(248,113,113,.3)', background: 'rgba(248,113,113,.07)',
           fontSize: 9.5, color: C.text3, lineHeight: 1.5,
         }}>
-          <span style={{ color: '#f87171', fontWeight: 900 }}>🔴 Live Statcast pull</span>
+          <span style={{ color: C.red, fontWeight: 900 }}>🔴 Live Statcast pull</span>
           <span>
             he isn&apos;t in the bot&apos;s cache for this slate, so these {hits.length} batted balls came
             straight from Savant just now — same season, same balls, different pipe. Barrel,

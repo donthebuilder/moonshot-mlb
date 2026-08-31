@@ -25,12 +25,12 @@ const PAIR_TYPE_COLORS = {
   'Core HR Pair':            '#FB923C',
   'Hot + Due Pair':          '#FCD34D',
   'Statcast HR Pair':        '#FCD34D',
-  'Pitcher Target Pair':     '#f87171',
-  'Flex HR Pair':            '#22d3ee',
-  'Same-Game Stack Pair':    '#22d3ee',
-  'Variance Pair':           '#a78bfa',
-  'Variance Power Pair':     '#a78bfa',
-  'HRR Safer Pair':          '#4ade80',
+  'Pitcher Target Pair':     C.red,
+  'Flex HR Pair':            C.cyan,
+  'Same-Game Stack Pair':    C.cyan,
+  'Variance Pair':           C.purple,
+  'Variance Power Pair':     C.purple,
+  'HRR Safer Pair':          C.green,
 }
 // The "unknown type" fallback isn't identity — it's the same quiet neutral
 // catColor() itself falls back to — so it routes through the theme token.
@@ -74,9 +74,9 @@ const LANE_ORDER = ['TOP30', 'A', 'B', 'C', 'D']
 const LANE_META = {
   TOP30: { short: 'TOP 30', color: '#FB923C', blurb: 'The bot’s headline board — scored on a different scale from the lettered lanes.' },
   A:     { short: 'LANE A', color: '#FCD34D', blurb: 'Core: the safest construction it will offer.' },
-  B:     { short: 'LANE B', color: '#22d3ee', blurb: 'Statcast: built off contact quality rather than the board.' },
-  C:     { short: 'LANE C', color: '#a78bfa', blurb: 'Flex: looser, leans on HRR and hit shape.' },
-  D:     { short: 'LANE D', color: '#4ade80', blurb: 'Value power: cheaper bats with a matchup reason.' },
+  B:     { short: 'LANE B', color: C.cyan, blurb: 'Statcast: built off contact quality rather than the board.' },
+  C:     { short: 'LANE C', color: C.purple, blurb: 'Flex: looser, leans on HRR and hit shape.' },
+  D:     { short: 'LANE D', color: C.green, blurb: 'Value power: cheaper bats with a matchup reason.' },
 }
 const laneMeta = (k) => LANE_META[k] || { short: String(k || 'OTHER').toUpperCase(), color: C.text3, blurb: '' }
 
@@ -283,9 +283,9 @@ function enforceUniquePairExposure(pairs=[], maxExposure=1, limit=30) {
 // worse than a whole literal one, since it implies a single-value guarantee
 // this map doesn't actually have.
 const TAG_COLORS = {
-  '🏆':'#FB923C','🧨':'#FB923C','🔥':'#f97316',
-  '🏁':'#22d3ee','💠':'#38bdf8','⚾':'#4ade80','⭐':'#FCD34D',
-  '🔭':'#71717a','⛔':'#ef4444','🧩':'#a78bfa',
+  '🏆':'#FB923C','🧨':'#FB923C','🔥':C.orange,
+  '🏁':C.cyan,'💠':'#38bdf8','⚾':C.green,'⭐':'#FCD34D',
+  '🔭':'#71717a','⛔':'#ef4444','🧩':C.purple,
 }
 function tagColor(tag) {
   for (const [emoji, color] of Object.entries(TAG_COLORS)) {
@@ -1265,7 +1265,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
 // the count, which — like HotZoneMap's own zone-heat-ramp — is separate,
 // harder work than a mechanical hex swap. Left literal on purpose.
 const HISTORY_TIERS = [
-  { key: 'elite',      label: '🔥 Elite',      min: 8, color: '#f87171' },
+  { key: 'elite',      label: '🔥 Elite',      min: 8, color: C.red },
   { key: 'solid',      label: '⚡ Solid',       min: 6,  color: C.orange },
   { key: 'occasional', label: '🔹 Occasional', min: 0,  color: C.text3 },
 ]
