@@ -295,7 +295,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
   })
 
   return (
-    <header ref={hdrRef} style={{
+    <header ref={hdrRef} className={tab === 'home' ? undefined : 'hdr-slate-on'} style={{
       position:'sticky', top:0, zIndex:50,
       background: hexToRgba(C.bg, 0.92),
       backdropFilter:'blur(14px)',
@@ -601,9 +601,29 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
            vitals strip goes too; Home repeats the slate context. The date
            badge and live/date mode switch STAY: they change what every tab
            shows and have no equivalent in the bottom bar. */
+        /* ── AND THE TICKER COMES BACK, EXCEPT ON HOME (2026-08-31) ─────
+           The diet above hid the vitals strip on every phone screen on the
+           grounds that "Home repeats the slate context". Half true: Home's
+           hero row does carry it, and ONLY Home's does. On Slate, Props,
+           Picks, Charts or anywhere else a phone had no slate context at
+           all, and the live strip -- the one thing on this page that reads
+           as an instrument rather than a table -- existed only on desktop.
+
+           So the rule is scoped to the tab instead of the width. Home keeps
+           the 99px header it earned; every other tab gets the strip back as
+           one scrollable line under the top row.
+
+           NOTE THE :not(). This does not force the strip visible -- it just
+           stops hiding it -- so the inline display: condensed ? 'none' :
+           'flex' above still owns the scroll-condense, and scrolling down
+           still takes the strip away exactly as it does on desktop.
+           Overriding with display: flex !important here would have quietly
+           broken that. MobileCSS.js already sizes the strip for a phone
+           (nowrap, one full-width line, swipeable), so there is nothing to
+           add for layout. */
         @media (max-width: 760px) {
           .rail { display: none !important; }
-          .hdr-vitals { display: none !important; }
+          header:not(.hdr-slate-on) .hdr-vitals { display: none !important; }
         }
       `}</style>
     </header>

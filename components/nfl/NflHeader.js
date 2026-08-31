@@ -204,7 +204,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
       : ''
 
   return (
-    <header style={{
+    <header className={tab === 'home' ? undefined : 'hdr-slate-on'} style={{
       position: 'sticky', top: 0, zIndex: 40,
       background: 'rgba(9,9,11,0.86)', backdropFilter: 'blur(14px)',
       borderBottom: `1px solid ${C.border}`,
@@ -468,11 +468,17 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         @media (max-width: 760px) {
           .nfl-header-rail { display: none !important; }
           .nfl-header-built { display: none !important; }
-          /* The ticker goes with the rest of the diet — Home's hero repeats
-             the slate context on a phone. The PRESEASON chip stays, because
-             it is a caveat about the data and not furniture. */
-          .nfl-header-tiles > *:not(.nfl-header-preseason) { display: none !important; }
-          .nfl-header-tiles { flex: 0 1 auto !important; }
+          /* THE TICKER COMES BACK, EXCEPT ON HOME (2026-08-31). It went
+             with the rest of the diet on the grounds that "Home's hero
+             repeats the slate context" -- true of Home and of no other tab,
+             which left a phone with no slate context at all on Boards, Live,
+             Matchups or Players. Scoped to the tab now rather than the
+             width: Home keeps its short header, every other tab gets the
+             strip back. The PRESEASON chip was never hidden either way,
+             because it is a caveat about the data and not furniture. */
+          header:not(.hdr-slate-on) .nfl-header-tiles > *:not(.nfl-header-preseason) { display: none !important; }
+          header:not(.hdr-slate-on) .nfl-header-tiles { flex: 0 1 auto !important; }
+          .hdr-slate-on .nfl-header-tiles { flex: 1 1 100% !important; }
         }
       `}</style>
     </header>
