@@ -10,7 +10,7 @@ import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } fro
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
 // disagreeing about what "hot" looks like, and keeps this file free of hex.
-import { seqColor } from '../lib/scales'
+import { seqColor, DIV_UP, DIV_DOWN, DIV_FLAT } from '../lib/scales'
 
 // 🎯 THE STRIKE ZONE, IN SPACE — the zone map's stadium view.
 //
@@ -369,6 +369,20 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       const maxSlg = slgs.length ? Math.max(...slgs) : 0
 
       const tiles = matchTiles
+
+      // Every edge first, then the maximum, then the loop. Two passes, because
+      // a cell cannot know how loud it is until the whole grid has spoken.
+      const edges = {}
+      let maxEdge = 0
+      if (hasProfile) {
+        for (let zz = 1; zz <= 9; zz++) {
+          if (use[zz] == null) continue
+          const traffic = maxUse > 0 && Number.isFinite(use[zz]) ? use[zz] / maxUse : 0
+          const damage = maxSlg > 0 && Number.isFinite(Number(dmg[zz]?.slg)) ? Number(dmg[zz].slg) / maxSlg : 0
+          edges[zz] = damage - traffic
+          maxEdge = Math.max(maxEdge, Math.abs(edges[zz]))
+        }
+      }
       const cw = (2 * PLATE_HALF) / 3, ch = ZH / 3, GAP = 0.045
       const tileAt = (z) => ({
         cx: -PLATE_HALF + cw * ((z % 3) + 0.5),
@@ -428,15 +442,38 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
 
         const profileHere = hasProfile && use[zn] != null
         if (profileHere) {
-          const traffic = maxUse > 0 && Number.isFinite(use[zn]) ? use[zn] / maxUse : 0
-          const damage = maxSlg > 0 && Number.isFinite(Number(dmg[zn]?.slg)) ? Number(dmg[zn].slg) / maxSlg : 0
-          const edge = damage - traffic
-          const mag = Math.min(1, Math.abs(edge))
-          tone = edge >= 0 ? C.orange : C.red
-          opacity = 0.34 + mag * 0.5
-          depth = 0.06 + mag * 0.10
-          glyph = edge >= 0 ? '⚡' : '⚠'
-          glyphCol = INK_DARK
+          const edge = edges[zn] || 0
+          // SCALED TO THE LOUDEST CELL ON THIS GRID, not to an absolute 1.
+          // The old line was mag = min(1, |edge|), and real edges live around
+          // 0.1–0.3 — so every tile landed within a hair of every other tile's
+          // opacity and the whole grid came out one flat red. Dividing by the
+          // grid's own maximum is the rule the flat map already states: the
+          // brightest cell is always the story of the night.
+          const mag = maxEdge > 0 ? Math.abs(edge) / maxEdge : 0
+          if (mag < 0.14) {
+            // Deadband. A cell where neither side has an edge worth naming is
+            // NEUTRAL, not a faint version of a claim.
+            tone = DEAD_TILE
+            opacity = 0.30
+            glyph = DIV_FLAT
+            glyphCol = C.text2
+          } else {
+            // ORANGE vs BLUE, and the reason is the screenshot: orange and red
+            // are neighbouring hues, and at tile opacity with a dark tone map
+            // over them they were indistinguishable — "hard to decipher", and
+            // he was right. divTone in lib/scales already settled this for the
+            // whole site: warm against COOL, never warm against warm. Using
+            // its pair here also frees RED to mean exactly one thing on this
+            // grid, which is the kill-zone outline.
+            tone = edge >= 0 ? C.orange : C.blue
+            opacity = 0.30 + mag * 0.58
+            depth = 0.06 + mag * 0.12
+            // ▲/▼/· are the site's own signs, and they are the redundant
+            // colour-blind-safe encoding — the grid stays readable in
+            // greyscale, which two hues alone never are.
+            glyph = edge >= 0 ? DIV_UP : DIV_DOWN
+            glyphCol = mag >= 0.6 ? INK_DARK : C.text
+          }
         } else if (hasStats) {
           // PER ZONE, not per grid. A profile that covers six zones used to
           // blank the other three; now each empty one falls through to the
@@ -698,9 +735,13 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
             card, so Matchup has nothing to shade — the grid is drawn empty on
             purpose, numbered so you can still see which box is which.</>
           : hasMatchup
-          ? <>Matchup reads the bot&apos;s own per-zone profile:{' '}
-            <b style={{ color: C.orange }}>orange</b> where damage outruns his usage,{' '}
-            <b style={{ color: C.red }}>red</b> where he gets away with it, ✕ his kill zones.</>
+          ? <>Matchup reads the bot&apos;s own per-zone profile, scaled to the loudest cell
+            on this grid:{' '}
+            <b style={{ color: C.orange }}>orange ▲</b> where the hitter&apos;s damage outruns
+            the arm&apos;s usage,{' '}<b style={{ color: C.blue }}>blue ▼</b> where the arm gets
+            away with it, grey · where neither has an edge worth naming.{' '}
+            <b style={{ color: C.red }}>Red outline</b> is a kill zone — the one thing red
+            means here.</>
           : <>No pitcher profile is published for this card, so the grid falls back to{' '}
             {statLabel ? `${String(statLabel).toLowerCase()}'s` : 'the hitter\u2019s'} own
             per-zone season line — the same numbers and the same ramp as the flat map.

@@ -1326,6 +1326,41 @@ export default function SprayField({
       )}
 
 
+      {/* ── AT THE PLATE GETS THE 3D TOO (2026-08-31). Donovan: "make sure
+          we ain't forgetting about the live at the plate aspect of these
+          too." It had been forgotten, completely: the 🏟 toggle lives inside
+          the "Test vs. park" row, that whole row is behind !liveOnly, and the
+          scene itself was behind !liveOnly as well. So the live view — the
+          one place a ball in flight is actually worth watching in 3D — was
+          the one place it could not be turned on.
+
+          Live mode gets its own slim row rather than the full park-test row:
+          testing a live ball against a DIFFERENT park is a question about
+          history, not about the at-bat happening now, so that control stays
+          out. The roof chip comes along because a live game's roof is real. */}
+      {liveOnly && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
+          <button
+            onClick={() => setStadium((v) => !v)}
+            title="Tonight's balls flown through this park in 3D — drag to orbit, scroll to zoom. The 2D chart stays."
+            style={{
+              padding: '2px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+              fontFamily: NUM_FONT,
+              border: `1px solid ${stadium ? C.orange : C.border}`,
+              background: stadium ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: stadium ? C.orange : C.text3,
+            }}
+          >🏟 Stadium</button>
+          {stadium && bowlFor(venue).roof === 'retract' && (
+            <button
+              onClick={() => setRoofOpen((v) => !v)}
+              title={`Drawn with the roof ${roofOpen ? 'OPEN' : 'CLOSED'}. A view setting — nothing in the feed says tonight's actual roof state.`}
+              style={{ ...chipBtn(!roofOpen, C.cyan), padding: '2px 9px' }}
+            >{roofOpen ? '☀ Drawn roof OPEN' : '⌂ Drawn roof CLOSED'}</button>
+          )}
+        </div>
+      )}
+
       {/* Pitch chips. This is the question the panel exists for: does he only
           do damage against one pitch, and does tonight's arm throw it? The
           chips now come up pre-set to the starter's mix against this side. */}
@@ -1414,7 +1449,7 @@ export default function SprayField({
           this same `shown` set the dots below draw
           from, flown in 3D against the tested park's wall when one is picked,
           his own otherwise. Additive: the SVG chart below never leaves. */}
-      {!liveOnly && stadium && (
+      {stadium && (
         <div style={{ marginBottom: 10, position: 'relative' }}>
           <SprayFieldStadium
             hits={shown}

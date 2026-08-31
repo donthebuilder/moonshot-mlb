@@ -320,6 +320,9 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   // filter driven by the same pills the rest of the card uses
   const [hoverP, setHoverP] = useState(null)
   const [liveType, setLiveType] = useState(null)
+  // The 3D dock opens expanded: its whole reason for existing is that you
+  // could not tell what the scene was drawing.
+  const [zoneDock, setZoneDock] = useState(true)
 
   useEffect(() => { setHoverP(null); setLiveType(null) }, [playerId])
 
@@ -815,32 +818,97 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 label={liveLabel || starterName || ''}
               />
 
-              {/* The spray chart's dock, in miniature. Same rule: it REPORTS
-                  the state the controls above own, it does not duplicate the
-                  controls. The pitch filter is the only one that changes what
-                  this scene draws, so it is the only one that appears — and
-                  it appears because a 3D view of "every pitch" and one of
-                  "sliders only" are indistinguishable without being told. */}
+              {/* ── THE DOCK (2026-08-31). Donovan: "where are the filters
+                  and toggles we talked about."
+
+                  The first cut was a count and nothing else, which answered
+                  the wrong half. Once the 3D scene fills the frame, the rows
+                  that govern it are off the top of it — so the controls that
+                  actually change THIS scene come onto the canvas.
+
+                  Still one source of truth: these are the same setStat /
+                  setLiveType the rows above call, not a parallel copy of the
+                  state. What is on screen and what the rows say can never
+                  disagree, because they are the same variable. */}
               <div style={{
-                position: 'absolute', top: 8, left: 8, zIndex: 3,
-                background: 'rgba(9,9,11,.82)', border: `1px solid ${C.border}`,
-                borderRadius: 9, padding: '4px 8px', backdropFilter: 'blur(6px)',
-                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800,
-                letterSpacing: '.06em', color: C.text2, display: 'flex',
-                alignItems: 'center', gap: 7,
+                position: 'absolute', top: 8, left: 8, zIndex: 3, maxWidth: '62%',
+                background: 'rgba(9,9,11,.86)', border: `1px solid ${C.border}`,
+                borderRadius: 10, padding: zoneDock ? '7px 9px' : '4px 8px',
+                backdropFilter: 'blur(6px)',
               }}>
-                <span style={{ color: C.text3 }}>SHOWING</span>
-                <span style={{ color: C.orange }}>
-                  {(liveType ? allLive.filter((p) => p.type === liveType) : allLive).length}
-                </span>
-                <span style={{ color: C.text3, fontWeight: 700 }}>of {allLive.length} pitches</span>
-                {liveType && (
-                  <button onClick={() => setLiveType(null)} title={`Turn off: ${LIVE_PITCH_NAMES[liveType] || liveType} only`}
-                    style={{
-                      fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 700, borderRadius: 999,
-                      padding: '0 6px', cursor: 'pointer', border: `1px solid ${C.orange}55`,
-                      color: C.orange, background: 'rgba(249,115,22,.10)', whiteSpace: 'nowrap',
-                    }}>{LIVE_PITCH_NAMES[liveType] || liveType} ✕</button>
+                <button
+                  onClick={() => setZoneDock((v) => !v)}
+                  title={zoneDock ? 'Collapse' : 'Show what this view is drawing'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7, width: '100%',
+                    background: 'transparent', border: 0, padding: 0, cursor: 'pointer',
+                    fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,
+                    letterSpacing: '.06em', color: C.text2,
+                  }}>
+                  <span style={{ color: C.text3 }}>{zoneDock ? '▾' : '▸'}</span>
+                  <span>{(WHOSE[stat] || WHOSE.ev)[0]}</span>
+                  {allLive.length > 0 && (
+                    <span style={{ color: C.text3, fontWeight: 700 }}>
+                      · {(liveType ? allLive.filter((p) => p.type === liveType) : allLive).length} of {allLive.length}
+                    </span>
+                  )}
+                </button>
+
+                {zoneDock && (
+                  <div style={{ marginTop: 6, display: 'grid', gap: 5 }}>
+                    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                      {pills.map((s2) => (
+                        <button key={s2.key} onClick={() => setStat(s2.key)} title={s2.hint}
+                          style={{
+                            fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
+                            borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
+                            border: `1px solid ${stat === s2.key ? C.orange : C.border}`,
+                            color: stat === s2.key ? C.orange : C.text3,
+                            background: stat === s2.key ? 'rgba(249,115,22,.12)' : 'transparent',
+                            whiteSpace: 'nowrap',
+                          }}>{s2.label}</button>
+                      ))}
+                    </div>
+
+                    {liveTypes.length > 0 && (
+                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        <button onClick={() => setLiveType(null)}
+                          style={{
+                            fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
+                            borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
+                            border: `1px solid ${!liveType ? C.orange : C.border}`,
+                            color: !liveType ? C.orange : C.text3,
+                            background: !liveType ? 'rgba(249,115,22,.12)' : 'transparent',
+                          }}>ALL</button>
+                        {liveTypes.map((t) => (
+                          <button key={t.code}
+                            onClick={() => setLiveType((v) => (v === t.code ? null : t.code))}
+                            title={LIVE_PITCH_NAMES[t.code] || t.code}
+                            style={{
+                              fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
+                              borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
+                              border: `1px solid ${liveType === t.code ? pitchColor(t.code) : C.border}`,
+                              color: liveType === t.code ? pitchColor(t.code) : C.text3,
+                              background: liveType === t.code ? `${pitchColor(t.code)}1e` : 'transparent',
+                            }}>{t.code}</button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* THE LEGEND, on the canvas. Nine tinted boxes cannot say
+                        what their tint means, and the sentence that used to
+                        say it lives under the chart where he was not looking. */}
+                    <div style={{
+                      display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 3,
+                      borderTop: `1px solid ${C.border}`,
+                      fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 700,
+                    }}>
+                      <span style={{ color: C.orange }}>▲ his zone</span>
+                      <span style={{ color: C.blue }}>▼ the arm&apos;s</span>
+                      <span style={{ color: C.text3 }}>· even</span>
+                      <span style={{ color: C.red }}>▢ kill zone</span>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
