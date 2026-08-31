@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
+import { catColor } from '../lib/scales'
 import { solveFlight } from '../lib/trajectory'
 // Seating shape — the half of a park parkWalls.js does not describe. Falls
 // back to a plain two-tier ring for any venue it has no entry for, so a park
 // we have walls for but no bowl for still draws.
 import { bowlFor, isOpenSector } from '../lib/parkBowls'
+import { resultColor, isNonHrHit } from '../lib/resultColor'
 
 // 🏟 THE STADIUM VIEW — second pass (2026-08-29, "please make better").
 //
@@ -705,10 +707,27 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
     // ── THE BALLS. Same verdicts as pass one; the drawing is what changed:
     //    fence-reaching balls get glowing tubes, the rest faint lines.
-    const COL_HR = new THREE.Color(C.orange)
+    // ── FIVE COLOURS, NOT FOUR (2026-08-31). Donovan: "I want the hits that
+    //    aren't home runs at least lit differently, like the other spray
+    //    chart."
+    //
+    //    This file had HR / off-the-wall / HIT / OUT, and that third bucket
+    //    was ONE grey for a single, a double and a triple alike. The flat
+    //    chart six inches away has always drawn red / purple / green / blue /
+    //    near-black. Same balls, same page, two vocabularies — and the flat
+    //    one is the vocabulary the legend under it actually describes.
+    //
+    //    So the colour now comes from lib/resultColor, which both charts
+    //    import. Not copied here: resolved at call time from one function, so
+    //    they cannot drift and neither freezes a theme.
+    //
+    //    OFF-THE-WALL KEEPS ITS OWN AMBER, deliberately. It is not a result —
+    //    the payload's event for one of those is usually "double" — it is a
+    //    fact about THIS PARK that only the 3D view can state, and it is the
+    //    reason the park-test control exists. Folding it into the double's
+    //    green would delete the one thing this chart knows that the flat one
+    //    does not.
     const COL_WALL = new THREE.Color(0xfbbf24)
-    const COL_HIT = new THREE.Color(0xb4b4bc)
-    const COL_OUT = new THREE.Color(0x62626c)
     const dotGeo = new THREE.SphereGeometry(2.6, 12, 12)
 
     // Everything hoverable, and everything flyable. `info` is the readout the
@@ -723,8 +742,14 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const reached = h.r > wd
       const hAtWall = reached && f ? f.heightAt(wd) : null
       const over = reached && (hAtWall == null ? true : hAtWall > wallH(h.ang))
-      const big = h.hr || over || reached
-      const col = h.hr || over ? COL_HR : reached ? COL_WALL : h.hit ? COL_HIT : COL_OUT
+      // Hits fly too. `big` decides who gets a lit tube and who gets a faint
+      // line, and it used to mean "reached the wall" — so a clean single into
+      // the gap was drawn exactly like a routine fly out. A hit is a result;
+      // an out is the absence of one, and only the outs stay quiet now.
+      const big = h.hr || over || reached || isNonHrHit(h)
+      const col = h.hr || over
+        ? new THREE.Color(resultColor(h))
+        : reached ? COL_WALL : new THREE.Color(resultColor(h))
       const info = {
         verdict: h.hr ? 'HOME RUN' : over ? 'clears this wall' : reached ? 'off this wall' : (h.event || (h.hit ? 'hit' : 'out')),
         col: '#' + col.getHexString(),
@@ -1452,9 +1477,13 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
             WITHOUT it, so the wind is context beside the geometry, never folded into it ·{' '}
           </>
         )}
-        <b style={{ color: C.orange }}>orange</b> over the wall ·{' '}
-        <b style={{ color: '#fbbf24' }}>amber</b> off the wall ·{' '}
-        grey in play — arcs are reconstructed from EV + launch angle so each ball lands where its dot is
+        <b style={{ color: C.red }}>red</b> HR ·{' '}
+        <b style={{ color: catColor('result', 'triple') }}>purple</b> 3B ·{' '}
+        <b style={{ color: C.green }}>green</b> 2B ·{' '}
+        <b style={{ color: catColor('result', 'single') }}>blue</b> 1B ·{' '}
+        <b style={{ color: '#fbbf24' }}>amber</b> off this wall · dark = out — the same five the flat
+        chart uses, plus amber, which is the one thing only this view can say: a ball that hit THIS
+        park&apos;s wall. Arcs are reconstructed from EV + launch angle so each ball lands where its dot is
         (geometry, not measured trajectory); a ball without both is drawn as a dot only.
       </div>
     </div>

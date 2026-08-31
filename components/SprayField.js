@@ -39,6 +39,7 @@ const canWebgl = () => {
 // Seating shape, and whether this park's roof is one that actually moves.
 // Only used here to decide whether the roof control is worth showing.
 import { bowlFor } from '../lib/parkBowls'
+import { resultColor as sharedResultColor } from '../lib/resultColor'
 
 // 🏟 The stadium view rides in on demand — three.js is ~600KB and belongs in
 // nobody's first paint. ssr:false because it is a WebGL canvas with no server
@@ -336,11 +337,17 @@ const RESULT_COLORS = {
 // claude/moonshot-HANDOFF-2026-08-22.md's "the earned trap"). Reading
 // catColor() inside a function body re-resolves it on every call, which is
 // what these two functions need since they're invoked fresh every render.
-const resultColor = (h) => h.hr ? RESULT_COLORS.home_run
-  : h.event === 'triple' ? catColor('result', 'triple')
-  : h.event === 'double' ? RESULT_COLORS.double
-  : h.event === 'single' ? catColor('result', 'single')
-  : RESULT_COLORS.out
+// MOVED, 2026-08-31, to lib/resultColor.js — same five colours, same three
+// documented divergences from the registry, same call-time resolution. It
+// moved because SprayFieldStadium needs the identical answer and was inventing
+// its own (one grey for every non-HR hit, which is what Donovan caught). The
+// long note above stays here because this is where the reasoning was worked
+// out; the values now live in one place so the two charts cannot drift.
+//
+// The shared version also resolves home_run and double through C at CALL time
+// rather than off the module-scope RESULT_COLORS literal below, which fixes
+// the applyTheme hazard that literal's own comment flags.
+const resultColor = (h) => sharedResultColor(h)
 
 // Real outfield distances. PRECEDENCE FLIPPED 2026-08-04: the curated PARKS
 // table now wins over the bot's park_fit.dimensions, because the published
