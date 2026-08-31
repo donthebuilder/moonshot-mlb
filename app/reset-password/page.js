@@ -8,6 +8,7 @@
 import Link from 'next/link'
 
 import PasswordInput from '../../components/PasswordInput'
+import AuthPageHeader from '../../components/AuthPageHeader'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
@@ -28,12 +29,7 @@ export default async function ResetPasswordPage({ searchParams }) {
 
   return (
     <main className={styles.page}>
-      <div className={styles.bar}>
-        <Link className={styles.brand} href="/">
-          <img src="/icon-192.png" alt="" width="34" height="34" />
-          <div><small>DASH</small><strong>NETWORK</strong></div>
-        </Link>
-      </div>
+      <AuthPageHeader />
 
       <section className={styles.auth} style={{ maxWidth: 460, margin: '0 auto', paddingTop: 34 }}>
         {(params.error || params.message) && (
@@ -45,10 +41,19 @@ export default async function ResetPasswordPage({ searchParams }) {
           <form action={dashResetPassword} className={styles.card}>
             <p className={styles.kicker}>ALMOST DONE</p>
             <h3>Set a new password</h3>
-            <label>New password<PasswordInput autoComplete="new-password" minLength={8} /></label>
-            <label>Type it again<PasswordInput name="confirm" autoComplete="new-password" minLength={8} /></label>
+            <label>New password
+              <PasswordInput autoComplete="new-password" minLength={8} />
+              {/* The rule sits under the field it governs. It used to live in
+                  a <small> beneath the button, which is where you read it
+                  AFTER typing something too short. */}
+              <small className={styles.hint}>At least 8 characters. Tap SHOW to check what you typed.</small>
+            </label>
+            <label>Type it again
+              <PasswordInput name="confirm" autoComplete="new-password" minLength={8} />
+              <small className={styles.hint}>Both boxes have to match before this will save.</small>
+            </label>
             <SubmitButton pendingLabel="Saving…">Save new password <span>→</span></SubmitButton>
-            <small>At least 8 characters. You stay signed in on this device once it saves.</small>
+            <small>You stay signed in on this device once it saves.</small>
           </form>
         ) : (
           <div className={styles.card}>

@@ -3,6 +3,7 @@
 
 import Link from 'next/link'
 
+import AuthPageHeader from '../../components/AuthPageHeader'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { dashForgotPassword } from '../(front)/actions'
@@ -15,12 +16,7 @@ export default async function ForgotPasswordPage({ searchParams }) {
   const params = (await searchParams) || {}
   return (
     <main className={styles.page}>
-      <div className={styles.bar}>
-        <Link className={styles.brand} href="/">
-          <img src="/icon-192.png" alt="" width="34" height="34" />
-          <div><small>DASH</small><strong>NETWORK</strong></div>
-        </Link>
-      </div>
+      <AuthPageHeader />
 
       <section className={styles.auth} style={{ maxWidth: 460, margin: '0 auto', paddingTop: 34 }}>
         {(params.error || params.message) && (

@@ -13,11 +13,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import PasswordInput from '../../components/PasswordInput'
-import SubmitButton from '../../components/fantasy/SubmitButton'
+import AuthPageHeader from '../../components/AuthPageHeader'
+import DashAuthCard from '../../components/DashAuthCard'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
-import { dashSignIn } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'
 
 export const metadata = { title: 'Sign in · DASH Network' }
@@ -40,44 +39,39 @@ export default async function LoginPage({ searchParams }) {
 
   return (
     <main className={styles.page}>
-      <div className={styles.bar}>
-        {/* Straight to the actual board, not the marketing front door —
-            Donovan, 2026-08-29: "the login page didn't have a way to get to
-            the actual home page of dash, not just the fantasy login". This
-            was `href="/"`, which lands on the front door (app/(front)/page.js)
-            rather than the app someone landing here is actually trying to
-            reach, and the front door's own header still offers a "Sign in"
-            CTA to a not-yet-recognized visitor — so a person bouncing off
-            this page could round-trip right back to a login prompt instead
-            of ever seeing the board. */}
-        <Link className={styles.brand} href="/app#sport=mlb&tab=home">
-          <img src="/icon-192.png" alt="" width="34" height="34" />
-          <div><small>DASH</small><strong>NETWORK</strong></div>
-        </Link>
-      </div>
+      <AuthPageHeader />
 
-      <section className={styles.auth} style={{ maxWidth: 460, margin: '0 auto', paddingTop: 34 }}>
-        {(params.error || params.message) && (
-          <p className={params.error ? styles.error : styles.message}>{params.error || params.message}</p>
-        )}
-        {hasSupabaseConfig() ? (
-          <form action={dashSignIn} className={styles.card}>
-            <p className={styles.kicker}>ONE ACCOUNT, WHOLE NETWORK</p>
-            <h3>Sign in</h3>
-            <input type="hidden" name="next" value={next} />
-            <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-            <label>Password<PasswordInput autoComplete="current-password" /></label>
-            <SubmitButton pendingLabel="Signing in…">Sign in <span>→</span></SubmitButton>
-            <small>
-              <Link href="/forgot-password" style={{ color: 'inherit' }}>Forgot your password?</Link>
-              {' · '}
-              <Link href="/#create-account" style={{ color: 'inherit' }}>New here? Create a free account</Link>
-            </small>
-            <small>Same login across MOONSHOT, TUDDY, and FRANCHISE.</small>
-          </form>
-        ) : (
+      <section className={styles.auth} style={{ maxWidth: 460, margin: '0 auto', paddingTop: 28 }}>
+        {/* ── ONE CARD, NOT A SECOND COPY OF IT (2026-08-31) ─────────────
+            This page carried its own hand-written sign-in form: its own
+            labels, its own inputs, its own microcopy. That is how two forms
+            for the same account drift, and it had already happened — the
+            front door's card grew tabs, field hints, a 16px input size and
+            error handling that returns what you typed, and none of it
+            reached here, because none of it was the same code.
+
+            It also meant /login could ONLY sign you in. Somebody who lands
+            on the network's canonical sign-in URL without an account — from
+            a bookmark, a guess, or a link someone sent them — got a form
+            they cannot use and a 10px link at the bottom pointing back to
+            the front door. Now the create tab is right there.
+
+            `next` still flows through, so signing in from here still returns
+            you where you were. */}
+        <DashAuthCard
+          next={next}
+          notice={params.error || params.message || null}
+          noticeType={params.error ? 'error' : 'message'}
+          defaultEmail={typeof params.em === 'string' ? params.em : ''}
+          defaultName={typeof params.nm === 'string' ? params.nm : ''}
+          confirmEmail={typeof params.confirm === 'string' ? params.confirm : ''}
+        />
+        {!hasSupabaseConfig() ? (
           <p className={styles.muted}>Accounts aren&apos;t configured on this deploy.</p>
-        )}
+        ) : null}
+        <p className={styles.authEscape}>
+          Forgot your password? <Link href="/forgot-password">Send yourself a reset link →</Link>
+        </p>
       </section>
     </main>
   )
