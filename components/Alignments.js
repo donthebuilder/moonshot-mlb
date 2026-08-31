@@ -156,8 +156,42 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
                 : <>tonight is <b style={{ color: C.text2 }}>about normal</b></>}
             {' '}— which is the honest read on nearly every night. Raw number → root on every chip.
           </div>
+          {/* ── NUMBERS FIRST, THEN THE BOT (2026-08-31) ───────────────────
+              Donovan: "those predctions are base on the numbers first then how
+              they socred on the bot to help with predicting."
+
+              That is the only defensible ordering and it is worth saying out
+              loud on the page. The reduction is arithmetic — it SELECTS a set
+              and claims nothing about whether the men in it can hit. The bot's
+              HR score is the part of this site with sixty graded nights behind
+              it. So the numbers narrow and the thing with a record ranks what
+              is left; neither is asked to do the other's job.
+
+              Which makes the median comparison below mandatory rather than
+              decorative: if the reduction were quietly picking better bats,
+              the aligned median would sit above the slate's. Printing it is
+              running the test on his own idea with his own data, every night,
+              in public. */}
+          {tonight.medianScoreAligned != null && tonight.medianScoreSlate != null && (
+            <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 7 }}>
+              The numbers pick the set; the <b style={{ color: C.text2 }}>bot&apos;s HR score</b> — the only
+              figure here with sixty graded nights behind it — ranks what is in it. Median score among
+              the aligned is{' '}
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{tonight.medianScoreAligned.toFixed(1)}</b>{' '}
+              against the whole slate&apos;s{' '}
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{tonight.medianScoreSlate.toFixed(1)}</b>
+              {Math.abs(tonight.medianScoreAligned - tonight.medianScoreSlate) < 2
+                ? <> — the same board, in other words, which is what you should expect and what it almost always says.</>
+                : tonight.medianScoreAligned > tonight.medianScoreSlate
+                  ? <> — tonight the aligned set happens to be the stronger half. One night is not a finding.</>
+                  : <> — tonight the aligned set is the weaker half. One night is not a finding either way.</>}
+            </div>
+          )}
+          <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800, marginBottom: 4 }}>
+            Carrying tonight&apos;s number, best bats first
+          </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {tonight.members.filter((m) => m.strength >= 2).slice(0, 24).map(({ a, keys, strength }) => (
+            {(tonight.byBotScore || []).slice(0, 24).map(({ a, keys, strength }) => (
               <button key={a.pid} onClick={() => toggle(a.pid)}
                 title={`${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} — all reducing to ${todayRoot}. Bot HR score ${a.hrScore.toFixed(0)}. Click to ${picked.has(a.pid) ? 'remove from' : 'add to'} your build list.`}
                 style={{
@@ -166,6 +200,13 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
                   background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
                 }}>
                 {a.name}
+                {/* The bot's score, on the chip rather than buried in a
+                    tooltip — it is what the list is ORDERED by, and a list
+                    whose ordering is invisible reads as arbitrary. */}
+                <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}
+                  title="The bot's 0-100 HR score. This list is sorted by it.">
+                  {' '}{a.hrScore.toFixed(0)}
+                </span>
                 <span style={{ color: ROOT_COLORS[todayRoot], fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900 }}>
                   {' '}{strength}×
                 </span>
