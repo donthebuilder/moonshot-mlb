@@ -13,7 +13,7 @@ import FollowingStrip from '../FollowingStrip'
 import HomerLedger from '../HomerLedger'
 import ReadTeaser from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
-import { useSetupHomers, backToBack } from '../../lib/b2b'
+import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
@@ -311,9 +311,7 @@ export default function Home({
   const b2bDateKey = slateDate || new Date().toLocaleDateString('en-CA')
   const isTmrwSlate = b2bDateKey > new Date().toLocaleDateString('en-CA')
   const setupHr = useSetupHomers(b2bDateKey)
-  const { list: b2b, verified: b2bVerified } = useMemo(
-    () => backToBack(players, setupHr, hrScore, b2bDateKey), [players, setupHr, b2bDateKey],
-  )
+  const { list: b2b, verified: b2bVerified } = useBackToBack(players, setupHr, hrScore, b2bDateKey)
 
   const [fence, setFence] = useState(null)
   useEffect(() => {

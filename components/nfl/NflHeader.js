@@ -175,10 +175,19 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* The mark is the way home, same as MOONSHOT's (2026-08-31). ⌂ DASH
+              HOME lives in the More drawer on both products, and "More" is
+              where you look for more of THIS sport, not for the way out of it.
+              The top-left logo is the one navigation convention a first-time
+              visitor already knows. Only the square mark links; the TUDDY
+              wordmark names the product you are already in. */}
+          <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE"
+            aria-label="DASH Network home"
+            style={{ display: 'flex', textDecoration: 'none', borderRadius: 10 }}>
           <div style={{
             position: 'relative', width: 34, height: 34, borderRadius: 10,
             background: GRADIENT, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', boxShadow: `0 0 18px ${C.green}59`,
+            justifyContent: 'center', boxShadow: `0 0 18px ${C.green}59`, cursor: 'pointer',
           }}>
             <span style={{
               fontSize: 13, fontWeight: 900, color: '#052e16',
@@ -192,6 +201,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               }} />
             )}
           </div>
+          </a>
 
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>

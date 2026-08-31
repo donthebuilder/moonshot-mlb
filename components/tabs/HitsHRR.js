@@ -11,7 +11,7 @@ import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import HitterHeat from '../HitterHeat'
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
-import { useSetupHomers, backToBack, B2B_VALIDATED } from '../../lib/b2b'
+import { useSetupHomers, useBackToBack, B2B_VALIDATED } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
 
 // Which BoardFilters score-slider a view means by "Score" — mirrors the keys
@@ -442,7 +442,10 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[view] || null)
   const { filtered, state } = filterState
   const setupHomers = useSetupHomers(slateDate)
-  const b2b = useMemo(() => backToBack(allPlayers.length ? allPlayers : players, setupHomers, hrScore, slateDate), [allPlayers, players, setupHomers, slateDate])
+  // useBackToBack, not backToBack: the watch accumulates for the slate so a
+  // hitter cannot fall off it when his own game finishes and the bot's
+  // last-game fields roll forward. See the note at the foot of lib/b2b.js.
+  const b2b = useBackToBack(allPlayers.length ? allPlayers : players, setupHomers, hrScore, slateDate)
   const b2bCashed = useMemo(() => {
     const ids = new Set()
     if (!results || (slateDate && results.date && String(results.date) !== String(slateDate))) return ids

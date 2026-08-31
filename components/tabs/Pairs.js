@@ -1520,7 +1520,7 @@ import {
   LEG_SIGNALS, ALL_SIGNAL_IDS, buildGroupTickets, buildSignalTickets,
   rateText, signalRecordText, slateDateOf, useSlateOdds, spokenSignals,
 } from '../../lib/pairEvidence'
-import { useSetupHomers, backToBack } from '../../lib/b2b'
+import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { quoteFor, fmtOdds, impliedPct } from '../../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, mlbId } from '../../lib/player'
 import { downloadPairsCard } from '../shareCard'
@@ -1974,9 +1974,7 @@ export function GroupTicketBuilder({
   // is unavailable rather than unproven.
   const dateKey = slateDate || slateDateOf(players) || new Date().toLocaleDateString('en-CA')
   const setupHr = useSetupHomers(dateKey)
-  const { list: b2bList, verified: b2bVerified } = useMemo(
-    () => backToBack(players, setupHr, null, dateKey), [players, setupHr, dateKey],
-  )
+  const { list: b2bList, verified: b2bVerified } = useBackToBack(players, setupHr, null, dateKey)
   const b2bIds = useMemo(
     () => new Set(b2bList.map((p) => Number(p?.player_id ?? p?.id))), [b2bList],
   )

@@ -6,7 +6,7 @@ import { teamAbbrs } from '../lib/gamelogs'
 import { matchupStories } from '../lib/matchupStory'
 import { funFacts } from '../lib/funFacts'
 import { dedupeGraded } from '../lib/graded'
-import { useSetupHomers, backToBack } from '../lib/b2b'
+import { useSetupHomers, useBackToBack } from '../lib/b2b'
 import { pickSplit, HITTING_FIELDS } from '../lib/seasonSplit'
 import { downloadStorylinesCard } from './shareCard'
 
@@ -352,7 +352,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // front page kept publishing the unverified version of the same claim for
   // days. One implementation, two callers, no drift.
   const setupHr = useSetupHomers(dateKey)
-  const { list: b2bAll, verified: b2bVerified } = backToBack(players, setupHr, null, dateKey)
+  const { list: b2bAll, verified: b2bVerified } = useBackToBack(players, setupHr, null, dateKey)
   const b2b = b2bAll
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
 

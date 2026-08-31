@@ -309,13 +309,39 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
         transition:'padding .14s ease',
       }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {/* ── THE MARK IS THE WAY HOME (2026-08-31) ────────────────────────
+              Donovan: "we need a way to get back to the site home page. from
+              any where on the tsite tuddy mmoon shot or franchiese."
+
+              There WAS one, and that is the finding: ⌂ DASH HOME has been the
+              first cell of the More drawer since 2026-08-28. But it is behind
+              a tap on a control labelled "More", which is where you look for
+              MORE OF THIS SPORT, not for the way out of it. A person who does
+              not already know it is there has no reason to open that drawer.
+
+              So it also goes where every website on earth has put it for
+              twenty-five years: the logo in the top-left corner. That is the
+              one navigation convention a first-time visitor already knows —
+              and the 45+ sign-up report is the same lesson from the other end
+              of the funnel. It costs no layout, it is the largest target in
+              the header, and it works identically on MOONSHOT, TUDDY and
+              FRANCHISE.
+
+              Only the SQUARE MARK is the link, not the MOONSHOT wordmark
+              beside it: the mark is network furniture, the wordmark names the
+              product you are already in, and making the product's own name
+              navigate away from the product is how you build a header nobody
+              trusts. The More drawer entry stays — two doors, one room. */}
+          <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE"
+            aria-label="DASH Network home"
+            style={{ display:'flex', textDecoration:'none', borderRadius:10 }}>
           <div style={{
             position:'relative',
             width: condensed ? 28 : 38, height: condensed ? 28 : 38,
             borderRadius:10, flexShrink:0, transition:'width .14s ease, height .14s ease',
             background:'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
             display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 0 18px rgba(249,115,22,0.35)',
+            boxShadow:'0 0 18px rgba(249,115,22,0.35)', cursor:'pointer',
           }}>
             <span style={{ fontSize: condensed ? 11 : 14, fontWeight:900, color:'#fff', letterSpacing:'-0.05em', fontFamily:NUM_FONT }}>HR</span>
             <div style={{
@@ -325,6 +351,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
               animation:'pulse 2s infinite',
             }} />
           </div>
+          </a>
 
           <div>
             <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
