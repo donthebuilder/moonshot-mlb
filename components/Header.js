@@ -339,11 +339,11 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             position:'relative',
             width: condensed ? 28 : 38, height: condensed ? 28 : 38,
             borderRadius:10, flexShrink:0, transition:'width .14s ease, height .14s ease',
-            background:'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
-            display:'flex', alignItems:'center', justifyContent:'center',
             boxShadow:'0 0 18px rgba(249,115,22,0.35)', cursor:'pointer',
           }}>
-            <span style={{ fontSize: condensed ? 11 : 14, fontWeight:900, color:'#fff', letterSpacing:'-0.05em', fontFamily:NUM_FONT }}>HR</span>
+            {/* The DASH Network monogram, identical on TUDDY. See the note above. */}
+            <img src="/icon-192.png" alt="" width={condensed ? 28 : 38} height={condensed ? 28 : 38}
+              style={{ display:'block', width:'100%', height:'100%', borderRadius:10 }} />
             <div style={{
               position:'absolute', top:-2, right:-2,
               width:8, height:8, borderRadius:'50%',

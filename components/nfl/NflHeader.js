@@ -154,6 +154,45 @@ export default function NflHeader({ tab, setTab, data, meta }) {
   const projTd = rows.reduce((a, p) => a + (p.stats?.xTD || 0), 0)
   const aGrade = rows.filter(
     (p) => Math.max(...Object.values(p.scores || { _: 0 })) >= 62).length
+  // The four the strip was missing. Home already shows the first two on its
+  // hero; the other two are one reduce each and are the questions people
+  // actually arrive with -- which game, and when.
+  const topTd = rows.reduce(
+    (best, p) => ((p?.scores?.TD ?? -1) > (best?.scores?.TD ?? -1) ? p : best), null)
+
+  // Expected touchdowns summed per team, then per matchup. Same shape as
+  // MOONSHOT's "best game" tile, so the two products read alike.
+  const bestGame = (() => {
+    const byTeam = new Map()
+    for (const p of rows) {
+      const t = String(p?.team || '').toUpperCase()
+      if (!t) continue
+      byTeam.set(t, (byTeam.get(t) || 0) + (p?.stats?.xTD || 0))
+    }
+    let top = null
+    for (const g of (data?.games || [])) {
+      const total = (byTeam.get(String(g.away || '').toUpperCase()) || 0)
+        + (byTeam.get(String(g.home || '').toUpperCase()) || 0)
+      if (!top || total > top.total) top = { total, label: `${g.away} @ ${g.home}` }
+    }
+    return top && top.total > 0 ? top : null
+  })()
+
+  const nextKick = (data?.games || [])
+    .filter((g) => g?.state === 'pre' && g?.kickoff)
+    .sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff))[0] || null
+
+  // Formatted in an effect, never during render: a kickoff rendered in the
+  // server's timezone and again in the reader's is a hydration mismatch, and
+  // this is a sticky header that would flash on every load.
+  const [kickLabel, setKickLabel] = useState('\u2014')
+  useEffect(() => {
+    const t = Date.parse(nextKick?.kickoff || '')
+    setKickLabel(Number.isFinite(t)
+      ? new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+      : '\u2014')
+  }, [nextKick?.kickoff])
+
   const builtAt = meta?.built_at || data?.built_at || ''
   const builtAtMs = Date.parse(builtAt)
   const ageHours = Number.isFinite(builtAtMs) ? Math.max(0, (Date.now() - builtAtMs) / 3_600_000) : 0
@@ -186,13 +225,12 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             style={{ display: 'flex', textDecoration: 'none', borderRadius: 10 }}>
           <div style={{
             position: 'relative', width: 34, height: 34, borderRadius: 10,
-            background: GRADIENT, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', boxShadow: `0 0 18px ${C.green}59`, cursor: 'pointer',
+            boxShadow: `0 0 18px ${C.green}59`, cursor: 'pointer',
           }}>
-            <span style={{
-              fontSize: 13, fontWeight: 900, color: '#052e16',
-              letterSpacing: '-0.05em', fontFamily: NUM_FONT,
-            }}>TD</span>
+            {/* The DASH Network monogram, identical on MOONSHOT. One mark, one
+                destination; the green TUDDY wordmark beside it says where you are. */}
+            <img src="/icon-192.png" alt="" width={34} height={34}
+              style={{ display: 'block', width: '100%', height: '100%', borderRadius: 10 }} />
             {live > 0 && (
               <div style={{
                 position: 'absolute', top: -2, right: -2, width: 8, height: 8,
@@ -292,7 +330,15 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             />
             <Tile label="A-grade" value={aGrade} color={C.cyan}
                   title="Players clearing A- (62) in at least one market" />
-            {live > 0 && <Tile label="Live" value={live} color={C.yellow} title="Games in progress" />}
+            <Tile label="Pool" value={rows.length} color={C.text2}
+              title="Players this slate scored — the pool every board on TUDDY is drawn from" />
+            <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '\u2014'} color={C.green}
+              title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} />
+            <Tile label="Best game" value={bestGame ? bestGame.label : '\u2014'} color={C.cyan}
+              title={bestGame ? `${bestGame.label} — ${bestGame.total.toFixed(1)} expected touchdowns between the two, the most on the slate` : 'No games scored yet'} />
+            <Tile label={live > 0 ? 'Live' : 'Kickoff'} value={live > 0 ? live : kickLabel}
+              color={live > 0 ? C.yellow : C.text2}
+              title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
           </TickerStrip>
           {isPre && (
             <div
