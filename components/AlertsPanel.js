@@ -29,9 +29,14 @@ import { useDashAccount } from '../lib/dash/sync'
 import { canNotify, installHint, permission, requestPermission } from '../lib/notify'
 import { currentSubscription, pushSupported, subscribePush, unsubscribePush, vapidPublicKey } from '../lib/dash/push'
 
+// Every group in lib/dash/alerts.js has to appear here or its switches simply
+// do not render -- the panel iterates GROUPS, not CATEGORIES. Franchise
+// shipped its categories without this line, which left four alerts on with no
+// way to turn them off.
 const GROUPS = [
   { key: 'Moonshot', label: 'MOONSHOT · MLB' },
   { key: 'Tuddy', label: 'TUDDY · NFL' },
+  { key: 'Franchise', label: 'FRANCHISE · FANTASY' },
 ]
 
 // Loudest first, inside each list. The number is the same priority the sender

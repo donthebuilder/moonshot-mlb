@@ -33,7 +33,7 @@ import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
-import { franchiseEventsFrom } from '../../../../../lib/dash/franchise'
+import { franchiseEventsFrom, lineupGapEventsFrom } from '../../../../../lib/dash/franchise'
 import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 
 export const dynamic = 'force-dynamic'
@@ -234,6 +234,10 @@ export async function GET(request) {
     // behind a window claim -- a draft clock is ninety seconds long, and there
     // is no version of "you are on the clock" that is worth sending late.
     ...(await franchiseEventsFrom(db)),
+    // Same shape, same owner gate, its own producer because it reads a
+    // completely different set of tables and must not be able to take the
+    // draft clock down with it.
+    ...(await lineupGapEventsFrom(db)),
   ]
   if (!events.length) return Response.json({ sent: 0, reason: 'nothing-happening' })
 
