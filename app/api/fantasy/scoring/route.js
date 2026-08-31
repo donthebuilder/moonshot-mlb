@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 
 import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
+import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -53,10 +54,10 @@ async function synchronize(request) {
     const {data:run,error:runError}=await supabase.from('fantasy_scoring_sync_runs').insert({source:feed.source,season:feed.season,weeks}).select('id').single()
     if(runError)throw runError
     runId=run.id
-    const {error:catalogError}=await supabase.rpc('sync_nfl_player_catalog',{p_catalog:feed.catalog})
-    if(catalogError)throw catalogError
-    const {data:sync,error:syncError}=await supabase.rpc('sync_nfl_week_feed',{p_games:feed.games,p_players:feed.players})
-    if(syncError)throw syncError
+    // Chunked, so one big slate cannot fail the whole sync on a payload cap
+    // and freeze every score silently. See lib/fantasy/sync.js.
+    await syncCatalogChunked(supabase,feed.catalog)
+    const sync=await syncWeekFeedChunked(supabase,feed.games,feed.players)
     let matchups=0
     for(const week of weeks){const {data,error}=await supabase.rpc('refresh_all_fantasy_matchup_scores',{p_season:feed.season,p_week:week});if(error)throw error;matchups+=Number(data||0)}
     await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:new Date().toISOString()}).eq('id',runId)

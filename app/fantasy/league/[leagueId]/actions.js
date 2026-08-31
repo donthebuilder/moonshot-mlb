@@ -7,6 +7,7 @@ import weekSlate from '../../../../public/data/nfl/week.json'
 import { normalizeNflCatalog } from '../../../../lib/nfl/playerCatalog'
 import { fantasyDefenseCatalog } from '../../../../lib/nfl/teams'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
+import { syncCatalogChunked } from '../../../../lib/fantasy/sync'
 
 const routeFor = (leagueId, type, message, view) => {
   const params = new URLSearchParams()
@@ -35,8 +36,9 @@ export async function syncPlayerCatalog(formData) {
   const normalized = normalizeNflCatalog(raw)
   const season = Number(raw.season || raw.stat_season)
   const catalog = [...normalized, ...fantasyDefenseCatalog(season)]
-  const { data, error } = await supabase.rpc('sync_nfl_player_catalog', { p_catalog: catalog })
-  if (error) redirect(routeFor(leagueId, 'error', error.message))
+  let data
+  try { data = await syncCatalogChunked(supabase, catalog) }
+  catch (error) { redirect(routeFor(leagueId, 'error', String(error?.message || error))) }
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId, 'message', `${data} NFL players synced`))
 }
