@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, mlbId, playerId } from '../lib/player'
 import { easternToday } from '../lib/data'
 import {
-  usePeople, slateAlignments, AXIS_META,
+  usePeople, slateAlignments, AXIS_META, alignedWith,
   readAlignArchive, shiftDateKey, dateDigitRoot,
 } from '../lib/alignments'
 
@@ -56,6 +56,13 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
   const yesterdayArchive = useMemo(() => readAlignArchive(yesterdayKey), [yesterdayKey, archiveTick])
   const todayArchive = useMemo(() => readAlignArchive(todayKey), [todayKey, archiveTick])
   const tomorrowRoot = useMemo(() => dateDigitRoot(tomorrowKey), [tomorrowKey])
+  // ── TONIGHT'S NUMBER, AND WHO CARRIES IT (2026-08-31) ─────────────────────
+  // Donovan: "you mus give us preditcution using the numeroly reductions."
+  // alignedWith() returns the expected counts in the same call as the actual
+  // ones, which is the only way this can be shown without inventing a signal
+  // out of long division. See its note in lib/alignments.js.
+  const todayRoot = useMemo(() => dateDigitRoot(todayKey), [todayKey])
+  const tonight = useMemo(() => alignedWith(todayRoot, rows), [todayRoot, rows])
 
   // Every watched hitter who's actually on tonight's slate, with the three
   // day-roots checked against his OWN axes (jersey/birthday/life-path — none
@@ -91,11 +98,12 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>🔮 Tonight&apos;s alignments</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-          {rows.length} hitters · six axes, one reduction · {loaded ? 'birthdays + positions loaded' : 'loading birthdays + positions…'}
+          {rows.length} hitters · seven axes, one reduction · {loaded ? 'birthdays + positions loaded' : 'loading birthdays + positions…'}
         </span>
       </div>
       <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.65, maxWidth: 860, marginBottom: 10 }}>
-        Every number a hitter carries — his <b style={{ color: C.text2 }}>next homer</b>, his{' '}
+        Every number a hitter carries — the <b style={{ color: C.text2 }}>homers he is sitting on</b>, his{' '}
+        <b style={{ color: C.text2 }}>next homer</b>, his{' '}
         <b style={{ color: C.text2 }}>jersey</b>, his <b style={{ color: C.text2 }}>birth day</b>, his{' '}
         <b style={{ color: C.text2 }}>life path</b>, where he <b style={{ color: C.text2 }}>bats</b> and where he{' '}
         <b style={{ color: C.text2 }}>fields</b> — reduced the same way: add the digits until one is left (17 → 8).
@@ -103,6 +111,78 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
         in every club by arithmetic alone, so read the <b style={{ color: C.text2 }}>×</b> against that share, not the raw count.
         Fun to track, never a reason to bet — nothing here feeds any score. Check names as you go and hand them to the builder.
       </div>
+
+      {/* ── TONIGHT'S NUMBER (2026-08-31) ─────────────────────────────────
+          Donovan: "you mus give us preditcution using the numeroly
+          reductions as well like the 1 can be differcn combos of season hr
+          nummbers i like that it highlight the specific number like 10 but
+          numberolgy speaking its a 1 or like 19th thats a 1."
+
+          Two things in that, and both are here. The season-HR count is a new
+          axis (lib/alignments.js) — it used to reduce only his NEXT homer,
+          which is a different number and usually a different root, so a man on
+          18 carried a 9 and was chasing a 1 and no club could see both. And
+          every chip prints the RAW number beside the root, because 10 and 19
+          reaching the same 1 IS the thing being looked at; a screen showing
+          only the 1 has thrown away the half he wanted to see.
+
+          The expected count sits in the same sentence as the actual one, on
+          purpose. Seven axes over ~250 hitters is ~1,500 numbers across nine
+          roots, so dozens of men carry two on the same root every single
+          night — that is what division does, not a finding. This panel says
+          who is aligned with tonight's number. It does not say who is going to
+          homer, and nothing here feeds any score. */}
+      {tonight && tonight.total > 0 && (
+        <div style={{
+          border: `1px solid ${ROOT_COLORS[todayRoot]}55`, borderRadius: 11,
+          background: `${ROOT_COLORS[todayRoot]}0d`, padding: '9px 12px', marginBottom: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 900, color: ROOT_COLORS[todayRoot] }}>
+              🔮 TONIGHT&apos;S NUMBER IS {todayRoot}
+            </span>
+            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              {todayKey} reduces to {todayRoot} · {tonight.twoPlus} hitter{tonight.twoPlus === 1 ? '' : 's'} carry
+              it on two or more of their own numbers
+            </span>
+          </div>
+          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px' }}>
+            Expect about <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.round(tonight.expectedTwoPlus)}</b>{' '}
+            of those by arithmetic alone on a slate this size, so{' '}
+            {tonight.twoPlus > tonight.expectedTwoPlus * 1.25
+              ? <>tonight is running <b style={{ color: ROOT_COLORS[todayRoot] }}>above</b> its share</>
+              : tonight.twoPlus < tonight.expectedTwoPlus * 0.8
+                ? <>tonight is running <b style={{ color: C.text2 }}>below</b> its share</>
+                : <>tonight is <b style={{ color: C.text2 }}>about normal</b></>}
+            {' '}— which is the honest read on nearly every night. Raw number → root on every chip.
+          </div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {tonight.members.filter((m) => m.strength >= 2).slice(0, 24).map(({ a, keys, strength }) => (
+              <button key={a.pid} onClick={() => toggle(a.pid)}
+                title={`${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} — all reducing to ${todayRoot}. Bot HR score ${a.hrScore.toFixed(0)}. Click to ${picked.has(a.pid) ? 'remove from' : 'add to'} your build list.`}
+                style={{
+                  padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+                  border: `1px solid ${picked.has(a.pid) ? C.orange : `${ROOT_COLORS[todayRoot]}55`}`,
+                  background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
+                }}>
+                {a.name}
+                <span style={{ color: ROOT_COLORS[todayRoot], fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900 }}>
+                  {' '}{strength}×
+                </span>
+                <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>
+                  {' '}{keys.map((k) => {
+                    const raw = AXIS_META[k].raw ? AXIS_META[k].raw(a) : null
+                    return raw ? `${AXIS_META[k].label} ${raw}→${todayRoot}` : `${AXIS_META[k].label}→${todayRoot}`
+                  }).join(' · ')}
+                </span>
+              </button>
+            ))}
+            {tonight.twoPlus > 24 && (
+              <span style={{ fontSize: 9.5, color: C.text3 }}>+{tonight.twoPlus - 24} more</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── THE DAYS — yesterday's actual root, today's so far, tomorrow's
           date (2026-08-18). Everything above this is the PREGAME slate,
@@ -223,7 +303,7 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
               background: on ? `${ROOT_COLORS[c.root]}18` : C.bg2,
               color: C.text2, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800,
             }}
-              title={`Root ${c.root}: ${c.count} memberships across all six axes, against ~${Math.round(expected)} expected by arithmetic. ${x >= 1.25 ? 'Running above its share tonight.' : x <= 0.8 ? 'Running below its share.' : 'About its arithmetic share.'}`}>
+              title={`Root ${c.root}: ${c.count} memberships across all seven axes, against ~${Math.round(expected)} expected by arithmetic. ${x >= 1.25 ? 'Running above its share tonight.' : x <= 0.8 ? 'Running below its share.' : 'About its arithmetic share.'}`}>
               <span style={{ color: ROOT_COLORS[c.root], fontSize: 13 }}>{c.root}</span>
               {' '}{c.count}
               <span style={{ color: x >= 1.25 ? ROOT_COLORS[c.root] : C.text3, fontSize: 9 }}> {x.toFixed(2)}×</span>
@@ -249,8 +329,13 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
                     background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
                   }}>
                   {a.name}
+                  {/* Raw number → root, not just the axis name. "season HR
+                      19→1" is the read; "season HR" alone is a label. */}
                   <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>
-                    {' '}{axisKeys.map((k) => AXIS_META[k].label).join('+')}
+                    {' '}{axisKeys.map((k) => {
+                      const raw = AXIS_META[k].raw ? AXIS_META[k].raw(a) : null
+                      return raw ? `${AXIS_META[k].label} ${raw}→${openRoot}` : AXIS_META[k].label
+                    }).join(' · ')}
                   </span>
                 </button>
               ))}
