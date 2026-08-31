@@ -6,7 +6,7 @@ import { scoreFor, isAligned, hrRank } from '../../lib/scoring'
 import { useSetupHomers } from '../../lib/b2b'
 import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
-import Heatmap from '../Heatmap'
+import ProfileBars from '../ProfileBars'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
@@ -15,6 +15,36 @@ import { heatModeFromUrl } from '../../lib/heatMode'
 import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { SCORE } from '../../lib/scales'
 import { downloadBoardCard } from '../shareCard'
+
+// The nine inputs the old profile grid drew as columns. They are not drawn
+// now — they are tested against the slate and surface only where a hitter is
+// actually away from the middle. Each carries its OWN formatter, because the
+// whole complaint about the grid was that it rescaled values to fit a shared
+// ramp: .231 became 23 and 1.22 became 37.
+//
+// `invert: true` would mark an input where LOW is good for the bat. Nothing
+// here is: every one of these reads "more is better for the hitter", Arm HR9
+// included — a starter who gives up home runs is a gift, not a warning.
+//
+// Caught in render on 2026-08-31, which is why the note is here: Arm HR9 was
+// tagged invert on the reasoning that "low HR/9 is a good pitcher", and the
+// chip came back "▼ Arm HR9 2.16" on Cal Raleigh — a red down-arrow on the
+// single most homer-friendly arm on the slate. The flag answers "is more
+// better FOR THE BAT", not "is more better for the man throwing it".
+const pctFmt = (v) => `${(v * 100).toFixed(1)}%`
+const isoFmt = (v) => String(v.toFixed(3)).replace(/^0/, '')
+const scoreFmt = (v) => v.toFixed(0)
+const PROFILE_INPUTS = [
+  { key: 'iso', label: 'ISO', fmt: isoFmt, title: 'Season isolated power — slugging minus average, so it is extra-base ability with singles removed.' },
+  { key: 'barrel', label: 'Barrel', fmt: pctFmt, title: 'Recent barrel rate: the share of batted balls at the speed-and-angle combination that produces extra bases.' },
+  { key: 'hrw', label: 'HRW', fmt: scoreFmt, title: "The HR score with tonight's park and weather folded in." },
+  { key: 'dc', label: 'DC', fmt: scoreFmt, title: 'Damage conversion — how much of his hard contact becomes extra bases rather than loud outs.' },
+  { key: 'pmix', label: 'PMix', fmt: scoreFmt, title: "How well his swing matches the arsenal he is facing tonight." },
+  { key: 'hit', label: 'Hit', fmt: scoreFmt, title: 'The 1+ hit model score.' },
+  { key: 'hrr', label: 'HRR', fmt: scoreFmt, title: 'The H+R+RBI production score.' },
+  { key: 'tb', label: 'TB', fmt: scoreFmt, title: 'The total-bases score.' },
+  { key: 'phr9', label: 'Arm HR9', fmt: (v) => v.toFixed(2), title: "Home runs allowed per nine by tonight's starter. Read it from the bat's side: a HIGH number is the good one here, because it is the arm most likely to give this up." },
+]
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
@@ -319,46 +349,53 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           man and tags how many games he has, so the fact survives as "2×"
           rather than as a wasted slot. The FULL board below keeps both rows;
           there the two games are the point and the G column separates them. */}
-      {viewMode === 'cards' && <Heatmap
-        rows={uniqueByPerson(ranked).slice(0, 15).map((p) => ({
+      {/* ── THE PROFILE HEATMAP IS GONE (2026-08-31) ──────────────────────
+          Donovan: "i just dont like them any more how that style is ypu can
+          just get rid of it or eopl with something more usful."
+
+          The grid told on itself. Its caption read "Each column is scaled on
+          its own... not comparable across columns" — a chart admitting its
+          only visual variable does not mean one thing. It also had to distort
+          numbers to hold its shape: ISO ×100 and pitcher HR/9 ×30, purely so
+          they would land near the 0-100 scores. A grid where .231 prints as
+          23 has stopped showing you your data.
+
+          Same ten inputs, restated: one shared 0-100 bar for the number the
+          board actually sorts by (so length is finally comparable), and the
+          other nine tested rather than drawn — a hitter's row names only the
+          inputs where he is genuinely away from the middle of tonight's slate,
+          in their own real units. See components/ProfileBars.js.
+
+          Baselines come from the WHOLE ranked pool, not the fifteen shown: the
+          top fifteen of a board are the tail, and asking the tail what normal
+          looks like is how you end up with every row flagged. */}
+      {viewMode === 'cards' && <ProfileBars
+        rows={uniqueByPerson(ranked).map((p) => ({
+          id: playerId(p),
           label: p?._slateGames > 1 ? `${nameOf(p)} · ${p._slateGames}×` : nameOf(p),
           _raw: p,
+          score: scoreFor(p, type),
           values: {
-            // THE RANKING NUMBER LEADS. The chart's first column has to be the
-            // one the board sorts by, or the rows look out of order — which is
-            // exactly what happened the first time this led with a different
-            // number than the sort key. That number is the bot's HR score;
-            // ISO sits beside it as the thing to read WITH it, not as a
-            // multiplier folded into it.
-            ...(type === 'hr'
-              ? { HR: scoreFor(p, 'hr') }
-              : { HR: hrScore(p) }),
-            // ISO ×100 so .231 reads as 23.
-            ISO: nn(p?.season_iso) * 100,
-            Hit: hitScore(p),
-            HRR: prodScore(p),
-            TB: tbScore(p),
-            HRW: nn(p?.hrw_score),
-            DC: nn(p?.damage_conversion_score),
-            PMix: pitchMixScore(p),
-            Barrel: barrelRate(p) * 100,
-            // x30 to sit on the same visual scale as the score columns;
-            // it's still scaled independently, so only the shape matters.
-            'P HR/9': nn(p?.pitcher_hr9) * 30,
+            iso: nn(p?.season_iso),
+            hit: hitScore(p),
+            hrr: prodScore(p),
+            tb: tbScore(p),
+            hrw: nn(p?.hrw_score),
+            dc: nn(p?.damage_conversion_score),
+            pmix: pitchMixScore(p),
+            barrel: barrelRate(p),
+            phr9: nn(p?.pitcher_hr9),
           },
         }))}
-        columns={[
-          'HR',
-          'ISO', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'PMix', 'Barrel', 'P HR/9',
-        ]}
+        inputs={PROFILE_INPUTS}
+        scoreLabel={type === 'hr' ? 'the bot’s HR score' : `the board’s ${title.replace(' Board', '')} score`}
         title={type === 'hr'
-          ? 'Top 15 by HR score — full profile'
-          : `Top 15 by ${title.replace(' Board', '')} — full profile`}
-        labelWidth={140}
-        onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
+          ? 'Top 15 by HR score — what separates them'
+          : `Top 15 by ${title.replace(' Board', '')} — what separates them`}
         caption={type === 'hr'
-          ? 'Sorted by HR score, the first column. Read the ISO column with it: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, while the score itself barely separated — so a big score on thin power is the board’s most common trap. Both are shown so you can see it yourself rather than have it applied for you.'
+          ? 'Read ISO with the score especially: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, while the score itself barely separated — so a big score on thin power is the board’s most common trap, and it is exactly the kind of thing a ▼ ISO chip is here to say out loud.'
           : undefined}
+        onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
       />}
 
       {viewMode === 'cards' && (

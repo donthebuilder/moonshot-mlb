@@ -184,6 +184,9 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           spot: n(p?.lineup_spot, null),
           hr,
           pa,
+          // The RATE behind the fraction, so the column can be judged against
+          // the slate rather than read as two bare numbers.
+          hrpa: hr != null && pa ? hr / pa : null,
           iso: n(p?.season_iso, null),
           hrw: n(p?.hrw_score, null),
           arm: n(p?.pitcher_hr9, null),
@@ -219,6 +222,32 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         : (b.room ?? -1e9) - (a.room ?? -1e9) || b.score - a.score))
       .slice(0, 40)
   }, [players, odds, view, watchIds])
+
+  // ── HR/PA GETS A THRESHOLD (2026-08-31) ─────────────────────────────────
+  //
+  // Donovan: "hr /pa show the number abo or below that threshole or dnumber",
+  // then "yes the arrows".
+  //
+  // The threshold is THE MIDDLE OF THIS SHORTLIST, not a league constant and
+  // not a round number someone picked. Two reasons. It is the same anchor the
+  // HR score column already uses (DIV_FIELD, "▲ above the middle of this
+  // shortlist"), so the two columns answer to the same idea of "compared to
+  // what" — and a league-wide rate would mark almost every row on a top-40
+  // power list as above average, which is true and completely useless.
+  //
+  // MEDIAN, not mean: the top of this list contains genuine outliers by
+  // construction, and a mean would let them drag up the very line they are
+  // being measured against.
+  //
+  // The arrow is on the RATE, printed beside the fraction it comes from, so
+  // the denominator stays visible — 22/391 and 7/131 are not the same claim
+  // even when the rate is.
+  const hrpaMid = useMemo(() => {
+    const xs = rows.map((r) => r.hrpa).filter((v) => Number.isFinite(v)).sort((a, b) => a - b)
+    if (!xs.length) return null
+    const m = Math.floor(xs.length / 2)
+    return xs.length % 2 ? xs[m] : (xs[m - 1] + xs[m]) / 2
+  }, [rows])
 
   if (!rows.length) return <Empty text="No slate loaded, so there is nothing to rank yet." />
 
@@ -365,9 +394,20 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           // percentage; only this says which one you are reading.
           { key: 'hr', label: 'HR / PA', heat: false, w: 68, mono: true,
             title: 'Season home runs over season plate appearances — the sample the rate beside it is computed from. A rate is only as good as its denominator, and this table would otherwise never show one.',
-            fmt: (v, r) => (v == null || r.pa == null
-              ? <span style={{ color: C.text3 }}>—</span>
-              : <span style={{ fontFamily: NUM_FONT }}>{v}<span style={{ color: C.text3 }}> / {r.pa}</span></span>) },
+            fmt: (v, r) => {
+              if (v == null || r.pa == null) return <span style={{ color: C.text3 }}>—</span>
+              const up = hrpaMid != null && r.hrpa != null ? r.hrpa > hrpaMid : null
+              const mark = up == null ? null : up ? '▲' : '▼'
+              const tone = up == null ? C.text3 : up ? '#4ade80' : '#f87171'
+              return (
+                <span style={{ fontFamily: NUM_FONT }}
+                  title={hrpaMid == null ? undefined
+                    : `${(100 * r.hrpa).toFixed(2)}% per plate appearance — the middle of this shortlist is ${(100 * hrpaMid).toFixed(2)}%. ${up ? 'Above' : 'Below'} it.`}>
+                  {v}<span style={{ color: C.text3 }}> / {r.pa}</span>
+                  {mark && <span style={{ color: tone, marginLeft: 4, fontSize: 9 }}>{mark}</span>}
+                </span>
+              )
+            } },
           { key: 'iso', label: 'ISO', w: 48, dp: 3, mono: true,
             title: 'Season isolated power — slugging minus average, so it is extra-base ability with singles taken out. The most direct power stat on the row.',
             fmt: (v) => (v == null ? '—' : String(v.toFixed(3)).replace(/^0/, '')) },
