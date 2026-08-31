@@ -822,6 +822,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const reach = maxD * 1.05
       const len = 10 + windMph * 1.9
       const verts = []
+      const scols = []
       for (let a = -reach; a <= reach; a += cell) {
         for (let b = -reach * 0.1; b <= reach; b += cell) {
           // KEEP THE STREAKS OVER THE BALLPARK. The first cut filled the whole
@@ -836,16 +837,29 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
             const jitter = ((a * 7 + b * 13 + yy * 3) % 23) - 11
             const x0 = a + jitter
             const z0 = b + jitter * 0.6
-            verts.push(x0, yy, z0, x0 + dir.x * len, yy + 1.5, z0 + dir.z * len)
+            // Length varies per streak. A slab of identical segments is a
+            // hatch pattern; air is not uniform, and the eye reads the
+            // variation as depth before it reads it as anything else.
+            const vary = 0.55 + (((a * 11 + b * 5 + yy) % 17) / 17) * 0.9
+            const L = len * vary
+            verts.push(x0, yy, z0, x0 + dir.x * L, yy + 1.5, z0 + dir.z * L)
+            // TAPER. Each segment is dark at the tail and full at the head,
+            // which is what makes it read as something MOVING rather than as
+            // a line someone drew. Per-vertex, so it costs one attribute and
+            // no second draw call.
+            const f = 0.25 + vary * 0.45
+            scols.push(ink.r * 0.05, ink.g * 0.05, ink.b * 0.05,
+                       ink.r * f, ink.g * f, ink.b * f)
           }
         }
       }
       const streakGeo = new THREE.BufferGeometry()
       streakGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
-      const streaks = new THREE.LineSegments(
-        streakGeo,
-        new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: 0.38, depthWrite: false }),
-      )
+      streakGeo.setAttribute('color', new THREE.Float32BufferAttribute(scols, 3))
+      const streakMat = new THREE.LineBasicMaterial({
+        vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false,
+      })
+      const streaks = new THREE.LineSegments(streakGeo, streakMat)
       windGroup.add(streaks)
 
       // THE CARRY BAND (2026-08-31). Donovan: "have some visibility so we see
@@ -956,11 +970,20 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const feetPerSec = windMph * 1.47 * 0.55
       let travelled = 0
       let last = performance.now()
+      // GUSTING. Constant-velocity streaks at constant opacity are the single
+      // thing that made this read as a screensaver rather than as weather.
+      // Two slow sines at incommensurate periods (7.3s and 11.9s) never line
+      // up, so the field breathes without ever looking like a loop. The
+      // amplitude is deliberately small — this is atmosphere, not a claim
+      // that the wind actually gusted; the mph in the label stays exact.
       windStep = (now) => {
         const dt = Math.min(0.1, (now - last) / 1000)
         last = now
-        travelled = (travelled + feetPerSec * dt) % cell
+        const ts = now / 1000
+        const gust = 1 + 0.28 * Math.sin(ts / 7.3) + 0.14 * Math.sin(ts / 11.9)
+        travelled = (travelled + feetPerSec * gust * dt) % cell
         streaks.position.set(dir.x * travelled, 0, dir.z * travelled)
+        streakMat.opacity = 0.30 + 0.16 * gust
       }
     }
 
