@@ -5,12 +5,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
 // The ink that ships is the ink that is asserted — check-palette owns this
 // value, so the glyphs drawn on light tiles take it from there.
-import { INK_DARK } from '../lib/palette'
+// inkOn comes from palette, NOT from scales — scales re-exports it as
+// `seqInk`, and importing the original name from there is a build error the
+// parse check cannot see (it is a cross-module export, resolved by the
+// bundler). ZoneMap.js next door already imports it from palette; matching
+// that is the fix and the precedent.
+import { INK_DARK, inkOn } from '../lib/palette'
 import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } from '../lib/livePitches'
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
 // disagreeing about what "hot" looks like, and keeps this file free of hex.
-import { seqColor, inkOn } from '../lib/scales'
+import { seqColor } from '../lib/scales'
 
 // 🎯 THE STRIKE ZONE, IN SPACE — the zone map's stadium view.
 //
