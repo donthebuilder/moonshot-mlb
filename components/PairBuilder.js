@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { arr, obj, n, clean, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
 import DenseTable from './DenseTable'
 import { WhatThis } from './ui'
+import { HR_BANDS } from '../lib/hrShape'
 
 // Pair Builder — pick one or more hitters, get the partners they share tonight.
 //
@@ -74,16 +75,39 @@ const GROUP_TAGS = [
 ]
 const groupTagsOf = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
 
+// ── ALL FOUR SHAPES, NOT TWO (2026-08-30) ───────────────────────────────────
+//
+// Donovan: "i was talking about the moon shot and lazer roles". LASER HAD NO
+// CHIP. hr_shape_profile publishes five buckets on every row of the slate —
+// wall_scraper, laser, standard, moonshot, no_doubter, all 251 of 251 tonight
+// — and lib/hrShape.js has carried a full HR_BANDS entry for each since the
+// 60-night/801-homer study, label, colour and blurb. This row offered two of
+// them, and folded no_doubter silently into moonshot.
+//
+// That fold was the wrong shape of wrong: hrShape's own header says a moonshot
+// is HIGH, not far ("steep homers travel a median 18ft SHORTER than flatter
+// ones"), while a no-doubter is the top-decile-distance, hardest-struck band.
+// Merging them means the moonshot chip answered "high OR far", which is every
+// good homer and therefore no filter at all.
+//
+// `standard` gets no chip on purpose: it is the middle of the distribution,
+// the shape most homers already are, so filtering on it is filtering on
+// nothing. Label and colour come from HR_BANDS rather than being retyped, so
+// this row cannot drift from the ShapeBoard, Derby and ProjectedOutput
+// readings of the same field.
 const SHAPE_TAGS = [
-  { key: 'moonshot', label: '💣 Moonshot', title: 'Recent contact includes a moonshot (well past the fence) — hr_shape_profile.moonshot' },
-  { key: 'wall',      label: '🧱 Wall scraper', title: 'Recent contact includes a wall-scraper — a real near miss — hr_shape_profile.wall_scraper' },
+  { key: 'moonshot', bucket: 'moonshot', band: 'moonshot', label: '💣 Moonshot',
+    title: `Recent contact includes a moonshot. ${HR_BANDS.moonshot.blurb} — hr_shape_profile.moonshot` },
+  { key: 'nodoubt', bucket: 'no_doubter', band: 'no-doubter', label: '🚀 No-doubter',
+    title: `Recent contact includes a no-doubter. ${HR_BANDS['no-doubter'].blurb} — hr_shape_profile.no_doubter` },
+  { key: 'laser', bucket: 'laser', band: 'laser', label: '⚡ Laser',
+    title: `Recent contact includes a laser. ${HR_BANDS.laser.blurb} — hr_shape_profile.laser` },
+  { key: 'wall', bucket: 'wall_scraper', band: 'wall-scraper', label: '🧱 Wall scraper',
+    title: `Recent contact includes a wall-scraper — a real near miss. ${HR_BANDS['wall-scraper'].blurb} — hr_shape_profile.wall_scraper` },
 ]
 const shapeTagsOf = (raw) => {
   const prof = raw?.hr_shape_profile || {}
-  const out = []
-  if (n(prof?.moonshot, 0) + n(prof?.no_doubter, 0) > 0) out.push('moonshot')
-  if (n(prof?.wall_scraper, 0) > 0) out.push('wall')
-  return out
+  return SHAPE_TAGS.filter((t) => n(prof?.[t.bucket], 0) > 0).map((t) => t.key)
 }
 
 // WHY THIS PARTNER — the sentence the table made you assemble yourself
@@ -627,15 +651,20 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Shape</span>
         {SHAPE_TAGS.map((t) => {
           const on = shapeFilter === t.key
+          // Each shape wears its OWN band colour when active. Four chips in
+          // one orange would have made them read as one filter with four
+          // spellings; HR_BANDS already assigns each band a distinct colour
+          // and ShapeBoard already draws them that way.
+          const tone = HR_BANDS[t.band]?.color || C.orange
           return (
             <button key={t.key} onClick={() => setShapeFilter(on ? null : t.key)}
               title={t.title}
               style={{
                 padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
                 fontFamily: NUM_FONT,
-                border: `1px solid ${on ? C.orange : C.border}`,
-                background: on ? 'rgba(249,115,22,.12)' : 'transparent',
-                color: on ? C.orange : C.text3,
+                border: `1px solid ${on ? tone : C.border}`,
+                background: on ? `${tone}1f` : 'transparent',
+                color: on ? tone : C.text3,
               }}
             >{t.label}</button>
           )
