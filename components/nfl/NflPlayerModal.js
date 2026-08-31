@@ -1,5 +1,7 @@
 'use client'
 import { useEffect } from 'react'
+
+import useScrollLock from '../../lib/useScrollLock'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import MatchupMap from './MatchupMap'
@@ -298,6 +300,7 @@ function pickFromPlayer(player, market, spec) {
 }
 
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, onClose, onFullProfile }) {
+  useScrollLock(Boolean(player))
   const watchlist = useNflWatchlist(slate)
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -327,7 +330,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         onClick={(e) => e.stopPropagation()}
         style={{
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 14,
-          padding: 18, maxWidth: 620, width: '100%', maxHeight: '86vh', overflowY: 'auto',
+          padding: 18, maxWidth: 620, width: '100%', maxHeight: '86vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
         }}
       >
         <div style={{

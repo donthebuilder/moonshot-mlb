@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+
+import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, nameOf, teamOf, oppOf, mlbId, txt } from '../lib/player'
 import { alpha, verdictInk, verdictWash } from '../lib/scales'
@@ -162,6 +164,7 @@ function Section({ title, note, children }) {
 }
 
 export default function PropsSheet({ player, odds = null, onClose, onFullResearch, onWatch, watched }) {
+  useScrollLock(Boolean(player))
   const [market, setMarket] = useState(null)
   const [win, setWin] = useState('Szn')
   const [data, setData] = useState(undefined)   // undefined = loading, null = none
@@ -320,7 +323,7 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
         )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 12px 28px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', padding: '12px 12px 28px' }}>
         <VerdictHero
           col={col}
           score={v.score(player)}

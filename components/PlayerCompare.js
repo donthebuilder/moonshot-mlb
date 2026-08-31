@@ -1,5 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
+
+import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
 import {
   nameOf, teamOf, oppOf, n, clean,
@@ -134,6 +136,9 @@ function Picker({ peers, exclude, onPick }) {
 }
 
 export default function PlayerCompare({ anchor, peers = [], pairHistorySummary = null, onClose, onOpenPairHistory = null }) {
+  // Mounted only while open, and it opens ON TOP of a player card -- which is
+  // the case the reference count in the hook exists for.
+  useScrollLock(true)
   const [other, setOther] = useState(null)
   const hist = other ? findPairHistory(pairHistorySummary, anchor, other) : null
   const together = n(hist?.repeat_count, 0)
@@ -153,7 +158,7 @@ export default function PlayerCompare({ anchor, peers = [], pairHistorySummary =
         className="modal-box"
         style={{
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
-          width: 620, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto',
+          width: 620, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
         }}
       >
         <div className="modal-content" style={{ padding: '18px 20px 22px' }}>

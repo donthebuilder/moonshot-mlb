@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+
+import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf } from '../lib/player'
 import { runningGame, runningGameLine } from '../lib/running'
@@ -266,6 +268,7 @@ function SplitsControl({ src, pitcherId }) {
 }
 
 export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClick }) {
+  useScrollLock(Boolean(pitcher))
   const [tab, setTab] = useState('matchup')
 
   const lineup = useMemo(() => (pitcher?.lineup || []).filter(Boolean), [pitcher])
@@ -395,7 +398,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
         className="modal-box"
         style={{
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
-          width: 1100, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto',
+          width: 1100, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
         }}
       >
         <div className="modal-content" style={{ padding: '18px 20px 22px' }}>

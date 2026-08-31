@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
+
+import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
 import { detailUrl, archiveDetailUrl } from '../lib/dataSource'
 import {
@@ -247,7 +249,7 @@ function Shell({ inline, onClose, width, children }) {
         className="modal-box"
         style={{
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
-          width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto',
+          width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
           transition: 'width .15s',
         }}
       >
@@ -414,6 +416,9 @@ function Navigator({ peers, cur, onNavigate }) {
 }
 
 export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
+  // Inline mode is not an overlay -- it renders in the page, and pinning the
+  // body under it would freeze the very thing the reader is scrolling.
+  useScrollLock(Boolean(player) && !inline)
   const [tab, setTab] = useState('overview')
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
