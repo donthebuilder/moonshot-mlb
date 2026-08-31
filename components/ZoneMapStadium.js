@@ -108,8 +108,9 @@ function textSprite(txt, hex, px = 42, worldW = 0.42) {
   return sp
 }
 
-export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, statLabel = '', label = '' }) {
+export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, zoneDetail = null, killZones = null, statLabel = '', label = '' }) {
   const mountRef = useRef(null)
+  const [hoverZone, setHoverZone] = useState(null)
   const [ok, setOk] = useState(true)
   const hasPitches = (pitches || []).length > 0
   // WHY THE DEFAULT MOVES. Flight and tunnel are both drawn FROM tracked
@@ -344,16 +345,30 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     //    outs. Two facts, never blended into one score, exactly as the 2D
     //    matchup grid states.
     const matchGroup = new THREE.Group(); add(matchGroup)
+    const matchTiles = []
     {
       const use = {}; (pzp?.tendency || []).forEach((t) => { use[t.zone] = t.pct })
       const dmg = {}; (pzp?.damage || []).forEach((d) => { dmg[d.zone] = d })
       const kill = new Set(pzp?.kill_zones || [])
-      const hasProfile = Object.keys(use).length > 0 || Object.keys(dmg).length > 0 || kill.size > 0
+      // KILL ZONES ARE AN OVERLAY, NOT A SHADING SOURCE — and counting them
+      // here was hiding the numbers. `hasProfile` decides which of the two
+      // ways to COLOUR the grid: the starter's usage-vs-damage edge, or the
+      // hitter's own season line. Kill zones can say nothing about either;
+      // they are a separate fact drawn on top of whichever wins.
+      //
+      // With kill.size in this test, a bot payload that publishes kill_zones
+      // but no `tendency` — which is a perfectly ordinary payload — took the
+      // profile branch, found no usage for any zone, and drew nine empty
+      // tiles while a full set of season zones sat unused in `zoneStats`.
+      // That is "the zones no stats": the data was there and the branch was
+      // wrong. Caught by rendering it with exactly that payload.
+      const hasProfile = Object.keys(use).length > 0 || Object.keys(dmg).length > 0
       const uses = Object.values(use).filter((v) => Number.isFinite(v))
       const maxUse = uses.length ? Math.max(...uses) : 0
       const slgs = Object.values(dmg).map((d) => Number(d?.slg)).filter(Number.isFinite)
       const maxSlg = slgs.length ? Math.max(...slgs) : 0
 
+      const tiles = matchTiles
       const cw = (2 * PLATE_HALF) / 3, ch = ZH / 3, GAP = 0.045
       const tileAt = (z) => ({
         cx: -PLATE_HALF + cw * ((z % 3) + 0.5),
@@ -370,13 +385,19 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       //    Everything that must be read now sits at GLYPH_Z, in front of the
       //    deepest tile this grid can draw.
       const GLYPH_Z = -0.34
-      const putTile = (cx, cy, tone, opacity, depth) => {
+      const putTile = (cx, cy, tone, opacity, depth, zn) => {
         const tile = new THREE.Mesh(
           new THREE.BoxGeometry(cw - GAP * 2, ch - GAP * 2, depth),
           new THREE.MeshLambertMaterial({ color: tone, transparent: true, opacity, side: THREE.DoubleSide }),
         )
         tile.position.copy(PT(cx, cy, -depth / 2 - 0.02))
+        // The zone number rides on the mesh so a raycast hit answers "which
+        // box" without any coordinate maths on the way back out.
+        tile.userData.zone = zn
+        tile.userData.baseOpacity = opacity
         matchGroup.add(tile)
+        tiles.push(tile)
+        return tile
       }
 
       // ── NOTHING MAY RENDER BLANK. Donovan, 2026-08-31: "on the 3d
@@ -405,19 +426,21 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         let glyph = null
         let glyphCol = C.text3
 
-        if (hasProfile) {
+        const profileHere = hasProfile && use[zn] != null
+        if (profileHere) {
           const traffic = maxUse > 0 && Number.isFinite(use[zn]) ? use[zn] / maxUse : 0
           const damage = maxSlg > 0 && Number.isFinite(Number(dmg[zn]?.slg)) ? Number(dmg[zn].slg) / maxSlg : 0
           const edge = damage - traffic
           const mag = Math.min(1, Math.abs(edge))
-          if (use[zn]) {
-            tone = edge >= 0 ? C.orange : C.red
-            opacity = 0.34 + mag * 0.5
-            depth = 0.06 + mag * 0.10
-            glyph = kill.has(zn) ? '✕' : (edge >= 0 ? '⚡' : '⚠')
-            glyphCol = kill.has(zn) ? C.text : INK_DARK
-          }
+          tone = edge >= 0 ? C.orange : C.red
+          opacity = 0.34 + mag * 0.5
+          depth = 0.06 + mag * 0.10
+          glyph = edge >= 0 ? '⚡' : '⚠'
+          glyphCol = INK_DARK
         } else if (hasStats) {
+          // PER ZONE, not per grid. A profile that covers six zones used to
+          // blank the other three; now each empty one falls through to the
+          // season line on its own.
           const cell = (zoneStats || {})[zn] || (zoneStats || {})[String(zn)]
           const idx = cell ? TEMP_ORDER.indexOf(cell.temp) : -1
           const hex = idx >= 0 ? seqColor(idx, [0, TEMP_ORDER.length - 1]) : null
@@ -441,7 +464,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
           glyph = cell && cell.value != null && cell.value !== '' ? String(cell.value) : '—'
         }
 
-        putTile(cx, cy, tone, opacity, depth)
+        putTile(cx, cy, tone, opacity, depth, zn)
 
         if (glyph) {
           const g2 = glyph.length > 1
@@ -461,6 +484,35 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         matchGroup.add(num)
       }
 
+      // ── THE KILL-ZONE RING. Donovan: "zone matches highlight, which is
+      //    the main thing." A ✕ glyph on a tile is a mark among marks; a ring
+      //    around the whole cell is the only thing on the grid with that
+      //    shape, so it survives being small, being at an angle, and being
+      //    next to eight other coloured boxes. Drawn in front of the tiles at
+      //    GLYPH_Z so nothing can bury it — which is the mistake this file
+      //    already made once with the numbers.
+      const killSet = new Set(killZones || pzp?.kill_zones || [])
+      killSet.forEach((zn) => {
+        const z = Number(zn) - 1
+        if (!(z >= 0 && z < 9)) return
+        const { cx, cy } = tileAt(z)
+        // A thin outline on the cell, not a filled disc. The first cut drew
+        // a red wash plus a fat ring and they became the loudest thing on the
+        // grid — a kill zone is one fact ABOUT a cell, not more important
+        // than the number in it. Rendered, seen, thinned.
+        const w = cw - GAP * 2, h = ch - GAP * 2
+        const half = [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2], [-w / 2, -h / 2]]
+        const og = new THREE.BufferGeometry().setFromPoints(
+          half.map(([dx, dy]) => PT(cx + dx, cy + dy, GLYPH_Z - 0.02)),
+        )
+        matchGroup.add(new THREE.Line(og, new THREE.LineBasicMaterial({
+          color: C.red, transparent: true, opacity: 0.95,
+        })))
+        const x = glyphSprite('✕', C.red, 64, 0.17)
+        x.position.copy(PT(cx + w * 0.32, cy + h * 0.32, GLYPH_Z - 0.02))
+        matchGroup.add(x)
+      })
+
       // THE EMPTY STATE, ON THE CANVAS. Not in the caption — he was looking at
       // the picture, and a picture that explains itself somewhere else has not
       // explained itself.
@@ -473,6 +525,45 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         matchGroup.add(t2)
       }
     }
+
+    // ── HOVER. One raycast against the nine tiles on pointermove, which is
+    //    cheap enough not to need throttling at this count. Only in matchup
+    //    mode: the other two draw no tiles, and hovering nothing would just
+    //    flicker the popout.
+    const ray = new THREE.Raycaster()
+    const ndc = new THREE.Vector2()
+    let lastHover = null
+    const onMove = (e) => {
+      if (mode !== 'matchup' || !matchTiles.length) return
+      const r = renderer.domElement.getBoundingClientRect()
+      ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1
+      ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1
+      ray.setFromCamera(ndc, camera)
+      const hit = ray.intersectObjects(matchTiles, false)[0]
+      const zn = hit ? hit.object.userData.zone : null
+      if (zn !== lastHover) {
+        lastHover = zn
+        setHoverZone(zn)
+        // Lift the hovered tile rather than recolouring it — colour on this
+        // grid already means something, and a second meaning on the same
+        // channel is how a legend stops being true.
+        matchTiles.forEach((t) => {
+          const on = t.userData.zone === zn
+          t.material.opacity = on
+            ? Math.min(1, t.userData.baseOpacity + 0.30)
+            : t.userData.baseOpacity
+          t.scale.setScalar(on ? 1.06 : 1)
+        })
+      }
+    }
+    const onLeave = () => {
+      if (lastHover == null) return
+      lastHover = null
+      setHoverZone(null)
+      matchTiles.forEach((t) => { t.material.opacity = t.userData.baseOpacity; t.scale.setScalar(1) })
+    }
+    renderer.domElement.addEventListener('pointermove', onMove)
+    renderer.domElement.addEventListener('pointerleave', onLeave)
 
     const show = () => {
       trailGroup.visible = mode === 'flight' || mode === 'tunnel'
@@ -489,6 +580,8 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
 
     return () => {
       cancelAnimationFrame(raf)
+      renderer.domElement.removeEventListener('pointermove', onMove)
+      renderer.domElement.removeEventListener('pointerleave', onLeave)
       controls.dispose()
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose()
@@ -542,7 +635,57 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         {btn('tunnel', 'Release + tunnel')}
         {btn('matchup', 'Matchup')}
       </div>
-      <div ref={mountRef} style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
+      {/* ── THE HEIGHT IS ON THE DIV, NOT ON THE CANVAS (2026-08-31).
+              Donovan: "when i click a filter it's like it sends me up almost
+              like a refresh."
+
+              That was a layout collapse, not a reload. This container had no
+              height of its own — it was only as tall as the canvas inside it.
+              Changing a filter changes `hits`, which is in the effect's deps,
+              so React runs the cleanup (canvas removed) before the effect
+              (new canvas appended). For that one frame the div is 0px, the
+              page gets shorter than the scroll position, and the browser
+              snaps you upward. Every filter click paid for it.
+
+              minHeight + aspectRatio restate Math.max(320, W * 0.62) in CSS, so
+              the box holds its size whether or not a canvas is in it. The
+              rebuild still happens; it just stops moving the page. */}
+          <div style={{ position: 'relative' }}>
+            <div ref={mountRef} style={{
+              width: '100%', minHeight: 320, aspectRatio: '1 / 0.62',
+              borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
+            }} />
+
+            {/* THE POPOUT. Same lines the flat grid shows, because they are
+                literally the same strings — ZoneMap builds them once and
+                hands them down, so the two maps cannot drift apart about what
+                a zone says. Pinned to a corner rather than following the
+                cursor: the cursor is busy orbiting the scene, and a panel
+                that chases it while you drag is unusable. */}
+            {hoverZone != null && zoneDetail?.[hoverZone] && (
+              <div style={{
+                position: 'absolute', right: 10, bottom: 10, zIndex: 4,
+                width: 196, pointerEvents: 'none',
+                background: 'rgba(9,9,11,.90)', backdropFilter: 'blur(6px)',
+                border: `1px solid ${zoneDetail[hoverZone].kill ? C.orange : C.border2}`,
+                borderRadius: 9, padding: '8px 10px',
+              }}>
+                <div style={{
+                  fontSize: 9.5, fontWeight: 900, marginBottom: 3,
+                  color: zoneDetail[hoverZone].kill ? C.red : C.text,
+                }}>
+                  {zoneDetail[hoverZone].title}
+                  {zoneDetail[hoverZone].kill ? ' · KILL ZONE' : ''}
+                </div>
+                {zoneDetail[hoverZone].lines.map((ln, i) => (
+                  <div key={i} style={{
+                    fontSize: 9, fontFamily: NUM_FONT, lineHeight: 1.6,
+                    color: /HIS ZONE|arm wins/.test(ln) ? C.orange : C.text2,
+                  }}>{ln}</div>
+                ))}
+              </div>
+            )}
+          </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         {label ? `${label} · ` : ''}Catcher&apos;s view.{' '}
         {hasPitches

@@ -1349,7 +1349,25 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   return (
     <div>
       <div style={{ position: 'relative' }}>
-        <div ref={mountRef} style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
+        {/* ── THE HEIGHT IS ON THE DIV, NOT ON THE CANVAS (2026-08-31).
+              Donovan: "when i click a filter it's like it sends me up almost
+              like a refresh."
+
+              That was a layout collapse, not a reload. This container had no
+              height of its own — it was only as tall as the canvas inside it.
+              Changing a filter changes `hits`, which is in the effect's deps,
+              so React runs the cleanup (canvas removed) before the effect
+              (new canvas appended). For that one frame the div is 0px, the
+              page gets shorter than the scroll position, and the browser
+              snaps you upward. Every filter click paid for it.
+
+              minHeight + aspectRatio restate Math.max(340, W * 0.6) in CSS, so
+              the box holds its size whether or not a canvas is in it. The
+              rebuild still happens; it just stops moving the page. */}
+          <div ref={mountRef} style={{
+            width: '100%', minHeight: 340, aspectRatio: '1 / 0.6',
+            borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
+          }} />
         {/* FILM OVERLAYS (2026-08-31). Grain, scanlines and a vignette, as
             three plain divs — no shaders, no post-processing pass, no cost
             in the render loop. This is most of the distance between "a 3D

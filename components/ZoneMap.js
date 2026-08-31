@@ -658,6 +658,53 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   // season values with no bot payload involved. So the 3D is offered whenever
   // the flat grid has something, and the component says which of its modes
   // have data rather than drawing an empty box.
+  // ── WHAT THE 3D VIEW SAYS ON HOVER (2026-08-31). Donovan: "no hover
+  //    popout stats... zone matches highlight, which is the main thing. does
+  //    HH match pitcher's contact, you know things like that."
+  //
+  //    The flat grid already answers all of that on hover. Rather than teach
+  //    the 3D component to compute it a second time — which is how the two
+  //    maps would start disagreeing about the same zone — the LINES are built
+  //    here, where bz / use / pd / kill and the formatters already live, and
+  //    handed down as plain strings. ZoneMapStadium stays a renderer.
+  const zoneDetail = useMemo(() => {
+    const out = {}
+    for (let zn = 1; zn <= 9; zn++) {
+      const b = bz[zn]
+      const z = apiZs[zn] || apiZs[String(zn)]
+      const lines = []
+      if (b) {
+        lines.push(`${b.pa} PA · ${b.hr} HR · BA ${fmt3(b.ba)}`)
+        lines.push(`xSLG ${fmt3(b.xslg)} · xwOBA ${fmt3(b.xwoba)}`)
+        if (b.gb_rate != null || b.fb_rate != null) {
+          lines.push(`GB ${fmtPct(b.gb_rate)} · FLY ${fmtPct(b.fb_rate)}`)
+        }
+        if (b.hh_rate != null) lines.push(`hard-hit ${fmtPct(b.hh_rate)}`)
+      }
+      if (z) lines.push(`${(WHOSE[stat] || WHOSE.ev)[0] === 'THE STARTER' ? 'allowed' : 'his'} ${z.value} · ${z.temp}`)
+
+      // THE COLLISION LINE — the one he asked for by name. Two facts that are
+      // only interesting together: how hard HE hits the ball here, and how
+      // much contact THIS ARM gives up here. Stated side by side and never
+      // multiplied into a score, because there is no published joint rate and
+      // inventing one would be a claim the data does not make.
+      if (pzp && use[zn] != null) {
+        lines.push(`starter throws ${fmtPct(use[zn])} here${pd[zn]?.xslg != null ? ` · bleeds ${fmt3(pd[zn].xslg)}` : ''}`)
+        if (b?.hh_rate != null && pd[zn]?.hh_rate != null) {
+          const edge = b.hh_rate - pd[zn].hh_rate
+          lines.push(`HH ${fmtPct(b.hh_rate)} vs allows ${fmtPct(pd[zn].hh_rate)} → ${edge >= 0 ? 'HIS ZONE' : 'the arm wins'}`)
+        }
+      }
+      if (b?.low_sample) lines.push('small sample — read lightly')
+      out[zn] = {
+        title: ZONE_NAME[zn] || `zone ${zn}`,
+        kill: kill.has(zn),
+        lines: lines.length ? lines : ['no data in this zone'],
+      }
+    }
+    return out
+  }, [bz, apiZs, use, pd, kill, pzp, stat])
+
   const zone3dAble = allLive.length > 0
     || !!(pzp?.tendency?.length || pzp?.kill_zones?.length)
     || Object.keys(apiZs).length > 0
@@ -754,6 +801,8 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 pitches={liveType ? allLive.filter((p) => p.type === liveType) : allLive}
                 pzp={pzp}
                 zoneStats={apiZs}
+                zoneDetail={zoneDetail}
+                killZones={pzp?.kill_zones || null}
                 statLabel={(WHOSE[stat] || WHOSE.ev)[0]}
                 label={liveLabel || starterName || ''}
               />
