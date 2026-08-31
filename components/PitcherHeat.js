@@ -117,7 +117,8 @@ export default function PitcherHeat({ pitchers = [], onSelect }) {
         title="Most attackable starters — bright means good for the hitter"
         labelWidth={150}
         fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—')}
-        onRowClick={onSelect ? (r) => onSelect(r._raw) : null}
+        // DenseTable already unwraps _raw for the handler.
+        onRowClick={onSelect || null}
         caption="Ranked by HR/9. Bright = good for hitters throughout, so a high ERA or a fat meatball rate lights up. OPS and ISO against are ×100 to share the scale."
       />
 

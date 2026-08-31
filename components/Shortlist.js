@@ -305,7 +305,11 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
       <DenseTable
         key={`${view}-${pack}`}
         rows={rows}
-        onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
+        // DenseTable ALREADY hands the handler `r._raw ?? r` (see its row
+        // onClick). Unwrapping again here read _raw off the player object,
+        // got undefined, and opened a modal on nothing -- which is what
+        // "i cant open players up when i click on them" was.
+        onRowClick={onPlayerClick || null}
         initialSort={null}
         heatMode="sorted"
         maxHeight={560}

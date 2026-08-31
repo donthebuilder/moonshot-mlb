@@ -168,7 +168,8 @@ export default function HitterHeat({
           columns={['Score', 'HR', 'Hit', 'HRR', 'TB', 'HRW', 'DC', 'Due', 'PMix', 'Barrel', 'P HR/9']}
           title={`${title} — top ${Math.min(topN, ranked.length)} profile`}
           labelWidth={140}
-          onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
+          // DenseTable already unwraps _raw for the handler.
+          onRowClick={onPlayerClick || null}
         />
       )}
 

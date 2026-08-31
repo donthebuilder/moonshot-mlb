@@ -398,7 +398,9 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
         title="Lineup slot × damage — warm is good for the bat"
         labelWidth={190}
         fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(0) : '—')}
-        onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
+        // DenseTable already unwraps _raw; the guard now checks the thing it
+        // was actually meant to check.
+        onRowClick={onPlayerClick ? (p) => p && onPlayerClick(p) : null}
         caption="In batting order, not sorted by damage — click Damage to rank. Damage, Zone and HR scr are 0–100 scores drawn against 0–100, so a quiet arm looks quiet. vs own is a signed difference against his other spots (▲ worse here, ▼ better). SLG and ISO against are drawn versus what league-average pitching allows, not versus each other. PA, HR%, XBH% and HH% print plain — PA is here so a warm damage cell on a thin sample is visible as exactly that."
       />
 

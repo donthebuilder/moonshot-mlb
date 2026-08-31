@@ -395,7 +395,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
         caption={type === 'hr'
           ? 'Read ISO with the score especially: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, while the score itself barely separated — so a big score on thin power is the board’s most common trap, and it is exactly the kind of thing a ▼ ISO chip is here to say out loud.'
           : undefined}
-        onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw) : null}
+        // DenseTable already unwraps _raw for the handler -- see Shortlist.
+        onRowClick={onPlayerClick || null}
       />}
 
       {viewMode === 'cards' && (
