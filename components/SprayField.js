@@ -1267,8 +1267,35 @@ export default function SprayField({
             the same question from two angles — additive, the 2D chart never
             leaves the page. */}
         <button
-          onClick={() => setStadium((v) => !v)}
-          title="The same balls flown through the park in 3D — drag to orbit, scroll to zoom. The 2D chart stays; this is another way of looking at it."
+          onClick={() => {
+            // ── THE OPENING SHOT (2026-08-31). Donovan: "when you open up
+            //    spray toggle pitchers top 3 pitches last 5 games all
+            //    contact."
+            //
+            //    Opening on ALL of it was the wrong first frame: a hundred and
+            //    twenty arcs is a hairball, and the read he actually wants —
+            //    where does this bat do damage against what this arm throws —
+            //    is three pitch types deep, not sixteen. Last 5 games and all
+            //    contact were already the defaults; the pitch cut was not.
+            //
+            //    Only on the way IN, and only if he has not already picked
+            //    pitches himself. Turning the 3D off leaves the selection
+            //    alone — stomping his filters on the way out would be a
+            //    surprise, and every one of these is one click off in the
+            //    dock on the canvas.
+            setStadium((v) => {
+              if (!v) {
+                if (!rangeTouched.current) setRange('g5')
+                setBbPick(null)
+                if (!picked || picked.size === 0) {
+                  const top3 = pitches.slice(0, 3).map((x) => x.k)
+                  if (top3.length) setPicked(new Set(top3))
+                }
+              }
+              return !v
+            })
+          }}
+          title="The same balls flown through the park in 3D — drag to orbit, scroll to zoom. Opens on his last 5 games, all contact, against this arm's top 3 pitches; clear any of that in the panel on the chart. The 2D chart stays; this is another way of looking at it."
           style={{
             padding: '2px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
             fontFamily: NUM_FONT,

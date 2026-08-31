@@ -178,7 +178,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const camera = new THREE.PerspectiveCamera(44, W / H, 1, 4000)
     // Fit the park: high enough to see the shape, close enough to fill the
     // frame, slightly first-base side like a broadcast camera.
-    camera.position.set(maxD * 0.18, maxD * 0.52, -maxD * 0.60)
+    // Opens wider than it did — Donovan: "the 3d should open a little more
+    // zoomed out." The old frame cropped the bowl to just the near rim, which
+    // is the other half of why the park did not read as a building.
+    camera.position.set(maxD * 0.21, maxD * 0.60, -maxD * 0.76)
     const target = new THREE.Vector3(0, 6, maxD * 0.40)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -521,8 +524,16 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
             i0.x, y0, i0.z, i1.x, y0, i1.z, o1.x, y1, o1.z,
             i0.x, y0, i0.z, o1.x, y1, o1.z, o0.x, y1, o0.z,
           )
-          for (let k = 0; k < 3; k++) col.push(A.r, A.g, A.b)
-          for (let k = 0; k < 3; k++) col.push(B.r, B.g, B.b)
+          // SECTION AISLES. A deck of one flat colour is a ramp, not a
+          // grandstand — the thing that makes real stands read as seating
+          // from distance is the vertical break between sections. Every
+          // fifth 2.5° segment is stepped down, which costs nothing (the
+          // colours are already per-vertex) and is the single cheapest thing
+          // that makes this look like a building.
+          const aisle = Math.round((a - a0) / 2.5) % 5 === 0
+          const kk = aisle ? 0.62 : 1
+          for (let k = 0; k < 3; k++) col.push(A.r * kk, A.g * kk, A.b * kk)
+          for (let k = 0; k < 3; k++) col.push(B.r * kk, B.g * kk, B.b * kk)
           if (crowd) for (let k = 0; k < 16; k++) {
             const u = Math.random(), v = Math.random()
             pts.push(
@@ -543,8 +554,20 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         if (pts.length) {
           const pg = new THREE.BufferGeometry()
           pg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
+          // The crowd was at 0.16 opacity — technically present, invisible in
+          // practice, which is most of why the bowl read as empty concrete.
+          // Colour varies per point now (people are not one colour) and it
+          // sits at 0.40, still well under the data.
+          const cc = []
+          const warmA = new THREE.Color(0xc9a781), coolA = new THREE.Color(0x8fa3bd)
+          for (let k = 0; k < pts.length / 3; k++) {
+            const c = Math.random() > 0.62 ? coolA : warmA
+            const j = 0.55 + Math.random() * 0.55
+            cc.push(c.r * j, c.g * j, c.b * j)
+          }
+          pg.setAttribute('color', new THREE.Float32BufferAttribute(cc, 3))
           scene.add(new THREE.Points(pg, new THREE.PointsMaterial({
-            color: 0xc9a781, size: 2.3, transparent: true, opacity: 0.16,
+            vertexColors: true, size: 2.6, transparent: true, opacity: 0.40,
           })))
         }
       }
@@ -589,12 +612,12 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // triangle floating in black. Roughly doubled across all four rings.
       // They are still the quietest thing on screen; they are no longer
       // invisible, and a ballpark you cannot see is not a ballpark.
-      deck(-72, 72, 16, 92, 6, 46, 0x1e242e, 0x2b323f, true)
-      if (bowl.bleach) deck(bowl.bleach[0], bowl.bleach[1], 14, 58, 4, 26, 0x1a2029, 0x272e3a, true)
-      if (bowl.up) deck(bowl.up[0], bowl.up[1], 116, 96, 62, 112, 0x171c24, 0x252c38, true)
+      deck(-72, 72, 16, 92, 6, 46, 0x2a323f, 0x3a4453, true)
+      if (bowl.bleach) deck(bowl.bleach[0], bowl.bleach[1], 14, 58, 4, 26, 0x252d38, 0x353e4c, true)
+      if (bowl.up) deck(bowl.up[0], bowl.up[1], 116, 96, 62, 112, 0x2d3441, 0x323a48, true)
       if (bowl.tiers > 2) {
         const u = bowl.up || [-46, 46]
-        deck(u[0], u[1], 220, 84, 128, 172, 0x141920, 0x212832, true)
+        deck(u[0], u[1], 220, 84, 128, 172, 0x1d232c, 0x212832, true)
       }
 
       // A shut roof is opaque AND hides everything outside it, so a camera that
@@ -793,8 +816,57 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         color: col, transparent: true, opacity: big ? 1 : 0.55,
       }))
       const v = P(h.r, h.ang)
-      dot.position.set(v.x, 1.4, v.z)
+
+      // ── LANDINGS IN THE SEATS (2026-08-31). Donovan: "the balls land inside
+      //    the stand which is cool but they kinda get lost."
+      //
+      //    Two reasons they got lost, and the first is a real geometry bug:
+      //    every landing dot was pinned to y = 1.4, i.e. ON THE GROUND. A ball
+      //    that cleared the fence has its dot sitting on the dirt UNDER the
+      //    grandstand, buried inside the deck geometry, which is why it
+      //    vanished rather than merely being dim. It now rides the deck
+      //    surface at the radius it actually reached.
+      //
+      //    Second, a 2-unit dot against a bowl full of crowd points is the
+      //    same size and brightness as the crowd. So a ball in the seats gets
+      //    a MARKER, not just a dot: a bright pin dropped to the deck plus a
+      //    ring around the base. That reads at any zoom and cannot be
+      //    confused with a spectator.
+      const wallHere = wallD(Math.max(-45, Math.min(45, h.ang)))
+      const inSeats = h.r > wallHere + 4
+      // The bowl rises roughly 46ft over its first 92ft of depth (see deck()),
+      // so this is that slope, clamped to the top of the upper deck.
+      const seatY = inSeats ? Math.min(150, 8 + (h.r - wallHere) * 0.46) : 1.4
+      dot.position.set(v.x, seatY, v.z)
       if (big) dot.scale.setScalar(1.35)
+
+      if (inSeats) {
+        const pin = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.5, 0.5, seatY - 2, 6),
+          new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.30, depthWrite: false }),
+        )
+        pin.position.set(v.x, (seatY - 2) / 2, v.z)
+        scene.add(pin)
+
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(3.4, 4.6, 24),
+          new THREE.MeshBasicMaterial({
+            color: col, transparent: true, opacity: 0.55,
+            side: THREE.DoubleSide, depthWrite: false,
+          }),
+        )
+        ring.position.set(v.x, seatY + 0.6, v.z)
+        ring.lookAt(camera.position)
+        scene.add(ring)
+
+        // The same halo the flying ball carries, so a landing in the seats is
+        // lit rather than merely coloured — it is the loudest outcome on the
+        // chart and it should be the loudest mark.
+        const hh = makeHalo(col)
+        hh.scale.setScalar(1.9)
+        hh.position.set(v.x, seatY + 0.6, v.z)
+        scene.add(hh)
+      }
       dot.userData.info = info
       // BUG (crashed the stadium view on click): flightIdx was never
       // declared anywhere -- reading an undeclared identifier throws a
@@ -931,30 +1003,51 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       //    travelling sine waves along its length, amplitude ramped from zero
       //    at the pole to full at the fly end — a flag is pinned at one edge,
       //    so any wave that moves the pinned edge looks wrong immediately.
-      const FLAG_W = 46, FLAG_H = 27, FW = 22, FH = 10
+      const FLAG_W = 66, FLAG_H = 38, FW = 24, FH = 11
       const flagGeo = new THREE.PlaneGeometry(FLAG_W, FLAG_H, FW, FH)
       // Shift the mesh so x = 0 is the POLE edge, which is the edge that must
       // not move. PlaneGeometry centres on the origin.
       flagGeo.translate(FLAG_W / 2, 0, 0)
       const flagBase = flagGeo.attributes.position.array.slice()
 
-      // MOONSHOT's own accent on the hoist half, the wind's ink on the fly
-      // half, split hard rather than blended — the site's colour language is
-      // categorical, and a gradient here would read as a measurement.
-      const flagCols = new Float32Array(flagGeo.attributes.position.count * 3)
-      {
-        const a = new THREE.Color(C.orange), b = new THREE.Color(windHex)
-        for (let vi = 0; vi < flagGeo.attributes.position.count; vi++) {
-          const fx = flagBase[vi * 3] / FLAG_W
-          const c = fx < 0.42 ? a : b
-          // A little shading down the length so the cloth has a lit side.
-          const k = 0.72 + 0.28 * fx
-          flagCols[vi * 3] = c.r * k; flagCols[vi * 3 + 1] = c.g * k; flagCols[vi * 3 + 2] = c.b * k
-        }
-        flagGeo.setAttribute('color', new THREE.BufferAttribute(flagCols, 3))
-      }
+      // IT IS THE SITE'S FLAG. Donovan: "make the flag have the site logo."
+      // Painted on a canvas and used as the cloth's texture, rather than the
+      // vertex-colour split the first cut used — a wordmark needs pixels, and
+      // a texture also deforms WITH the wave, so the letters ripple instead of
+      // sitting flat on a moving surface.
+      const flagTex = (() => {
+        const cv = document.createElement('canvas')
+        cv.width = 512; cv.height = 300
+        const g = cv.getContext('2d')
+        g.fillStyle = new THREE.Color(0x14161c).getStyle()
+        g.fillRect(0, 0, 512, 300)
+        // Hoist band in the accent, so the flag reads as MOONSHOT's from the
+        // back of the park where the letters are too small to resolve.
+        g.fillStyle = C.orange
+        g.fillRect(0, 0, 54, 300)
+        g.fillRect(0, 262, 512, 12)
+        g.font = '900 76px SF Mono, Menlo, monospace'
+        g.textAlign = 'left'; g.textBaseline = 'middle'
+        g.fillStyle = C.text
+        g.fillText('MOONSHOT', 86, 132)
+        g.font = '800 26px SF Mono, Menlo, monospace'
+        g.fillStyle = C.orange
+        g.fillText('DASH NETWORK', 90, 196)
+        const t = new THREE.CanvasTexture(cv)
+        t.anisotropy = 8
+        // MIRRORED, and physically it was right — a DoubleSide plane shows the
+        // reverse of the cloth on its back face, exactly as a real flag does.
+        // But the default camera sits behind the plate and lands on that back
+        // face, so the wordmark read "TOHSNOOM". A logo that is backwards is a
+        // logo that failed, so the texture is flipped: the side you actually
+        // look at is the side that reads.
+        t.wrapS = THREE.RepeatWrapping
+        t.repeat.x = -1
+        t.offset.x = 1
+        return t
+      })()
       const flagMesh = new THREE.Mesh(flagGeo, new THREE.MeshLambertMaterial({
-        vertexColors: true, side: THREE.DoubleSide,
+        map: flagTex, side: THREE.DoubleSide,
       }))
 
       // The pole, and the whole rig parked in foul ground on the first-base
@@ -968,24 +1061,34 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         )
         pole.position.y = 64
         flagRig.add(pole)
-        const finial = new THREE.Mesh(
-          new THREE.SphereGeometry(2.6, 12, 12),
-          new THREE.MeshBasicMaterial({ color: C.orange }),
-        )
-        finial.position.y = 130
-        flagRig.add(finial)
         flagMesh.position.set(0, 112, 0)
         flagRig.add(flagMesh)
 
-        const post = P(maxD * 0.52, 53)
+        // The finial ball is gone — Donovan: "the point is not needed." And
+        // the pole moves from 53° to 63°: the light towers stand at ±52 and
+        // their beam cones were falling across the flag, which is the
+        // "spotlight" he wanted rid of. Nothing lights this now except the
+        // scene's own key and fill, same as the rest of the park.
+        // Pushed out past the light towers' cones as well as off their
+        // bearing — at 0.56 the near edge of the ±52° beam still washed
+        // across the cloth, which is the "spotlight" that had to go. 0.70
+        // rather than 0.82 because at 0.82 the mph label ran off the right
+        // edge of the frame; found by rendering it, not by arithmetic.
+        const post = P(maxD * 0.70, 64)
         flagRig.position.set(post.x, 0, post.z)
-        // Built along +X, so the bearing is one Y rotation — negated for the
-        // same reason P() negates x (this camera faces +Z).
-        flagRig.rotation.y = -windTo * DEG + Math.PI / 2
+        // BACKWARDS, and Donovan caught it: "the flag is going in the
+        // opposite direction of the wind." The cloth is built along +X, and
+        // a Y rotation of θ sends +X to (cos θ, −sin θ) in the x/z plane.
+        // With θ = −w + π/2 that lands on (sin w, −cos w) — the exact
+        // NEGATIVE of WIND_DIR's (−sin w, cos w). Off by π, which on a
+        // symmetric flag looks like a plausible flag pointing the wrong way
+        // rather than like a bug.
+        //   θ = −w − π/2  →  cos θ = −sin w, −sin θ = cos w  ✓ = WIND_DIR
+        flagRig.rotation.y = -windTo * DEG - Math.PI / 2
         windGroup.add(flagRig)
 
         const tag = labelSprite(`${windMph.toFixed(0)} MPH ${windLabel.toUpperCase()}`, windHex)
-        tag.position.set(post.x, 152, post.z)
+        tag.position.set(post.x, 148, post.z)
         windGroup.add(tag)
       }
 

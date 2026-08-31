@@ -5,12 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
 // The ink that ships is the ink that is asserted — check-palette owns this
 // value, so the glyphs drawn on light tiles take it from there.
-// inkOn comes from palette, NOT from scales — scales re-exports it as
-// `seqInk`, and importing the original name from there is a build error the
-// parse check cannot see (it is a cross-module export, resolved by the
-// bundler). ZoneMap.js next door already imports it from palette; matching
-// that is the fix and the precedent.
-import { INK_DARK, inkOn } from '../lib/palette'
+import { INK_DARK } from '../lib/palette'
 import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } from '../lib/livePitches'
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
@@ -84,21 +79,33 @@ function glyphSprite(txt, hex, px = 64, scale = 0.5) {
 // MLB's five temp bands, cold → hot, in the same order the 2D map uses.
 const TEMP_ORDER = ['cold', 'cool', 'lukewarm', 'warm', 'hot']
 
-// Same idea as glyphSprite, but sized for a short STRING rather than one
-// character — '104.2' needs a wide canvas or it renders squeezed.
-function textSprite(txt, hex, px = 42, w = 0.42) {
+// Same idea as glyphSprite, but for a STRING. The canvas is MEASURED against
+// the text rather than fixed at 256px — the first cut clipped anything longer
+// than about twelve characters, which is how "no pitcher profile, no season
+// zones" shipped as "her profile, no seaso". A sprite has no overflow and no
+// wrap: whatever misses the canvas is simply gone, silently.
+function textSprite(txt, hex, px = 42, worldW = 0.42) {
+  const t = String(txt)
   const cv = document.createElement('canvas')
-  cv.width = 256; cv.height = 128
+  const font = `900 ${px}px SF Mono, Menlo, monospace`
+  // Measure on a scratch context first, then size the real one to fit.
+  const probe = document.createElement('canvas').getContext('2d')
+  probe.font = font
+  const w = Math.max(64, Math.ceil(probe.measureText(t).width) + px)
+  const h = Math.ceil(px * 2)
+  cv.width = w; cv.height = h
   const g = cv.getContext('2d')
-  g.font = `900 ${px}px ${'SF Mono, Menlo, monospace'}`
+  g.font = font
   g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillStyle = hex
-  g.fillText(String(txt), 128, 68)
+  g.fillText(t, w / 2, h / 2)
   const tex = new THREE.CanvasTexture(cv)
   tex.anisotropy = 4
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }))
-  s.scale.set(w, w / 2, 1)
-  return s
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }))
+  // Keep the pixel aspect so nothing is stretched, and scale off the WIDTH so
+  // a caller asking for a 1.5ft-wide label gets one.
+  sp.scale.set(worldW, worldW * (h / w), 1)
+  return sp
 }
 
 export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, statLabel = '', label = '' }) {
@@ -130,9 +137,36 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     scene.background = new THREE.Color(0x0d0f14)
     scene.fog = new THREE.Fog(0x0d0f14, 46, 120)
 
-    const camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 400)
-    camera.position.set(0, ZB + ZH * 0.55, -17)
-    const target = new THREE.Vector3(0, ZB + ZH * 0.5, 3)
+    // ── FRAMING, PER MODE (2026-08-31). Donovan, three times: "the strike
+    //    zone map doesn't show any zone matchup or anything."
+    //
+    //    It was drawing the whole time. It was just TINY. One camera served
+    //    all three modes, parked 20 units back from a zone that is 1.8 ft
+    //    tall, through a 38° lens — the visible height there is about 13 ft,
+    //    so the zone could never be more than ~13% of the frame no matter
+    //    what was in it. Rendered headless and screenshotted, it is a
+    //    postage stamp in the middle of an empty room. Every previous fix of
+    //    mine was aimed at the tiles because I was reading the code instead
+    //    of looking at the picture.
+    //
+    //    The three modes want genuinely different framings and there is no
+    //    single compromise that serves them:
+    //      · matchup — the zone IS the subject. Fill the frame with it.
+    //      · flight  — needs the last stretch of the pitch, so pull back.
+    //      · tunnel  — needs the release point and the 23ft ring, so further
+    //        again and off to one side, or every trail overlaps.
+    //    `mode` is already in this effect's deps, so the scene rebuilds on a
+    //    mode change and each one gets its own camera for free.
+    const cy = ZB + ZH * 0.5
+    const SHOT = {
+      matchup: { pos: [0, cy, -5.4], look: [0, cy, 0], fov: 40 },
+      flight:  { pos: [1.4, cy + 0.8, -13], look: [0, cy, 6], fov: 40 },
+      tunnel:  { pos: [4.2, cy + 1.9, -19], look: [0, cy, 13], fov: 42 },
+    }
+    const shot = SHOT[mode] || SHOT.matchup
+    const camera = new THREE.PerspectiveCamera(shot.fov, W / H, 0.1, 400)
+    camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2])
+    const target = new THREE.Vector3(shot.look[0], shot.look[1], shot.look[2])
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H)
@@ -145,7 +179,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     controls.target.copy(target)
     controls.enableDamping = true
     controls.maxPolarAngle = Math.PI * 0.62
-    controls.minDistance = 6
+    controls.minDistance = 2.2
     controls.maxDistance = 70
 
     scene.add(new THREE.HemisphereLight(0xbdd0ea, 0x2b2418, 1.15))
@@ -325,6 +359,17 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         cx: -PLATE_HALF + cw * ((z % 3) + 0.5),
         cy: ZT - ch * (Math.floor(z / 3) + 0.5),
       })
+      // ── WHICH SIDE IS THE FRONT. This camera sits at NEGATIVE z looking
+      //    toward +z, so smaller z is NEARER. Every glyph in this group was
+      //    at z = +0.26 while its tile face sat at about z = -0.18 — the text
+      //    was BEHIND the tile the whole time. It showed through the faint
+      //    cells (opacity 0.28) and vanished on every shaded one, which is
+      //    why the grid read as "half done": the tiles with something to say
+      //    were exactly the tiles hiding what they said.
+      //
+      //    Everything that must be read now sits at GLYPH_Z, in front of the
+      //    deepest tile this grid can draw.
+      const GLYPH_Z = -0.34
       const putTile = (cx, cy, tone, opacity, depth) => {
         const tile = new THREE.Mesh(
           new THREE.BoxGeometry(cw - GAP * 2, ch - GAP * 2, depth),
@@ -381,7 +426,14 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
             tone = new THREE.Color(hex).getHex()
             opacity = 0.34 + mag * 0.5
             depth = 0.06 + mag * 0.10
-            glyphCol = inkOn(hex)
+            // Ink by ramp position, not by a contrast function. At sprite
+            // size only the TOP of the ember ramp is light enough to carry
+            // dark ink — the mid-browns look light next to the near-black
+            // bottom but are still dark in absolute terms, and dark-on-brown
+            // was unreadable in the render. Threshold sits at 0.72, verified
+            // by screenshotting all five temp bands rather than reasoning
+            // about luminance.
+            glyphCol = mag >= 0.72 ? INK_DARK : C.text
           }
           // The VALUE is the glyph here, not a symbol. An em dash where the
           // API published no number for a zone — never a 0, which would be a
@@ -395,7 +447,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
           const g2 = glyph.length > 1
             ? textSprite(glyph, glyphCol, 40, 0.40)
             : glyphSprite(glyph, glyphCol, 72, 0.30)
-          g2.position.copy(PT(cx, cy, 0.26))
+          g2.position.copy(PT(cx, cy, GLYPH_Z))
           matchGroup.add(g2)
         }
 
@@ -404,7 +456,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         // blank — and it is also how someone new to zones learns which box is
         // which without a legend beside the chart.
         const num = glyphSprite(String(zn), C.text3, 40, 0.13)
-        num.position.copy(PT(cx - cw * 0.30, cy - ch * 0.30, 0.26))
+        num.position.copy(PT(cx - cw * 0.30, cy - ch * 0.30, GLYPH_Z))
         num.material.opacity = 0.55
         matchGroup.add(num)
       }
@@ -413,11 +465,11 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       // the picture, and a picture that explains itself somewhere else has not
       // explained itself.
       if (!hasProfile && !hasStats) {
-        const t = textSprite('NO MATCHUP DATA', C.text3, 30, 1.15)
-        t.position.copy(PT(0, ZT + 0.42, 0.3))
+        const t = textSprite('NO MATCHUP DATA', C.text3, 34, 1.05)
+        t.position.copy(PT(0, ZT + 0.42, GLYPH_Z))
         matchGroup.add(t)
-        const t2 = textSprite('no pitcher profile, no season zones', C.text3, 20, 1.5)
-        t2.position.copy(PT(0, ZB - 0.34, 0.3))
+        const t2 = textSprite('no pitcher profile, no season zones', C.text3, 22, 1.55)
+        t2.position.copy(PT(0, ZB - 0.34, GLYPH_Z))
         matchGroup.add(t2)
       }
     }
