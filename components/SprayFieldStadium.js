@@ -188,7 +188,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // the arc cores read as HOT rather than as flat white. Exposure under 1
     // keeps the midtones where the rest of this file was tuned.
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 0.88
+    renderer.toneMappingExposure = 0.86
     mount.appendChild(renderer.domElement)
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -198,10 +198,34 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     controls.maxDistance = maxD * 2.2
     controls.enableDamping = true
 
-    scene.add(new THREE.HemisphereLight(0xbdd0ea, 0x2b2418, 1.25))
-    const key = new THREE.DirectionalLight(0xfff2df, 1.6)
-    key.position.set(-220, 380, -140)
+    // ── THE RIG (2026-08-31). This is the change that closed the gap
+    //    between the prototype and the shipped view, and it was all here:
+    //
+    //    WAS: HemisphereLight(pale blue → brown) at 1.25 plus a near-white
+    //    key at 1.6. A hemisphere light lights every up-facing surface in the
+    //    park equally, from a bright sky colour, at more than full strength —
+    //    which is the definition of flat. The grass took the full pale-blue
+    //    sky term and went kelly green, every wall read the same on all
+    //    sides, and nothing anywhere had a lit side and a shaded side. That
+    //    is what "looks like CGI" is: no modelling, only colour.
+    //
+    //    NOW: the prototype's three-light rig. A LOW cool ambient so the
+    //    shadows are blue rather than black, a WARM low key from the third-
+    //    base side at under 1.0, and a cool fill from the opposite corner at
+    //    0.42. Warm key against cool fill is the whole trick — it gives every
+    //    round thing a warm edge and a cool turn, which is the difference
+    //    between a photograph of a ballpark at dusk and a diagram of one.
+    //
+    //    Do not raise these to "see the field better". The field is not the
+    //    subject; the arcs are, and they are emissive. A brighter park makes
+    //    the data quieter, which is backwards.
+    scene.add(new THREE.AmbientLight(0x3a3f4a, 1.0))
+    const key = new THREE.DirectionalLight(0xffb07a, 0.9)
+    key.position.set(300, 340, -140)
     scene.add(key)
+    const fill = new THREE.DirectionalLight(0x7d8ba8, 0.42)
+    fill.position.set(-260, 200, 380)
+    scene.add(fill)
 
     // 🪞 THE MIRROR FIX (2026-08-29). Donovan: "i think the spray chart is
     // flipped" -- confirmed against the 2D chart (correct) and this one
@@ -317,12 +341,19 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       shape.lineTo(0, 0)
       const g = new THREE.ShapeGeometry(shape)
       g.rotateX(-Math.PI / 2)
-      const grass = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x2e5c3a, side: THREE.DoubleSide }))
+      // Near-black forest green, not kelly. Rule one of this look is that the
+      // field is the darkest thing on screen and the data is the only
+      // saturated thing on it. 0x2e5c3a under the old rig was brighter than
+      // most of the arcs crossing it.
+      const grass = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x18331f, side: THREE.DoubleSide }))
       grass.position.y = -0.3
       scene.add(grass)
 
       const minD = Math.min(...dims)
-      const stripeMat = new THREE.MeshLambertMaterial({ color: 0x3a7048, side: THREE.DoubleSide })
+      // The mow band is a WHISPER above the base green, not a stripe painted
+      // on it. High-contrast bands are the second-loudest tell that a field
+      // was generated; a real one you have to look for.
+      const stripeMat = new THREE.MeshLambertMaterial({ color: 0x1e3d26, side: THREE.DoubleSide })
       for (let r0 = 30; r0 < minD - 16; r0 += 56) {
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(r0, Math.min(r0 + 28, minD - 16), 64, 1, -3 * Math.PI / 4, Math.PI / 2),
@@ -691,11 +722,58 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
           tube.userData.info = info
           scene.add(tube)
           pickables.push(tube)
+
+          // ── THE GLOW SHELL (2026-08-31). The prototype draws every arc
+          //    TWICE: a thin bright core and a wide, very faint additive
+          //    shell around it. That second pass is the entire difference
+          //    between a coloured wire and a streak of light, and it is what
+          //    was missing here — this file had the core only.
+          //
+          //    WHY THIS DOES NOT REOPEN THE ADDITIVE DECISION ABOVE. The note
+          //    on the core is about the CORE: additive there washed orange and
+          //    amber into the same yellow and the verdict pair stopped being
+          //    readable. The shell carries no readable information — it is
+          //    8% opacity, its own colour is never judged, and the core is
+          //    drawn over it at full strength. Hue fidelity lives in the core
+          //    and is untouched; the shell only adds light around it.
+          //
+          //    Cheap on purpose: 4 radial segments (nobody resolves the shell's
+          //    silhouette), depthWrite off so shells never occlude each other
+          //    or the balls, and fog off so a deep arc's halo does not get
+          //    eaten by the same haze that is meant to sit behind it.
+          const glowGeo = new THREE.TubeGeometry(curve, TSEG, 4.2, 4, false)
+          {
+            const base = new THREE.Color(col)
+            const VN = (TSEG + 1) * 5
+            const gbuf = new Float32Array(VN * 3)
+            for (let i = 0; i < VN; i++) {
+              const f = 0.06 + 0.94 * Math.pow(Math.floor(i / 5) / TSEG, 1.6)
+              gbuf[i * 3] = base.r * f; gbuf[i * 3 + 1] = base.g * f; gbuf[i * 3 + 2] = base.b * f
+            }
+            glowGeo.setAttribute('color', new THREE.BufferAttribute(gbuf, 3))
+          }
+          scene.add(new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({
+            vertexColors: true, transparent: true, opacity: h.hr || over ? 0.10 : 0.065,
+            blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+          })))
         } else {
-          scene.add(new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints(pts),
-            new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.22 }),
-          ))
+          // The quiet arcs get the same dying tail as the loud ones — a flat
+          // line at one opacity was the other half of the wireframe look, and
+          // there are more of these on screen than there are tubes.
+          {
+            const lg = new THREE.BufferGeometry().setFromPoints(pts)
+            const bg = new THREE.Color(0x0d0f14)
+            const base = new THREE.Color(col)
+            const lc = new Float32Array(pts.length * 3)
+            for (let i = 0; i < pts.length; i++) {
+              const mix = bg.clone().lerp(base, 0.10 + 0.90 * Math.pow(i / (pts.length - 1), 1.5))
+              lc[i * 3] = mix.r; lc[i * 3 + 1] = mix.g; lc[i * 3 + 2] = mix.b
+            }
+            lg.setAttribute('color', new THREE.BufferAttribute(lc, 3))
+            scene.add(new THREE.Line(lg, new THREE.LineBasicMaterial({
+              vertexColors: true, transparent: true, opacity: 0.30, depthWrite: false,
+            })))
+          }
         }
       }
       const dot = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({
