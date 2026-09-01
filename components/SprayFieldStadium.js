@@ -115,7 +115,7 @@ function labelSprite(text, hex) {
 // which in this scene's world space is +Z.
 const WIND_DIR = (toDeg) => new THREE.Vector3(-Math.sin(toDeg * DEG), 0, Math.cos(toDeg * DEG)).normalize()
 
-export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, roofOpen = false }) {
+export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, roofOpen = false, title = '', subtitle = '' }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
   const replayRef = useRef(null)   // set by the effect to the replay function
@@ -1417,10 +1417,52 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
               minHeight + aspectRatio restate Math.max(340, W * 0.6) in CSS, so
               the box holds its size whether or not a canvas is in it. The
               rebuild still happens; it just stops moving the page. */}
-          <div ref={mountRef} style={{
-            width: '100%', minHeight: 340, aspectRatio: '1 / 0.6',
-            borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
-          }} />
+          <div style={{ position: 'relative' }}>
+            <div ref={mountRef} style={{
+              width: '100%', minHeight: 340, aspectRatio: '1 / 0.6',
+              borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
+            }} />
+
+            {/* ── THE LOWER THIRD (2026-08-31). Donovan: "make sure the 3D
+                spray chart has the player's name for easy screenshotting."
+                It had no name on it anywhere — the caption underneath names
+                the PARK and the caption is outside the frame you'd crop to.
+                So a screenshot of this chart could not say who it was of,
+                which for a thing built to be screenshotted is the whole job
+                undone.
+
+                Lower-left, the way a broadcast does it, because that is the
+                one corner nothing else uses: the dock sits top-left and the
+                replay button top-right. pointerEvents off so it never eats a
+                drag meant for the scene. */}
+            {(title || subtitle) && (
+              <div style={{
+                position: 'absolute', left: 12, bottom: 12, zIndex: 2,
+                pointerEvents: 'none', maxWidth: '70%',
+              }}>
+                {title && (
+                  <div style={{
+                    fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900,
+                    letterSpacing: '.06em', color: C.text, lineHeight: 1.1,
+                    textShadow: '0 2px 10px rgba(0,0,0,.85)',
+                  }}>{String(title).toUpperCase()}</div>
+                )}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 7, marginTop: 3,
+                }}>
+                  <span style={{
+                    display: 'inline-block', width: 16, height: 2,
+                    background: C.orange, borderRadius: 2,
+                  }} />
+                  <span style={{
+                    fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800,
+                    letterSpacing: '.14em', color: C.text3,
+                    textShadow: '0 2px 8px rgba(0,0,0,.85)',
+                  }}>{subtitle ? String(subtitle).toUpperCase() : 'MOONSHOT'}</span>
+                </div>
+              </div>
+            )}
+          </div>
         {/* FILM OVERLAYS (2026-08-31). Grain, scanlines and a vignette, as
             three plain divs — no shaders, no post-processing pass, no cost
             in the render loop. This is most of the distance between "a 3D

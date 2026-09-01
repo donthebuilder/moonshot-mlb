@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, catColor, verdictInk } from '../lib/scales'
-import { n, clean, obj, arr } from '../lib/player'
+import { n, clean, obj, arr, nameOf } from '../lib/player'
 import { detailUrl, archiveDetailUrl } from '../lib/dataSource'
 import { chipColor } from './Heatmap'
 // Pitch colours shared with ZoneMap and the live feed parser, so a sinker is
@@ -1489,6 +1489,14 @@ export default function SprayField({
       {stadium && (
         <div style={{ marginBottom: 10, position: 'relative' }}>
           <SprayFieldStadium
+            // NAME IT, so a crop of the canvas alone still says who and when.
+            // liveLabel is the At The Plate name; nameOf(player) is the modal's.
+            title={liveOnly ? (liveLabel || nameOf(player)) : nameOf(player)}
+            subtitle={[
+              liveOnly ? 'TONIGHT' : (RANGES.find((r) => r.key === range)?.label || ''),
+              `${stadiumHits.length} BATTED BALL${stadiumHits.length === 1 ? '' : 'S'}`,
+              testPark || venue,
+            ].filter(Boolean).join(' · ')}
             hits={stadiumHits}
             dims={testPark && PARKS[testPark] ? PARKS[testPark].d : dims}
             heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
