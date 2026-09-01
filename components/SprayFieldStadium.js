@@ -217,9 +217,29 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.copy(target)
     controls.maxPolarAngle = Math.PI * 0.47
-    controls.minDistance = maxD * 0.25
-    controls.maxDistance = maxD * 2.2
+    controls.minDistance = maxD * 0.16
+    controls.maxDistance = maxD * 1.8
     controls.enableDamping = true
+
+    // ── MAKING IT DRIVEABLE (2026-08-31). Donovan: "the spray chart was hard
+    //    to manoeuvre." Four separate things were fighting the drag, and no
+    //    one of them was the whole problem:
+    //
+    //  1. PAN WAS ON. A right-drag moved the ORBIT TARGET, not the camera --
+    //     so the park slid out of frame and no control brought it back. That
+    //     is the one that turns "awkward" into "lost", and there is no reason
+    //     to pan a chart with a fixed subject in the middle of it.
+    //  2. Rotate and zoom ran at the library defaults, tuned for a model
+    //     viewer filling a window, not a 340px panel. In a small box the same
+    //     pixel drag is a much larger angle.
+    //  3. The distance clamps were narrow at both ends: no getting in close
+    //     to a landing spot, and zooming out past the point where the park is
+    //     worth looking at.
+    //  4. The handheld drift, below -- the big one.
+    controls.enablePan = false
+    controls.rotateSpeed = 0.55
+    controls.zoomSpeed = 0.75
+    controls.dampingFactor = 0.075
 
     // Two fingers to orbit on a touch device, one to scroll past the chart —
     // same reasoning as ZoneMapStadium: a canvas that claims one-finger drag
@@ -227,7 +247,14 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // a phone this chart is most of the viewport.
     if (typeof window !== 'undefined' && window.matchMedia
         && window.matchMedia('(pointer: coarse)').matches) {
-      controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE }
+      // REVISED from two-finger-only. Requiring two fingers fixed the page
+      // scrolling but made the chart itself hard to move, which is the
+      // complaint that came back. touchAction 'pan-y' serves both: the
+      // BROWSER keeps vertical swipes and scrolls with them, and only
+      // horizontal movement is ever delivered to the canvas. One finger
+      // sideways orbits, one finger up or down scrolls past, and neither
+      // gesture has to be learned.
+      controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }
       renderer.domElement.style.touchAction = 'pan-y'
     }
 
@@ -1323,6 +1350,12 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     if (!reduceMotion) runReplay()
 
     let raf
+    // 1 when the scene is idle, 0 while the viewer is dragging.
+    let handheld = 1
+    let driving = false
+    controls.addEventListener('start', () => { driving = true })
+    controls.addEventListener('end', () => { driving = false })
+
     // HANDHELD (2026-08-31). A few feet of drift and a hair of roll. A
     // perfectly still camera is the loudest tell that something was rendered
     // rather than shot.
@@ -1333,13 +1366,23 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // whole view walks off on its own.
     const tick = (now) => {
       const t = now || performance.now()
+      handheld = driving
+        ? Math.max(0, handheld - 0.12)
+        : Math.min(1, handheld + 0.012)
       controls.update()
       if (windStep) windStep(t)
       stepReplay(t)
       stepHoverFlight(t)
-      const dx = Math.sin(t * 0.00042) * 2.2 + Math.sin(t * 0.00017) * 3.6
-      const dy = Math.cos(t * 0.00036) * 1.6 + Math.sin(t * 0.00013) * 2.6
-      const dr = Math.sin(t * 0.00023) * 0.0016
+      // AND IT HOLDS STILL WHILE YOU DRIVE -- the fourth thing making this
+      // hard to manoeuvre and the least obvious: the camera sways six feet
+      // continuously, so every attempt to line up a view was being nudged
+      // out from under the drag. A handheld operator stops breathing on the
+      // lens while the shot is being set. Hold on grab, ease back over about
+      // a second after release rather than snapping, so it never pops.
+      const hh = handheld
+      const dx = (Math.sin(t * 0.00042) * 2.2 + Math.sin(t * 0.00017) * 3.6) * hh
+      const dy = (Math.cos(t * 0.00036) * 1.6 + Math.sin(t * 0.00013) * 2.6) * hh
+      const dr = Math.sin(t * 0.00023) * 0.0016 * hh
       camera.position.x += dx; camera.position.y += dy; camera.rotation.z += dr
       renderer.render(scene, camera)
       camera.position.x -= dx; camera.position.y -= dy; camera.rotation.z -= dr
@@ -1508,7 +1551,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         >▶ replay</button>
       </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        drag to orbit · scroll to zoom · two fingers on a phone · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
+        drag to orbit · scroll to zoom · swipe sideways on a phone · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
         {windMph > 0 && windLabel && (
           <>

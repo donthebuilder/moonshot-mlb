@@ -196,12 +196,23 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const coarse = typeof window !== 'undefined'
       && window.matchMedia && window.matchMedia('(pointer: coarse)').matches
     if (coarse) {
-      controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE }
+      // One finger sideways orbits, one finger up or down scrolls the page.
+      // touchAction 'pan-y' lets the browser keep the vertical axis, so the
+      // canvas only ever receives horizontal movement — same arrangement as
+      // the spray chart, and the reason two-finger-only was dropped: it fixed
+      // scrolling at the cost of making the chart itself hard to move.
+      controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }
       renderer.domElement.style.touchAction = 'pan-y'
     }
     controls.maxPolarAngle = Math.PI * 0.62
     controls.minDistance = 2.2
     controls.maxDistance = 70
+    // Pan off, and the same calmed rotate/zoom as the spray chart. Panning a
+    // grid whose whole subject is nine boxes in the middle can only lose it.
+    controls.enablePan = false
+    controls.rotateSpeed = 0.55
+    controls.zoomSpeed = 0.75
+    controls.dampingFactor = 0.075
 
     scene.add(new THREE.HemisphereLight(0xbdd0ea, 0x2b2418, 1.15))
     const key = new THREE.DirectionalLight(0xfff2df, 1.2)
@@ -817,7 +828,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
           </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         {label ? `${label} · ` : ''}Catcher&apos;s view.{' '}
-        <span className="zm3d-touch">Two fingers to orbit — one finger scrolls the page.{' '}</span>
+        <span className="zm3d-touch">Swipe sideways to orbit — up and down scrolls the page.{' '}</span>
         {hasPitches
           ? <>Plate crossings are measured; the path between release and the plate is
             drawn from movement, not tracked — geometry, not telemetry.{' '}</>
