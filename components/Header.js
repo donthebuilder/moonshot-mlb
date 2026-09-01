@@ -500,7 +500,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
         </div>
       </div>
 
-      <div className="rail" style={{
+      <div className="rail hdr-rail" style={{
         maxWidth:1300, margin:'0 auto', padding:'0 16px',
         overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
       }}>
@@ -621,8 +621,28 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
            broken that. MobileCSS.js already sizes the strip for a phone
            (nowrap, one full-width line, swipeable), so there is nothing to
            add for layout. */
+        /* -- .rail IS NOT THIS FILE'S CLASS (fixed 2026-09-01) ------------
+           This rule used to read: .rail { display: none !important; }
+           and it was hiding a great deal more than the tab strip it was
+           written for. "rail" is a SHARED utility -- a horizontal scroll
+           container -- used by BoxTable, HotZoneMap, ThresholdGrid, TruePrice,
+           ScoreRail, Sparkline, PairHistory, nfl/PropsGrid and the Rail
+           component itself. A global display:none at phone width deleted every
+           one of them.
+
+           Measured on the live site at 375px, Boxes tab, all games expanded:
+           61 elements carrying .rail, 61 of them display:none, and exactly ONE
+           of those was this header's. The other sixty were box-score tables.
+           The box score was not hard to read on a phone; it was not there.
+
+           TUDDY never had this bug -- NflHeader.js gives its own rail the
+           dedicated class nfl-header-rail and hides that. Same fix here: the
+           strip below carries hdr-rail now and only hdr-rail is hidden.
+           Everything .rail still does for it -- padding, scroll-snap, the thin
+           scrollbar in MobileCSS.js -- is untouched, because it keeps that
+           class too. */
         @media (max-width: 760px) {
-          .rail { display: none !important; }
+          .hdr-rail { display: none !important; }
           header:not(.hdr-slate-on) .hdr-vitals { display: none !important; }
         }
       `}</style>

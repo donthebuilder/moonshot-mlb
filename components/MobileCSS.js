@@ -21,6 +21,19 @@ export default function MobileCSS() {
          scroller, so it is harmless there.
 
          Verified by screenshot after the change, not by reasoning about it. */
+      /* Announced to a screen reader, invisible to everyone else. Carries the
+         <caption> that says WHICH team's box you have landed in -- the team
+         name is rendered above the table as a plain div, which is a heading to
+         the eye and nothing at all to a screen reader. */
+      .sr-only {
+        position: absolute; width: 1px; height: 1px;
+        padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+      }
+      /* A scrollable region has to be reachable by keyboard (WCAG 2.1.1), and
+         a focus ring it cannot show is the same as no focus ring. */
+      .box-scroll:focus-visible { outline: 2px solid rgba(249,115,22,.7); outline-offset: 2px; }
+
       html { max-width: 100%; overflow-x: hidden; }
       body { max-width: 100%; overflow-x: clip; }
       * { box-sizing: border-box; }
@@ -105,6 +118,18 @@ export default function MobileCSS() {
         .dense-scroll::-webkit-scrollbar { display: none; }
         .dense-scroll table { font-size: 10px !important; }
         .dense-scroll th, .dense-scroll td { padding: 5px 5px !important; }
+
+        /* -- THE BOX SCORE, ON A PHONE (2026-09-01) ------------------------
+           Measured at 375px once it was visible again: the batting table wants
+           342px inside a 331px card. Eleven pixels. AVG is the widest column
+           at 38 and the only one that is not about tonight -- it is the season
+           average a man brought INTO the game, which a newspaper box does not
+           print either. Dropping it on a phone takes the table to 304 and the
+           sideways scroll goes away entirely.
+
+           The row height is 24px, exactly the WCAG 2.5.8 target minimum, so
+           nothing here shrinks it. */
+        .box-avg { display: none !important; }
 
         /* Modals go effectively full-screen. A centred card with margins wastes
            a third of a phone screen on backdrop. */
