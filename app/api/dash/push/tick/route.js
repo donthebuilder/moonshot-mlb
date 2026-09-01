@@ -33,7 +33,7 @@ import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
-import { franchiseEventsFrom, lineupGapEventsFrom } from '../../../../../lib/dash/franchise'
+import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom } from '../../../../../lib/dash/franchise'
 import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 
 export const dynamic = 'force-dynamic'
@@ -361,6 +361,10 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // completely different set of tables and must not be able to take the
     // draft clock down with it.
     ...(full ? await lineupGapEventsFrom(db) : []),
+    // Its own producer for the same reason: it reads the whole week's game
+    // list and the team on every rostered player, and must not be able to
+    // take the empty-slot alert down with it.
+    ...(full ? await byeStarterEventsFrom(db) : []),
   ]
   if (!events.length) return nothing
 
