@@ -806,6 +806,36 @@ export default function SprayField({
     return okRes && okQual && okPitch
   }), [liveHits, liveRes, liveQual, livePitch])
 
+  // ── WHAT THE 3D ACTUALLY DRAWS (2026-08-31). Donovan: "I don't see the
+  //    live batted balls on the 3D spray."
+  //
+  //    Because it was never given them. The stadium was wired to `shown`,
+  //    which is the SEASON array filtered — and in At The Plate there is no
+  //    season array at all. The panel says so in its own header ("no season
+  //    sample on this chart"), so the 3D was being handed an empty list and
+  //    faithfully drawing an empty park. Tonight's balls arrive on a
+  //    different prop entirely and only the flat SVG had ever read it.
+  //
+  //    So live mode feeds it `liveFiltered` — tonight's balls, already past
+  //    the same result / quality / pitch chips the flat chart uses, so the
+  //    two always show the same set. Mapped into the shape the stadium
+  //    expects rather than passed raw: it wants `hit` and `pitch`, which the
+  //    live payload spells differently.
+  const stadiumHits = useMemo(() => {
+    if (!liveOnly) return shown
+    return liveFiltered.map((b) => ({
+      ...b,
+      // `hit` drives whether a ball gets a lit arc or a faint line. Derived
+      // from the event rather than from `res`, because outcomeOf() matches
+      // "home run" with a space while the live feed sends "home_run" — a
+      // homer would come back 'out' and be drawn as one. b.hr is computed by
+      // liveIsHR and is the reliable flag.
+      hit: b.hr || /^(single|double|triple)$/i.test(String(b.event || '')),
+      pitch: b.pitch || b.type || '',
+      carry: b.dist ?? b.carry ?? 0,
+    }))
+  }, [liveOnly, shown, liveFiltered])
+
   const liveDrawn = liveOnly || liveOn ? liveFiltered : []
   const fid = Number(liveFocusId) || null
   const anyFocus = fid ? liveHits.some((b) => Number(b.batterId) === fid) : false
@@ -1459,7 +1489,7 @@ export default function SprayField({
       {stadium && (
         <div style={{ marginBottom: 10, position: 'relative' }}>
           <SprayFieldStadium
-            hits={shown}
+            hits={stadiumHits}
             dims={testPark && PARKS[testPark] ? PARKS[testPark].d : dims}
             heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
             venue={testPark || venue}
@@ -1488,14 +1518,28 @@ export default function SprayField({
             const SIDE = { ALL: null, pull: 'Pull', center: 'Centre', oppo: 'Oppo' }
             const ARM = { ALL: null, L: 'vs LHP', R: 'vs RHP' }
             const DEEP = { ALL: null, 375: '375+ ft', 400: '400+ ft', pullair: 'Pull-air' }
+            // The dock reports whichever set of filters is actually driving
+            // this chart. In live mode the season cuts do not apply at all —
+            // reading "0 of 0" under a park full of tonight's balls was the
+            // dock lying about the picture it sits on.
             const on = []
-            if (RES[only]) on.push(['res', RES[only], () => setOnly('all')])
-            if (ARM[armPick]) on.push(['arm', ARM[armPick], () => setArmPick('ALL')])
-            if (SIDE[sidePick]) on.push(['side', SIDE[sidePick], () => setSidePick('ALL')])
-            if (DEEP[deepPick]) on.push(['deep', DEEP[deepPick], () => setDeepPick('ALL')])
-            if (bbPick) on.push(['bb', String(bbPick).toUpperCase(), () => setBbPick(null)])
-            if (picked && picked.size) on.push(['pit', `${picked.size} pitch type${picked.size > 1 ? 's' : ''}`, () => setPicked(null)])
-            if (testPark) on.push(['park', `vs ${testPark}`, () => setTestPark('')])
+            if (liveOnly) {
+              if (liveRes !== 'all') on.push(['lres', String(liveRes).toUpperCase(), () => setLiveRes('all')])
+              liveQual.forEach((q) => on.push([`lq-${q}`, String(q).toUpperCase(), () => {
+                setLiveQual((prev) => { const nx = new Set(prev); nx.delete(q); return nx })
+              }]))
+              if (livePitch) on.push(['lpit', String(livePitch).toUpperCase(), () => setLivePitch(null)])
+            } else {
+              if (RES[only]) on.push(['res', RES[only], () => setOnly('all')])
+              if (ARM[armPick]) on.push(['arm', ARM[armPick], () => setArmPick('ALL')])
+              if (SIDE[sidePick]) on.push(['side', SIDE[sidePick], () => setSidePick('ALL')])
+              if (DEEP[deepPick]) on.push(['deep', DEEP[deepPick], () => setDeepPick('ALL')])
+              if (bbPick) on.push(['bb', String(bbPick).toUpperCase(), () => setBbPick(null)])
+              if (picked && picked.size) on.push(['pit', `${picked.size} pitch type${picked.size > 1 ? 's' : ''}`, () => setPicked(null)])
+              if (testPark) on.push(['park', `vs ${testPark}`, () => setTestPark('')])
+            }
+            const dockNow = liveOnly ? stadiumHits.length : shown.length
+            const dockAll = liveOnly ? liveHits.length : inRange.length
 
             return (
               <div style={{
@@ -1516,9 +1560,9 @@ export default function SprayField({
                   <span style={{ color: C.text3 }}>{dockOpen ? '▾' : '▸'}</span>
                   <span>SHOWING</span>
                   <span style={{ color: on.length ? C.orange : C.text2 }}>
-                    {shown.length}
+                    {dockNow}
                   </span>
-                  <span style={{ color: C.text3, fontWeight: 700 }}>of {inRange.length}</span>
+                  <span style={{ color: C.text3, fontWeight: 700 }}>of {dockAll}</span>
                   {!dockOpen && on.length > 0 && (
                     <span style={{
                       color: C.orange, fontWeight: 900, fontSize: 8.5,
@@ -1531,7 +1575,9 @@ export default function SprayField({
                   <div style={{ marginTop: 6 }}>
                     {on.length === 0 ? (
                       <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-                        No filters on — every batted ball in the window is in the park.
+                        {liveOnly
+                          ? "No filters on — every ball in play tonight is in the park."
+                          : 'No filters on — every batted ball in the window is in the park.'}
                       </div>
                     ) : (
                       <>
@@ -1548,8 +1594,12 @@ export default function SprayField({
                         </div>
                         <button
                           onClick={() => {
-                            setOnly('all'); setArmPick('ALL'); setSidePick('ALL')
-                            setDeepPick('ALL'); setBbPick(null); setPicked(null); setTestPark('')
+                            if (liveOnly) {
+                              setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null)
+                            } else {
+                              setOnly('all'); setArmPick('ALL'); setSidePick('ALL')
+                              setDeepPick('ALL'); setBbPick(null); setPicked(null); setTestPark('')
+                            }
                           }}
                           style={{
                             marginTop: 6, fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 900,
