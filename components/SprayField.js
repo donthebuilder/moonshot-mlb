@@ -36,9 +36,6 @@ const canWebgl = () => {
   return _webgl
 }
 
-// Seating shape, and whether this park's roof is one that actually moves.
-// Only used here to decide whether the roof control is worth showing.
-import { bowlFor } from '../lib/parkBowls'
 import { resultColor as sharedResultColor } from '../lib/resultColor'
 
 // 🏟 The stadium view rides in on demand — three.js is ~600KB and belongs in
@@ -456,24 +453,12 @@ export default function SprayField({
   const [stadium, setStadium] = useState(false)
   const [webgl3d, setWebgl3d] = useState(false)
   useEffect(() => { setWebgl3d(canWebgl()) }, [])
-  // A retractable roof is a VIEWING choice, so it is a control, not a
-  // constant. Fixed domes (Tropicana) never get the toggle — there is
-  // nothing to choose — and open-air parks never see it at all.
-  // OPEN is the default at a retractable park, because open is what those
-  // parks mostly are: the roof shuts for weather, not as the normal state.
-  //
-  // AND IT SAYS WHICH ONE IT IS DRAWING. Donovan: "make sure it is noted if
-  // actually open or closed." The chip now reads "Drawn roof OPEN/CLOSED"
-  // rather than "Roof open", because the old wording was a claim about
-  // tonight's ballpark and this is only a claim about the picture. Nothing in
-  // the slate payload carries the real roof state, so the honest thing is to
-  // say the setting out loud and never imply the fact. If a roof-state field
-  // ever lands in the feed, THAT is when this may state the condition.
-  // Closed was the old default, which meant every retractable park opened on
-  // the one view with no sky, no towers and no skyline — the dullest thing
-  // this renderer draws, shown first, at nine parks. Fixed domes (Tropicana)
-  // ignore this entirely: roofShut is true for them whatever this says.
-  const [roofOpen, setRoofOpen] = useState(true)
+  // The roof is gone entirely (2026-08-31). Donovan: "the roof thing in
+  // general is dumb — just make it so everyone is an open dome." It was never
+  // a fact the payload carried, and a closed roof deletes the sky, the towers
+  // and the skyline — so it made the best-looking parks look worst, and
+  // Tropicana could never be drawn any other way. See NO ROOF, EVER in
+  // SprayFieldStadium for the full reasoning.
   // The on-canvas dock starts OPEN the first time, because its whole reason
   // for existing is that you could not tell what was on the chart.
   const [dockOpen, setDockOpen] = useState(true)
@@ -1341,13 +1326,6 @@ export default function SprayField({
             color: stadium ? C.orange : C.text3,
           }}
         >🏟 Stadium</button>
-        {stadium && bowlFor(testPark || venue).roof === 'retract' && (
-          <button
-            onClick={() => setRoofOpen((v) => !v)}
-            title={`This park's roof opens, and the view is currently drawn with it ${roofOpen ? 'OPEN' : 'CLOSED'}. This is a VIEW SETTING, not a report — nothing in the slate payload says whether the roof is actually open tonight, so the chart must not be read as saying it is. Closed puts a ceiling on the park and takes away the sky, the towers and the skyline, which is what the building looks like from a seat with the roof shut.`}
-            style={{ ...chipBtn(!roofOpen, C.cyan), padding: '2px 9px' }}
-          >{roofOpen ? '☀ Drawn roof OPEN' : '⌂ Drawn roof CLOSED'}</button>
-        )}
         {parkTest && (
           <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
             {parkTest.stillClears} of {parkTest.realHR} real HR{parkTest.realHR === 1 ? '' : 's'} still clear
@@ -1374,7 +1352,7 @@ export default function SprayField({
           Live mode gets its own slim row rather than the full park-test row:
           testing a live ball against a DIFFERENT park is a question about
           history, not about the at-bat happening now, so that control stays
-          out. The roof chip comes along because a live game's roof is real. */}
+          out. */}
       {liveOnly && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
           <button
@@ -1388,13 +1366,6 @@ export default function SprayField({
               color: stadium ? C.orange : C.text3,
             }}
           >🏟 Stadium</button>
-          {stadium && bowlFor(venue).roof === 'retract' && (
-            <button
-              onClick={() => setRoofOpen((v) => !v)}
-              title={`Drawn with the roof ${roofOpen ? 'OPEN' : 'CLOSED'}. A view setting — nothing in the feed says tonight's actual roof state.`}
-              style={{ ...chipBtn(!roofOpen, C.cyan), padding: '2px 9px' }}
-            >{roofOpen ? '☀ Drawn roof OPEN' : '⌂ Drawn roof CLOSED'}</button>
-          )}
         </div>
       )}
 
@@ -1502,7 +1473,6 @@ export default function SprayField({
             heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
             venue={testPark || venue}
             wind={hasWind ? { mph: windMph, label: windLabel, to: windTo, color: windCol } : null}
-            roofOpen={roofOpen}
           />
 
           {/* ── THE DOCK (2026-08-31). Donovan: "what happened to those on

@@ -115,7 +115,7 @@ function labelSprite(text, hex) {
 // which in this scene's world space is +Z.
 const WIND_DIR = (toDeg) => new THREE.Vector3(-Math.sin(toDeg * DEG), 0, Math.cos(toDeg * DEG)).normalize()
 
-export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, roofOpen = false, title = '', subtitle = '' }) {
+export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, title = '', subtitle = '' }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
   const replayRef = useRef(null)   // set by the effect to the replay function
@@ -566,7 +566,6 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //
     //    Parametric, not surveyed — nothing scores off this, it is for the eye.
     const bowl = bowlFor(venue)
-    const roofShut = bowl.roof === 'fixed' || (bowl.roof === 'retract' && !roofOpen)
     {
       const clamp = (a) => Math.max(-45, Math.min(45, a))
       const deck = (a0, a1, off, depth, y0, y1, cLo, cHi, crowd) => {
@@ -683,7 +682,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // Light towers, but only where there is a night to light. Two, not
       // four, and the beam sits at 0.022 — air, not a glowing slab. An
       // earlier pass had these bright enough that Donovan called them out.
-      if (!roofShut) {
+      {
         [-52, 52].forEach((a) => {
           const base = P(wallD(clamp(a)) + 196, a)
           const mast = new THREE.Mesh(new THREE.BoxGeometry(2.4, 150, 2.4),
@@ -703,33 +702,27 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         })
       }
 
-      if (roofShut) {
-        const R = maxD + 330
-        const roof = new THREE.Mesh(
-          new THREE.CircleGeometry(R, 64),
-          new THREE.MeshLambertMaterial({ color: 0x0c1016, side: THREE.DoubleSide }),
-        )
-        roof.rotation.x = Math.PI / 2
-        roof.position.y = 232
-        scene.add(roof)
-        for (let i = 0; i < 8; i++) {
-          const rib = new THREE.Mesh(
-            new THREE.BoxGeometry(R * 2, 3, 5),
-            new THREE.MeshBasicMaterial({ color: 0x1b222c }),
-          )
-          rib.position.y = 229
-          rib.rotation.y = (-90 + i * 22.5) * DEG
-          scene.add(rib)
-        }
-        // lit from the ceiling, because a closed dome is
-        ;[[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].forEach(([ox, oz]) => {
-          const pl = new THREE.PointLight(0xffe6c4, 0.30, 1200)
-          pl.position.set(ox * 210, 206, maxD * 0.45 + oz * 182)
-          scene.add(pl)
-        })
-        controls.maxPolarAngle = Math.PI * 0.46
-        controls.maxDistance = Math.min(controls.maxDistance, R * 0.62)
-      }
+      // ── NO ROOF, EVER (2026-08-31). Donovan: "the roof thing in general
+      //    is dumb -- just make it so everyone is an open dome."
+      //
+      //    He is right, and the reason is worth writing down because the
+      //    feature looked reasonable on paper. A closed roof is OPAQUE: it
+      //    deletes the sky, the stars, the moon, the towers and the skyline,
+      //    and it forces the camera under a ceiling. So the parks with the
+      //    most distinctive buildings were the ones this drew as a dark lid
+      //    over a dark bowl, and Tropicana -- a FIXED dome -- could never be
+      //    drawn any other way. The best-looking view was unavailable exactly
+      //    where it was most wanted.
+      //
+      //    And it was never a fact. Nothing in the payload says whether
+      //    tonight's roof is open, so the chip was only ever a view setting
+      //    wearing the costume of a report -- the previous pass had to rename
+      //    it "Drawn roof OPEN" just to stop it lying. A setting that cannot
+      //    inform anything and makes the picture worse is not a setting.
+      //
+      //    Every park is drawn open now. The bowl, the sector cuts and the
+      //    signature props still differ per park -- that is real geometry.
+      //    Only the lid is gone.
     }
 
     // ── THE BALLS. Same verdicts as pass one; the drawing is what changed:
@@ -767,7 +760,26 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         ? solveFlight(h.ev, h.la, h.r) : null
       const wd = wallD(h.ang)
       const reached = h.r > wd
-      const hAtWall = reached && f ? f.heightAt(wd) : null
+
+      // ── ONE LANDING HEIGHT, USED BY EVERYTHING. This used to be computed
+      //    down in the dot block only, so a ball in the seats had its DOT
+      //    lifted onto the deck while its ARC still ran to y=0 underneath the
+      //    grandstand. Two marks for one landing, in two different places —
+      //    which is most of "the landing points aren't accurate".
+      //
+      //    The deck rises about 46ft over its first 92ft of depth (see the
+      //    deck() calls above), so this is that slope. It is a rendering
+      //    approximation of where the seats are, not a claim about which row
+      //    the ball hit, and it is clamped to the top of the upper deck.
+      const inSeats = h.r > wd + 4
+      const landY = inSeats ? Math.min(150, 8 + (h.r - wd) * 0.46) : 1.4
+      // Read the height profile at the wall's position AS STRETCHED, not at
+      // its raw distance — otherwise "did it clear?" is answered against a
+      // different arc than the one on screen, and the drawing and the verdict
+      // can disagree about the same ball.
+      const hAtWall = reached && f && h.r > 0
+        ? f.heightAt(wd * (f.distanceFt / h.r))
+        : null
       const over = reached && (hAtWall == null ? true : hAtWall > wallH(h.ang))
       // Hits fly too. `big` decides who gets a lit tube and who gets a faint
       // line, and it used to mean "reached the wall" — so a clean single into
@@ -792,11 +804,33 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
       if (f) {
         const N = 40
+        // ── THE ARC ENDS ON ITS OWN DOT (2026-08-31). Donovan: "make sure
+        //    the landing points are good and accurate." They were not, and
+        //    the cause is in lib/trajectory, stated in its own comment:
+        //    solveFlight bisects drag to make the carry match the plotted
+        //    radius, but when the radius exceeds what ANY drag can produce —
+        //    wind, altitude, or a coordinate that disagrees with the launch
+        //    data — it returns the VACUUM arc and moves on. That arc's range
+        //    is the vacuum range, not h.r. Sampling it at f.distanceFt
+        //    therefore drew a ball that stopped short of the dot marking
+        //    where it actually landed.
+        //
+        //    The dot is the MEASURED fact; the arc is a reconstruction. So
+        //    the reconstruction is stretched to meet the fact rather than the
+        //    other way round: sample the height profile by fraction of
+        //    flight, but lay those samples out along the real radius. The
+        //    shape and apex are preserved and the endpoint is exact.
+        //
+        //    STRETCH is the right verb, not "scale": nothing about the height
+        //    is altered, so the apex the readout prints is still the solver's
+        //    own number and is not quietly re-derived here.
         const pts = []
         for (let i = 0; i <= N; i++) {
-          const d = (f.distanceFt * i) / N
-          const y = i === N ? 0 : (f.heightAt(d) ?? 0)
-          const v = P(d, h.ang)
+          const frac = i / N
+          const along = f.distanceFt * frac        // where to READ the height
+          const rHere = h.r * frac                 // where to DRAW it
+          const y = i === N ? landY : (f.heightAt(along) ?? 0)
+          const v = P(rHere, h.ang)
           pts.push(new THREE.Vector3(v.x, Math.max(0, y), v.z))
         }
         flights.push({ pts, col, big, hang: f.hangS })
@@ -886,14 +920,22 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
               lc[i * 3] = mix.r; lc[i * 3 + 1] = mix.g; lc[i * 3 + 2] = mix.b
             }
             lg.setAttribute('color', new THREE.BufferAttribute(lc, 3))
+            // 0.30 -> 0.52. Outs are the majority of the chart and they were
+            // reading as smudges; the tail fade already keeps their starts
+            // dark, so raising the ceiling brightens the END of each line —
+            // which is the part that says where the ball actually went.
             scene.add(new THREE.Line(lg, new THREE.LineBasicMaterial({
-              vertexColors: true, transparent: true, opacity: 0.30, depthWrite: false,
+              vertexColors: true, transparent: true, opacity: 0.52, depthWrite: false,
             })))
           }
         }
       }
+      // An out's dot was at 0.55 of a near-black grey, which on a dark field
+      // is nothing at all. It is the landing point — the one thing every ball
+      // on this chart has — so it is always fully opaque now, and only its
+      // SIZE and colour say how loud the result was.
       const dot = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({
-        color: col, transparent: true, opacity: big ? 1 : 0.55,
+        color: col, transparent: true, opacity: big ? 1 : 0.85,
       }))
       const v = P(h.r, h.ang)
 
@@ -912,11 +954,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       //    a MARKER, not just a dot: a bright pin dropped to the deck plus a
       //    ring around the base. That reads at any zoom and cannot be
       //    confused with a spectator.
-      const wallHere = wallD(Math.max(-45, Math.min(45, h.ang)))
-      const inSeats = h.r > wallHere + 4
-      // The bowl rises roughly 46ft over its first 92ft of depth (see deck()),
-      // so this is that slope, clamped to the top of the upper deck.
-      const seatY = inSeats ? Math.min(150, 8 + (h.r - wallHere) * 0.46) : 1.4
+      // landY is computed once, above, and is the SAME number the arc's last
+      // point uses — so the ball's line and the ball's dot cannot land in
+      // different places.
+      const seatY = landY
       dot.position.set(v.x, seatY, v.z)
       if (big) dot.scale.setScalar(1.35)
 
@@ -1416,22 +1457,12 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-    // DEPS. roofOpen and venue were both missing here, and roofOpen missing
-    // meant the roof chip DID NOTHING — the prop changed, React re-rendered,
-    // and this effect (which is what actually builds the scene) never re-ran.
-    // A toggle that flips its own label and changes nothing on screen is worse
-    // than no toggle, because it reads as a broken renderer rather than as a
-    // missing wire.
-    //
-    // venue was masked rather than harmless: switching parks also changes
-    // dims/heights, so the rebuild happened for the wrong reason. Two parks
-    // with the same wall profile and different bowls would have exposed it.
-    //
-    // Rebuilding the whole scene on a roof toggle is correct, not wasteful —
-    // a closed roof removes the sky, the stars, the moon, the towers and the
-    // skyline and lights the room from the ceiling instead. There is no
-    // cheaper edit than building it again.
-  }, [hits, dims, heights, venue, roofOpen, windMph, windLabel, windTo, windHex])
+    // DEPS. venue was missing here and was masked rather than harmless:
+    // switching parks also changes dims/heights, so the rebuild happened for
+    // the wrong reason, and two parks with the same wall profile and
+    // different bowls would have exposed it. (roofOpen lived here too, until
+    // the roof itself was removed — see NO ROOF, EVER above.)
+  }, [hits, dims, heights, venue, windMph, windLabel, windTo, windHex])
 
   if (!ok) {
     return (
