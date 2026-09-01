@@ -10,6 +10,7 @@ import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
 import { DIV_FIELD } from '../lib/scales'
+import { rolesOf } from '../lib/hrGate'
 
 // 🎯 THE SHORTLIST — who stands out tonight, and whether the number is right.
 //
@@ -81,8 +82,23 @@ const pct1 = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
 export default function Shortlist({ players = [], odds = null, onPlayerClick, onWatch, watchIds = null }) {
   const [view, setView] = useState('profile')
   const [pack, setPack] = useState('profile')
+  // ── HOW MANY ROWS (2026-09-01) ──────────────────────────────────────────
+  //
+  // Donovan: "i like the short list but it only shows the top 40 and i dont
+  // really know how many players the bot picks every slate."
+  //
+  // Both halves of that were true. The list was cut to forty with no way past
+  // it, and -- the worse half -- nothing on the page ever said forty of WHAT.
+  // A cap you cannot see is indistinguishable from the end of the data: if
+  // the bot scored two hundred bats tonight and you were shown forty, the
+  // page looked exactly as it would if forty were all there were.
+  //
+  // Forty stays the default, because it is the right length to read. What
+  // changes is that the number it is forty OF is now printed beside it, and
+  // one tap shows the rest.
+  const [limit, setLimit] = useState(40)
 
-  const rows = useMemo(() => {
+  const ranked = useMemo(() => {
     return (players || [])
       .map((p) => {
         const score = hrScore(p)
@@ -220,8 +236,32 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
       .sort((a, b) => (view === 'profile'
         ? b.score - a.score
         : (b.room ?? -1e9) - (a.room ?? -1e9) || b.score - a.score))
-      .slice(0, 40)
   }, [players, odds, view, watchIds])
+
+  // The full ranked field is what the count is OF; `rows` is what is drawn.
+  const rows = useMemo(() => ranked.slice(0, limit), [ranked, limit])
+
+  // ── WHAT THE BOT ACTUALLY DESIGNATED TONIGHT ────────────────────────────
+  //
+  // The other half of the question, and it is not the same number as the list
+  // length. game_pick_role is the slot a man was designated in for HIS game --
+  // one per group per game, so it is scarcity rather than opinion, and it is
+  // the honest answer to "how many does the bot pick a slate". It was
+  // published on every row and printed nowhere.
+  const designated = useMemo(() => {
+    const counts = new Map()
+    let picked = 0
+    for (const p of (players || [])) {
+      const roles = rolesOf(p)
+      if (!roles.length) continue
+      picked += 1
+      for (const r of roles) counts.set(r, (counts.get(r) || 0) + 1)
+    }
+    const order = ['TOP', 'HR', 'HRR', 'HIT', 'CONTACT', 'WATCH']
+    const parts = [...counts.entries()]
+      .sort((a, b) => (order.indexOf(a[0]) + 99) % 99 - (order.indexOf(b[0]) + 99) % 99 || b[1] - a[1])
+    return { picked, total: (players || []).length, parts }
+  }, [players])
 
   // ── HR/PA GETS A THRESHOLD (2026-08-31) ─────────────────────────────────
   //
@@ -258,9 +298,40 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 4 }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>🎯 Who stands out for a homer</span>
         <span style={{ fontSize: 9.5, color: C.text3 }}>
-          top 40 by the view you pick · every column sorts on click
+          showing <b style={{ color: C.text2 }}>{rows.length}</b> of {ranked.length} scored ·
+          every column sorts on click
         </span>
+        {ranked.length > 40 && (
+          <button
+            onClick={() => setLimit((v) => (v >= ranked.length ? 40 : ranked.length))}
+            style={{
+              padding: '2px 9px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+              fontWeight: 800, fontFamily: NUM_FONT,
+              border: `1px solid ${limit >= ranked.length ? C.orange : C.border}`,
+              background: limit >= ranked.length ? 'rgba(249,115,22,.14)' : 'transparent',
+              color: limit >= ranked.length ? C.orange : C.text3,
+            }}
+          >{limit >= ranked.length ? 'Back to top 40' : `Show all ${ranked.length}`}</button>
+        )}
       </div>
+
+      {/* THE COUNT HE COULD NOT GET AT. Two different numbers, and conflating
+          them is the confusion this line exists to end: how many bats the bot
+          SCORED tonight, and how many it actually DESIGNATED into a slot. The
+          list above ranks the first; this counts the second. */}
+      {designated.picked > 0 && (
+        <div style={{ fontSize: 9.5, color: C.text3, margin: '0 0 8px', lineHeight: 1.5 }}>
+          The bot designated <b style={{ color: C.text2 }}>{designated.picked}</b> of{' '}
+          {designated.total} hitters tonight
+          {designated.parts.length ? ' — ' : ''}
+          {designated.parts.map(([role, n], i) => (
+            <span key={role}>
+              {i ? ' · ' : ''}
+              <b style={{ color: C.text2 }}>{n}</b> {role}
+            </span>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 5, marginBottom: 9 }}>
         {[['profile', 'Strongest profiles'], ['fit', 'Best odds fits']].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={{
@@ -382,7 +453,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           // `assume` are probabilities and still print plain, unpainted, so
           // the two kinds of number never share a treatment.
           { key: 'score', label: 'HR score', w: 64, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true,
-            title: 'The bot’s 0-100 HR score — the profile. Not a probability. Drawn against the middle of this shortlist: ▲ above it, ▼ below.' },
+            title: 'The bot’s 0-100 HR score — the profile. Not a probability. Drawn against the middle of THE ROWS ON SCREEN: ▲ above it, ▼ below. Showing more rows moves that middle, which is the honest behaviour — the comparison is to the field you are actually looking at.' },
           { key: 'rate', label: 'His rate', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
             title: 'His real per-game 1+ HR probability: hr_per_pa through his lineup spot’s plate appearances. This IS a probability, which is why it’s the only column the price gets compared to — and why it is not painted on the same scale as the score.' },
           // ── THE SWAPPABLE MIDDLE (2026-08-31) ─────────────────────
@@ -406,7 +477,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
               return (
                 <span style={{ fontFamily: NUM_FONT }}
                   title={hrpaMid == null ? undefined
-                    : `${(100 * r.hrpa).toFixed(2)}% per plate appearance — the middle of this shortlist is ${(100 * hrpaMid).toFixed(2)}%. ${up ? 'Above' : 'Below'} it.`}>
+                    : `${(100 * r.hrpa).toFixed(2)}% per plate appearance — the middle of the ${rows.length} rows on screen is ${(100 * hrpaMid).toFixed(2)}%. ${up ? 'Above' : 'Below'} it.`}>
                   {v}<span style={{ color: C.text3 }}> / {r.pa}</span>
                   {mark && <span style={{ color: tone, marginLeft: 4, fontSize: 9 }}>{mark}</span>}
                 </span>
@@ -456,7 +527,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
               title: 'Extra-base hits in the locked last five. It catches the bat that is driving the ball without the homers having landed yet.',
               fmt: (v) => (v == null ? '—' : v) },
             { key: 'multi', label: 'Multi-hit', w: 62, dp: 1,
-              title: 'The bot’s 0-100 multi-hit score. A score, not a probability — drawn against the middle of this shortlist like the HR score is.',
+              title: 'The bot’s 0-100 multi-hit score. A score, not a probability — drawn against the middle of the rows on screen, like the HR score is.',
               scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
             { key: 'damage', label: 'Damage', w: 60, dp: 1,
               title: 'Damage-conversion score: how much of his hard contact actually turns into extra bases rather than loud outs.',
