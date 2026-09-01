@@ -9,7 +9,9 @@ import { solveFlight } from '../lib/trajectory'
 // back to a plain two-tier ring for any venue it has no entry for, so a park
 // we have walls for but no bowl for still draws.
 import { bowlFor, isOpenSector } from '../lib/parkBowls'
+import { addParkProps } from '../lib/stadiumProps'
 import { resultColor, isNonHrHit } from '../lib/resultColor'
+import { shapeFor, resultScale } from '../lib/pitchShape'
 
 // 🏟 THE STADIUM VIEW — second pass (2026-08-29, "please make better").
 //
@@ -115,11 +117,29 @@ function labelSprite(text, hex) {
 // which in this scene's world space is +Z.
 const WIND_DIR = (toDeg) => new THREE.Vector3(-Math.sin(toDeg * DEG), 0, Math.cos(toDeg * DEG)).normalize()
 
-export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, title = '', subtitle = '' }) {
+export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, title = '', subtitle = '', live = false }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
   const replayRef = useRef(null)   // set by the effect to the replay function
   const [ok, setOk] = useState(true)
+
+  // ── MOTION MODES + AUTO-ORBIT (2026-09-01). The prototype had LIVE /
+  //    REPLAY / HOLD and an orbit toggle; the repo shipped with ▶ replay
+  //    alone. They come back as state the TICK reads through refs, so
+  //    flipping one never rebuilds the scene (the effect's deps are the
+  //    data, not the mode):
+  //      · LIVE   — on a live page, only the ball that just landed flies
+  //                 when the feed adds one; everything else holds. Without
+  //                 this, every new ball in play re-flew the whole game.
+  //      · REPLAY — ▶ flies the whole set in sequence, as before.
+  //      · HOLD   — nothing moves: no flights, no hover flight, no sway.
+  //                 The still picture, for reading or for a screenshot.
+  //      · ORBIT  — a slow turn around the park until you grab it.
+  const [motion, setMotion] = useState(live ? 'live' : 'replay')
+  const [orbit, setOrbit] = useState(false)
+  const motionRef = useRef(motion); motionRef.current = motion
+  const orbitRef = useRef(orbit); orbitRef.current = orbit
+  const prevCountRef = useRef(0)
 
   // Flattened out of the object so the effect's dependency list can be four
   // primitives instead of an object literal the caller rebuilds every render —
@@ -702,6 +722,14 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         })
       }
 
+      // ── SIGNATURE PROPS (2026-09-01). The Monster and its ladder, the
+      //    ivy and the rooftops, the rockpile, the Cove, the Crawford Boxes,
+      //    the frieze, the bridge, the warehouse, the fountains, the pool.
+      //    Donovan said yes to these the day the bowls were offered; the
+      //    bowls shipped and these did not. Data in lib/parkProps, builder
+      //    in lib/stadiumProps; a park with no entry draws exactly as before.
+      addParkProps(scene, { venue, P, wallD, wallH })
+
       // ── NO ROOF, EVER (2026-08-31). Donovan: "the roof thing in general
       //    is dumb -- just make it so everyone is an open dome."
       //
@@ -748,13 +776,46 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //    green would delete the one thing this chart knows that the flat one
     //    does not.
     const COL_WALL = new THREE.Color(0xfbbf24)
-    const dotGeo = new THREE.SphereGeometry(2.6, 12, 12)
+
+    // ── THE MARKS THE FLAT CHART HAS HAD ALL ALONG (2026-09-01). Its legend
+    //    reads "ring = barrel · shape = pitch · size = result" and none of the
+    //    three had reached this field: every ball was one sphere, one size,
+    //    so once the HH / BRL filters put the right balls in the park you
+    //    still could not tell a barrel from a can of corn. Same table
+    //    (lib/pitchShape), same six families, built once per scene:
+    //      ● four-seam   ▼ sinker   ▲ slider/sweeper   ■ change/split
+    //      ◆ cutter      ✚ curve/knuckle
+    //    All solid bodies of about the sphere's volume, so a shape change
+    //    does not read as a size change.
+    const R = 2.6
+    const crossShape = new THREE.Shape()
+    ;(() => {
+      const a = R * 1.25, t = R * 0.42
+      crossShape.moveTo(-t, -a); crossShape.lineTo(t, -a); crossShape.lineTo(t, -t)
+      crossShape.lineTo(a, -t); crossShape.lineTo(a, t); crossShape.lineTo(t, t)
+      crossShape.lineTo(t, a); crossShape.lineTo(-t, a); crossShape.lineTo(-t, t)
+      crossShape.lineTo(-a, t); crossShape.lineTo(-a, -t); crossShape.lineTo(-t, -t)
+      crossShape.closePath()
+    })()
+    const SHAPE_GEO = {
+      circle: new THREE.SphereGeometry(R, 12, 12),
+      up: new THREE.ConeGeometry(R * 1.15, R * 2.1, 4),
+      down: new THREE.ConeGeometry(R * 1.15, R * 2.1, 4).rotateX(Math.PI),
+      square: new THREE.BoxGeometry(R * 1.6, R * 1.6, R * 1.6),
+      diamond: new THREE.OctahedronGeometry(R * 1.25),
+      cross: new THREE.ExtrudeGeometry(crossShape, { depth: R * 0.9, bevelEnabled: false }).rotateX(-Math.PI / 2).translate(0, -R * 0.45, 0),
+    }
+    const dotGeo = SHAPE_GEO.circle
+    // Ring = barrel. Flat on the surface the ball landed on, in the result's
+    // own colour, wider than the seat marker so the two never merge.
+    const barrelGeo = new THREE.RingGeometry(R * 2.1, R * 2.1 + 0.9, 28)
 
     // Everything hoverable, and everything flyable. `info` is the readout the
     // tooltip prints; `flights` feeds the replay.
     const pickables = []
     const flights = []
-    hits.forEach((h) => {
+    const flightOfHit = []   // hit index → flight index, for LIVE's "only the new one flies"
+    hits.forEach((h, hi) => {
       if (!Number.isFinite(h?.r) || !Number.isFinite(h?.ang)) return
       const f = Number.isFinite(h?.ev) && Number.isFinite(h?.la) && h.la > 0
         ? solveFlight(h.ev, h.la, h.r) : null
@@ -800,6 +861,8 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         pitch: h.pitch || '',
         date: h.date || '',
         event: (h.event || '').replace(/_/g, ' '),
+        barrel: !!h.barrel,
+        hard: !!(h.hard || h.hh),
       }
 
       if (f) {
@@ -934,7 +997,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // is nothing at all. It is the landing point — the one thing every ball
       // on this chart has — so it is always fully opaque now, and only its
       // SIZE and colour say how loud the result was.
-      const dot = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({
+      const dot = new THREE.Mesh(SHAPE_GEO[shapeFor(h.pitch)] || dotGeo, new THREE.MeshBasicMaterial({
         color: col, transparent: true, opacity: big ? 1 : 0.85,
       }))
       const v = P(h.r, h.ang)
@@ -959,7 +1022,23 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // different places.
       const seatY = landY
       dot.position.set(v.x, seatY, v.z)
-      if (big) dot.scale.setScalar(1.35)
+      // Size = result, the flat chart's ratios (HR 1.6 · XBH 1.35 · hit 1.2 ·
+      // out 1). A ball this park would turn into something bigger than it
+      // was — over or off the test wall — takes at least the XBH size, so the
+      // park-test verdict still shows in the mark.
+      dot.scale.setScalar(Math.max(resultScale(h), over ? 1.6 : reached ? 1.35 : 1))
+      // the shapes have an axis; spin each by its own angle so a row of
+      // pyramids does not read as a formation
+      if (shapeFor(h.pitch) !== 'circle') dot.rotation.y = (h.ang || 0) * (Math.PI / 180)
+
+      if (h.barrel) {
+        const br = new THREE.Mesh(barrelGeo, new THREE.MeshBasicMaterial({
+          color: col, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
+        }))
+        br.rotation.x = -Math.PI / 2
+        br.position.set(v.x, seatY + 0.5, v.z)
+        scene.add(br)
+      }
 
       if (inSeats) {
         const pin = new THREE.Mesh(
@@ -995,7 +1074,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // solvable flight, i.e. basically immediately. The flight for THIS
       // hit was just pushed to `flights` above, in the same `if (f)`
       // block, so its index is simply the last slot in that array.
-      if (f) dot.userData.flightIndex = flights.length - 1
+      if (f) { dot.userData.flightIndex = flights.length - 1; flightOfHit[hi] = flights.length - 1 }
       scene.add(dot)
       pickables.push(dot)
     })
@@ -1064,7 +1143,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       bits.push(`${i.dist} ft`)
       if (i.apex != null) bits.push(`apex ${i.apex} ft`)
       if (i.hang != null) bits.push(`${i.hang.toFixed(1)}s hang`)
-      tip.innerHTML = `<b style="color:${i.col}">${i.verdict}</b><br>${bits.join(' · ')}`
+      tip.innerHTML = `<b style="color:${i.col}">${i.verdict}</b>${i.barrel ? ' <span style="opacity:.85">· barrel</span>' : i.hard ? ' <span style="opacity:.7">· hard-hit</span>' : ''}<br>${bits.join(' · ')}`
         + (i.pitch || i.date ? `<br><span style="opacity:.7">${[i.pitch, i.date].filter(Boolean).join(' · ')}</span>` : '')
       tip.style.display = 'block'
       tip.style.left = `${Math.min(e.clientX - rect.left + 14, rect.width - 190)}px`
@@ -1353,9 +1432,13 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //    keeps a 60-ball night under ten seconds.
     const flyGeo = new THREE.SphereGeometry(1.9, 10, 10)
     let replay = null
-    const runReplay = () => {
+    // `which` is the list of flight indices to fly; default all of them
+    const runReplay = (which = null) => {
       if (!flights.length || replay) return
-      const balls = flights.map((fl) => {
+      const idxs = which || flights.map((_, i) => i)
+      if (!idxs.length) return
+      const balls = idxs.map((i) => {
+        const fl = flights[i]
         const m = new THREE.Mesh(flyGeo, new THREE.MeshBasicMaterial({
           color: fl.col, transparent: true, opacity: fl.big ? 1 : 0.5,
         }))
@@ -1364,12 +1447,13 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         scene.add(m)
         return m
       })
-      replay = { t0: performance.now(), balls }
+      replay = { t0: performance.now(), balls, idxs }
     }
     const stepReplay = (now) => {
       if (!replay) return
       let alive = false
-      flights.forEach((fl, i) => {
+      replay.idxs.forEach((fi, i) => {
+        const fl = flights[fi]
         const start = replay.t0 + i * 70
         const dur = Math.max(500, fl.hang * 260)
         const p = (now - start) / dur
@@ -1386,9 +1470,24 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         replay = null
       }
     }
-    replayRef.current = runReplay
+    replayRef.current = () => runReplay()
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!reduceMotion) runReplay()
+    {
+      // What flies on this rebuild depends on the mode and on why the scene
+      // rebuilt. First mount: the whole set, once (as before). LIVE and the
+      // set grew: only the balls that were not here last time. HOLD: nothing.
+      // REPLAY: the whole set again, which is what a filter change used to do.
+      const prev = prevCountRef.current
+      prevCountRef.current = hits.length
+      const m = motionRef.current
+      if (reduceMotion || m === 'hold') { /* still */ }
+      else if (prev === 0) runReplay()
+      else if (m === 'live') {
+        const fresh = []
+        for (let i = prev; i < hits.length; i++) if (flightOfHit[i] != null) fresh.push(flightOfHit[i])
+        if (fresh.length && fresh.length <= 6) runReplay(fresh)
+      } else runReplay()
+    }
 
     let raf
     // 1 when the scene is idle, 0 while the viewer is dragging.
@@ -1407,13 +1506,17 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // whole view walks off on its own.
     const tick = (now) => {
       const t = now || performance.now()
-      handheld = driving
+      const hold = motionRef.current === 'hold'
+      handheld = driving || hold
         ? Math.max(0, handheld - 0.12)
         : Math.min(1, handheld + 0.012)
+      // auto-orbit: OrbitControls' own slow turn, paused while grabbed and
+      // in HOLD, resumed on release
+      controls.autoRotate = !!orbitRef.current && !driving && !hold
+      controls.autoRotateSpeed = 0.55
       controls.update()
       if (windStep) windStep(t)
-      stepReplay(t)
-      stepHoverFlight(t)
+      if (!hold) { stepReplay(t); stepHoverFlight(t) }
       // AND IT HOLDS STILL WHILE YOU DRIVE -- the fourth thing making this
       // hard to manoeuvre and the least obvious: the camera sways six feet
       // continuously, so every attempt to line up a view was being nudged
@@ -1570,16 +1673,40 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
           background: 'rgba(9,9,11,.92)', border: `1px solid ${C.border2}`,
           fontSize: 10, lineHeight: 1.5, color: C.text2, fontFamily: NUM_FONT,
         }} />
-        <button
-          onClick={() => replayRef.current && replayRef.current()}
-          title="Fly every ball along its reconstructed arc again, in sequence"
-          style={{
-            position: 'absolute', right: 8, top: 8, zIndex: 4,
-            padding: '3px 10px', fontSize: 10, fontWeight: 700, borderRadius: 7,
-            cursor: 'pointer', fontFamily: NUM_FONT,
-            border: `1px solid ${C.border2}`, background: 'rgba(9,9,11,.75)', color: C.text2,
-          }}
-        >▶ replay</button>
+        {/* motion modes + orbit, top-right. The ▶ replay button grew into a
+            row: what moves, and whether the camera turns on its own. */}
+        <div style={{ position: 'absolute', right: 8, top: 8, zIndex: 4, display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '40%' }}>
+          {[
+            live ? ['live', '● live', 'Only the ball that just landed flies when the feed adds one'] : null,
+            ['replay', '▶ replay', 'Fly every ball along its reconstructed arc, in sequence'],
+            ['hold', '⏸ hold', 'Nothing moves — the still picture'],
+          ].filter(Boolean).map(([k, txt, tip]) => {
+            const on = motion === k
+            const col = k === 'live' ? C.green : k === 'hold' ? C.text2 : C.orange
+            return (
+              <button key={k}
+                onClick={() => { setMotion(k); if (k === 'replay' && replayRef.current) replayRef.current() }}
+                title={tip}
+                style={{
+                  padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
+                  cursor: 'pointer', fontFamily: NUM_FONT,
+                  border: `1px solid ${on ? col : C.border2}`,
+                  background: on ? `${col}22` : 'rgba(9,9,11,.75)', color: on ? col : C.text2,
+                }}
+              >{txt}</button>
+            )
+          })}
+          <button
+            onClick={() => setOrbit((v) => !v)}
+            title={orbit ? 'Stop the slow turn' : 'Turn slowly around the park until you grab it'}
+            style={{
+              padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
+              cursor: 'pointer', fontFamily: NUM_FONT,
+              border: `1px solid ${orbit ? C.cyan : C.border2}`,
+              background: orbit ? `${C.cyan}22` : 'rgba(9,9,11,.75)', color: orbit ? C.cyan : C.text2,
+            }}
+          >⟳ orbit</button>
+        </div>
       </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         drag to orbit · scroll to zoom · swipe sideways on a phone · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five

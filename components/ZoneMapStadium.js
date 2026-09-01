@@ -161,6 +161,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const cy = ZB + ZH * 0.5
     const SHOT = {
       matchup: { pos: [0, cy, -5.4], look: [0, cy, 0], fov: 40 },
+      command: { pos: [0.5, cy + 0.25, -5.7], look: [0, cy, 0], fov: 40 },
       flight:  { pos: [1.4, cy + 0.8, -13], look: [0, cy, 6], fov: 40 },
       tunnel:  { pos: [4.2, cy + 1.9, -19], look: [0, cy, 13], fov: 42 },
     }
@@ -355,6 +356,73 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       rel.position.copy(PT(rx, rz, REL_FT))
       relGroup.add(rel)
     })
+
+    // ── COMMAND (2026-09-01). The design doc's fourth view, never ported:
+    //    "is he commanding it or losing it." Per pitch type, the CENTROID of
+    //    tonight's plate crossings as a cross, and the 1σ ELLIPSE around it
+    //    from the covariance of those crossings — the principal axes, so a
+    //    type he is missing arm-side reads as a tilted oval, not a circle.
+    //    Tight small ellipse near the edge = commanding it. Big ellipse
+    //    across the middle = losing it. The individual marks stay under it,
+    //    dimmed, so the ellipse never has to be taken on faith.
+    //    Needs three crossings of a type for an ellipse; one for a cross.
+    const cmdGroup = new THREE.Group(); add(cmdGroup)
+    {
+      const byType = new Map()
+      live.forEach((p) => {
+        if (!p.type) return
+        if (!byType.has(p.type)) byType.set(p.type, [])
+        byType.get(p.type).push(p)
+      })
+      const Z_CMD = 0.03
+      const cline = (pts, hex, op) => {
+        const g = new THREE.BufferGeometry().setFromPoints(pts)
+        const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity: op }))
+        cmdGroup.add(l)
+        return l
+      }
+      byType.forEach((ps, type) => {
+        const hex = pitchColor(type)
+        const n = ps.length
+        const mx = ps.reduce((a, p) => a + p.x, 0) / n
+        const mz = ps.reduce((a, p) => a + p.z, 0) / n
+        // the cross
+        const arm = 0.11
+        cline([PT(mx - arm, mz, Z_CMD), PT(mx + arm, mz, Z_CMD)], hex, 0.95)
+        cline([PT(mx, mz - arm, Z_CMD), PT(mx, mz + arm, Z_CMD)], hex, 0.95)
+        // the label, above and right of the cross
+        const lbl = glyphSprite(`${type} ${n}`, hex, 40, 0.42)
+        lbl.position.copy(PT(mx + 0.22, mz + 0.16, Z_CMD))
+        cmdGroup.add(lbl)
+        if (n < 3) return
+        // covariance → principal axes
+        let sxx = 0, szz = 0, sxz = 0
+        ps.forEach((p) => { sxx += (p.x - mx) ** 2; szz += (p.z - mz) ** 2; sxz += (p.x - mx) * (p.z - mz) })
+        sxx /= n - 1; szz /= n - 1; sxz /= n - 1
+        const tr = sxx + szz, det = sxx * szz - sxz * sxz
+        const disc = Math.sqrt(Math.max(0, (tr * tr) / 4 - det))
+        const l1 = tr / 2 + disc, l2 = Math.max(1e-6, tr / 2 - disc)
+        const theta = Math.abs(sxz) < 1e-9 ? (sxx >= szz ? 0 : Math.PI / 2) : Math.atan2(l1 - sxx, sxz)
+        const a = Math.sqrt(l1), b = Math.sqrt(l2)
+        const pts = []
+        for (let i = 0; i <= 48; i++) {
+          const t = (i / 48) * Math.PI * 2
+          const ex = a * Math.cos(t), ez = b * Math.sin(t)
+          pts.push(PT(mx + ex * Math.cos(theta) - ez * Math.sin(theta), mz + ex * Math.sin(theta) + ez * Math.cos(theta), Z_CMD))
+        }
+        cline(pts, hex, 0.9)
+        // a faint fill so the oval reads as an area, not a wire. The shape
+        // is built in world x/y directly from the same points, so it cannot
+        // sit anywhere the outline does not.
+        const shape = new THREE.Shape()
+        pts.forEach((v, i) => { if (i === 0) shape.moveTo(v.x, v.y); else shape.lineTo(v.x, v.y) })
+        const fill = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({
+          color: hex, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false,
+        }))
+        fill.position.z = Z_CMD + 0.005
+        cmdGroup.add(fill)
+      })
+    }
 
     // ── TUNNEL. One ring at the point downrange where the pitches are still
     //    indistinguishable. Nothing on a flat map can show this.
@@ -711,6 +779,10 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       tunnelGroup.visible = mode === 'tunnel'
       matchGroup.visible = mode === 'matchup'
       markGroup.visible = mode !== 'matchup'
+      cmdGroup.visible = mode === 'command'
+      // under the ellipses the marks are evidence, not the subject
+      markGroup.traverse((o) => { if (o.material && o.userData.baseOp == null) o.userData.baseOp = o.material.opacity ?? 1 })
+      markGroup.traverse((o) => { if (o.material) o.material.opacity = mode === 'command' ? o.userData.baseOp * 0.45 : o.userData.baseOp })
     }
     show()
 
@@ -746,7 +818,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
   // Flight and tunnel are drawn from tracked pitches. With none, they are not
   // a view with nothing in it — they are a view that cannot exist yet, and a
   // disabled button that says so beats an empty box that looks broken.
-  const needsPitches = { flight: true, tunnel: true, matchup: false }
+  const needsPitches = { flight: true, tunnel: true, command: true, matchup: false }
   const btn = (m, txt) => {
     const off = needsPitches[m] && !hasPitches
     return (
@@ -773,6 +845,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       <div style={{ display: 'flex', gap: 6, marginBottom: 7, flexWrap: 'wrap' }}>
         {btn('flight', 'Flight')}
         {btn('tunnel', 'Release + tunnel')}
+        {btn('command', 'Command')}
         {btn('matchup', 'Matchup')}
       </div>
       {/* ── THE HEIGHT IS ON THE DIV, NOT ON THE CANVAS (2026-08-31).
@@ -829,7 +902,11 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         {label ? `${label} · ` : ''}Catcher&apos;s view.{' '}
         <span className="zm3d-touch">Swipe sideways to orbit — up and down scrolls the page.{' '}</span>
-        {hasPitches
+        {hasPitches && mode === 'command'
+          ? <>Command: one cross per pitch type at the centre of tonight&apos;s crossings, and the
+            1σ oval around it — small and near an edge means he is commanding it, wide across
+            the middle means he is losing it. Three crossings of a type before an oval is drawn.{' '}</>
+          : hasPitches
           ? <>Plate crossings are measured; the path between release and the plate is
             drawn from movement, not tracked — geometry, not telemetry.{' '}</>
           : <>No tracked pitches yet, so Flight and Release + tunnel are off — they are

@@ -624,13 +624,29 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     [feed, viewPitcher, atBat],
   )
 
+  // ZONE SCOPE (2026-09-01 — the "pitching changes as a live filter" ask,
+  // finally on the map itself). 'him' is the map's usual sample: pitches to
+  // the selected hitter, narrowed by the chip if one is picked. 'all' is the
+  // spotting read — every pitch ONE arm has thrown tonight, to anyone. It
+  // needs a specific arm: the chip, else whoever he last faced, else whoever
+  // is live. Resets with the game, same as the chip.
+  const [zoneScope, setZoneScope] = useState('him')
+  useEffect(() => { setZoneScope('him') }, [gamePk])
+  const zoneArm = viewPitcher
+    || Number(atBat?.pitcherId)
+    || pitchersTonight.find((x) => x.live)?.id
+    || null
   const livePitchesFor = useMemo(() => {
-    const mine = (feed?.pitches || []).filter((p) => Number(p.batterId) === Number(selectedId))
+    const all = feed?.pitches || []
+    if (zoneScope === 'all') {
+      return zoneArm ? all.filter((p) => Number(p.pitcherId) === Number(zoneArm)) : []
+    }
+    const mine = all.filter((p) => Number(p.batterId) === Number(selectedId))
     // Default is unchanged — every pitch he's seen tonight, any arm. Only
     // narrows once a specific pitcher chip is picked, so a pitching change
     // never quietly shrinks the map for someone who hasn't touched a chip.
     return viewPitcher ? mine.filter((p) => Number(p.pitcherId) === Number(viewPitcher)) : mine
-  }, [feed, selectedId, viewPitcher])
+  }, [feed, selectedId, viewPitcher, zoneScope, zoneArm])
   // memoized so the spray chart isn't handed a fresh array every render
   const liveBalls = useMemo(() => feed?.balls || [], [feed])
 
@@ -914,7 +930,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         </span>
       </div>
 
-      {feed && livePitchesFor.length === 0 && (
+      {feed && livePitchesFor.length === 0 && zoneScope !== 'all' && (
         <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
           {viewPitcher ? (
             <>{selName || 'He'} hasn&apos;t faced{' '}
@@ -952,6 +968,11 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             liveOnly
             livePitches={livePitchesFor}
             liveLabel={selName}
+            livePitchers={pitchersTonight}
+            livePitcherId={zoneScope === 'all' ? zoneArm : viewPitcher}
+            onLivePitcher={setViewPitcherId}
+            liveScope={zoneScope}
+            onLiveScope={setZoneScope}
           />
         </div>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>

@@ -37,6 +37,7 @@ const canWebgl = () => {
 }
 
 import { resultColor as sharedResultColor } from '../lib/resultColor'
+import { SHAPE_GLYPH, shapeFor } from '../lib/pitchShape'
 
 // 🏟 The stadium view rides in on demand — three.js is ~600KB and belongs in
 // nobody's first paint. ssr:false because it is a WebGL canvas with no server
@@ -167,16 +168,8 @@ const HIT_EVENTS = new Set(['single', 'double', 'triple', 'home_run'])
 // Marker shape carries pitch type, the way PropFinder's does. Colour is already
 // spoken for by exit velocity, and a second colour scale would fight the ramp,
 // so shape is the only channel left that reads at this dot size.
-const PITCH_SHAPE = {
-  FF: 'circle', FA: 'circle',
-  SI: 'down',
-  SL: 'up', ST: 'up', SV: 'up',
-  CH: 'square', FS: 'square', FO: 'square',
-  FC: 'diamond',
-  CU: 'cross', KC: 'cross', CS: 'cross', EP: 'cross', KN: 'cross',
-}
-const SHAPE_GLYPH = { circle: '●', down: '▼', up: '▲', square: '■', diamond: '◆', cross: '✚' }
-const shapeFor = (code) => PITCH_SHAPE[code] || 'circle'
+// The table itself now lives in lib/pitchShape so the 3D field draws from
+// the same one (2026-09-01) — see that file.
 
 function Marker({ shape, x, y, r, fill, stroke, sw, opacity, dashed }) {
   const common = {
@@ -1473,6 +1466,7 @@ export default function SprayField({
             heights={testPark && PARKS[testPark] ? PARKS[testPark].h : (heights || [8, 8, 8, 8, 8])}
             venue={testPark || venue}
             wind={hasWind ? { mph: windMph, label: windLabel, to: windTo, color: windCol } : null}
+            live={liveOnly}
           />
 
           {/* ── THE DOCK (2026-08-31). Donovan: "what happened to those on
@@ -1586,6 +1580,25 @@ export default function SprayField({
                           }}>CLEAR ALL</button>
                       </>
                     )}
+                    {/* THE LEGEND, on the canvas (2026-09-01) — the marks
+                        now match the flat chart's, and the flat chart's
+                        legend is under a chart that is hidden while this
+                        one is up. Shapes are the families that are actually
+                        in the park, so it never lists a pitch he did not see. */}
+                    <div style={{
+                      display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 6, paddingTop: 5,
+                      borderTop: `1px solid ${C.border}`,
+                      fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text3,
+                    }}>
+                      {[...new Set(stadiumHits.map((h) => shapeFor(h.pitch)))].slice(0, 6).map((sh) => (
+                        <span key={sh} title={[...new Set(stadiumHits.filter((h) => shapeFor(h.pitch) === sh).map((h) => h.pitch))].filter(Boolean).join(' / ') || 'unknown pitch'}>
+                          <span style={{ color: C.text2 }}>{SHAPE_GLYPH[sh]}</span>{' '}
+                          {[...new Set(stadiumHits.filter((h) => shapeFor(h.pitch) === sh).map((h) => h.pitch))].filter(Boolean).slice(0, 2).join('/') || '?'}
+                        </span>
+                      ))}
+                      <span><span style={{ color: C.text2 }}>◯</span> barrel</span>
+                      <span>size = result</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2092,7 +2105,7 @@ export default function SprayField({
             <b style={{ color: catColor('result', 'triple') }}>purple</b> 3B ·{' '}
             <b style={{ color: RESULT_COLORS.double }}>green</b> 2B ·{' '}
             <b style={{ color: catColor('result', 'single') }}>blue</b> 1B · dark = out ·{' '}
-            <b style={{ color: C.text2 }}>ring = barrel</b> · shape = pitch · size = distance
+            <b style={{ color: C.text2 }}>ring = barrel</b> · shape = pitch · size = result
           </div>
 
           {/* TONIGHT — the live layer explains itself in the same footer type

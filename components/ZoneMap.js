@@ -282,6 +282,73 @@ function LiveDot({ kind, col, on, pinned }) {
 
 const LIVE_KINDS = ['ball', 'called', 'whiff', 'foul', 'inplay']
 
+// ── WHO IS THROWING (2026-09-01). Donovan, twice, at the start of the live
+// work: "account for pitching changes as a live filter... it should help with
+// seeing where the pitcher is spotting the ball that game v all batters."
+//
+// Two controls, one row, drawn wherever the pitch-type pills are drawn (the
+// tonight strip and the 3D dock) so a pitching change is a chip on the map
+// itself, not a control three cards up the page:
+//   · the ARM — every pitcher who has thrown tonight, the live one marked.
+//     ALL ARMS is the default; picking one narrows to his pitches.
+//   · the SCOPE — "to <him>" (this hitter's pitches, the map's usual sample)
+//     or "vs everyone" (every pitch that arm has thrown tonight, to any
+//     batter, each plotted against its own batter's measured zone). The
+//     second is the "where is he spotting it tonight" read. It needs a
+//     specific arm, so it uses the chosen chip or, with none chosen, the one
+//     this hitter last faced.
+// State lives in the page (At The Plate), because the pitcher list comes
+// from the game feed and the same chips also drive the arsenal card there.
+function LivePitcherRow({ pitchers, pitcherId, onPitcher, scope, onScope, hitter, dense = false }) {
+  if (!pitchers || !pitchers.length || !onPitcher) return null
+  const fs = dense ? 8.5 : 9
+  const pad = dense ? '1px 7px' : '2px 9px'
+  const chip = (on, col) => ({
+    fontSize: fs, fontFamily: NUM_FONT, fontWeight: 800, cursor: 'pointer',
+    borderRadius: 999, padding: pad, whiteSpace: 'nowrap',
+    border: `1px solid ${on ? col : C.border}`,
+    background: on ? `${col}1f` : 'transparent',
+    color: on ? col : C.text3,
+  })
+  const him = String(hitter || 'him').split(' ').slice(-1)[0]
+  return (
+    <div style={{ display: 'flex', gap: dense ? 3 : 4, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* "vs everyone" is one arm's night by definition, so the every-arm
+          chip only exists in the to-him scope */}
+      {pitchers.length > 1 && scope !== 'all' && (
+        <button onClick={() => onPitcher(null)} title="Every arm that has thrown to him tonight" style={chip(!pitcherId, C.green)}>
+          ALL ARMS
+        </button>
+      )}
+      {pitchers.map((p) => {
+        const on = pitcherId === p.id
+        return (
+          <button key={p.id}
+            onClick={() => onPitcher(on ? null : p.id)}
+            title={`${p.name} — ${p.n} tracked pitch${p.n === 1 ? '' : 'es'} tonight${p.live ? '. On the mound right now.' : '. Out of the game — his night is still here.'}`}
+            style={{ ...chip(on, C.green), display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {p.live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, boxShadow: `0 0 5px ${C.green}`, flexShrink: 0 }} />}
+            {String(p.name || '?').split(' ').slice(-1)[0]}
+            {!dense && <span style={{ fontWeight: 700, opacity: 0.75 }}>{p.n}p</span>}
+          </button>
+        )
+      })}
+      {onScope && (
+        <span style={{ display: 'inline-flex', gap: 3, marginLeft: dense ? 0 : 4 }}>
+          <button onClick={() => onScope('him')} title={`Only the pitches ${hitter || 'this hitter'} has seen tonight`} style={chip(scope !== 'all', C.orange)}>
+            to {him}
+          </button>
+          <button onClick={() => onScope('all')}
+            title="Every pitch this arm has thrown tonight, to every batter — where he is spotting it, not just what this hitter got. Each pitch sits against its own batter's zone."
+            style={chip(scope === 'all', C.orange)}>
+            vs everyone
+          </button>
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ── liveOnly: THE AT-THE-PLATE SKIN ─────────────────────────────────────────
 //
 // 2026-08-10, Donovan: "for the spray and the strike map I want those to be
@@ -303,7 +370,12 @@ const LIVE_KINDS = ['ball', 'called', 'whiff', 'foul', 'inplay']
 // the picture.
 //
 // Off by default. The player modal and the EV Log get the map they had.
-export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = false, livePitches = null, liveLabel = '', liveNote = '' }) {
+export default function ZoneMap({
+  playerId, bats, pitchInfo = null, liveOnly = false, livePitches = null, liveLabel = '', liveNote = '',
+  // the pitcher row (see LivePitcherRow) — all optional; the map without a
+  // game feed never sees them
+  livePitchers = null, livePitcherId = null, onLivePitcher = null, liveScope = 'him', onLiveScope = null,
+}) {
   const [api, setApi] = useState(undefined)
   const [bot, setBot] = useState(null)
   const [stat, setStat] = useState('ev')
@@ -374,6 +446,15 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
   // him right now", in the order it happened
   const lastPi = live.length ? Math.max(...live.map((p) => p.pi)) : null
   const lastAb = lastPi == null ? [] : live.filter((p) => p.pi === lastPi).sort((a, b) => a.seq - b.seq)
+  // whose sample this is, in words — "to Ohtani" or "Imanaga vs everyone"
+  const scopeAll = liveScope === 'all' && !!onLiveScope
+  const armName = (livePitchers || []).find((p) => p.id === livePitcherId)?.name || ''
+  const sampleLabel = scopeAll
+    ? `${armName ? armName.split(' ').slice(-1)[0] : 'the arm'} vs everyone`
+    : (liveLabel || 'this hitter')
+  const pitcherRow = onLivePitcher && livePitchers?.length
+    ? { pitchers: livePitchers, pitcherId: livePitcherId, onPitcher: onLivePitcher, scope: liveScope, onScope: onLiveScope, hitter: liveLabel }
+    : null
 
   if (api === undefined && !hasBot && !hasLive) {
     return <div style={{ fontSize: 10, color: C.text3, padding: '6px 0', fontFamily: NUM_FONT }}>Loading zone map…</div>
@@ -742,7 +823,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
             fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
             color: C.green, border: '1px solid rgba(74,222,128,.5)', background: 'rgba(74,222,128,.10)',
             borderRadius: 999, padding: '2px 8px',
-          }}>● TONIGHT ONLY {allLive.length}</span>
+          }}>● TONIGHT ONLY {allLive.length}{scopeAll ? ' · VS EVERYONE' : ''}</span>
         )}
         {!liveOnly && hasLive && (
           <span title={`${allLive.length} tracked pitches from tonight's feed, plotted on this same map`} style={{
@@ -788,7 +869,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           zone". It says which it is. */}
       {liveOnly && !hasLive && (
         <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
-          No pitches to <b style={{ color: C.text2 }}>{liveLabel || 'this hitter'}</b> yet tonight. The
+          No pitches {scopeAll ? 'from' : 'to'} <b style={{ color: C.text2 }}>{scopeAll ? (armName || 'that arm') : (liveLabel || 'this hitter')}</b> yet tonight. The
           shading below is his season heat and the starter&apos;s usage, kept as background — the only
           dots this map will ever draw are tonight&apos;s, and they appear the moment he steps in.
         </div>
@@ -826,7 +907,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                 zoneCells={isMatch ? cells : null}
                 killZones={pzp?.kill_zones || null}
                 statLabel={(WHOSE[stat] || WHOSE.ev)[0]}
-                label={liveLabel || starterName || ''}
+                label={scopeAll ? sampleLabel : (liveLabel || starterName || '')}
               />
 
               {/* ── THE DOCK (2026-08-31). Donovan: "where are the filters
@@ -905,6 +986,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
                         ))}
                       </div>
                     )}
+                    {pitcherRow && <LivePitcherRow {...pitcherRow} dense />}
 
                     {/* THE LEGEND, on the canvas. Nine tinted boxes cannot say
                         what their tint means, and the sentence that used to
@@ -958,7 +1040,7 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
         <div style={{ marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5 }}>
             {[
-              ['PITCHES', String(lsum.n), C.text, `Every tracked pitch to ${liveLabel || 'this hitter'} tonight`],
+              ['PITCHES', String(lsum.n), C.text, scopeAll ? `Every tracked pitch ${armName || 'this arm'} has thrown tonight, to anyone` : `Every tracked pitch to ${liveLabel || 'this hitter'} tonight`],
               ['STRIKE', lsum.n ? `${Math.round((100 * lsum.strikes) / lsum.n)}%` : '—', '#fbbf24', 'Called, swung at, fouled or put in play'],
               ['IN ZONE', lsum.n ? `${Math.round((100 * lsum.inZone) / lsum.n)}%` : '—', C.cyan, "Inside the batter's own measured zone"],
               ['WHIFF', lsum.swings ? `${Math.round((100 * lsum.whiffs) / lsum.swings)}%` : '—', C.red, `${lsum.whiffs} misses on ${lsum.swings} swings`],
@@ -1009,6 +1091,9 @@ export default function ZoneMap({ playerId, bats, pitchInfo = null, liveOnly = f
           )}
         </div>
       )}
+      {/* the arm row sits outside hasLive on purpose: with no pitch to him yet
+          it is still the way to look at what the arm is doing to everyone */}
+      {pitcherRow && <div style={{ marginBottom: 8 }}><LivePitcherRow {...pitcherRow} /></div>}
 
       {/* .zone-wrap / .zone-grid are phone hooks only — MobileCSS widens the
           wrap to the full card and shrinks the grid to a viewport-relative
