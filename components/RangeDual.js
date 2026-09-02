@@ -17,8 +17,18 @@ import { C } from '../lib/theme'
 // track is ours, and pointer events are handed back to the thumbs so both
 // remain draggable while the elements overlap.
 //
-// The higher thumb takes the higher z-index when the two are close, otherwise
-// a pair sitting on the same pixel leaves one of them unreachable.
+// TWO THUMBS ON ONE PIXEL. Stacking inputs creates one interaction that a
+// naive z-index rule does not solve: when low and high collapse onto the same
+// value MID-TRACK, whichever input paints on top owns the hit area, and its
+// own clamp blocks it from moving in one of the two directions -- so the pair
+// can only be separated by dragging the other one, which has no hit target.
+//
+// Two things fix it together, and neither is a z-index guess:
+//   · the TRACK takes the pointer. A press anywhere on it moves whichever
+//     bound is nearer to where you pressed, which always separates a collapsed
+//     pair in one gesture and is what people expect of a slider anyway.
+//   · the thumb that still has somewhere to go paints on top. At the maximum
+//     that is `low` (high cannot go higher), everywhere else it is `high`.
 export default function RangeDual({
   min = 0, max = 100, step = 1,
   low, high, onLow, onHigh,
@@ -31,8 +41,28 @@ export default function RangeDual({
   const b = pct(high)
   const full = a <= 0.5 && b >= 99.5
 
+  // A press on the track moves the nearer bound. `nearest` is by VALUE, not by
+  // pixel, so it behaves the same at any width.
+  const onTrackDown = (e) => {
+    // A press that landed on a THUMB is a drag, and the browser is already
+    // handling it. Jumping the value here would nudge it by a step before the
+    // drag even starts.
+    if (e.target && e.target.tagName === 'INPUT') return
+    const box = e.currentTarget.getBoundingClientRect()
+    if (!box.width) return
+    const frac = Math.max(0, Math.min(1, (e.clientX - box.left) / box.width))
+    const raw = Number(min) + frac * span
+    const stepped = Math.round(raw / Number(step)) * Number(step)
+    const v = Math.max(Number(min), Math.min(Number(max), stepped))
+    // A tie goes to whichever one can actually move toward the press.
+    const dLow = Math.abs(v - Number(low))
+    const dHigh = Math.abs(v - Number(high))
+    if (dLow < dHigh || (dLow === dHigh && v < Number(low))) onLow(Math.min(v, Number(high)))
+    else onHigh(Math.max(v, Number(low)))
+  }
+
   return (
-    <div className="rd" style={{ position: 'relative', height: 22, marginTop: 4 }}>
+    <div className="rd" onPointerDown={onTrackDown} style={{ position: 'relative', height: 22, marginTop: 4 }}>
       <div className="rd-track" style={{ background: C.bg3, border: `1px solid ${C.border}` }} />
       <div
         className="rd-fill"
@@ -48,7 +78,7 @@ export default function RangeDual({
         type="range" min={min} max={max} step={step} value={low}
         aria-label={label ? `${label} minimum` : 'minimum'}
         onChange={(e) => onLow(Math.min(Number(e.target.value), Number(high)))}
-        style={{ zIndex: a > 92 ? 4 : 3, accentColor: col }}
+        style={{ zIndex: b >= 99.5 ? 4 : 3, accentColor: col }}
       />
       <input
         type="range" min={min} max={max} step={step} value={high}
@@ -57,6 +87,7 @@ export default function RangeDual({
         style={{ zIndex: 3, accentColor: col }}
       />
       <style jsx>{`
+        .rd { touch-action: none; }
         .rd-track, .rd-fill {
           position: absolute; top: 9px; height: 4px; border-radius: 99px; pointer-events: none;
         }

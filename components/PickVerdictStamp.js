@@ -3,7 +3,12 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
 import { primaryRole } from '../lib/verdict'
-import { playerId } from '../lib/player'
+// mlbId, NOT playerId. playerId() is the composite "<id>-<game_pk>" row key
+// used for dedupe and React keys; the live snapshot's `lines` map is keyed by
+// the league's numeric id, which is what every other consumer of it joins on
+// (LiveWire, AtThePlate, the Boxes counters). Number() of the composite is
+// NaN, which would make this component silently render nothing, forever.
+import { mlbId } from '../lib/player'
 
 // ── #59: THE CARD HAD NO POST-GAME STATE, ON A SITE BUILT ON GRADING ────────
 //
@@ -45,7 +50,7 @@ const lineText = (l) => {
 
 export default function PickVerdictStamp({ player }) {
   const [line, setLine] = useState(null)
-  const pid = Number(playerId(player))
+  const pid = mlbId(player)
 
   useEffect(() => {
     if (!pid) return undefined
