@@ -6,6 +6,7 @@ import Pairs from './Pairs'
 import Pools from './Pools'
 import PairHistory from './PairHistory'
 import Builder from '../Builder'
+import ComboLinks from '../ComboLinks'
 import HomerLedger from '../HomerLedger'
 import LedgerLab from './LedgerLab'
 import Alignments from '../Alignments'
@@ -128,6 +129,10 @@ export default function Combos({
       {/* live_mode gate removed 2026-08-17 — the ledger owns its own empty
           state now, and gating the mount hid it during exactly the hours
           someone would be looking for it. See components/HomerLedger.js. */}
+      {/* The three combo surfaces point at each other (2026-09-01) — see
+          components/ComboLinks.js. */}
+      {view === 'pairs' && <ComboLinks here="pairs" />}
+      {view === 'builder' && <ComboLinks here="builder" />}
       {view === 'pairs' && (
         <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
       )}

@@ -3,7 +3,7 @@ import PairHistory from './PairHistory'
 import { useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { catColor, verdictInk, verdictWash, alpha } from '../../lib/scales'
-import { PanelTitle, Empty, btnStyle } from '../ui'
+import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
 
 // ── constants ─────────────────────────────────────────────────────────────────
@@ -802,8 +802,11 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
           everyone who clears the entry bar. A hitter can be absent from every
           pair on the page for that reason alone, and "he isn't here" should be
           a fact you can check rather than something you have to infer. */}
+      {/* TRIMMED (2026-09-01, Donovan: "trim Pairs' prose"). The words are
+          unchanged; they open on tap instead of sitting between the header
+          and the pairs. */}
       {scope !== 'bot' && (
-        <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 10, maxWidth: 780 }}>
+        <WhatThis label="how this pool was built" maxWidth={780}>
           Built from the strongest{' '}
           <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.min(PAIR_POOL_SIZE, poolInfo.eligible)}</b>{' '}
           bats by <b style={{ color: C.text2 }}>{PAIR_POOL_KEY}</b>, out of{' '}
@@ -816,7 +819,7 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
             combined — a hitter below it is missing from every variant pair for that reason and no
             other.
           </>}
-        </div>
+        </WhatThis>
       )}
 
       {/* Bot picks get the bot's own structure. The cross/same variants are
@@ -2316,7 +2319,7 @@ export function GroupTicketBuilder({
         </div>
       )}
 
-      <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.7, marginTop: 10, maxWidth: 860 }}>
+      <WhatThis label="why no combined percentage is printed" maxWidth={860}>
         <b style={{ color: C.text2 }}>No combined percentage is printed here, on purpose.</b>{' '}
         Two legs in the same game share a park, an air, a starting pitcher and a game state, and this
         archive has never measured what that does to a 1+ hit or a 2+ total-bases bar — the one
@@ -2332,7 +2335,7 @@ export function GroupTicketBuilder({
         leg’s bar, and the rate beside a leg is <b style={{ color: C.text2 }}>that group&apos;s</b> record
         over the backtest, not this hitter&apos;s — the two sitting next to each other is a comparison to
         make yourself, not an edge this page is claiming.
-      </div>
+      </WhatThis>
     </div>
   )
 }

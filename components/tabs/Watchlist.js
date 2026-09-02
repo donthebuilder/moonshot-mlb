@@ -1,4 +1,5 @@
 'use client'
+import ComboLinks from '../ComboLinks'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   playerId, mlbId, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore,
@@ -1276,10 +1277,10 @@ function WatchlistPairs({ items, pairSummary, onPlayerClick }) {
           {rows.length} combos from {items.length} saved · {withHist} with co-HR history
         </span>
       </div>
-      <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
-        Every two-man combination of your saved hitters, best first. For one hitter&apos;s partners
-        beyond this list, use the builder on Pools.
+      <div style={{ fontSize: 10, color: C.text3, marginBottom: 6, lineHeight: 1.5 }}>
+        Every two-man combination of your saved hitters, best first.
       </div>
+      <ComboLinks here="watch" />
       <DenseTable
         heatMode="sorted"
 rows={rows}
