@@ -157,3 +157,39 @@ button {
 .skip-link:focus {
   top: 8px;
 }
+
+/* ── THE PHONE FONT FLOOR (moved here 2026-09-02) ─────────────────────────
+   These four rules lived in components/MobileCSS.js, which is a styled-jsx
+   template, and they have never once applied to a production build.
+
+   Next's CSS minifier unquotes an attribute value that contains no spaces.
+   From styled-jsx that turned [style*="font-size:8"] into
+   [style*=font-size:8] — and an unquoted attribute value has to be a valid
+   identifier, which one containing a colon is not. Chrome drops the
+   selector, and because CSS discards an ENTIRE selector list when any single
+   selector in it is invalid, the broken no-space variants took the perfectly
+   good spaced ones down with them. Measured on the built page: zero rules
+   inside that media block.
+
+   The identical declaration compiled from THIS file comes out as
+   [style*=font-size\:8] — unquoted with the colon escaped, which is valid
+   and matches. Same CSS, different pipeline, correct output.
+
+   BOTH SPACINGS ARE STILL MATCHED ON PURPOSE, and this was re-verified in a
+   real engine rather than assumed: React's server render writes the style
+   attribute as a raw string with no space after the colon
+   (font-size:8.5px), and an element whose style is set through the CSSOM is
+   re-serialized by the browser WITH a space (font-size: 8.5px). Matching one
+   form only would work until the component re-rendered.
+
+   Safe by measurement, not by hope: components/ has no inline font sizes in
+   the 70-79 or 80-89 or 90-99 ranges, so "font-size:7" can only ever match
+   7-7.9px and "font-size:9" only 9-9.5px. SVG charts set font-size as an
+   ATTRIBUTE rather than a style, so no chart label is touched by any of it. */
+@media (max-width: 560px) {
+  [style*="font-size:7"], [style*="font-size: 7"],
+  [style*="font-size:8"], [style*="font-size: 8"],
+  [style*="font-size:9"], [style*="font-size: 9"] {
+    font-size: 10px !important;
+  }
+}

@@ -567,10 +567,25 @@ export default function MobileCSS() {
          with a space (font-size: 8.5px). Matching only one form would make
          this rule work until the component re-rendered — the worst kind of
          bug to chase. */
-      @media (max-width: 560px) {
-        [style*="font-size:8"], [style*="font-size: 8"],
-        [style*="font-size:9"], [style*="font-size: 9"] { font-size: 10px !important; }
-      }
+      /* ── MOVED TO app/globals.css (2026-09-02) ──────────────────────────
+         The reasoning above is right and this file could not deliver it.
+
+         Next's CSS minifier unquotes an attribute value with no spaces, so
+         [style*="font-size:8"] shipped from HERE as [style*=font-size:8] --
+         an unquoted attribute value has to be a valid identifier, one with a
+         colon in it is not, Chrome drops the selector, and because CSS
+         discards an ENTIRE selector list when any one selector in it is
+         invalid, it took the perfectly good spaced variants down with it.
+         Measured on the built page: zero rules inside this media block, so
+         every inline 7-9.5px size on the site has been rendering at its
+         authored size on phones for as long as this rule has existed.
+
+         The same declaration in app/globals.css comes out as
+         [style*=font-size\:8] -- unquoted with the colon ESCAPED, which is
+         valid and matches. Different pipeline, correct output. So the rule
+         lives there now and this is the signpost, because the next person to
+         wonder why the font floor is not in the mobile stylesheet will look
+         here first. */
 
       /* ── 2a. 7.5px SLIPPED THROUGH (2026-08-10 portrait audit) ──
          The rule above was written against 8-9.5px and there are TWELVE inline
@@ -583,9 +598,8 @@ export default function MobileCSS() {
          components/ for inline font sizes in the 70-79 range and there are
          none, so "font-size:7" can only ever match 7-7.9px. SVG charts set
          font-size as an ATTRIBUTE, so no chart label is touched. */
-      @media (max-width: 560px) {
-        [style*="font-size:7"], [style*="font-size: 7"] { font-size: 10px !important; }
-      }
+      /* The 7px floor moved to app/globals.css with the 8/9 one — same
+         pipeline problem, same fix, and they belong together. */
 
       /* ── 3. TAP TARGETS ──
          Buttons already get min-height 32px under 700px. Coarse pointers get
