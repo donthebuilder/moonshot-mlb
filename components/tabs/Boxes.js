@@ -5,6 +5,8 @@ import { playerId, mlbId, nameOf } from '../../lib/player'
 import { dedupeGraded } from '../../lib/graded'
 import { Empty } from '../ui'
 import { scheduleFor, fullBox, forget, slateDay } from '../../lib/boxscore'
+import { fetchLiveSlate, pickCleared } from '../../lib/liveSlate'
+import { primaryRole } from '../../lib/verdict'
 import { BattingBox, PitchingBox, LineScore } from '../BoxTable'
 
 // 📋 BOXES — every game, live or finished, with the whole box under it.
@@ -282,6 +284,30 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
   // id, so this is an exact key match with nothing fetched and nothing
   // guessed. A name-or-team match would have been the obvious shortcut and is
   // the one that breaks on a doubleheader, where two games share both teams.
+  // ── #49: 0 CLEARED ON EVERY GAME WHILE THE STRIP SAID 12 ─────────────────
+  //
+  // Five games reading "0/4 cleared" -- including one showing 2 HR and one
+  // showing 1 HR -- under a live strip reading "picks 12/71 cleared · 15 HR".
+  // Both numbers were computed honestly and from different places. The strip
+  // reads the LIVE lines and asks lib/liveSlate's pickCleared(); this page
+  // read the GRADED results file, which during a live slate has not been
+  // written yet, so every per-game counter sat at zero all night and only
+  // caught up the next morning.
+  //
+  // The two now share one source. The live snapshot is authoritative while it
+  // has a line for a pick (it is the same cached fetch the strip uses -- see
+  // fetchLiveSlate's TTL, so this costs no extra request), and the graded file
+  // fills in behind it once the night is over and the live feed has dropped
+  // the game.
+  const [liveLines, setLiveLines] = useState(null)
+  useEffect(() => {
+    let alive = true
+    const pull = () => fetchLiveSlate().then((snap) => { if (alive) setLiveLines(snap?.lines || null) }).catch(() => {})
+    pull()
+    const id = setInterval(() => { if (!document.hidden) pull() }, 60000)
+    return () => { alive = false; clearInterval(id) }
+  }, [])
+
   const stakes = useMemo(() => {
     const out = new Map()
     const touch = (pk) => {
@@ -290,11 +316,29 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
       if (!out.has(k)) out.set(k, { picks: [], watched: [], hr: 0, cleared: 0, graded: 0 })
       return out.get(k)
     }
+    // Player ids whose count came from the live feed, so the graded pass below
+    // cannot add them a second time.
+    const countedLive = new Set()
     ;(players || []).forEach((p) => {
       const e = touch(p?.game_pk)
       if (!e) return
-      if (String(p?.game_pick_role || '').trim()) e.picks.push(nameOf(p))
+      const isPick = String(p?.game_pick_role || '').trim()
+      if (isPick) e.picks.push(nameOf(p))
       if (watchIds?.has(playerId(p))) e.watched.push(nameOf(p))
+      if (!isPick || !liveLines) return
+      const id = Number(p?.player_id ?? p?.id)
+      const line = liveLines[id]
+      if (!line) return
+      const role = primaryRole(p)
+      const verdict = pickCleared(role, line)
+      // null means the bar is not judgeable yet (no at-bat), which is not the
+      // same as a miss -- it stays out of the denominator, exactly as the
+      // strip treats it.
+      if (verdict === null) return
+      countedLive.add(id)
+      e.graded += 1
+      if (verdict === true) e.cleared += 1
+      if (Number(line.hr) > 0) e.hr += 1
     })
     // The graded half is optional on purpose: on most of any given day there
     // is no graded file for the date on screen, and a card that renders
@@ -309,13 +353,14 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
       dedupeGraded(results?.graded_slots || results?.results || []).forEach((r) => {
         const e = touch(byId.get(Number(r?.player_id)))
         if (!e) return
+        if (countedLive.has(Number(r?.player_id))) return
         e.graded += 1
         if (Number(r?.actual_hr) > 0) e.hr += 1
         if (r?.hit === true || r?.cleared === true || r?.result === 'HIT' || Number(r?.cleared) > 0) e.cleared += 1
       })
     }
     return out
-  }, [players, watchIds, results, day])
+  }, [players, watchIds, results, day, liveLines])
 
   // ── ORDER BY WHAT YOU CAME HERE FOR ─────────────────────────────────────
   //

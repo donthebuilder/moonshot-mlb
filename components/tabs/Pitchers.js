@@ -1565,14 +1565,20 @@ rows={(() => {
           { key: 'name',   label: 'Starter', heat: false, w: 148, bold: true, sticky: true },
           { key: 't',      label: 'T',   heat: false, w: 24, mono: true, dim: true },
           { key: 'tm',     label: 'Tm',  heat: false, w: 32, mono: true, dim: true },
-          { key: 'vs',     label: 'vs',  heat: false, w: 32, mono: true, dim: true },
+          // #6: at ~950px these two clipped to nothing -- VS showed "S…" "C…"
+          // "T…" and TREND showed "worse…" "impro…". The table already scrolls
+          // horizontally, so the container was never the constraint: 32px does
+          // not hold a three-letter team code at this font, and 58px does not
+          // hold "worsening". Widened to what the content actually measures.
+          { key: 'vs',     label: 'vs',  heat: false, w: 46, mono: true, dim: true },
           { key: 'weakSide', label: 'Weak', heat: false, w: 44, mono: true, dim: true,
             title: 'The side this pitcher struggles against',
             // 2026-08-12: 'weak' alone isn't a glossary key, so this column
             // got no tap-dot at all on mobile despite having a title. Its
             // neighbor wsScore had the opposite problem — see that column.
             explain: 'The side (L or R) this pitcher struggles against. If it matches how this hitter bats, that’s a point in his favor.' },
-          { key: 'trend',  label: 'Trend', heat: false, w: 58, dim: true },
+          { key: 'trend',  label: 'Trend', heat: false, w: 86, dim: true,
+            title: 'Direction of his recent HR/9 against his season rate — improving, steady or worsening.' },
           // The three new text columns sit with the other text, per the layout
           // rule below: nothing textual is allowed to interrupt a run of digits.
           { key: 'penQual', label: 'Pen', heat: false, w: 54, mono: true, dim: true,

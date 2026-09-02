@@ -529,13 +529,30 @@ export default function Accountability({ data, results, onPlayerClick }) {
 
       <ScoreBands data={data} results={results} />
 
-      <style jsx>{`
+      {/* ── #14: THIS BLOCK WAS DOING NOTHING ────────────────────────────
+          The Results header rendered as raw stacked text -- "LAST GRADED2026
+          preseason", "OVERALL CLEAR RATE84.8%", "GRADED33latest published
+          run" -- and the seven per-market rates as bare coloured words instead
+          of tiles. Not a design choice and not a missing file: `<style jsx>`
+          without `global` is SCOPED, and styled-jsx scopes by stamping a
+          jsx-<hash> class onto elements rendered IN THIS COMPONENT. Every
+          element these rules name is rendered by ReceiptHero and CardGrid,
+          which are different components, so not one of them ever matched. The
+          block has been inert for as long as it has existed, on the page the
+          whole product's credibility rests on.
+
+          `global` is the fix, and it comes with an obligation: a global block
+          may not carry bare element selectors. The `h1` and `p` rules below
+          were scoped to this component and would have restyled every h1 and
+          every paragraph on the site the moment they went global -- so they
+          are qualified to the hero they were always meant for. */}
+      <style jsx global>{`
         .receiptHero{position:relative;overflow:hidden;margin-bottom:12px;padding:20px;border:1px solid ${C.green}45;border-radius:17px;background:linear-gradient(135deg,#071b17 0%,${C.bg2} 46%,#07121c 100%)}
         .receiptGlow{position:absolute;right:-80px;top:-130px;width:330px;height:330px;border-radius:50%;background:${C.green}16;filter:blur(12px);pointer-events:none}
         .receiptTop{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
         .receiptEyebrow{font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.16em;color:${C.green};margin-bottom:7px}
-        h1{font-size:clamp(24px,4vw,40px);line-height:.98;letter-spacing:-.045em;margin:0;color:${C.text};max-width:620px}
-        p{font-size:11px;line-height:1.55;color:${C.text3};max-width:590px;margin:9px 0 0}
+        .receiptHero h1{font-size:clamp(24px,4vw,40px);line-height:.98;letter-spacing:-.045em;margin:0;color:${C.text};max-width:620px}
+        .receiptHero p{font-size:11px;line-height:1.55;color:${C.text3};max-width:590px;margin:9px 0 0}
         .receiptStamp{min-width:142px;text-align:right;border-right:3px solid ${C.green};padding-right:10px}
         .receiptStamp span,.receiptKpis span{display:block;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.1em;color:${C.text3}}
         .receiptStamp strong{display:block;font-size:11px;color:${C.text2};margin-top:4px}
