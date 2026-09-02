@@ -22,6 +22,7 @@ import {
 import { quoteFor, fmtOdds } from '../lib/odds'
 import OddsTimeline from './OddsTimeline'
 import VerdictHero from './VerdictHero'
+import PickVerdictStamp from './PickVerdictStamp'
 import FollowButton from './FollowButton'
 import { Chip } from './ui'
 import Explain from './Explain'
@@ -714,6 +715,10 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
               the board and 80 in his own modal. An api-only hitter has no
               model score at all, so his dial is empty and says so rather than
               drawing a zero. */}
+          {/* #59: the outcome leads once there is one. See the long note in
+              components/PickVerdictStamp.js -- the card was the one surface
+              on this site that never graded itself. */}
+          {!apiOnly && <PickVerdictStamp player={p} />}
           <VerdictHero
             style={{ marginBottom: 12 }}
             col={heroCol}

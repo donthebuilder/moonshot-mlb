@@ -561,13 +561,20 @@ export default function MatchupPitcher({ player, slateMode }) {
                 }] : []),
               ]}
             />
+            {/* #59, the second half: this line reads as a live forecast --
+                "84°, wind blowing out at 5 mph, 13% chance of rain, roof
+                open" -- and kept reading that way on a card whose game had
+                already finished. The published field IS the first-pitch
+                forecast, not a running observation, so the lead says which it
+                is. True before the game and true after it, with no live state
+                to fetch. */}
             <ReadLine
-              lead={`${clean(player.venue_name, '') || 'The air'}: `}
+              lead={`${clean(player.venue_name, '') || 'The air'}, forecast at first pitch: `}
               parts={airAll}
               tail={verdict === 'carrying'
-                ? <span style={{ color: C.orange, fontWeight: 700 }}> The ball is carrying here tonight.</span>
+                ? <span style={{ color: C.orange, fontWeight: 700 }}> The ball was set to carry here.</span>
                 : verdict === 'dead'
-                  ? <span style={{ color: C.blue, fontWeight: 700 }}> This is dead air.</span>
+                  ? <span style={{ color: C.blue, fontWeight: 700 }}> That is dead air.</span>
                   : null}
             />
           </div>
