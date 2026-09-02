@@ -30,7 +30,9 @@ import { verdictInk } from '../lib/scales'
 //   · Every mark carries a <title>, so the number behind a dot is one hover
 //     (or one tap, on iOS) away and the chart never replaces the table.
 
-const AX = { fontFamily: NUM_FONT, fontSize: 8.5, fill: C.text3 }
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const AX = () => ({ fontFamily: NUM_FONT, fontSize: 8.5, fill: C.text3 })
 
 /** SVG has no text-overflow. This is it. */
 const clip = (text, chars) => {
@@ -131,7 +133,7 @@ export function RoiErrorBars({ rows = [], footer }) {
               <g key={t}>
                 <line x1={x(t)} x2={x(t)} y1={padT - 6} y2={height - padB + 2}
                   stroke={t === 0 ? C.border2 : C.border} strokeDasharray={t === 0 ? undefined : '2 4'} />
-                <text x={x(t)} y={height - padB + 14} textAnchor="middle" {...AX}>{t > 0 ? `+${t}` : t}%</text>
+                <text x={x(t)} y={height - padB + 14} textAnchor="middle" {...AX()}>{t > 0 ? `+${t}` : t}%</text>
               </g>
             ))}
             {usable.map((r, i) => {
@@ -146,12 +148,12 @@ export function RoiErrorBars({ rows = [], footer }) {
               return (
                 <g key={r.label}>
                   <title>{r.label}: {r.value > 0 ? '+' : ''}{r.value.toFixed(1)}% over {r.n} bets, 95% band {lo.toFixed(1)}% to {hi.toFixed(1)}%{decided ? '' : ' — spans break-even'}</title>
-                  <text x={labelW} y={cy + 3} textAnchor="end" style={{ ...AX, fontSize: 10, fill: C.text2 }}>{r.label}</text>
+                  <text x={labelW} y={cy + 3} textAnchor="end" style={{ ...AX(), fontSize: 10, fill: C.text2 }}>{r.label}</text>
                   <line x1={x(Math.max(-span, lo))} x2={x(Math.min(span, hi))} y1={cy} y2={cy} stroke={ink} strokeWidth="2" opacity="0.45" strokeLinecap="round" />
                   <line x1={x(Math.max(-span, lo))} x2={x(Math.max(-span, lo))} y1={cy - 4} y2={cy + 4} stroke={ink} strokeWidth="1.4" opacity="0.7" />
                   <line x1={x(Math.min(span, hi))} x2={x(Math.min(span, hi))} y1={cy - 4} y2={cy + 4} stroke={ink} strokeWidth="1.4" opacity="0.7" />
                   <circle cx={x(r.value)} cy={cy} r="4" fill={ink} />
-                  <text x={plotR + 5} y={cy + 3} style={{ ...AX, fill: ink, fontSize: 9.5 }}>{r.n}</text>
+                  <text x={plotR + 5} y={cy + 3} style={{ ...AX(), fill: ink, fontSize: 9.5 }}>{r.n}</text>
                 </g>
               )
             })}
@@ -216,14 +218,14 @@ export function GapFunnel({ rows = [], seAt, maxN = null, onPick }) {
               <g key={t}>
                 <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)}
                   stroke={t === 0 ? C.border2 : C.border} strokeDasharray={t === 0 ? undefined : '2 5'} />
-                <text x={padL - 6} y={y(t) + 3} textAnchor="end" {...AX}>{t > 0 ? `+${t}` : t}</text>
+                <text x={padL - 6} y={y(t) + 3} textAnchor="end" {...AX()}>{t > 0 ? `+${t}` : t}</text>
               </g>
             ))}
-            <text x={padL - 6} y={padT - 4} textAnchor="end" style={{ ...AX, fontSize: 8 }}>pts</text>
+            <text x={padL - 6} y={padT - 4} textAnchor="end" style={{ ...AX(), fontSize: 8 }}>pts</text>
             {[nLo, Math.round((nLo + nHi) / 2), nHi].filter((v, i, a) => a.indexOf(v) === i).map((t) => (
-              <text key={t} x={x(t)} y={height - padB + 15} textAnchor="middle" {...AX}>{t}</text>
+              <text key={t} x={x(t)} y={height - padB + 15} textAnchor="middle" {...AX()}>{t}</text>
             ))}
-            <text x={(W + padL) / 2} y={height - 3} textAnchor="middle" style={{ ...AX, fontSize: 8 }}>graded nights at that exact line</text>
+            <text x={(W + padL) / 2} y={height - 3} textAnchor="middle" style={{ ...AX(), fontSize: 8 }}>graded nights at that exact line</text>
             {pts.map((r) => {
               const inside = Math.abs(r.edge) <= 2 * (seAt(r.n) || Infinity)
               const ink = inside ? C.text3 : verdictInk(r.edge > 0).color
@@ -332,27 +334,27 @@ export function GapIntervals({ rows = [], seAt, limit = 22, onPick }) {
         return (
           <>
             {/* ── the worked example ─────────────────────────────────── */}
-            <text x={labelW} y={exY + 3} textAnchor="end" style={{ ...AX, fontSize: 9, fill: C.text2, fontWeight: 700 }}>how to read a row</text>
+            <text x={labelW} y={exY + 3} textAnchor="end" style={{ ...AX(), fontSize: 9, fill: C.text2, fontWeight: 700 }}>how to read a row</text>
             <line x1={x(exC - exSe)} x2={x(exC + exSe)} y1={exY} y2={exY} stroke={C.text3} strokeWidth="1.8" opacity="0.45" strokeLinecap="round" />
             <circle cx={x(exC)} cy={exY} r="3" fill={C.text2} />
             <line x1={x(exC)} x2={x(exC)} y1={exY - 9} y2={exY - 4} stroke={C.text3} strokeWidth="0.8" />
-            <text x={x(exC)} y={exY - 12} textAnchor="middle" style={{ ...AX, fontSize: 8 }}>measured</text>
+            <text x={x(exC)} y={exY - 12} textAnchor="middle" style={{ ...AX(), fontSize: 8 }}>measured</text>
             <line x1={x(exC + exSe)} x2={x(exC + exSe)} y1={exY + 4} y2={exY + 9} stroke={C.text3} strokeWidth="0.8" />
-            <text x={x(exC + exSe) + 4} y={exY + 15} textAnchor="start" style={{ ...AX, fontSize: 8 }}>could really be anywhere in the bar</text>
+            <text x={x(exC + exSe) + 4} y={exY + 15} textAnchor="start" style={{ ...AX(), fontSize: 8 }}>could really be anywhere in the bar</text>
             {/* ── which half is which, in the READ column's own words ── */}
-            <text x={(plotL + x(0)) / 2} y={padT - 8} textAnchor="middle" style={{ ...AX, fontSize: 8.5, fill: bad, fontWeight: 700 }}>← needs better odds</text>
-            <text x={(x(0) + plotR) / 2} y={padT - 8} textAnchor="middle" style={{ ...AX, fontSize: 8.5, fill: good, fontWeight: 700 }}>market’s behind him →</text>
+            <text x={(plotL + x(0)) / 2} y={padT - 8} textAnchor="middle" style={{ ...AX(), fontSize: 8.5, fill: bad, fontWeight: 700 }}>← needs better odds</text>
+            <text x={(x(0) + plotR) / 2} y={padT - 8} textAnchor="middle" style={{ ...AX(), fontSize: 8.5, fill: good, fontWeight: 700 }}>market’s behind him →</text>
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={x(t)} x2={x(t)} y1={padT - 4} y2={height - padB + 2}
                   stroke={t === 0 ? C.border2 : C.border} strokeDasharray={t === 0 ? undefined : '2 4'} />
-                <text x={x(t)} y={height - padB + 14} textAnchor="middle" {...AX}>{t > 0 ? `+${t}` : t}</text>
+                <text x={x(t)} y={height - padB + 14} textAnchor="middle" {...AX()}>{t > 0 ? `+${t}` : t}</text>
               </g>
             ))}
-            <text x={x(0)} y={height - padB + 25} textAnchor="middle" style={{ ...AX, fontSize: 8, fill: C.text2 }}>break even</text>
-            <text x={(plotL + plotR) / 2} y={height - 5} textAnchor="middle" style={{ ...AX, fontSize: 8 }}>his rate minus what the price needed, in points</text>
+            <text x={x(0)} y={height - padB + 25} textAnchor="middle" style={{ ...AX(), fontSize: 8, fill: C.text2 }}>break even</text>
+            <text x={(plotL + plotR) / 2} y={height - 5} textAnchor="middle" style={{ ...AX(), fontSize: 8 }}>his rate minus what the price needed, in points</text>
             {gutter >= 62 && (
-              <text x={plotR + 8} y={padT - 8} textAnchor="start" style={{ ...AX, fontSize: 8 }}>hit / of</text>
+              <text x={plotR + 8} y={padT - 8} textAnchor="start" style={{ ...AX(), fontSize: 8 }}>hit / of</text>
             )}
             {bars.map((r, i) => {
               const cy = padT + i * rowH + rowH / 2
@@ -368,7 +370,7 @@ export function GapIntervals({ rows = [], seAt, limit = 22, onPick }) {
                       phone: "Kevin McGonigle · 1+ Home runs" ran off the left
                       edge of the chart entirely. The full string stays in the
                       <title> above, so nothing is lost, only shortened. */}
-                  <text x={labelW} y={cy + 3} textAnchor="end" style={{ ...AX, fontSize: 9, fill: decided ? C.text : C.text2 }}>
+                  <text x={labelW} y={cy + 3} textAnchor="end" style={{ ...AX(), fontSize: 9, fill: decided ? C.text : C.text2 }}>
                     {clip(`${r.name} · ${r.label}`, Math.floor((labelW - 6) / 5.4))}
                   </text>
                   <line x1={x(Math.max(-reach, lo))} x2={x(Math.min(reach, hi))} y1={cy} y2={cy}
@@ -384,7 +386,7 @@ export function GapIntervals({ rows = [], seAt, limit = 22, onPick }) {
                   )}
                   <circle cx={x(Math.max(-reach, Math.min(reach, r.edge)))} cy={cy} r={decided ? 3.4 : 3} fill={ink} />
                   {gutter >= 62 && (
-                    <text x={plotR + 8} y={cy + 3} textAnchor="start" style={{ ...AX, fontSize: 8.5, fill: C.text3 }}>
+                    <text x={plotR + 8} y={cy + 3} textAnchor="start" style={{ ...AX(), fontSize: 8.5, fill: C.text3 }}>
                       {r.hits}/{r.n}
                     </text>
                   )}
@@ -434,14 +436,14 @@ export function CalibrationScatter({ rows = [], onPick, footer }) {
               <g key={t}>
                 <line x1={x(t)} x2={x(t)} y1={pad} y2={height - pad} stroke={C.border} strokeDasharray="2 5" />
                 <line x1={pad} x2={W - pad} y1={y(t)} y2={y(t)} stroke={C.border} strokeDasharray="2 5" />
-                <text x={x(t)} y={height - pad + 14} textAnchor="middle" {...AX}>{t}</text>
-                <text x={pad - 6} y={y(t) + 3} textAnchor="end" {...AX}>{t}</text>
+                <text x={x(t)} y={height - pad + 14} textAnchor="middle" {...AX()}>{t}</text>
+                <text x={pad - 6} y={y(t) + 3} textAnchor="end" {...AX()}>{t}</text>
               </g>
             ))}
             <line x1={x(0)} y1={y(0)} x2={x(hi)} y2={y(hi)} stroke={C.text3} strokeWidth="1.4" opacity="0.75" />
-            <text x={x(hi) - 4} y={y(hi) + 14} textAnchor="end" style={{ ...AX, fontSize: 8.5 }}>fair</text>
-            <text x={W / 2} y={height - 4} textAnchor="middle" style={{ ...AX, fontSize: 8.5 }}>what the price needs, %</text>
-            <text x={4} y={pad - 8} style={{ ...AX, fontSize: 8.5 }}>his own rate, %</text>
+            <text x={x(hi) - 4} y={y(hi) + 14} textAnchor="end" style={{ ...AX(), fontSize: 8.5 }}>fair</text>
+            <text x={W / 2} y={height - 4} textAnchor="middle" style={{ ...AX(), fontSize: 8.5 }}>what the price needs, %</text>
+            <text x={4} y={pad - 8} style={{ ...AX(), fontSize: 8.5 }}>his own rate, %</text>
             {pts.map((r) => {
               const decided = r.lo != null && !r.thin && (r.lo > r.need || r.hi < r.need)
               const ink = decided ? verdictInk(r.rate > r.need).color : C.text3
@@ -524,11 +526,11 @@ export function MoveSpread({ values = [], threshold = 3, footer }) {
             ))}
             <line x1={x(0)} x2={x(0)} y1={padT - 4} y2={height - padB} stroke={C.border2} />
             {ticks.map((t) => (
-              <text key={t} x={x(t)} y={height - padB + 14} textAnchor="middle" {...AX}>{t > 0 ? `+${t}` : t}</text>
+              <text key={t} x={x(t)} y={height - padB + 14} textAnchor="middle" {...AX()}>{t > 0 ? `+${t}` : t}</text>
             ))}
-            <text x={(W + padL) / 2} y={height - 3} textAnchor="middle" style={{ ...AX, fontSize: 8 }}>break-even points moved since the line opened</text>
-            <text x={padL - 6} y={y(top) + 3} textAnchor="end" {...AX}>{top}</text>
-            <text x={padL - 6} y={height - padB} textAnchor="end" {...AX}>0</text>
+            <text x={(W + padL) / 2} y={height - 3} textAnchor="middle" style={{ ...AX(), fontSize: 8 }}>break-even points moved since the line opened</text>
+            <text x={padL - 6} y={y(top) + 3} textAnchor="end" {...AX()}>{top}</text>
+            <text x={padL - 6} y={height - padB} textAnchor="end" {...AX()}>0</text>
           </>
         )
       }}

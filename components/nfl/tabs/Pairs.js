@@ -112,16 +112,18 @@ function gradePair(aId, marketA, bId, marketB, bars, results) {
   return { state: hitA && hitB ? 'both' : (hitA || hitB) ? 'one' : 'none', hitA, hitB }
 }
 
-const GRADE_STYLE = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const GRADE_STYLE = () => ({
   both: { text: 'BOTH ✓', color: C.green },
   one: { text: '1 of 2', color: C.yellow },
   none: { text: 'NEITHER', color: C.red },
   partial: { text: 'partial', color: C.text3 },
   ungraded: { text: '—', color: C.text3 },
-}
+})
 
 function GradeBadge({ state }) {
-  const s = GRADE_STYLE[state] || GRADE_STYLE.ungraded
+  const s = GRADE_STYLE()[state] || GRADE_STYLE().ungraded
   return (
     <span style={{
       fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: s.color,

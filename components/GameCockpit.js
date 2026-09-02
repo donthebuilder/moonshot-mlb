@@ -128,7 +128,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
 
   return (
     <div style={{
-      background: 'linear-gradient(155deg, rgba(74,222,128,.05), rgba(9,9,11,.6))',
+      background: `linear-gradient(155deg, ${C.green}0d, ${C.bg2})`,
       border: '1px solid rgba(74,222,128,.28)', borderRadius: 11, padding: '9px 13px', marginBottom: 10,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 7 }}>

@@ -25,15 +25,19 @@ import {
 // number that's actually solid and actually useful; the edge is the number
 // people want to believe and shouldn't yet.
 
-const TRUST = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const TRUST = () => ({
   holds: { label: 'holds up', color: C.green },
   leans: { label: 'leans good', color: C.lime },
   thin: { label: 'too thin to call', color: C.text3 },
   sinks: { label: 'leans bad', color: C.orange },
   fails: { label: 'fails', color: C.red },
-}
+})
 
-const CONV_COLOR = { lean: C.text3, strong: C.cyan, lock: C.purple }
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const CONV_COLOR = () => ({ lean: C.text3, strong: C.cyan, lock: C.purple })
 
 const pctTxt = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)
 
@@ -265,7 +269,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                     <Stat key={k} label={label}
                           value={c.n ? `${c.w}–${c.l}–${c.t}` : '—'}
                           sub={c.n ? `you ${pctTxt(c.minePct)} · bot ${pctTxt(c.botPct)}` : 'none yet'}
-                          color={CONV_COLOR[k]} />
+                          color={CONV_COLOR()[k]} />
                   )
                 })}
               </div>
@@ -361,7 +365,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
       <div style={{ display: 'grid', gap: 11, gridTemplateColumns: 'repeat(auto-fit, minmax(430px, 1fr))' }}>
         {filteredCard.map(([market, blk]) => {
           const e = blk.edge
-          const t = TRUST[e?.trust] || TRUST.thin
+          const t = TRUST()[e?.trust] || TRUST().thin
           return (
             <div key={market} style={{
               background: C.bg2, border: `1px solid ${C.border}`,
@@ -404,7 +408,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                 return (
                   <div key={rung.rank} style={{
                     borderTop: `1px solid ${C.bg}`, padding: '8px 13px',
-                    background: my ? `${CONV_COLOR[my.conviction]}0d` : 'transparent',
+                    background: my ? `${CONV_COLOR()[my.conviction]}0d` : 'transparent',
                     opacity: rung.low_sample && !my ? 0.62 : 1,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -465,7 +469,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                       }}>
                         <span style={{ color: C.text3, fontSize: 11 }}>→</span>
                         <span style={{
-                          fontSize: 12, fontWeight: 800, color: CONV_COLOR[my.conviction],
+                          fontSize: 12, fontWeight: 800, color: CONV_COLOR()[my.conviction],
                         }}>{my.name}</span>
                         <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
                           {my.position} {my.team}
@@ -481,7 +485,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                         {locked ? (
                           <span style={{
                             fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900,
-                            color: CONV_COLOR[my.conviction], letterSpacing: '.08em',
+                            color: CONV_COLOR()[my.conviction], letterSpacing: '.08em',
                           }}>{my.conviction.toUpperCase()} 🔒</span>
                         ) : (
                           <span style={{ display: 'flex', gap: 3 }}>
@@ -492,9 +496,9 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                                         fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900,
                                         padding: '2px 7px', borderRadius: 6, cursor: 'pointer',
                                         letterSpacing: '.06em',
-                                        border: `1px solid ${my.conviction === k ? CONV_COLOR[k] : C.border}`,
-                                        background: my.conviction === k ? `${CONV_COLOR[k]}22` : 'transparent',
-                                        color: my.conviction === k ? CONV_COLOR[k] : C.text3,
+                                        border: `1px solid ${my.conviction === k ? CONV_COLOR()[k] : C.border}`,
+                                        background: my.conviction === k ? `${CONV_COLOR()[k]}22` : 'transparent',
+                                        color: my.conviction === k ? CONV_COLOR()[k] : C.text3,
                                       }}>{label}</button>
                             ))}
                           </span>

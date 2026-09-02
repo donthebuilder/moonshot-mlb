@@ -127,7 +127,9 @@ const chip = (on) => ({
   color: on ? C.orange : C.text3,
 })
 
-const th = { fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px 4px', whiteSpace: 'nowrap' }
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const thCell = () => ({ fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px 4px', whiteSpace: 'nowrap' })
 
 export default function TruePrice({ onPlayerClick, players = [], odds = null }) {
   const [hist, setHist] = useState(undefined)   // undefined = loading, null = absent
@@ -531,19 +533,19 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 2px', fontFamily: NUM_FONT }}>
             <thead>
               <tr>
-                <th style={{ ...th, textAlign: 'left' }}>Player</th>
-                <th style={{ ...th, textAlign: 'left' }}>Prop</th>
-                <th style={th} title="Nights he was priced at this exact line AND graded. Games he never batted in are void, not misses.">N</th>
-                <th style={th}>Hit rate</th>
-                <th style={th} title="The American price at which his own rate breaks even. This is the number the page is named after.">True</th>
-                <th style={th} title="What the book has actually been paying him, averaged as probability and converted back.">Goes at</th>
-                <th style={th} title="His rate minus what those prices needed. Positive = the market has been slow on him.">Gap</th>
-                <th style={{ ...th, textAlign: 'left' }} title="Whether the gap is bigger than its own error bar.">Reads as</th>
-                <th style={th} title="Current run, newest night first. +3 = cleared his last three priced nights; −4 = missed his last four.">Streak</th>
-                <th style={th} title="The average pregame price on the nights he actually cashed this prop — what it cost to be on him when it worked. Averaged as probability, like Goes at.">Cashed at</th>
-                <th style={th} title="The model's score for this same market, off tonight's slate. Blank if he isn't playing tonight.">Score</th>
-                <th style={th} title="What the book is posting right now at this exact line. Blank if he isn't priced tonight, or the book is at a different number.">Tonight</th>
-                <th style={th} title="His rate minus what tonight's price needs. The gap column, against a number you can actually bet.">Edge</th>
+                <th style={{ ...thCell(), textAlign: 'left' }}>Player</th>
+                <th style={{ ...thCell(), textAlign: 'left' }}>Prop</th>
+                <th style={thCell()} title="Nights he was priced at this exact line AND graded. Games he never batted in are void, not misses.">N</th>
+                <th style={thCell()}>Hit rate</th>
+                <th style={thCell()} title="The American price at which his own rate breaks even. This is the number the page is named after.">True</th>
+                <th style={thCell()} title="What the book has actually been paying him, averaged as probability and converted back.">Goes at</th>
+                <th style={thCell()} title="His rate minus what those prices needed. Positive = the market has been slow on him.">Gap</th>
+                <th style={{ ...thCell(), textAlign: 'left' }} title="Whether the gap is bigger than its own error bar.">Reads as</th>
+                <th style={thCell()} title="Current run, newest night first. +3 = cleared his last three priced nights; −4 = missed his last four.">Streak</th>
+                <th style={thCell()} title="The average pregame price on the nights he actually cashed this prop — what it cost to be on him when it worked. Averaged as probability, like Goes at.">Cashed at</th>
+                <th style={thCell()} title="The model's score for this same market, off tonight's slate. Blank if he isn't playing tonight.">Score</th>
+                <th style={thCell()} title="What the book is posting right now at this exact line. Blank if he isn't priced tonight, or the book is at a different number.">Tonight</th>
+                <th style={thCell()} title="His rate minus what tonight's price needs. The gap column, against a number you can actually bet.">Edge</th>
               </tr>
             </thead>
             <tbody>

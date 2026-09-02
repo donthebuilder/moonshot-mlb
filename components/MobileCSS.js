@@ -1,4 +1,6 @@
 'use client'
+import { C } from '../lib/theme'
+
 export default function MobileCSS() {
   return (
     <style jsx global>{`
@@ -73,7 +75,7 @@ export default function MobileCSS() {
         th, td { padding: 6px !important; }
         .scoreboard-wrap { margin-left: -2px !important; margin-right: -2px !important; }
         .scoreboard-table { min-width: 1100px !important; }
-        .scoreboard-player-col { position: sticky !important; left: 0 !important; z-index: 3 !important; background: #111113 !important; box-shadow: 8px 0 12px rgba(0,0,0,.22); }
+        .scoreboard-player-col { position: sticky !important; left: 0 !important; z-index: 3 !important; background: ${C.bg2} !important; box-shadow: 8px 0 12px ${C.shadow}; }
         .scoreboard-player-cell { max-width: 138px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
       }
 

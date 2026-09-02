@@ -35,7 +35,9 @@ import { rolesOf } from '../lib/hrGate'
 //   · It's a DenseTable, so every column sorts on click — sort by ROOM and
 //     you have their second view without a second tab.
 
-const READ = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const READ = () => ({
   value: { word: 'market’s behind', tone: '#4ade80', rank: 5 },
   look: { word: 'worth a look', tone: '#a3e635', rank: 4 },
   fair: { word: 'fairly priced', tone: C.text3, rank: 3 },
@@ -43,7 +45,7 @@ const READ = {
   wrongline: { word: 'book’s on 2+', tone: '#FCD34D', rank: 1 },
   norate: { word: 'priced, no rate', tone: C.text3, rank: 1 },
   none: { word: 'no price posted', tone: C.text3, rank: 0 },
-}
+})
 
 // ── THE STAT PACKS (2026-08-31) ─────────────────────────────────────────────
 //
@@ -228,8 +230,8 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           fair: rate != null ? fairOdds(rate) : null,
           room,
           read,
-          readTxt: READ[read].word,
-          _readRank: READ[read].rank,
+          readTxt: READ()[read].word,
+          _readRank: READ()[read].rank,
         }
       })
       .filter(Boolean)
@@ -550,7 +552,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           { key: '_readRank', label: 'Read', heat: false, w: 108,
             // fmt returns JSX — DenseTable renders it inside the cell, which
             // is how the verdict gets its colour without a cellStyle hook.
-            fmt: (v, r) => <b style={{ color: READ[r.read].tone, fontWeight: 800, fontSize: 10 }}>{r.readTxt}</b>,
+            fmt: (v, r) => <b style={{ color: READ()[r.read].tone, fontWeight: 800, fontSize: 10 }}>{r.readTxt}</b>,
             title: 'The verdict, gated: it only speaks when a real rate met a real price on the same line.' },
         ]}
         caption="The profile view is the bot's ranking; Best odds fits re-sorts by ROOM, which is their whole second table in one click. His rate is a real per-game probability (hr_per_pa × his lineup spot's trips), so the comparison against the price is honest — the HR score never touches the odds math. Rows with no price stay ranked by profile; on most slates that's most rows, and saying so beats pretending."

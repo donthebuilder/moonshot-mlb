@@ -240,7 +240,9 @@ export function useBoardFilter(players, scoreType = null) {
   return { filtered, state }
 }
 
-const lbl = { fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const lbl = () => ({ fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 })
 // UNIVERSAL FILTER RECIPE (2026-08-23). This was one of the five chip()
 // factories the survey found, radius 7 with ember's orange baked into a
 // `${col}20` tint — on light/mono/steel/regal the "active" tint was simply
@@ -342,7 +344,7 @@ export default function BoardFilters({ state, total, shown }) {
             }}>
               {scoreDef && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ ...lbl, color: C.orange }}>Score · {scoreDef.label}</div>
+                  <div style={{ ...lbl(), color: C.orange }}>Score · {scoreDef.label}</div>
                   <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
                     <input type="range" min={0} max={100} step={1} value={scoreMin}
@@ -357,13 +359,13 @@ export default function BoardFilters({ state, total, shown }) {
 
               <div style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={lbl}>Band</span>
+                  <span style={lbl()}>Band</span>
                   {BAND_STATS.map((s) => (
                     <button key={s.key} onClick={() => setBandStat(s.key)}
                       style={{ ...chip(bandStat === s.key), padding: '2px 6px', fontSize: 9 }}>{s.label}</button>
                   ))}
                 </div>
-                <div style={{ ...lbl, marginTop: 4, fontSize: 12, color: C.orange, fontFamily: NUM_FONT }}>
+                <div style={{ ...lbl(), marginTop: 4, fontSize: 12, color: C.orange, fontFamily: NUM_FONT }}>
                   {stat.label} {showV(hrwMin)}–{showV(hrwMax)}
                   {bandStat !== 'hrw' && <span style={{ textTransform: 'none', letterSpacing: 0 }}> · {bandStat === 'iso' ? 'season' : 'recent window'}</span>}
                 </div>
@@ -379,7 +381,7 @@ export default function BoardFilters({ state, total, shown }) {
 
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
                 <div>
-                  <div style={lbl}>Bats</div>
+                  <div style={lbl()}>Bats</div>
                   <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
                     {HAND.map((h) => (
                       <button key={h.key} onClick={() => setHand(h.key)} style={chip(hand === h.key)}>{h.label}</button>
@@ -387,13 +389,13 @@ export default function BoardFilters({ state, total, shown }) {
                   </div>
                 </div>
                 <div style={{ minWidth: 130 }}>
-                  <div style={lbl}>Min recent EV {minEV || '—'}</div>
+                  <div style={lbl()}>Min recent EV {minEV || '—'}</div>
                   <input type="range" min={0} max={100} step={1} value={minEV}
                     onChange={(e) => setMinEV(Number(e.target.value))}
                     style={{ width: '100%', accentColor: C.orange }} />
                 </div>
                 <div style={{ minWidth: 120 }}>
-                  <div style={lbl}>Min season PA {minPA || '—'}</div>
+                  <div style={lbl()}>Min season PA {minPA || '—'}</div>
                   <input type="range" min={0} max={600} step={10} value={minPA}
                     onChange={(e) => setMinPA(Number(e.target.value))}
                     style={{ width: '100%', accentColor: C.orange }} />
@@ -405,7 +407,7 @@ export default function BoardFilters({ state, total, shown }) {
                   header's own team dropdown already does that job site-wide. */}
               {games.length > 1 && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={lbl}>Game</div>
+                  <div style={lbl()}>Game</div>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
                     {games.map((g) => (
                       <button key={g.pk} onClick={() => toggleGame(g.pk)} style={chip(gameSel.includes(g.pk), C.cyan)}>
@@ -416,7 +418,7 @@ export default function BoardFilters({ state, total, shown }) {
                 </div>
               )}
               <div style={{ marginBottom: 12 }}>
-                <div style={lbl}>Game time</div>
+                <div style={lbl()}>Game time</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
                   {TIME_WINDOWS.map((w) => (
                     <button key={w.key} onClick={() => setTimeWindow(w.key)} style={chip(timeWindow === w.key, C.cyan)}>{w.label}</button>
@@ -425,7 +427,7 @@ export default function BoardFilters({ state, total, shown }) {
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <div style={lbl}>Categories</div>
+                <div style={lbl()}>Categories</div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginTop: 3 }}>
                   {CATEGORIES.map((c) => (
                     <button key={c.key} onClick={() => toggleCat(c.key)} style={chip(cats.includes(c.key))}>{c.label}</button>
@@ -441,7 +443,7 @@ export default function BoardFilters({ state, total, shown }) {
               </div>
 
               <div>
-                <div style={lbl}>Search</div>
+                <div style={lbl()}>Search</div>
                 <input value={query} onChange={(e) => setQuery(e.target.value)}
                   placeholder="name, team, pitcher…"
                   style={{

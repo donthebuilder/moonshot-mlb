@@ -159,11 +159,13 @@ function Field({ label, children, width }) {
   )
 }
 
-const inputStyle = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const inputStyle = () => ({
   width: '100%', boxSizing: 'border-box', background: C.bg, color: C.text,
   border: `1px solid ${C.border2}`, borderRadius: 8, fontSize: 11.5,
   padding: '7px 9px', outline: 'none', fontFamily: NUM_FONT,
-}
+})
 
 function LightEditor({ draft, setDraft, players, onSave, onCancel, onDelete }) {
   const col = spotColor(draft.color)
@@ -189,11 +191,11 @@ function LightEditor({ draft, setDraft, players, onSave, onCancel, onDelete }) {
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           <Field label="Name" width="100%">
             <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              placeholder="Pure power" style={{ ...inputStyle, fontFamily: 'inherit' }} />
+              placeholder="Pure power" style={{ ...inputStyle(), fontFamily: 'inherit' }} />
           </Field>
           <Field label="Priority" width={74}>
             <input value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.value.replace(/[^0-9]/g, '') })}
-              inputMode="numeric" style={inputStyle} />
+              inputMode="numeric" style={inputStyle()} />
             <span style={{ fontSize: 8, color: C.text3 }}>1 = top</span>
           </Field>
         </div>
@@ -210,7 +212,7 @@ function LightEditor({ draft, setDraft, players, onSave, onCancel, onDelete }) {
             ))}
             <span style={{ width: 20, height: 20, borderRadius: 5, background: col, border: `1px solid ${C.border2}`, marginLeft: 6 }} />
             <input value={draft.color} onChange={(e) => setDraft({ ...draft, color: e.target.value.trim() })}
-              placeholder="#FCD34D" style={{ ...inputStyle, width: 90 }} />
+              placeholder="#FCD34D" style={{ ...inputStyle(), width: 90 }} />
           </div>
         </Field>
 
@@ -251,20 +253,20 @@ function LightEditor({ draft, setDraft, players, onSave, onCancel, onDelete }) {
         </div>
         {draft.rules.map((r, i) => (
           <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
-            <select value={r.field} onChange={(e) => setRule(i, { field: e.target.value })} style={{ ...inputStyle, fontFamily: 'inherit', fontSize: 10.5, flex: 1, minWidth: 0, padding: '6px 6px' }}>
+            <select value={r.field} onChange={(e) => setRule(i, { field: e.target.value })} style={{ ...inputStyle(), fontFamily: 'inherit', fontSize: 10.5, flex: 1, minWidth: 0, padding: '6px 6px' }}>
               {SPOT_GROUPS.map((g) => (
                 <optgroup key={g} label={g}>
                   {SPOT_FIELDS.filter((f) => f.group === g).map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
                 </optgroup>
               ))}
             </select>
-            <select value={r.op} onChange={(e) => setRule(i, { op: e.target.value })} style={{ ...inputStyle, width: 74, fontSize: 10.5, padding: '6px 4px', fontFamily: 'inherit' }}>
+            <select value={r.op} onChange={(e) => setRule(i, { op: e.target.value })} style={{ ...inputStyle(), width: 74, fontSize: 10.5, padding: '6px 4px', fontFamily: 'inherit' }}>
               <option value=">=">higher</option>
               <option value="<=">lower</option>
             </select>
             <div style={{ position: 'relative', width: 78, flexShrink: 0 }}>
               <input value={r.val} onChange={(e) => setRule(i, { val: e.target.value })} inputMode="decimal"
-                style={{ ...inputStyle, paddingRight: unitOf(r.field) && unitOf(r.field) !== 'avg' ? 28 : 9 }} />
+                style={{ ...inputStyle(), paddingRight: unitOf(r.field) && unitOf(r.field) !== 'avg' ? 28 : 9 }} />
               {unitOf(r.field) && unitOf(r.field) !== 'avg' && (
                 <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 8.5, color: C.text3, pointerEvents: 'none' }}>{unitOf(r.field)}</span>
               )}

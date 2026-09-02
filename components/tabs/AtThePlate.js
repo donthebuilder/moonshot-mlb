@@ -425,17 +425,21 @@ function Situation({ outs, on1, on2, on3 }) {
   )
 }
 
-const CARD = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const CARD = () => ({
   background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.025))`,
   border: `1px solid ${C.border}`,
   borderRadius: 14,
   padding: '13px 15px',
   marginBottom: 14,
-}
-const LABEL = {
+})
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const LABEL = () => ({
   fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
   color: C.text3, fontFamily: NUM_FONT,
-}
+})
 
 export default function AtThePlate({ players = [], watchIds, mode = 'today', slateMode, onPlayerClick }) {
   const [snap, setSnap] = useState(null)
@@ -728,7 +732,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
 
       {/* ── 2 · NOW BATTING ────────────────────────────────────────────── */}
       <div style={{
-        ...CARD,
+        ...CARD(),
         background: `linear-gradient(155deg, ${C.bg2}, rgba(74,222,128,.05))`,
         border: '1px solid rgba(74,222,128,.28)',
         marginBottom: 12,
@@ -744,7 +748,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             boxShadow: `0 0 9px ${LIVE}`, animation: 'atpPulse 1.8s ease-in-out infinite',
           }} />
           <style>{'@keyframes atpPulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
-          <span style={{ ...LABEL, color: LIVE }}>Now batting</span>
+          <span style={{ ...LABEL(), color: LIVE }}>Now batting</span>
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 9, alignItems: 'center', fontFamily: NUM_FONT, flexWrap: 'wrap' }}>
             {/* The feed's linescore (15s poll) is the fresher source for the
                 game on screen; the schedule snapshot (25s) is the fallback.
@@ -822,7 +826,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               background: `${COUNT_COL(atBat.balls, atBat.strikes)}0e`,
               textAlign: 'center', minWidth: 118,
             }}>
-              <div style={{ ...LABEL, fontSize: 7.5, marginBottom: 3 }}>
+              <div style={{ ...LABEL(), fontSize: 7.5, marginBottom: 3 }}>
                 {atBat.live ? 'The count' : 'Final count'}
               </div>
               <CountDots balls={atBat.balls} strikes={atBat.strikes} />
@@ -848,7 +852,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             marginTop: 11, paddingTop: 10, borderTop: `1px solid ${C.border}`,
           }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 7 }}>
-              <span style={{ ...LABEL, fontSize: 7.5 }}>
+              <span style={{ ...LABEL(), fontSize: 7.5 }}>
                 {atBat.live ? 'Pitch by pitch' : 'How it ended'}
               </span>
               {!atBat.live && atBat.event && (

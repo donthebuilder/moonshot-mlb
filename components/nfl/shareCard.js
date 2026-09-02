@@ -38,7 +38,9 @@ const SANS = 'system-ui, -apple-system, sans-serif'
 // Mirrors Accountability.js's own MARKET_COLOR — kept in lockstep by hand,
 // same discipline that file's MARKET_OUTCOME_TEXT comment already calls out
 // for itself. Seven markets, seven accents, all drawn from lib/nfl/theme.js.
-const MARKET_COLOR = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const MARKET_COLOR = () => ({
   TD: C.green,
   REC_YDS: C.cyan,
   REC: C.lime,
@@ -46,7 +48,7 @@ const MARKET_COLOR = {
   RUSH_ATT: C.purple,
   PASS_YDS: C.orange,
   KICK_PTS: C.yellow,
-}
+})
 
 const HEAD_H = 84
 
@@ -167,7 +169,7 @@ function scoreBar(g, x, midY, w, score, color) {
 //                                 conviction colors) — omitted if not passed
 export function downloadNflPickCard(pick = {}) {
   const graded = pick.hit === true || pick.hit === false || pick.void === true
-  const marketColor = MARKET_COLOR[pick.market] || C.green
+  const marketColor = MARKET_COLOR()[pick.market] || C.green
 
   const W = 640
   const idH = 96

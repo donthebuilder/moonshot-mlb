@@ -347,7 +347,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             <div style={{
               position:'absolute', top:-2, right:-2,
               width:8, height:8, borderRadius:'50%',
-              background:'#4ade80', border:'2px solid #09090b',
+              background:C.green, border:`2px solid ${C.bg}`,
               animation:'pulse 2s infinite',
             }} />
           </div>
@@ -492,7 +492,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
                 padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
                 borderLeft:`1px solid ${C.border}`,
                 background:mode === 'tomorrow' ? '#22d3ee' : 'transparent',
-                color:mode === 'tomorrow' ? '#09090b' : C.text3,
+                color:mode === 'tomorrow' ? C.bg : C.text3,
                 transition:'all .12s',
               }}
             >Tmrw</button>

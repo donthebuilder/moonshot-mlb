@@ -40,10 +40,12 @@ const panel = (accent) => ({
   padding: '13px 16px', marginBottom: 12,
 })
 
-const th = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const thCell = () => ({
   fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase',
   letterSpacing: '.07em', padding: '0 6px 4px', whiteSpace: 'nowrap', textAlign: 'center',
-}
+})
 const td = { textAlign: 'center', fontSize: 11, padding: '4px 6px', whiteSpace: 'nowrap', fontFamily: NUM_FONT }
 
 function Head({ icon, title, note }) {
@@ -197,14 +199,14 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                       <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 1px' }}>
                         <thead>
                           <tr>
-                            <th style={{ ...th, textAlign: 'left' }}>Hitter</th>
-                            <th style={th}>HR</th>
-                            <th style={th} title="Longest of the night, feet">Ft</th>
-                            <th style={th} title="Hardest of the night, mph off the bat">EV</th>
-                            <th style={th} title="Lineup spot on the sheet">Spot</th>
-                            <th style={th} title="The bot's HR score for him that night, where the sheet had him">Score</th>
-                            <th style={{ ...th, textAlign: 'left' }}>Sheet</th>
-                            <th style={th} title="Season total the slate carried for him that night — not added to">Was on</th>
+                            <th style={{ ...thCell(), textAlign: 'left' }}>Hitter</th>
+                            <th style={thCell()}>HR</th>
+                            <th style={thCell()} title="Longest of the night, feet">Ft</th>
+                            <th style={thCell()} title="Hardest of the night, mph off the bat">EV</th>
+                            <th style={thCell()} title="Lineup spot on the sheet">Spot</th>
+                            <th style={thCell()} title="The bot's HR score for him that night, where the sheet had him">Score</th>
+                            <th style={{ ...thCell(), textAlign: 'left' }}>Sheet</th>
+                            <th style={thCell()} title="Season total the slate carried for him that night — not added to">Was on</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -257,16 +259,16 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
               <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 2px' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...th, textAlign: 'left' }}>Hitter</th>
-                    <th style={th} title="Home runs across the nights held">HR</th>
-                    <th style={th} title="Nights he went deep">Nights</th>
-                    <th style={th} title="Nights he went deep wearing TOP or HR">Badged</th>
-                    <th style={th} title="Nights he went deep while on the sheet at all (badged or not)">On sheet</th>
-                    <th style={th} title="Average of the bot's HR score on his homer nights, where the sheet had him">Avg score</th>
-                    <th style={th} title="His longest in the window, feet">Longest</th>
-                    <th style={th} title="Hardest, mph">Max EV</th>
-                    <th style={th}>Last</th>
-                    <th style={th} title="Season total the slate carried for him on his latest homer night — not added to">Was on</th>
+                    <th style={{ ...thCell(), textAlign: 'left' }}>Hitter</th>
+                    <th style={thCell()} title="Home runs across the nights held">HR</th>
+                    <th style={thCell()} title="Nights he went deep">Nights</th>
+                    <th style={thCell()} title="Nights he went deep wearing TOP or HR">Badged</th>
+                    <th style={thCell()} title="Nights he went deep while on the sheet at all (badged or not)">On sheet</th>
+                    <th style={thCell()} title="Average of the bot's HR score on his homer nights, where the sheet had him">Avg score</th>
+                    <th style={thCell()} title="His longest in the window, feet">Longest</th>
+                    <th style={thCell()} title="Hardest, mph">Max EV</th>
+                    <th style={thCell()}>Last</th>
+                    <th style={thCell()} title="Season total the slate carried for him on his latest homer night — not added to">Was on</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -16,10 +16,12 @@ const SIX = [
   ['KICK_PTS', 'KICK PTS', 'Kicker points'],
 ]
 
-const MARKET_COLOR = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const MARKET_COLOR = () => ({
   TD: C.green, REC_YDS: C.cyan, RUSH_YDS: C.blue,
   REC: C.lime, PASS_YDS: C.orange, KICK_PTS: C.yellow,
-}
+})
 
 const number = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback
 
@@ -76,7 +78,7 @@ function TheSix({ picks, playersById, onPlayerClick, onPicks }) {
       </div>
       <div className="tuddy-six-grid">
         {calls.map(({ key, short, label, block, call, player }, index) => {
-          const color = MARKET_COLOR[key]
+          const color = MARKET_COLOR()[key]
           const grade = gradeFor(call?.score)
           return (
             <button key={key} onClick={() => player && onPlayerClick?.(player, key)} disabled={!player}

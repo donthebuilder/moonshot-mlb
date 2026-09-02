@@ -142,15 +142,19 @@ const seg = (active) => ({
   boxShadow: active ? '0 0 10px rgba(249,115,22,.35)' : 'none',
   transition: 'background .12s',
 })
-const groupBox = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const groupBox = () => ({
   display: 'flex', gap: 2, borderRadius: 999, padding: 2,
   border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.025)',
-}
+})
 const cluster = { display: 'flex', alignItems: 'center', gap: 5 }
-const clusterLbl = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const clusterLbl = () => ({
   fontSize: 8, color: C.text3, textTransform: 'uppercase',
   letterSpacing: '.09em', fontWeight: 800, whiteSpace: 'nowrap',
-}
+})
 
 export default function BattedBallLog({ players = [], onPlayerClick, limit = 30 }) {
   const [rows, setRows] = useState([])
@@ -248,8 +252,8 @@ export default function BattedBallLog({ players = [], onPlayerClick, limit = 30 
             background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 11px',
           }}>
             <div style={cluster} className="chip-row">
-              <span style={clusterLbl}>Result</span>
-              <div style={groupBox}>
+              <span style={clusterLbl()}>Result</span>
+              <div style={groupBox()}>
                 {OUTCOME_TABS.map((t) => (
                   <button key={t.key} style={seg(outcomeSel === t.key)} onClick={() => setOutcomeSel(t.key)}>
                     {t.label}
@@ -258,8 +262,8 @@ export default function BattedBallLog({ players = [], onPlayerClick, limit = 30 
               </div>
             </div>
             <div style={cluster} className="chip-row">
-              <span style={clusterLbl}>Quality</span>
-              <div style={groupBox}>
+              <span style={clusterLbl()}>Quality</span>
+              <div style={groupBox()}>
                 {QUALITY_TABS.map((t) => {
                   const on = qualitySel.has(t.key)
                   return (

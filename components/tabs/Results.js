@@ -78,12 +78,14 @@ import ScoreBands from '../ScoreBands'
 // report rather than converted here -- including the four entries that
 // happen to numerically equal C.orange (three of them) and C.cyan, left
 // untouched rather than cherry-picked so the dict stays one decision.
-const TAG_COLORS = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const TAG_COLORS = () => ({
   '🏆': '#f97316', '🧨': '#f97316', '🔥': '#f97316',
   '🏁': '#22d3ee', '💠': '#38bdf8', '⚾': C.orange, '⭐': '#facc15',
-}
+})
 function tagColor(tag) {
-  for (const [emoji, col] of Object.entries(TAG_COLORS)) {
+  for (const [emoji, col] of Object.entries(TAG_COLORS())) {
     if (tag.includes(emoji)) return col
   }
   return C.text2

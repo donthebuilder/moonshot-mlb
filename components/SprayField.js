@@ -308,11 +308,13 @@ const BB_TYPES = [
 //
 // All three flagged in place below, same as Results.js's TOP case: reported,
 // not resolved.
-const RESULT_COLORS = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const RESULT_COLORS = () => ({
   home_run: C.red,   // C.red — NOT catColor('result','home_run') (=C.orange); see the flag above
   double:   C.green,   // C.green — NOT catColor('result','double') (=C.cyan); see the flag above
   out:      '#3f3f46',   // near-black grey, the majority case kept silent — NOT catColor('result','out') (=C.text3); see the flag above
-}
+})
 // triple/single ARE byte-identical to the registry (catColor('result',
 // 'triple') resolves to C.purple, catColor('result','single') resolves to
 // C.blue -- both match the literals this file used to hardcode here, in
@@ -381,11 +383,11 @@ function dimsFor(player) {
 const liveIsHR = (b) => /home_run/i.test(b?.event || '')
 // Same split as resultColor() just above: triple/single read live off the
 // registry, home_run/double/out stay the flagged literals.
-const liveColor = (b) => (liveIsHR(b) ? RESULT_COLORS.home_run
+const liveColor = (b) => (liveIsHR(b) ? RESULT_COLORS().home_run
   : /triple/i.test(b?.event || '') ? catColor('result', 'triple')
-  : /double/i.test(b?.event || '') ? RESULT_COLORS.double
+  : /double/i.test(b?.event || '') ? RESULT_COLORS().double
   : /single/i.test(b?.event || '') ? catColor('result', 'single')
-  : RESULT_COLORS.out)
+  : RESULT_COLORS().out)
 
 // ── liveOnly: THE AT-THE-PLATE SKIN ─────────────────────────────────────────
 //
@@ -1516,7 +1518,7 @@ export default function SprayField({
             return (
               <div style={{
                 position: 'absolute', top: 10, left: 10, zIndex: 3, maxWidth: '58%',
-                background: 'rgba(9,9,11,.82)', border: `1px solid ${C.border}`,
+                background: C.scrim, border: `1px solid ${C.border}`,
                 borderRadius: 10, padding: dockOpen ? '7px 9px' : '4px 8px',
                 backdropFilter: 'blur(6px)', pointerEvents: 'auto',
               }}>
@@ -1947,7 +1949,7 @@ export default function SprayField({
             const ang = Math.max(-EDGE, Math.min(EDGE, b.ang))
             const [x, y] = pt(Math.min(b.r, R), ang)
             return (
-              <text key={`livehr-${i}`} x={x} y={y - 9} fill={RESULT_COLORS.home_run} fontSize="8.5"
+              <text key={`livehr-${i}`} x={x} y={y - 9} fill={RESULT_COLORS().home_run} fontSize="8.5"
                 fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle"
                 stroke="#0a0806" strokeWidth="2" paintOrder="stroke">
                 {b.dist ? `${Number(b.dist).toFixed(0)} ft` : 'HR'}
@@ -2101,9 +2103,9 @@ export default function SprayField({
               essays (lane cuts, park-relative wind, dims verification,
               fielded-vs-carry) moved behind "How to read this". */}
           <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
-            <b style={{ color: RESULT_COLORS.home_run }}>red</b> HR ·{' '}
+            <b style={{ color: RESULT_COLORS().home_run }}>red</b> HR ·{' '}
             <b style={{ color: catColor('result', 'triple') }}>purple</b> 3B ·{' '}
-            <b style={{ color: RESULT_COLORS.double }}>green</b> 2B ·{' '}
+            <b style={{ color: RESULT_COLORS().double }}>green</b> 2B ·{' '}
             <b style={{ color: catColor('result', 'single') }}>blue</b> 1B · dark = out ·{' '}
             <b style={{ color: C.text2 }}>ring = barrel</b> · shape = pitch · size = result
           </div>
@@ -2132,7 +2134,7 @@ export default function SprayField({
                 return (
                   <div style={{ marginTop: 3, fontFamily: NUM_FONT, color: C.text2 }}>
                     {hardestLive && <>
-                      <b style={{ color: RESULT_COLORS.home_run }}>Hardest:</b>{' '}
+                      <b style={{ color: RESULT_COLORS().home_run }}>Hardest:</b>{' '}
                       {clean(hardestLive.batterName, '?')} <b style={{ color: C.text }}>{Number(hardestLive.ev).toFixed(1)}</b> mph
                       {' · '}{String(hardestLive.event || 'in play').replace(/_/g, ' ')}
                     </>}

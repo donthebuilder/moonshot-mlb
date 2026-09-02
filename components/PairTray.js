@@ -60,7 +60,7 @@ export default function PairTray({ legs = [], market = 'hr', onMarket, onRemove,
     // so that rule has something to aim at.
     <div className="pair-tray" style={{
       position: 'sticky', bottom: 8, zIndex: 30,
-      background: `linear-gradient(155deg, rgba(9,9,11,.97), ${C.bg2})`,
+      background: `linear-gradient(155deg, ${C.scrim}, ${C.bg2})`,
       border: `1px solid ${legs.length === 2 ? 'rgba(34,211,238,.5)' : C.border2}`,
       borderRadius: 12, padding: '10px 14px', marginTop: 14,
       boxShadow: '0 8px 30px rgba(0,0,0,.6)',

@@ -98,7 +98,9 @@ const ANSWER_FALLBACK = 'every ranked board in one place, each with its record s
 // undercard. Was a full-width gradient banner; now the head is a line you can
 // read at a glance and the body is one tap behind it. Wording untouched: these
 // are measured archive figures and they get quoted, not paraphrased.
-const PROOF = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const PROOF = () => ({
   top: {
     color: C.yellow,
     head: 'The bot’s overall ranking — graded as an HR bet, honestly',
@@ -139,7 +141,7 @@ const PROOF = {
     head: 'Validated: 🎯 pitch match is a real HR signal',
     body: 'The hitter’s damage pitches overlap what tonight’s arm actually throws. Measured: matched hitters homered 18.4% vs 13.6% unmatched across 1,669 graded slots — the same size edge as the weak-spot flag, and the two stack: both together homered 23.3%.',
   },
-}
+})
 
 /**
  * How far down the page the sticky lens row has to pin.
@@ -456,7 +458,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   }, [results, slateDate])
 
   const boards = bview === 'boards'
-  const pr = PROOF[view]
+  const pr = PROOF()[view]
 
   return (
     <div>

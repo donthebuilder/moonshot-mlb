@@ -870,7 +870,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
               <div style={{
                 position: 'absolute', right: 10, bottom: 10, zIndex: 4,
                 width: 196, pointerEvents: 'none',
-                background: 'rgba(9,9,11,.90)', backdropFilter: 'blur(6px)',
+                background: C.scrim, backdropFilter: 'blur(6px)',
                 border: `1px solid ${zoneDetail[hoverZone].kill ? C.orange : C.border2}`,
                 borderRadius: 9, padding: '8px 10px',
               }}>

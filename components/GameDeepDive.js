@@ -134,13 +134,15 @@ function AirLine({ any, venue, confirmed }) {
 
 // ── The picks, with their price ──────────────────────────────────────────────
 
-const PICK_META = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const PICK_META = () => ({
   TOP: { label: 'top play', bar: '1+ HR', color: '#FCD34D' },
   HR: { label: 'home run', bar: '1+ HR', color: C.orange },
   HIT: { label: 'base hit', bar: '1+ hit', color: C.purple },
   HRR: { label: 'H+R+RBI', bar: '2+ of hits / runs / RBI', color: C.cyan },
   CONTACT: { label: 'total bases', bar: '2+ bases', color: C.green },
-}
+})
 const rolesOf = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
 
 // COHERENCE: a pick wears ITS OWN market's score. The old chip row printed
@@ -167,7 +169,7 @@ const sideWord = (s) => {
 }
 
 function PickCard({ p, role, alsoRoles = [], odds, onPlayerClick }) {
-  const meta = PICK_META[role] || { label: role.toLowerCase(), bar: '', color: C.text3 }
+  const meta = PICK_META()[role] || { label: role.toLowerCase(), bar: '', color: C.text3 }
   // Only a quote asking for the same thing the bar asks for. quoteFor already
   // enforces that (matches); a mismatched line here would be quoting a
   // different bet beside this pick's name.

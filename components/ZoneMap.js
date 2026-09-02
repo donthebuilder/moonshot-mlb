@@ -971,7 +971,7 @@ export default function ZoneMap({
                   disagree, because they are the same variable. */}
               <div style={{
                 position: 'absolute', top: 8, left: 8, zIndex: 3, maxWidth: '62%',
-                background: 'rgba(9,9,11,.86)', border: `1px solid ${C.border}`,
+                background: C.scrim, border: `1px solid ${C.border}`,
                 borderRadius: 10, padding: zoneDock ? '7px 9px' : '4px 8px',
                 backdropFilter: 'blur(6px)',
               }}>

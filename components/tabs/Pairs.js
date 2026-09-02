@@ -20,7 +20,9 @@ import DenseTable from '../DenseTable'
 // colour — 'Hot + Due Pair' and 'Statcast HR Pair' are both the same gold — which is
 // itself a small instance of the exact problem CAT.role/pitch/result were
 // built to prevent, left as pre-existing rather than silently patched here.)
-const PAIR_TYPE_COLORS = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const PAIR_TYPE_COLORS = () => ({
   'Best HR Pair':            '#FB923C',
   'Core HR Pair':            '#FB923C',
   'Hot + Due Pair':          '#FCD34D',
@@ -31,10 +33,10 @@ const PAIR_TYPE_COLORS = {
   'Variance Pair':           C.purple,
   'Variance Power Pair':     C.purple,
   'HRR Safer Pair':          C.green,
-}
+})
 // The "unknown type" fallback isn't identity — it's the same quiet neutral
 // catColor() itself falls back to — so it routes through the theme token.
-function typeColor(t) { return PAIR_TYPE_COLORS[t] || C.text3 }
+function typeColor(t) { return PAIR_TYPE_COLORS()[t] || C.text3 }
 
 const PAIR_SCOPES = [
   { key:'cross', label:'🔀 Cross Game' },
@@ -71,14 +73,16 @@ const LANE_ORDER = ['TOP30', 'A', 'B', 'C', 'D']
 // gap: a registry entry (CAT.lane, or a merge with CAT.pairType) is a decision
 // for whoever owns lib/scales.js, not something to invent mid-file-pass. Left
 // literal on purpose; flagged in the session report alongside PAIR_TYPE_COLORS.
-const LANE_META = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const LANE_META = () => ({
   TOP30: { short: 'TOP 30', color: '#FB923C', blurb: 'The bot’s headline board — scored on a different scale from the lettered lanes.' },
   A:     { short: 'LANE A', color: '#FCD34D', blurb: 'Core: the safest construction it will offer.' },
   B:     { short: 'LANE B', color: C.cyan, blurb: 'Statcast: built off contact quality rather than the board.' },
   C:     { short: 'LANE C', color: C.purple, blurb: 'Flex: looser, leans on HRR and hit shape.' },
   D:     { short: 'LANE D', color: C.green, blurb: 'Value power: cheaper bats with a matchup reason.' },
-}
-const laneMeta = (k) => LANE_META[k] || { short: String(k || 'OTHER').toUpperCase(), color: C.text3, blurb: '' }
+})
+const laneMeta = (k) => LANE_META()[k] || { short: String(k || 'OTHER').toUpperCase(), color: C.text3, blurb: '' }
 
 // Group the bot's recommended pairs by its own lane, preserving every one.
 // The old path ran these through enforceUniquePairExposure(…, 1, 24), which
@@ -282,13 +286,15 @@ function enforceUniquePairExposure(pairs=[], maxExposure=1, limit=30) {
 // (e.g. 🔥 already happens to equal C.orange) — a half-converted dict is
 // worse than a whole literal one, since it implies a single-value guarantee
 // this map doesn't actually have.
-const TAG_COLORS = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const TAG_COLORS = () => ({
   '🏆':'#FB923C','🧨':'#FB923C','🔥':C.orange,
   '🏁':C.cyan,'💠':'#38bdf8','⚾':C.green,'⭐':'#FCD34D',
   '🔭':'#71717a','⛔':'#ef4444','🧩':C.purple,
-}
+})
 function tagColor(tag) {
-  for (const [emoji, color] of Object.entries(TAG_COLORS)) {
+  for (const [emoji, color] of Object.entries(TAG_COLORS())) {
     if (String(tag || '').includes(emoji)) return color
   }
   return C.text2

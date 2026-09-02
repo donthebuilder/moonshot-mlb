@@ -74,7 +74,9 @@ const MARKET_LABEL = Object.fromEntries(MARKETS.map(([k, label]) => [k, label]))
 
 // One market, one accent — seven markets, seven accents in the NFL palette,
 // no leftovers and nothing reused.
-const MARKET_COLOR = {
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const MARKET_COLOR = () => ({
   TD: C.green,
   REC_YDS: C.cyan,
   REC: C.lime,
@@ -82,7 +84,7 @@ const MARKET_COLOR = {
   RUSH_ATT: C.purple,
   PASS_YDS: C.orange,
   KICK_PTS: C.yellow,
-}
+})
 
 // What each market's OUTCOME expression actually is, in nfl_scoring.py's own
 // terms — the plain-English column names it sums, not a re-description of
@@ -132,7 +134,7 @@ function Badge({ tone, children }) {
 function ReceiptHero({ results, when }) {
   const totals = results.totals || {}
   const markets = MARKETS.map(([key, label]) => ({
-    key, label, color: MARKET_COLOR[key], ...(totals[key] || {}),
+    key, label, color: MARKET_COLOR()[key], ...(totals[key] || {}),
   })).filter((m) => Number.isFinite(m.n))
   const graded = markets.reduce((sum, m) => sum + (m.n || 0), 0)
   const hits = markets.reduce((sum, m) => sum + (m.hit || 0), 0)
@@ -191,7 +193,7 @@ function CardGrid({ results }) {
 
   const boxes = MARKETS.map(([key, label]) => {
     const t = totals[key]
-    return { key, label, color: MARKET_COLOR[key], bar: bars[key], t }
+    return { key, label, color: MARKET_COLOR()[key], bar: bars[key], t }
   }).filter((b) => b.t)
 
   const sumN = boxes.reduce((a, b) => a + (b.t.n || 0), 0)
@@ -353,7 +355,7 @@ function ScoreBands({ data, results }) {
     const bars = results.bars || {}
     const lines = results.lines || {}
     return MARKETS.map(([key, label]) => ({
-      key, label, color: MARKET_COLOR[key], bar: bars[key],
+      key, label, color: MARKET_COLOR()[key], bar: bars[key],
       ...bandMarket(key, bars[key], players, lines),
     }))
   }, [data, results])

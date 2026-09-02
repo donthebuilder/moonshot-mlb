@@ -10,12 +10,14 @@ import { fmtOdds, VERDICT } from '../lib/odds'
 // probability and comparing one to an implied percentage would be confident
 // nonsense.
 
-const TONE = { good: C.green || '#4ade80', bad: '#f87171', flat: C.text3 }
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const TONE = () => ({ good: C.green || '#4ade80', bad: '#f87171', flat: C.text3 })
 
 export default function OddsLine({ quote, edge, compact = false }) {
   if (!quote) return null
   const v = edge ? VERDICT[edge.verdict] : null
-  const col = v ? TONE[v.tone] : C.text3
+  const col = v ? TONE()[v.tone] : C.text3
   const line = Number(quote.line)
 
   return (

@@ -453,10 +453,10 @@ export default function MiniWire({
               onClick={() => { onPlayerClick?.(t.p); setToasts((cur) => cur.filter((x) => x.key !== t.key)) }}
               style={{
                 display: 'flex', gap: 8, alignItems: 'baseline', cursor: 'pointer',
-                background: t.pri === 0 ? 'linear-gradient(135deg, rgba(74,222,128,.16), rgba(9,9,11,.97))' : 'rgba(9,9,11,.97)',
+                background: t.pri === 0 ? `linear-gradient(135deg, ${C.green}29, ${C.scrim})` : C.scrim,
                 border: `1px solid ${t.pri === 0 ? 'rgba(74,222,128,.5)' : t.pri === 2 ? 'rgba(248,113,113,.4)' : C.border2}`,
                 borderRadius: 10, padding: '8px 12px',
-                boxShadow: '0 8px 28px rgba(0,0,0,.5)',
+                boxShadow: `0 8px 28px ${C.shadow}`,
                 animation: 'wireToastIn .18s ease-out',
               }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>{t.icon}</span>
