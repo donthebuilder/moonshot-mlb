@@ -7,9 +7,10 @@ import {
   ROLE_ORDER, GROUP_ORDER, rolesOf, primaryRole, roleColor,
   verdictFor, sentenceFor, chipsFor,
 } from '../../lib/verdict'
+import PickCompare from '../PickCompare'
 import VerdictHero, { PeriodTiles } from '../VerdictHero'
 import PropsSheet from '../PropsSheet'
-import { useIsPhone } from '../MobileFold'
+import MobileFold, { useIsPhone } from '../MobileFold'
 import { FilterPill } from '../Filters'
 
 // ══ PROPS GRID — THE MOBILE PILOT PAGE ══════════════════════════════════════
@@ -390,6 +391,12 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
 
   return (
     <div>
+      {/* ⚖️ COMPARE TWO (2026-09-01) — Donovan: cards were "not helpful in
+          deciphering between two picks." Folded on a phone so the cards stay
+          one thumb away; open on desktop. See components/PickCompare.js. */}
+      <MobileFold title="⚖️ Compare two picks" summary="side by side, with a verdict" accent={C.orange}>
+        <PickCompare players={players} odds={odds} onPlayerClick={onPlayerClick} />
+      </MobileFold>
       {/* One rail, one line. The search that used to sit here filtered the
           same rows the page header already filters — see the note up top. */}
       <div className="chip-row" style={{
