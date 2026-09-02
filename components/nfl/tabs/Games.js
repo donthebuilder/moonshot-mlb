@@ -172,6 +172,29 @@ function restLabel(days, shortWeek) {
   return `${days}d${shortWeek ? ' ⚠' : ''}`
 }
 
+// #18: the two DEFENSE tiles printed "softest TD role · rank 1 leaks most"
+// under all 30 of them -- a legend caption sitting in the slot where a
+// per-team value goes, so a third of every card on the page was the same
+// sentence. The rank is already in the tile above it; what the sub-line owes
+// the reader is what that rank MEANS for this defence, which is different for
+// every team. The legend moves into the tooltip, where a legend belongs.
+const ordinal = (n) => {
+  const x = Number(n)
+  if (!Number.isFinite(x) || x < 1) return null
+  // 11th/12th/13th are the exceptions the one-line version of this always
+  // gets wrong, and rank 11-13 of 32 is squarely in range here.
+  const tens = x % 100
+  if (tens >= 11 && tens <= 13) return `${x}th`
+  return `${x}${['th', 'st', 'nd', 'rd'][x % 10] || 'th'}`
+}
+const softLine = (d) => {
+  if (!d) return 'matchup table pending'
+  const o = ordinal(d.td_rank)
+  if (!o) return 'softest TD role for this defence'
+  return `${o} softest of 32 against the ${String(d.role).toLowerCase()} role`
+}
+const SOFT_TITLE = 'The role this defence gives up touchdowns to most easily, and where it ranks league-wide against that role. Rank 1 leaks most.'
+
 function GameIntel({ game, matchup }) {
   const awayDefense = softRole(matchup, game.away)
   const homeDefense = softRole(matchup, game.home)
@@ -179,8 +202,8 @@ function GameIntel({ game, matchup }) {
   return <div className="nfl-game-intel">
     <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b><span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>
     <div><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b><span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
-    <div><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.td_rank}` : '—'}</b><span>{awayDefense ? 'softest TD role · rank 1 leaks most' : 'matchup table pending'}</span></div>
-    <div><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.td_rank}` : '—'}</b><span>{homeDefense ? 'softest TD role · rank 1 leaks most' : 'matchup table pending'}</span></div>
+    <div title={SOFT_TITLE}><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.td_rank}` : '—'}</b><span>{softLine(awayDefense)}</span></div>
+    <div title={SOFT_TITLE}><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.td_rank}` : '—'}</b><span>{softLine(homeDefense)}</span></div>
   </div>
 }
 

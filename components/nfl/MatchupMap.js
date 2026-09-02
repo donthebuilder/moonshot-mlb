@@ -109,10 +109,19 @@ function Zone({ cell, hot, h, compact }) {
           padding: '2px 4px', borderRadius: 4,
         }}>THE SPOT</span>
       )}
+      {/* ── #17: THE ONE CELL THE PAGE POINTS AT BROKE ITS OWN KEY ──────
+          Legend: pink = they leak, green = they lock it down. THE SPOT cell
+          kept that background but had a cyan border, a cyan glow AND a cyan
+          filled circle -- three cyan elements against one washed pink one --
+          so a +7% LEAKING cell read as teal, and the single cell the page
+          directs you to was the single cell whose colour contradicted the
+          key. The cyan is a MARKER, not a reading: it stays on the border,
+          the ring and the badge, where nothing else is competing, and comes
+          off the circle so the leak colour survives underneath it. */}
       <div style={{
         position: 'absolute', width: cell.d, height: cell.d, borderRadius: '50%',
-        background: hot ? `${C.cyan}40` : 'rgba(255,255,255,.10)',
-        border: `1.5px solid ${hot ? `${C.cyan}8c` : 'rgba(255,255,255,.30)'}`,
+        background: 'rgba(255,255,255,.10)',
+        border: `1.5px solid ${hot ? `${C.cyan}b0` : 'rgba(255,255,255,.30)'}`,
       }} />
       <div style={{
         position: 'relative', fontFamily: NUM_FONT, fontWeight: 900,
@@ -322,6 +331,8 @@ export default function MatchupMap({
             : 'share of yards they allow'}</Key>
           <Key swatch={`${C.red}4d`}>they leak</Key>
           <Key swatch={`${C.green}47`}>they lock it down</Key>
+          {/* #17: THE SPOT is an outline, so the key says outline. */}
+          <Key ring>THE SPOT — outlined, keeps its own leak colour</Key>
           <Key>corner % = their {model.metric} vs league</Key>
         </div>
       </div>
@@ -358,7 +369,7 @@ export default function MatchupMap({
   )
 }
 
-function Key({ dot, swatch, children }) {
+function Key({ dot, swatch, ring, children }) {
   return (
     <span style={{
       display: 'flex', alignItems: 'center', gap: 6,
@@ -370,6 +381,10 @@ function Key({ dot, swatch, children }) {
       }} />}
       {swatch && <span style={{
         width: 14, height: 9, borderRadius: 3, background: swatch,
+      }} />}
+      {ring && <span style={{
+        width: 14, height: 9, borderRadius: 3, background: 'transparent',
+        border: `1.5px solid ${C.cyan}`, boxShadow: `0 0 0 2px ${C.cyan}1f`,
       }} />}
       {children}
     </span>
