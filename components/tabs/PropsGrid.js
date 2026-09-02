@@ -97,15 +97,32 @@ function priceFor(odds, r, role) {
   return price === '—' ? null : price
 }
 
-// The hitter's own line. matchup_reason arrives as ' · '-joined fragments
-// ("RHB attacks pitcher weak side · low-K pitcher 18% · pitcher HR/9 1.71 /
-// WHIP 1.54 · HRW 42 / IHR 0.18 / 350+ 14%"). Shown as-is but for the
-// separator, and only when it says something — an empty or "None" field is
-// no line, not a dash.
-function matchupLine(r) {
+// The hitter's own facts, as TAGS. matchup_reason arrives as ' · '-joined
+// fragments ("RHB attacks pitcher weak side · low-K pitcher 18% · pitcher
+// HR/9 1.71 / WHIP 1.54 · HRW 42 / IHR 0.18 / 350+ 14%").
+//
+// ── 2026-09-02, Donovan: "the extra lines of words we added, make those
+// into the bubble tags." ─────────────────────────────────────────────────
+// Rejoining them into one grey sentence is what a paragraph is for, and
+// this is not a paragraph — it is a list of separate measurements that
+// happens to arrive delimited. On a card it wrapped to two dim lines of
+// run-on text directly above a row of pills that say the same KIND of
+// thing, so the card had two visual grammars for one class of fact.
+//
+// Split on the bot's own ' · ', then again on ' / ', which is its second
+// delimiter inside a fragment — that is what turns "HRW 88 / IHR 0.18 /
+// 350+ 27%" into three readable tags instead of one long one. The inner
+// split requires spaces around the slash, so "HR/9" survives intact.
+//
+// An empty or "None" field is no tags, not a dash.
+function matchupTags(r) {
   const t = txt(r?.matchup_reason).trim()
   if (!t || /^none$/i.test(t)) return null
-  return t.split(/\s*·\s*/).filter(Boolean).join('  ·  ')
+  const out = t.split(/\s*·\s*/)
+    .flatMap((part) => part.split(/\s+\/\s+/))
+    .map((x) => x.trim())
+    .filter(Boolean)
+  return out.length ? out : null
 }
 
 function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
@@ -136,7 +153,7 @@ function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
         meta={`${teamOf(r)} vs ${oppOf(r)}${arm ? ` · ${arm}${hand ? ` (${hand})` : ''}` : ''}`}
         metaRight={price}
         line={sentenceFor(r, role)}
-        line2={matchupLine(r)}
+        facts={matchupTags(r)}
         chips={chipsFor(r, role)}
         footer={<PeriodTiles tiles={v.tiles(r)} />}
         right={onWatch && (

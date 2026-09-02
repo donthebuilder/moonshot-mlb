@@ -166,8 +166,34 @@ export default function MobileCSS() {
         svg { max-width: 100%; height: auto; }
         /* Start Here: step cards stack full-width, legend wraps freely. */
         .dash-grid, .bot-picks-grid { grid-template-columns: 1fr !important; }
+        /* ── NO PARENTHESIS INSIDE AN ATTRIBUTE VALUE (2026-09-02) ──────
+           This selector read  div[style*="minmax(132px"]  and it was quietly
+           destroying most of this stylesheet in production.
+
+           Next's CSS minifier UNQUOTES an attribute value with no spaces in
+           it, so the shipped bytes are  div[style*=minmax(132px] . An
+           unquoted attribute value must be a valid identifier, and that one
+           is not -- so Chrome fails the selector AND, because the open paren
+           starts a block it then tries to balance, swallows everything up to
+           the next close paren anywhere in the sheet. Measured on the built
+           page: 11 of 88 top-level rules parsed. Everything after this line
+           -- the slate tiles, the ticker, the sticky scoreboard column, the
+           whole later half of this file -- has never applied to a production
+           build. It works in dev, which is why it lasted this long: dev is
+           not minified.
+
+           The visible symptom was the header. .slate-tiles-set never got its
+           display:flex, so the tiles stacked as blocks at height:100% and the
+           strip rendered as two 220px-tall boxes showing GAMES and nothing
+           else.
+
+           The fix is to keep brackets out of attribute values. Two paren-free
+           substrings select the same inline styles, and the minifier can
+           unquote those all it likes. Same fix on linear-gradient further
+           down. And no backticks in this comment: the whole file is one
+           template literal. */
         /* Game selector cards: two per row is the readable phone density. */
-        .dashboard-main div[style*="minmax(132px"] {
+        .dashboard-main div[style*="minmax"][style*="132px"] {
           grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         }
         /* Toolbar chip rows (Boards categories, sheet section nav, market
@@ -377,7 +403,8 @@ export default function MobileCSS() {
 
       @media (max-width: 520px) {
         /* Vitals/verdict tiles: two per row keeps the numbers legible. */
-        .dashboard-main div[style*="flex-wrap"] > div[style*="linear-gradient(135deg"] {
+        /* Paren-free, for the reason spelled out at the minmax rule above. */
+        .dashboard-main div[style*="flex-wrap"] > div[style*="linear-gradient"][style*="135deg"] {
           flex: 1 1 42% !important; min-width: 42% !important;
         }
       }

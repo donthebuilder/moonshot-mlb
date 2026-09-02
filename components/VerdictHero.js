@@ -120,10 +120,19 @@ export function ScoreChip({ value, col, title }) {
 
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
-  title, badge, badgeQuiet, meta, metaRight, market, line, line2, right,
+  title, badge, badgeQuiet, meta, metaRight, market, line, line2, facts, right,
   chips, footer, style, lead = 'dial',
 }) {
   const badgeLeads = lead === 'badge'
+  // A fact the chips above already assert is not worth a second bubble --
+  // "HRW 88 ⚡" as a flag and "HRW 88" as a measurement are the same sentence
+  // twice, one line apart. Compared on letters and digits only, so an emoji
+  // or a separator cannot hide a duplicate.
+  const factKey = (t) => String(t).toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const chipKeys = new Set((chips || []).map((x) => factKey(x?.t)).filter(Boolean))
+  const factsShown = Array.isArray(facts)
+    ? facts.filter((f) => !chipKeys.has(factKey(f)))
+    : []
   return (
     <div style={{
       position: 'relative', overflow: 'hidden',
@@ -207,6 +216,29 @@ export default function VerdictHero({
               border: `1px solid ${c.warn ? C.border2 : alpha(col, 0.3)}`,
               background: c.warn ? C.glass : alpha(col, 0.07),
             }}>{c.t}</span>
+          ))}
+        </div>
+      )}
+
+      {/* ── THE SAME FACTS, AS TAGS (2026-09-02) ───────────────────────────
+          Donovan: "the extra lines of words we added, make those into the
+          bubble tags." The fragments above used to be rejoined into one grey
+          run-on sentence that wrapped to two lines directly above a row of
+          pills carrying the same kind of information — two visual grammars
+          on one card for one class of fact.
+
+          Quieter than `chips` on purpose, and BELOW them: chips are the
+          flags the bot is asserting (trap risk, HRW 88 ⚡) and these are the
+          measurements behind them. Same geometry so the card reads as one
+          family; less contrast so the flags still lead. */}
+      {factsShown.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {factsShown.map((f, i) => (
+            <span key={`${f}-${i}`} style={{
+              fontSize: 8.5, fontWeight: 700, letterSpacing: '.02em', padding: '3px 8px',
+              borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+              color: C.text3, border: `1px solid ${C.border}`, background: C.glass,
+            }}>{f}</span>
           ))}
         </div>
       )}
