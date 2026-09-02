@@ -238,7 +238,15 @@ function Shell({ inline, onClose, width, children }) {
       onClick={onClose}
       className="modal-backdrop"
       style={{
-        position: 'fixed', inset: 0, zIndex: 100,
+        // #30: the floating bottom nav sits at z-index 390 and this backdrop
+        // sat at 100, so the bar drew ON TOP of an open card -- covering the
+        // first row of the Pitch table and the bottom of the Spray chart. The
+        // suggested fix was bottom padding on the scroll container, but that
+        // treats the symptom: a modal that a global nav can be clicked
+        // through is not modal. Above the bar (390) and below the ember
+        // signature rail (400), which is 3px of chrome at the very top and
+        // has nothing to overlap.
+        position: 'fixed', inset: 0, zIndex: 395,
         background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 16,

@@ -129,7 +129,7 @@ export function usePickRecords(backtest) {
 export default function PlayerPickRecord({ players = [], backtest, onPlayerClick }) {
   // BOT STREAK — consecutive most-recent designated picks that delivered,
   // from the live graded branch (the snapshot has totals, not sequence).
-  const { days: liveDays } = usePickRecords(backtest)
+  const { days: liveDays, state: liveState } = usePickRecords(backtest)
   // ONE ENTRY PER PLAYER PER NIGHT (lib/graded.js). This is a SEQUENCE, so the
   // duplicate rows the graded file publishes per pick category were the worst
   // possible bug for it: a hitter picked as TOP *and* HR pushed TWO entries
@@ -156,6 +156,10 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
     })
     return m
   }, [liveDays])
+  // #46: is there anything to put in the Streak column at all? Any row at all
+  // in the sequence map means the live branch answered; an empty map means it
+  // did not, and a column of dashes would be a lie of omission.
+  const streakReady = liveState === 'done' && botStreak.size > 0
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
   const [minPicks, setMinPicks] = useState(5)
@@ -253,6 +257,13 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
         <span style={{ fontFamily: NUM_FONT }}>{m.days} graded days, {m.from} to {m.to}</span>.
         A snapshot of the full local archive, six times what the live branch carries — nine days
         isn&apos;t enough to say anything about one player.
+        {!streakReady && (
+          <>
+            {' '}<b style={{ color: C.text2 }}>No Streak column right now:</b> a streak is a sequence and
+            this snapshot holds totals, so it is read off the live graded branch — which has no graded
+            nights loaded at the moment.
+          </>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
@@ -283,9 +294,18 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
             fmt: (v) => (v ? v : '·'),
             title: 'He is one of tonight’s designated picks, in this category. The whole point of the archive: check his record in THAT column before trusting tonight’s designation.' },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
-          { key: 'streak', label: 'Streak', heat: false, w: 52, mono: true,
+          // #46: this column was "—" on every visible row, which reads as a
+          // broken column rather than as missing data. It cannot be computed
+          // from this page's own payload: pick_matrix.json holds TOTALS, not
+          // sequence, and a streak is a sequence -- so it is built from the
+          // live graded branch's per-night files. When that branch has no
+          // graded days loaded (a fresh season, a failed fetch, or simply no
+          // backtest payload to name the dates from) there is nothing to
+          // compute and the column has nothing to say. It is dropped rather
+          // than rendered as a wall of dashes, and the caption below says why.
+          ...(streakReady ? [{ key: 'streak', label: 'Streak', heat: false, w: 52, mono: true,
             fmt: (v) => (v == null ? '—' : v > 0 ? `W${v}` : `L${-v}`),
-            title: 'Consecutive most-recent PICKS delivered (W) or missed (L), from the live graded branch — the bot-side streak, not his batting streak.' },
+            title: 'Consecutive most-recent PICKS delivered (W) or missed (L), from the live graded branch — the bot-side streak, not his batting streak.' }] : []),
           { key: 'last', label: 'Last', heat: false, w: 44, mono: true, dim: true,
             title: 'Most recent day he was picked' },
           { key: 'picks', label: 'Picks', w: 46,

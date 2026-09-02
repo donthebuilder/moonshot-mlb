@@ -37,7 +37,9 @@ const NFL_TABS = new Set(NFL_TAB_KEYS)
 // inning, football gives you one slate a week and three score changes an hour.
 // 45s while anything is live, 10 minutes otherwise.
 
-export default function NflDashboard() {
+// See the note on the same prop in components/Dashboard.js.
+// eslint-disable-next-line no-unused-vars
+export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)

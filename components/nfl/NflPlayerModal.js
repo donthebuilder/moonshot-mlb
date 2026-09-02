@@ -321,7 +321,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,.72)',
+        // #30, same as the MLB modals: the floating nav is z-index 390 and
+        // drew on top of an open card. Above the bar, below the signature rail.
+        position: 'fixed', inset: 0, zIndex: 395, background: 'rgba(0,0,0,.72)',
         backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
         justifyContent: 'center', padding: 16,
       }}

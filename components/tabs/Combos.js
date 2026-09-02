@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { C } from '../../lib/theme'
+import { C, NUM_FONT } from '../../lib/theme'
 import { btnStyle } from '../ui'
 import Pairs from './Pairs'
 import Pools from './Pools'
@@ -61,7 +61,13 @@ import Alignments from '../Alignments'
 const VIEWS = [
   ['pairs', 'Pairs & Pools'],
   ['align', 'Alignments'],
-  ['ledger', 'Homer ledger'],
+  // #12: this pill and the panel mounted on Pairs & Pools were both called
+  // "Homer ledger" and both show tonight's ledger, so the pill row read as a
+  // duplicate of something already on the page. They are not the same thing:
+  // the panel is tonight, and this is the archive tool built around it on
+  // 2026-08-24 -- past nights, harvest, season record, search. Named for what
+  // it actually is, so the two stop competing.
+  ['ledger', 'Ledger lab'],
   ['builder', 'Builder'],
   ['history', 'History'],
 ]
@@ -134,7 +140,20 @@ export default function Combos({
       {view === 'pairs' && <ComboLinks here="pairs" />}
       {view === 'builder' && <ComboLinks here="builder" />}
       {view === 'pairs' && (
-        <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+        <>
+          <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+          {/* #12: and the panel says where the rest of it lives, so the two
+              read as one feature with a shallow end and a deep end. */}
+          <button
+            type="button"
+            onClick={() => setView('ledger')}
+            style={{
+              display: 'block', margin: '-4px 0 12px', padding: 0, border: 0,
+              background: 'transparent', cursor: 'pointer',
+              font: `800 10px/1.5 ${NUM_FONT}`, color: C.orange, letterSpacing: '.04em',
+            }}
+          >past nights, season record and search → Ledger lab</button>
+        </>
       )}
 
       {/* Pools first — the bigger tickets — then the two-man cut under it. */}

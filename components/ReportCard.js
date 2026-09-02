@@ -197,16 +197,20 @@ export default function ReportCard({ backtest }) {
         background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.05))`,
         border: `1px solid ${C.border}`, borderRadius: 14, padding: '12px 13px', marginBottom: 14,
       }}>
+        {/* ── #38: THE LAYOUT CONTRADICTED THE PARAGRAPH UNDER IT ─────────
+            Season, every pick sat in the big LEFT card and Since the lock on
+            the right, while the copy directly beneath said the since-lock
+            number "is the one that matters going forward". The eye takes the
+            left-hand card as the headline, so the page was leading with the
+            number it then tells you to discount -- and the season figure is
+            the flattering one (43.0% vs 41.1% when this was caught), which
+            makes reading order a claim.
+
+            Since the lock leads now. Season keeps its full card, its own
+            interval and its own day count immediately beside it; nothing is
+            hidden or shrunk. Only the order changed, so that the first number
+            read is the one the page itself says to trust. */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Record
-            kicker="Season, every pick"
-            kickerCol={C.text3}
-            value={seasonN ? `${seasonOk}/${seasonN}` : '—'}
-            pctVal={seasonPct}
-            ci={seasonN > 0 ? ciText(seasonOk, seasonN) : null}
-            ciTitle="95% Wilson interval — where the true rate plausibly lives given this sample size"
-            foot={`every graded night on file · ${model.dates.length} days`}
-          />
           <Record
             kicker="✅ Since the lock"
             kickerCol={C.green}
@@ -216,6 +220,15 @@ export default function ReportCard({ backtest }) {
             ciTitle="95% Wilson interval — wide while the locked sample is young, and it should be"
             foot={lockN ? `${lockNights} locked night${lockNights === 1 ? '' : 's'} since ${LOCK_DATE}` : `locking since ${LOCK_DATE}`}
             accent
+          />
+          <Record
+            kicker="Season, every pick"
+            kickerCol={C.text3}
+            value={seasonN ? `${seasonOk}/${seasonN}` : '—'}
+            pctVal={seasonPct}
+            ci={seasonN > 0 ? ciText(seasonOk, seasonN) : null}
+            ciTitle="95% Wilson interval — where the true rate plausibly lives given this sample size"
+            foot={`every graded night on file · ${model.dates.length} days`}
           />
         </div>
         <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>

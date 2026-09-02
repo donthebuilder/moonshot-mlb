@@ -59,7 +59,12 @@ const WATCH_KEY = 'mlb_watchlist_v1'
 // hasn't been built. See the gate below.
 const SLATE_FREE = new Set(['trueprice', 'boxes'])
 
-export default function Dashboard() {
+// palettePass changes once, after SportRoot has applied a non-default chrome
+// palette (see components/SportRoot.js). Nothing reads it: it exists so the
+// repaint pass is a visible prop change rather than an invisible parent
+// re-render, and so nobody wraps this in React.memo without noticing.
+// eslint-disable-next-line no-unused-vars
+export default function Dashboard({ palettePass = 0 }) {
   const [mode, setMode] = useState('today')
   // Home is the front door now (2026-08-08) — deep links below still land
   // wherever their hash says.
