@@ -464,7 +464,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     return (
       <div>
         {viewBar}
-        <TruePrice onPlayerClick={onPlayerClick} />
+        <TruePrice onPlayerClick={onPlayerClick} players={players} odds={odds} />
       </div>
     )
   }

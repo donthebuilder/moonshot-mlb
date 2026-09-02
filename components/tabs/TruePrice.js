@@ -5,7 +5,8 @@ import { verdictInk } from '../../lib/scales'
 import { fetchJSON } from '../../lib/data'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
 import { oddsHistoryPaths } from '../../lib/dataSource'
-import { fmtOdds } from '../../lib/odds'
+import { fmtOdds, impliedPct } from '../../lib/odds'
+import { hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
 import {
   flatten, priceText, historyLooksReal, readsAs, roiRows, roiVerdict, gapSe, MARKET_LABEL, MARKET_ORDER,
 } from '../../lib/oddsHistory'
@@ -53,10 +54,47 @@ const SORTS = [
   ['gap', 'Biggest gap'],
   ['support', 'Best-supported rate'],
   ['rate', 'Hit rate'],
+  ['streak', 'Hottest streak'],
+  ['tonight', 'Tonight’s edge'],
   ['n', 'Most nights'],
   ['price', 'Longest true price'],
   ['name', 'Name'],
 ]
+
+// ── TONIGHT, BESIDE THE HISTORY (2026-09-01) ────────────────────────────────
+//
+// Donovan, confirming this is the board he pictured, and what it was missing:
+// "streaks and scores and price hit rate like the avg price pregame when they
+// cash." The history columns say what a hitter HAS been; these say what he is
+// TONIGHT, so the two can be read against each other in one row:
+//
+//   SCORE     the model's number for the same market, off tonight's slate
+//   TONIGHT   the price the book is posting right now at this line
+//   EDGE      his own rate minus what tonight's price needs — the same gap
+//             the page is named after, but against the number you can
+//             actually bet, not the average of the ones you missed
+//
+// A hitter not on tonight's slate simply has blanks here; the history is still
+// the history. The score is per-market because a HR score says nothing about
+// a 2+ hits line — see lib/player.js for which field each market reads.
+const MARKET_SCORE = {
+  batter_home_runs: hrScore,
+  batter_hits: hitScore,
+  batter_hits_runs_rbis: prodScore,
+  batter_runs_scored: prodScore,
+  batter_rbis: prodScore,
+  batter_total_bases: tbScore,
+}
+function tonightFor(r, byPid, odds) {
+  const p = byPid.get(Number(r.pid))
+  const score = p ? MARKET_SCORE[r.market]?.(p) : null
+  const q = odds?.by_player_id?.[String(r.pid)]?.[r.market]
+  const sameLine = q && Number.isFinite(Number(q.line)) && Math.abs(Number(q.line) - Number(r.line)) < 1e-9
+  const price = sameLine ? (q.over ?? null) : null
+  const need = sameLine ? (q.implied ?? impliedPct(q.over)) : null
+  const edge = need != null && Number.isFinite(Number(r.rate)) ? Math.round(10 * (Number(r.rate) - need)) / 10 : null
+  return { onSlate: Boolean(p), score: Number.isFinite(score) ? score : null, price, need, edge, bookLine: q?.line ?? null }
+}
 
 // The false-discovery rate the page controls at. 10% is the working number in
 // screening work and it reads as a plain sentence: at most one row in ten that
@@ -91,7 +129,7 @@ const chip = (on) => ({
 
 const th = { fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px 4px', whiteSpace: 'nowrap' }
 
-export default function TruePrice({ onPlayerClick }) {
+export default function TruePrice({ onPlayerClick, players = [], odds = null }) {
   const [hist, setHist] = useState(undefined)   // undefined = loading, null = absent
   const [market, setMarket] = useState('all')
   // null = "the page chooses" (see MIN_NIGHT_RUNGS). A number means the reader
@@ -137,7 +175,15 @@ export default function TruePrice({ onPlayerClick }) {
   const minN = minNPin ?? autoMin
   const steppedDown = minNPin == null && autoMin < PREFERRED_MIN && nightCounts.get(autoMin) > 0
 
-  const rows = useMemo(() => flatten(hist, { minN }), [hist, minN])
+  const byPid = useMemo(() => {
+    const m = new Map()
+    ;(players || []).forEach((p) => { const id = Number(p?.player_id ?? p?.id); if (Number.isFinite(id)) m.set(id, p) })
+    return m
+  }, [players])
+  const rows = useMemo(
+    () => flatten(hist, { minN }).map((r) => ({ ...r, tonight: tonightFor(r, byPid, odds) })),
+    [hist, minN, byPid, odds],
+  )
 
   // THE ANSWER, computed before anything is drawn. Everything in the lead band
   // is a count over the rows the table is about to show — ignoring the market
@@ -208,6 +254,12 @@ export default function TruePrice({ onPlayerClick }) {
       // bound is the order you would pick in if you had to put money on one.
       support: (a, b) => (wilsonLower(b.hits, b.n) ?? -1) - (wilsonLower(a.hits, a.n) ?? -1),
       rate: (a, b) => b.rate - a.rate,
+      // Longest current run of cashes first; a cold run sorts to the bottom
+      // rather than mixing in by absolute length.
+      streak: (a, b) => (b.streak - a.streak) || (b.rate - a.rate),
+      // Rows with a price on the board tonight first, biggest edge against
+      // THAT price on top. Everyone else keeps the default order below them.
+      tonight: (a, b) => ((b.tonight.edge ?? -1e9) - (a.tonight.edge ?? -1e9)) || ((rank(b) - rank(a)) || (b.edge - a.edge)),
       n: (a, b) => b.n - a.n,
       price: (a, b) => (b.truePrice ?? -1e9) - (a.truePrice ?? -1e9),
       name: (a, b) => a.name.localeCompare(b.name) || a.marketLabel.localeCompare(b.marketLabel),
@@ -487,6 +539,11 @@ export default function TruePrice({ onPlayerClick }) {
                 <th style={th} title="What the book has actually been paying him, averaged as probability and converted back.">Goes at</th>
                 <th style={th} title="His rate minus what those prices needed. Positive = the market has been slow on him.">Gap</th>
                 <th style={{ ...th, textAlign: 'left' }} title="Whether the gap is bigger than its own error bar.">Reads as</th>
+                <th style={th} title="Current run, newest night first. +3 = cleared his last three priced nights; −4 = missed his last four.">Streak</th>
+                <th style={th} title="The average pregame price on the nights he actually cashed this prop — what it cost to be on him when it worked. Averaged as probability, like Goes at.">Cashed at</th>
+                <th style={th} title="The model's score for this same market, off tonight's slate. Blank if he isn't playing tonight.">Score</th>
+                <th style={th} title="What the book is posting right now at this exact line. Blank if he isn't priced tonight, or the book is at a different number.">Tonight</th>
+                <th style={th} title="His rate minus what tonight's price needs. The gap column, against a number you can actually bet.">Edge</th>
               </tr>
             </thead>
             <tbody>
@@ -548,10 +605,33 @@ export default function TruePrice({ onPlayerClick }) {
                           >survives the board</span>
                         )}
                       </td>
+                      {/* ── TONIGHT, BESIDE THE HISTORY (2026-09-01) ── */}
+                      <td style={{ ...cell, fontWeight: 900, color: r.streak > 0 ? verdictInk(true).color : r.streak < 0 ? C.text3 : C.text2 }}
+                        title={r.streak > 0 ? `Cleared his last ${r.streak} priced night${r.streak === 1 ? '' : 's'}` : r.streak < 0 ? `Missed his last ${-r.streak} priced night${r.streak === -1 ? '' : 's'}` : ''}>
+                        {r.streak > 0 ? `+${r.streak}` : r.streak < 0 ? `${r.streak}` : '—'}
+                      </td>
+                      <td style={{ ...cell, color: C.text2 }}
+                        title={r.cashPrice != null ? `${r.hits} cash night${r.hits === 1 ? '' : 's'}; last one ${r.lastCash || '—'}` : 'Has not cashed this line yet'}>
+                        {r.cashPrice != null ? fmtOdds(r.cashPrice) : '—'}
+                      </td>
+                      <td style={{ ...cell, color: r.tonight.score != null ? C.text : C.text3 }}
+                        title={r.tonight.onSlate ? 'Tonight’s model score for this market' : 'Not on tonight’s slate'}>
+                        {r.tonight.score != null ? Math.round(r.tonight.score) : '—'}
+                      </td>
+                      <td style={{ ...cell, color: r.tonight.price != null ? C.text : C.text3 }}
+                        title={r.tonight.price != null
+                          ? `Tonight’s price needs ${r.tonight.need}% to break even`
+                          : r.tonight.bookLine != null ? `Book is at ${r.tonight.bookLine} tonight, not ${r.line}` : r.tonight.onSlate ? 'No price posted yet' : 'Not on tonight’s slate'}>
+                        {r.tonight.price != null ? fmtOdds(r.tonight.price) : '—'}
+                      </td>
+                      <td style={{ ...cell, fontWeight: 900, color: r.tonight.edge == null ? C.text3 : verdictInk(r.tonight.edge > 0).color }}
+                        title={r.tonight.edge != null ? `${r.rate.toFixed(0)}% rate vs ${r.tonight.need}% needed tonight` : ''}>
+                        {r.tonight.edge != null ? `${r.tonight.edge > 0 ? '+' : ''}${r.tonight.edge.toFixed(0)}` : '—'}
+                      </td>
                     </tr>
                     {isOpen && (
                       <tr>
-                        <td colSpan={8} style={{ padding: '2px 8px 8px' }}>
+                        <td colSpan={13} style={{ padding: '2px 8px 8px' }}>
                           {/* THE RECEIPTS. Without these the two prices above are
                               a claim; with them they're checkable. */}
                           <div style={{
