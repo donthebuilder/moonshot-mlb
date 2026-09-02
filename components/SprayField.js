@@ -409,9 +409,6 @@ const liveColor = (b) => (liveIsHR(b) ? RESULT_COLORS.home_run
 export default function SprayField({
   player, height = 340, slateMode, liveOnly = false,
   liveBalls = null, liveFocusId = null, liveLabel = '',
-  // tonight's pitches to him, for the strike zone the stadium draws at the
-  // plate (2026-09-02) — same rows the zone map gets, no second fetch
-  zonePitches = null,
 }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
@@ -1470,7 +1467,6 @@ export default function SprayField({
             venue={testPark || venue}
             wind={hasWind ? { mph: windMph, label: windLabel, to: windTo, color: windCol } : null}
             live={liveOnly}
-            pitches={zonePitches}
           />
 
           {/* ── THE DOCK (2026-08-31). Donovan: "what happened to those on

@@ -417,6 +417,8 @@ export default function ZoneMap({
   // the pitcher row (see LivePitcherRow) — all optional; the map without a
   // game feed never sees them
   livePitchers = null, livePitcherId = null, onLivePitcher = null, liveScope = 'him', onLiveScope = null,
+  // tonight's park, for the 3D map's world (2026-09-02)
+  venue = '',
 }) {
   const [api, setApi] = useState(undefined)
   const [bot, setBot] = useState(null)
@@ -952,6 +954,7 @@ export default function ZoneMap({
                 killZones={pzp?.kill_zones || null}
                 statLabel={(WHOSE[stat] || WHOSE.ev)[0]}
                 label={scopeAll ? sampleLabel : (liveLabel || starterName || '')}
+                venue={venue}
               />
 
               {/* ── THE DOCK (2026-08-31). Donovan: "where are the filters

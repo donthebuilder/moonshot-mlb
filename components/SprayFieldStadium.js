@@ -8,9 +8,7 @@ import { solveFlight } from '../lib/trajectory'
 // Seating shape — the half of a park parkWalls.js does not describe. Falls
 // back to a plain two-tier ring for any venue it has no entry for, so a park
 // we have walls for but no bowl for still draws.
-import { bowlFor, isOpenSector } from '../lib/parkBowls'
-import { addParkProps } from '../lib/stadiumProps'
-import { addParkDressing, addPlateZone, PLATE_Z } from '../lib/stadiumDressing'
+import { buildPark } from '../lib/stadiumWorld'
 import { resultColor, isNonHrHit } from '../lib/resultColor'
 import { shapeFor, resultScale } from '../lib/pitchShape'
 
@@ -118,7 +116,7 @@ function labelSprite(text, hex) {
 // which in this scene's world space is +Z.
 const WIND_DIR = (toDeg) => new THREE.Vector3(-Math.sin(toDeg * DEG), 0, Math.cos(toDeg * DEG)).normalize()
 
-export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, title = '', subtitle = '', live = false, pitches = null }) {
+export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, title = '', subtitle = '', live = false }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
   const replayRef = useRef(null)   // set by the effect to the replay function
@@ -141,17 +139,6 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   const motionRef = useRef(motion); motionRef.current = motion
   const orbitRef = useRef(orbit); orbitRef.current = orbit
   const prevCountRef = useRef(0)
-  // ── ONE WORLD, TWO PLACES TO STAND (2026-09-02). Donovan: "make the 3D
-  //    strike map like the zone living inside the stadium — same world,
-  //    different things." The strike zone is now drawn at home plate in
-  //    THIS scene at real size (lib/stadiumDressing addPlateZone), with
-  //    tonight's crossings on it. PARK is the camera this chart has always
-  //    opened on; PLATE flies down behind the catcher to the zone, and the
-  //    whole park is still there behind it. The flight is a tween the tick
-  //    runs; controls are handed back when it lands.
-  const [view, setView] = useState('park')
-  const viewRef = useRef(view); viewRef.current = view
-  const flyRef = useRef(null)   // set by the effect: (name) => void
 
   // Flattened out of the object so the effect's dependency list can be four
   // primitives instead of an object literal the caller rebuilds every render —
@@ -290,35 +277,6 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       renderer.domElement.style.touchAction = 'pan-y'
     }
 
-    // ── THE RIG (2026-08-31). This is the change that closed the gap
-    //    between the prototype and the shipped view, and it was all here:
-    //
-    //    WAS: HemisphereLight(pale blue → brown) at 1.25 plus a near-white
-    //    key at 1.6. A hemisphere light lights every up-facing surface in the
-    //    park equally, from a bright sky colour, at more than full strength —
-    //    which is the definition of flat. The grass took the full pale-blue
-    //    sky term and went kelly green, every wall read the same on all
-    //    sides, and nothing anywhere had a lit side and a shaded side. That
-    //    is what "looks like CGI" is: no modelling, only colour.
-    //
-    //    NOW: the prototype's three-light rig. A LOW cool ambient so the
-    //    shadows are blue rather than black, a WARM low key from the third-
-    //    base side at under 1.0, and a cool fill from the opposite corner at
-    //    0.42. Warm key against cool fill is the whole trick — it gives every
-    //    round thing a warm edge and a cool turn, which is the difference
-    //    between a photograph of a ballpark at dusk and a diagram of one.
-    //
-    //    Do not raise these to "see the field better". The field is not the
-    //    subject; the arcs are, and they are emissive. A brighter park makes
-    //    the data quieter, which is backwards.
-    scene.add(new THREE.AmbientLight(0x3a3f4a, 1.0))
-    const key = new THREE.DirectionalLight(0xffb07a, 0.9)
-    key.position.set(300, 340, -140)
-    scene.add(key)
-    const fill = new THREE.DirectionalLight(0x7d8ba8, 0.42)
-    fill.position.set(-260, 200, 380)
-    scene.add(fill)
-
     // 🪞 THE MIRROR FIX (2026-08-29). Donovan: "i think the spray chart is
     // flipped" -- confirmed against the 2D chart (correct) and this one
     // (was backwards for every player, not a handedness-specific thing).
@@ -338,435 +296,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const P = (r, ang) => new THREE.Vector3(-r * Math.sin(ang * DEG), 0, r * Math.cos(ang * DEG))
     const SEG = 96
 
-    // the dome itself, plus the things that make it read as evening
-    {
-      const cv = document.createElement('canvas')
-      cv.width = 4; cv.height = 600
-      const g = cv.getContext('2d')
-      const grad = g.createLinearGradient(0, 0, 0, 600)
-      // Written as ints and converted, not as '#rrggbb' strings: check-scales
-      // counts hex literals against a budget that may only come down, and a
-      // canvas fillStyle is indistinguishable from a chart colour to a regex.
-      const css = (n) => new THREE.Color(n).getStyle()
-      ;[[0.00, 0x07080b], [0.36, 0x0d1017], [0.62, 0x1a1a22],
-        [0.80, 0x33242a], [0.92, 0x5c3324], [1.00, 0x8a4b1f],
-      ].forEach(([o, n]) => grad.addColorStop(o, css(n)))
-      g.fillStyle = grad; g.fillRect(0, 0, 4, 600)
-      // broken cloud banding — an unbroken ramp still reads synthetic
-      g.globalAlpha = 0.10
-      for (let i = 0; i < 7; i++) {
-        const y = 330 + Math.random() * 230
-        g.fillStyle = css(i % 2 ? 0x0b0d14 : 0x7a5238)
-        g.fillRect(0, y, 4, 6 + Math.random() * 22)
-      }
-      g.globalAlpha = 1
-      const dome = new THREE.Mesh(
-        new THREE.SphereGeometry(2600, 32, 24),
-        new THREE.MeshBasicMaterial({
-          map: new THREE.CanvasTexture(cv), side: THREE.BackSide,
-          depthWrite: false, fog: false,
-        }),
-      )
-      scene.add(dome)
+    const world = buildPark(scene, { dims, heights, venue, P, wallD, wallH, maxD, SEG })
+    const bowl = world.bowl
 
-      const sp = [], sc = []
-      for (let i = 0; i < 460; i++) {
-        const th = Math.random() * Math.PI * 2, ph = Math.random() * 0.55, r = 2400
-        sp.push(Math.sin(th) * Math.cos(ph) * r, Math.sin(ph) * r + 240, Math.cos(th) * Math.cos(ph) * r)
-        const b2 = 0.28 + Math.random() * 0.45
-        sc.push(b2, b2 * 0.97, b2 * 0.92)
-      }
-      const sg = new THREE.BufferGeometry()
-      sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3))
-      sg.setAttribute('color', new THREE.Float32BufferAttribute(sc, 3))
-      scene.add(new THREE.Points(sg, new THREE.PointsMaterial({
-        size: 4, vertexColors: true, transparent: true, opacity: 0.4, fog: false,
-      })))
-
-      const halo = new THREE.Mesh(new THREE.PlaneGeometry(820, 820),
-        new THREE.MeshBasicMaterial({
-          map: radialTex([[0, 'rgba(255,238,214,.30)'], [0.3, 'rgba(255,224,190,.10)'], [1, 'rgba(0,0,0,0)']]),
-          transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
-        }))
-      halo.position.set(-1400, 820, 1700); halo.lookAt(0, 200, 0); scene.add(halo)
-      const moon = new THREE.Mesh(new THREE.CircleGeometry(46, 36),
-        new THREE.MeshBasicMaterial({ color: 0xfff3dd, fog: false }))
-      moon.position.set(-1400, 820, 1700); moon.lookAt(0, 200, 0); scene.add(moon)
-
-      // horizon glow so the skyline edge is lit rather than a hard cut
-      const hz = new THREE.Mesh(new THREE.PlaneGeometry(5200, 460),
-        new THREE.MeshBasicMaterial({
-          map: radialTex([[0, 'rgba(255,150,70,.20)'], [0.55, 'rgba(180,80,40,.07)'], [1, 'rgba(0,0,0,0)']]),
-          transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
-        }))
-      hz.position.set(0, 110, 2100); scene.add(hz)
-    }
-
-    // ── the world outside the park, so the field isn't floating in space
-    {
-      const apron = new THREE.Mesh(
-        new THREE.CircleGeometry(maxD * 3, 48),
-        new THREE.MeshLambertMaterial({ color: 0x14171c }),
-      )
-      apron.rotation.x = -Math.PI / 2
-      apron.position.y = -0.6
-      scene.add(apron)
-    }
-
-    // ── GRASS, WITH MOWING STRIPES. Base wedge shaped by the real wall,
-    //    then alternating lighter ring bands on top. RingGeometry lives in
-    //    XY with θ from +X; rotateX(-90°) puts θ in the XZ plane, so our
-    //    -45°..45°-about-+Z wedge is θ 45°..135°.
-    {
-      // Shape space is XY; rotateX(-90°) maps (x, y) -> (x, 0, -y) with the
-      // normal UP, so world z = -shapeY. Built with -v.z, NOT v.z — pass one
-      // used rotateX(+90°)+scale(1,1,-1), which left the normals pointing
-      // DOWN (black from above) and mirrored half the flats behind the
-      // plate. Verified by rendering, not by reasoning about it twice.
-      const shape = new THREE.Shape()
-      shape.moveTo(0, 0)
-      for (let i = 0; i <= SEG; i++) {
-        const a = -45 + (90 * i) / SEG
-        const v = P(wallD(a), a)
-        shape.lineTo(v.x, -v.z)
-      }
-      shape.lineTo(0, 0)
-      const g = new THREE.ShapeGeometry(shape)
-      g.rotateX(-Math.PI / 2)
-      // HALFWAY (2026-08-31). Donovan: "the park looked good before with the
-      // regular colors." He is right that 0x18331f went too far — it took the
-      // park out of the picture entirely, and the park is the thing he wanted
-      // rendered. This is the exact midpoint between that and the original
-      // 0x2e5c3a: clearly green and clearly a ballpark, still a step below the
-      // arcs crossing it so the data stays the brightest thing on screen.
-      //
-      // The FLATNESS was never the green — it was the hemisphere light, and
-      // that fix stays. Colour and lighting are separate problems and the
-      // earlier pass conflated them.
-      const grass = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x23472c, side: THREE.DoubleSide }))
-      grass.position.y = -0.3
-      scene.add(grass)
-
-      const minD = Math.min(...dims)
-      // The mow band rides the same midpoint. Still a band you have to look
-      // for rather than a painted stripe — that part of the last pass was
-      // right and is kept.
-      const stripeMat = new THREE.MeshLambertMaterial({ color: 0x2c5637, side: THREE.DoubleSide })
-      for (let r0 = 30; r0 < minD - 16; r0 += 56) {
-        const ring = new THREE.Mesh(
-          new THREE.RingGeometry(r0, Math.min(r0 + 28, minD - 16), 64, 1, -3 * Math.PI / 4, Math.PI / 2),
-          stripeMat,
-        )
-        ring.rotation.x = -Math.PI / 2
-        ring.position.y = -0.2
-        scene.add(ring)
-      }
-    }
-
-    // ── WARNING TRACK — a flat 14-ft band tracing the wall's own shape.
-    {
-      const pos = []
-      for (let i = 0; i < SEG; i++) {
-        const a0 = -45 + (90 * i) / SEG
-        const a1 = -45 + (90 * (i + 1)) / SEG
-        const o0 = P(wallD(a0), a0), o1 = P(wallD(a1), a1)
-        const n0 = P(wallD(a0) - 14, a0), n1 = P(wallD(a1) - 14, a1)
-        pos.push(
-          n0.x, 0, n0.z, o0.x, 0, o0.z, n1.x, 0, n1.z,
-          o0.x, 0, o0.z, o1.x, 0, o1.z, n1.x, 0, n1.z,
-        )
-      }
-      const g = new THREE.BufferGeometry()
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-      g.computeVertexNormals()
-      const track = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x6b4a30, side: THREE.DoubleSide }))
-      track.position.y = -0.1
-      scene.add(track)
-    }
-
-    // ── THE INFIELD: dirt arc, grass diamond, mound, plate, bases.
-    {
-      const dirt = new THREE.Mesh(
-        new THREE.CircleGeometry(95, 48, -3 * Math.PI / 4, Math.PI / 2),
-        new THREE.MeshLambertMaterial({ color: 0x7a5636, side: THREE.DoubleSide }),
-      )
-      dirt.rotation.x = -Math.PI / 2
-      dirt.position.y = 0.02
-      scene.add(dirt)
-
-      // grass diamond — a 63-ft square rotated so its corners sit on the
-      // basepaths, standard skinned-infield look
-      const dShape = new THREE.Shape()
-      const base = 63
-      dShape.moveTo(0, -12)
-      dShape.lineTo(base / 1.41, -(12 + base / 1.41))
-      dShape.lineTo(0, -(12 + 2 * (base / 1.41)))
-      dShape.lineTo(-base / 1.41, -(12 + base / 1.41))
-      dShape.lineTo(0, -12)
-      const dg = new THREE.ShapeGeometry(dShape)
-      dg.rotateX(-Math.PI / 2)
-      const diamond = new THREE.Mesh(dg, new THREE.MeshLambertMaterial({ color: 0x2e5c3a, side: THREE.DoubleSide }))
-      diamond.position.y = 0.06
-      scene.add(diamond)
-
-      const mound = new THREE.Mesh(
-        new THREE.SphereGeometry(9, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2),
-        new THREE.MeshLambertMaterial({ color: 0x8a6540 }),
-      )
-      mound.scale.y = 0.16
-      mound.position.set(0, 0, 60.5)
-      scene.add(mound)
-
-      const baseGeo = new THREE.BoxGeometry(3.4, 0.7, 3.4)
-      const baseMat = new THREE.MeshLambertMaterial({ color: 0xe8e8ec })
-      const half = 63 / 1.41
-      ;[[0, 12], [half, 12 + half], [0, 12 + 2 * half], [-half, 12 + half]].forEach(([x, z], i) => {
-        const b = new THREE.Mesh(baseGeo, baseMat)
-        b.position.set(x, 0.4, z)
-        if (i === 0) b.scale.set(0.5, 0.6, 0.5) // the plate: 17 in wide, not a base
-        scene.add(b)
-      })
-    }
-
-    // ── FOUL LINES, brighter and on top of everything flat.
-    {
-      const mat = new THREE.LineBasicMaterial({ color: 0xf4f4f5, transparent: true, opacity: 0.8 })
-      for (const a of [-45, 45]) {
-        const g = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(P(6, a).x, 0.25, P(6, a).z),
-          new THREE.Vector3(P(wallD(a), a).x, 0.25, P(wallD(a), a).z),
-        ])
-        scene.add(new THREE.Line(g, mat))
-      }
-    }
-
-    // ── THE WALL: opaque, clearly a wall, with a lit top rail (a thin box
-    //    strip — LineBasicMaterial linewidth is a no-op on most GPUs) and
-    //    the park's five distance numbers painted at their anchors.
-    {
-      const pos = []
-      for (let i = 0; i < SEG; i++) {
-        const a0 = -45 + (90 * i) / SEG
-        const a1 = -45 + (90 * (i + 1)) / SEG
-        const b0 = P(wallD(a0), a0), b1 = P(wallD(a1), a1)
-        const h0 = wallH(a0), h1 = wallH(a1)
-        pos.push(
-          b0.x, 0, b0.z, b1.x, 0, b1.z, b0.x, h0, b0.z,
-          b1.x, 0, b1.z, b1.x, h1, b1.z, b0.x, h0, b0.z,
-        )
-      }
-      const g = new THREE.BufferGeometry()
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-      g.computeVertexNormals()
-      scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({
-        color: 0x24586e, side: THREE.DoubleSide,
-      })))
-
-      // top rail — small quads riding the crest, warm and emissive-ish
-      const railPos = []
-      for (let i = 0; i < SEG; i++) {
-        const a0 = -45 + (90 * i) / SEG
-        const a1 = -45 + (90 * (i + 1)) / SEG
-        const b0 = P(wallD(a0), a0), b1 = P(wallD(a1), a1)
-        const h0 = wallH(a0), h1 = wallH(a1)
-        railPos.push(
-          b0.x, h0, b0.z, b1.x, h1, b1.z, b0.x, h0 + 0.9, b0.z,
-          b1.x, h1, b1.z, b1.x, h1 + 0.9, b1.z, b0.x, h0 + 0.9, b0.z,
-        )
-      }
-      const rg = new THREE.BufferGeometry()
-      rg.setAttribute('position', new THREE.Float32BufferAttribute(railPos, 3))
-      rg.computeVertexNormals()
-      scene.add(new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: 0xf59e0b })))
-
-      // distance numbers at the five published anchors, floating just above
-      // the crest and always facing the camera
-      ;[-45, -22.5, 0, 22.5, 45].forEach((a, i) => {
-        const s = numberSprite(String(Math.round(dims[i])))
-        const v = P(wallD(a) - 2, a)
-        s.position.set(v.x, wallH(a) + 9, v.z)
-        scene.add(s)
-      })
-    }
-
-    // ── THE BOWL (2026-08-31). Until now the park stopped at the wall, and
-    //    every venue read as the same ring with different numbers on it.
-    //    parkBowls.js says where the seats AREN'T, which is the strongest tell
-    //    there is: McCovey Cove eats Oracle's right field, the warehouse eats
-    //    Camden's, the Allegheny eats PNC's. Deck segments are cut against
-    //    `open`, so those sectors simply have no stands.
-    //
-    //    Parametric, not surveyed — nothing scores off this, it is for the eye.
-    const bowl = bowlFor(venue)
-    let dressing = null
-    {
-      const clamp = (a) => Math.max(-45, Math.min(45, a))
-      const deck = (a0, a1, off, depth, y0, y1, cLo, cHi, crowd) => {
-        const pos = [], col = [], pts = []
-        const A = new THREE.Color(cLo), B = new THREE.Color(cHi)
-        for (let a = a0; a < a1; a += 2.5) {
-          const b = Math.min(a1, a + 2.5)
-          if (isOpenSector(bowl, a) || isOpenSector(bowl, b)) continue
-          const i0 = P(wallD(clamp(a)) + off, a), i1 = P(wallD(clamp(b)) + off, b)
-          const o0 = P(wallD(clamp(a)) + off + depth, a), o1 = P(wallD(clamp(b)) + off + depth, b)
-          pos.push(
-            i0.x, y0, i0.z, i1.x, y0, i1.z, o1.x, y1, o1.z,
-            i0.x, y0, i0.z, o1.x, y1, o1.z, o0.x, y1, o0.z,
-          )
-          // SECTION AISLES. A deck of one flat colour is a ramp, not a
-          // grandstand — the thing that makes real stands read as seating
-          // from distance is the vertical break between sections. Every
-          // fifth 2.5° segment is stepped down, which costs nothing (the
-          // colours are already per-vertex) and is the single cheapest thing
-          // that makes this look like a building.
-          const aisle = Math.round((a - a0) / 2.5) % 5 === 0
-          const kk = aisle ? 0.62 : 1
-          for (let k = 0; k < 3; k++) col.push(A.r * kk, A.g * kk, A.b * kk)
-          for (let k = 0; k < 3; k++) col.push(B.r * kk, B.g * kk, B.b * kk)
-          if (crowd) for (let k = 0; k < 16; k++) {
-            const u = Math.random(), v = Math.random()
-            pts.push(
-              i0.x + (o0.x - i0.x) * v + (i1.x - i0.x) * u,
-              y0 + (y1 - y0) * v + 0.6,
-              i0.z + (o0.z - i0.z) * v + (i1.z - i0.z) * u,
-            )
-          }
-        }
-        if (!pos.length) return
-        const g = new THREE.BufferGeometry()
-        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-        g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
-        g.computeVertexNormals()
-        scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({
-          vertexColors: true, side: THREE.DoubleSide,
-        })))
-        if (pts.length) {
-          const pg = new THREE.BufferGeometry()
-          pg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
-          // The crowd was at 0.16 opacity — technically present, invisible in
-          // practice, which is most of why the bowl read as empty concrete.
-          // Colour varies per point now (people are not one colour) and it
-          // sits at 0.40, still well under the data.
-          const cc = []
-          const warmA = new THREE.Color(0xc9a781), coolA = new THREE.Color(0x8fa3bd)
-          for (let k = 0; k < pts.length / 3; k++) {
-            const c = Math.random() > 0.62 ? coolA : warmA
-            const j = 0.55 + Math.random() * 0.55
-            cc.push(c.r * j, c.g * j, c.b * j)
-          }
-          pg.setAttribute('color', new THREE.Float32BufferAttribute(cc, 3))
-          scene.add(new THREE.Points(pg, new THREE.PointsMaterial({
-            vertexColors: true, size: 2.6, transparent: true, opacity: 0.40,
-          })))
-        }
-      }
-
-      // Turf grain. A vertex-coloured wedge with clean mow bands reads like
-      // plastic at any distance; a little noise over it reads like grass.
-      {
-        const cv = document.createElement('canvas')
-        cv.width = cv.height = 512
-        const g = cv.getContext('2d')
-        g.fillStyle = '#000'; g.fillRect(0, 0, 512, 512)
-        for (let i = 0; i < 22000; i++) {
-          const light = Math.random() > 0.5
-          g.fillStyle = `rgba(${light ? '180,210,180' : '20,30,20'},${Math.random() * 0.3})`
-          g.fillRect(Math.random() * 512, Math.random() * 512, 1, 1 + Math.random() * 2)
-        }
-        const tex = new THREE.CanvasTexture(cv)
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-        tex.repeat.set(24, 24)
-        const gr = new THREE.Mesh(new THREE.CircleGeometry(maxD + 40, 64),
-          new THREE.MeshBasicMaterial({
-            map: tex, transparent: true, opacity: 0.16,
-            blending: THREE.AdditiveBlending, depthWrite: false,
-          }))
-        gr.rotation.x = -Math.PI / 2; gr.position.y = 2.2
-        scene.add(gr)
-
-        // warm air sitting over the outfield — depth, for almost nothing
-        const hz2 = new THREE.Mesh(new THREE.CircleGeometry(maxD + 200, 48),
-          new THREE.MeshBasicMaterial({
-            map: radialTex([[0, 'rgba(255,200,150,0)'], [0.62, 'rgba(255,190,140,.07)'], [1, 'rgba(255,180,130,0)']]),
-            transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
-          }))
-        hz2.rotation.x = -Math.PI / 2; hz2.position.y = 11
-        scene.add(hz2)
-      }
-
-      // THE STANDS HAVE TO BE THERE. Donovan: "the field out need to be
-      // visually present... more visual representations of the stadiums."
-      // These decks were 0x10–0x19 — within a couple of steps of the sky, so
-      // the whole building read as absent and the wedge looked like a paper
-      // triangle floating in black. Roughly doubled across all four rings.
-      // They are still the quietest thing on screen; they are no longer
-      // invisible, and a ballpark you cannot see is not a ballpark.
-      deck(-72, 72, 16, 92, 6, 46, 0x2a323f, 0x3a4453, true)
-      if (bowl.bleach) deck(bowl.bleach[0], bowl.bleach[1], 14, 58, 4, 26, 0x252d38, 0x353e4c, true)
-      if (bowl.up) deck(bowl.up[0], bowl.up[1], 116, 96, 62, 112, 0x2d3441, 0x323a48, true)
-      if (bowl.tiers > 2) {
-        const u = bowl.up || [-46, 46]
-        deck(u[0], u[1], 220, 84, 128, 172, 0x1d232c, 0x212832, true)
-      }
-
-      // A shut roof is opaque AND hides everything outside it, so a camera that
-      // drifts above the ceiling sees a black nothing. OrbitControls already
-      // owns the limits — tighten them rather than fighting it in the tick.
-      // Light towers, but only where there is a night to light. Two, not
-      // four, and the beam sits at 0.022 — air, not a glowing slab. An
-      // earlier pass had these bright enough that Donovan called them out.
-      {
-        [-52, 52].forEach((a) => {
-          const base = P(wallD(clamp(a)) + 196, a)
-          const mast = new THREE.Mesh(new THREE.BoxGeometry(2.4, 150, 2.4),
-            new THREE.MeshBasicMaterial({ color: 0x0a0c10 }))
-          mast.position.set(base.x, 75, base.z); scene.add(mast)
-          const rig = new THREE.Mesh(new THREE.PlaneGeometry(30, 9),
-            new THREE.MeshBasicMaterial({ color: 0xe8dcc6, transparent: true, opacity: 0.34, fog: false }))
-          rig.position.set(base.x, 152, base.z); rig.lookAt(0, 30, 0); scene.add(rig)
-          const cone = new THREE.Mesh(new THREE.ConeGeometry(150, 240, 20, 1, true),
-            new THREE.MeshBasicMaterial({
-              color: 0xffd9ae, transparent: true, opacity: 0.022, side: THREE.DoubleSide,
-              blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
-            }))
-          cone.position.set(base.x * 0.55, 110, base.z * 0.55); scene.add(cone)
-          const pl = new THREE.PointLight(0xffd9ae, 0.24, 780)
-          pl.position.set(base.x, 148, base.z); scene.add(pl)
-        })
-      }
-
-      // ── SIGNATURE PROPS (2026-09-01). The Monster and its ladder, the
-      //    ivy and the rooftops, the rockpile, the Cove, the Crawford Boxes,
-      //    the frieze, the bridge, the warehouse, the fountains, the pool.
-      //    Donovan said yes to these the day the bowls were offered; the
-      //    bowls shipped and these did not. Data in lib/parkProps, builder
-      //    in lib/stadiumProps; a park with no entry draws exactly as before.
-      addParkProps(scene, { venue, P, wallD, wallH })
-      // the small stuff a real park has in every photograph (2026-09-02)
-      dressing = addParkDressing(scene, { P, wallD, wallH, bowl })
-
-      // ── NO ROOF, EVER (2026-08-31). Donovan: "the roof thing in general
-      //    is dumb -- just make it so everyone is an open dome."
-      //
-      //    He is right, and the reason is worth writing down because the
-      //    feature looked reasonable on paper. A closed roof is OPAQUE: it
-      //    deletes the sky, the stars, the moon, the towers and the skyline,
-      //    and it forces the camera under a ceiling. So the parks with the
-      //    most distinctive buildings were the ones this drew as a dark lid
-      //    over a dark bowl, and Tropicana -- a FIXED dome -- could never be
-      //    drawn any other way. The best-looking view was unavailable exactly
-      //    where it was most wanted.
-      //
-      //    And it was never a fact. Nothing in the payload says whether
-      //    tonight's roof is open, so the chip was only ever a view setting
-      //    wearing the costume of a report -- the previous pass had to rename
-      //    it "Drawn roof OPEN" just to stop it lying. A setting that cannot
-      //    inform anything and makes the picture worse is not a setting.
-      //
-      //    Every park is drawn open now. The bowl, the sector cuts and the
-      //    signature props still differ per park -- that is real geometry.
-      //    Only the lid is gone.
-    }
 
     // ── THE BALLS. Same verdicts as pass one; the drawing is what changed:
     //    fence-reaching balls get glowing tubes, the rest faint lines.
@@ -1537,46 +1069,6 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       } else runReplay()
     }
 
-    // ── THE ZONE AT THE PLATE, and the two camera presets.
-    const plateZone = addPlateZone(scene, { pitches: pitches || [] })
-    const PARK_POS = camera.position.clone(), PARK_TGT = target.clone()
-    const zoneMid = (plateZone.top + plateZone.bot) / 2
-    // over the umpire's shoulder, a touch to the third-base side, so the
-    // two men behind the plate frame the zone instead of blocking it
-    const PLATE_POS = new THREE.Vector3(3.8, 6.4, PLATE_Z - 12.5)
-    const PLATE_TGT = new THREE.Vector3(0, zoneMid + 0.2, PLATE_Z + 6)
-    // the park camera's zoom floor kept you out of the infield; the plate
-    // view lives inside it
-    controls.minDistance = 3
-    // a rebuild (a new ball in play, a filter) keeps the seat you were in
-    // what each seat shows: the arcs are the park view's subject and the
-    // plate view's wallpaper; the three men at the plate are the reverse
-    const seat = (name) => {
-      arcGroup.visible = name !== 'plate'
-      if (dressing?.near) dressing.near.visible = name !== 'plate'
-    }
-    if (viewRef.current === 'plate') { camera.position.copy(PLATE_POS); controls.target.copy(PLATE_TGT) }
-    seat(viewRef.current)
-    let fly = null   // { p0, t0v, p1, t1v, start, dur }
-    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
-    flyRef.current = (name) => {
-      const toPlate = name === 'plate'
-      fly = {
-        p0: camera.position.clone(), t0v: controls.target.clone(),
-        p1: toPlate ? PLATE_POS : PARK_POS, t1v: toPlate ? PLATE_TGT : PARK_TGT,
-        start: performance.now(), dur: 1100,
-      }
-      controls.enabled = false
-      seat(name)
-    }
-    const stepFly = (now) => {
-      if (!fly) return
-      const k = ease(Math.min(1, (now - fly.start) / fly.dur))
-      camera.position.lerpVectors(fly.p0, fly.p1, k)
-      controls.target.lerpVectors(fly.t0v, fly.t1v, k)
-      if (k >= 1) { fly = null; controls.enabled = true }
-    }
-
     let raf
     // 1 when the scene is idle, 0 while the viewer is dragging.
     let handheld = 1
@@ -1600,9 +1092,8 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         : Math.min(1, handheld + 0.012)
       // auto-orbit: OrbitControls' own slow turn, paused while grabbed and
       // in HOLD, resumed on release
-      controls.autoRotate = !!orbitRef.current && !driving && !hold && !fly
+      controls.autoRotate = !!orbitRef.current && !driving && !hold
       controls.autoRotateSpeed = 0.55
-      stepFly(t)
       controls.update()
       if (windStep) windStep(t)
       if (!hold) { stepReplay(t); stepHoverFlight(t) }
@@ -1612,10 +1103,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // out from under the drag. A handheld operator stops breathing on the
       // lens while the shot is being set. Hold on grab, ease back over about
       // a second after release rather than snapping, so it never pops.
-      // the sway is a few feet, which is nothing from the broadcast seat
-      // and the whole frame from behind the plate — scale it to the
-      // camera's distance from what it is looking at
-      const hh = handheld * Math.min(1, camera.position.distanceTo(controls.target) / (maxD * 0.9))
+      const hh = handheld
       const dx = (Math.sin(t * 0.00042) * 2.2 + Math.sin(t * 0.00017) * 3.6) * hh
       const dy = (Math.cos(t * 0.00036) * 1.6 + Math.sin(t * 0.00013) * 2.6) * hh
       const dr = Math.sin(t * 0.00023) * 0.0016 * hh
@@ -1657,7 +1145,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // the wrong reason, and two parks with the same wall profile and
     // different bowls would have exposed it. (roofOpen lived here too, until
     // the roof itself was removed — see NO ROOF, EVER above.)
-  }, [hits, dims, heights, venue, windMph, windLabel, windTo, windHex, pitches])
+  }, [hits, dims, heights, venue, windMph, windLabel, windTo, windHex])
 
   if (!ok) {
     return (
@@ -1788,21 +1276,6 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
               >{txt}</button>
             )
           })}
-          {[['park', '🏟 park', 'The whole park, from the broadcast seat'], ['plate', '⌖ plate', "Down behind the catcher — the strike zone at real size, tonight's pitches on it, the park behind"]].map(([k, txt, tip]) => {
-            const on = view === k
-            return (
-              <button key={k}
-                onClick={() => { setView(k); if (flyRef.current) flyRef.current(k) }}
-                title={tip}
-                style={{
-                  padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
-                  cursor: 'pointer', fontFamily: NUM_FONT,
-                  border: `1px solid ${on ? C.text : C.border2}`,
-                  background: on ? 'rgba(244,244,245,.12)' : 'rgba(9,9,11,.75)', color: on ? C.text : C.text2,
-                }}
-              >{txt}</button>
-            )
-          })}
           <button
             onClick={() => setOrbit((v) => !v)}
             title={orbit ? 'Stop the slow turn' : 'Turn slowly around the park until you grab it'}
@@ -1816,7 +1289,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         </div>
       </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        drag to orbit · scroll to zoom · swipe sideways on a phone · hover a ball for its readout · ⌖ plate seats you behind the catcher, the strike zone at real size{pitches && pitches.length ? ` with tonight's ${pitches.length} pitches on it` : ''}, the park still around it{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
+        drag to orbit · scroll to zoom · swipe sideways on a phone · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
         {windMph > 0 && windLabel && (
           <>

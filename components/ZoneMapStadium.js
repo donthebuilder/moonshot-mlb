@@ -7,6 +7,8 @@ import { C, NUM_FONT } from '../lib/theme'
 // value, so the glyphs drawn on light tiles take it from there.
 import { INK_DARK } from '../lib/palette'
 import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } from '../lib/livePitches'
+import { buildPark, lerp5, fieldPoint, GENERIC_DIMS, GENERIC_HEIGHTS } from '../lib/stadiumWorld'
+import { PARK_WALLS } from '../lib/parkWalls'
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
 // disagreeing about what "hot" looks like, and keeps this file free of hex.
@@ -108,7 +110,7 @@ function textSprite(txt, hex, px = 42, worldW = 0.42) {
   return sp
 }
 
-export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, zoneDetail = null, zoneCells = null, killZones = null, statLabel = '', label = '' }) {
+export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = null, zoneDetail = null, zoneCells = null, killZones = null, statLabel = '', label = '', venue = '' }) {
   const mountRef = useRef(null)
   const [hoverZone, setHoverZone] = useState(null)
   const [ok, setOk] = useState(true)
@@ -136,7 +138,8 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x0d0f14)
-    scene.fog = new THREE.Fog(0x0d0f14, 46, 120)
+    // the fog is the park's now (set in buildPark's dome block) — the old
+    // 46..120 ft fog would have swallowed the wall
 
     // ── FRAMING, PER MODE (2026-08-31). Donovan, three times: "the strike
     //    zone map doesn't show any zone matchup or anything."
@@ -166,7 +169,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       tunnel:  { pos: [4.2, cy + 1.9, -19], look: [0, cy, 13], fov: 42 },
     }
     const shot = SHOT[mode] || SHOT.matchup
-    const camera = new THREE.PerspectiveCamera(shot.fov, W / H, 0.1, 400)
+    const camera = new THREE.PerspectiveCamera(shot.fov, W / H, 0.1, 4000)
     camera.position.set(shot.pos[0], shot.pos[1], shot.pos[2])
     const target = new THREE.Vector3(shot.look[0], shot.look[1], shot.look[2])
 
@@ -207,7 +210,8 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     }
     controls.maxPolarAngle = Math.PI * 0.62
     controls.minDistance = 2.2
-    controls.maxDistance = 70
+    // far enough back to see the park you are standing in
+    controls.maxDistance = 420
     // Pan off, and the same calmed rotate/zoom as the spray chart. Panning a
     // grid whose whole subject is nine boxes in the middle can only lose it.
     controls.enablePan = false
@@ -215,45 +219,32 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     controls.zoomSpeed = 0.75
     controls.dampingFactor = 0.075
 
-    scene.add(new THREE.HemisphereLight(0xbdd0ea, 0x2b2418, 1.15))
-    const key = new THREE.DirectionalLight(0xfff2df, 1.2)
-    key.position.set(20, 30, -12)
-    scene.add(key)
+    // ── THE PARK (2026-09-02). Donovan: "based in the same world, not on
+    //    the same line — I like where each lived." This map keeps its own
+    //    zone, its own camera and its own controls; what it gets is the
+    //    spray chart's ballpark around its plate, from the one function
+    //    that builds it (lib/stadiumWorld): the dusk dome, the rig, the
+    //    grass, the infield, the wall with this venue's five numbers, the
+    //    bowl, the props, the fielders. Same frame — home at the origin,
+    //    catcher's-right on -x — so nothing here moved. A venue we have no
+    //    walls for gets the generic park rather than no park.
+    const walls = PARK_WALLS[venue] || null
+    const dims = walls ? walls.d : GENERIC_DIMS
+    const heights = walls ? walls.h : GENERIC_HEIGHTS
+    buildPark(scene, {
+      dims, heights, venue,
+      P: fieldPoint, wallD: (a) => lerp5(dims, a), wallH: (a) => lerp5(heights, a),
+      maxD: Math.max(...dims), SEG: 96,
+    })
+    // The park's rig is dusk-dim on purpose (the arcs are its light); the
+    // zone's tiles and marks need a little of their own, close in, or the
+    // matchup shading reads as mud from three feet away.
+    const zoneLamp = new THREE.PointLight(0xfff2df, 1.1, 60)
+    zoneLamp.position.set(0, 9, -7)
+    scene.add(zoneLamp)
 
     const disposables = []
     const add = (o) => { scene.add(o); disposables.push(o); return o }
-
-    // ── the ground, the plate, the mound. Context, deliberately dim: the
-    //    data is the only saturated thing on screen.
-    {
-      const turf = new THREE.Mesh(
-        new THREE.CircleGeometry(90, 48),
-        new THREE.MeshLambertMaterial({ color: 0x122c1c, side: THREE.DoubleSide }),
-      )
-      turf.rotation.x = -Math.PI / 2
-      turf.position.y = -0.02
-      add(turf)
-
-      const dirt = new THREE.MeshLambertMaterial({ color: 0x4a2c1e, side: THREE.DoubleSide })
-      const circ = new THREE.Mesh(new THREE.CircleGeometry(13, 40), dirt)
-      circ.rotation.x = -Math.PI / 2
-      add(circ)
-      const mound = new THREE.Mesh(new THREE.CircleGeometry(9, 32), dirt)
-      mound.rotation.x = -Math.PI / 2
-      mound.position.set(0, 0.02, 60.5)
-      add(mound)
-
-      // home plate, POINT toward the catcher (-z) — the way it actually sits
-      const sh = new THREE.Shape()
-      sh.moveTo(-PLATE_HALF, PLATE_HALF); sh.lineTo(PLATE_HALF, PLATE_HALF)
-      sh.lineTo(PLATE_HALF, 0); sh.lineTo(0, -PLATE_HALF); sh.lineTo(-PLATE_HALF, 0)
-      sh.lineTo(-PLATE_HALF, PLATE_HALF)
-      const pm = new THREE.Mesh(new THREE.ShapeGeometry(sh),
-        new THREE.MeshBasicMaterial({ color: 0xd2d6dc, side: THREE.DoubleSide }))
-      pm.rotation.x = -Math.PI / 2
-      pm.position.y = 0.03
-      add(pm)
-    }
 
     // ── THE ZONE, at this batter's measured height. box.measured is false
     //    when nothing published top/bot; the caption says so rather than
@@ -805,7 +796,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [pitches, pzp, zoneStats, zoneCells, mode])
+  }, [pitches, pzp, zoneStats, zoneCells, mode, venue])
 
   if (!ok) {
     return (

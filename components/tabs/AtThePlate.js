@@ -984,6 +984,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             onLivePitcher={pickArm}
             liveScope={zoneScope}
             onLiveScope={setZoneScope}
+            venue={clean(selP?.venue_name, '') || clean(active?.p?.venue_name, '')}
           />
         </div>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
@@ -1032,7 +1033,6 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               liveBalls={sprayBalls}
               liveFocusId={Number(selectedId)}
               liveLabel={selName}
-              zonePitches={livePitchesFor}
             />
           </div>
         </div>
