@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { n, nameOf, teamOf, oppOf, txt } from '../../lib/player'
 import { alpha, verdictInk, verdictWash } from '../../lib/scales'
 import { FilterPill } from '../Filters'
+import { fmtOdds, impliedPct, normName } from '../../lib/odds'
 
 // ══ THE STEAL BOARD ═════════════════════════════════════════════════════════
 //
@@ -49,10 +50,10 @@ import { FilterPill } from '../Filters'
 //     actually produce steals" is answerable against actual_sb rather than
 //     asserted. If the answer is no, it goes.
 //
-//   STILL STANDS — no prices. Whether the book even lists a stolen-base prop
-//     is unknown until a real fetch lands. The matcher is armed; when SB props
-//     appear they arrive on their own and this board gets a price column then,
-//     not before.
+//   ANSWERED TOO (2026-09-01) — prices. The odds probe of 2026-08-29 and
+//     tonight's odds_latest.json both carry batter_stolen_bases (76 of 219
+//     hitters priced, Fanatics). sbPriceFor() below reads it; the Price
+//     column and the "Longest price" sort exist because of it.
 //
 // A row whose score reads "—" is a row the bot refused to score, and the sort
 // puts those at the bottom rather than at zero.
@@ -91,6 +92,23 @@ const catcherOf = (p) => {
   return r == null || r === '' ? null : Number(r)
 }
 
+// ── THE PRICE, NOW THAT THERE IS ONE (2026-09-01) ────────────────────────────
+// This board shipped with "no prices — whether the book even lists a
+// stolen-base prop is unknown until a real fetch lands." The fetch landed: the
+// odds probe of 2026-08-29 and tonight's odds_latest.json both carry
+// batter_stolen_bases, priced on 76 of 219 hitters via Fanatics. So the
+// column exists now. It is the over on 0.5 — "1+ steal tonight" — and only
+// that line; a book sitting on 1.5 is a different bet and prints as such.
+export function sbPriceFor(odds, p) {
+  if (!odds || !p) return null
+  const byId = odds.by_player_id?.[String(p.player_id ?? p.id)]
+  const byName = odds.by_name?.[normName(p.name || p.player_name)]
+  const q = (byId || byName)?.batter_stolen_bases
+  if (!q || q.over == null) return null
+  const line = Number(q.line)
+  return { over: q.over, implied: q.implied ?? impliedPct(q.over), line, matches: Math.abs(line - 0.5) < 1e-9, book: q.best_book || null, books: q.books || null }
+}
+
 const SORTS = [
   // Risk leads, because it is the only column that answers "is tonight a good
   // night to run" rather than "who runs a lot". Blanks sort last on their own
@@ -103,6 +121,8 @@ const SORTS = [
   // A weak-throwing catcher is the reason to run tonight, so ascending: the
   // softest arm behind the plate first.
   ['catcher', 'Weakest catcher', (p) => { const c = catcherOf(p); return c == null ? -1 : 1 - c }],
+  // Longest price first; a runner the book does not list sorts last.
+  ['price', 'Longest price', (p) => { const q = p.__sb; return q && q.matches ? (q.over > 0 ? q.over : -1e6 - q.over) : -1e7 }],
 ]
 
 function Cell({ children, w, mono = true, color, title, right }) {
@@ -116,20 +136,22 @@ function Cell({ children, w, mono = true, color, title, right }) {
   )
 }
 
-export default function StealBoard({ players = [], onPlayerClick }) {
+export default function StealBoard({ players = [], odds = null, onPlayerClick }) {
   const [sort, setSort] = useState('risk')
   const [runnersOnly, setRunnersOnly] = useState(true)
 
   const rows = useMemo(() => {
     const out = (players || []).filter((p) => p && p.player_id && sbOf(p) > 0)
+      .map((p) => ({ ...p, __sb: sbPriceFor(odds, p) }))
     const f = (SORTS.find(([k]) => k === sort) || SORTS[0])[2]
     // A runner is a hitter with a real attempt history — five or more tries.
     // Under that a 2-for-2 reads as 100% and tops the board on noise.
     const kept = runnersOnly ? out.filter((p) => sbOf(p) + csOf(p) >= 5) : out
     return [...kept].sort((a, b) => f(b) - f(a) || String(nameOf(a)).localeCompare(String(nameOf(b))))
-  }, [players, sort, runnersOnly])
+  }, [players, sort, runnersOnly, odds])
 
   const total = (players || []).filter((p) => sbOf(p) > 0).length
+  const priced = rows.filter((p) => p.__sb?.matches).length
 
   // ── SAY IT WHEN THE ARM DATA DIDN'T ARRIVE (2026-08-31) ─────────────────
   //
@@ -182,8 +204,9 @@ export default function StealBoard({ players = [], onPlayerClick }) {
         Success rate is coloured against the <b style={{ color: C.text2 }}>{BREAK_EVEN}%</b>{' '}
         break-even — under it, the attempt costs more than it wins. A blank Spot is a refusal
         rather than a zero: no stolen-base attempt on his record this season, so the matchup
-        belongs to somebody else. No prices yet — whether the book even lists a stolen-base prop
-        is unknown until a real odds fetch lands.
+        belongs to somebody else. <b style={{ color: C.text2 }}>Price</b> is the book&apos;s
+        number on 1+ steal tonight, with the break-even rate it implies under it
+        {priced ? <> — <b style={{ color: C.text2 }}>{priced}</b> of these runners are priced tonight</> : ' — none priced yet tonight'}.
       </div>
 
       {feed && (
@@ -235,6 +258,7 @@ export default function StealBoard({ players = [], onPlayerClick }) {
             <Cell w={56} right title="Stolen bases divided by attempts. Blank under five attempts — a 2-for-2 is not a rate.">Succ</Cell>
             <Cell w={56} right title="The bot's season attempt rate — how often he goes, not how often he makes it">Att</Cell>
             <Cell w={52} right title="Season on-base percentage. The other half of a steal: he has to reach first.">OBP</Cell>
+            <Cell w={64} right title="The book's price on 1+ stolen base tonight (the over on 0.5), and the break-even rate it implies. Blank when he isn't listed; a note when the book is at a different number.">Price</Cell>
           </div>
 
           {rows.map((p, i) => {
@@ -314,6 +338,17 @@ export default function StealBoard({ players = [], onPlayerClick }) {
                 <Cell w={52} right color={obp >= 0.34 ? verdictInk(true).color : C.text2}>
                   {obp ? obp.toFixed(3).replace(/^0/, '') : '—'}
                 </Cell>
+                <Cell w={64} right color={p.__sb?.matches ? C.text : C.text3}
+                  title={!p.__sb ? 'not priced tonight'
+                    : !p.__sb.matches ? `book is at ${p.__sb.line}, not 0.5 — a different bet`
+                    : `${fmtOdds(p.__sb.over)} on 1+ SB${p.__sb.book ? ` · ${p.__sb.book}` : ''} · needs ${p.__sb.implied}% to break even`}>
+                  {!p.__sb ? '—' : !p.__sb.matches ? <span style={{ fontSize: 9 }}>@{p.__sb.line}</span> : (
+                    <>
+                      <b style={{ fontWeight: 900 }}>{fmtOdds(p.__sb.over)}</b>
+                      <span style={{ fontSize: 8.5, color: C.text3, marginLeft: 4 }}>{p.__sb.implied != null ? `${Math.round(p.__sb.implied)}%` : ''}</span>
+                    </>
+                  )}
+                </Cell>
               </div>
             )
           })}
@@ -333,8 +368,9 @@ export default function StealBoard({ players = [], onPlayerClick }) {
         no stolen-base attempt on his record this season, so the arm and the catcher are
         somebody else&apos;s matchup. <b style={{ color: C.text2 }}>˜</b> before a catcher&apos;s
         name means the lineup was not posted and he is the likeliest man back there rather than
-        a confirmed one. Still no prices — whether the book lists a stolen-base prop at all is
-        unknown until a real fetch lands. Tap a row for his full card.
+        a confirmed one. Prices are the book&apos;s own on 1+ steal tonight, read straight off
+        the odds snapshot; the percentage under one is the rate that price needs. Tap a row for his
+        full card.
       </div>
     </div>
   )

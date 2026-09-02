@@ -9,6 +9,7 @@ import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
 import BotPicksStrip from '../BotPicksStrip'
+import StealLooksStrip from '../StealLooksStrip'
 import FollowingStrip from '../FollowingStrip'
 import HomerLedger from '../HomerLedger'
 import ReadTeaser from '../ReadTeaser'
@@ -823,6 +824,10 @@ export default function Home({
           empty state, so a slate with no designations renders nothing rather
           than an empty frame. */}
       <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
+
+      {/* 🏃 STEAL LOOKS (2026-09-01) — the Steal Board's front door, no new
+          tab. See components/StealLooksStrip.js. Empty slate → nothing. */}
+      <StealLooksStrip players={players} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
 
       <style>{`
         .home-snapshot{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}

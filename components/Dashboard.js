@@ -591,6 +591,11 @@ export default function Dashboard() {
                 because a page rendering nothing does not throw. Both are group
                 names people will type and link to. */}
             {tab === 'power'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" />}
+            {/* #tab=steals (2026-09-01) — the Steal Board is a group inside the
+                boards page; this lands on it directly, same shape as 'power'.
+                Not a new tab in the nav — Donovan: "unsure about the use of
+                more tabs, we have to get that under control." */}
+            {tab === 'steals'      && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="steals" />}
             {tab === 'shape'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="shape" />}
             {tab === 'patterns'    && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="patterns" />}
             {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="longest" />}

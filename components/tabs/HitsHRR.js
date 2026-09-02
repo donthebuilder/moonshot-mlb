@@ -520,7 +520,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
       />
 
       {bview === 'steals' ? (
-        <StealBoard players={players} onPlayerClick={onPlayerClick} />
+        <StealBoard players={players} odds={odds} onPlayerClick={onPlayerClick} />
       ) : bview === 'patterns' ? (
         /* allPlayers: a streak board silently narrowed by the header's team
            filter reads as the whole board — the audit's wrong-number find. */
