@@ -112,18 +112,22 @@ export default function AlertsPanel({ styles }) {
           type="button"
           onClick={() => setCategory(cat.key, !on)}
           aria-pressed={on}
-          className={on ? styles.alertOn : ''}
+          className={on ? styles.alertOn : styles.alertOff}
           disabled={!prefs.on}
         >
           <b>{cat.label}</b>
           <small>{cat.detail}</small>
-          <em>{on ? 'ON' : 'OFF'}</em>
+          <em>{on ? '● ON' : '○ OFF'}</em>
+          {/* #53: this note used to render as a sibling of the card, hanging in
+              the gap below it and knocking the grid's rhythm off under Homers,
+              Any slate homer, At the plate and Touchdowns. It describes the
+              switch, so it belongs inside the switch. */}
+          {cat.scope === 'everyone' && on ? (
+            <small className={styles.alertNoteIn}>the whole slate, not just your names — this one is loud</small>
+          ) : cat.live && on ? (
+            <small className={styles.alertNoteIn}>reaches you even with the site open</small>
+          ) : null}
         </button>
-        {cat.scope === 'everyone' && on
-          ? <span className={styles.alertNote}>the whole slate, not just your names — this one is loud</span>
-          : cat.live && on
-            ? <span className={styles.alertNote}>reaches you even with the site open</span>
-            : null}
       </li>
     )
   }
@@ -153,17 +157,25 @@ export default function AlertsPanel({ styles }) {
           Nobody has ever wanted "more notifications"; they want to know how
           many, and that is the only number on these buttons. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '12px 0 4px' }}>
-        {PRESETS.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            className={styles.armBtn}
-            onClick={() => setPreset(p.key)}
-            aria-pressed={active === p.key}
-            disabled={!prefs.on}
-            style={active === p.key ? { outline: '1px solid currentColor' } : undefined}
-          >{p.label}</button>
-        ))}
+        {/* #50: these were .armBtn, which is filled with the accent and
+            outlined in it, so all three rendered as selected simultaneously --
+            including when the state beside them read "your own mix · 27 on",
+            meaning NONE of them was active. Three lit buttons for a state
+            where none should be lit. Own classes now: quiet by default, filled
+            only for the one that is actually on. */}
+        {PRESETS.map((p) => {
+          const isOn = active === p.key
+          return (
+            <button
+              key={p.key}
+              type="button"
+              className={isOn ? `${styles.presetBtn} ${styles.presetBtnOn}` : styles.presetBtn}
+              onClick={() => setPreset(p.key)}
+              aria-pressed={isOn}
+              disabled={!prefs.on}
+            >{p.label}</button>
+          )
+        })}
         {active === 'custom' ? (
           <span className={styles.alertNote} style={{ alignSelf: 'center' }}>your own mix · {onCount} on</span>
         ) : null}

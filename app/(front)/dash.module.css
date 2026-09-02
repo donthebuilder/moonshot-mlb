@@ -248,20 +248,59 @@ a.brand { text-decoration: none; color: inherit; }
   font: 800 11px/1 inherit; cursor: pointer;
 }
 .armBtn[disabled] { border-color: var(--line); background: #191817; color: var(--dim); cursor: not-allowed; }
-.alertList { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin: 0 0 14px; padding: 0; }
+/* #52: every row of this grid was ragged, because a grid ITEM is only as tall
+   as its content and nothing stretched the buttons to a common height. `li`
+   stretches by default; the button inside it did not. */
+.alertList { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin: 0 0 14px; padding: 0; align-items: stretch; }
+.alertList li { display: flex; }
 .alertList button {
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px;
-  width: 100%; padding: 12px 13px; text-align: left;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  /* minmax(0, 1fr), not 1fr: a plain 1fr track refuses to shrink below its
+     content's min-content width, so a long switch name squeezed the
+     DESCRIPTION column down to a few characters and wrapped it four words
+     deep ("Your man's / team has the / ball inside the / twenty") while its
+     neighbours ran full width. That was #52's second half. */
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px;
+  width: 100%; height: 100%; padding: 12px 13px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: #191817;
   color: var(--ink); font: inherit; cursor: pointer;
 }
 .alertList button[disabled] { opacity: .45; cursor: not-allowed; }
 .alertList b { font-size: 12px; }
 .alertList small { grid-column: 1; color: var(--dim); font-size: 10.5px; line-height: 1.4; }
 .alertList em { grid-row: 1 / span 2; align-self: center; color: var(--dim); font: 900 8px/1 monospace; font-style: normal; letter-spacing: .1em; }
-.alertOn { border-color: color-mix(in srgb, var(--mlb) 55%, var(--line)) !important; background: color-mix(in srgb, var(--mlb) 9%, var(--panel)) !important; }
+
+/* #51: with 27 of 32 switched on, finding the five that are OFF meant reading
+   every card -- the only difference was a tiny OFF label and a slightly
+   dimmer edge. An off switch is now visibly off at a glance: no accent, a
+   recessed ground, and the whole card at reduced weight. */
+.alertOff { opacity: .68; }
+.alertOff b { color: var(--dim); font-weight: 700; }
+.alertOn {
+  border-color: color-mix(in srgb, var(--mlb) 60%, var(--line)) !important;
+  background: color-mix(in srgb, var(--mlb) 11%, var(--panel)) !important;
+  box-shadow: inset 3px 0 0 var(--mlb);
+}
 .alertOn em { color: var(--mlb); }
 .alertNote { display: block; margin: 5px 2px 0; color: #6d6864; font-size: 9.5px; }
+
+/* #53: this note used to be a SIBLING of the card, so it hung in the gap
+   underneath and pushed the whole grid's rhythm off. It belongs to the switch,
+   so it lives in the switch. */
+.alertNoteIn { grid-column: 1 / -1; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); color: #8d8884; font-size: 9.5px; line-height: 1.45; }
+
+/* #50: the presets were rendered with .armBtn, which is filled with the accent
+   and outlined in it -- so all three read as selected at once, including when
+   the state beside them said "your own mix", i.e. none of them was. */
+.presetBtn {
+  padding: 11px 16px; border: 1px solid var(--line); border-radius: 10px;
+  background: #191817; color: var(--dim);
+  font: 800 11px/1 inherit; cursor: pointer;
+}
+.presetBtnOn {
+  border-color: var(--mlb); color: var(--ink);
+  background: color-mix(in srgb, var(--mlb) 16%, #191817);
+}
+.presetBtn[disabled] { opacity: .45; cursor: not-allowed; }
 .alertGroup { margin: 16px 0 8px; color: var(--dim); font: 900 8px/1 monospace; letter-spacing: .16em; }
 .alertGroup:first-of-type { margin-top: 0; }
 .closedSite { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: 4px 0 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
