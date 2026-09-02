@@ -295,12 +295,28 @@ export default function Guide({ onNavigate }) {
         <P><b style={{ color: C.text }}>The small pills — why the model likes him</b></P>
         <Term icon="⭐" term="Weak spot" def="this lineup spot has been beaten before against tonight's starter." />
         <Term icon="🎯" term="Pitch match" def="the pitcher throws a lot of something this exact hitter crushes." />
-        <Term icon="🧩" term="Aligned signals" def="weak spot + pitch match + real recent hard contact, all at once. The strongest tested combination on the site — stronger than any of the three alone." />
+        {/* #42: this line used to read "the strongest tested combination on the
+            site". Signals -- which measures every flag against the base rate of
+            every slot that could have worn it -- grades Aligned FLAT and ON
+            WATCH, while Back-to-back watch and Hidden value are both EARNING
+            ITS PLACE by an order of magnitude more. The half of the claim that
+            survives is that it edges its own three parts. The Guide has no
+            business carrying a grade at all: Signals recomputes nightly and
+            this page does not, so a number typed here is wrong the day after it
+            is typed. It points at the live grade instead. */}
+        <Term icon="🧩" term="Aligned signals" def="weak spot + pitch match + real recent hard contact, all at once. It does edge each of its three parts on its own — but how much any flag is worth is measured on Results → Signals, against the base rate of every slot that could have worn it. Read the grade there; it moves." />
         <Term icon="👻" term="Hidden value" def="the model likes him more than the field will." />
         <Term icon="⚠️" term="Trap" def="the surface stats look good but the contact underneath doesn't — cheap hits, weak grounders, a lucky stretch. A soft warning; ⛔ above is the hard one." />
         <Term icon="🛡️" term="Weak P" def="the opposing starter's own numbers are below average. Good news for the whole lineup." />
         <Term icon="🧊" term="GB / Trap arm" def="a ground-ball pitcher. Ground balls don't leave the yard, so this is a tough power matchup no matter how the rest reads." />
         <Term icon="🔁" term="Back-to-back watch" def="he homered in his most recent game and is trying again tonight." />
+        {/* #43 and #64: 🔄 Alt look ships on players AND has its own section on
+            the bot's Today's Sheet, and appeared nowhere in this list -- a
+            decoration on the site that nothing documented. Signals has graded
+            it below the no-flag base rate, the only flag on the board doing
+            that. Named here, honestly, and pointed at the live grade rather
+            than quoting a number this page cannot keep current. */}
+        <Term icon="🔄" term="Alt look" def="a second, smaller-sample angle on the same hitter — the bot's own sheet files these under ALT LOOKS and marks the sample as thin. Treat it as a curiosity rather than a reason: of every flag on the board this is the one Signals has graded worst, and it has been under the no-flag base rate. Results → Signals has the current number." />
         <Term icon="≈" term="Projected pitcher" def="the starter isn't announced — this is whoever's rotation turn it is, not an official listing." />
       </Section>
 

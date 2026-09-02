@@ -392,8 +392,16 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                     <span style={{ color: t.color, fontWeight: 800 }}>({t.label})</span>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 10, color: C.text3, marginTop: 5 }}>
-                    No measured record yet.
+                  /* #10: this used to read "No measured record yet" and sat
+                     directly above rows carrying HIT 2 / MISS 0 / HIT 283.
+                     Both were true and they are two different records: this
+                     line is about the OUT-OF-SAMPLE BACKTEST for the market,
+                     the chips below are this season's live grading of
+                     individual calls. Saying which is missing costs six words
+                     and stops the card contradicting itself. */
+                  <div style={{ fontSize: 10, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
+                    No out-of-sample backtest for this market yet — any HIT/MISS below is
+                    this season&apos;s live grading, which is a different measurement.
                   </div>
                 )}
               </div>

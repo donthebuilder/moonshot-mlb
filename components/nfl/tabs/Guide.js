@@ -72,9 +72,7 @@ export default function Guide({ onNavigate }) {
             he&apos;s a superstar or a backup. <b style={{ color: C.text }}>A thin card
             should score thin</b> — and the league-wide scale lets it: a top grade only
             appears where the evidence is genuinely elite, so how high a given board
-            reaches depends on who is on it, not on the week existing. (This paragraph
-            used to quote the current board&apos;s ceiling; a static claim about a live
-            board goes stale the day the board changes, so it doesn&apos;t anymore.)
+            reaches depends on who is on it, not on the week existing.
           </div>
         </Card>
       </Section>
@@ -183,10 +181,20 @@ export default function Guide({ onNavigate }) {
         from thirty out it&apos;s 3.3%.
       </Section>
 
+      {/* #9: this used to end "Two of the seven currently don't", which is
+          wrong in both directions AND in the model's favour. The Report Card
+          shows ONE market failing on the tuned season and FOUR out of sample --
+          and the page itself says out-of-sample is the true number. A count
+          typed into the Guide is also a count that goes stale the next time the
+          report is rebuilt, so this names the season that matters and sends
+          people to the page that actually holds the number. */}
       <Section title="Read the Report Card before you trust anything">
         It grades every model against the dumbest possible alternative — ranking by
         trailing average — on completed seasons. Where the model doesn&apos;t win, the page
-        says so in red. Two of the seven currently don&apos;t.
+        says so in red. <b style={{ color: C.text }}>Read the out-of-sample season, not the
+        tuned one</b>: beating the baseline on the year a model was fitted proves nothing,
+        and more markets fail out of sample than on the tuned year. The Report Card is the
+        only place that count is current — this page will not try to keep it.
       </Section>
     </div>
   )

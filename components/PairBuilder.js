@@ -491,14 +491,20 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
             )
           })}
         </div>
+        {/* #55: the sentence below used to carry its own changelog --
+            "(2026-08-28: shared-history bonuses stopped moving it once the
+            archive showed they don't predict anything)". A good engineering
+            note and not a thing to say to a reader; the copy was narrating its
+            own edit history. Recorded here instead: shared-history bonuses were
+            removed from Fit on 2026-08-28 because the archive showed they do
+            not predict anything. */}
         <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginTop: 8 }}>
           <b style={{ color: C.orange }}>{mkt.label}</b> is selected, so every leg has to deliver{' '}
           <b style={{ color: C.text }}>{mkt.needs}</b>. Switching this changes{' '}
           <b style={{ color: C.text }}>two things</b>: the score on the hitter chips {bare ? 'above' : 'below'}, and the{' '}
           <b style={{ color: C.text }}>{mkt.short}</b>/<b style={{ color: C.text }}>Fit</b> columns in
-          the partner table — Fit <i>is</i> tonight&apos;s score now, full stop (2026-08-28:
-          shared-history bonuses stopped moving it once the archive showed they don&apos;t predict
-          anything).
+          the partner table — Fit <i>is</i> tonight&apos;s score, full stop: nothing about a pair&apos;s
+          shared history moves it.
           {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
           counting co-<i>homer</i> days regardless of market, because co-HR days are the only pair
           history the bot publishes — shown for reference now, not folded into anyone&apos;s fit.

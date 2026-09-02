@@ -20,6 +20,10 @@ import { hotColdZones } from '../lib/situational'
 import ZoneMap from './ZoneMap'
 import { catColor, verdictInk, verdictWash, alpha } from '../lib/scales'
 
+// See #63: the bot flags a low/no pitch-mix sample on its own sheet and the
+// UI never asked. 250 pitches is roughly a full arsenal read on a starter.
+const MIX_MIN_PITCHES = 250
+
 // ── Pitch colors + names ──────────────────────────────────────────────────────
 // Pitch-family color now comes from catColor('pitch', code) in lib/scales.js —
 // this file used to keep its own PITCH_COLORS dictionary, one of three on the
@@ -585,6 +589,10 @@ function DangerSignals({ p }) {
 // ── Kill zone tab ─────────────────────────────────────────────────────────────
 function KillZoneTab({ p, zoneProfile, pitcherProfile }) {
   const bats = p.bats || p.handedness || ''
+  // The bot's own usability threshold for a pitch-mix sample. Named here
+  // rather than inlined so the two rows that depend on it cannot drift.
+  const mixN = Number(p.pitch_mix_sample) || 0
+  const mixThin = mixN < MIX_MIN_PITCHES
   const killZones = pitcherProfile?.kill_zones || []
   const batterHot = zoneProfile
     ? [...(zoneProfile.zones_13||zoneProfile.zones_9||[])].filter(z=>!z.low_sample&&z.hr_rate!=null).sort((a,b)=>b.hr_rate-a.hr_rate).slice(0,4).map(z=>z.zone)
@@ -627,17 +635,37 @@ function KillZoneTab({ p, zoneProfile, pitcherProfile }) {
       </div>
 
       <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        {/* #63: the bot's own Today's Sheet prints a warning that a slice of
+            the board has a low or absent pitch-mix sample -- on the night this
+            was audited, 13 of 266 players. That warning reached no board, no
+            card and no prose, so a mix score built on a handful of pitches
+            rendered at exactly the weight of one built on two thousand. The
+            row below already had the sample count in its subtitle and said
+            nothing about it; now a thin one is named as thin, and the score it
+            feeds is dimmed rather than dressed up. MIX_MIN_PITCHES is the
+            bot's own threshold for calling a mix sample usable. */}
         {[
-          {label:'Pitch mix score',  val:p.pitch_mix_score!=null?`${Math.round(p.pitch_mix_score)}/100`:'—',    note:p.pitch_mix_note||'',           hot:(p.pitch_mix_score||0)>=75},
+          {label:'Pitch mix score',
+            val:p.pitch_mix_score!=null?`${Math.round(p.pitch_mix_score)}/100`:'—',
+            note:p.pitch_mix_note||'',
+            thin:mixThin,
+            hot:!mixThin&&(p.pitch_mix_score||0)>=75},
           {label:'Meatball rate',    val:p.pitcher_meatball_pct!=null?`${(p.pitcher_meatball_pct*100).toFixed(1)}%`:'—', note:'League avg ~18%', hot:(p.pitcher_meatball_pct||0)>=0.20},
           {label:'Pitch type match', val:p.pitch_type_match_flag?'Yes':'No',                                    note:p.pitch_type_match_note||'',    hot:!!p.pitch_type_match_flag},
           {label:'Attack tag',       val:p.pitcher_attack_tag||'—',                                             note:'',                             hot:false},
           {label:`HR/9 vs ${bats==='L'?'LHB':'RHB'}`, val:((bats==='L'?p.pitcher_hr9_vs_lhb:p.pitcher_hr9_vs_rhb)||0).toFixed(2), note:'Season hand splits', hot:(bats==='L'?p.pitcher_hr9_vs_lhb:p.pitcher_hr9_vs_rhb)>=0.75},
-          {label:'Primary mix',      val:p.pitcher_primary_mix||p.pitcher_arsenal_summary||'—',                 note:`${p.pitch_mix_sample||0} pitches sampled`, hot:false},
+          {label:'Primary mix',
+            val:p.pitcher_primary_mix||p.pitcher_arsenal_summary||'—',
+            note:mixThin
+              ? `${mixN} pitches sampled — thin, under the ${MIX_MIN_PITCHES} the bot calls usable`
+              : `${mixN} pitches sampled`,
+            thin:mixThin,
+            hot:false},
         ].map(r=>(
-          <div key={r.label} style={{
+          <div key={r.label} title={r.thin?'Built on a thin pitch-mix sample — the bot flags these on its own sheet. Read it as a hint, not a number.':undefined} style={{
             display:'flex',alignItems:'center',justifyContent:'space-between',
             padding:'7px 10px',borderRadius:7,
+            opacity:r.thin?0.62:1,
             background:r.hot?verdictWash(true,0.05):C.bg2,
             border:`1px solid ${r.hot?alpha(verdictInk(true).color,0.25):C.border}`,
           }}>
