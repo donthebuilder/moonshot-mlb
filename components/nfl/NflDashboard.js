@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { resolveTab, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
+import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
 import TabNotFound from '../TabNotFound'
 import { C } from '../../lib/nfl/theme'
 import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
@@ -161,9 +161,12 @@ export default function NflDashboard() {
   return (
     <>
       <MobileCSS />
+      {/* See the note in components/Dashboard.js -- same gap, same fix. */}
+      <a className="skip-link" href="#board-main">Skip to the board</a>
       <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} />
-      <main className="dashboard-main"
+      <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
+        <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
         {missingTab ? (
           <TabNotFound
             asked={missingTab}

@@ -381,6 +381,13 @@ export default function DenseTable({
           .kb-rail:focus-visible { box-shadow: 0 0 0 1.5px rgba(249,115,22,.5); }
         `}</style>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          {/* #95: ~15 columns x 60 rows with unscoped headers is close to
+              unnavigable without sight. The caption the table already carries
+              for sighted readers is announced here too, so a screen-reader
+              user knows which board they have landed on before the first cell. */}
+          <caption className="sr-only">
+            {caption || 'Ranked board. Column headers sort; each row opens that hitter.'}
+          </caption>
           <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
             <tr>
               {columns.map((c) => {
@@ -394,6 +401,8 @@ export default function DenseTable({
                 return (
                   <th
                     key={c.key}
+                    scope="col"
+                    aria-sort={on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     className={c.sticky ? 'dense-sticky' : undefined}
                     onClick={(e) => toggle(c.key, e.shiftKey)}
                     title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}

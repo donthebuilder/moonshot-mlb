@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
-import { resolveTab } from '../lib/routes'
+import { resolveTab, pageTitle } from '../lib/routes'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
 import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
@@ -538,8 +538,19 @@ export default function Dashboard() {
       {/* The ember signature — same bar the night-receipts card wears. */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
         background: 'linear-gradient(90deg, #f97316, #FCD34D 50%, #f97316)' }} />
+      {/* ── THE DOCUMENT LAYER (2026-09-02, finding 93) ───────────────────
+          The board page carried 79 buttons, a 60-row table, and ZERO headings.
+          Everything that looks like a heading -- "HR Board", "B2B WATCH", the
+          group and market pills -- is a styled div, so a screen-reader user
+          got no outline to move through and no way to skip the nav. These two
+          elements are the minimum that fixes navigation: a skip link as the
+          first focus stop, and one h1 that names the page you are actually on.
+          It is sr-only because the visual design already answers "where am I"
+          through the tab row; the document never did. */}
+      <a className="skip-link" href="#board-main">Skip to the board</a>
       <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
-      <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
+      <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
+        <h1 className="sr-only">{pageTitle('mlb', missingTab ? 'home' : tab)}</h1>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
         {/* Loudest thing on the page when it fires, and silent otherwise:

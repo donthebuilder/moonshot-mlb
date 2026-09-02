@@ -441,7 +441,11 @@ export default function MiniWire({
           designed for. When it does show on a phone it now clears the tab bar
           rather than covering it. */}
       {toasts.length > 0 && (!narrow || wireOpen) && (
-        <div style={{
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label="Live wire"
+          style={{
           // TOP-right (2026-08-06, on request) — where the eye actually goes
           // for news. Offset clears the sticky header.
           position: 'fixed', right: narrow ? 8 : 14, top: narrow ? 122 : 74, zIndex: 300,
@@ -499,7 +503,15 @@ export default function MiniWire({
           of a live layer that follows you around. It just has nothing to add
           on the two pages that already carry the fuller version. */}
       {tab !== 'scoreboard' && tab !== 'home' && live.length > 0 && (
-        <div style={{
+        <div
+          // #94: the whole point of this bar is that it changes, and it changed
+          // silently -- there was no aria-live region anywhere on a site whose
+          // subject is live. polite, not assertive: it should be read at the
+          // next pause, never cut across what someone is already hearing.
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
           display: 'flex', alignItems: 'baseline', gap: 10, width: '100%',
           background: 'linear-gradient(90deg, rgba(74,222,128,.06), rgba(74,222,128,.015))',
           border: '1px solid rgba(74,222,128,.22)', borderRadius: 9,
@@ -508,8 +520,18 @@ export default function MiniWire({
           <span className="live-pulse" style={{ fontSize: 10.5, fontWeight: 900, color: '#4ade80' }}>📡 LIVE</span>
           <span style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT }}>
             {live.length} game{live.length > 1 ? 's' : ''}
+            {/* #32: these counters are scoped to games that are STILL LIVE, so
+                they go DOWN as games finish -- a cleared count and a homer count
+                that fall during the night read as data loss to anyone watching.
+                The behaviour is right; it was never labelled. */}
             {picks.length > 0 && <> · picks <b style={{ color: cleared ? '#4ade80' : C.text2 }}>{cleared}/{picks.length}</b> cleared</>}
             {hr > 0 && <> · <b style={{ color: C.orange }}>{hr} HR</b></>}
+            {picks.length > 0 && (
+              <span
+                style={{ color: C.text3 }}
+                title="Counted across the games that are still in progress. A game that finishes takes its picks and its homers out of both numbers, so these can fall as the night goes on."
+              > · in games still live</span>
+            )}
             {narrow && !wireOpen && toasts.length > 0 && (
               <> · <b style={{ color: '#4ade80' }}>{toasts.length} new</b></>
             )}
