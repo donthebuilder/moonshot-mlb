@@ -4,6 +4,8 @@ import { useMemo } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import FollowingStrip from '../../FollowingStrip'
 import NflTeamMark from '../../fantasy/NflTeamMark'
+import TeamPower from '../TeamPower'
+import StartSit from '../StartSit'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -235,6 +237,13 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
       <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} />
+      {/* ── POWER RANKINGS + START/SIT (2026-09-01) ─────────────────────
+          The two things a fresh football user asked for and the site did
+          not have as such: the 32 TEAMS ranked, and a two-name compare.
+          Both on this page, no new tab — see components/nfl/TeamPower.js
+          and StartSit.js. */}
+      <TeamPower players={players} statSeason={data?.stat_season} onPlayerClick={onPlayerClick} />
+      <StartSit players={players} onPlayerClick={onPlayerClick} />
       <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById}/><LookOut matchup={matchup} games={games} logs={logs} players={players}/></div>
       <Angles players={players} matchup={matchup}/>
       <div className="tuddy-board-split"><MiniBoard market="TD" title="Top 10 · Anytime TD" players={players} onPlayerClick={onPlayerClick} onBoards={() => setTab('boards')}/><MiniBoard market="REC_YDS" title="Top 10 · Receiving" players={players} onPlayerClick={onPlayerClick} onBoards={() => setTab('boards')}/></div>
