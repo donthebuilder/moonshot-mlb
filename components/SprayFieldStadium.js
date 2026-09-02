@@ -9,6 +9,7 @@ import { solveFlight } from '../lib/trajectory'
 // back to a plain two-tier ring for any venue it has no entry for, so a park
 // we have walls for but no bowl for still draws.
 import { buildPark } from '../lib/stadiumWorld'
+import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, isCoarse } from '../lib/stadiumLook'
 import { resultColor, isNonHrHit } from '../lib/resultColor'
 import { shapeFor, resultScale } from '../lib/pitchShape'
 
@@ -298,6 +299,13 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
     const world = buildPark(scene, { dims, heights, venue, P, wallD, wallH, maxD, SEG })
     const bowl = world.bowl
+    // THE LOOK (2026-09-02): bloom on everything, AO + shadow map on desktop,
+    // photo surfaces and the HDRI sky if the files are there — lib/stadiumLook
+    const desktop = !isCoarse()
+    if (desktop) enableShadows(renderer, scene, maxD)
+    loadPhotoSurfaces(scene)
+    loadSky(renderer, scene)
+    const look = makeComposer(renderer, scene, camera, W, H, { ao: desktop, scale: 1 })
 
 
     // ── THE BALLS. Same verdicts as pass one; the drawing is what changed:
@@ -1127,7 +1135,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const dy = (Math.cos(t * 0.00036) * 1.6 + Math.sin(t * 0.00013) * 2.6) * hh
       const dr = Math.sin(t * 0.00023) * 0.0016 * hh
       camera.position.x += dx; camera.position.y += dy; camera.rotation.z += dr
-      renderer.render(scene, camera)
+      look.render()
       camera.position.x -= dx; camera.position.y -= dy; camera.rotation.z -= dr
       raf = requestAnimationFrame(tick)
     }
@@ -1139,6 +1147,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       camera.aspect = w / h2
       camera.updateProjectionMatrix()
       renderer.setSize(w, h2)
+      look.setSize(w, h2)
     }
     window.addEventListener('resize', onResize)
 
@@ -1156,6 +1165,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
           ms.forEach((m) => { if (m.map) m.map.dispose(); m.dispose() })
         }
       })
+      look.dispose()
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }

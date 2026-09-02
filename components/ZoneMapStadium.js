@@ -8,6 +8,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { INK_DARK } from '../lib/palette'
 import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } from '../lib/livePitches'
 import { buildPark, lerp5, fieldPoint, GENERIC_DIMS, GENERIC_HEIGHTS } from '../lib/stadiumWorld'
+import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, isCoarse } from '../lib/stadiumLook'
 import { PARK_WALLS } from '../lib/parkWalls'
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
@@ -242,6 +243,14 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const zoneLamp = new THREE.PointLight(0xfff2df, 1.1, 60)
     zoneLamp.position.set(0, 9, -7)
     scene.add(zoneLamp)
+    // the same look as the spray chart (lib/stadiumLook); the AO radius is
+    // scaled down because this camera stands feet, not hundreds of feet,
+    // from what it looks at
+    const desktop = !isCoarse()
+    if (desktop) enableShadows(renderer, scene, Math.max(...dims))
+    loadPhotoSurfaces(scene)
+    loadSky(renderer, scene)
+    const look = makeComposer(renderer, scene, camera, W, H, { ao: desktop, scale: 0.25 })
 
     const disposables = []
     const add = (o) => { scene.add(o); disposables.push(o); return o }
@@ -778,7 +787,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     show()
 
     let raf = 0
-    const tick = () => { controls.update(); renderer.render(scene, camera); raf = requestAnimationFrame(tick) }
+    const tick = () => { controls.update(); look.render(); raf = requestAnimationFrame(tick) }
     raf = requestAnimationFrame(tick)
 
     return () => {
@@ -793,6 +802,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
           m.dispose()
         })
       })
+      look.dispose()
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
