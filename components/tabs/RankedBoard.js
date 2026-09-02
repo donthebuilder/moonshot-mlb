@@ -271,6 +271,9 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               xpa: xpaFor(p?.lineup_spot),
               l5: `${nn(p?.last5_hits)}H/${nn(p?.last5_hr)}HR`,
               hr9: nn(p?.pitcher_hr9),
+              // #45: carried so the column can mark a rate the site's own
+              // regressed figures decline to publish. See the note there.
+              hr9Bbe: nn(p?.pitcher_xhr_bbe),
             }
           })}
           columns={[
@@ -329,7 +332,24 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             { key: 'hrw',    label: 'HRW', w: 44, dp: 0, ...SCORE, primary: true },
             { key: 'xpa',    label: 'xPA', w: 44, dp: 2, title: XPA_TITLE },
             { key: 'l5',     label: 'L5', heat: false, w: 58, mono: true, dim: true },
-            { key: 'hr9',    label: 'P HR/9', w: 50, dp: 2 },
+            // ── #45: THE OUTLIER THAT FED THE NIGHT'S LEAD CALL ─────────
+            // This column read 6.00 for one matchup while its neighbours sat
+            // at 0.87, 1.10, 1.42, 1.47, 1.56 -- a visible outlier, unflagged,
+            // and the same arm the night's headline call was built on. That
+            // 6.00 is a few innings of data: the Pitchers page dashes out XHR
+            // and HR LUCK for him, because pitcher_xhr_bbe is under the 50
+            // batted balls this site needs before it will publish a regressed
+            // rate. The raw number stays -- it is real -- and now says it is
+            // thin, which is the convention TUDDY already has and MOONSHOT
+            // did not.
+            { key: 'hr9',    label: 'P HR/9', w: 58, dp: 2,
+              title: 'The starter\u2019s home runs allowed per nine. A ⚠ means it is built on fewer than 50 tracked batted balls — thin enough that the regressed version is withheld on the Pitchers page.',
+              fmt: (v, r) => (v == null ? '—' : (
+                <span style={{ opacity: (r?.hr9Bbe ?? 0) < 50 ? 0.72 : 1 }}>
+                  {Number(v).toFixed(2)}
+                  {(r?.hr9Bbe ?? 0) < 50 && <b style={{ color: '#FCD34D', fontWeight: 900 }}> ⚠</b>}
+                </span>
+              )) },
           ]}
           onRowClick={onPlayerClick}
           initialSort={type === 'hr' ? 'raw' : null}

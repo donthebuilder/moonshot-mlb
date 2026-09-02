@@ -204,6 +204,34 @@ function useLeadMode() {
   return [mode, choose]
 }
 
+// ── #45: A RATE THE TABLE BESIDE IT DECLINES TO PUBLISH ─────────────────────
+//
+// The call of the night opened with Cal Raleigh drawing a starter "giving up
+// 6.00 home runs per nine". The Pitchers table has that same arm at a 2.33
+// ERA with XHR and HR LUCK both dashed out -- i.e. the site's own regressed
+// versions of that number are withheld for want of sample, while the prose
+// quotes the raw one as a fact. On the HR Board the same column read 6.00
+// beside neighbours at 0.87, 1.10, 1.42: a visible outlier, unflagged,
+// feeding the night's lead call.
+//
+// pitcher_xhr_bbe is the batted-ball count the regressed figures are built
+// on, and lib/pitcherTags.js already treats 50 as the point below which they
+// are not publishable. The prose uses the same gate: under it, an HR/9 is
+// still shown -- it is a real number and hiding it would be its own kind of
+// dishonesty -- but it is marked as thin, and TUDDY's convention of dimming
+// low-sample rows finally has an equivalent on this side of the network.
+const XHR_BBE_MIN = 50
+const hr9Thin = (p) => {
+  const bbe = Number(p?.pitcher_xhr_bbe)
+  return !Number.isFinite(bbe) || bbe < XHR_BBE_MIN
+}
+const ThinNote = ({ p }) => (hr9Thin(p) ? (
+  <span
+    style={{ color: '#FCD34D', fontWeight: 700 }}
+    title={`Built on ${Number(p?.pitcher_xhr_bbe) || 0} tracked batted balls, under the ${XHR_BBE_MIN} this site needs before it will publish the regressed version of this rate — which is why XHR and HR LUCK are blank for him on the Pitchers page. Read it as a small sample, not a settled rate.`}
+  > (thin sample)</span>
+) : null)
+
 export default function TheRead({ players = [], onPlayerClick, odds = null }) {
   const [leadMode, setLeadMode] = useLeadMode()
   const read = useMemo(() => {
@@ -423,7 +451,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
             </h2>
             <Para>
               He draws {clean(p?.pitcher_name, 'a TBD arm')}
-              {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9 >= 1.4 ? '#f87171' : C.text2 }}>{hr9.toFixed(2)} home runs per nine</b></>}
+              {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9 >= 1.4 ? '#f87171' : C.text2 }}>{hr9.toFixed(2)} home runs per nine</b><ThinNote p={p} /></>}
               {spot != null && spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
               {clearanceClause(hero)}
             </Para>
@@ -470,7 +498,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
               </div>
               <Para>
                 <Name p={p} /> ({teamOf(p)}) draws {clean(p?.pitcher_name, 'a TBD arm')}
-                {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9 >= 1.4 ? '#f87171' : C.text2 }}>{hr9.toFixed(2)} HR per nine</b></>}
+                {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9 >= 1.4 ? '#f87171' : C.text2 }}>{hr9.toFixed(2)} HR per nine</b><ThinNote p={p} /></>}
                 {spot != null && spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
                 {why && <> {why}.</>}
               </Para>
