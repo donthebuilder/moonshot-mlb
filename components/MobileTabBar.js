@@ -47,8 +47,30 @@ const MORE = [
 // call site in Dashboard.js is untouched and renders identically. NFL's own
 // arrays live in components/nfl/MobileTabBarNfl.js, which imports this file
 // and supplies its own main/more/brand.
+// ── #5: NOBODY IS TOLD THE MAP IS BEHIND THE ELLIPSIS ──────────────────────
+//
+// This sheet is the best explanation of the site anywhere in the product --
+// every tab, one line each on what it is for, plus the way out to the other
+// two sites -- and it was headed "More tools" behind a •••. A first-timer has
+// no reason to tap that, and nothing anywhere else says it is there.
+//
+// Two changes, neither of them a tour: the sheet says what it is, and the
+// button carries a dot until it has been opened once. The dot is stored per
+// device and is the smallest possible nudge -- it goes away the first time
+// someone looks, and it never comes back.
+const SEEN_KEY = 'moonshot_more_seen_v1'
+
 export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT' }) {
   const [open, setOpen] = useState(false)
+  const [seen, setSeen] = useState(true)   // assume seen until the client says otherwise
+  useEffect(() => {
+    try { setSeen(localStorage.getItem(SEEN_KEY) === '1') } catch { setSeen(true) }
+  }, [])
+  const markSeen = () => {
+    if (seen) return
+    setSeen(true)
+    try { localStorage.setItem(SEEN_KEY, '1') } catch { /* a full store is not a reason to nag */ }
+  }
   useEffect(() => setOpen(false), [tab])
   const go = (key) => { setOpen(false); setTab(key); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const mainKeys = new Set(main.map(([key]) => key))
@@ -58,7 +80,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
     <>
       {open && <button className="mobileTabScrim" aria-label="Close More menu" onClick={() => setOpen(false)} />}
       <aside className={`mobileMore ${open ? 'open' : ''}`} aria-hidden={!open}>
-        <div className="mobileMoreHead"><div><small>{brand}</small><strong>More tools</strong></div><button onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
+        <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small><strong>Everything on this site</strong></div><button onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
+        <p className="mobileMoreLede">Every page, what each one is for, and the way across to the other two sites.</p>
         <div className="mobileMoreGrid">
           {/* THE NETWORK SWITCH LIVES HERE NOW (2026-08-29). Donovan: "remove
               the little floating ico, its redundant now — just make it so we
@@ -83,8 +106,14 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
             <i>{icon}</i><span>{label}</span>
           </button>
         ))}
-        <button className={moreActive || open ? 'active' : ''} onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        <button
+          className={moreActive || open ? 'active' : ''}
+          onClick={() => { markSeen(); setOpen((value) => !value) }}
+          aria-expanded={open}
+          aria-label={seen ? 'More' : 'More — every page on this site and what each one is for'}
+        >
           <i>•••</i><span>More</span>
+          {!seen && <b className="mobileMoreDot" aria-hidden="true" />}
         </button>
       </nav>
 
@@ -113,6 +142,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:2px 3px 11px}
           .mobileMoreHead small{display:block;color:#f97316;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
           .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
+          .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:10.5px;line-height:1.5}
+          .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
           .mobileMoreHead button{width:32px;height:32px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:20px}
           .mobileMoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
           .mobileMoreGrid button{text-align:left;min-height:59px;padding:9px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2};cursor:pointer}
@@ -137,6 +168,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:2px 3px 11px}
           .mobileMoreHead small{display:block;color:#f97316;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
           .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
+          .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:10.5px;line-height:1.5}
+          .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
           .mobileMoreHead button{width:32px;height:32px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.text2};font-size:20px}
           .mobileMoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
           .mobileMoreGrid button{text-align:left;min-height:59px;padding:9px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2}}

@@ -81,6 +81,14 @@ export const HEAT_MODES = ['full', 'standouts', 'primary', 'sorted', 'none']
 
 const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
 
+// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
+// module-level literal keeps the palette it was imported with. See #23.
+const moreBtn = () => ({
+  border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
+  borderRadius: 999, padding: '1px 8px', cursor: 'pointer',
+  font: `800 9px/1.4 ${NUM_FONT}`, letterSpacing: '.04em',
+})
+
 export default function DenseTable({
   rows = [],
   columns = [],
@@ -262,7 +270,17 @@ export default function DenseTable({
     })
   }, [rows, sort])
 
-  const view = sorted.length > maxRows ? sorted.slice(0, maxRows) : sorted
+  // ── #19: A CAP WITH NO WAY PAST IT ───────────────────────────────────────
+  //
+  // "top 300 of 515" on Research and "top 200 of 703" on You, sort-only: the
+  // remaining rows were unreachable unless a sort happened to surface them,
+  // which is not a way to find a specific hitter. The cap itself is right --
+  // 700 rows of a heat-mapped table is a slow page nobody asked for -- so
+  // this keeps the cap and adds the door: one control that raises it a page
+  // at a time, and one that lifts it entirely for anyone who wants the lot.
+  const [extra, setExtra] = useState(0)
+  const cap = maxRows + extra
+  const view = sorted.length > cap ? sorted.slice(0, cap) : sorted
 
   // 📄 THE CHEAT SHEET (2026-08-15, from ballparkpal's Export CSV). Every
   // DenseTable can hand you its CURRENT view — sorted how you sorted it —
@@ -698,7 +716,23 @@ export default function DenseTable({
           }}>⬇ CSV</button>
         {truncated > 0 && (
           <span style={{ color: C.orange }}>
-            Showing the top {view.length} of {sorted.length} — sort a column to bring others up.{' '}
+            Showing the top {view.length} of {sorted.length} — sort a column to bring others up, or{' '}
+            <button
+              type="button"
+              onClick={() => setExtra((n) => n + maxRows)}
+              style={moreBtn()}
+            >show {Math.min(maxRows, truncated)} more</button>
+            {truncated > maxRows && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  onClick={() => setExtra(sorted.length)}
+                  style={moreBtn()}
+                >show all {sorted.length}</button>
+              </>
+            )}
+            .{' '}
           </span>
         )}
         {(() => {
