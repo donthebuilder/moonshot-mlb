@@ -177,7 +177,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, color: C.orange,
               border: '1px solid rgba(249,115,22,.4)', background: 'rgba(249,115,22,.08)',
               borderRadius: 999, padding: '1px 9px',
-            }}>{ranked.length} ranked</span>
+            }} title="Rows this board ranks. The filter bar's own count is the pool those rows are drawn from, which is a longer list.">{ranked.length} ranked</span>
           </div>
           <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{sub}</div>
         </div>

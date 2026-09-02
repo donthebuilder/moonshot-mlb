@@ -2434,7 +2434,19 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
                 background: `linear-gradient(155deg, ${C.orange}14, ${C.orange}04)`,
                 border: `1px solid ${C.orange}3d`, borderRadius: 11, padding: '9px 12px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                {/* #11: four cards in a row all read 5.3% and it looked like a
+                    duplicated-value bug. It isn't -- the rate belongs to the
+                    CATEGORY (every pair where both halves are TOP picks, say),
+                    not to the two names printed underneath -- but nothing on
+                    the card said so, and the rate was the biggest thing on it
+                    while the category was a grey afterthought below. The
+                    category now leads and the rate is explicitly its rate. */}
+                <div style={{ fontSize: 9.5, fontWeight: 800, color: C.text2, marginBottom: 2 }}>
+                  {p.rule ? p.rule.label : 'neither half clears a measured bar'}
+                </div>
+                <div
+                  title="Measured across every pair in this category, not for these two hitters specifically. Two pairs in the same category carry the same rate."
+                  style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                   <span style={{
                     fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, color: C.orange,
                   }}>{p.rate.toFixed(1)}%</span>
@@ -2442,8 +2454,8 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
                     {p.lift > 0 ? `${p.lift.toFixed(1)} over random` : 'no rule fired'}
                   </span>
                 </div>
-                <div style={{ fontSize: 9, color: C.text3, marginTop: 1 }}>
-                  {p.rule ? p.rule.label : 'neither half clears a measured bar'}
+                <div style={{ fontSize: 8.5, color: C.text3, marginTop: 1, lineHeight: 1.4 }}>
+                  rate for this category, not for this pair
                 </div>
                 {[p.a, p.b].map((pl, k) => (
                   <div key={k}

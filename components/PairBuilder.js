@@ -502,7 +502,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
           <b style={{ color: C.orange }}>{mkt.label}</b> is selected, so every leg has to deliver{' '}
           <b style={{ color: C.text }}>{mkt.needs}</b>. Switching this changes{' '}
           <b style={{ color: C.text }}>two things</b>: the score on the hitter chips {bare ? 'above' : 'below'}, and the{' '}
-          <b style={{ color: C.text }}>{mkt.short}</b>/<b style={{ color: C.text }}>Fit</b> columns in
+          <b style={{ color: C.text }}>Fit · {mkt.short}</b> column in
           the partner table — Fit <i>is</i> tonight&apos;s score, full stop: nothing about a pair&apos;s
           shared history moves it.
           {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
@@ -875,7 +875,14 @@ rows={partners.map((p) => ({
                 { key: 'hist', label: '🤝', flag: true, mark: '●', w: 30,
                   title: 'These two have homered on the same day at least once this season. Informational only (2026-08-28: the archive found shared history isn\'t predictive) — not a bonus inside Fit, and not a requirement for being on this list.' },
               ]),
-              { key: 'fit',      label: 'Fit',     w: 46, dp: 1,
+              // #54: this table shipped FIT and the market column holding the
+              // SAME NUMBER in every row -- 65.0/65.0, 64.8/64.8, 40.1/40.1,
+              // top to bottom -- because on 2026-08-28 Fit stopped weighting
+              // shared history and became tonight's score, full stop. Good
+              // decision, honestly documented, and the table never caught up:
+              // it was sorting by a column that duplicated its neighbour. One
+              // column now, carrying the market it is a score FOR.
+              { key: 'fit',      label: `Fit · ${mkt.short}`, w: 62, dp: 1,
                 title: `Tonight's ${mkt.label} score, full stop — same-game/shared-day history no longer weighted in (2026-08-28: measured, not predictive — see lib/pairEvidence.js)`,
                 // 2026-08-12: 'Fit' collided with the single-player GLOSSARY
                 // entry ("how well this hitter fits what the board is
@@ -890,8 +897,6 @@ rows={partners.map((p) => ({
                 // — noise). Fit === tonight's score now; the history fields
                 // moved to display-only columns below.
                 explain: 'How well he pairs with your anchor — tonight\'s own score for this market. Shared homer history shows up in its own columns but no longer moves this number; the archive found it isn\'t predictive.' },
-              { key: 'hr',       label: mkt.short, w: 44, dp: 1,
-                title: `Tonight's ${mkt.label} score — the market you picked above` },
               { key: 'l5',       label: 'L5',      heat: false, w: 58, mono: true, dim: true,
                 title: 'Last five games — hits / homers' },
               { key: 'iso',      label: 'ISO',     w: 44, dp: 0,

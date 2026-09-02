@@ -124,8 +124,21 @@ const GRADE_STYLE = () => ({
 
 function GradeBadge({ state }) {
   const s = GRADE_STYLE()[state] || GRADE_STYLE().ungraded
+  // #26: the ungraded dash had no legend entry, so a column mixing BOTH ✓,
+  // NEITHER, 1 of 2 and a bare "–" left the dash unexplained -- and an
+  // unexplained mark in a graded column reads as missing data rather than as
+  // "not played yet". A title is the smallest honest fix; the mark itself
+  // stays a dash because that is what every other unplayed cell on the site
+  // uses.
+  const why = {
+    both: 'Both legs cleared their bar.',
+    one: 'One leg of the two cleared.',
+    none: 'Neither leg cleared.',
+    partial: 'Only part of this pair has been graded so far.',
+    ungraded: 'Not graded yet — these games have not been played, or the results file has not landed.',
+  }[state] || 'Not graded yet.'
   return (
-    <span style={{
+    <span title={why} style={{
       fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: s.color,
       letterSpacing: '.03em',
     }}>{s.text}</span>

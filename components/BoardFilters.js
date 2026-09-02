@@ -471,8 +471,14 @@ export default function BoardFilters({ state, total, shown }) {
           )}
         </div>
 
-        <span style={{ fontSize: 11, fontWeight: 800, color: shown < total ? C.orange : C.text3, fontFamily: NUM_FONT, border: `1px solid ${C.border}`, borderRadius: 999, padding: '3px 11px' }}>
-          {shown} of {total}
+        {/* #58: this chip sat directly beside the board's own "60 ranked"
+            badge -- two counts, adjacent, meaning different things (the pool
+            the filters can see vs the rows the board ranks) with nothing
+            distinguishing them. It says which one it is now. */}
+        <span
+          title="Hitters on tonight's slate that clear the filters. The board's own badge counts the rows it ranks, which is a shorter list."
+          style={{ fontSize: 11, fontWeight: 800, color: shown < total ? C.orange : C.text3, fontFamily: NUM_FONT, border: `1px solid ${C.border}`, borderRadius: 999, padding: '3px 11px' }}>
+          {shown} of {total} <span style={{ color: C.text3, fontWeight: 700 }}>in the pool</span>
         </span>
 
         {/* ── ALWAYS-VISIBLE, REMOVABLE CHIPS ─────────────────────────────

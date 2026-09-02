@@ -672,18 +672,41 @@ export default function SprayField({
   // outcome identity), not an inconsistency to fix here. xbh/single/hard have
   // no exact C token match (all three are hand-picked orange shades) and stay
   // literal; all/hr/out already read tokens (C.text2/C.orange/C.text3).
+  // #28: these chips used to count over inRange -- EVERY ball in the window --
+  // while the chart itself is `shown`, which the pitch/arm/side/depth filters
+  // have already narrowed. With "Match <starter> mix" on by DEFAULT that put
+  // "All 120 · 100%" on screen beside a dock reading "showing 72 of 120", and
+  // every filter row saying "All". Both numbers were right and together they
+  // were a contradiction.
+  //
+  // A facet should count the pool it actually offers to filter, so these now
+  // count everything the OTHER filters have already allowed through -- i.e.
+  // `shown` with the result filter itself lifted. "All" is then exactly what
+  // is on the chart, and each share is a share of that.
+  const facetPool = useMemo(() => inRange.filter((h) => {
+    const okPitch = !picked || picked.size === 0 || (h.pitch && picked.has(h.pitch))
+    const okBB = !bbPick || bbPick.size === 0 || (h.bb && bbPick.has(h.bb))
+    const okArm = armPick === 'ALL' || !h.arm || h.arm === armPick
+    const okSide = sidePick === 'ALL' || (h.side && h.side === sidePick)
+    const okDeep = deepPick === 'ALL'
+      || (deepPick === '375' && h.far375)
+      || (deepPick === '400' && h.far400)
+      || (deepPick === 'pullair' && h.pullAir)
+    return okPitch && okBB && okArm && okSide && okDeep
+  }), [inRange, picked, bbPick, armPick, sidePick, deepPick])
+
   const classes = useMemo(() => {
-    const t = inRange.length || 1
-    const of = (f) => inRange.filter(f).length
+    const t = facetPool.length || 1
+    const of = (f) => facetPool.filter(f).length
     return [
-      { k: 'all',    label: 'All',    n: inRange.length,                     col: C.text2 },
+      { k: 'all',    label: 'All',    n: facetPool.length,                   col: C.text2 },
       { k: 'hr',     label: 'HR',     n: of((h) => h.hr),                    col: C.orange },
       { k: 'xbh',    label: 'XBH',    n: of((h) => h.xbh),                   col: '#fb9d3a' },
       { k: 'single', label: 'Single', n: of((h) => h.event === 'single'),    col: '#d76b0d' },
       { k: 'out',    label: 'Out',    n: of((h) => !h.hit),                  col: C.text3 },
       { k: 'hard',   label: 'Hard',   n: of((h) => h.hard),                  col: '#c9640f' },
     ].map((c) => ({ ...c, pct: (100 * c.n) / t }))
-  }, [inRange])
+  }, [facetPool])
 
   const shown = useMemo(() => inRange.filter((h) => {
     const okClass = only === 'all' ? true
@@ -1162,7 +1185,13 @@ export default function SprayField({
       {/* Result chips: label, count and share on the chip itself. Click to
           filter. No separate legend to fall out of step with the chart. */}
       {!liveOnly && (
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5 }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 5, alignItems: 'center' }}>
+        {facetPool.length !== inRange.length && (
+          <span
+            title="Another filter is already narrowing this chart, so these counts are of what is left, not of the whole window."
+            style={{ font: `800 8.5px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.06em' }}
+          >OF {facetPool.length}/{inRange.length} FILTERED ·</span>
+        )}
         {classes.map((c) => (
           <button
             key={c.k}

@@ -545,7 +545,14 @@ export default function Leaders({ players = [], onPlayerClick }) {
       <PanelTitle
         title="League Leaders"
         sub="Season stats for tonight's hitters, plus historical boards off the graded archive — no model scores on this page"
-        right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} of {all.length}</span>}
+        // #66: this read as a bare "238 of 266" in the corner with nothing
+        // saying what it counted.
+        right={(
+          <span
+            title="Hitters on tonight's slate with a published season line, out of every hitter on the slate."
+            style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}
+          >{rows.length} of {all.length} hitters</span>
+        )}
       />
 
       <div style={{

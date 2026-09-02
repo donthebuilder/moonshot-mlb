@@ -12,6 +12,14 @@ import { armFormParts } from '../lib/armLeak'
 import { penFrom, penLineParts } from '../lib/bullpen'
 import { airParts, airVerdict } from '../lib/conditions'
 
+// Two decimals or an em dash. ERA and WHIP are rate stats and the whole site
+// prints them at two places; the slate payload does not promise a precision,
+// so anything reading it straight through disagrees with everything computed.
+const rate2 = (v) => {
+  const x = Number(v)
+  return Number.isFinite(x) ? x.toFixed(2) : '—'
+}
+
 // The arm he's facing tonight — everything about the pitcher in one tab.
 //
 // This used to be scattered: the arsenal sat inside the batter's pitch table,
@@ -440,7 +448,12 @@ export default function MatchupPitcher({ player, slateMode }) {
         <span style={{ fontSize: 17, fontWeight: 800 }}>{clean(player.pitcher_name)}</span>
         <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
           {clean(player.pitcher_throws, '?')}HP · {clean(player.pitcher_team, '')} ·
-          {' '}ERA {clean(player.pitcher_era, '—')} · WHIP {clean(player.pitcher_whip, '—')}
+          {/* #62: this header printed the raw slate value, so a WHIP of 1.4
+              rendered "1.4" here and "1.40" three lines down in the Overview
+              read -- the same number at two precisions on one card. Rates on
+              this site are two decimals; the header does that itself now
+              rather than trusting whatever the payload happens to carry. */}
+          {' '}ERA {rate2(player.pitcher_era)} · WHIP {rate2(player.pitcher_whip)}
         </span>
         {clean(player.pitcher_attack_tag, '') !== '—' && (
           <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>{clean(player.pitcher_attack_tag)}</span>

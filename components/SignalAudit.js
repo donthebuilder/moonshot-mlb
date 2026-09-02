@@ -129,10 +129,27 @@ export default function SignalAudit({ backtest }) {
             }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>{r.icon}</span>
               <span style={{ fontSize: 12, fontWeight: 800, minWidth: 150 }}>{r.label}</span>
+              {/* #44: the Trap row read "14.8% vs 16.0% base · +1.2pts" with the
+                  +1.2 in GREEN, and the note explaining the inversion arrived
+                  after it. The logic is right -- the flag claims LESS, so
+                  landing under the base rate IS the claim met -- but a green
+                  plus sign beside a number lower than the one before it reads
+                  as a bug for the first three seconds, every time.
+                  An inverted row now shows the RAW move (−1.2pp, in the
+                  direction the eye can check against the two numbers beside
+                  it) and says separately whether the claim was met. Nothing
+                  about the grading changed; r.lift still drives the verdict. */}
               <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text2 }}>
                 {(r.rate * 100).toFixed(1)}% vs {(r.base * 100).toFixed(1)}% base
-                {' '}· <b style={{ color: r.lift >= 0 ? '#4ade80' : '#f87171' }}>{r.lift >= 0 ? '+' : ''}{r.lift.toFixed(1)}pts</b>
-                {r.invert ? ' (inverted — this flag claims LESS)' : ''}
+                {r.invert ? (
+                  <>
+                    {' '}· <b style={{ color: C.text2 }}>{r.rate >= r.base ? '+' : '−'}{Math.abs((r.rate - r.base) * 100).toFixed(1)}pp raw</b>
+                    {' '}· <b style={{ color: r.lift >= 0 ? '#4ade80' : '#f87171' }}>claim {r.lift >= 0 ? 'met' : 'missed'}</b>
+                    <span style={{ color: C.text3 }}> (this flag claims LESS, so lower is better)</span>
+                  </>
+                ) : (
+                  <>{' '}· <b style={{ color: r.lift >= 0 ? '#4ade80' : '#f87171' }}>{r.lift >= 0 ? '+' : ''}{r.lift.toFixed(1)}pts</b></>
+                )}
               </span>
               <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.text3 }}>n={r.n} of {r.poolN}</span>
               <span style={{
