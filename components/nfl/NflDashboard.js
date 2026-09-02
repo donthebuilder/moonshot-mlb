@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { resolveTab, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
+import TabNotFound from '../TabNotFound'
 import { C } from '../../lib/nfl/theme'
 import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams } from '../../lib/sport'
@@ -23,7 +25,10 @@ import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
 import { liveOdds } from '../../lib/oddsFreshness'
 
-const NFL_TABS = new Set(['home', 'games', 'picks', 'boards', 'players', 'watchlist', 'research', 'matchups', 'report', 'accountability', 'pairs', 'guide'])
+// The key set now lives in lib/routes.js alongside MOONSHOT's, with the
+// aliases that make each product answer to the other's words -- #tab=results
+// and #tab=board and #tab=reportcard all used to land silently on Home here.
+const NFL_TABS = new Set(NFL_TAB_KEYS)
 
 // The NFL shell. Thin on purpose — state and routing only, same as the MLB
 // Dashboard. Everything with an opinion lives in a tab file.
@@ -58,8 +63,10 @@ export default function NflDashboard() {
   const [modal, setModal] = useState(null)      // { player, market }
   const [refreshKey, setRefreshKey] = useState(0)
 
+  const [missingTab, setMissingTab] = useState('')
   const setTab = (next) => {
     if (!NFL_TABS.has(next)) return
+    setMissingTab('')
     setTabRaw(next)
     try {
       const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
@@ -84,7 +91,12 @@ export default function NflDashboard() {
       if (live.get('sport') === 'nfl') t = live.get('tab')
     } catch { /* ignore */ }
     if (!NFL_TABS.has(t)) t = initialHashParams().get('tab')
-    setTab(NFL_TABS.has(t) ? t : 'home')
+    const r = resolveTab('nfl', t)
+    // An unknown tab is NOT quietly rewritten to Home any more. Somebody who
+    // shared "here are the receipts" as #sport=nfl&tab=results was sending
+    // people to the wrong page with no error at all -- that is finding 15.
+    if (r.status === 'missing') setMissingTab(r.asked)
+    else setTab(r.tab)
   }, [])
 
   // Keep manually edited hashes and browser-driven hash changes in sync with
@@ -94,8 +106,14 @@ export default function NflDashboard() {
     const readHash = () => {
       try {
         const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-        const next = hash.get('tab')
-        if (hash.get('sport') === 'nfl' && NFL_TABS.has(next)) setTabRaw(next)
+        if (hash.get('sport') !== 'nfl') return
+        const r = resolveTab('nfl', hash.get('tab'))
+        // Finding 16: this used to bail on anything not in the key set, so a
+        // hash change to an unrecognised tab left the PREVIOUS panel rendered
+        // while the address bar claimed otherwise. Every case answers now.
+        if (r.status === 'missing') { setMissingTab(r.asked); return }
+        setMissingTab('')
+        if (r.status !== 'default') setTabRaw(r.tab)
       } catch { /* ignore malformed hashes */ }
     }
     window.addEventListener('hashchange', readHash)
@@ -146,7 +164,15 @@ export default function NflDashboard() {
       <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} />
       <main className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
-        {loading ? (
+        {missingTab ? (
+          <TabNotFound
+            asked={missingTab}
+            sport="nfl"
+            palette={C}
+            onNavigate={setTab}
+            doors={[['home', '🏠 HOME'], ['picks', '🎯 PICKS'], ['boards', '📊 BOARDS'], ['accountability', '🧾 RESULTS'], ['report', '📋 REPORT CARD'], ['guide', '📖 GUIDE']]}
+          />
+        ) : loading ? (
           <div style={{
             border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
             textAlign: 'center', color: C.text3, fontSize: 12.5,

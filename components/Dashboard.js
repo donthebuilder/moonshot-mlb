@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
+import { resolveTab } from '../lib/routes'
+import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
 import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
@@ -64,6 +66,12 @@ export default function Dashboard() {
   const [tab, setTabRaw] = useState('home')
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
+    // Changing tab closes the player card. #33: `#tab=odds&p=686948` rendered
+    // the card on top of Odds, so the URL said one thing and the screen showed
+    // another; #60 sharpened that to blocking, because the card is modal over
+    // the whole page and swallowed every click on the tab underneath it.
+    setModalPlayer(null)
+    setMissingTab('')
     setTabRaw(next)
   }
   const [data, setData] = useState(null)
@@ -89,10 +97,15 @@ export default function Dashboard() {
   // open/close, so any view you're looking at is copy-paste shareable —
   // which is how a Discord pick post becomes a link to its receipt.
   const hashAppliedRef = useRef(false)
+  // `missing` carries the tab someone actually typed when this product has no
+  // such page, so the shell can say so instead of rendering an empty div. See
+  // lib/routes.js -- MOONSHOT used to answer #tab=picks with a blank screen.
+  const [missingTab, setMissingTab] = useState('')
   useEffect(() => {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-    const t = h.get('tab')
-    if (t) setTabRaw(t)
+    const r = resolveTab('mlb', h.get('tab'))
+    if (r.status === 'missing') setMissingTab(r.asked)
+    else if (r.status !== 'default') setTabRaw(r.tab)
   }, [])
 
   // ── THE URL HAS TO MEAN SOMETHING AFTER THE FIRST PAINT (2026-08-29) ──────
@@ -117,8 +130,9 @@ export default function Dashboard() {
   useEffect(() => {
     const apply = () => {
       const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-      const t = h.get('tab')
-      if (t) setTabRaw(t)
+      const r = resolveTab('mlb', h.get('tab'))
+      if (r.status === 'missing') { setMissingTab(r.asked) }
+      else { setMissingTab(''); if (r.status !== 'default') setTabRaw(r.tab) }
       const sp = h.get('sport')
       if (sp === 'mlb' || sp === 'nfl') setSport(sp)
     }
@@ -545,7 +559,14 @@ export default function Dashboard() {
             off-season morning, or during a slate outage was the one showing
             "Loading slate data…". Anything else that genuinely doesn't
             depend on tonight's card belongs in this set too. */}
-        {loading && !SLATE_FREE.has(tab) ? (
+        {missingTab ? (
+          <TabNotFound
+            asked={missingTab}
+            sport="mlb"
+            onNavigate={setTab}
+            doors={[['home', '🏠 HOME'], ['board', '📊 CHARTS'], ['bot', '🎯 PICKS'], ['results', '🧾 RESULTS'], ['guide', '📖 GUIDE']]}
+          />
+        ) : loading && !SLATE_FREE.has(tab) ? (
           <Empty text="Loading slate data…" />
         ) : showEmpty && !SLATE_FREE.has(tab) ? (
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
