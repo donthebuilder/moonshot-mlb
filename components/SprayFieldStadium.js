@@ -334,7 +334,14 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //      ◆ cutter      ✚ curve/knuckle
     //    All solid bodies of about the sphere's volume, so a shape change
     //    does not read as a size change.
-    const R = 2.6
+    // BIGGER, AND THE OUTS VISIBLE (2026-09-02). Donovan: "make the landing
+    // dots on the spray a little bigger or more visible, and the outs too."
+    // R was 2.6; and an out's dot was near-black on dark grass by design
+    // ("kept nearly silent") — silent had become invisible once the park
+    // got real. Every dot now sits on a pale rim ring, so it reads against
+    // grass, dirt, track or seats; the out's own colour is unchanged.
+    const R = 3.3
+    const rimGeo = new THREE.RingGeometry(R * 1.05, R * 1.35, 24)
     const crossShape = new THREE.Shape()
     ;(() => {
       const a = R * 1.25, t = R * 0.42
@@ -355,7 +362,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const dotGeo = SHAPE_GEO.circle
     // Ring = barrel. Flat on the surface the ball landed on, in the result's
     // own colour, wider than the seat marker so the two never merge.
-    const barrelGeo = new THREE.RingGeometry(R * 2.1, R * 2.1 + 0.9, 28)
+    const barrelGeo = new THREE.RingGeometry(R * 1.9, R * 1.9 + 0.9, 28)
 
     // Everything hoverable, and everything flyable. `info` is the readout the
     // tooltip prints; `flights` feeds the replay.
@@ -577,6 +584,18 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // was — over or off the test wall — takes at least the XBH size, so the
       // park-test verdict still shows in the mark.
       dot.scale.setScalar(Math.max(resultScale(h), over ? 1.6 : reached ? 1.35 : 1))
+      // the rim: pale on an out (the one that needed it), the result's own
+      // colour on a hit, flat on whatever the ball landed on
+      {
+        const rim = new THREE.Mesh(rimGeo, new THREE.MeshBasicMaterial({
+          color: big ? col : 0xe4e4e7, transparent: true, opacity: big ? 0.55 : 0.8,
+          side: THREE.DoubleSide, depthWrite: false,
+        }))
+        rim.rotation.x = -Math.PI / 2
+        rim.scale.setScalar(dot.scale.x)
+        rim.position.set(v.x, seatY + 0.3, v.z)
+        scene.add(rim)
+      }
       // the shapes have an axis; spin each by its own angle so a row of
       // pyramids does not read as a formation
       if (shapeFor(h.pitch) !== 'circle') dot.rotation.y = (h.ang || 0) * (Math.PI / 180)
