@@ -97,17 +97,29 @@ const AVG_START_IP = 5.2      // MLB average innings per start, not published pe
 const AVG_PA_GAME = 4.3       // MLB average plate appearances per game, one lineup spot
 const PITCHES_PER_IP = 15     // standard pace rule-of-thumb
 
-function Bar({ label, pct, color, big }) {
+// A bar's LENGTH is its share of the likeliest bucket — that is what makes the
+// shape of the distribution readable at this size. The NUMBER printed beside it
+// is the real probability of that bucket. Those are two different quantities and
+// they were the same number until 2026-09-02, which made the column of numbers
+// carry % signs while summing to ~240%. Length and label are now separate props
+// so the chart can stay shaped by the max and still read true.
+const pctLabel = (p) => {
+  if (!(p > 0)) return '0%'
+  if (p < 0.005) return '<1%'
+  return `${(p * 100).toFixed(0)}%`
+}
+
+function Bar({ label, p, width, color, big }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ width: 30, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, textAlign: 'right' }}>{label}</span>
       <div style={{ flex: 1, height: big ? 14 : 10, background: C.bg3, borderRadius: 5, overflow: 'hidden' }}>
         <div style={{
-          width: `${Math.max(0, Math.min(100, pct))}%`, height: '100%',
+          width: `${Math.max(0, Math.min(100, width))}%`, height: '100%',
           background: color, borderRadius: 5, transition: 'width .2s',
         }} />
       </div>
-      <span style={{ width: 34, fontSize: 9.5, color: C.text2, fontFamily: NUM_FONT }}>{pct.toFixed(0)}%</span>
+      <span style={{ width: 34, fontSize: 9.5, color: C.text2, fontFamily: NUM_FONT }}>{pctLabel(p)}</span>
     </div>
   )
 }
@@ -196,16 +208,17 @@ export function PitcherSim({ getStat, name }) {
         </div>
       </div>
       <div style={{ fontSize: 9, fontWeight: 800, color: C.text3, letterSpacing: '.06em', marginBottom: 6 }}>
-        STRIKEOUT TOTAL — LIKELIEST BUCKET
+        STRIKEOUT TOTAL — CHANCE OF EACH
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {dist.map((d) => (
-          <Bar key={d.label} label={d.label} pct={(d.p / maxP) * 100} color={C.purple} big={d.p === Math.max(...dist.map((x) => x.p))} />
+          <Bar key={d.label} label={d.label} p={d.p} width={(d.p / maxP) * 100} color={C.purple} big={d.p === maxP} />
         ))}
       </div>
       <Caption>
-        Bars are Poisson(λ={expK.toFixed(2)}) — height is each K-total&apos;s share of the single most likely
-        bucket, not raw probability. Innings pace (5.2) and pitches/inning (~15) are league-average proxies —
+        Bars are Poisson(λ={expK.toFixed(2)}). The percentage beside each row is that K-total&apos;s real
+        probability — the column adds to 100%. Bar LENGTH is that bucket&apos;s share of the likeliest one, so
+        the shape stays readable when the top bucket is only a quarter of the field. Innings pace (5.2) and pitches/inning (~15) are league-average proxies —
         this site doesn&apos;t publish a real per-start IP pace. ER, H and BB come straight from his published
         ERA/WHIP/BB9; DK and FD points are the count/rate terms only (no win, CG, or no-hitter bonus, which need
         a simulated game result this panel doesn&apos;t attempt). Entertainment only, not a betting projection.
@@ -263,18 +276,19 @@ export function BatterSim({ player, name }) {
         <Stat label="HR" value={expHR.toFixed(3)} />
       </div>
       <div style={{ fontSize: 9, fontWeight: 800, color: C.text3, letterSpacing: '.06em', marginBottom: 6 }}>
-        HITS TONIGHT — LIKELIEST BUCKET
+        HITS TONIGHT — CHANCE OF EACH
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {dist.map((d) => (
-          <Bar key={d.label} label={d.label} pct={(d.p / maxP) * 100} color={C.orange} big={d.p === maxP} />
+          <Bar key={d.label} label={d.label} p={d.p} width={(d.p / maxP) * 100} color={C.orange} big={d.p === maxP} />
         ))}
       </div>
       <Caption>
         Built from his own season line — AVG {avg.toFixed(3)}, ISO {iso.toFixed(3)}, walk rate{' '}
         {(bbRate * 100).toFixed(1)}% — the same fields the Projected Output panel already uses. PA/game (4.3)
         is a league-average proxy: this site doesn&apos;t publish a real per-hitter PA pace. Hit buckets are
-        Binomial(n≈{nAb}, p={avg.toFixed(3)}) — height is each bucket&apos;s share of the most likely one.
+        Binomial(n≈{nAb}, p={avg.toFixed(3)}). The percentage beside each row is that bucket&apos;s real
+        probability and the three add to 100%; bar length is its share of the likeliest bucket.
         Entertainment only, not a betting projection.
       </Caption>
     </div>
