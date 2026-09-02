@@ -273,7 +273,13 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               hr9: nn(p?.pitcher_hr9),
               // #45: carried so the column can mark a rate the site's own
               // regressed figures decline to publish. See the note there.
-              hr9Bbe: nn(p?.pitcher_xhr_bbe),
+              //
+              // NOT nn(): that helper falls back to 0, and 0 would be
+              // indistinguishable from "this pitcher has no published sample
+              // at all" — which would put a ⚠ and a tooltip asserting "built
+              // on 0 tracked batted balls" on a row that has no sample to
+              // describe. Absent stays absent.
+              hr9Bbe: Number.isFinite(Number(p?.pitcher_xhr_bbe)) ? Number(p.pitcher_xhr_bbe) : null,
             }
           })}
           columns={[
@@ -344,12 +350,20 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // did not.
             { key: 'hr9',    label: 'P HR/9', w: 58, dp: 2,
               title: 'The starter\u2019s home runs allowed per nine. A ⚠ means it is built on fewer than 50 tracked batted balls — thin enough that the regressed version is withheld on the Pitchers page.',
-              fmt: (v, r) => (v == null ? '—' : (
-                <span style={{ opacity: (r?.hr9Bbe ?? 0) < 50 ? 0.72 : 1 }}>
-                  {Number(v).toFixed(2)}
-                  {(r?.hr9Bbe ?? 0) < 50 && <b style={{ color: '#FCD34D', fontWeight: 900 }}> ⚠</b>}
-                </span>
-              )) },
+              fmt: (v, r) => {
+                const rate = Number(v)
+                if (!Number.isFinite(rate) || rate <= 0) return '—'
+                // Thin means "we have a sample and it is small". No published
+                // sample is not thin, it is unknown, and gets no mark.
+                const bbe = r?.hr9Bbe
+                const thin = Number.isFinite(bbe) && bbe < 50
+                return (
+                  <span style={{ opacity: thin ? 0.72 : 1 }}>
+                    {rate.toFixed(2)}
+                    {thin && <b style={{ color: '#FCD34D', fontWeight: 900 }}> ⚠</b>}
+                  </span>
+                )
+              } },
           ]}
           onRowClick={onPlayerClick}
           initialSort={type === 'hr' ? 'raw' : null}

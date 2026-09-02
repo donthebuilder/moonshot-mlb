@@ -77,13 +77,27 @@ const FRIENDLY = {
 const QUIET_MIN = 45     // past this, stop calling it a gap between checks
 const STALLED_MIN = 120  // past this, say plainly that it has stopped reporting
 
+// The human stamp is "Sep 2, 12:48 PM UTC" — NO YEAR. Date.parse defaults a
+// yearless date to 2001, which reads back as twenty-four years of silence and
+// fires the loudest banner on the page on a perfectly healthy checker. So the
+// fallback is only trusted when the string actually carries a four-digit
+// year, and any answer beyond a few days is discarded rather than believed:
+// a stamp that old is a parse artefact, not a stall this banner should claim.
+const YEAR = /\b(19|20)\d{2}\b/
+const SANE_MAX_MIN = 7 * 24 * 60
+
 function checkedAgeMin(status) {
   const iso = Date.parse(status?.checked_at || '')
-  const ms = Number.isFinite(iso)
-    ? iso
-    : Date.parse(String(status?.checked_at_human || '').replace(' UTC', ' GMT'))
+  let ms = iso
+  if (!Number.isFinite(ms)) {
+    const human = String(status?.checked_at_human || '')
+    if (!YEAR.test(human)) return null
+    ms = Date.parse(human.replace(' UTC', ' GMT'))
+  }
   if (!Number.isFinite(ms)) return null
-  return Math.max(0, Math.round((Date.now() - ms) / 60000))
+  const min = Math.round((Date.now() - ms) / 60000)
+  if (!Number.isFinite(min) || min < 0 || min > SANE_MAX_MIN) return null
+  return min
 }
 
 const sinceText = (min) => (min < 90 ? `${min} minutes` : `${Math.floor(min / 60)}h ${min % 60}m`)
