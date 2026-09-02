@@ -15,7 +15,7 @@ import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import { FilterPill } from '../Filters'
 import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
-import { fetchLiveSlate, lineupStatus } from '../../lib/liveSlate'
+import { fetchLiveSlate, lineupStatus, liveSlateStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
 import AtThePlate from './AtThePlate'
 import OffBot from '../OffBot'
@@ -256,18 +256,44 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // module-level 15s cache means a tab with the wire above it still shares one
   // fetch rather than doubling the requests.
   const [live, setLive] = useState(null)
+  // ── WHEN, AND WHETHER (2026-09-01) ──────────────────────────────────────
+  // Donovan: "live data feels stale or missing." The poll below used to
+  // swallow every failure and skip every hidden-tab tick, which is the right
+  // behaviour and the wrong silence: come back to the phone after four
+  // minutes and the page showed a four-minute-old score with nothing saying
+  // so, and if statsapi had dropped a request it showed nothing at all (see
+  // lib/liveSlate.js for that half). So: the page re-pulls the moment it is
+  // looked at again (visibilitychange / focus), it keeps the last good
+  // snapshot when a pull fails, and it prints the age of what it is showing
+  // with a tap to refresh. `liveTick` only exists to re-render the age.
+  const [liveMeta, setLiveMeta] = useState({ at: 0, failedAt: 0, stale: false, pulling: false })
+  const [, setLiveTick] = useState(0)
+  const pullRef = useRef(null)
   useEffect(() => {
     let alive = true
     let t = null
-    const pull = () => fetchLiveSlate().then((s) => {
-      if (!alive || !s) return
-      setLive(s)
-      const anyLive = s.games?.some((x) => x.state === 'Live')
-      clearInterval(t)
-      t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 30000 : 120000)
-    }).catch(() => {})
+    const pull = (force = false) => {
+      setLiveMeta((m) => ({ ...m, pulling: true }))
+      return fetchLiveSlate({ force }).then((s) => {
+        if (!alive) return
+        if (s) setLive(s)
+        setLiveMeta({ ...liveSlateStatus(), pulling: false })
+        const anyLive = s?.games?.some((x) => x.state === 'Live')
+        clearInterval(t)
+        t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 30000 : 120000)
+      }).catch(() => { if (alive) setLiveMeta({ ...liveSlateStatus(), pulling: false }) })
+    }
+    pullRef.current = pull
     pull()
-    return () => { alive = false; clearInterval(t) }
+    const onShow = () => { if (!document.hidden) pull(true) }
+    document.addEventListener('visibilitychange', onShow)
+    window.addEventListener('focus', onShow)
+    const tick = setInterval(() => { if (!document.hidden) setLiveTick((v) => v + 1) }, 5000)
+    return () => {
+      alive = false; clearInterval(t); clearInterval(tick)
+      document.removeEventListener('visibilitychange', onShow)
+      window.removeEventListener('focus', onShow)
+    }
   }, [])
   // 🔗 build a pair straight off the grid (2026-08-09). Two legs max; tapping
   // a third rolls the oldest off so it always reads as "these two".
@@ -610,7 +636,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           copy of the page's own explanation, on tap, not two on every visit. */}
       {/* FOLDED EVERYWHERE NOW (2026-08-23) — it was hidden on a phone and
           three lines tall on a desktop; same words, one tap, both places. */}
-      <WhatThis maxWidth={700}>
+      {!isPhone && <WhatThis maxWidth={700}>
         {mode === 'lineups'
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
           : mode === 'live'
@@ -623,12 +649,20 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           // worse than one describing none, so this says what is actually
           // true of the grid you are looking at.
           : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
-      </WhatThis>
+      </WhatThis>}
 
       {/* Sort control (2026-08-12) — not shown in Lineups mode, where the strip
           is a jump bar, not the thing you're reading. Time is the default and
           matches first pitch; the other options re-order the same cards by a
           single number instead of leaving you to eyeball the heat-sizing. */}
+      {/* ── ON A PHONE, ONE FOLD FOR ALL OF IT (2026-09-01) ─────────────────
+          Donovan, on the Games page: "too much per game card on mobile."
+          Measured on a 430px screen: between the view pills and the first
+          game card sat the sort row (two lines), the explainer, and the
+          off-the-bot strip — the card itself started a full screen down.
+          These fold into one closed line on a phone; desktop is unchanged
+          (MobileFold renders its children bare there). */}
+      <MobileFold title="Sort & filters" summary={sortBy === 'time' ? 'first-pitch order' : `sorted by ${sortBy}`} accent={C.orange} maxWidth={760}>
       {mode !== 'lineups' && (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
           <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
@@ -683,6 +717,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       {/* The slate's blind spot: hitters batting tonight the bot never
           scored. Collapsed by default, fetches only on expand. */}
       <OffBot players={players} onPlayerClick={onPlayerClick} />
+      </MobileFold>
+
+      {/* ── HOW OLD IS WHAT YOU ARE LOOKING AT (2026-09-01) ─────────────────
+          One line, always: the age of the live snapshot and a tap to pull
+          again. Red when the last pull failed, because a score that stopped
+          updating and a score that is not moving look identical otherwise. */}
+      <LiveStamp meta={liveMeta} anyLive={(live?.games || []).some((x) => x.state === 'Live')} onRefresh={() => pullRef.current?.(true)} />
 
       {/* LINEUPS — every game's confirmed batting orders at once, 1 through
           9, both teams side by side. The site had lineup data on every row
@@ -1612,6 +1653,28 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                 )
               })}
           </div>
+          {/* ── THE NEXT GAME, FROM THE BOTTOM (2026-09-01) ───────────────
+              Donovan: "hard to jump between games." The sticky switcher
+              answers it from the top of the screen; this answers it from
+              where you actually are when you finish a game's read — the
+              bottom of it. Same scrollTo, same order as the grid. */}
+          {activeGame != null && games.length > 1 && (() => {
+            const idx = games.findIndex((g) => g.game_pk === activeGame)
+            const prev = idx > 0 ? games[idx - 1] : null
+            const next = idx >= 0 && idx < games.length - 1 ? games[idx + 1] : null
+            const lbl = (g) => `${g.away || '?'} @ ${g.home || '?'}`
+            return (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', margin: '-8px 0 20px' }}>
+                <button disabled={!prev} onClick={() => prev && scrollTo(prev.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: prev ? 1 : 0.35 }}>
+                  ‹ {prev ? lbl(prev) : 'first game'}
+                </button>
+                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{idx + 1} / {games.length}</span>
+                <button disabled={!next} onClick={() => next && scrollTo(next.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: next ? 1 : 0.35 }}>
+                  {next ? lbl(next) : 'last game'} ›
+                </button>
+              </div>
+            )
+          })()}
         </>
       )}
 
@@ -1821,6 +1884,35 @@ function ViewPills({ views, view, setView }) {
           color: view === k ? C.orange : C.text3,
         }}>{label}</button>
       ))}
+    </div>
+  )
+}
+
+
+// ── THE LIVE STAMP (2026-09-01) ───────────────────────────────────────────────
+// "updated 12s ago" is the whole component. It is the difference between a
+// score that is not moving and a score that stopped updating.
+function LiveStamp({ meta, anyLive, onRefresh }) {
+  const age = meta.at ? Math.max(0, Math.round((Date.now() - meta.at) / 1000)) : null
+  const ageText = age == null ? 'no snapshot yet'
+    : age < 60 ? `${age}s ago`
+    : age < 3600 ? `${Math.floor(age / 60)}m ${age % 60}s ago`
+    : `${Math.floor(age / 3600)}h ago`
+  const bad = meta.stale || (age != null && age > (anyLive ? 120 : 600))
+  const color = bad ? C.red : anyLive ? C.green : C.text3
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: 10, color: C.text3, margin: '0 0 8px', minWidth: 0 }}>
+      <span style={{ width: 7, height: 7, borderRadius: 999, background: color, boxShadow: anyLive && !bad ? `0 0 6px ${color}` : 'none', flexShrink: 0 }} />
+      <span style={{ color: bad ? C.red : C.text2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {meta.stale
+          ? (meta.at ? `MLB didn’t answer — showing the snapshot from ${ageText}` : 'MLB didn’t answer — no live feed yet, scores are from the slate')
+          : anyLive ? `live · updated ${ageText}` : `no game live · lineups checked ${ageText}`}
+      </span>
+      <button onClick={onRefresh} disabled={meta.pulling} title="Pull the league feed again now" style={{
+        marginLeft: 'auto', flexShrink: 0, cursor: meta.pulling ? 'default' : 'pointer', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
+        padding: '2px 9px', borderRadius: 999, border: `1px solid ${bad ? C.red : C.border}`,
+        background: 'transparent', color: bad ? C.red : C.text2, opacity: meta.pulling ? 0.6 : 1,
+      }}>{meta.pulling ? 'pulling…' : '↻ refresh'}</button>
     </div>
   )
 }
