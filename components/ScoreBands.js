@@ -5,6 +5,7 @@ import FreshnessStamp from './FreshnessStamp'
 import {
   SCORE_BANDS, BAND_OUTCOMES, BAND_ORDER, bandWindow, baseRate,
 } from '../lib/scoreBands'
+import { wilson } from '../lib/interval'
 
 // 📊 WHAT A SCORE IS WORTH — the band table, on screen.
 //
@@ -141,18 +142,52 @@ export default function ScoreBands() {
                   {outs.map((o) => {
                     const cell = s.bands[b][o.key]
                     const t = s.trend?.[o.key] || {}
-                    const claims = b !== 'unscored' && Math.abs(t.z ?? 0) >= 1.96 && !!t.ordered
+                    const colClaims = b !== 'unscored' && Math.abs(t.z ?? 0) >= 1.96 && !!t.ordered
                     const p = cell[1] ? (100 * cell[0]) / cell[1] : null
-                    const lift = p == null ? null : p - baseRate(o.key)
+                    const base = baseRate(o.key)
+                    const lift = p == null ? null : p - base
+                    // ── #41: THE GREY RULE WAS PER COLUMN, NOT PER BAND ──────
+                    //
+                    // The reported symptom was the Hit lane running out of
+                    // order at the bottom: 70.8 / 65.7 / 59.4 / 62.4. Checked
+                    // against the archive, that inversion is nothing — the
+                    // bottom band holds 93 of 5,807 rows, its 95% interval is
+                    // [52.2, 71.5], and it sits 0.56 standard errors from the
+                    // band above it. It is not a finding and never was.
+                    //
+                    // What IS real is the second half of the same question:
+                    // the 30/50/70 edges are applied to all seven scores and
+                    // only hr_score comes out balanced (17/40/25/18). Hit
+                    // score puts 55.7% of rows in ONE band and 1.6% in
+                    // another; overall_score is 56.3% and 2.0%. A 93-row band
+                    // was rendering at the same weight, in the same colour, as
+                    // a 1,474-row one — so the eye read a coin-flip as a
+                    // result.
+                    //
+                    // The column-level grey gate could not catch this: it asks
+                    // whether the SCORE sorts the outcome, which the Hit lane
+                    // does. This asks the per-cell question the page's own
+                    // convention implies — does this band's interval actually
+                    // separate it from the base rate? If it does not, the cell
+                    // has a number and no claim, and is drawn as such.
+                    //
+                    // Re-cutting the band edges per score is the real fix and
+                    // is a modelling decision, not a rendering one. Logged.
+                    const ci = wilson(cell[0], cell[1])
+                    const resolved = !!ci && !(ci[0] <= base && base <= ci[1])
+                    const claims = colClaims && resolved
                     const { bg, fg } = tint(lift, claims)
                     return (
                       <td key={o.key}
                         title={`${s.label} ${b} → ${o.bar}: ${cell[0]} of ${cell[1]}`
-                          + `\nBase rate for this outcome: ${fmt(baseRate(o.key))}`
+                          + `\nBase rate for this outcome: ${fmt(base)}`
+                          + (ci ? `\n95% interval for this band: ${ci[0].toFixed(1)}–${ci[1].toFixed(1)}%` : '')
                           + `\nColumn trend z = ${t.z}, bands ${t.ordered ? 'in order' : 'OUT OF ORDER'}`
-                          + (claims ? '' : '\nGrey: this column does not support a claim about the score.')}
+                          + (colClaims ? '' : '\nGrey: this column does not support a claim about the score.')
+                          + (colClaims && !resolved ? '\nGrey: this band\u2019s own interval covers the base rate — too few rows here to separate it from chance.' : '')}
                         style={{
                           ...td, background: bg,
+                          opacity: colClaims && !resolved ? 0.7 : 1,
                           borderTop: i === 0 ? `2px solid ${C.border2}` : `1px solid ${C.border}`,
                         }}>
                         <span style={{ fontWeight: 800, color: fg }}>{fmt(p)}</span>
