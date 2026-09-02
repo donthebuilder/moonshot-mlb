@@ -353,8 +353,34 @@ export default function Leaders({ players = [], onPlayerClick }) {
   const w = hist?.window
   const t = hist?.totals
 
+  // ── #67: THE ARCHIVE SECTION OF THE ARCHIVE PAGE STARTED BLANK ───────────
+  //
+  // Behind a "Load the last 7 graded nights" button, for a stated and honest
+  // reason -- seven files at roughly a megabyte each should not ride every
+  // open of this tab. But the cost is paid by the people who came for exactly
+  // this, and an empty section is a section that looks broken.
+  //
+  // Loaded when it SCROLLS INTO VIEW instead. Nobody who never reaches it
+  // pays anything, which was the whole point of the button, and nobody who
+  // does reach it is met with a blank panel and a chore. The button stays for
+  // browsers with no IntersectionObserver and as the retry path.
+  const histRef = useRef(null)
+  useEffect(() => {
+    if (histState !== 'idle') return
+    const el = histRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { io.disconnect(); loadHistory(HIST_FIRST) }
+    }, { rootMargin: '200px' })
+    io.observe(el)
+    return () => io.disconnect()
+    // loadHistory is stable enough for this: it only ever reads HIST_* consts
+    // and setState. Re-running on every render would re-observe endlessly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [histState])
+
   const historyStrip = (
-    <div style={{
+    <div ref={histRef} style={{
       background: `linear-gradient(155deg, ${C.bg2}, rgba(96,165,250,.04))`,
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px', marginBottom: 12,
     }}>
@@ -379,8 +405,8 @@ export default function Leaders({ players = [], onPlayerClick }) {
             Load the last {HIST_FIRST} graded nights
           </button>
           <span style={{ fontSize: 9.5, color: C.text3 }}>
-            {HIST_FIRST} files, one per night, roughly a megabyte each — so they load on request rather than every
-            time this tab opens. Extends to {HIST_MAX} once they&apos;re in.
+            {HIST_FIRST} files, one per night, roughly a megabyte each — so they load when you reach this section
+            rather than every time this tab opens. Extends to {HIST_MAX} once they&apos;re in.
           </span>
         </div>
       )}

@@ -74,6 +74,10 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
   // can't tell you.
   const log = player?.batted_ball_log || player?.spray_chart || []
   const vsHim = pitcherName ? log.filter((h) => sameName(h.pitcher || h.pitcher_name, pitcherName)) : []
+  // #61: does the per-season row add up to the head-to-head total it sits
+  // under? If not, the chips are not a breakdown of it and must not be
+  // presented as one.
+  const seasonAb = (data.seasons || []).reduce((acc, s2) => acc + num(s2?.stat?.atBats), 0)
   const bbe = vsHim.length
   const hh = vsHim.filter((h) => h.is_hard_hit).length
   const brl = vsHim.filter((h) => h.is_barrel).length
@@ -142,8 +146,32 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
         </div>
       )}
 
+      {/* ── #61: THE CHIPS HAD NO HEADING AND DID NOT ALWAYS RECONCILE ─────
+          The card's headline is "career head-to-head" with a line reading
+          PA 9 · 5/8 · .625, and directly under it ran a row of unlabelled
+          year chips -- 2023 through 2026, entries like "2024: 2/10 · 3K" --
+          adding to far more at-bats than the head-to-head has. A reader takes
+          a row of chips under a head-to-head total as that total broken down
+          by year, and if the numbers don't add up, one of the two is wrong.
+          They are now headed, so it is clear what they are; and the card
+          checks its own arithmetic and says so when the two disagree, rather
+          than letting the reader do the subtraction and lose trust in both. */}
       {data.seasons.length > 1 && (
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
+        <div style={{ marginTop: 9, paddingTop: 8, borderTop: `1px dashed ${C.border2}` }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 4 }}>
+            <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>
+              By season
+            </span>
+            {seasonAb > num(t.atBats) ? (
+              <span style={{ fontSize: 8.5, color: C.orange, lineHeight: 1.4 }}>
+                {seasonAb} at-bats across these years against {num(t.atBats)} in the head-to-head above — so these
+                are the seasons themselves, not this matchup broken down. Read them as when, not as against whom.
+              </span>
+            ) : (
+              <span style={{ fontSize: 8.5, color: C.text3 }}>the head-to-head above, year by year</span>
+            )}
+          </div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
           {data.seasons.map((s) => (
             <span key={s.season} style={{
               fontSize: 9, fontFamily: NUM_FONT, color: C.text3,
@@ -154,6 +182,7 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
               {num(s.stat.strikeOuts) > 0 && ` · ${num(s.stat.strikeOuts)}K`}
             </span>
           ))}
+        </div>
         </div>
       )}
 

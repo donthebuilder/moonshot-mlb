@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { n, nameOf, teamOf, oppOf, clean, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
 import { isAligned } from '../lib/scoring'
 import { STATE, alpha } from '../lib/scales'
+import RangeDual from './RangeDual'
 
 // Shared filter bar for the ranked boards.
 //
@@ -346,14 +347,15 @@ export default function BoardFilters({ state, total, shown }) {
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ ...lbl(), color: C.orange }}>Score · {scoreDef.label}</div>
                   <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
-                    <input type="range" min={0} max={100} step={1} value={scoreMin}
-                      onChange={(e) => setScoreMin(Math.min(Number(e.target.value), scoreMax))}
-                      style={{ flex: 1, accentColor: C.orange }} />
-                    <input type="range" min={0} max={100} step={1} value={scoreMax}
-                      onChange={(e) => setScoreMax(Math.max(Number(e.target.value), scoreMin))}
-                      style={{ flex: 1, accentColor: C.orange }} />
-                  </div>
+                  {/* #56: was two separate sliders in a flex row -- see the
+                      note in components/RangeDual.js for what that looked
+                      like at full range. */}
+                  <RangeDual
+                    min={0} max={100} step={1}
+                    low={scoreMin} high={scoreMax}
+                    onLow={setScoreMin} onHigh={setScoreMax}
+                    label={`Score ${scoreDef.label}`}
+                  />
                 </div>
               )}
 
@@ -369,14 +371,12 @@ export default function BoardFilters({ state, total, shown }) {
                   {stat.label} {showV(hrwMin)}–{showV(hrwMax)}
                   {bandStat !== 'hrw' && <span style={{ textTransform: 'none', letterSpacing: 0 }}> · {bandStat === 'iso' ? 'season' : 'recent window'}</span>}
                 </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
-                  <input type="range" min={stat.min} max={stat.max} step={1} value={hrwMin}
-                    onChange={(e) => setHrwMin(Math.min(Number(e.target.value), hrwMax))}
-                    style={{ flex: 1, accentColor: C.orange }} />
-                  <input type="range" min={stat.min} max={stat.max} step={1} value={hrwMax}
-                    onChange={(e) => setHrwMax(Math.max(Number(e.target.value), hrwMin))}
-                    style={{ flex: 1, accentColor: C.orange }} />
-                </div>
+                <RangeDual
+                  min={stat.min} max={stat.max} step={1}
+                  low={hrwMin} high={hrwMax}
+                  onLow={setHrwMin} onHigh={setHrwMax}
+                  label={stat.label}
+                />
               </div>
 
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -404,10 +404,19 @@ export default function BoardFilters({ state, total, shown }) {
 
               {/* GAME + GAME TIME — real fields (game_pk, game_time), nothing
                   inferred. Team is deliberately not repeated here — the
-                  header's own team dropdown already does that job site-wide. */}
+                  header's own team dropdown already does that job site-wide.
+                  #57: which left two controls that both narrow by team with
+                  nothing on screen saying whether they intersect or override.
+                  They intersect, and in a fixed order: the header's dropdown
+                  filters the list this drawer is handed, so these chips only
+                  ever narrow further. That is now stated where the question
+                  gets asked rather than left to be inferred. */}
               {games.length > 1 && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={lbl()}>Game</div>
+                  <div style={{ fontSize: 9, color: C.text3, marginTop: 2, lineHeight: 1.45 }}>
+                    Stacks with the header&apos;s team filter — that one runs first, these narrow what it leaves.
+                  </div>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
                     {games.map((g) => (
                       <button key={g.pk} onClick={() => toggleGame(g.pk)} style={chip(gameSel.includes(g.pk), C.cyan)}>
