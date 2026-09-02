@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import FreshnessStamp from './FreshnessStamp'
 import { gradedResultsUrl, dataUrl } from '../lib/dataSource'
 import { clean } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
@@ -243,6 +244,9 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
       <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>
         Player pick record, by category
       </div>
+      {/* #47: this table is served from a static local snapshot, so it can
+          drift from everything else on the site without anything saying so. */}
+      <FreshnessStamp label="Track record" from={m.from} to={m.to} count={m.days} unit="graded days" />
       <div style={{ fontSize: 10, color: C.text3, marginBottom: 9, lineHeight: 1.6 }}>
         <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.picks.toLocaleString()} picks</b> ·{' '}
         <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.players} players</b> ·{' '}

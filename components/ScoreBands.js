@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import FreshnessStamp from './FreshnessStamp'
 import {
   SCORE_BANDS, BAND_OUTCOMES, BAND_ORDER, bandWindow, baseRate,
 } from '../lib/scoreBands'
@@ -69,6 +70,12 @@ export default function ScoreBands() {
 
   return (
     <div>
+      <FreshnessStamp
+        label="Bands archive"
+        from={SCORE_BANDS.from}
+        to={SCORE_BANDS.to}
+        count={SCORE_BANDS.nights}
+      />
       <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.72, color: C.text2, maxWidth: 800 }}>
         Every score on the site, cut into bands, against what the hitters in that band{' '}
         <b style={{ color: C.text }}>actually did</b> —{' '}

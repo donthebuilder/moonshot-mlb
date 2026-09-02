@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { Empty } from './ui'
+import FreshnessStamp from './FreshnessStamp'
 
 // P/L SIMULATOR — the archive converted into the only number that matters.
 //
@@ -142,6 +143,17 @@ export default function PLSimulator() {
         This site doesn&apos;t do bankrolls. The prices you enter below are <i>yours</i> and exist only to
         turn a record into a break-even test; Moonshot publishes no lines and never has.
       </div>
+      {/* #35: this is the page that answers "did this make money", and it was
+          the stalest page on the site with nothing saying so. The window was
+          always printed; being BEHIND was not. */}
+      <FreshnessStamp
+        label="P/L archive"
+        from={data.meta.from}
+        to={data.meta.to}
+        count={data.meta.days}
+        unit="days"
+        generated={data.meta.generated}
+      />
       <div style={{ fontSize: 10, color: C.text3, marginBottom: 10, lineHeight: 1.55, maxWidth: 700 }}>
         Every graded pick over {data.meta.days} days ({data.meta.from} → {data.meta.to}), staked flat at
         the prices below. <b style={{ color: C.text2 }}>Put in the real ones</b> — the whole
