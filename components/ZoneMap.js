@@ -240,6 +240,48 @@ function livePos(f) {
 
 const isOffFrame = (f) => f.fx < FX_LO || f.fx > FX_HI || f.fz < FZ_LO || f.fz > FZ_HI
 
+// ── COMMAND, ON THE FLAT MAP (2026-09-02). The 3D map got the centroid +
+// 1σ ellipse per pitch type yesterday; this is the same read in the grid's
+// own fx/fz space, so the flat map — the fallback, the screen-reader map and
+// the one the pitcher page opens on — carries it too. Returns one row per
+// type: the centre, and for three or more crossings the ellipse's axes and
+// tilt from the 2×2 covariance. Same maths as ZoneMapStadium; kept small
+// rather than shared because the spaces differ (feet there, zone fractions
+// here) and the ellipse must be drawn in the space the dots are drawn in.
+function commandRows(pitches, box) {
+  const byType = new Map()
+  pitches.forEach((p) => {
+    if (!p.type) return
+    if (!byType.has(p.type)) byType.set(p.type, [])
+    byType.get(p.type).push(zoneFrac(p, box))
+  })
+  const rows = []
+  byType.forEach((fs, type) => {
+    const n = fs.length
+    const mx = fs.reduce((a, f) => a + f.fx, 0) / n
+    const mz = fs.reduce((a, f) => a + f.fz, 0) / n
+    const row = { type, n, mx, mz, pts: null }
+    if (n >= 3) {
+      let sxx = 0, szz = 0, sxz = 0
+      fs.forEach((f) => { sxx += (f.fx - mx) ** 2; szz += (f.fz - mz) ** 2; sxz += (f.fx - mx) * (f.fz - mz) })
+      sxx /= n - 1; szz /= n - 1; sxz /= n - 1
+      const tr = sxx + szz, det = sxx * szz - sxz * sxz
+      const disc = Math.sqrt(Math.max(0, (tr * tr) / 4 - det))
+      const l1 = tr / 2 + disc, l2 = Math.max(1e-6, tr / 2 - disc)
+      const th = Math.abs(sxz) < 1e-9 ? (sxx >= szz ? 0 : Math.PI / 2) : Math.atan2(l1 - sxx, sxz)
+      const a = Math.sqrt(l1), b = Math.sqrt(l2)
+      row.pts = []
+      for (let i = 0; i <= 40; i++) {
+        const t = (i / 40) * Math.PI * 2
+        const ex = a * Math.cos(t), ez = b * Math.sin(t)
+        row.pts.push([mx + ex * Math.cos(th) - ez * Math.sin(th), mz + ex * Math.sin(th) + ez * Math.cos(th)])
+      }
+    }
+    rows.push(row)
+  })
+  return rows
+}
+
 // Shape says WHAT HAPPENED, colour says WHAT WAS THROWN. Six outcomes, drawn
 // as plain elements so they inherit the card's typography rather than
 // importing a second chart's visual language.
@@ -392,11 +434,13 @@ export default function ZoneMap({
   // filter driven by the same pills the rest of the card uses
   const [hoverP, setHoverP] = useState(null)
   const [liveType, setLiveType] = useState(null)
+  // the flat map's Command overlay — off by default, the dots stay the subject
+  const [liveCmd, setLiveCmd] = useState(false)
   // The 3D dock opens expanded: its whole reason for existing is that you
   // could not tell what the scene was drawing.
   const [zoneDock, setZoneDock] = useState(true)
 
-  useEffect(() => { setHoverP(null); setLiveType(null) }, [playerId])
+  useEffect(() => { setHoverP(null); setLiveType(null); setLiveCmd(false) }, [playerId])
 
   useEffect(() => {
     let alive = true
@@ -1059,6 +1103,15 @@ export default function ZoneMap({
           </div>
           {liveTypes.length > 0 && (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <button onClick={() => setLiveCmd((v) => !v)}
+                title="Command: one cross per pitch type at the centre of tonight's crossings, and the 1σ oval around it — small and near an edge means he is commanding it, wide across the middle means he is losing it. Three of a type before an oval is drawn."
+                style={{
+                  fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 999, padding: '2px 9px',
+                  border: `1px solid ${liveCmd ? C.orange : C.border}`,
+                  background: liveCmd ? 'rgba(249,115,22,.12)' : 'transparent',
+                  color: liveCmd ? C.orange : C.text3,
+                }}>◎ command</button>
               <button onClick={() => setLiveType(null)} style={{
                 fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, cursor: 'pointer',
                 borderRadius: 999, padding: '2px 9px',
@@ -1130,6 +1183,50 @@ export default function ZoneMap({
                 position: 'absolute', left: ZG.pad, right: ZG.pad, top: ZG.pad, bottom: ZG.pad,
                 border: `1px dashed ${C.border2}`, borderRadius: 3,
               }} />
+              {/* COMMAND overlay. The SVG is inset by the same pad as the
+                  dashed box and stretched to it, so its 0..1 user units ARE
+                  fx/fz — the same numbers livePos() places the dots with.
+                  Non-scaling strokes keep the lines one width whatever the
+                  grid's aspect. Labels are HTML, positioned by livePos, so
+                  the stretch never touches type. */}
+              {liveCmd && (() => {
+                const rows = commandRows(live, lbox)
+                return (
+                  <>
+                    <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{
+                      position: 'absolute', left: ZG.pad, right: ZG.pad, top: ZG.pad, bottom: ZG.pad,
+                      width: `calc(100% - ${ZG.pad * 2}px)`, height: `calc(100% - ${ZG.pad * 2}px)`,
+                      overflow: 'visible',
+                    }}>
+                      {rows.map((r) => {
+                        const col = pitchColor(r.type)
+                        return (
+                          <g key={r.type}>
+                            {r.pts && (
+                              <polygon points={r.pts.map(([x, y]) => `${x.toFixed(4)},${y.toFixed(4)}`).join(' ')}
+                                fill={col} fillOpacity="0.10" stroke={col} strokeWidth="1.4" strokeOpacity="0.9"
+                                vectorEffect="non-scaling-stroke" />
+                            )}
+                            <line x1={r.mx - 0.06} y1={r.mz} x2={r.mx + 0.06} y2={r.mz} stroke={col} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+                            <line x1={r.mx} y1={r.mz - 0.06} x2={r.mx} y2={r.mz + 0.06} stroke={col} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+                          </g>
+                        )
+                      })}
+                    </svg>
+                    {rows.map((r) => {
+                      const pos = livePos({ fx: r.mx, fz: r.mz })
+                      return (
+                        <span key={r.type} style={{
+                          position: 'absolute', left: pos.left, top: pos.top,
+                          transform: 'translate(8px, -14px)', fontFamily: NUM_FONT,
+                          fontSize: 8, fontWeight: 900, color: pitchColor(r.type),
+                          textShadow: '0 0 3px rgba(0,0,0,.9)', whiteSpace: 'nowrap',
+                        }}>{r.type} {r.n}</span>
+                      )
+                    })}
+                  </>
+                )
+              })()}
               {live.map((p, i) => {
                 const pos = livePos(zoneFrac(p, lbox))
                 const on = hoverP === i

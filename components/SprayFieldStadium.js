@@ -10,6 +10,7 @@ import { solveFlight } from '../lib/trajectory'
 // we have walls for but no bowl for still draws.
 import { bowlFor, isOpenSector } from '../lib/parkBowls'
 import { addParkProps } from '../lib/stadiumProps'
+import { addParkDressing, addPlateZone, PLATE_Z } from '../lib/stadiumDressing'
 import { resultColor, isNonHrHit } from '../lib/resultColor'
 import { shapeFor, resultScale } from '../lib/pitchShape'
 
@@ -117,7 +118,7 @@ function labelSprite(text, hex) {
 // which in this scene's world space is +Z.
 const WIND_DIR = (toDeg) => new THREE.Vector3(-Math.sin(toDeg * DEG), 0, Math.cos(toDeg * DEG)).normalize()
 
-export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, title = '', subtitle = '', live = false }) {
+export default function SprayFieldStadium({ hits = [], dims, heights, venue = '', wind = null, title = '', subtitle = '', live = false, pitches = null }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)      // the hover readout div — driven directly, no re-render churn
   const replayRef = useRef(null)   // set by the effect to the replay function
@@ -140,6 +141,17 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   const motionRef = useRef(motion); motionRef.current = motion
   const orbitRef = useRef(orbit); orbitRef.current = orbit
   const prevCountRef = useRef(0)
+  // ── ONE WORLD, TWO PLACES TO STAND (2026-09-02). Donovan: "make the 3D
+  //    strike map like the zone living inside the stadium — same world,
+  //    different things." The strike zone is now drawn at home plate in
+  //    THIS scene at real size (lib/stadiumDressing addPlateZone), with
+  //    tonight's crossings on it. PARK is the camera this chart has always
+  //    opened on; PLATE flies down behind the catcher to the zone, and the
+  //    whole park is still there behind it. The flight is a tween the tick
+  //    runs; controls are handed back when it lands.
+  const [view, setView] = useState('park')
+  const viewRef = useRef(view); viewRef.current = view
+  const flyRef = useRef(null)   // set by the effect: (name) => void
 
   // Flattened out of the object so the effect's dependency list can be four
   // primitives instead of an object literal the caller rebuilds every render —
@@ -511,7 +523,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       ;[[0, 12], [half, 12 + half], [0, 12 + 2 * half], [-half, 12 + half]].forEach(([x, z], i) => {
         const b = new THREE.Mesh(baseGeo, baseMat)
         b.position.set(x, 0.4, z)
-        if (i === 0) b.scale.set(1.1, 0.8, 1.1) // the plate, slightly wider
+        if (i === 0) b.scale.set(0.5, 0.6, 0.5) // the plate: 17 in wide, not a base
         scene.add(b)
       })
     }
@@ -586,6 +598,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //
     //    Parametric, not surveyed — nothing scores off this, it is for the eye.
     const bowl = bowlFor(venue)
+    let dressing = null
     {
       const clamp = (a) => Math.max(-45, Math.min(45, a))
       const deck = (a0, a1, off, depth, y0, y1, cLo, cHi, crowd) => {
@@ -729,6 +742,8 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       //    bowls shipped and these did not. Data in lib/parkProps, builder
       //    in lib/stadiumProps; a park with no entry draws exactly as before.
       addParkProps(scene, { venue, P, wallD, wallH })
+      // the small stuff a real park has in every photograph (2026-09-02)
+      dressing = addParkDressing(scene, { P, wallD, wallH, bowl })
 
       // ── NO ROOF, EVER (2026-08-31). Donovan: "the roof thing in general
       //    is dumb -- just make it so everyone is an open dome."
@@ -814,6 +829,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // tooltip prints; `flights` feeds the replay.
     const pickables = []
     const flights = []
+    // every arc, tube and glow — hidden from the plate seat, where a 3-ft
+    // tube drawn for a 400-ft park is a wall of colour across the frame
+    const arcGroup = new THREE.Group(); scene.add(arcGroup)
     const flightOfHit = []   // hit index → flight index, for LIVE's "only the new one flies"
     hits.forEach((h, hi) => {
       if (!Number.isFinite(h?.r) || !Number.isFinite(h?.ang)) return
@@ -933,7 +951,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
             }),
           )
           tube.userData.info = info
-          scene.add(tube)
+          arcGroup.add(tube)
           pickables.push(tube)
 
           // ── THE GLOW SHELL (2026-08-31). The prototype draws every arc
@@ -965,7 +983,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
             }
             glowGeo.setAttribute('color', new THREE.BufferAttribute(gbuf, 3))
           }
-          scene.add(new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({
+          arcGroup.add(new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({
             vertexColors: true, transparent: true, opacity: h.hr || over ? 0.10 : 0.065,
             blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
           })))
@@ -987,7 +1005,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
             // reading as smudges; the tail fade already keeps their starts
             // dark, so raising the ceiling brightens the END of each line —
             // which is the part that says where the ball actually went.
-            scene.add(new THREE.Line(lg, new THREE.LineBasicMaterial({
+            arcGroup.add(new THREE.Line(lg, new THREE.LineBasicMaterial({
               vertexColors: true, transparent: true, opacity: 0.52, depthWrite: false,
             })))
           }
@@ -1098,6 +1116,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       if (!hoverFlight) return
       scene.remove(hoverFlight.mesh)
       hoverFlight.mesh.material.dispose()
+      if (hoverFlight.mesh.userData.shadow) { scene.remove(hoverFlight.mesh.userData.shadow); hoverFlight.mesh.userData.shadow.material.dispose() }
       hoverFlight = null
     }
     const startHoverFlight = (flightIndex) => {
@@ -1109,6 +1128,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       mesh.add(makeHalo(fl.col || 0xffffff))
       mesh.position.copy(fl.pts[0])
       scene.add(mesh)
+      const sh = new THREE.Mesh(shadowGeo, shadowMat.clone())
+      sh.rotation.x = -Math.PI / 2
+      scene.add(sh)
+      mesh.userData.shadow = sh
       hoverFlight = { flightIndex, mesh, t0: performance.now() }
     }
     const stepHoverFlight = (now) => {
@@ -1120,6 +1143,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const p = (now - hoverFlight.t0) / dur
       const idx = Math.min(fl.pts.length - 1, Math.max(0, Math.floor(p * fl.pts.length)))
       hoverFlight.mesh.position.copy(fl.pts[idx])
+      if (hoverFlight.mesh.userData.shadow) placeShadow(hoverFlight.mesh.userData.shadow, hoverFlight.mesh.position)
       // Holds at the landing point (like the site's 2D hover animation) —
       // rather than disappearing or looping — until the cursor actually
       // leaves that ball, so a still cursor shows a still-standing result.
@@ -1431,6 +1455,19 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //    the ▶ replay button. Time scale: real hang times are 3–7s; ~4x speed
     //    keeps a 60-ball night under ten seconds.
     const flyGeo = new THREE.SphereGeometry(1.9, 10, 10)
+    // BALL SHADOWS (2026-09-02). A dark disc on the ground under a flying
+    // ball, shrinking and fading with height — the cue that turns a dot
+    // moving across the screen into a ball in the air over a field.
+    const shadowGeo = new THREE.CircleGeometry(2.2, 14)
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4, depthWrite: false })
+    const placeShadow = (sh, pos) => {
+      const h = Math.max(0, pos.y)
+      sh.visible = true
+      sh.position.set(pos.x, 0.35, pos.z)
+      const k = 1 + h / 60
+      sh.scale.setScalar(k)
+      sh.material.opacity = Math.max(0.06, 0.4 / (k * k))
+    }
     let replay = null
     // `which` is the list of flight indices to fly; default all of them
     const runReplay = (which = null) => {
@@ -1445,6 +1482,13 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         if (fl.big) m.add(makeHalo(fl.col))
         m.visible = false
         scene.add(m)
+        // its shadow on the grass — the one cue that says how high a ball
+        // is, which a lit sphere against a dark sky cannot
+        const sh = new THREE.Mesh(shadowGeo, shadowMat.clone())
+        sh.rotation.x = -Math.PI / 2
+        sh.visible = false
+        scene.add(sh)
+        m.userData.shadow = sh
         return m
       })
       replay = { t0: performance.now(), balls, idxs }
@@ -1459,14 +1503,18 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         const p = (now - start) / dur
         const ball = replay.balls[i]
         if (p < 0) { alive = true; return }
-        if (p >= 1) { ball.visible = false; return }
+        if (p >= 1) { ball.visible = false; ball.userData.shadow.visible = false; return }
         alive = true
         ball.visible = true
         const idx = Math.min(fl.pts.length - 1, Math.floor(p * fl.pts.length))
         ball.position.copy(fl.pts[idx])
+        placeShadow(ball.userData.shadow, ball.position)
       })
       if (!alive) {
-        replay.balls.forEach((b) => { scene.remove(b); b.material.dispose() })
+        replay.balls.forEach((b) => {
+          scene.remove(b); b.material.dispose()
+          scene.remove(b.userData.shadow); b.userData.shadow.material.dispose()
+        })
         replay = null
       }
     }
@@ -1487,6 +1535,46 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         for (let i = prev; i < hits.length; i++) if (flightOfHit[i] != null) fresh.push(flightOfHit[i])
         if (fresh.length && fresh.length <= 6) runReplay(fresh)
       } else runReplay()
+    }
+
+    // ── THE ZONE AT THE PLATE, and the two camera presets.
+    const plateZone = addPlateZone(scene, { pitches: pitches || [] })
+    const PARK_POS = camera.position.clone(), PARK_TGT = target.clone()
+    const zoneMid = (plateZone.top + plateZone.bot) / 2
+    // over the umpire's shoulder, a touch to the third-base side, so the
+    // two men behind the plate frame the zone instead of blocking it
+    const PLATE_POS = new THREE.Vector3(3.8, 6.4, PLATE_Z - 12.5)
+    const PLATE_TGT = new THREE.Vector3(0, zoneMid + 0.2, PLATE_Z + 6)
+    // the park camera's zoom floor kept you out of the infield; the plate
+    // view lives inside it
+    controls.minDistance = 3
+    // a rebuild (a new ball in play, a filter) keeps the seat you were in
+    // what each seat shows: the arcs are the park view's subject and the
+    // plate view's wallpaper; the three men at the plate are the reverse
+    const seat = (name) => {
+      arcGroup.visible = name !== 'plate'
+      if (dressing?.near) dressing.near.visible = name !== 'plate'
+    }
+    if (viewRef.current === 'plate') { camera.position.copy(PLATE_POS); controls.target.copy(PLATE_TGT) }
+    seat(viewRef.current)
+    let fly = null   // { p0, t0v, p1, t1v, start, dur }
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+    flyRef.current = (name) => {
+      const toPlate = name === 'plate'
+      fly = {
+        p0: camera.position.clone(), t0v: controls.target.clone(),
+        p1: toPlate ? PLATE_POS : PARK_POS, t1v: toPlate ? PLATE_TGT : PARK_TGT,
+        start: performance.now(), dur: 1100,
+      }
+      controls.enabled = false
+      seat(name)
+    }
+    const stepFly = (now) => {
+      if (!fly) return
+      const k = ease(Math.min(1, (now - fly.start) / fly.dur))
+      camera.position.lerpVectors(fly.p0, fly.p1, k)
+      controls.target.lerpVectors(fly.t0v, fly.t1v, k)
+      if (k >= 1) { fly = null; controls.enabled = true }
     }
 
     let raf
@@ -1512,8 +1600,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         : Math.min(1, handheld + 0.012)
       // auto-orbit: OrbitControls' own slow turn, paused while grabbed and
       // in HOLD, resumed on release
-      controls.autoRotate = !!orbitRef.current && !driving && !hold
+      controls.autoRotate = !!orbitRef.current && !driving && !hold && !fly
       controls.autoRotateSpeed = 0.55
+      stepFly(t)
       controls.update()
       if (windStep) windStep(t)
       if (!hold) { stepReplay(t); stepHoverFlight(t) }
@@ -1523,7 +1612,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // out from under the drag. A handheld operator stops breathing on the
       // lens while the shot is being set. Hold on grab, ease back over about
       // a second after release rather than snapping, so it never pops.
-      const hh = handheld
+      // the sway is a few feet, which is nothing from the broadcast seat
+      // and the whole frame from behind the plate — scale it to the
+      // camera's distance from what it is looking at
+      const hh = handheld * Math.min(1, camera.position.distanceTo(controls.target) / (maxD * 0.9))
       const dx = (Math.sin(t * 0.00042) * 2.2 + Math.sin(t * 0.00017) * 3.6) * hh
       const dy = (Math.cos(t * 0.00036) * 1.6 + Math.sin(t * 0.00013) * 2.6) * hh
       const dr = Math.sin(t * 0.00023) * 0.0016 * hh
@@ -1565,7 +1657,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // the wrong reason, and two parks with the same wall profile and
     // different bowls would have exposed it. (roofOpen lived here too, until
     // the roof itself was removed — see NO ROOF, EVER above.)
-  }, [hits, dims, heights, venue, windMph, windLabel, windTo, windHex])
+  }, [hits, dims, heights, venue, windMph, windLabel, windTo, windHex, pitches])
 
   if (!ok) {
     return (
@@ -1696,6 +1788,21 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
               >{txt}</button>
             )
           })}
+          {[['park', '🏟 park', 'The whole park, from the broadcast seat'], ['plate', '⌖ plate', "Down behind the catcher — the strike zone at real size, tonight's pitches on it, the park behind"]].map(([k, txt, tip]) => {
+            const on = view === k
+            return (
+              <button key={k}
+                onClick={() => { setView(k); if (flyRef.current) flyRef.current(k) }}
+                title={tip}
+                style={{
+                  padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
+                  cursor: 'pointer', fontFamily: NUM_FONT,
+                  border: `1px solid ${on ? C.text : C.border2}`,
+                  background: on ? 'rgba(244,244,245,.12)' : 'rgba(9,9,11,.75)', color: on ? C.text : C.text2,
+                }}
+              >{txt}</button>
+            )
+          })}
           <button
             onClick={() => setOrbit((v) => !v)}
             title={orbit ? 'Stop the slow turn' : 'Turn slowly around the park until you grab it'}
@@ -1709,7 +1816,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         </div>
       </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        drag to orbit · scroll to zoom · swipe sideways on a phone · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
+        drag to orbit · scroll to zoom · swipe sideways on a phone · hover a ball for its readout · ⌖ plate seats you behind the catcher, the strike zone at real size{pitches && pitches.length ? ` with tonight's ${pitches.length} pitches on it` : ''}, the park still around it{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
         published distances ·{' '}
         {windMph > 0 && windLabel && (
           <>

@@ -636,6 +636,17 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     || Number(atBat?.pitcherId)
     || pitchersTonight.find((x) => x.live)?.id
     || null
+  // TAPPING AN ARM HE HAS NOT FACED (2026-09-02). The moment a reliever comes
+  // in is exactly when "where is he spotting it" matters, and at that moment
+  // the to-him sample is empty. So a chip for an arm with no pitches to this
+  // hitter opens in "vs everyone"; a chip for an arm he has faced keeps the
+  // to-him scope; ALL ARMS always returns to him. Still one tap to flip.
+  const pickArm = (id) => {
+    setViewPitcherId(id)
+    if (!id) { setZoneScope('him'); return }
+    const faced = (feed?.pitches || []).some((p) => Number(p.batterId) === Number(selectedId) && Number(p.pitcherId) === Number(id))
+    setZoneScope(faced ? 'him' : 'all')
+  }
   const livePitchesFor = useMemo(() => {
     const all = feed?.pitches || []
     if (zoneScope === 'all') {
@@ -860,7 +871,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
 
             {(pitchersTonight.length > 1 || arsenal.length > 0) && (
               <div style={{ marginTop: 8 }}>
-                <PitcherChips pitchers={pitchersTonight} viewId={viewPitcherId} onPick={setViewPitcherId} />
+                <PitcherChips pitchers={pitchersTonight} viewId={viewPitcherId} onPick={pickArm} />
                 {arsenal.length > 0 && (
                   <Arsenal
                     rows={arsenal}
@@ -970,7 +981,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             liveLabel={selName}
             livePitchers={pitchersTonight}
             livePitcherId={zoneScope === 'all' ? zoneArm : viewPitcher}
-            onLivePitcher={setViewPitcherId}
+            onLivePitcher={pickArm}
             liveScope={zoneScope}
             onLiveScope={setZoneScope}
           />
@@ -1021,6 +1032,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               liveBalls={sprayBalls}
               liveFocusId={Number(selectedId)}
               liveLabel={selName}
+              zonePitches={livePitchesFor}
             />
           </div>
         </div>
