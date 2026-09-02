@@ -232,7 +232,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const walls = PARK_WALLS[venue] || null
     const dims = walls ? walls.d : GENERIC_DIMS
     const heights = walls ? walls.h : GENERIC_HEIGHTS
-    buildPark(scene, {
+    const world = buildPark(scene, {
       dims, heights, venue,
       P: fieldPoint, wallD: (a) => lerp5(dims, a), wallH: (a) => lerp5(heights, a),
       maxD: Math.max(...dims), SEG: 96,
@@ -787,7 +787,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     show()
 
     let raf = 0
-    const tick = () => { controls.update(); look.render(); raf = requestAnimationFrame(tick) }
+    const tick = (now) => { controls.update(); world.step(now || performance.now()); look.render(); raf = requestAnimationFrame(tick) }
     raf = requestAnimationFrame(tick)
 
     return () => {

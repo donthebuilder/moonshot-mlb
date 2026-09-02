@@ -761,124 +761,14 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       const ink = new THREE.Color(windHex)
       windGroup = new THREE.Group()
 
-      // ── THE FLAG (2026-08-31). Donovan: "instead of wind particles just add
-      //    a DASH network flag in the stadium showing the wind direction and
-      //    speed visually."
-      //
-      //    The streak slab it replaces is deleted, not hidden. Six hundred
-      //    line segments drifting across the yard were doing one job — say
-      //    which way the air is going — and doing it as weather effect rather
-      //    than as an instrument. A flag does the same job the way a ballpark
-      //    already does it: everyone who has sat in one reads a flag without
-      //    being taught, and it costs two triangles instead of six hundred
-      //    lines on a phone.
-      //
-      //    IT CARRIES BOTH FACTS AT ONCE, which the streaks never did:
-      //      · DIRECTION — the flag flies with the wind, so the pole is
-      //        upwind and the fly end points where the air is going. One Y
-      //        rotation, the same bearing the arrow uses.
-      //      · SPEED — the ripple rate and how far the cloth lifts off the
-      //        pole both scale with mph. A 3 mph breeze barely stirs and
-      //        hangs; a 15 mph wind snaps out straight and travels. That is
-      //        how a real flag reads and it needs no legend.
-      //
-      //    THE CLOTH IS A GRID, not a plane, because a plane cannot wave. Two
-      //    travelling sine waves along its length, amplitude ramped from zero
-      //    at the pole to full at the fly end — a flag is pinned at one edge,
-      //    so any wave that moves the pinned edge looks wrong immediately.
-      const FLAG_W = 66, FLAG_H = 38, FW = 24, FH = 11
-      const flagGeo = new THREE.PlaneGeometry(FLAG_W, FLAG_H, FW, FH)
-      // Shift the mesh so x = 0 is the POLE edge, which is the edge that must
-      // not move. PlaneGeometry centres on the origin.
-      flagGeo.translate(FLAG_W / 2, 0, 0)
-      const flagBase = flagGeo.attributes.position.array.slice()
-
-      // IT IS THE SITE'S FLAG. Donovan: "make the flag have the site logo."
-      // Painted on a canvas and used as the cloth's texture, rather than the
-      // vertex-colour split the first cut used — a wordmark needs pixels, and
-      // a texture also deforms WITH the wave, so the letters ripple instead of
-      // sitting flat on a moving surface.
-      const flagTex = (() => {
-        const cv = document.createElement('canvas')
-        cv.width = 512; cv.height = 300
-        const g = cv.getContext('2d')
-        g.fillStyle = new THREE.Color(0x14161c).getStyle()
-        g.fillRect(0, 0, 512, 300)
-        // Hoist band in the accent, so the flag reads as MOONSHOT's from the
-        // back of the park where the letters are too small to resolve.
-        g.fillStyle = C.orange
-        g.fillRect(0, 0, 54, 300)
-        g.fillRect(0, 262, 512, 12)
-        g.font = '900 76px SF Mono, Menlo, monospace'
-        g.textAlign = 'left'; g.textBaseline = 'middle'
-        g.fillStyle = C.text
-        g.fillText('MOONSHOT', 86, 132)
-        g.font = '800 26px SF Mono, Menlo, monospace'
-        g.fillStyle = C.orange
-        g.fillText('DASH NETWORK', 90, 196)
-        const t = new THREE.CanvasTexture(cv)
-        t.anisotropy = 8
-        // MIRRORED, and physically it was right — a DoubleSide plane shows the
-        // reverse of the cloth on its back face, exactly as a real flag does.
-        // But the default camera sits behind the plate and lands on that back
-        // face, so the wordmark read "TOHSNOOM". A logo that is backwards is a
-        // logo that failed, so the texture is flipped: the side you actually
-        // look at is the side that reads.
-        t.wrapS = THREE.RepeatWrapping
-        t.repeat.x = -1
-        t.offset.x = 1
-        return t
-      })()
-      const flagMesh = new THREE.Mesh(flagGeo, new THREE.MeshLambertMaterial({
-        map: flagTex, side: THREE.DoubleSide,
-      }))
-
-      // The pole, and the whole rig parked in foul ground on the first-base
-      // side — opposite the arrow, which lives on the third-base line, so the
-      // two wind reads bracket the park instead of stacking on each other.
-      const flagRig = new THREE.Group()
-      {
-        const pole = new THREE.Mesh(
-          new THREE.CylinderGeometry(1.1, 1.4, 128, 8),
-          new THREE.MeshLambertMaterial({ color: 0x6b7280 }),
-        )
-        pole.position.y = 64
-        flagRig.add(pole)
-        flagMesh.position.set(0, 112, 0)
-        flagRig.add(flagMesh)
-
-        // The finial ball is gone — Donovan: "the point is not needed." And
-        // the pole moves from 53° to 63°: the light towers stand at ±52 and
-        // their beam cones were falling across the flag, which is the
-        // "spotlight" he wanted rid of. Nothing lights this now except the
-        // scene's own key and fill, same as the rest of the park.
-        // Pushed out past the light towers' cones as well as off their
-        // bearing — at 0.56 the near edge of the ±52° beam still washed
-        // across the cloth, which is the "spotlight" that had to go. 0.70
-        // rather than 0.82 because at 0.82 the mph label ran off the right
-        // edge of the frame; found by rendering it, not by arithmetic.
-        const post = P(maxD * 0.70, 64)
-        flagRig.position.set(post.x, 0, post.z)
-        // BACKWARDS, and Donovan caught it: "the flag is going in the
-        // opposite direction of the wind." The cloth is built along +X, and
-        // a Y rotation of θ sends +X to (cos θ, −sin θ) in the x/z plane.
-        // With θ = −w + π/2 that lands on (sin w, −cos w) — the exact
-        // NEGATIVE of WIND_DIR's (−sin w, cos w). Off by π, which on a
-        // symmetric flag looks like a plausible flag pointing the wrong way
-        // rather than like a bug.
-        //   θ = −w − π/2  →  cos θ = −sin w, −sin θ = cos w  ✓ = WIND_DIR
-        flagRig.rotation.y = -windTo * DEG - Math.PI / 2
-        windGroup.add(flagRig)
-
-        const tag = labelSprite(`${windMph.toFixed(0)} MPH ${windLabel.toUpperCase()}`, windHex)
-        tag.position.set(post.x, 148, post.z)
-        windGroup.add(tag)
-      }
-
+      // ── NO FLAG (2026-09-02). Donovan: "I don't like the flag." The flag,
+      //    its pole, its mph tag and the cloth simulation are gone. The wind
+      //    still reads two ways that stay: the carry band along the wall
+      //    (warm where it pushes out, cool where it pushes back) and the
+      //    arrow on the third-base line with its mph label.
       // How hard it flies. Below ~4 mph a flag hangs and only stirs; by ~15 it
       // is straight out and snapping. Both the lift and the ripple rate come
       // off the same number so they can never disagree.
-      const flagStrength = Math.min(1, Math.max(0.12, windMph / 15))
 
       // THE CARRY BAND (2026-08-31). Donovan: "have some visibility so we see
       // the direction and if it helps ball carry." Direction was already
@@ -984,28 +874,6 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
       scene.add(windGroup)
 
-      // ── THE CLOTH, PER FRAME. Two travelling waves along the length at
-      //    incommensurate periods so the flag never visibly loops, plus a
-      //    slow twist across the height so it is cloth and not a ribbon.
-      //    Amplitude is ZERO at the pole and full at the fly end, because a
-      //    flag is pinned along one edge and any wave that moves that edge
-      //    reads as broken instantly.
-      const pos = flagGeo.attributes.position
-      windStep = (now) => {
-        const t = (now / 1000) * (0.9 + flagStrength * 2.6)
-        for (let vi = 0; vi < pos.count; vi++) {
-          const bx = flagBase[vi * 3], by = flagBase[vi * 3 + 1]
-          const f = bx / FLAG_W                       // 0 at the pole, 1 at the fly
-          const amp = f * f * (5.5 + flagStrength * 9)
-          pos.array[vi * 3 + 2] =
-            Math.sin(bx * 0.17 - t * 3.1) * amp
-            + Math.sin(bx * 0.09 + by * 0.11 - t * 1.9) * amp * 0.45
-          // A hanging flag droops; a flying one lifts. Same one number.
-          pos.array[vi * 3 + 1] = by - (1 - flagStrength) * f * 11
-        }
-        pos.needsUpdate = true
-        flagGeo.computeVertexNormals()
-      }
     }
 
     // ── THE REPLAY. Every solvable ball flies its arc off the bat, staggered
@@ -1123,6 +991,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       controls.autoRotateSpeed = 0.55
       controls.update()
       if (windStep) windStep(t)
+      world.step(t)
       if (!hold) { stepReplay(t); stepHoverFlight(t) }
       // AND IT HOLDS STILL WHILE YOU DRIVE -- the fourth thing making this
       // hard to manoeuvre and the least obvious: the camera sways six feet
