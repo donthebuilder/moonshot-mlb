@@ -202,6 +202,23 @@ export default function NflHeader({ tab, setTab, data, meta }) {
     : ageHours >= 24
       ? `${Math.floor(ageHours)} hours`
       : ''
+  // ── #22: THE BUILD STAMP NEVER SAID HOW OLD IT WAS ───────────────────────
+  //
+  // The whole NFL pipeline was found ~8 hours stale, with the same timestamp
+  // on the lines check and on the last grading, while MLB odds had run 35
+  // minutes prior. The question that raised -- "is this a once-daily run, or
+  // has it stalled?" -- could not be answered from the page, because the
+  // header printed the build time as a bare stamp and only reacted at 24
+  // hours. A reader should not have to subtract from a timestamp in another
+  // timezone to find out whether what they are looking at is current.
+  //
+  // The age is always on screen now. It states nothing about the cadence,
+  // which this page does not know; it just does the subtraction.
+  const freshLabel = !Number.isFinite(builtAtMs) ? ''
+    : ageHours < 1 ? `${Math.max(1, Math.round(ageHours * 60))}m ago`
+      : ageHours < 48 ? `${Math.round(ageHours)}h ago`
+        : `${Math.floor(ageHours / 24)}d ago`
+  const freshCol = ageHours >= 24 ? C.orange : ageHours >= 8 ? C.yellow : C.text3
 
   return (
     <header className={tab === 'home' ? undefined : 'hdr-slate-on'} style={{
@@ -352,9 +369,14 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="nfl-header-built" style={{
-            fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-          }}>{meta?.built_at_human || data?.built_at_human || '—'}</span>
+          <span
+            className="nfl-header-built"
+            title="When the NFL pipeline last published. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run."
+            style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}
+          >
+            {meta?.built_at_human || data?.built_at_human || '—'}
+            {freshLabel && <b style={{ color: freshCol, fontWeight: 800 }}>{` · ${freshLabel}`}</b>}
+          </span>
           <PaletteButton />
         </div>
       </div>

@@ -46,6 +46,7 @@ import { SHAPE_GLYPH, shapeFor } from '../lib/pitchShape'
 const SprayFieldStadium = dynamic(() => import('./SprayFieldStadium'), { ssr: false })
 import { windRead } from '../lib/conditions'
 import { solveFlight } from '../lib/trajectory'
+import { freshness } from '../lib/freshness'
 
 // Spray field — radar, not a ballpark illustration.
 //
@@ -1146,9 +1147,30 @@ export default function SprayField({
             >{r.label}</button>
           )
         })}
+        {/* ── #29: "through 2026-08-30" ON A 09-01 SLATE ────────────────────
+            This stamp was the newest date with a tracked ball and nothing
+            more, so a cache that has stopped publishing and a hitter who
+            simply has not played read exactly the same. It cannot tell those
+            two apart -- nothing on this card can -- so it does not guess: it
+            says how far back the newest ball actually is, and colours that
+            once it is further back than a rest day explains. The known
+            spray-cache publish gap shows up here now instead of only in the
+            pipeline log. */}
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
           {gamesShown}G · {inRange.length} of {hits.length} BBE
           {newest ? ` · through ${newest}` : ''}
+          {(() => {
+            if (!newest) return null
+            const f = freshness(newest)
+            if (!f.ok || f.tone === 'fresh') return null
+            const col = f.tone === 'aging' ? C.yellow : C.orange
+            return (
+              <span
+                style={{ color: col, fontWeight: 800 }}
+                title="How long ago his newest tracked batted ball is. It can mean he has not played, or that the spray cache has stopped publishing — this card cannot tell those apart, so it reports the gap rather than explaining it."
+              > · {f.days}d back</span>
+            )
+          })()}
         </span>
         {liveN > 0 && (
           <button

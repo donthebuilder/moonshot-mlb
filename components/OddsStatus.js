@@ -63,12 +63,48 @@ const FRIENDLY = {
   },
 }
 
+// ── #8: "PAUSED" HAS TO KNOW HOW LONG IT HAS BEEN PAUSED ───────────────────
+//
+// "Odds refresh is between checks" is the right sentence for the thirty
+// seconds it is true and the wrong one an hour later. Caught live: the board
+// pulled 12:27 AM UTC, last checked 12:48, and was still showing that same
+// checked-at stamp at 01:42 with games running -- an hour with no price
+// refresh mid-slate, described to the reader as a routine gap between checks.
+//
+// This does not claim the checker is broken; it cannot know the cadence. It
+// stops asserting "between checks" once the gap is longer than any plausible
+// one and says the measured thing instead: when it last reported.
+const QUIET_MIN = 45     // past this, stop calling it a gap between checks
+const STALLED_MIN = 120  // past this, say plainly that it has stopped reporting
+
+function checkedAgeMin(status) {
+  const iso = Date.parse(status?.checked_at || '')
+  const ms = Number.isFinite(iso)
+    ? iso
+    : Date.parse(String(status?.checked_at_human || '').replace(' UTC', ' GMT'))
+  if (!Number.isFinite(ms)) return null
+  return Math.max(0, Math.round((Date.now() - ms) / 60000))
+}
+
+const sinceText = (min) => (min < 90 ? `${min} minutes` : `${Math.floor(min / 60)}h ${min % 60}m`)
+
 export default function OddsStatus({ status, always = false }) {
   if (!status) return null
   const t = TONE[status.state]
   if (!t && !always) return null
-  const col = t?.c || C.text3
-  const friendly = FRIENDLY[status.state]
+  const paused = status.state === 'skipped' || status.state === 'capped'
+  const ageMin = paused ? checkedAgeMin(status) : null
+  const quiet = ageMin != null && ageMin >= QUIET_MIN
+  const stalled = ageMin != null && ageMin >= STALLED_MIN
+  const col = stalled ? '#f87171' : quiet ? '#FCD34D' : (t?.c || C.text3)
+  const friendly = quiet
+    ? {
+      label: stalled ? 'ODDS NOT REFRESHING' : 'ODDS STALE',
+      text: stalled
+        ? `The odds checker hasn't reported for ${sinceText(ageMin)}. Any prices shown are from before that — read them as a last-known number, not a current one. Grades and boards are built from our own data and are unaffected.`
+        : `No price check for ${sinceText(ageMin)} — longer than a gap between checks. Prices shown are from that last pull.`,
+    }
+    : FRIENDLY[status.state]
   // The raw diagnostic, kept reachable but off the page.
   const detail = [status.reason, status.provider, status.checked_at ? `checked ${status.checked_at}` : '']
     .filter(Boolean).join(' · ')
@@ -81,7 +117,7 @@ export default function OddsStatus({ status, always = false }) {
         padding: '8px 11px', fontSize: 11, lineHeight: 1.55, color: C.text2,
       }}
     >
-      <span style={{ fontSize: 12 }}>{t?.icon || '📡'}</span>
+      <span style={{ fontSize: 12 }}>{stalled ? '⏹' : quiet ? '⚠️' : (t?.icon || '📡')}</span>
       <span>
         <b style={{ color: col, fontFamily: NUM_FONT, fontSize: 10, letterSpacing: '.04em' }}>
           {friendly?.label || 'ODDS'}
