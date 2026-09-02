@@ -65,6 +65,13 @@ export const BAND_STATS = [
   // the bot already computed it for bbe_profile, just never promoted it to
   // a top-level HitterRecord field until now (mlb_dashboard.py, same date).
   { key: 'ld',    label: 'LD%',    min: 0, max: 100, get: (p) => n(p?.recent_ld_rate, 0) * 100 },
+  // The other two thirds of the same recent window (2026-09-01, Donovan
+  // picked "both" off the walks shortlist). GB% is the one to filter DOWN on
+  // for power -- a ground ball never leaves the yard -- and popup% is the
+  // quiet way a hot hitter is actually mis-hitting. Both published on every
+  // row since 08-12 with nowhere to look at them until now.
+  { key: 'gb',    label: 'GB%',    min: 0, max: 100, get: (p) => n(p?.recent_gb_rate, 0) * 100 },
+  { key: 'popup', label: 'Popup%', min: 0, max: 60,  get: (p) => n(p?.recent_popup_rate, 0) * 100 },
   { key: 'brl',   label: 'Brl%',   min: 0, max: 40,  get: (p) => n(p?.recent_barrel_rate, 0) * 100 },
   { key: 'sweet', label: 'Sweet%', min: 0, max: 100, get: (p) => n(p?.recent_sweet_spot_rate, 0) * 100 },
   { key: 'squp',  label: 'SqUp%',  min: 0, max: 100, get: (p) => n(p?.recent_squared_up_rate, 0) * 100 },

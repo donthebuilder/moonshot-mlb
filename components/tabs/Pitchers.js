@@ -1446,13 +1446,13 @@ rows={(() => {
             // batted ball that leaves the yard, and hard-hit and barrel rate are
             // what separates a fly ball from a can of corn.
             //
-            // WHAT IS MISSING, and it matters: pitcher_gb_rate, pitcher_ld_rate
-            // and pitcher_popup_rate are published as 0 on all 268 rows. The
-            // only GB/LD/popup fields with real values in the payload are
-            // l25pa_gb_rate and friends, which are the HITTER's last-25-PA
-            // rates, not the pitcher's. Using those here would be silently
-            // wrong, so the ground-ball and line-drive columns are simply not
-            // built. See BOT-DATA-REQUESTS.md — this is a bot-side fix.
+            // pitcher_gb_rate / pitcher_ld_rate / pitcher_popup_rate WERE
+            // published as 0 on every row when this table was written; the
+            // bot fixed that on 2026-08-12 and the columns were never built.
+            // Built 2026-09-01 (Donovan picked "both" off the walks
+            // shortlist). Verified on the 09-01 slate: gb on 266/268 rows,
+            // ld 266, popup 248 -- real, per-arm values. numOrGap so an arm
+            // the bot has nothing for reads as a dash, not 0%.
             // Docket #20 calibrated fields — null until the bot's xHR machine
             // publishes; the columns only appear once they carry values.
             // 2026-08-15: these two were resolving to `null`, and DenseTable
@@ -1463,6 +1463,9 @@ rows={(() => {
             xallowed: numOrGap(src('pitcher_xhr_allowed')) || undefined,
             xluck: (() => { const v = numOrGap(src('pitcher_hr_luck')); return v === 0 ? undefined : v })(),
             fb: n(src('pitcher_fb_rate'), null),
+            gb: numOrGap(src('pitcher_gb_rate')) || undefined,
+            ld: numOrGap(src('pitcher_ld_rate')) || undefined,
+            popup: numOrGap(src('pitcher_popup_rate')) || undefined,
             fbSc: n(src('pitcher_statcast_fb_rate'), null),
             hh: n(src('pitcher_hardhit_allowed'), null),
             brl: n(src('pitcher_barrel_allowed'), null),
@@ -1550,7 +1553,7 @@ rows={(() => {
             recent: ['name','tm','vs','trend','overall','l3hr9','l3era','l3whip','l3n','velo','hr9',...(hasX ? ['xallowed','xluck'] : ['luck'])],
             cmd:    ['name','t','tm','vs','meat','fps','put','whiff','swstr','k9','ev','hr9L','hr9R'],
             bot:    ['name','tm','vs','overall','attack','wsScore','zoneDmg','spotDmg','spots','gbTrap','hardCon','lowK'],
-            bb:     ['name','tm','vs','overall','fb','fbSc','hh','brl','hrfb','pullAir','xbh','k9','ev',...(hasX ? ['xallowed','xluck'] : ['luck'])],
+            bb:     ['name','tm','vs','overall','fb','gb','ld','popup','fbSc','hh','brl','hrfb','pullAir','xbh','k9','ev',...(hasX ? ['xallowed','xluck'] : ['luck'])],
             pen:    ['name','tm','vs','penQual','penEra','penWhip','penHr9','penAtk','penFit'],
             air:    ['name','tm','vs','venue','roof','windDir','temp','wind','humid','parkHr','wxHr','hr9'],
           }
@@ -1635,6 +1638,12 @@ rows={(() => {
           // above stays one uninterrupted run of numbers.
           { key: 'fb',     label: 'FB%', w: 46, fmt: PCT,
             title: 'Fly-ball rate allowed, season. The only batted ball that can leave the yard — slate mean is 38%.' },
+          { key: 'gb',     label: 'GB%', w: 46, fmt: PCT, invert: true,
+            title: 'Ground-ball rate allowed, season. The batted ball that never leaves the yard — high is BAD for a homer pick, so the heat runs the other way.' },
+          { key: 'ld',     label: 'LD%', w: 46, fmt: PCT,
+            title: 'Line-drive rate allowed, season. Hits, not homers — the walks/hits side of the sheet cares about this one.' },
+          { key: 'popup',  label: 'Pop%', w: 46, fmt: PCT, invert: true,
+            title: 'Pop-up rate allowed, season. Free outs — an arm that induces them is a harder target.' },
           { key: 'fbSc',   label: 'FB% sc', w: 54, fmt: PCT,
             title: 'Statcast fly-ball rate allowed. Classified from launch angle rather than scorer judgement, so it reads a few points lower than FB% — slate mean 34%.' },
           { key: 'hh',     label: 'HH%', w: 46, fmt: PCT,
