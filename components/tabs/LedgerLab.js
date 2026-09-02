@@ -9,8 +9,9 @@ import {
   listLedgerNights, readLedgerNight, harvestRange, digestLedger,
   exportLedgerArchive, clearLedgerArchive, MIN_TELL,
   harvestPeople, pidsMissingPeople, readPeopleStore,
-  parseArchiveQuery, findInArchive,
+  parseArchiveQuery, findInArchive, seasonRecord,
 } from '../../lib/ledgerArchive'
+import SeasonRecord from '../SeasonRecord'
 
 // ══ 🧾 THE HOMER LEDGER — ITS OWN PAGE ══════════════════════════════════════
 //
@@ -57,6 +58,7 @@ import {
 // 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
   ['night', 'One night'],
+  ['season', 'Season record'],
   ['archive', 'The archive'],
 ]
 
@@ -119,7 +121,17 @@ const shortDate = (d) => {
 export default function LedgerLab({
   players = [], allPlayers = [], slateDate = '', results = null, onPlayerClick = null,
 }) {
+  // The Home ledger's "season record →" link lands on that view directly.
+  // sessionStorage, read once after mount (never during render — the server
+  // has no storage and a mismatched first paint is a hydration error), then
+  // cleared: a deep link without a route.
   const [view, setView] = useState('night')
+  useEffect(() => {
+    try {
+      const want = window.sessionStorage.getItem('ms_ledger_open_view')
+      if (want) { window.sessionStorage.removeItem('ms_ledger_open_view'); if (VIEWS.some(([k]) => k === want)) setView(want) }
+    } catch { /* private mode */ }
+  }, [])
   const [tick, setTick] = useState(0)          // forces an archive re-read
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -138,6 +150,13 @@ export default function LedgerLab({
   }, [tick])
 
   const digest = useMemo(() => digestLedger(entries, people), [entries, people])
+  // ── THE SEASON RECORD (2026-09-01) ─────────────────────────────────────
+  // Donovan: "I want a multi-day / season record" — both nights and hitters.
+  // Same nights on disk, a different read of them (see seasonRecord in
+  // lib/ledgerArchive.js). The first time this view opens on a thin device it
+  // pulls the deep window itself, silently, because a season record with
+  // seven nights in it is not a season record.
+  const season = useMemo(() => seasonRecord(entries), [entries])
 
   // ── LOOKING UP THE NUMBERS ────────────────────────────────────────────────
   // Jersey and birthday come from the league, not from the graded file, and
@@ -196,6 +215,14 @@ export default function LedgerLab({
     backfill(7, { silent: true }).then(() => enrich(true))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const deepRef = useRef(false)
+  useEffect(() => {
+    if (view !== 'season' || deepRef.current || busy) return
+    if ((season?.count || 0) >= 30) return
+    deepRef.current = true
+    backfill(45, { silent: true })
+  }, [view]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function doExport() {
     try {
       const blob = new Blob([exportLedgerArchive()], { type: 'application/json' })
@@ -239,6 +266,16 @@ export default function LedgerLab({
             onPlayerClick={onPlayerClick}
           />
         </>
+      )}
+
+      {view === 'season' && (
+        <SeasonRecord
+          season={season}
+          busy={busy}
+          msg={msg}
+          onPull={(days) => backfill(days)}
+          onPlayerClick={onPlayerClick}
+        />
       )}
 
       {view === 'archive' && (

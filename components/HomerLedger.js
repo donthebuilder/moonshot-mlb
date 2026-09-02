@@ -1533,6 +1533,14 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
               textDecoration: 'underline', textDecorationStyle: 'dotted',
             }}>research →</span>
         )}
+        {!research && onNavigate && (
+          <span onClick={() => { try { window.sessionStorage.setItem('ms_ledger_open_view', 'season') } catch { /* private mode */ } onNavigate('ledger') }}
+            title="Every homer in the majors across the nights this device holds — by night, and by hitter"
+            style={{
+              fontSize: 9, color: C.orange, cursor: 'pointer', fontFamily: NUM_FONT,
+              textDecoration: 'underline', textDecorationStyle: 'dotted',
+            }}>season record →</span>
+        )}
         {openNow
           ? <span style={{ fontSize: 9, color: C.text3 }}>{research ? 'every night this browser has seen' : 'builds as the slate plays'}</span>
           : <span onClick={toggle} style={{ fontSize: 9, color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
