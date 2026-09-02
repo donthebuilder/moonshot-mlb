@@ -79,11 +79,51 @@ export function VerdictBadge({ label, col, quiet }) {
  * sits opposite the badge, because on a phone the ✕ has to stay where the
  * thumb already expects it.
  */
+// ── THE BADGE LEADS (2026-09-01) ─────────────────────────────────────────────
+//
+// Donovan, asked which field should lead a props card — score, flag, or price
+// gap: "Flag / verdict." The dial was the loud thing on every card, and a dial
+// says how MUCH; a badge says WHAT. On a board you read to decide, WHAT comes
+// first. So `lead="badge"` draws the verdict as the left-hand instrument — the
+// role code large, the market it settles on under it — and the score becomes a
+// small numeral on the right, where the badge used to sit. `lead="dial"` is the
+// default and is what the player and pitcher modals still use, untouched.
+function VerdictPlate({ badge, col, quiet, market, size = 64 }) {
+  const label = String(badge || '').replace(/^[^\w]*\s*/, '')  // strip a leading emoji
+  const big = label.length > 5 ? Math.round(size * 0.21) : Math.round(size * 0.27)
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 16, flexShrink: 0,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+      background: quiet ? alpha(C.text3, 0.10) : `linear-gradient(160deg, ${alpha(col, 0.34)}, ${alpha(col, 0.10)})`,
+      border: `1px solid ${quiet ? C.border2 : alpha(col, 0.55)}`,
+      boxShadow: quiet ? 'none' : `0 0 14px ${alpha(col, 0.22)}`,
+    }}>
+      <span style={{ fontSize: big, fontWeight: 900, letterSpacing: '.06em', color: quiet ? C.text3 : col, lineHeight: 1, fontFamily: NUM_FONT }}>{label || '—'}</span>
+      {market && <span style={{ fontSize: 7.5, fontWeight: 800, color: quiet ? C.text3 : alpha(col, 0.9), letterSpacing: '.04em', textTransform: 'uppercase', whiteSpace: 'nowrap', maxWidth: size - 8, overflow: 'hidden', textOverflow: 'ellipsis' }}>{market}</span>}
+    </div>
+  )
+}
+
+export function ScoreChip({ value, col, title }) {
+  const v = value == null ? null : Number(value)
+  return (
+    <span title={title} style={{
+      flexShrink: 0, display: 'inline-flex', alignItems: 'baseline', gap: 4,
+      padding: '3px 8px', borderRadius: 999, border: `1px solid ${alpha(col, 0.4)}`, background: alpha(col, 0.08),
+    }}>
+      <span style={{ fontSize: 7.5, fontWeight: 800, color: C.text3, letterSpacing: '.06em' }}>SCORE</span>
+      <span style={{ fontSize: 12.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, lineHeight: 1 }}>{v == null ? '—' : fmtScore(v, 0)}</span>
+    </span>
+  )
+}
+
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
-  title, badge, badgeQuiet, meta, metaRight, market, line, right,
-  chips, footer, style,
+  title, badge, badgeQuiet, meta, metaRight, market, line, line2, right,
+  chips, footer, style, lead = 'dial',
 }) {
+  const badgeLeads = lead === 'badge'
   return (
     <div style={{
       position: 'relative', overflow: 'hidden',
@@ -99,7 +139,9 @@ export default function VerdictHero({
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 13, minWidth: 0 }}>
-        <Dial value={score} col={col} max={max} title={dialTitle} dp={dp} />
+        {badgeLeads
+          ? <VerdictPlate badge={badge} col={col} quiet={badgeQuiet} market={market} />
+          : <Dial value={score} col={col} max={max} title={dialTitle} dp={dp} />}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
             <span style={{
@@ -107,7 +149,9 @@ export default function VerdictHero({
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{title}</span>
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              {badge && <VerdictBadge label={badge} col={col} quiet={badgeQuiet} />}
+              {badgeLeads
+                ? <ScoreChip value={score} col={col} title={dialTitle || 'The bot’s score for this market'} />
+                : badge && <VerdictBadge label={badge} col={col} quiet={badgeQuiet} />}
               {right}
             </span>
           </div>
@@ -127,7 +171,9 @@ export default function VerdictHero({
               )}
             </div>
           )}
-          {market && (
+          {/* When the plate already carries the market, printing it again
+              under the name is the same word twice, four inches apart. */}
+          {market && !badgeLeads && (
             <div style={{
               fontSize: 8.5, fontWeight: 900, letterSpacing: '.11em',
               textTransform: 'uppercase', color: col,
@@ -138,6 +184,17 @@ export default function VerdictHero({
 
       {line && (
         <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.55, minWidth: 0 }}>{line}</div>
+      )}
+      {/* ── THE SECOND LINE, HIS OWN (2026-09-01) ──────────────────────────
+          Donovan, on the props cards: "what happened to the different text
+          lines for each … stats." The sentence above is the MARKET's line —
+          it says what a HR pick is judged on and reads the same shape for
+          every hitter in that market. This one is the hitter's: the bot's
+          matchup_reason, which is a different sentence for nearly every man
+          on the slate (221 distinct on a 268-row slate, measured 2026-09-01),
+          and which the site had been shipping and never showing. */}
+      {line2 && (
+        <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.5, minWidth: 0, fontFamily: NUM_FONT }}>{line2}</div>
       )}
 
       {chips && chips.length > 0 && (

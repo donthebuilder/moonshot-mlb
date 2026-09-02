@@ -46,8 +46,12 @@ import { FilterPill } from '../Filters'
 //      `matches`; a HR pick graded on 1+ cannot wear a price for 2+).
 //
 // WHY-THIS-ONE (the long-open question #7) — Donovan, asked directly: "idk
-// please make simple". So the badge's own market score leads, and under it
+// please make simple". So the badge's own market score led, and under it
 // ONE sentence. Which sentence, and which score, is lib/verdict.js's job.
+// CLOSED 2026-09-01 — asked which field should lead, he picked "Flag /
+// verdict". The badge is now the card's left-hand instrument (VerdictHero
+// lead="badge"), the score a small chip on the right. Same sentence, same
+// tiles, same everything else.
 //
 // Everything else is deliberate: default population is the decision-ready set
 // (badge holders + WATCH), "Everyone" is one pill away, cards are ranked only
@@ -78,6 +82,10 @@ function GroupHead({ role, count }) {
 // with no badge is in no market at all and gets no price rather than a
 // borrowed one.
 const PRICE_ROLE = { TOP: 'TOP', HR: 'HR', HIT: 'HIT', HRR: 'HRR', CONTACT: 'CONTACT', WATCH: 'HR' }
+// The bar under the badge on the plate — the shortest true statement of what
+// the badge has to clear. verdict.js's `market` is the English name; this is
+// the width a 64px plate can carry.
+const PLATE_BAR = { TOP: 'best bat', HR: '1+ HR', HIT: '1+ hit', HRR: '2+ H+R+RBI', CONTACT: '2+ TB', WATCH: 'coverage', NONE: 'no badge' }
 
 function priceFor(odds, r, role) {
   const cat = PRICE_ROLE[role]
@@ -86,6 +94,17 @@ function priceFor(odds, r, role) {
   if (!q || !q.matches) return null
   const price = fmtOdds(q.over)
   return price === '—' ? null : price
+}
+
+// The hitter's own line. matchup_reason arrives as ' · '-joined fragments
+// ("RHB attacks pitcher weak side · low-K pitcher 18% · pitcher HR/9 1.71 /
+// WHIP 1.54 · HRW 42 / IHR 0.18 / 350+ 14%"). Shown as-is but for the
+// separator, and only when it says something — an empty or "None" field is
+// no line, not a dash.
+function matchupLine(r) {
+  const t = txt(r?.matchup_reason).trim()
+  if (!t || /^none$/i.test(t)) return null
+  return t.split(/\s*·\s*/).filter(Boolean).join('  ·  ')
 }
 
 function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
@@ -105,14 +124,18 @@ function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
     <div onClick={onPlayerClick ? () => onPlayerClick(r) : undefined}
       style={{ cursor: onPlayerClick ? 'pointer' : 'default', minWidth: 0 }}>
       <VerdictHero
+        lead="badge"
         col={col}
         score={v.score(r)}
+        dialTitle={`${role === 'NONE' ? 'Overall' : role} score — the bot's number for this market`}
+        market={PLATE_BAR[role] || v.market}
         title={nameOf(r)}
-        badge={role === 'WATCH' ? '👀 WATCH' : role === 'NONE' ? 'NO BADGE' : role}
+        badge={role === 'WATCH' ? 'WATCH' : role === 'NONE' ? 'NONE' : role}
         badgeQuiet={quiet}
         meta={`${teamOf(r)} vs ${oppOf(r)}${arm ? ` · ${arm}${hand ? ` (${hand})` : ''}` : ''}`}
         metaRight={price}
         line={sentenceFor(r, role)}
+        line2={matchupLine(r)}
         chips={chipsFor(r, role)}
         footer={<PeriodTiles tiles={v.tiles(r)} />}
         right={onWatch && (
