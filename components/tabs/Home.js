@@ -24,6 +24,7 @@ import { btnStyle } from '../ui'
 import Scoreboard from './Scoreboard'
 import Boxes from './Boxes'
 import PennantRace from '../PennantRace'
+import ComebackBoard from '../ComebackBoard'
 
 // HOME — the front porch.
 //
@@ -1018,6 +1019,13 @@ export default function Home({
           never opens this never fetches playoff_odds.json either. ── */}
       <Fold id="october" title="🏆 October odds" meta="playoff field and a World Series pick, simulated">
         <PennantRace />
+      </Fold>
+
+      {/* Comebacks sit beside October because they are the same KIND of thing:
+          season-long colour next to a product about tonight. Same fold, same
+          cost of nothing until opened. */}
+      <Fold id="comebacks" title="🔄 Comeback board" meta="who wins after falling behind — and who gives it away">
+        <ComebackBoard />
       </Fold>
 
       {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}
