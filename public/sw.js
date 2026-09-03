@@ -84,16 +84,40 @@ self.addEventListener('message', (e) => {
 
 // Tapping the notification should land you back in the tab you already had
 // open, not spawn a fifth copy of the site.
+//
+// 2026-09-03. Two things were wrong here and both showed up as the same
+// complaint -- "I tapped Jordan Walker's home run and it took me to the
+// homepage."
+//
+//   1. The URL had no player in it. Fixed upstream in lib/dash/pushRules.js
+//      and components/MiniWire.js; every per-player alert now carries
+//      `#p=<id>` and the ball events carry `&view=spray`.
+//
+//   2. Reusing an open tab meant a FRAGMENT-ONLY navigation, and
+//      WindowClient.navigate() is not dependable for those -- some engines
+//      treat "same document, different hash" as nothing to do. The tab came
+//      to the front still showing whatever it was showing. So the worker now
+//      also POSTS the target to the page, and the page routes itself
+//      (components/Dashboard.js listens). navigate() still runs first, for
+//      the browsers where it works and for a client on a different path; the
+//      message is what makes it reliable, and applying the same hash twice
+//      is a no-op either way.
+//
+// Picking the client also stopped being "whichever came back first": with
+// Franchise open in one tab and the board in another, a homer alert had a
+// coin-flip chance of focusing the fantasy page. A client already on /app
+// wins; anything else is the fallback.
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
   const target = e.notification?.data?.url || '/app'
   e.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    for (const c of all) {
-      if ('focus' in c) {
-        try { if (target && target !== '/' && 'navigate' in c) await c.navigate(target) } catch {}
-        return c.focus()
-      }
+    const onBoard = all.find((c) => { try { return new URL(c.url).pathname.startsWith('/app') } catch { return false } })
+    const c = onBoard || all.find((x) => 'focus' in x)
+    if (c) {
+      try { if (target && target !== '/' && 'navigate' in c) await c.navigate(target) } catch {}
+      try { c.postMessage({ type: 'dash-open', url: target }) } catch {}
+      return c.focus()
     }
     if (self.clients.openWindow) return self.clients.openWindow(target)
     return undefined

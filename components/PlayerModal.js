@@ -424,7 +424,7 @@ function Navigator({ peers, cur, onNavigate }) {
   )
 }
 
-export default function PlayerModal({ player, slateMode, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
+export default function PlayerModal({ player, slateMode, initialTab = '', onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
   // Inline mode is not an overlay -- it renders in the page, and pinning the
   // body under it would freeze the very thing the reader is scrolling.
   useScrollLock(Boolean(player) && !inline)
@@ -511,6 +511,23 @@ export default function PlayerModal({ player, slateMode, onClose, inline = false
 
   // An API-only player can land while a bot-only tab is open — snap home.
   useEffect(() => { if (player?.api_only) setTab('overview') }, [player])
+
+  // ── A NOTIFICATION CAN NAME THE TAB (2026-09-03) ─────────────────────────
+  //
+  // "I clicked that notification and it took me to the homepage instead of
+  // the spray chart of the home run." The card now opens where the news is:
+  // lib/dash/pushRules.js puts `&view=spray` on the two alerts whose subject
+  // is the batted ball (homer, extra-base hit) and nothing on the rest.
+  //
+  // Runs AFTER the api_only snap-home above so the two cannot fight; and it
+  // refuses a tab this player does not have rather than rendering an empty
+  // panel -- an API-only man has four tabs, not nine, and Spray is one of
+  // them, which is the case that matters here.
+  useEffect(() => {
+    if (!player || !initialTab) return
+    const allowed = (player?.api_only ? ['overview', 'splits', 'ev', 'spray'] : TABS.map((t) => t.key))
+    if (allowed.includes(initialTab)) setTab(initialTab)
+  }, [player, initialTab])
 
   // 🎽 JERSEY NUMBER (2026-08-13, Donovan: "add jersey numbers to the players
   // modal"). Not something the bot publishes — it's static roster info, the

@@ -71,6 +71,7 @@ export default function Dashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
+    setModalView({ pid: '', view: '' })
     // Changing tab closes the player card. #33: `#tab=odds&p=686948` rendered
     // the card on top of Odds, so the URL said one thing and the screen showed
     // another; #60 sharpened that to blocking, because the card is modal over
@@ -102,6 +103,18 @@ export default function Dashboard({ palettePass = 0 }) {
   // open/close, so any view you're looking at is copy-paste shareable —
   // which is how a Discord pick post becomes a link to its receipt.
   const hashAppliedRef = useRef(false)
+  // Which tab of the player card a deep link asked for (`#p=571448&view=spray`).
+  // Empty means "whatever the card opens on by itself". Set by the hash
+  // readers below, handed to PlayerModal, and never written back into the URL
+  // -- it is an instruction for the moment the card opens, not an address.
+  //
+  // IT CARRIES THE PLAYER IT WAS MEANT FOR. The card can walk to the next man
+  // on the board without closing (onNavigate), which changes `player` under
+  // PlayerModal -- and a bare 'spray' string would then snap every one of them
+  // to the spray chart, forever, because the notification said so about
+  // somebody else twenty minutes ago. Pairing the view with an id makes it
+  // expire on its own the moment you move off the man it was about.
+  const [modalView, setModalView] = useState({ pid: '', view: '' })
   // `missing` carries the tab someone actually typed when this product has no
   // such page, so the shell can say so instead of rendering an empty div. See
   // lib/routes.js -- MOONSHOT used to answer #tab=picks with a blank screen.
@@ -140,10 +153,62 @@ export default function Dashboard({ palettePass = 0 }) {
       else { setMissingTab(''); if (r.status !== 'default') setTabRaw(r.tab) }
       const sp = h.get('sport')
       if (sp === 'mlb' || sp === 'nfl') setSport(sp)
+      // ── #p= ON A LIVE HASH CHANGE (2026-09-03) ──────────────────────────
+      //
+      // The mount-time reader below handles a COLD open. This handles the
+      // warm one, and until now it did not exist -- which is most of why
+      // tapping a homer notification landed on the board. The service worker
+      // prefers to reuse an already-open tab (sw.js focuses a client and
+      // navigates it), so the common case on a phone is: app already running,
+      // hash changes, no remount. The tab moved. The player card did not.
+      //
+      // hashAppliedRef is cleared as well, so the mount reader is not left
+      // holding a spent flag if the payload for this man has not landed yet.
+      const pid = h.get('p')
+      setModalView(pid ? { pid: String(pid), view: String(h.get('view') || '') } : { pid: '', view: '' })
+      if (pid) {
+        const found = playersRef.current.find((x) => String(x?.player_id ?? x?.id) === pid)
+        hashAppliedRef.current = !!found
+        if (found) setModalPlayer(found)
+        else pendingPlayerRef.current = pid
+      } else {
+        pendingPlayerRef.current = ''
+        setModalPlayer(null)
+      }
     }
     window.addEventListener('hashchange', apply)
-    return () => window.removeEventListener('hashchange', apply)
+
+    // ── THE SERVICE WORKER CAN ALSO ASK (2026-09-03) ────────────────────────
+    //
+    // public/sw.js posts the tapped notification's URL here after focusing
+    // this tab, because a fragment-only WindowClient.navigate() is not
+    // dependable and a tap that brings the app forward showing the wrong
+    // screen is the bug being fixed. Writing the hash fires `apply` above
+    // through the normal path -- there is no second routing code path to keep
+    // in sync -- and writing a hash that is already current does nothing, so
+    // the belt and the braces cannot fight.
+    const fromWorker = (ev) => {
+      const d = ev?.data
+      if (!d || d.type !== 'dash-open' || typeof d.url !== 'string') return
+      const i = d.url.indexOf('#')
+      if (i < 0) return
+      const next = d.url.slice(i)
+      if (window.location.hash === next) apply()
+      else window.location.hash = next
+    }
+    navigator.serviceWorker?.addEventListener?.('message', fromWorker)
+
+    return () => {
+      window.removeEventListener('hashchange', apply)
+      navigator.serviceWorker?.removeEventListener?.('message', fromWorker)
+    }
   }, [])
+
+  // The hashchange listener is registered once and therefore closes over the
+  // first render's values forever. These two refs are how it sees the current
+  // slate, and how it parks an id whose row has not been fetched yet.
+  const playersRef = useRef([])
+  const pendingPlayerRef = useRef('')
 
   const [focusPlayerId, setFocusPlayerId] = useState(null)
 
@@ -257,13 +322,27 @@ export default function Dashboard({ palettePass = 0 }) {
 
   // (deep-link effects live below allPlayers — deps arrays evaluate at
   // render time and a hoisted reference would hit the temporal dead zone)
+  useEffect(() => { playersRef.current = allPlayers }, [allPlayers])
+
   useEffect(() => {
     if (hashAppliedRef.current) return
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-    const pid2 = h.get('p')
+    // pendingPlayerRef covers the case the hash has already been rewritten by
+    // the write-back effect: a notification tapped before the slate finished
+    // loading would otherwise lose its man between the two events.
+    const pid2 = h.get('p') || pendingPlayerRef.current
     if (!pid2 || !allPlayers.length) return
     const found = allPlayers.find((x) => String(x?.player_id ?? x?.id) === pid2)
-    if (found) { setModalPlayer(found); hashAppliedRef.current = true }
+    if (found) {
+      // `view` is read here rather than at mount because a cold open reaches
+      // this effect only once the payload lands, and the hash is still intact
+      // until the card actually opens.
+      const v = String(h.get('view') || '')
+      if (v) setModalView({ pid: String(pid2), view: v })
+      setModalPlayer(found)
+      pendingPlayerRef.current = ''
+      hashAppliedRef.current = true
+    }
   }, [allPlayers])
   // ── EVERY DEEP LINK WAS LOST ON A NON-DEFAULT THEME (fixed 2026-08-22) ────
   //
@@ -690,6 +769,7 @@ export default function Dashboard({ palettePass = 0 }) {
           Threaded as a prop it's in the deps array, so a mode flip refetches. */}
       <PlayerModal
         player={modalPlayer}
+        initialTab={modalPlayer && String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') === modalView.pid ? modalView.view : ''}
         slateMode={mode}
         onClose={() => setModalPlayer(null)}
         onAdd={addSlip}

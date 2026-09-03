@@ -112,7 +112,7 @@ export default function MiniWire({
       // demo toast fires instantly, and the same event hits the OS so you
       // see both channels the moment you opt in.
       addToasts([{ key: `test:${Date.now()}`, icon: '🔔', pri: 0, p: null,
-        text: 'Armed — 💥 homers and 🎤 "your pick is batting NOW" reach you even while you\'re looking at the site. Bar clears, on-deck and K-alerts wait until the tab is hidden. Choose which ones on DASH Home → Alerts.' }])
+        text: 'Armed. Homers and "your pick is up now" reach you even while you\'re looking at the site. Bar clears, on-deck and K-alerts wait until the tab is hidden. Choose which ones on DASH Home → Alerts.' }])
     }
   }
   // Register early when permission is already granted, so the first alert of
@@ -186,7 +186,7 @@ export default function MiniWire({
       // Distance and exit velocity below are measured, come from the play
       // itself, and stay.
       if (!bits.length) return
-      setToasts((ts) => ts.map((t) => t.key === key ? { ...t, text: `${t.text} — ${bits.join(' · ')}` } : t))
+      setToasts((ts) => ts.map((t) => t.key === key ? { ...t, text: `${t.text} · ${bits.join(' · ')}` } : t))
     }).catch(() => {})
   }
 
@@ -203,11 +203,35 @@ export default function MiniWire({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── WHERE A TOAST'S OS NOTIFICATION LANDS (2026-09-03) ────────────────────
+  //
+  // Same fix as lib/dash/pushRules.js, on the other channel. These fire from
+  // the open tab; the ones from the cron fire from the server; both used to
+  // hand the operating system a link to the BOARD, so tapping "Jordan Walker
+  // goes yard" put you on Home to go and find him.
+  //
+  // `#p=<id>` opens his card (components/Dashboard.js), `&view=spray` opens it
+  // on the 3D spray -- which is the whole point for a batted ball and exactly
+  // wrong for an on-deck notice, so only the ball events ask for it.
+  const toastUrl = (t) => {
+    const pid = t?.p ? String(t.p?.player_id ?? t.p?.id ?? '') : ''
+    if (!pid) return '/app#sport=mlb&tab=home'
+    const ball = t?.kind === 'hr' || t?.kind === 'anyhr' || t?.kind === 'd2' || t?.kind === 'd3' || t?.kind === 'tb4'
+    return `/app#sport=mlb&p=${encodeURIComponent(pid)}${ball ? '&view=spray' : ''}`
+  }
+
   const addToasts = (items) => {
     if (!items.length) return
     const narrow = narrowRef.current
-    // ON-SCREEN stack only. Four on a desktop, two on a phone.
-    setToasts((cur) => [...items, ...cur].slice(0, narrow ? 2 : 4))
+    // ON-SCREEN stack. THREE on a desktop, ONE on a phone (2026-09-03,
+    // Donovan: "the desktop ones are a little overbearing... it's another
+    // point of five people saying it's a lot going on"). Four stacked cards
+    // in the corner of a monitor is a second interface; three is a feed. On a
+    // phone the previous two could still cover a third of the screen, and the
+    // second one was always the less important of the pair anyway -- `out` is
+    // sorted by priority before it gets here, so ONE is the loudest thing
+    // that happened, not an arbitrary survivor.
+    setToasts((cur) => [...items, ...cur].slice(0, narrow ? 1 : 3))
     // Bell on → homers and skin-on events also reach the OS. Originally this
     // only fired with the tab HIDDEN; in practice (2026-08-06) that read as
     // "I accepted notifications and got nothing" while watching the site —
@@ -233,16 +257,20 @@ export default function MiniWire({
       // The page API is unreliable on Android and dies when the phone freezes
       // the tab — which is precisely the case these alerts exist for.
       items.filter((t) => alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
-        notify({ title: `${t.icon} Moonshot`, body: t.text, tag: t.key, silent: t.pri > 0.5 })
+        notify({ title: `${t.icon} MOONSHOT`, body: t.text, tag: t.key, silent: t.pri > 0.5, url: toastUrl(t) })
       })
     }
-    // Dwell. Shorter on a phone, and homers still get roughly double
-    // everything else because a homer is the one you want to actually read.
-    // The OS notification stays on the lock screen either way, so a toast
-    // that clears early on a phone loses nothing.
+    // Dwell. HALVED 2026-09-03 ("they stay on the screen a little bit too
+    // persistent"). Fifteen seconds for a homer on a desktop was a third of a
+    // half-inning of a card sitting over the page; eight is long enough to
+    // read two lines twice. Homers still get roughly double everything else,
+    // because a homer is the one you actually want to read. Nothing is lost
+    // by clearing early: the OS notification stays on the lock screen, the
+    // wire panel keeps the full feed, and there is an X now for the ones you
+    // are done with before the timer is.
     items.forEach((t) => setTimeout(() => {
       setToasts((cur) => cur.filter((x) => x.key !== t.key))
-    }, t.pri === 0 ? (narrow ? 9000 : 15000) : (narrow ? 5000 : 9000)))
+    }, t.pri === 0 ? (narrow ? 5000 : 8000) : (narrow ? 3500 : 5000)))
   }
 
   useEffect(() => {
@@ -276,22 +304,22 @@ export default function MiniWire({
           }
           if (now.hr > was.hr) {
             const hrKey = `${id}:hr:${now.hr}${now.d2}${now.d3}${now.k}${now.tb}`
-            fire('hr', '💥', `${nameOf(p)} GOES YARD${now.hr > 1 ? ` — that's ${now.hr}` : ''}${role ? ` · ${role} pick ✓` : ''}`, 0)
+            fire('hr', '💥', `${nameOf(p)} goes yard${now.hr > 1 ? `, ${now.hr} tonight` : ''}${role ? ` · ${role} pick ✓` : ''}`, 0)
             enrichHr(hrKey, now.pk, id, p, now)
           }
           else {
             const clearedNow = role && pickCleared(role, now) === true && pickCleared(role, was) !== true
-            if (now.d3 > was.d3) fire('d3', '🔥', `${nameOf(p)} TRIPLES${clearedNow ? ` — ${role} bar cleared ✓` : ''}`, 1)
-            else if (now.d2 > was.d2) fire('d2', '⚡', `${nameOf(p)} doubles${clearedNow ? ` — ${role} bar cleared ✓` : ` · ${now.tb} TB`}`, 1)
+            if (now.d3 > was.d3) fire('d3', '🔥', `${nameOf(p)} triples${clearedNow ? ` · ${role} bar cleared ✓` : ''}`, 1)
+            else if (now.d2 > was.d2) fire('d2', '⚡', `${nameOf(p)} doubles${clearedNow ? ` · ${role} bar cleared ✓` : ` · ${now.tb} TB`}`, 1)
             else if (clearedNow) fire('clr', '✓', `${nameOf(p)} clears the ${role} bar (${now.h}-${now.ab}${now.tb > 1 ? `, ${now.tb} TB` : ''})`, 1)
           }
           if (role && now.k >= 2 && was.k < 2 && now.h === 0) {
-            fire('k', '⚠️', `${nameOf(p)} (${role} pick) is 0-${now.ab} with ${now.k} K — the strikeout script`, 2)
+            fire('k', '⚠️', `${nameOf(p)} (${role} pick) is 0-${now.ab} with ${now.k} K · the strikeout script`, 2)
           }
           // Big-bases night: 4+ TB crossing, only when it wasn't a fresh
           // homer doing the crossing (that toast already fired louder).
           if (now.tb >= 4 && was.tb < 4 && now.hr === was.hr) {
-            fire('tb4', '🧨', `${nameOf(p)} is piling bases — ${now.tb} TB (${now.h}-${now.ab})`, 1)
+            fire('tb4', '🧨', `${nameOf(p)} is piling bases · ${now.tb} TB (${now.h}-${now.ab})`, 1)
           }
         })
         // ── EVERY slate homer toasts (2026-08-06). The wire chip updated but
@@ -309,7 +337,7 @@ export default function MiniWire({
           if (firedRef.current.has(key)) return
           firedRef.current.add(key)
           out.push({ key, icon: '💥', p: p || null, pri: 3, kind: 'anyhr',
-            text: `${p ? nameOf(p) : (now.name || 'Someone')} goes deep${now.hr > 1 ? ` — that's ${now.hr}` : ''}` })
+            text: `${p ? nameOf(p) : (now.name || 'Someone')} goes deep${now.hr > 1 ? `, ${now.hr} tonight` : ''}` })
           enrichHr(key, now.pk, id, p, now)
         })
 
@@ -331,8 +359,10 @@ export default function MiniWire({
               // actionable on a phone lock screen without opening the site
               const arm = String(p?.pitcher_name || '').split(' ').slice(-1)[0]
               out.push({
-                key, icon: '🎤', p, pri: 0.5, kind: 'up',
-                text: `UP NOW — ${nameOf(p)} (${who}) batting${arm ? ` vs ${arm}` : ''} · ${g.half}${g.inning}`,
+                // 🎤 retired 2026-09-03 (Donovan: "I don't like the
+                // microphone"). ⚾ says the same thing without the karaoke.
+                key, icon: '⚾', p, pri: 0.5, kind: 'up',
+                text: `${nameOf(p)} is up now (${who})${arm ? ` vs ${arm}` : ''} · ${g.half}${g.inning}`,
               })
             }
           } else if (g.onDeck === id) {
@@ -363,7 +393,7 @@ export default function MiniWire({
             firedRef.current.add(key)
             out.push({
               key, icon: '🚫', p, pri: 0.2,
-              text: `${nameOf(p)} (${who}) is NOT in tonight's lineup — the bot had him at #${p?.lineup_spot ?? '?'}`,
+              text: `${nameOf(p)} (${who}) is not in tonight's lineup · bot had him #${p?.lineup_spot ?? '?'}`,
             })
           } else if (lu.moved) {
             const key = `${id}:slot:${lu.slot}`
@@ -371,7 +401,7 @@ export default function MiniWire({
             firedRef.current.add(key)
             out.push({
               key, icon: '↕', p, pri: 1.4,
-              text: `${nameOf(p)} (${who}) is batting #${lu.slot} tonight — the bot had #${p?.lineup_spot}`,
+              text: `${nameOf(p)} (${who}) is batting #${lu.slot} tonight · bot had #${p?.lineup_spot}`,
             })
           }
         })
@@ -456,15 +486,35 @@ export default function MiniWire({
             <div key={t.key}
               onClick={() => { onPlayerClick?.(t.p); setToasts((cur) => cur.filter((x) => x.key !== t.key)) }}
               style={{
-                display: 'flex', gap: 8, alignItems: 'baseline', cursor: 'pointer',
+                display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
                 background: t.pri === 0 ? `linear-gradient(135deg, ${C.green}29, ${C.scrim})` : C.scrim,
                 border: `1px solid ${t.pri === 0 ? 'rgba(74,222,128,.5)' : t.pri === 2 ? 'rgba(248,113,113,.4)' : C.border2}`,
                 borderRadius: 10, padding: '8px 12px',
                 boxShadow: `0 8px 28px ${C.shadow}`,
                 animation: 'wireToastIn .18s ease-out',
               }}>
-              <span style={{ fontSize: 14, flexShrink: 0 }}>{t.icon}</span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text, lineHeight: 1.4 }}>{t.text}</span>
+              <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1.4 }}>{t.icon}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text, lineHeight: 1.4, flex: 1, minWidth: 0 }}>{t.text}</span>
+              {/* ── AN X (2026-09-03) ────────────────────────────────────
+                  "they need a little X button and can disappear faster."
+                  The card body still opens the player, which is the reason
+                  most of these get clicked -- so the dismiss has to be its
+                  own target and has to stopPropagation, or closing a toast
+                  would open a modal on the way out. 28px is the smallest
+                  square a thumb hits reliably; it is a bigger hit area than
+                  it looks, deliberately, because a control you miss twice is
+                  worse than no control. */}
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={(e) => { e.stopPropagation(); setToasts((cur) => cur.filter((x) => x.key !== t.key)) }}
+                style={{
+                  flexShrink: 0, width: 28, height: 28, marginTop: -4, marginRight: -6,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 0, borderRadius: 8,
+                  color: C.text2, fontSize: 15, lineHeight: 1, cursor: 'pointer', padding: 0,
+                }}
+              >×</button>
             </div>
           ))}
           <style>{'@keyframes wireToastIn { from { transform: translateY(-8px); opacity: 0 } to { transform: none; opacity: 1 } }'}</style>
