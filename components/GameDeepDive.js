@@ -271,6 +271,18 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
   const xbbe = n(src('pitcher_xhr_bbe'), 0)
   const l3whip = n(src('pitcher_l3_whip'), null)
   const l3n = n(src('pitcher_l3_starts_found'), 0)
+  // ── THE COUNT AND THE HAND SPLIT (2026-09-03) ──────────────────────────
+  // Donovan asked for these on the game page. The five tiles above are all
+  // RATES, and a rate cannot answer "how many, and to whom" -- 1.44 HR/9
+  // reads the same whether it is 26 homers over a season or 5 over four
+  // starts, and it says nothing about the split that actually decides a
+  // left-handed bat. Checked against the live payload: the two sides sum
+  // exactly to the total on every arm on tonight's board.
+  const hrTotal = n(src('pitcher_hr_allowed'), null)
+  const hrL = n(src('pitcher_hr_vs_lhb'), null)
+  const hrR = n(src('pitcher_hr_vs_rhb'), null)
+  const hr9L = n(src('pitcher_hr9_vs_lhb'), null)
+  const hr9R = n(src('pitcher_hr9_vs_rhb'), null)
   const attack = n(src('pitcher_attack_score'), null)
   const brl = n(src('pitcher_barrel_allowed'), null)
   const fb = n(src('pitcher_fb_rate'), null)
@@ -374,6 +386,29 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
           tone={hr9 == null ? null : hr9 >= 1.4 ? 'hot' : hr9 <= 1.0 ? 'cold' : null}
           title={`Season homers allowed per nine. The league line is ${LEAGUE_HR9.toFixed(2)} — warm is over it, and over it is good for the bats.`} />
       </div>
+
+      {/* ── HOW MANY, AND TO WHOM ────────────────────────────────────────
+          A sentence rather than two more tiles: the row above is a fixed five
+          columns deliberately, so it reads as one even line at every width,
+          and a seventh tile would break the thing that makes it work. This is
+          the same "stat text is cool for those" idiom the lineup line below
+          already uses. Warm on the side carrying two thirds or more of the
+          damage, and only once there is enough of it to mean anything. */}
+      {hrTotal != null && (
+        <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 6 }}>
+          <b style={{ color: C.text2 }}>{hrTotal}</b> HR allowed this season
+          {hrL != null && hrR != null && (
+            <>
+              {' · '}
+              <b style={{ color: hrTotal >= 6 && hrL / Math.max(hrTotal, 1) >= 0.66 ? C.orange : C.text2 }}>{hrL}</b> to LHB
+              {hr9L != null && <span style={{ opacity: .75 }}> ({hr9L.toFixed(2)}/9)</span>}
+              {', '}
+              <b style={{ color: hrTotal >= 6 && hrR / Math.max(hrTotal, 1) >= 0.66 ? C.orange : C.text2 }}>{hrR}</b> to RHB
+              {hr9R != null && <span style={{ opacity: .75 }}> ({hr9R.toFixed(2)}/9)</span>}
+            </>
+          )}
+        </div>
+      )}
 
       {/* the lineup stays a sentence — "stat text is cool for those" */}
       <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, marginBottom: 9 }}>

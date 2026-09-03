@@ -214,8 +214,159 @@ function sidesOf(g) {
       // HR/9 has climbed at least 0.4 above his season figure) — reused
       // here rather than invented fresh, so the two pages agree.
       trendingBad: trend === 'worsening' || (l3hr9 != null && hr9 > 0 && l3hr9 >= hr9 + 0.4),
+      // ── THE SEASON HOMER FACTS (2026-09-03) ────────────────────────────
+      //
+      // Donovan: "add pitcher HR total on season, LHB/RHB, and a stats bubble
+      // on the game page by the pitchers."
+      //
+      // Every one of these is already in the payload and was already on the
+      // page -- three clicks away, inside the player card's Pitcher tab. The
+      // duel strip printed HR/9 alone, which is a RATE: 1.44 tells you he
+      // leaks, and nothing about whether that is 26 homers over a full season
+      // or 5 over four starts. The count and the rate answer different
+      // questions and the strip was only asking one of them.
+      //
+      // hr_vs_lhb + hr_vs_rhb sums exactly to hr_allowed on every arm on
+      // tonight's board (checked against the live payload before this was
+      // written), so the split is the total broken out, not a second
+      // measurement that can disagree with it.
+      //
+      // NOT INCLUDED: innings pitched and games started. Both are in the
+      // field list and NEITHER is published in today_slim.json -- 0 of 160
+      // rows carry them -- so "13 HR in 75 IP" would have rendered as "13 HR
+      // in — IP" all season. A number the feed does not have is not a number.
+      hrTotal: num(lineup[0]?.pitcher_hr_allowed),
+      hrL: num(lineup[0]?.pitcher_hr_vs_lhb),
+      hrR: num(lineup[0]?.pitcher_hr_vs_rhb),
+      hr9L: num(lineup[0]?.pitcher_hr9_vs_lhb),
+      hr9R: num(lineup[0]?.pitcher_hr9_vs_rhb),
+      whip: num(lineup[0]?.pitcher_whip),
+      xhr: num(lineup[0]?.pitcher_xhr_allowed),
+      hrfb: num(lineup[0]?.pitcher_hr_fb_pct),
+      barrel: num(lineup[0]?.pitcher_barrel_allowed),
+      weakSide: String(lineup[0]?.pitcher_weak_side || '').toUpperCase(),
     }
   })
+}
+
+/** Null unless the feed actually published a number. 0 is a real value here
+ *  -- a starter with no homers allowed is exactly the arm you want to know
+ *  about -- so this cannot use the `Number(x) || null` idiom above it. */
+function num(v) {
+  const x = Number(v)
+  return Number.isFinite(x) ? x : null
+}
+
+/**
+ * ── THE STAT BUBBLE (2026-09-03) ────────────────────────────────────────────
+ *
+ * Donovan asked for a "stats bubble" on the arms. This is it: the rest of what
+ * the payload already knows about tonight's starter, one tap from the duel
+ * strip, without leaving the game you were looking at.
+ *
+ * A TAP, NOT A HOVER. Half the people reading this page are on a phone and a
+ * phone has no hover — a title= tooltip there is a fact that exists and cannot
+ * be read, which is the same bug that had the "what am I looking at" line
+ * folded shut everywhere. The ⓘ is a real button with a real hit area.
+ *
+ * stopPropagation on everything: this sits inside a game card whose own click
+ * handler opens the game. Without it, asking about the arm would swallow you
+ * into the deep dive.
+ *
+ * EVERY ROW IS SKIPPED WHEN THE FEED DOES NOT CARRY IT. Verified against the
+ * live slate before writing: hr_allowed, hr9, era, whip, hr_fb_pct and
+ * barrel_allowed are on 160/160 rows; the vs-LHB pair is on 142/160 (some arms
+ * have not faced enough lefties) and xhr_allowed on 151/160. So the bubble is
+ * built from what is there rather than from a fixed template with dashes in
+ * it — an em dash where a number should be reads as a broken panel, and it
+ * would be on one arm in nine.
+ */
+function ArmBubble({ s }) {
+  const [open, setOpen] = useState(false)
+  const rows = [
+    ['HR allowed', s.hrTotal != null ? String(s.hrTotal) : null, 'this season'],
+    ['vs LHB', s.hrL != null || s.hr9L != null
+      ? `${s.hrL != null ? `${s.hrL} HR` : ''}${s.hrL != null && s.hr9L != null ? ' · ' : ''}${s.hr9L != null ? `${s.hr9L.toFixed(2)} HR/9` : ''}`
+      : null, 'left-handed bats'],
+    ['vs RHB', s.hrR != null || s.hr9R != null
+      ? `${s.hrR != null ? `${s.hrR} HR` : ''}${s.hrR != null && s.hr9R != null ? ' · ' : ''}${s.hr9R != null ? `${s.hr9R.toFixed(2)} HR/9` : ''}`
+      : null, 'right-handed bats'],
+    ['HR/9', s.hr9 != null ? s.hr9.toFixed(2) : null, 'season rate'],
+    ['Last 3 HR/9', s.l3hr9 != null ? s.l3hr9.toFixed(2) : null, 'his last three starts'],
+    ['xHR', s.xhr != null ? s.xhr.toFixed(1) : null, 'expected homers off contact quality — under his real count means he has been unlucky, over it means he has got away with some'],
+    ['HR/FB', s.hrfb != null ? `${(s.hrfb <= 1 ? s.hrfb * 100 : s.hrfb).toFixed(1)}%` : null, 'fly balls that left the yard'],
+    ['Barrel%', s.barrel != null ? `${(s.barrel <= 1 ? s.barrel * 100 : s.barrel).toFixed(1)}%` : null, 'the contact that does the damage'],
+    ['ERA', s.era != null ? s.era.toFixed(2) : null, ''],
+    ['WHIP', s.whip != null ? s.whip.toFixed(2) : null, ''],
+  ].filter(([, v]) => v)
+
+  if (!rows.length) return null
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignSelf: 'center' }}>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        aria-expanded={open}
+        aria-label={`Season stats for ${s.arm}`}
+        title={`Season stats for ${s.arm}`}
+        style={{
+          width: 18, height: 18, padding: 0, borderRadius: 999, cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          border: `1px solid ${open ? C.orange : C.border}`,
+          background: open ? 'rgba(249,115,22,.14)' : 'transparent',
+          color: open ? C.orange : C.text3, fontSize: 9, fontWeight: 900,
+          fontFamily: NUM_FONT, lineHeight: 1,
+        }}
+      >i</button>
+      {open && (
+        <>
+          {/* Tap-anywhere-to-close, under the bubble and over the card. A
+              popover you can only shut with the same 18px target you opened it
+              with is a popover people leave open. */}
+          <span
+            onClick={(e) => { e.stopPropagation(); setOpen(false) }}
+            style={{ position: 'fixed', inset: 0, zIndex: 60 }}
+          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute', top: 22, right: 0, zIndex: 61,
+              minWidth: 208, maxWidth: 'min(280px, 78vw)',
+              background: C.scrim, border: `1px solid ${C.border2}`, borderRadius: 10,
+              boxShadow: `0 10px 30px ${C.shadow}`, padding: '8px 10px 9px',
+              textAlign: 'left', whiteSpace: 'normal',
+            }}
+          >
+            <div style={{
+              fontSize: 9, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
+              color: C.text3, fontFamily: NUM_FONT, marginBottom: 6,
+            }}>
+              {s.arm}{s.throws ? ` · ${s.throws}HP` : ''}
+            </div>
+            {rows.map(([label, value, note]) => (
+              <div key={label} title={note || undefined} style={{
+                display: 'flex', alignItems: 'baseline', gap: 8,
+                fontSize: 10, lineHeight: 1.75,
+              }}>
+                <span style={{ color: C.text3 }}>{label}</span>
+                <span style={{
+                  marginLeft: 'auto', fontFamily: NUM_FONT, fontWeight: 700, color: C.text,
+                  whiteSpace: 'nowrap',
+                }}>{value}</span>
+              </div>
+            ))}
+            {s.weakSide === 'L' || s.weakSide === 'R' ? (
+              <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
+                The bot has him weakest to{' '}
+                <b style={{ color: C.orange }}>{s.weakSide === 'L' ? 'left' : 'right'}-handed</b> bats.
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
+    </span>
+  )
 }
 
 // slateMode / initialMode (2026-08-16, tab consolidation): both OPTIONAL with
@@ -1317,6 +1468,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 7 }}>
                         {sides.map((s) => (
                           <div key={s.team} style={{
+                            // position:relative so the stat bubble can hang off
+                            // this tile rather than off the page.
+                            position: 'relative',
                             flex: '1 1 200px', minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7,
                             background: 'rgba(255,255,255,.025)', border: `1px solid ${C.border}`,
                             borderRadius: 8, padding: '4px 10px',
@@ -1336,6 +1490,36 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                   {s.hr9.toFixed(2)} HR/9
                                 </span>
                               )}
+                              {/* ── THE COUNT, AND WHICH SIDE IT CAME FROM ──
+                                  The rate above says he leaks; this says how
+                                  much and to whom. The hand split is the one
+                                  fact on this strip a hitter's own handedness
+                                  turns into a decision -- 20 of Bibee's 26 are
+                                  to lefties, which is not a thing 1.44 HR/9
+                                  can tell you. Warm when a side is carrying
+                                  two thirds or more of the damage AND there is
+                                  enough of it for that to mean anything. */}
+                              {s.hrTotal != null && (
+                                <span
+                                  title={`${s.hrTotal} home runs allowed this season${
+                                    s.hrL != null && s.hrR != null
+                                      ? ` — ${s.hrL} to left-handed bats, ${s.hrR} to right-handed`
+                                      : ''
+                                  }`}
+                                  style={{ color: C.text3, fontWeight: 700 }}
+                                >
+                                  {s.hrTotal} HR
+                                  {s.hrL != null && s.hrR != null && s.hrTotal > 0 && (
+                                    <>
+                                      {' '}
+                                      <span style={{ color: s.hrL / s.hrTotal >= 0.66 && s.hrTotal >= 6 ? C.orange : C.text3 }}>{s.hrL}L</span>
+                                      <span style={{ color: C.text3, opacity: .6 }}>·</span>
+                                      <span style={{ color: s.hrR / s.hrTotal >= 0.66 && s.hrTotal >= 6 ? C.orange : C.text3 }}>{s.hrR}R</span>
+                                    </>
+                                  )}
+                                </span>
+                              )}
+                              <ArmBubble s={s} />
                               {/* Bars speak (owner feedback 2026-08-08): the
                                   duel's HR/9 gets one too, scaled 0–2.00 like
                                   the pen board reads, when the bar toggle
