@@ -25,6 +25,7 @@ import Scoreboard from './Scoreboard'
 import Boxes from './Boxes'
 import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'
+import MoneylineBoard from '../MoneylineBoard'
 
 // HOME — the front porch.
 //
@@ -1026,6 +1027,13 @@ export default function Home({
           cost of nothing until opened. */}
       <Fold id="comebacks" title="🔄 Comeback board" meta="who wins after falling behind — and who gives it away">
         <ComebackBoard />
+      </Fold>
+
+      {/* The moneyline log is folded like the other two and titled like what it
+          is. It says "disagrees", not "picks", because the simulation says the
+          model has no demonstrated edge — only a record being built in public. */}
+      <Fold id="moneyline" title="💰 Where the model disagrees" meta="game lines vs the bot — logged and graded, not tipped">
+        <MoneylineBoard />
       </Fold>
 
       {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}
