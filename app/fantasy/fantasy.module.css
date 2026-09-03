@@ -4710,9 +4710,25 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   z-index: 6;
   background: var(--fx-s1);
 }
-.roomApp .playerBoard>.boardHead { top: 0; }
-.roomApp .playerBoard>.positionFilters { top: 62px; }
-.roomApp .playerBoard>.draftColumns { top: 104px; border-bottom: 1px solid var(--fx-edge); }
+/* #78: the board's three rows pin at 0 / 62 / 104 -- measured from the TOP OF
+   THE VIEWPORT, where .roomNav is already sitting sticky at top:62. So the
+   board head slid under the nav and the ALL/QB/RB/WR pills under the head, and
+   the "DASH NFL board" heading was clipped on every scroll. Same defect as #65
+   on the MOONSHOT side.
+
+   The chrome above is a fixed, known stack: .roomHeader is sticky at top:0 and
+   62px tall, .roomNav sticks directly beneath it at top:62 and is 45px plus a
+   1px border. 62 + 46 = 108. It is written once as a variable rather than
+   baked into three magic numbers, so changing the header height in one place
+   keeps the board clearing it. The three rows keep their existing offsets
+   RELATIVE to each other (0 / 62 / 104), which were already tuned to their own
+   heights -- only the whole stack moves down. */
+.roomApp .playerBoard {
+  --fx-chrome: 108px;
+}
+.roomApp .playerBoard>.boardHead { top: var(--fx-chrome); }
+.roomApp .playerBoard>.positionFilters { top: calc(var(--fx-chrome) + 62px); }
+.roomApp .playerBoard>.draftColumns { top: calc(var(--fx-chrome) + 104px); border-bottom: 1px solid var(--fx-edge); }
 .roomApp .boardHead h2 { font-size: 17px; letter-spacing: -.02em; }
 .roomApp .panelLabel { letter-spacing: .16em; }
 
@@ -5292,8 +5308,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
    under the heading where someone reads it before scanning the list. */
 .boardNote {
   display: block;
-  max-width: 62ch;
-  margin: 6px 0 0;
+  max-width: 76ch;
+  margin: 10px 14px 2px;
   color: var(--muted);
   font-size: 10.5px;
   line-height: 1.5;

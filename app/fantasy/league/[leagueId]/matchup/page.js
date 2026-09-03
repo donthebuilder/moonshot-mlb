@@ -87,7 +87,7 @@ export default async function MatchupPage({ params, searchParams }) {
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <LiveMatchupCenter leagueId={leagueId} live={hasLiveGames} lastUpdated={latestSync?.completed_at}/>
       <div className={styles.weekStrip}>{Array.from({length:14},(_,i)=>i+1).map((number)=><Link className={number===week?styles.weekActive:''} href={`/fantasy/league/${leagueId}/matchup?week=${number}`} key={number}>W{number}</Link>)}</div>
-      <NflGameCenter games={nflGames}/>
+      <NflGameCenter games={nflGames} week={week}/>
       {!featured && <section className={styles.scheduleEmpty}><span>VS</span><div><p className={styles.panelLabel}>SEASON SCHEDULE</p><h1>Your matchups are ready to be built.</h1><p>Franchise creates a balanced 14-week round-robin schedule from the teams currently in this league.</p></div>{membership.role==='commissioner'?<form action={generateSchedule}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Building…">Create schedule</SubmitButton></form>:<small>Waiting for the commissioner</small>}</section>}
       {featured && <>
         <section className={styles.matchupHero}><div><small>HOME</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={home}/>{home?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.home_score).toFixed(2)}</strong><em>{homeProjection.toFixed(1)} projected</em></div><span><b>WEEK {week}</b><i>{String(featured.status||'').toUpperCase()}</i></span><div><small>AWAY</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={away}/>{away?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.away_score).toFixed(2)}</strong><em>{awayProjection.toFixed(1)} projected</em></div></section>
@@ -110,6 +110,22 @@ function Lineup({ title, rows, scoring, byeTeams }) {
   return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div><b>{row.player?.name}</b><small>{row.player?.position} · {row.player?.team}{bye?' · BYE':''}</small></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
-function NflGameCenter({games}) {
-  return <section className={styles.nflGameCenter}><div className={styles.boardHead}><div><p className={styles.panelLabel}>NFL GAME STATUS</p><h2>On the field</h2></div><span>{games.filter((game)=>game.status==='live').length} live · {games.length} total</span></div><div className={styles.nflGameGrid}>{games.map((game)=><article className={game.status==='live'?styles.nflGameLive:''} key={game.game_id}><span>{game.status==='live'?'● LIVE':game.status==='final'?'FINAL':<LocalTime value={game.kickoff}/>}</span><div><b>{game.away_team}</b><em>at</em><b>{game.home_team}</b></div><small><LocalTime mode="date" value={game.kickoff}/></small></article>)}</div>{!games.length&&<p className={styles.emptyRoom}>The NFL slate has not published games for this week yet.</p>}</section>
+// ── #81: TWO PRODUCTS IN ONE NETWORK, DISAGREEING ABOUT THE SCHEDULE ────────
+//
+// This panel read "The NFL slate has not published games for this week yet"
+// while TUDDY's Games tab had the same week fully populated -- NE @ SEA 9/9,
+// SF @ LA 9/10, TB @ CIN 9/13, twelve more. A commissioner reading FRANCHISE
+// concluded the season had not been posted.
+//
+// Both statements were made in good faith about different things. TUDDY reads
+// the slate JSON directly. FRANCHISE reads `nfl_week_games` in Supabase, which
+// is filled by /api/fantasy/scoring. So an empty panel means "this week has not
+// synced here yet," which is a fact about a pipeline, not about the NFL.
+//
+// The copy now says the thing that is actually true and names the week it
+// looked for, so an empty panel is a lead rather than a false statement. The
+// sync runs on a cron, so the honest instruction is to wait, not to go
+// looking for a schedule that already exists.
+function NflGameCenter({games, week}) {
+  return <section className={styles.nflGameCenter}><div className={styles.boardHead}><div><p className={styles.panelLabel}>NFL GAME STATUS</p><h2>On the field</h2></div><span>{games.filter((game)=>game.status==='live').length} live · {games.length} total</span></div><div className={styles.nflGameGrid}>{games.map((game)=><article className={game.status==='live'?styles.nflGameLive:''} key={game.game_id}><span>{game.status==='live'?'● LIVE':game.status==='final'?'FINAL':<LocalTime value={game.kickoff}/>}</span><div><b>{game.away_team}</b><em>at</em><b>{game.home_team}</b></div><small><LocalTime mode="date" value={game.kickoff}/></small></article>)}</div>{!games.length&&<p className={styles.emptyRoom}>No week {week} games have synced to FRANCHISE yet. TUDDY may already show this week&apos;s slate — the schedule reaches FRANCHISE through the scoring sync, which runs on its own and usually catches up within a few minutes.</p>}</section>
 }
