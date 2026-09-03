@@ -98,12 +98,28 @@ const RANK = { live: 0, pre: 1, final: 2, off: 3 }
 // are finished, not yet playing, or not on tonight's board at all.
 const COLLAPSED_N = 5
 const OPEN_KEY = 'dash_yourplayers_open_v1'
+// A SECOND, SEPARATE STATE, and the distinction is the whole point.
+//   OPEN_KEY  — show every row, or the first few plus anyone live/deep
+//   SHUT_KEY  — the section itself is closed
+// Donovan: "the your player need to be colapable." It was not: the header was
+// static and the only control expanded a list that never went below five rows
+// plus anybody live. So on a night with a live man it could not be made small,
+// which is the same complaint that started this section ("the live tracker
+// takes up the screen every time I open the page") arriving from the other
+// side. The header is the toggle now.
+const SHUT_KEY = 'dash_yourplayers_shut_v1'
 
 // Per-device, and deliberately NOT synced to the account. lib/dash/sync.js
 // already draws this line — theme, nav position and quiet mode stay local
 // because they describe a device rather than a person, and how much of a list
 // fits on screen is the same kind of fact. A phone and a desktop should be
 // allowed to disagree about it.
+const readShut = () => {
+  try { return window.localStorage.getItem(SHUT_KEY) === '1' } catch { return false }
+}
+const writeShut = (v) => {
+  try { window.localStorage.setItem(SHUT_KEY, v ? '1' : '0') } catch { /* private mode */ }
+}
 const readOpen = () => {
   try { return window.localStorage.getItem(OPEN_KEY) === '1' } catch { return false }
 }
@@ -121,8 +137,10 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
   // hydration mismatch lib/theme.js's applyTheme() comment documents at
   // length — the one that can take the whole root down.
   const [open, setOpen] = useState(false)
-  useEffect(() => { setOpen(readOpen()) }, [])
+  const [shut, setShut] = useState(false)
+  useEffect(() => { setOpen(readOpen()); setShut(readShut()) }, [])
   const toggle = () => setOpen((v) => { writeOpen(!v); return !v })
+  const toggleShut = () => setShut((v) => { writeShut(!v); return !v })
 
   useEffect(() => {
     let alive = true
@@ -236,20 +254,58 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
     : rows.filter((r, i) => i < COLLAPSED_N || r.status === 'live' || r.hr > 0)
   const restN = rows.length - shown.length
 
+  // WHY THE COUNTS STAY IN THE HEADER WHEN IT IS SHUT. This section exists
+  // because starred players were getting lost. A closed section that says
+  // nothing would lose them again, more quietly — so the header keeps the
+  // whole list's summary, including anyone live and anything that has gone
+  // deep, and those stay in colour. Shut means "not now", never "don't tell
+  // me". It is the same rule the row slice already follows: the counts
+  // describe the WHOLE list, not the visible part, so a homer is never hidden
+  // twice.
+  const summary = (
+    <span style={note}>
+      {rows.length}{' '}
+      {liveN ? <>· <b style={{ color: C.green }}>{liveN} live</b> </> : null}
+      {hrN ? <>· <b style={{ color: C.orange }}>{hrN} HR tonight</b> </> : null}
+      {shut && collapsible ? null : <>· {account.signedIn ? 'saved to your account' : 'saved on this device'}</>}
+    </span>
+  )
+
+  // The watchlist tab passes collapsible={false} — that page IS this list, and
+  // a header that could hide it would make the dedicated view the weaker of
+  // the two.
+  if (collapsible && shut) {
+    return (
+      <div style={{ ...wrap, padding: '8px 12px' }}>
+        <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
+          <button type="button" onClick={toggleShut} aria-expanded={false}
+            style={{ ...head, width: '100%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}>
+            <b style={title}>★ Your players</b>
+            {summary}
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>▾</span>
+          </button>
+        </h2>
+      </div>
+    )
+  }
+
   return (
     <div style={wrap}>
-      <div style={head}>
-        <b style={title}>★ Your players</b>
-        {/* These counts describe the WHOLE list, not the visible slice. A
-            collapsed section that also collapses its own summary would hide a
-            homer twice. */}
-        <span style={note}>
-          {rows.length}{' '}
-          {liveN ? <>· <b style={{ color: C.green }}>{liveN} live</b> </> : null}
-          {hrN ? <>· <b style={{ color: C.orange }}>{hrN} HR tonight</b> </> : null}
-          · {account.signedIn ? 'saved to your account' : 'saved on this device'}
-        </span>
-      </div>
+      {collapsible ? (
+        <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
+          <button type="button" onClick={toggleShut} aria-expanded
+            style={{ ...head, width: '100%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}>
+            <b style={title}>★ Your players</b>
+            {summary}
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>▴</span>
+          </button>
+        </h2>
+      ) : (
+        <div style={head}>
+          <b style={title}>★ Your players</b>
+          {summary}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gap: 1, marginTop: 7 }}>
         {shown.map((r) => (
