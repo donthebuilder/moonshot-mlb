@@ -1,5 +1,6 @@
 'use client'
 import Leaders from './Leaders'
+import MoneyAnswer from '../MoneyAnswer'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
@@ -1227,6 +1228,19 @@ export default function Results({ results, liveResults = null, slateDate = '', b
 
       {/* The day picker belongs to This night and nothing else. */}
       {mode === 'night' && archiveBar}
+
+      {/* ── #34: THE MONEY ANSWER, ON THE PAGE THAT ASKS THE QUESTION ──────
+          "All season" is labelled "is the model any good" in the mode bar, and
+          until now the one measurement that answers it in money lived behind a
+          mode pill on the Odds tab, which is itself in the drawer. The finding
+          was never about the True Price page — that page is the most honest
+          thing on the site — it was about a product leading with "every pick
+          graded in public" while keeping the money answer three clicks away.
+          It is the first thing under the question now, and it links through
+          rather than duplicating the table. */}
+      {mode === 'season' && (
+        <div style={{ marginBottom: 11 }}><MoneyAnswer /></div>
+      )}
 
       {/* ONE ROW OF VIEWS, scoped to the question above it. */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>

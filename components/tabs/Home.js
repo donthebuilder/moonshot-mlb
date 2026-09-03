@@ -23,6 +23,7 @@ import { getPicks, CONVICTION } from '../../lib/myPicks'
 import { btnStyle } from '../ui'
 import Scoreboard from './Scoreboard'
 import Boxes from './Boxes'
+import MoneyAnswer from '../MoneyAnswer'
 import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'
 import MoneylineBoard from '../MoneylineBoard'
@@ -1006,6 +1007,18 @@ export default function Home({
       <Fold id="read" title="📰 The Read" meta="the bot's single best call tonight">
         <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
       </Fold>
+
+      {/* ── 💵 #34: THE MONEY ANSWER, WHERE THE CLAIM IS MADE ────────────────
+          The hero above says "every pick is graded in public." True, and the
+          receipts are real — but the measurement that says whether any of it
+          MAKES MONEY sat behind a mode pill inside a drawer tab, which is a
+          strange place to keep the answer to the question the claim invites.
+          One line here, and it goes through to the full table rather than
+          repeating it. Not folded: a site that hides this line has not really
+          made the claim above it. */}
+      <div style={{ marginBottom: 12 }}>
+        <MoneyAnswer compact onNavigate={onNavigate} />
+      </div>
 
       {/* ── 🏆 OCTOBER — the playoff predictor and the World Series pick ──────
           Two of the four bots Donovan asked for, and they are one machine: you
