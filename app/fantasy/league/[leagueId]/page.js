@@ -48,11 +48,19 @@ export default async function LeagueRoom({ params, searchParams }) {
   const roster = rosterRows || []
   const queue = (queueRows || []).filter((item) => item.player)
   const draftedIds = new Set(picks.filter((pick) => pick.player_id).map((pick) => pick.player_id))
+  // WHO IS TAKEN is a roster question, not a draft-pick question. The board used
+  // to hide only players with a fantasy_draft_picks row, but a pick is just one
+  // way to get a roster entry - free agency off the Wire, a commissioner
+  // assignment, or a partial reset that nulls player_id on the picks all leave a
+  // rostered player on the board, draftable a second time. wire/page.js has
+  // always filtered on roster entries; this asks the same table the same thing.
+  const takenIds = new Set(draftedIds)
+  for (const entry of roster) if (entry.player_id) takenIds.add(entry.player_id)
   const selectedPosition = POSITIONS.includes(query?.position) ? query.position : 'ALL'
   const search = String(query?.q || '').trim().toLowerCase().slice(0,40)
   const rankedPlayers = players.map((player) => ({ ...player, dash_score: dashScore(player) }))
     .sort((a,b) => b.dash_score - a.dash_score || a.name.localeCompare(b.name))
-  const undrafted = rankedPlayers.filter((player) => !draftedIds.has(player.id))
+  const undrafted = rankedPlayers.filter((player) => !takenIds.has(player.id))
   const available = undrafted
     .filter((player) => selectedPosition === 'ALL' || (selectedPosition === 'FLEX' ? ['RB','WR','TE'].includes(player.position) : player.position === selectedPosition))
     .filter((player) => !search || player.name.toLowerCase().includes(search) || player.team?.toLowerCase().includes(search))
