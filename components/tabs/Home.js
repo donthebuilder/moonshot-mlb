@@ -9,6 +9,7 @@ import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
 import YourPlayers from '../YourPlayers'
+import Fold from '../Fold'
 import BotPicksStrip from '../BotPicksStrip'
 import StealLooksStrip from '../StealLooksStrip'
 import HomerLedger from '../HomerLedger'
@@ -608,7 +609,12 @@ export default function Home({
         position: 'relative', overflow: 'hidden',
         background: `linear-gradient(150deg, ${C.bg2}, rgba(249,115,22,.07) 60%, rgba(252,211,77,.05))`,
         border: `1px solid ${C.border}`, borderRadius: 18,
-        padding: '26px 24px 22px', marginBottom: 14,
+        // 26/24/22 -> 18/18/16 (2026-09-03). The hero is the first thing on
+        // the page and it was spending about eighty vertical pixels on air
+        // alone, on a phone where the fold arrives at roughly six hundred.
+        // Nothing inside it changed; it just stopped reserving a margin the
+        // size of a section for itself.
+        padding: '18px 18px 16px', marginBottom: 12,
       }}>
         {/* the ember glow — decoration, kept behind the text */}
         <div style={{
@@ -826,7 +832,9 @@ export default function Home({
 
       {/* 🏃 STEAL LOOKS (2026-09-01) — the Steal Board's front door, no new
           tab. See components/StealLooksStrip.js. Empty slate → nothing. */}
-      <StealLooksStrip players={players} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
+      <Fold id="steal" title="🏃 Steal looks" meta="the steal board's front door">
+        <StealLooksStrip players={players} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
+      </Fold>
 
       <style>{`
         .home-snapshot{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
@@ -853,6 +861,11 @@ export default function Home({
              foot of the page and the four-tile row is gone into the hero
              sentence — see the notes on both. */}
       {headline && (
+        <Fold
+          id="headline"
+          title="⭐ The game to circle"
+          meta={`${clean(headline.g.away, '?')} @ ${clean(headline.g.home, '?')}`}
+        >
         <div style={{
           background: `linear-gradient(155deg, rgba(249,115,22,.1), ${C.bg2} 55%)`,
           border: '1px solid rgba(249,115,22,.35)', borderRadius: 14,
@@ -913,6 +926,7 @@ export default function Home({
             )
           })()}
         </div>
+        </Fold>
       )}
 
       {/* ── 📰 THE CALL OF THE NIGHT — the lead of The Read (2026-08-16) ─────
@@ -929,10 +943,13 @@ export default function Home({
              It is the lead ONLY. The other three calls, the ISO lens and the
              traps stay on the Bot page, so Home keeps its shape and The Read
              keeps its length. Nothing that was on this page moved or left. ── */}
-      <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
+      <Fold id="read" title="📰 The Read" meta="the bot's single best call tonight">
+        <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
+      </Fold>
 
       {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}
       {mine.length > 0 && (
+        <Fold id="yournight" title="🎟 Your night" meta={`${mine.length} call${mine.length === 1 ? '' : 's'} on this slate`}>
         <div style={{
           background: `linear-gradient(155deg, rgba(96,165,250,.09), ${C.bg2} 60%)`,
           border: '1px solid rgba(96,165,250,.3)', borderRadius: 14,
@@ -959,6 +976,7 @@ export default function Home({
             </span>
           </div>
         </div>
+        </Fold>
       )}
 
       {/* ── NOTHING BUILT YET. One honest card instead of eight strips each
@@ -987,6 +1005,7 @@ export default function Home({
           itself. These are the three hand-picked lines; that one is the
           whole ledger. */}
       {players.length > 0 && (
+        <Fold id="angles" title="📖 Tonight's angles" meta="air, parks, arms — every line from tonight's own data">
         <div style={{
           background: `linear-gradient(155deg, rgba(252,211,77,.06), ${C.bg2} 60%)`,
           border: '1px solid rgba(252,211,77,.25)', borderRadius: 14,
@@ -1179,6 +1198,7 @@ export default function Home({
             </div>
           )}
         </div>
+        </Fold>
       )}
 
       {/* The full storyline engine — milestones, duels, revenge games,
@@ -1216,6 +1236,7 @@ export default function Home({
           by the site's own scores, with the ARM each bat gets to attack:
           ★ = weak lineup spot vs this starter, red HR/9 = a leaking arm. */}
       {players.length > 0 && (
+        <Fold id="top10" title="📊 Tonight's top 10s" meta="HR plays · hit plays, with the arm each bat attacks">
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
           {[
             { title: '💣 Top 10 — HR plays', col: '#FB923C', score: hrScore, door: 'board' },
@@ -1274,6 +1295,7 @@ export default function Home({
             )
           })}
         </div>
+        </Fold>
       )}
 
       {/* ── WEAKEST ARMS TONIGHT (2026-08-08, Donovan: "top weakest pitchers
@@ -1281,6 +1303,8 @@ export default function Home({
           reads from published fields only: season HR/9 (who always leaks)
           and 📉 last-3-starts HR/9 vs season / the bot's own trend direction
           (who's leaking RIGHT NOW). */}
+      {players.length > 0 && (
+        <Fold id="arms" title="🩹 Weakest arms tonight" meta="who leaks homers, and who's leaking right now">
       {(() => {
         const arms = new Map()
         players.forEach((p) => {
@@ -1400,6 +1424,8 @@ export default function Home({
           </div>
         )
       })()}
+        </Fold>
+      )}
 
       {/* ── WHERE TO GO NEXT — the doors, and the onboarding that used to
              sit between you and your own data ───────────────────────────────

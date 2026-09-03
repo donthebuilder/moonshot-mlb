@@ -318,11 +318,19 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   // It sits at the top of Home, which is where he wants it — so on the nights
   // he does not want it there, it has to fold. Stored per device like the other
   // dismissibles, so closing it once is closing it for good.
-  const [open, setOpen] = useState(true)
+  //
+  // CLOSED BY DEFAULT from 2026-09-03. It was open on every visit, and it is
+  // one of the two tallest things on Home. That was right when Home had no
+  // folding of its own; now that nine sections fold (components/Fold.js) an
+  // always-open ledger is the exception that makes the rest look arbitrary.
+  // The stored preference still wins in BOTH directions, so anyone who opened
+  // it on purpose keeps it open and anyone who shut it keeps it shut.
+  const [open, setOpen] = useState(false)
   useEffect(() => {
     try {
       const v = window.localStorage.getItem('ms_ledger_open')
-      if (v === '0') setOpen(false)
+      if (v === '1') setOpen(true)
+      else if (v === '0') setOpen(false)
     } catch { /* private mode */ }
   }, [])
   const toggle = () => {
