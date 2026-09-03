@@ -825,8 +825,23 @@ export default function SprayField({
   //    two always show the same set. Mapped into the shape the stadium
   //    expects rather than passed raw: it wants `hit` and `pitch`, which the
   //    live payload spells differently.
+  //
+  //    2026-09-03: the same gap existed in the OTHER direction. On the player
+  //    card the flat season chart draws tonight's balls as its live layer, but
+  //    the 3D park below it was still handed `shown` -- season only -- so
+  //    tapping a homer notification into the 3D spray showed a park with
+  //    everything EXCEPT the home run you were notified about. The live layer
+  //    is appended now whenever it is switched on, in both skins, through the
+  //    same mapper.
+  const liveDrawn = liveOnly || liveOn ? liveFiltered : []
+  const mapLive = (b) => ({
+    ...b,
+    hit: b.hr || /^(single|double|triple)$/i.test(String(b.event || '')),
+    pitch: b.pitch || b.type || '',
+    carry: b.dist ?? b.carry ?? 0,
+  })
   const stadiumHits = useMemo(() => {
-    if (!liveOnly) return shown
+    if (!liveOnly) return liveDrawn.length ? [...shown, ...liveDrawn.map(mapLive)] : shown
     return liveFiltered.map((b) => ({
       ...b,
       // `hit` drives whether a ball gets a lit arc or a faint line. Derived
@@ -838,9 +853,9 @@ export default function SprayField({
       pitch: b.pitch || b.type || '',
       carry: b.dist ?? b.carry ?? 0,
     }))
-  }, [liveOnly, shown, liveFiltered])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveOnly, shown, liveFiltered, liveDrawn])
 
-  const liveDrawn = liveOnly || liveOn ? liveFiltered : []
   const fid = Number(liveFocusId) || null
   const anyFocus = fid ? liveHits.some((b) => Number(b.batterId) === fid) : false
 

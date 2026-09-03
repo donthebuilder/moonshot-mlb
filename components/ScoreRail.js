@@ -54,8 +54,39 @@ import MlbTeamMark from './MlbTeamMark'
 const ROLES = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
 const roleOf = (p) => String(p?.game_pick_role || '').split('/').filter(Boolean).map((r) => r.trim().toUpperCase())
 
+// ── COLLAPSED BY DEFAULT (2026-09-03) ───────────────────────────────────────
+//
+// Donovan: "the thing tracking all the players from the live at the top of the
+// screen takes up the screen every time I open the page."
+//
+// It is the tallest always-on block above the fold: a header row, then a
+// scroller of 124px tiles two team-rows deep, on every visit to Home whether
+// or not tonight is the reason you came. Everything in it is a GLANCE, and a
+// glance you did not ask for is furniture.
+//
+// So it opens as one line carrying the same three facts the header row already
+// carried -- how many are live, how many are final, how the bot's picks are
+// doing across them -- and the tiles are one tap away. It remembers the tap
+// for the rest of the browser session (sessionStorage, not localStorage: "I
+// want the scores today" is a mood, not a setting, and a preference you set
+// once in August should not still be deciding your layout in October).
+const RAIL_OPEN_KEY = 'dash_rail_open_v1'
+const railWasOpen = () => {
+  try { return sessionStorage.getItem(RAIL_OPEN_KEY) === '1' } catch { return false }
+}
+
 export default function ScoreRail({ players = [], results, onNavigate }) {
   const [games, setGames] = useState(null)
+  // Read in an effect, not in useState's initialiser: this component renders
+  // on the server too, where sessionStorage does not exist, and a first paint
+  // that disagrees with the second is a hydration error.
+  const [open, setOpen] = useState(false)
+  useEffect(() => { setOpen(railWasOpen()) }, [])
+  const toggle = () => setOpen((v) => {
+    const next = !v
+    try { sessionStorage.setItem(RAIL_OPEN_KEY, next ? '1' : '0') } catch { /* private mode */ }
+    return next
+  })
 
   useEffect(() => {
     let alive = true
@@ -113,17 +144,39 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
   const rest = games.filter((g) => !g.live)
   const ordered = [...live, ...rest]
 
+  // The pick record across every game, so the collapsed line can carry the one
+  // number the tiles exist to show. Same counts, summed -- not a second rule.
+  let pn = 0; let pok = 0
+  byGame.forEach((r) => { pn += r.n; pok += r.ok })
+
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
-        <span style={{
-          fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
-          color: C.text2, fontFamily: NUM_FONT,
-        }}>Tonight</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>
-          {live.length ? `${live.length} live · ` : ''}{games.filter((g) => g.final).length} final
-          {' '}· the x/y beside each game&apos;s state is the bot&apos;s picks in that game
-        </span>
+    <div style={{ marginBottom: open ? 16 : 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: open ? 7 : 0 }}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          title={open ? 'Collapse tonight\u2019s games' : 'Show every game on the slate'}
+          style={{
+            display: 'flex', alignItems: 'baseline', gap: 8, background: 'none',
+            border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <span style={{
+            fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
+            color: C.text2, fontFamily: NUM_FONT,
+          }}>Tonight</span>
+          <span style={{ fontSize: 9, color: C.text3 }}>
+            {live.length ? `${live.length} live · ` : ''}{games.filter((g) => g.final).length} final
+            {pn > 0 && <> · picks <b style={{ color: pok ? C.green : C.text3 }}>{pok}/{pn}</b> cleared</>}
+            {open
+              ? <> · the x/y beside each game&apos;s state is the bot&apos;s picks in that game</>
+              : <> · {games.length} game{games.length === 1 ? '' : 's'}</>}
+          </span>
+          <span style={{ fontSize: 9, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>
+            {open ? '▴' : '▾'}
+          </span>
+        </button>
         {onNavigate && (
           <button onClick={() => onNavigate('boxes')} style={{
             marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
@@ -131,10 +184,10 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
           }}>full boxes →</button>
         )}
       </div>
-
       {/* Principle 1 — the air lives in the tiles' own padding rather than in
           the gap, so a hovered tile is one continuous surface instead of a box
           floating inside a bigger box. */}
+      {!open ? null : (
       <div className="dense-scroll rail" style={{ display: 'flex', gap: 2, overflowX: 'auto', paddingBottom: 4 }}>
         {ordered.map((g) => {
           const rec = byGame.get(g.pk)
@@ -208,6 +261,7 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
           )
         })}
       </div>
+      )}
     </div>
   )
 }

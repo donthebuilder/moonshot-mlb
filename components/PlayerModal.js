@@ -31,6 +31,7 @@ import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
 import HRPitchProfile from './HRPitchProfile'
 import SprayField from './SprayField'
+import { fetchLiveGame, parseLiveGame } from '../lib/livePitches'
 import MatchupPitcher from './MatchupPitcher'
 import PlayerSplits from './PlayerSplits'
 import SituationalSplits from './SituationalSplits'
@@ -511,6 +512,45 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
 
   // An API-only player can land while a bot-only tab is open — snap home.
   useEffect(() => { if (player?.api_only) setTab('overview') }, [player])
+
+  // ── TONIGHT'S BALLS ON THE CARD'S OWN SPRAY (2026-09-03) ─────────────────
+  //
+  // Donovan, on the homer notification: "the live spray would be cool."
+  //
+  // Everything needed for this already existed and had never been joined up.
+  // SprayField has drawn a live layer over the season dots since 08-10 --
+  // tonight's contact, ringed, in the result colours -- but the ONLY caller
+  // that ever passed `liveBalls` was the At the Plate tab. The player card,
+  // which is where a notification now lands, rendered the season chart and
+  // nothing else. So the alert said "he went yard" and the chart it opened
+  // was the one picture of this hitter that did not contain the home run.
+  //
+  // One game's feed, the same fetchLiveGame/parseLiveGame the live pages use,
+  // filtered to this batter. Deliberately narrow:
+  //   · only while the Spray tab is actually open -- a card opened on
+  //     Overview costs nothing, and most are
+  //   · only with a game_pk, and never on tomorrow's slate, where there is no
+  //     game to have a feed
+  //   · no polling. The card is a thing you open, read and close; a 15s timer
+  //     behind it would be the third live poller on the page. It refetches
+  //     when you leave the tab and come back, which is the same gesture.
+  // A failure is silent and leaves the season chart exactly as it was -- the
+  // live layer is an addition, never a dependency.
+  const [liveBalls, setLiveBalls] = useState(null)
+  useEffect(() => {
+    let alive = true
+    setLiveBalls(null)
+    const pk = Number(player?.game_pk)
+    if (tab !== 'spray' || !pk || slateMode === 'tomorrow' || !pid) return undefined
+    fetchLiveGame(pk)
+      .then((j) => {
+        if (!alive || !j) return
+        const balls = (parseLiveGame(j)?.balls || []).filter((b) => Number(b.batterId) === Number(pid))
+        if (balls.length) setLiveBalls(balls)
+      })
+      .catch(() => { /* season chart stands on its own */ })
+    return () => { alive = false }
+  }, [tab, player?.game_pk, pid, slateMode])
 
   // ── A NOTIFICATION CAN NAME THE TAB (2026-09-03) ─────────────────────────
   //
@@ -1126,7 +1166,21 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
           )}
 
           {/* where he puts the ball */}
-          {tab === 'spray' && <SprayField player={p} height={340} slateMode={slateMode} />}
+          {tab === 'spray' && (
+            <SprayField
+              player={p}
+              height={340}
+              slateMode={slateMode}
+              // Season chart with tonight layered on, not the tonight-only
+              // skin: on the card you want "here is what he does, and here is
+              // what he did tonight" in one picture. The ● Tonight chip in the
+              // window row turns the layer off for anyone who wants the clean
+              // season sample back.
+              liveBalls={liveBalls}
+              liveFocusId={Number(pid) || null}
+              liveLabel={nameOf(p)}
+            />
+          )}
 
           {/* day/night, home/away, day of week, win/loss — bot-published, plus
               the situational block pulled live from the MLB StatsAPI: RISP,

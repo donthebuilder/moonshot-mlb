@@ -4,7 +4,8 @@ import { C } from '../../lib/theme'
 import { btnStyle } from '../ui'
 import MyPicks from './MyPicks'
 import Watchlist from './Watchlist'
-import FollowingStrip from '../FollowingStrip'
+import YourPlayers from '../YourPlayers'
+import { playerId } from '../../lib/player'
 
 // 🫵 YOU — My Picks and the Watchlist under one roof (2026-08-16).
 //
@@ -72,13 +73,13 @@ export default function You({
       )}
       {view === 'watch' && (
         <>
-        <FollowingStrip
-          sport="mlb"
-          liveIds={new Set((players || []).map((p) => String(p?.player_id || '')))}
-          onPlayerClick={(row) => {
-            const live = (players || []).find((p) => String(p?.player_id || '') === String(row.id))
-            if (live) onPlayerClick?.(live)
-          }}
+        {/* Same section as Home's (2026-09-03). The watchlist tab is where
+            you go ON PURPOSE to look at your guys, so it must not be the
+            weaker of the two views of them. */}
+        <YourPlayers
+          players={players}
+          watchIds={new Set((watchItems || []).map(playerId))}
+          onPlayerClick={onPlayerClick}
         />
         <Watchlist
           items={watchItems}

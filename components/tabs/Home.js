@@ -8,9 +8,9 @@ import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
+import YourPlayers from '../YourPlayers'
 import BotPicksStrip from '../BotPicksStrip'
 import StealLooksStrip from '../StealLooksStrip'
-import FollowingStrip from '../FollowingStrip'
 import HomerLedger from '../HomerLedger'
 import ReadTeaser from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
@@ -758,18 +758,17 @@ export default function Home({
 
       <ScoreRail players={players} results={results} onNavigate={onNavigate} />
 
-      {/* ⭐ FOLLOWING, ON THE PAGE THE NIGHT STARTS ON (2026-08-28). It was
-          only on the watchlist tab, which is a place you go on purpose — and
-          the whole point of a list that survives the slate is that it meets
-          you without being asked for. Dimmed names are the ones not on
-          tonight's board; a lit dot is a man playing. */}
-      <FollowingStrip
-        sport="mlb"
-        liveIds={new Set((players || []).map((p) => String(p?.player_id || '')))}
-        onPlayerClick={(row) => {
-          const live = (players || []).find((p) => String(p?.player_id || '') === String(row.id))
-          if (live) onPlayerClick?.(live)
-        }}
+      {/* ⭐ YOUR PLAYERS (2026-09-03) — replaces FollowingStrip here.
+          Same list, same stores, same place on the page. What changed is that
+          it now carries tonight's line, so the section about your guys says
+          something you did not already know. FollowingStrip itself is
+          untouched and still mounts on the watchlist tab; see YourPlayers.js
+          for why the star list and the follow list are unioned into one
+          section rather than shown as the two stores they actually are. */}
+      <YourPlayers
+        players={players}
+        watchIds={watchIds}
+        onPlayerClick={onPlayerClick}
       />
 
       {/* ── THE SNAPSHOT (2026-08-29) ──────────────────────────────────────
