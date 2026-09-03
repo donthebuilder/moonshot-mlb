@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
-import { btnStyle, WhatThis } from '../ui'
+import LensRow, { LensAnswer } from '../LensRow'
 import RankedBoard from './RankedBoard'
 import Runs from './Runs'
 import StealBoard from './StealBoard'
@@ -90,6 +90,36 @@ const ANSWERS = {
   blank: 'who went hitless last time out — and whether his own bounce-back record beats what the book is charging.',
 }
 const ANSWER_FALLBACK = 'every ranked board in one place, each with its record stated, not implied.'
+
+// ── NINE LENSES, TWO KINDS (2026-09-03) ─────────────────────────────────────
+//
+// They were one undifferentiated run of nine pills. Five of them are BET TYPES
+// -- the thing you came to this page to back -- and four are SCREENS over the
+// same field, angles you reach for once you know what you are looking for.
+// Splitting them is not a way of making the row shorter; it is the difference
+// between "which bet" and "which way of finding one", and somebody who wants a
+// home run pick should not have to read past "Matchup Edge" to find HR.
+//
+// Colours are the ones each lens already had -- see the btnStyle calls this
+// replaced. They are lens identity here, not data colour.
+const MARKET_LENSES = [
+  { key: 'top',     label: 'Top',     color: C.yellow },
+  { key: 'hr',      label: 'HR',      color: C.orange },
+  { key: 'hit',     label: 'Hits',    color: C.purple },
+  { key: 'hrr',     label: 'HRR',     color: C.cyan },
+  { key: 'contact', label: 'Contact', color: C.blue },
+]
+const ANGLE_LENSES = [
+  { key: 'weakspot',    label: 'Weak Spot',    color: C.yellow },
+  { key: 'aligned',     label: 'Aligned',      color: C.purple },
+  { key: 'matchupedge', label: 'Matchup Edge', color: C.orange },
+  // 🧊 AFTER A BLANK (2026-08-15) -- Donovan: "show all the players who blanked
+  // in their last game ... on a chart, have a column with price [and hit] rate
+  // for hits and 1 HRR." A lens rather than a tab: it is a board, it ranks, and
+  // it belongs beside the other eight.
+  { key: 'blank',       label: 'After a Blank', color: C.cyan },
+]
+const LENS_TITLE = (o) => `${o.label} — ${ANSWERS[o.key] || ''}`
 
 // THE PROOF. This tab covers the categories the archive says actually work —
 // HIT picks delivered 64.5% and hit_score is the second-best-calibrated score
@@ -482,10 +512,15 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         borderBottom: `1px solid ${C.border}`,
         display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
       }}>
+        {/* THE PARENT TIER, AND IT LOOKS LIKE ONE (2026-09-03). A shade
+            larger and heavier than the Market/Angle pills below the rule, so
+            "which tool am I in" and "which board within it" are told apart by
+            shape before anyone reads a word. */}
         {GROUPS.map(([k, label]) => (
           <button key={k} onClick={() => setBview(k)} style={{
-            padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
-            fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+            padding: '7px 16px', borderRadius: 999, cursor: 'pointer', fontSize: 11.5,
+            fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+            letterSpacing: '.02em',
             border: `1px solid ${bview === k ? C.orange : C.border}`,
             background: bview === k ? 'rgba(249,115,22,.14)' : 'transparent',
             color: bview === k ? C.orange : C.text3,
@@ -497,26 +532,29 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             reads as the page throwing you somewhere. Slate is a top-level tab
             now and Boxes is one tap from Home, so nothing became unreachable —
             this row just stopped teleporting people. */}
-        {boards && (
-          <>
-            <span style={{ width: 1, alignSelf: 'stretch', background: C.border, margin: '0 3px' }} />
-            <button onClick={() => setView('top')}     style={btnStyle(C.yellow, view === 'top')}     title={`Top — ${ANSWERS.top}`}>Top</button>
-            <button onClick={() => setView('hr')}      style={btnStyle(C.orange, view === 'hr')}      title={`HR — ${ANSWERS.hr}`}>HR</button>
-            <button onClick={() => setView('hit')}     style={btnStyle(C.purple, view === 'hit')}     title={`Hits — ${ANSWERS.hit}`}>Hits</button>
-            <button onClick={() => setView('hrr')}     style={btnStyle(C.cyan,   view === 'hrr')}     title={`HRR — ${ANSWERS.hrr}`}>HRR</button>
-            <button onClick={() => setView('contact')} style={btnStyle(C.blue,   view === 'contact')} title={`Contact — ${ANSWERS.contact}`}>Contact</button>
-            <button onClick={() => setView('weakspot')} style={btnStyle(C.yellow, view === 'weakspot')} title={`Weak Spot — ${ANSWERS.weakspot}`}>Weak Spot</button>
-            <button onClick={() => setView('aligned')} style={btnStyle(C.purple, view === 'aligned')} title={`Aligned — ${ANSWERS.aligned}`}>Aligned</button>
-            <button onClick={() => setView('matchupedge')} style={btnStyle(C.orange, view === 'matchupedge')} title={`Matchup Edge — ${ANSWERS.matchupedge}`}>Matchup Edge</button>
-            {/* 🧊 AFTER A BLANK (2026-08-15) — Donovan: "show all the players who
-                blanked in their last game ... on a chart, have a column with
-                price [and hit] rate for hits and 1 HRR." A ninth lens rather
-                than a tab: it is a board, it ranks, and it belongs beside the
-                other eight. */}
-            <button onClick={() => setView('blank')} style={btnStyle(C.cyan, view === 'blank')} title={`After a Blank — ${ANSWERS.blank}`}>After a Blank</button>
-          </>
-        )}
       </div>
+
+      {/* ── THE SECOND TIER, NAMED (2026-09-03) ───────────────────────────
+          The nine lenses used to run on after the four group pills above,
+          separated by a one-pixel divider and nothing else. See
+          components/LensRow.js for why that divider could never do the job it
+          was being asked to do. */}
+      {boards && (
+        <div style={{ marginBottom: 4 }}>
+          <LensRow
+            label="Market"
+            options={MARKET_LENSES.map((o) => ({ ...o, title: LENS_TITLE(o) }))}
+            value={view}
+            onChange={setView}
+          />
+          <LensRow
+            label="Angle"
+            options={ANGLE_LENSES.map((o) => ({ ...o, title: LENS_TITLE(o) }))}
+            value={view}
+            onChange={setView}
+          />
+        </div>
+      )}
 
       <B2BStrip
         list={b2b.list}
@@ -561,7 +599,14 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
                 Hiding "✓ 68% over 27 nights ▾" behind a fold would bury the
                 one clause on this page that is a measured record and an
                 affordance at the same time. */}
-            <WhatThis maxWidth={840}>{ANSWERS[view] || ANSWER_FALLBACK}</WhatThis>
+            {/* PRINTED, NOT FOLDED (2026-09-03). This sentence spent three
+                weeks inside a <details> that was shut by default behind a 9px
+                "what this answers" summary -- the one line on the page written
+                specifically to stop somebody feeling lost, hidden behind a
+                click, and duplicated into a title= tooltip a phone cannot show
+                at all. The receipts clause below still folds: a measured
+                record is worth a tap, an orientation sentence is not. */}
+            <LensAnswer maxWidth={840}>{ANSWERS[view] || ANSWER_FALLBACK}</LensAnswer>
             {pr && (
               <>
                 <button

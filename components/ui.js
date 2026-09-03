@@ -218,7 +218,34 @@ export function RoleTag({ label, color = C.text2, title, style, glyph = null }) 
 // reader can still find the explanation — and the explanation itself is one
 // tap away instead of permanently in the way. Nothing is deleted: every word
 // these blocks carried is still on the page for anyone who wants it.
-export function WhatThis({ children, label = 'what this answers', maxWidth = 720 }) {
+// ── THE DEFAULT CASE STOPPED FOLDING (2026-09-03) ───────────────────────────
+//
+// Found while splitting the Boards pill row. Every page on this site has a
+// one-line answer to "what am I looking at" written for it -- the single most
+// direct fix for the most common piece of feedback the product gets -- and all
+// nineteen of them were inside a <details> SHUT BY DEFAULT, behind a 9px grey
+// summary. On a phone several were also duplicated into a title= tooltip,
+// which a phone cannot show at all. The sentence written to stop people
+// feeling lost was, on the device where they are lost, unreachable.
+//
+// The rule now, and it is a rule rather than a list: a CUSTOM label means this
+// is a specific aside -- "how this pool was built", "why no combined
+// percentage is printed", "how a slot is graded" -- and those still fold,
+// because they answer a question you have to have thought of first. The
+// DEFAULT label means the text is what the page IS, and that gets printed.
+//
+// Ten of the nineteen take the default: Live, Slate, At the plate, The record,
+// Results depth, the pair builder, the homer ledger, partner watch and both
+// halves of Boards.
+export function WhatThis({ children, label = null, maxWidth = 720 }) {
+  if (!label) {
+    return (
+      <p className="quiet-note" style={{
+        margin: '2px 0 8px', maxWidth,
+        fontSize: 11, color: C.text2, lineHeight: 1.6,
+      }}>{children}</p>
+    )
+  }
   return (
     <details className="quiet-note" style={{ margin: '2px 0 8px', maxWidth }}>
       <summary style={{
