@@ -78,10 +78,51 @@ function barsCleared(l) {
 // the loudest night first.
 const RANK = { live: 0, pre: 1, final: 2, off: 3 }
 
-export default function YourPlayers({ players = [], onPlayerClick = null, watchIds = null }) {
+// ── COLLAPSED BY DEFAULT ────────────────────────────────────────────────────
+//
+// 2026-09-03, Donovan: "i want the your players on the home page to be
+// collapsable or like show only little and can open big — right now it takes
+// up a large portion of the home page esp when you have a lot of players you
+// follow."
+//
+// He is right, and the reason is structural: this list has no natural ceiling.
+// Following is DURABLE and never pruned (lib/dash/follow.js), so it only ever
+// grows, and a man followed in May still takes a row in September. Every other
+// block on Home is bounded by the slate; this one is bounded by how long he
+// has used the site.
+//
+// THE RULE THAT MAKES COLLAPSING SAFE: a collapsed section must never hide the
+// thing you opened it for. So the cap is a FLOOR, not a limit — anyone whose
+// night is still changing (live) or who has already done something (a homer)
+// is shown regardless of where he falls. Collapsing can only ever hide men who
+// are finished, not yet playing, or not on tonight's board at all.
+const COLLAPSED_N = 5
+const OPEN_KEY = 'dash_yourplayers_open_v1'
+
+// Per-device, and deliberately NOT synced to the account. lib/dash/sync.js
+// already draws this line — theme, nav position and quiet mode stay local
+// because they describe a device rather than a person, and how much of a list
+// fits on screen is the same kind of fact. A phone and a desktop should be
+// allowed to disagree about it.
+const readOpen = () => {
+  try { return window.localStorage.getItem(OPEN_KEY) === '1' } catch { return false }
+}
+const writeOpen = (v) => {
+  try { window.localStorage.setItem(OPEN_KEY, v ? '1' : '0') } catch { /* private mode */ }
+}
+
+export default function YourPlayers({ players = [], onPlayerClick = null, watchIds = null, collapsible = true }) {
   const { rows: followed, unfollow } = useFollowing('mlb')
   const account = useDashAccount()
   const [snap, setSnap] = useState(null)
+  // Starts closed on the server and on the first client render, then adopts
+  // the stored choice in an effect. Reading localStorage during render would
+  // make the server's HTML and the client's first pass disagree, which is the
+  // hydration mismatch lib/theme.js's applyTheme() comment documents at
+  // length — the one that can take the whole root down.
+  const [open, setOpen] = useState(false)
+  useEffect(() => { setOpen(readOpen()) }, [])
+  const toggle = () => setOpen((v) => { writeOpen(!v); return !v })
 
   useEffect(() => {
     let alive = true
@@ -182,10 +223,26 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
   const liveN = rows.filter((r) => r.status === 'live').length
   const hrN = rows.reduce((a, r) => a + r.hr, 0)
 
+  // The floor rule, in one line: the first COLLAPSED_N by rank, plus anyone
+  // live or with a homer wherever he sits. `rows` is already ranked live-first,
+  // so in practice this only pulls up a FINAL line that went deep — which is
+  // exactly the row you would be angry to have hidden.
+  // The watchlist tab passes collapsible={false}: it is the page you open ON
+  // PURPOSE to look at your guys, and folding it there would make the
+  // dedicated view the weaker of the two — which is the exact note You.js
+  // already carries about this section.
+  const shown = (open || !collapsible)
+    ? rows
+    : rows.filter((r, i) => i < COLLAPSED_N || r.status === 'live' || r.hr > 0)
+  const restN = rows.length - shown.length
+
   return (
     <div style={wrap}>
       <div style={head}>
         <b style={title}>★ Your players</b>
+        {/* These counts describe the WHOLE list, not the visible slice. A
+            collapsed section that also collapses its own summary would hide a
+            homer twice. */}
         <span style={note}>
           {rows.length}{' '}
           {liveN ? <>· <b style={{ color: C.green }}>{liveN} live</b> </> : null}
@@ -195,7 +252,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
       </div>
 
       <div style={{ display: 'grid', gap: 1, marginTop: 7 }}>
-        {rows.map((r) => (
+        {shown.map((r) => (
           <div
             key={r.id}
             className="quiet-tile"
@@ -279,6 +336,28 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
           </div>
         ))}
       </div>
+
+      {collapsible && (restN > 0 || open) && (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          style={{
+            width: '100%', marginTop: 6, padding: '6px 9px',
+            background: 'transparent', border: `1px solid ${C.border}`,
+            borderRadius: 8, cursor: 'pointer',
+            fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+            color: C.text3, letterSpacing: '.04em',
+          }}
+        >
+          {open
+            ? 'Show less'
+            /* Name what is behind the fold, and name why it is safe to leave
+               it there — stated as the guarantee the filter actually makes,
+               not as a guess about what those men are doing. */
+            : `Show ${restN} more — nothing live, nothing that homered`}
+        </button>
+      )}
     </div>
   )
 }

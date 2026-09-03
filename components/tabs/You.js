@@ -80,6 +80,7 @@ export default function You({
           players={players}
           watchIds={new Set((watchItems || []).map(playerId))}
           onPlayerClick={onPlayerClick}
+          collapsible={false}
         />
         <Watchlist
           items={watchItems}

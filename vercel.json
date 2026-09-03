@@ -10,6 +10,8 @@
     { "path": "/api/fantasy/scoring", "schedule": "*/10 0-7 * * *" },
     { "path": "/api/fantasy/scoring", "schedule": "0 8-16 * * *" },
     { "path": "/api/dash/push/tick", "schedule": "* 13-16 * * 0" },
-    { "path": "/api/fantasy/scoring", "schedule": "*/10 13-16 * * 0" }
+    { "path": "/api/fantasy/scoring", "schedule": "*/10 13-16 * * 0" },
+    { "path": "/api/dash/sim-log", "schedule": "0 15-23 * * *" },
+    { "path": "/api/dash/sim-log", "schedule": "0 0-2 * * *" }
   ]
 }
