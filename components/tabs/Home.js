@@ -23,6 +23,7 @@ import { getPicks, CONVICTION } from '../../lib/myPicks'
 import { btnStyle } from '../ui'
 import Scoreboard from './Scoreboard'
 import Boxes from './Boxes'
+import PennantRace from '../PennantRace'
 
 // HOME — the front porch.
 //
@@ -1002,6 +1003,21 @@ export default function Home({
              keeps its length. Nothing that was on this page moved or left. ── */}
       <Fold id="read" title="📰 The Read" meta="the bot's single best call tonight">
         <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
+      </Fold>
+
+      {/* ── 🏆 OCTOBER — the playoff predictor and the World Series pick ──────
+          Two of the four bots Donovan asked for, and they are one machine: you
+          cannot answer who wins the World Series without first answering who is
+          in the field, and once the bracket is being simulated the champion
+          falls out of the same run.
+
+          It is a FOLD and not a tab on purpose. "You can get lost on the site
+          very easily, especially the MLB side" -- a tab costs every visitor a
+          decision forever, a fold costs only the people who open it. And
+          because Fold does not render its children while shut, a reader who
+          never opens this never fetches playoff_odds.json either. ── */}
+      <Fold id="october" title="🏆 October odds" meta="playoff field and a World Series pick, simulated">
+        <PennantRace />
       </Fold>
 
       {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}
