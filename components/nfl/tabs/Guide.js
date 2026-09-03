@@ -148,7 +148,7 @@ export default function Guide({ onNavigate }) {
           <PageCard tab="research" title="Research" note="Deeper model inputs and supporting context. Useful after the verdict, not before it." onNavigate={onNavigate} />
           <PageCard tab="matchups" title="Matchups" note="Defense-versus-position and matchup context without turning team context into a player pick." onNavigate={onNavigate} />
           <PageCard tab="pairs" title="Pairs" note="Related same-game combinations. Relationship labels are context, not a guarantee or independent grade." onNavigate={onNavigate} />
-          <PageCard tab="accountability" title="Results" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
+          <PageCard tab="accountability" title="The record" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
           <PageCard tab="report" title="Report Card" note="Backtests each model against a simple trailing-average baseline." onNavigate={onNavigate} />
         </div>
       </Section>

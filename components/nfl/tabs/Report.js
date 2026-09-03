@@ -105,7 +105,7 @@ export default function Report({ report }) {
         <b style={{ color: C.text }}>Calibrated, not accumulated.</b> This page is the
         seven models run against completed past seasons on real outcomes — top{' '}
         {report.topk} per week, per market. It is not the running 2026 record; graded
-        2026 calls (preseason included) live on the Results tab.
+        2026 calls (preseason included) live on The record.
         {' '}<b style={{ color: C.text }}>MODEL</b> is the score.
         {' '}<b style={{ color: C.text }}>FORM</b> is ranking by trailing average in the
         market&apos;s own stat — the dumbest model there is.

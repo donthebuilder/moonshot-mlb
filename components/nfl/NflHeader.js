@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 import PaletteButton from '../PaletteButton'
@@ -96,23 +97,26 @@ function TickerStrip({ children }) {
   )
 }
 
-const PRIMARY_TABS = [
-  ['home', 'Home'],
-  ['boards', 'Boards'],
-  ['games', 'Games'],
-  ['picks', 'Picks'],
-  ['research', 'Research'],
-]
-const MORE_TABS = [
-  ['players', 'Player Portal'],
-  ['watchlist', 'Watchlist'],
-  ['matchups', 'Matchups'],
-  ['report', 'Report Card'],
-  ['accountability', 'Results'],
-  ['pairs', 'Pairs'],
-  ['guide', 'Guide'],
-]
-const PRIMARY_KEYS = new Set(PRIMARY_TABS.map(([key]) => key))
+// ── LABELS COME FROM lib/routes.js (2026-09-03) ─────────────────────────────
+//
+// Same fix MOONSHOT got the same day, for the same reason: this file, the
+// phone bar and the route table each carried their own list and `home` was
+// "Home" here, "Tonight" on the phone and "This week" in the table. Three
+// names for one page, and the phone had borrowed a baseball word -- football's
+// unit is a week, not a night.
+//
+// `home` left the rail. The TUDDY WORDMARK is the home button now (see where
+// it renders), which is where a home button belongs and is visible on a phone;
+// only the tab rail hides below 760px, not the brand row. Desktop and the
+// phone bar carry the same four stops now -- the phone used to drop Research
+// to make room, so the two navigations of one product disagreed about what
+// mattered.
+const PRIMARY_KEY_LIST = ['boards', 'games', 'picks', 'research']
+const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, NFL_NAV[k].label])
+const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
+// Same exception as MOONSHOT's: This week is reached from the wordmark, so it
+// must not make ••• More read as the active section.
+const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 
 // The NFL header. Deliberately the same silhouette as the MLB one — logo tile
 // left, status strip centre, controls right, tab rail underneath — so the
@@ -260,11 +264,23 @@ export default function NflHeader({ tab, setTab, data, meta }) {
 
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{
-                fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em',
-                background: GRADIENT, WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>TUDDY</span>
+              {/* THE WORDMARK IS TUDDY'S HOME BUTTON (2026-09-03), exactly as
+                  MOONSHOT's is. This week gave up its slot in the rail; this is
+                  where it went, and it is also the way back for anyone several
+                  sub-views deep, which the rail never had. The square mark
+                  beside it still goes to the network. Two marks, two homes. */}
+              <button
+                type="button"
+                onClick={() => go('home')}
+                title="TUDDY home — this week in one page"
+                aria-label="TUDDY home"
+                style={{
+                  padding: 0, border: 'none', background: 'transparent', cursor: 'pointer',
+                  fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.1,
+                  backgroundImage: GRADIENT, WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >TUDDY</button>
               {/* Tuddy is the NFL product inside DASH Network. */}
               {/* ── TUDDY'S PILLS GET MOONSHOT'S FIX (2026-08-29) ──────────
                   Donovan's screenshot showed the NFL bubble riding above the
@@ -427,14 +443,14 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             aria-expanded={moreOpen}
             style={{
               padding:'8px 13px', fontSize:11,
-              fontWeight:!PRIMARY_KEYS.has(tab) ? 800 : 500,
+              fontWeight:inMore(tab) ? 800 : 500,
               cursor:'pointer', border:'none', borderRadius:0,
-              background:'transparent', color:!PRIMARY_KEYS.has(tab) ? C.green : C.text3,
+              background:'transparent', color:inMore(tab) ? C.green : C.text3,
               position:'relative', transition:'color .12s', whiteSpace:'nowrap',
             }}
           >
             More
-            {!PRIMARY_KEYS.has(tab) && <div style={{
+            {inMore(tab) && <div style={{
               position:'absolute', bottom:0, left:0, right:0, height:2,
               background:GRADIENT, borderRadius:'2px 2px 0 0',
             }} />}
@@ -457,13 +473,27 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               <span style={{ color:C.green }}>⌂ DASH HOME</span>
               <span style={{ color:C.text3, fontWeight:600 }}>Tonight across MOONSHOT · TUDDY · FRANCHISE →</span>
             </a>
-            {MORE_TABS.map(([key,label]) => (
-              <button key={key} onClick={() => go(key)} style={{
-                padding:'9px 10px', border:`1px solid ${tab === key ? C.green + '66' : C.border}`,
-                borderRadius:8, background:tab === key ? `${C.green}12` : C.glass,
-                color:tab === key ? C.green : C.text2, fontSize:10, fontWeight:750,
-                textAlign:'left', cursor:'pointer',
-              }}>{label}</button>
+            {/* Grouped, same as MOONSHOT's (2026-09-03). TUDDY has no orphan
+                pages to rescue -- every key was already named somewhere -- so
+                this is about saying what KIND of thing each one is, which is
+                the half of the MLB fix that applies here. */}
+            {NFL_MORE_GROUPS.map(([group, keys]) => (
+              <div key={group} style={{ gridColumn:'1/-1' }}>
+                <div style={{
+                  fontSize:8, fontWeight:900, letterSpacing:'.14em', color:C.text3,
+                  textTransform:'uppercase', margin:'8px 2px 5px',
+                }}>{group}</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(118px,1fr))', gap:6 }}>
+                  {keys.map((key) => (
+                    <button key={key} onClick={() => go(key)} title={NFL_NAV[key].blurb} style={{
+                      padding:'9px 10px', border:`1px solid ${tab === key ? C.green + '66' : C.border}`,
+                      borderRadius:8, background:tab === key ? `${C.green}12` : C.glass,
+                      color:tab === key ? C.green : C.text2, fontSize:10, fontWeight:750,
+                      textAlign:'left', cursor:'pointer',
+                    }}>{NFL_NAV[key].icon} {NFL_NAV[key].label}</button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
