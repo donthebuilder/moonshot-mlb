@@ -9,7 +9,7 @@ import { solveFlight } from '../lib/trajectory'
 // back to a plain two-tier ring for any venue it has no entry for, so a park
 // we have walls for but no bowl for still draws.
 import { buildPark } from '../lib/stadiumWorld'
-import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, isCoarse } from '../lib/stadiumLook'
+import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, loadModels, isCoarse } from '../lib/stadiumLook'
 import { resultColor, isNonHrHit } from '../lib/resultColor'
 import { shapeFor, resultScale } from '../lib/pitchShape'
 
@@ -304,6 +304,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     const desktop = !isCoarse()
     if (desktop) enableShadows(renderer, scene, maxD)
     loadPhotoSurfaces(scene)
+    loadModels(scene)
     loadSky(renderer, scene)
     const look = makeComposer(renderer, scene, camera, W, H, { ao: desktop, scale: 1 })
 
@@ -1289,7 +1290,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
         <div ref={tipRef} style={{
           display: 'none', position: 'absolute', zIndex: 5, pointerEvents: 'none',
           maxWidth: 180, padding: '6px 9px', borderRadius: 8,
-          background: C.scrim, border: `1px solid ${C.border2}`,
+          background: 'rgba(9,9,11,.92)', border: `1px solid ${C.border2}`,
           fontSize: 10, lineHeight: 1.5, color: C.text2, fontFamily: NUM_FONT,
         }} />
         {/* motion modes + orbit, top-right. The ▶ replay button grew into a
@@ -1310,7 +1311,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
                   padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
                   cursor: 'pointer', fontFamily: NUM_FONT,
                   border: `1px solid ${on ? col : C.border2}`,
-                  background: on ? `${col}22` : C.bg3, color: on ? col : C.text2,
+                  background: on ? `${col}22` : 'rgba(9,9,11,.75)', color: on ? col : C.text2,
                 }}
               >{txt}</button>
             )
@@ -1322,7 +1323,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
               padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
               cursor: 'pointer', fontFamily: NUM_FONT,
               border: `1px solid ${orbit ? C.cyan : C.border2}`,
-              background: orbit ? `${C.cyan}22` : C.bg3, color: orbit ? C.cyan : C.text2,
+              background: orbit ? `${C.cyan}22` : 'rgba(9,9,11,.75)', color: orbit ? C.cyan : C.text2,
             }}
           >⟳ orbit</button>
         </div>

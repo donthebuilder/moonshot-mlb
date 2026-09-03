@@ -8,7 +8,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { INK_DARK } from '../lib/palette'
 import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } from '../lib/livePitches'
 import { buildPark, lerp5, fieldPoint, GENERIC_DIMS, GENERIC_HEIGHTS } from '../lib/stadiumWorld'
-import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, isCoarse } from '../lib/stadiumLook'
+import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, loadModels, isCoarse } from '../lib/stadiumLook'
 import { PARK_WALLS } from '../lib/parkWalls'
 // The same sequential ramp the 2D grid paints its temp bands with. Importing
 // it — rather than picking colours here — is what keeps the two maps from
@@ -249,6 +249,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const desktop = !isCoarse()
     if (desktop) enableShadows(renderer, scene, Math.max(...dims))
     loadPhotoSurfaces(scene)
+    loadModels(scene)
     loadSky(renderer, scene)
     const look = makeComposer(renderer, scene, camera, W, H, { ao: desktop, scale: 0.25 })
 
@@ -880,7 +881,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
               <div style={{
                 position: 'absolute', right: 10, bottom: 10, zIndex: 4,
                 width: 196, pointerEvents: 'none',
-                background: C.scrim, backdropFilter: 'blur(6px)',
+                background: 'rgba(9,9,11,.90)', backdropFilter: 'blur(6px)',
                 border: `1px solid ${zoneDetail[hoverZone].kill ? C.orange : C.border2}`,
                 borderRadius: 9, padding: '8px 10px',
               }}>
