@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import DenseTable from '../DenseTable'
 import MixDuel from '../MixDuel'
+import { pitcherDetailUrl } from '../../lib/dataSource'
 
 // COLOUR NOTE. This page ran a green/red good-bad scale and a per-pitch rainbow
 // until now — its own footer read "Green = favorable for batter, Red =
@@ -83,7 +84,60 @@ const VIEWS = [
   { key:'all',    label:'Everything', blurb:'all eighteen columns, the old wall' },
 ]
 
-export default function PitchBreakdown({ player }) {
+// ── THIS TAB WAS READING FIELDS THAT ARE NOT IN THE PAYLOAD (2026-09-03) ────
+//
+// Found while auditing what the bot publishes against what the site asks for.
+// Measured on the live slate (160 rows) the site actually loads:
+//
+//   batter_pitch_type_profile          0/160
+//   pitcher_pitch_mix_vs_lhb / _rhb    0/160
+//   pitcher_pitch_arsenal_detail       0/160
+//   pitcher_pitch_type_summary_vs_lhb  0/160
+//   pitcher_pitch_type_summary_vs_rhb  0/160
+//
+// Not a bot bug. `bots/make_slim.py` drops the heavy nested logs out of the
+// slate JSON -- they were 49 of its 50 MB -- and writes them to per-player
+// detail files instead. Every other consumer was updated to fetch those
+// (SprayField, MatchupPitcher, PitcherProfile, the EV log). This one was not,
+// so it kept reading the row and getting undefined.
+//
+// The effect: BOTH halves of the tab were dead. `hasBotProfile` could never be
+// true, so the batter's own pitch profile always fell through; and the
+// vs-LHB / vs-RHB pitcher views had a fallback chain whose every branch was a
+// dropped key, so switching hand did nothing. Only the overall pitcher summary
+// worked, because `pitcher_pitch_type_summary` (no hand) is the one that stays
+// on the row -- 160/160.
+//
+// `detail` is the batter file PlayerModal has already fetched; passing it in
+// costs no request. The pitcher file is fetched here, the same way
+// MatchupPitcher and PitcherProfile fetch it -- one file per starter, shared
+// across his whole lineup, and the browser caches it.
+//
+// STILL OWED ON THE BOT SIDE, and it is small: pitcher_pitch_type_summary_vs_
+// lhb / _rhb are in make_slim's DROP_KEYS but in NEITHER detail list, so they
+// are computed and then thrown away entirely. The fallback below recovers the
+// same numbers from pitcher_pitch_mix_vs_*.pitch_type_summary, which the
+// detail file does carry, so nothing is missing on screen -- but the first
+// branch of that chain can never fire and should either be published or
+// deleted from the bot.
+export default function PitchBreakdown({ player, detail = null }) {
+  const [pdetail, setPdetail] = useState(null)
+  const pitcherId = player?.pitcher_id
+  useEffect(() => {
+    let alive = true
+    setPdetail(null)
+    if (!pitcherId) return undefined
+    fetch(pitcherDetailUrl(pitcherId))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) setPdetail(j) })
+      .catch(() => { /* the overall summary on the row still renders */ })
+    return () => { alive = false }
+  }, [pitcherId])
+
+  // One place to ask "row, then batter detail, then pitcher detail", so no
+  // reader below has to know which file a field ended up in.
+  const src = (k) => player?.[k] ?? detail?.[k] ?? pdetail?.[k] ?? undefined
+
   // Auto-default each toggle to what's actually relevant for this matchup,
   // instead of always landing on "All" and making the person click twice.
   const initialHand = player?.bats === 'L' ? 'L' : player?.bats === 'R' ? 'R' : 'ALL'
@@ -96,7 +150,7 @@ export default function PitchBreakdown({ player }) {
   // Log makes, and lib/savant.js caches per player id, so opening both tabs
   // on one hitter costs one request, not two.
   const pidKey = player?.player_id || player?.id
-  const hasBotProfile = !!Object.keys(player?.batter_pitch_type_profile?.by_pitch || {}).length
+  const hasBotProfile = !!Object.keys(src('batter_pitch_type_profile')?.by_pitch || {}).length
   const [liveLog, setLiveLog] = useState(null)
   useEffect(() => {
     if (hasBotProfile || !pidKey) { setLiveLog(null); return undefined }
@@ -165,9 +219,9 @@ export default function PitchBreakdown({ player }) {
 
   // ── Batter vs pitch type, splittable by the HAND OF PITCHER faced ──
   const botByPitch = useMemo(() => {
-    if (batterVs === 'L') return player?.batter_pitch_type_profile?.vs_lhp?.by_pitch || player?.batter_pitch_type_profile?.by_pitch || {}
-    if (batterVs === 'R') return player?.batter_pitch_type_profile?.vs_rhp?.by_pitch || player?.batter_pitch_type_profile?.by_pitch || {}
-    return player?.batter_pitch_type_profile?.by_pitch || {}
+    if (batterVs === 'L') return src('batter_pitch_type_profile')?.vs_lhp?.by_pitch || src('batter_pitch_type_profile')?.by_pitch || {}
+    if (batterVs === 'R') return src('batter_pitch_type_profile')?.vs_rhp?.by_pitch || src('batter_pitch_type_profile')?.by_pitch || {}
+    return src('batter_pitch_type_profile')?.by_pitch || {}
   }, [player, batterVs])
 
   // The published profile always wins; the live pull only fills a hole.
@@ -176,11 +230,11 @@ export default function PitchBreakdown({ player }) {
 
   // ── Pitcher arsenal — switch by batter hand toggle ──
   const pitcherSummary = useMemo(() => {
-    if (hand === 'L') return player?.pitcher_pitch_type_summary_vs_lhb || player?.pitcher_pitch_mix_vs_lhb?.pitch_type_summary || []
-    if (hand === 'R') return player?.pitcher_pitch_type_summary_vs_rhb || player?.pitcher_pitch_mix_vs_rhb?.pitch_type_summary || []
+    if (hand === 'L') return src('pitcher_pitch_type_summary_vs_lhb') || src('pitcher_pitch_mix_vs_lhb')?.pitch_type_summary || []
+    if (hand === 'R') return src('pitcher_pitch_type_summary_vs_rhb') || src('pitcher_pitch_mix_vs_rhb')?.pitch_type_summary || []
     return (
-      player?.pitcher_pitch_mix?.pitch_type_summary ||
-      player?.pitcher_pitch_arsenal_detail ||
+      src('pitcher_pitch_mix')?.pitch_type_summary ||
+      src('pitcher_pitch_arsenal_detail') ||
       []
     )
   }, [player, hand])

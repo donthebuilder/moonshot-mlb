@@ -1905,9 +1905,28 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
                   }}>{m.short}</span>
               )
             })}
+            {/* ── THE MAGNET SAID NOTHING (2026-09-03) ─────────────────────
+                Donovan: "I don't know what the magnet badge is, please just
+                remove unless it's useful."
+                It IS the useful thing -- it is the count of ways this hitter
+                lines up with the night's numbers, which is the entire subject
+                of this panel and, since today, what the strip is SORTED by. So
+                deleting it would leave the order unexplainable while removing
+                the one signal the ledger exists to show.
+                What was wrong is that it was a glyph and nothing else. A
+                reader had no way to learn what 🧲 meant except by hovering,
+                and on a phone there is no hover at all. It says the word now.
+                The tag labels ride in the tooltip beside the whys, so the
+                answer to "aligning HOW" is one tap rather than a guess. */}
             {c.tags?.length > 0 && (
-              <span title={c.tags.map((t) => t.why).join(' ')} style={{ fontSize: 8.5, color: C.orange }}>
-                🧲{c.tags.length > 1 ? c.tags.length : ''}
+              <span
+                title={`${c.tags.map((t) => t.label).join(' · ')} — ${c.tags.map((t) => t.why).join(' ')}`}
+                style={{
+                  fontSize: 8, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.04em',
+                  color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 4, padding: '1px 4px',
+                }}
+              >
+                {c.tags.length > 1 ? `${c.tags.length} ALIGNS` : 'ALIGNS'}
               </span>
             )}
           </button>

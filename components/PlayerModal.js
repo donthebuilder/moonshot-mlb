@@ -1155,7 +1155,11 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
               ? <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading pitch profile…</div>
               : (
                 <>
-                  <PitchBreakdown player={p} />
+                  {/* `detail` is the batter file this modal already
+                      fetched. Without it the Pitch tab's batter half reads a
+                      field make_slim.py drops -- see the note at the top of
+                      PitchBreakdown.js. */}
+                  <PitchBreakdown player={p} detail={detail} />
                   {/* Which pitches he actually homers off, against tonight's
                       mix. The one panel that crosses batter and pitcher, so it
                       belongs under the batter's pitch table rather than in a
