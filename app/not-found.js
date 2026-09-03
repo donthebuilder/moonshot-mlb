@@ -6,6 +6,8 @@
 
 import Link from 'next/link'
 
+import { createSupabaseServerClient } from '../lib/supabase/server'
+
 export const metadata = { title: 'Not found · DASH Network' }
 
 const wrap = {
@@ -22,7 +24,29 @@ const door = (accent) => ({
   font: '800 11px/1 monospace', letterSpacing: '.06em', textDecoration: 'none',
 })
 
-export default function NotFound() {
+// ── #86: THE 404 OFFERED "SIGN IN" TO A SIGNED-IN USER ──────────────────────
+//
+// Small, but it is the one page a lost person reads carefully, and being told
+// to sign in when you already are makes you doubt that you are. Worse, the
+// most useful door for a signed-in user -- back to their own dashboard -- was
+// the one not offered.
+//
+// WHY THE try/catch IS NOT DEFENSIVE PADDING. This page's whole job is to
+// render when something has already gone wrong, and it renders in contexts
+// where the request may have no usable cookie store at all. A 404 that throws
+// is an unhandled error page, which is strictly worse than a 404 with one
+// wrong link. So any failure falls back to exactly the previous behaviour.
+async function signedIn() {
+  try {
+    const supabase = await createSupabaseServerClient()
+    if (!supabase) return false
+    const { data: { user } } = await supabase.auth.getUser()
+    return Boolean(user)
+  } catch { return false }
+}
+
+export default async function NotFound() {
+  const isIn = await signedIn()
   return (
     <main style={wrap}>
       <img src="/icon-192.png" alt="" width="52" height="52" style={{ borderRadius: 14 }} />
@@ -41,7 +65,9 @@ export default function NotFound() {
         <Link href="/app#sport=mlb&tab=home" style={door('#f97316')}>MOONSHOT · MLB</Link>
         <Link href="/app#sport=nfl&tab=home" style={door('#22c55e')}>TUDDY · NFL</Link>
         <Link href="/fantasy" style={door('#ff633e')}>FRANCHISE · FANTASY</Link>
-        <Link href="/login" style={door('#8a8580')}>SIGN IN</Link>
+        {isIn
+          ? <Link href="/dash" style={door('#8a8580')}>YOUR DASHBOARD</Link>
+          : <Link href="/login" style={door('#8a8580')}>SIGN IN</Link>}
       </nav>
     </main>
   )

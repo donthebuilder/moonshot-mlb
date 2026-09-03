@@ -1066,14 +1066,27 @@
 .roomApp * {
   box-sizing: border-box;
 }
+/* #87: "Goin 4 It" ran straight into "0 rostered" with no gap. The grid was
+   `1fr auto 1fr` with no column gap, so the middle column -- sized to the team
+   name -- grew until it touched the count in the third. A long team name has
+   nothing to give here, so it gets both: a real gap the columns cannot cross,
+   and permission to truncate rather than push. (The other half of the finding,
+   the count rendering as a superscript off the name, was the entrance fade --
+   see #80.) */
 .roomHeader {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr minmax(0, auto) 1fr;
+  gap: 16px;
   align-items: center;
   min-height: 62px;
   padding: 8px 18px;
   border-top: 3px solid var(--orange);
   border-bottom: 1px solid var(--line);
+}
+.roomHeader strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .roomHeader>a {
   color: var(--orange);
@@ -1097,7 +1110,9 @@
   font-size: 17px;
 }
 .roomHeader>span {
+  justify-self: end;
   text-align: right;
+  white-space: nowrap;
   color: var(--fx-dim);
   font: 10px/1 monospace;
 }
@@ -3094,8 +3109,33 @@
 .roomNav .roomActive {
   text-shadow: 0 0 20px rgba(255,99,62,.6);
 }
+/* ── #80: THE FADE THAT MADE EVERY PAGE UNREADABLE FOR A MOMENT ────────────
+   Every FRANCHISE route change ran the whole page body from opacity 0 over
+   .28s. It resolved fast on a good connection, so it read as polish. Three
+   things were wrong with it:
+
+   · It is paid on EVERY navigation, forever, for a decorative gain — and on a
+     slow connection the fade starts only once the server render lands, so the
+     user gets blank, then dim, then readable.
+   · Body text, headings and controls were all unreadable during it. Caught
+     mid-fade on Team, Matchup, Trades, Feed and League HQ.
+   · It actively caused a wrong finding. #85 ("Send offer is live on an empty
+     trade") was a screenshot taken mid-fade: the button was correctly
+     disabled at opacity .35, and a page where EVERYTHING is dimmed makes a
+     dimmed control indistinguishable from an enabled one. A decoration that
+     defeats a disabled state is not a decoration.
+
+   The arrival is kept and the opacity ramp is dropped. The 5px rise is what
+   actually says "new page"; the fade only said "wait." Text is fully opaque
+   from the first frame, so nothing is ever unreadable and a disabled control
+   is always the only dim thing on screen. */
 .roomBody {
-  animation: franchiseEnter .28s ease-out both;
+  animation: franchiseEnter .22s ease-out both;
+}
+/* Motion is the whole effect now, so honour the setting that asks for none.
+   The site had no prefers-reduced-motion rule at all. */
+@media (prefers-reduced-motion: reduce) {
+  .roomBody { animation: none; }
 }
 .draftHero,
 .leagueHero,
@@ -3381,11 +3421,10 @@
 }
 @keyframes franchiseEnter {
   from {
-    opacity: 0;
+    /* #80: `opacity: 0` was here. It is deliberately gone -- see .roomBody. */
     transform: translateY(5px);
   }
   to {
-    opacity: 1;
     transform: none;
   }
 }
