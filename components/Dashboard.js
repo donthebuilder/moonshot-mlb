@@ -633,6 +633,11 @@ export default function Dashboard({ palettePass = 0 }) {
                 Not a new tab in the nav — Donovan: "unsure about the use of
                 more tabs, we have to get that under control." */}
             {tab === 'steals'      && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="steals" />}
+            {/* #tab=gap and #tab=triples (2026-09-03) — the Gap Board is a
+                group inside the boards page, same shape as 'steals'. Two
+                names route to it because 'triples' is what he asked for and
+                'gap' is what it turned out to be. */}
+            {(tab === 'gap' || tab === 'triples')      && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="gap" />}
             {tab === 'shape'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="shape" />}
             {tab === 'patterns'    && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="patterns" />}
             {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="longest" />}

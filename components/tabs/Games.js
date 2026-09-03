@@ -20,6 +20,7 @@ import LiveAtBats from '../LiveAtBats'
 import AtThePlate from './AtThePlate'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
+import GameSimPanel from '../GameSimPanel'
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold, { useIsPhone } from '../MobileFold'
@@ -1445,6 +1446,17 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             copy, so the two surfaces cannot drift. */}
                         <div id={`gp-lineups-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
                           <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
+                        </div>
+
+                        {/* 🎲 THE SIMULATOR (2026-09-03). Collapsed by
+                            default and it simulates NOTHING until opened —
+                            2,000 games is ~250ms of main thread, which is
+                            fine on demand and rude on every card of a
+                            fifteen-game slate. Mounted here, after the
+                            lineups, because it needs both cards posted to
+                            mean anything. */}
+                        <div id={`gp-sim-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
+                          <GameSimPanel game={g} onPlayerClick={onPlayerClick} />
                         </div>
 
                         <div id={`gp-h2h-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>

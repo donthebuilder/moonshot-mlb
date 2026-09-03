@@ -6,6 +6,7 @@ import { btnStyle, WhatThis } from '../ui'
 import RankedBoard from './RankedBoard'
 import Runs from './Runs'
 import StealBoard from './StealBoard'
+import GapBoard from './GapBoard'
 import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
@@ -344,7 +345,11 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 // model behind it.
 // 2026-08-24: labels went text-only (Donovan wants secondary/sub-tab pill
 // rows emoji-free site-wide — only the top-level nav tabs get emoji prefixes).
-const GROUPS = [['boards', 'Boards'], ['power', 'Power'], ['patterns', 'Patterns'], ['steals', 'Steals']]
+// 2026-09-03: 'Gap' joins the row rather than becoming a tab — same
+// decision as Steals, same reason (Donovan: "unsure about the use of
+// more tabs, we have to get that under control"). Doubles and triples
+// are one board: same swing, same park geometry, same audience.
+const GROUPS = [['boards', 'Boards'], ['power', 'Power'], ['patterns', 'Patterns'], ['steals', 'Steals'], ['gap', 'Gap']]
 
 // 🌙 DAY-OFF SPLIT (2026-08-30, Donovan: "i also like to track day offs like
 // instead of back back games the me[i]ss the back to back and go a 'day off'
@@ -521,7 +526,9 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         onPlayerClick={onPlayerClick}
       />
 
-      {bview === 'steals' ? (
+      {bview === 'gap' ? (
+        <GapBoard players={players} odds={odds} onPlayerClick={onPlayerClick} />
+      ) : bview === 'steals' ? (
         <StealBoard players={players} odds={odds} onPlayerClick={onPlayerClick} />
       ) : bview === 'patterns' ? (
         /* allPlayers: a streak board silently narrowed by the header's team
