@@ -1404,6 +1404,33 @@ rows={(() => {
             era: n(p.pitcher_era, null),
             whip: n(p.pitcher_whip, null),
             hr9: n(p.pitcher_hr9, null),
+            // ── TWO COLUMNS THAT WERE NEVER HERE (2026-09-03) ─────────────
+            //
+            // Donovan sent his Streamlit "Tonight's Starting Pitchers" table
+            // alongside this one: HR · IP · HR/9 · K% · BRL% · FB% · HR/FB% ·
+            // AVG EV. Seven of those eight had a column here. The two that
+            // did not:
+            //
+            //   HR  -- pitcher_hr_allowed is published on 160/160 rows and
+            //          was used NOWHERE in this file. The table could rank
+            //          thirty arms by every rate and never say how many balls
+            //          any of them has actually given up. 1.44 HR/9 is 26
+            //          homers or it is 5, and only one of those is a season.
+            //   K%  -- pitcher_k_rate, also 160/160, used only in
+            //          MatchupPitcher. K/9 was standing in for it, and they
+            //          are not the same statistic: K/9 moves with how deep he
+            //          goes, K% is per batter faced.
+            //
+            // IP is the one column that genuinely cannot be added: pitcher_ip
+            // is in the field list and published on 0 of 160 rows. That is a
+            // bot-side fix, not a site one.
+            // numOrGap, not n(...,null) -- see the note at the top of this
+            // file. A pitcher who has allowed NO homers is exactly the arm you
+            // want to know about, and n() turns an unpublished field into a
+            // measured 0.00, which would print the same thing. numOrGap keeps
+            // "none allowed" and "not published" apart.
+            hr: numOrGap(src('pitcher_hr_allowed')),
+            kpct: numOrGap(src('pitcher_k_rate')),
             k9: n(src('pitcher_k9'), null),
             l3era: n(src('pitcher_l3_era'), null),
             l3whip: n(src('pitcher_l3_whip'), null),
@@ -1553,11 +1580,11 @@ rows={(() => {
           // rank an arm but couldn't tell you what has been happening to him,
           // who follows him, or where he is throwing.
           const GROUPS = {
-            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9',...(hasX ? ['xallowed','xluck'] : ['luck']),'era','whip','spots','runOn'],
+            core:   ['name','t','tm','vs','weakSide','trend','gbTrap','hardCon','lowK','conf','overall','hr9','hr',...(hasX ? ['xallowed','xluck'] : ['luck']),'era','whip','kpct','spots','runOn'],
             recent: ['name','tm','vs','trend','overall','l3hr9','l3era','l3whip','l3n','velo','hr9',...(hasX ? ['xallowed','xluck'] : ['luck'])],
-            cmd:    ['name','t','tm','vs','meat','fps','put','whiff','swstr','k9','ev','hr9L','hr9R'],
+            cmd:    ['name','t','tm','vs','meat','fps','put','whiff','swstr','k9','kpct','ev','hr9L','hr9R'],
             bot:    ['name','tm','vs','overall','attack','wsScore','zoneDmg','spotDmg','spots','gbTrap','hardCon','lowK'],
-            bb:     ['name','tm','vs','overall','fb','gb','ld','popup','fbSc','hh','brl','hrfb','pullAir','xbh','k9','ev',...(hasX ? ['xallowed','xluck'] : ['luck'])],
+            bb:     ['name','tm','vs','overall','hr','fb','gb','ld','popup','fbSc','hh','brl','hrfb','pullAir','xbh','k9','kpct','ev',...(hasX ? ['xallowed','xluck'] : ['luck'])],
             pen:    ['name','tm','vs','penQual','penEra','penWhip','penHr9','penAtk','penFit'],
             air:    ['name','tm','vs','venue','roof','windDir','temp','wind','humid','parkHr','wxHr','hr9'],
           }
@@ -1618,8 +1645,12 @@ rows={(() => {
             title: 'Loudness of contact allowed (barrel/HH/pull-air/FB percentiles) minus HR/9 percentile, both within tonight\'s slate. POSITIVE = loud contact but few homers paid so far — the "lucky" arm, and the regression bet says target him. Negative = his HR/9 overstates the damage he actually allows. A pointer, not a projection.' },
           { key: 'era',    label: 'ERA', w: 44, dp: 2 },
           { key: 'whip',   label: 'WHIP', w: 46, dp: 2 },
+          { key: 'hr',     label: 'HR', w: 40, dp: 0,
+            title: 'Home runs he has allowed this season — the count, not the rate. Read it beside HR/9: the same 1.44 is twenty-six homers over a full season or five over four starts, and the two are different arms.' },
           { key: 'k9',     label: 'K/9', w: 44, dp: 1, invert: true,
             title: 'Season strikeouts per nine. Inverted — a high K/9 is bad for the hitter.' },
+          { key: 'kpct',   label: 'K%', w: 44, fmt: PCT, invert: true,
+            title: 'Strikeouts per batter faced. Inverted — a high K% is bad for the hitter. Not the same as K/9, which also moves with how deep into games he goes.' },
           { key: 'l3hr9',  label: 'L3 HR/9', w: 54, dp: 2,
             title: 'Last three starts. Small by construction — check the L3 GS column.' },
           { key: 'l3era',  label: 'L3 ERA', w: 50, dp: 2 },

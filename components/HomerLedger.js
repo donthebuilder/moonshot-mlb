@@ -854,6 +854,22 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         lifePath: numRec?.lifePath ?? null,
       })
     })
+    // ── ORDERED BY ALIGNMENT, THEN BY THE MILESTONE (2026-09-03) ─────────
+    //
+    // Donovan: "for the ledger make sure homers are ordered by alignments as
+    // best as possible."
+    //
+    // This strip was sorted on `nth` alone -- 32nd, 28th, 16th, 15th -- which
+    // is the SEASON COUNT, and the season count is the one thing on the chip
+    // that has nothing to do with why this panel exists. The whole subject of
+    // the ledger is who is lining up with the night's numbers; the 🧲 badge is
+    // that answer and it was scattered down the row at random while a big
+    // meaningless number led.
+    //
+    // THE SORT HAD TO MOVE, not just change. `c.tags` is not assigned until
+    // the alignment pass ~120 lines below this point, so sorting on tag count
+    // here would have read undefined on every card and silently degraded to
+    // the old nth order -- a change that builds, ships, and does nothing.
     cards.sort((a, b) => (b.nth ?? -1) - (a.nth ?? -1))
     const spotMax = Math.max(...spots.slice(1), 1)
     const placed = spots.slice(1).reduce((a, b) => a + b, 0)
@@ -980,6 +996,16 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       }
       c.tags = tags
     })
+
+    // Now that every card carries its tags, order the strip by them. Tag
+    // count first, the milestone as the tiebreak, so nothing is lost: among
+    // men who align equally the biggest number still leads, and an untagged
+    // 32nd homer still sits above an untagged 3rd. `own` counts once like any
+    // other tag -- the aligned section below already gives it its own
+    // privilege, and doubling it here would rank a self-alignment above a man
+    // matching three other hitters.
+    cards.sort((a, b) => (b.tags?.length || 0) - (a.tags?.length || 0)
+      || (b.nth ?? -1) - (a.nth ?? -1))
     // `own` alone qualifies — it doesn't need a second, unrelated tag to be
     // worth showing (see the comment above). Everything else still needs
     // two or more to clear the "more than arithmetic" bar.

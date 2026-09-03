@@ -568,6 +568,19 @@ export default function MiniWire({
           padding: '4px 12px', marginBottom: 10, textAlign: 'left',
         }}>
           <span className="live-pulse" style={{ fontSize: 10.5, fontWeight: 900, color: '#4ade80' }}>📡 LIVE</span>
+          {/* ── TWO LIVE WIRES, ONE ABOVE THE OTHER (2026-09-03) ────────────
+              Donovan, on the Picks tab: "you see how it shows two live wires,
+              I don't like that."
+              He is right and it is this row's fault. Open the wire and
+              LiveWire renders its OWN header directly underneath — and that
+              header already carries the live count, the cleared count and the
+              homer count, which is three of the four facts this strip prints,
+              plus hits-vs-typical, which this strip does not have. So the
+              summary was being said twice, worse the first time.
+              Closed, this strip is the summary and the way in. OPEN, it keeps
+              only what LiveWire has no equivalent of -- the OS-notification
+              bell and the way back out -- and shuts up about the numbers. */}
+          {!wireOpen && (
           <span style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT }}>
             {live.length} game{live.length > 1 ? 's' : ''}
             {/* #32: these counters are scoped to games that are STILL LIVE, so
@@ -586,6 +599,7 @@ export default function MiniWire({
               <> · <b style={{ color: '#4ade80' }}>{toasts.length} new</b></>
             )}
           </span>
+          )}
           <span
             onClick={(e) => { e.stopPropagation(); toggleNotif() }}
             title={notif === 'on'
