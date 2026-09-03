@@ -256,7 +256,7 @@ export default function LedgerLab({
             Which homer of the season each one was, where in the order it came from, and every
             alignment the night landed on — the roots, the repeats, the jersey matches and the
             name echoes. The picker reads any night this browser has archived; each one comes off
-            the branch&apos;s own graded file, so it agrees with the Results tab by construction.
+            the branch&apos;s own graded file, so it agrees with The record by construction.
           </WhatThis>
           <HomerLedger
             variant="research"
@@ -317,7 +317,7 @@ export default function LedgerLab({
             ) : (
               <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.75 }}>
                 Nothing archived on this device yet. Pull the last two weeks off the branch and the
-                boards below fill in immediately — it is the same graded file the Results tab reads.
+                boards below fill in immediately — it is the same graded file The record reads.
               </div>
             )}
 

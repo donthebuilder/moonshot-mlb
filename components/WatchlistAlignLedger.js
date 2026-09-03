@@ -115,7 +115,7 @@ export default function WatchlistAlignLedger({ players = [], watchIds = null, sl
             <b style={{ color: C.orange }}>Y</b> = matches yesterday&apos;s leading root,{' '}
             <b style={{ color: C.orange }}>T</b> = today&apos;s so far, <b style={{ color: C.orange }}>+1</b> = tomorrow&apos;s date,{' '}
             <b style={{ color: '#38bdf8' }}>🧬</b> = his own numbers agree with each other, no archive needed.
-            {' '}Hover a name for exactly which numbers. Every axis, all nine root clubs: Combos → 🔮 Alignments.
+            {' '}Hover a name for exactly which numbers. Every axis, all nine root clubs: Parlays → 🔮 Alignments.
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {watchedRows.map(({ a, hitsYesterday, hitsToday, hitsTomorrow, braid, any, tip }) => (

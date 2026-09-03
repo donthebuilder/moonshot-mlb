@@ -155,7 +155,7 @@ export default function StartHere({ onNavigate }) {
           </span>
         ))}
         <span style={{ fontSize: 9.5, color: C.text3 }}>
-          Hover any number for what it means · full glossary lives in <b style={{ color: C.text2 }}>Guide</b>
+          Hover any number for what it means · full glossary lives in <b style={{ color: C.text2 }}>How this works</b>
         </span>
       </div>
     </div>

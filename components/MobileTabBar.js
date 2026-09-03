@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
+import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
 
 // 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
 // bottom... slate replaces picks on the bar." Picks (bot) moves into the More
@@ -13,29 +14,47 @@ import NetworkSwitch from './NetworkSwitch'
 // reach for when they want out is the other one. The tab is unchanged and
 // still first; it is just called what it is. The house is now spoken for by
 // exactly one thing on the whole site, and that thing is the front door.
-const MAIN = [
-  ['home', '◎', 'Tonight'],
-  ['board', '▥', 'Boards'],
-  ['scoreboard', '◉', 'Rundown'],
-  ['games', '▤', 'Slate'],
-]
+//
+// ── 2026-09-03: PROPS GETS A LANE, AND THE LABELS COME FROM ONE TABLE ───────
+//
+// Donovan: "Props needs a lane on there." It did not have one -- it was
+// PRIMARY on the desktop rail and buried in this sheet on a phone, so the two
+// navigations of the same product disagreed about what mattered. They are the
+// same five stops now.
+//
+// The slot came from Tonight, which left both bars: the MOONSHOT wordmark in
+// the header is the home button now (components/Header.js), which is where a
+// home button belongs and is visible on a phone -- only .hdr-rail is hidden
+// below 760px, not the brand row.
+//
+// Labels and blurbs are read from lib/routes.js rather than written here.
+// This file used to spell them out, Header.js spelled them out differently,
+// and routes.js had a third set; `board` was "Boards" here and "Charts" there.
+const MAIN_KEYS = ['props', 'board', 'scoreboard', 'games']
+const MAIN = MAIN_KEYS.map((k) => [k, MLB_NAV[k].icon, MLB_NAV[k].label])
 
 // 2026-08-30, Donovan: "the results need to be organized better...to
 // flow." Regrouped from an arbitrary list into build-your-card, then
 // review, then reference -- so the sheet reads top to bottom the way you'd
 // actually use it on a slate night instead of alphabetical-ish clutter.
+//
+// The sheet is grouped now and carries EVERY page, not eight of them. Seven
+// had no way in at all before this -- Derby, Leaders, Runs, Spray board,
+// Player board, True Price and the Guide were URL-only. A group heading is an
+// entry whose key starts with '@'.
+//
+// Tonight leads the list even though it is no longer on the bar: this sheet
+// calls itself "everything on this site", and the front page is part of
+// everything. Picks leads the pages because on a slate night it is what the
+// sheet gets opened for.
 const MORE = [
-  // 1) what to back tonight
-  ['bot', 'Picks', 'What the bot says to back tonight'],
-  ['props', 'Props', 'Player lines and quick cards'],
-  ['pitchers', 'Pitchers', 'Starting arms and matchup pressure'],
-  ['combos', 'Combos', 'Pairs, alignments, pools, and builder'],
-  ['odds', 'Odds', 'Prices, movement, and true price'],
-  // 2) yours / how it went
-  ['you', 'You', 'Watchlist and your saved picks'],
-  ['results', 'Results', 'Receipts and settled outcomes'],
-  // 3) reference, last because it's the least-used stop
-  ['guide', 'Guide', 'How every part of MOONSHOT works'],
+  ['@Tonight', ''],
+  ['home', MLB_NAV.home.label, MLB_NAV.home.blurb],
+  ['bot', MLB_NAV.bot.label, MLB_NAV.bot.blurb],
+  ...MLB_MORE_GROUPS.flatMap(([group, keys]) => [
+    [`@${group}`, ''],
+    ...keys.map((k) => [k, MLB_NAV[k].label, MLB_NAV[k].blurb]),
+  ]),
 ]
 
 // C3 (dash-network-master-plan-2026-08-28.md): "Pilot: mobile-only bottom
@@ -74,7 +93,11 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
   useEffect(() => setOpen(false), [tab])
   const go = (key) => { setOpen(false); setTab(key); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const mainKeys = new Set(main.map(([key]) => key))
-  const moreActive = !mainKeys.has(tab)
+  // 'home' is in neither the bar nor `mainKeys` any more -- the MOONSHOT
+  // wordmark in the header owns it (2026-09-03). Without this exception the
+  // More button would light up on the front page, telling you that where you
+  // are is behind a menu you have not opened.
+  const moreActive = !mainKeys.has(tab) && tab !== 'home'
 
   return (
     <>
@@ -93,9 +116,13 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
               outside the grid of tabs below. */}
           <NetworkSwitch onNavigate={() => setOpen(false)} />
           {more.map(([key, label, detail]) => (
-            <button key={key} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
-              <span>{label}</span><small>{detail}</small>
-            </button>
+            key.startsWith('@') ? (
+              <div key={key} className="mobileMoreGroup">{key.slice(1)}</div>
+            ) : (
+              <button key={key} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
+                <span>{label}</span><small>{detail}</small>
+              </button>
+            )
           ))}
         </div>
       </aside>
@@ -146,6 +173,11 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
           .mobileMoreHead button{width:32px;height:32px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:20px}
           .mobileMoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+          /* A group heading spans the pair of columns and gets its air
+             above rather than below, so it reads as a lid on the block
+             beneath it rather than a floating label. */
+          .mobileMoreGroup{grid-column:1/-1;margin:9px 2px 1px;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
+          .mobileMoreGroup:first-child{margin-top:0}
           .mobileMoreGrid button{text-align:left;min-height:59px;padding:9px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2};cursor:pointer}
           .mobileMoreGrid button.active{border-color:#f9731670;background:#f9731614}
           .mobileMoreHome{grid-column:1/-1;display:block;min-height:0;padding:10px;border:1px solid #f9731640;border-radius:10px;background:#f9731610;color:${C.text2};text-decoration:none}
@@ -172,6 +204,11 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
           .mobileMoreHead button{width:32px;height:32px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.text2};font-size:20px}
           .mobileMoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+          /* A group heading spans the pair of columns and gets its air
+             above rather than below, so it reads as a lid on the block
+             beneath it rather than a floating label. */
+          .mobileMoreGroup{grid-column:1/-1;margin:9px 2px 1px;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
+          .mobileMoreGroup:first-child{margin-top:0}
           .mobileMoreGrid button{text-align:left;min-height:59px;padding:9px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2}}
           .mobileMoreGrid button.active{border-color:#f9731670;background:#f9731614}
           .mobileMoreHome{grid-column:1/-1;display:block;min-height:0;padding:10px;border:1px solid #f9731640;border-radius:10px;background:#f9731610;color:${C.text2};text-decoration:none}

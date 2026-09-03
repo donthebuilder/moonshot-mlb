@@ -225,7 +225,7 @@ const SOFT_CAP = 60
 // ever picked a depth keeps their choice — localStorage still wins.
 const PRECISION = [
   { key: 0, label: 'All', title: 'Every badge the bot published tonight. Graded 41.2% across 2,048 picks over 25 nights.' },
-  { key: 1, label: '🎯 1 each', title: 'The single best pick in each market — the same board as The Four on the Rundown. Graded 65.0% across 100 picks over 25 nights; its 95% floor clears the full board\u2019s ceiling.' },
+  { key: 1, label: '🎯 1 each', title: 'The single best pick in each market — the same board as The Four on Live. Graded 65.0% across 100 picks over 25 nights; its 95% floor clears the full board\u2019s ceiling.' },
   { key: 2, label: '2 each', title: 'The top two in each market. Roughly 59% on the same 25 nights — still well clear of the full board, with twice the plays.' },
   { key: 3, label: '3 each', title: 'The top three in each market. Roughly 55% — the lift is real and decaying; past here it flattens toward the full board.' },
 ]

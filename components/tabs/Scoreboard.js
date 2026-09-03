@@ -921,7 +921,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   return (
     <div>
       <PanelTitle
-        title="Rundown"
+        title="Live"
         sub={`${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}
         right={
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>

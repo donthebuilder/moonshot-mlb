@@ -894,7 +894,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
       {/* MINI ALIGNMENT LEDGER (2026-08-18, on request) — "if we can get a
           mini ledger to help show if any of my watchlist are starting to
           align that would be fire." Same cross-check Alignments.js runs in
-          Combos, surfaced here so it's visible without leaving the tab. See
+          Parlays, surfaced here so it's visible without leaving the tab. See
           WatchlistAlignLedger.js for the full story; it renders nothing when
           there's no watchlist or no slate to check it against. */}
       <WatchlistAlignLedger players={players} watchIds={watchIds} slateDate={slateDate} onPlayerClick={onPlayerClick} />

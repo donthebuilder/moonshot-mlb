@@ -364,7 +364,7 @@ export default function Guide({ onNavigate }) {
 
       <Note>
         No model is ever right every night. Every score here is &ldquo;more or less likely&rdquo;,
-        never a guarantee — and the Results tab exists so you can see exactly how much less.
+        never a guarantee — and The record exists so you can see exactly how much less.
       </Note>
 
     </div>

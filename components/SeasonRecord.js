@@ -148,7 +148,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
         ) : (
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.75 }}>
             Pull the last few weeks off the branch and this fills in — every night comes off the
-            same graded file the Results tab reads, so the record and the receipts agree.
+            same graded file The record page reads, so the two agree.
           </div>
         )}
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11, alignItems: 'center' }}>

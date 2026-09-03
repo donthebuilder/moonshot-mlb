@@ -607,13 +607,13 @@ export default function MiniWire({
           {onGo && (
             <button
               onClick={(e) => { e.stopPropagation(); onGo() }}
-              title="Open the wire on the Rundown instead — this one does move you"
+              title="Open the wire on the Live page instead — this one does move you"
               style={{
                 fontSize: 9, color: C.text3, fontFamily: NUM_FONT, fontWeight: 700,
                 cursor: 'pointer', background: 'transparent', border: 'none',
                 padding: '2px 2px', textDecoration: 'underline dotted',
               }}
-            >on Rundown →</button>
+            >on Live →</button>
           )}
         </div>
       )}

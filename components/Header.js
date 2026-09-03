@@ -17,6 +17,8 @@ import { slateProjHr } from './ProjectedOutput'
 // bar sitting above a white page. Fixed generically: derive the translucent
 // background from whichever C.bg is actually active, for every theme, not
 // just this one. (2026-08-18)
+import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
+
 const hexToRgba = (hex, a) => {
   const h = String(hex).replace('#', '')
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
@@ -26,22 +28,37 @@ const hexToRgba = (hex, a) => {
 // Keep the existing Moonshot look, but make the top rail answer only the
 // questions people arrive with most often. The deeper tools stay one tap
 // away in More instead of competing with the picks on every screen.
-const PRIMARY_TABS = [
-  ['home', '🏠 Home'],
-  ['props', '🃏 Props'],
-  ['scoreboard', '🧮 Rundown'],
-  ['games', '🎮 Slate'],
-  ['bot', '🎯 Picks'],
-]
-const MORE_TABS = [
-  ['board', '📊 Boards'],
-  ['pitchers', '⚾ Pitchers'],
-  ['combos', '🎟 Combos'],
-  ['odds', '💵 Odds'],
-  ['you', '⭐ You'],
-  ['results', '🧾 Results'],
-]
-const PRIMARY_KEYS = new Set(PRIMARY_TABS.map(([key]) => key))
+//
+// ── LABELS COME FROM lib/routes.js NOW (2026-09-03) ─────────────────────────
+//
+// This file used to carry its own label list, MobileTabBar.js carried a second
+// one, and routes.js a third. They disagreed: `board` was "Boards" here and
+// "Charts" in the route table, `home` was "Home" here and "Tonight" on the
+// phone. One table, three readers -- see the note above MLB_NAV.
+//
+// ── TONIGHT LEFT THE RAIL (2026-09-03) ──────────────────────────────────────
+//
+// Donovan: "Tonight -- but I'm wondering if that even needs a button, since
+// it's the MOONSHOT home page. Maybe we just get a home button working for
+// MOONSHOT specifically. Props needs a lane."
+//
+// He is right, and it frees the slot Props needed. The MOONSHOT WORDMARK is
+// the home button now (see the note where it renders), which is where every
+// site on the internet has put it for twenty-five years, so a whole tab was
+// being spent on a job the header already had a place for.
+//
+// The 2026-08-28 note beside the logo said the wordmark must NOT be a link.
+// That note was about linking it to the DASH front door -- "making the
+// product's own name navigate away from the product". This does the opposite:
+// it navigates to the product's own front page and never leaves MOONSHOT. The
+// square mark still goes to the network. Two marks, two homes, neither
+// pretending to be the other.
+const PRIMARY_KEY_LIST = ['props', 'board', 'scoreboard', 'games', 'bot']
+const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${MLB_NAV[k].icon} ${MLB_NAV[k].label}`])
+const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
+// Same exception as MobileTabBar's: Tonight is reached from the wordmark, so
+// it must not make ••• More read as the active section.
+const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 
 
 // ── live capture ticker ───────────────────────────────────────────────────────
@@ -359,7 +376,26 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
                   posts, and the URL all said MOONSHOT while the header still
                   wore the pre-migration Streamlit name. The sport tag stays
                   so an NFL sibling can slot in later as MOONSHOT · NFL. */}
-              <span style={{ fontSize: condensed ? 15 : 18, fontWeight:900, letterSpacing:'-0.02em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>MOONSHOT</span>
+              {/* THE WORDMARK IS MOONSHOT'S HOME BUTTON (2026-09-03). See
+                  the PRIMARY_TABS note: Tonight gave up its slot in the rail
+                  for Props, and this is where it went. It is also the answer
+                  to "how do I get back" for anyone three sub-views deep, which
+                  the rail never had -- the only Home was a tab you had to spot
+                  among five others. Styled exactly as it rendered before; a
+                  button that looks like a heading is the point. */}
+              <button
+                type="button"
+                onClick={() => go('home')}
+                title="MOONSHOT home — tonight in one page"
+                aria-label="MOONSHOT home"
+                style={{
+                  padding:0, border:'none', background:'transparent', cursor:'pointer',
+                  fontSize: condensed ? 15 : 18, fontWeight:900, letterSpacing:'-0.02em',
+                  lineHeight:1.1,
+                  backgroundImage:'linear-gradient(90deg, #f97316, #ef4444)',
+                  WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+                }}
+              >MOONSHOT</button>
               {/* SPORT SWITCHER (2026-08-08, rewired 2026-08-14). It was going
                   to be a link to a SECOND deployed site — that's off. The asset
                   here is the eighty components in this folder, and forking them
@@ -539,15 +575,15 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             aria-expanded={moreOpen}
             style={{
               padding: condensed ? '6px 13px' : '8px 13px',
-              fontSize:11, fontWeight:!PRIMARY_KEYS.has(tab) ? 800 : 500,
+              fontSize:11, fontWeight:inMore(tab) ? 800 : 500,
               cursor:'pointer', border:'none', borderRadius:0,
-              background:'transparent', color:!PRIMARY_KEYS.has(tab) ? '#f97316' : C.text3,
+              background:'transparent', color:inMore(tab) ? '#f97316' : C.text3,
               position:'relative', transition:'color .12s', whiteSpace:'nowrap',
               flex:'1 0 auto', textAlign:'center',
             }}
           >
             ••• More
-            {!PRIMARY_KEYS.has(tab) && <div style={{
+            {inMore(tab) && <div style={{
               position:'absolute', bottom:0, left:0, right:0, height:2,
               background:'linear-gradient(90deg, #f97316, #ef4444)', borderRadius:'2px 2px 0 0',
             }} />}
@@ -573,13 +609,33 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
               <span style={{ color:C.orange }}>⌂ DASH HOME</span>
               <span style={{ color:C.text3, fontWeight:600 }}>Tonight across MOONSHOT · TUDDY · FRANCHISE →</span>
             </a>
-            {MORE_TABS.map(([key,label]) => (
-              <button key={key} onClick={() => go(key)} style={{
-                padding:'9px 10px', border:`1px solid ${tab === key ? '#f9731666' : C.border}`,
-                borderRadius:8, background:tab === key ? 'rgba(249,115,22,.10)' : C.glass,
-                color:tab === key ? '#f97316' : C.text2, fontSize:10, fontWeight:750,
-                textAlign:'left', cursor:'pointer',
-              }}>{label}</button>
+            {/* ── GROUPED, AND EVERY PAGE IS IN IT (2026-09-03) ───────────
+                Six flat buttons became labelled groups. The reason is not
+                tidiness: SEVEN WHOLE PAGES had no way in at all -- Derby,
+                Leaders, Runs, Spray board, Player board, True Price and the
+                Guide were reachable only by typing a URL. They are all here
+                now, under a heading that says what kind of thing they are.
+                The group list lives in lib/routes.js beside the names. */}
+            {MLB_MORE_GROUPS.map(([group, keys]) => (
+              <div key={group} style={{ gridColumn:'1/-1' }}>
+                <div style={{
+                  fontSize:8, fontWeight:900, letterSpacing:'.14em', color:C.text3,
+                  textTransform:'uppercase', margin:'8px 2px 5px',
+                }}>{group}</div>
+                {/* auto-fill, not a fixed column count: the outer grid drops
+                    to two columns on a phone (see .simple-more-grid below) and
+                    a hard three inside it would crush the labels there. */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(118px,1fr))', gap:6 }}>
+                  {keys.map((key) => (
+                    <button key={key} onClick={() => go(key)} title={MLB_NAV[key].blurb} style={{
+                      padding:'9px 10px', border:`1px solid ${tab === key ? '#f9731666' : C.border}`,
+                      borderRadius:8, background:tab === key ? 'rgba(249,115,22,.10)' : C.glass,
+                      color:tab === key ? '#f97316' : C.text2, fontSize:10, fontWeight:750,
+                      textAlign:'left', cursor:'pointer',
+                    }}>{MLB_NAV[key].icon} {MLB_NAV[key].label}</button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>

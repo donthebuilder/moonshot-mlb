@@ -16,7 +16,7 @@ const TEXTS = {
   // kept — alias routes still land on them and the explainer follows the
   // route key, so a #tab=scoreboard visitor still gets the right paragraph.
   combos: {
-    what: 'Combination bets, all in one place. Pairs and Pools are the bot\u2019s own published combos; History is how past ones actually graded. The ticket builder underneath lets you build your own from the five pick groups, with each leg\u2019s bar and measured rate stated \u2014 and it never multiplies two legs into one percentage, because same-game legs share a park, an arm and a game state.',
+    what: 'Parlays, all in one place. Pairs and Pools are the bot\u2019s own published combinations; History is how past ones actually graded. The ticket builder underneath lets you build your own from the five pick groups, with each leg\u2019s bar and measured rate stated \u2014 and it never multiplies two legs into one percentage, because same-game legs share a park, an arm and a game state.',
   },
   you: {
     what: 'Your side of the site. My Picks is the game \u2014 you against the bot, same slots, same bars, graded overnight, with a running record of where your judgement actually beats it. Watchlist is your saved hitters with their record while you\u2019ve watched them. Both live on this device only \u2014 export from either panel to back them up.',
@@ -30,7 +30,7 @@ const TEXTS = {
     // wire) as if that were the whole tab. It's the entry point into a full
     // sortable every-hitter table — the thing the rename is trying to name —
     // plus gone yard, near misses and projected output now live here too.
-    what: 'Every hitter on tonight’s slate, one sortable table — this is the Rundown. The Four (the bot’s headline pick per bet type) lead, then what’s already happened: the live wire, home runs already hit matched back to where the board had that hitter ranked, and the near misses that almost joined them. Projected output gives the slate’s expected home run count. Sort any column to ask a different question — Hit for contact plays, Park for launch pads — and click any name to open their full page.',
+    what: 'Every hitter on tonight’s slate, one sortable table — this is Live. The Four (the bot’s headline pick per bet type) lead, then what’s already happened: the live wire, home runs already hit matched back to where the board had that hitter ranked, and the near misses that almost joined them. Projected output gives the slate’s expected home run count. Sort any column to ask a different question — Hit for contact plays, Park for launch pads — and click any name to open their full page.',
   },
   board: {
     what: 'Ranked lists of tonight’s hitters, one board per bet type, plus two lenses that sit alongside them: Power (distance, due bats and the luck report) and Patterns (the repeatable shapes — streaks, splits, after-a-blank). The score is the bot’s confidence on THAT bet — a 70 on the HR board and a 70 on the Hits board are different scales. 🤖 marks the bot’s official pick for that category, ★ means the pitcher is weak against this lineup spot, and “When picked” shows how this hitter has actually delivered before.',

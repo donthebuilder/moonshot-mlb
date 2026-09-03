@@ -992,8 +992,8 @@ export default function Home({
             The bot builds the slate on its morning run: every hitter scored, every starter graded,
             the parks and the air read. Once it publishes, this page fills in with tonight&apos;s
             headline game, the angles worth saying out loud, the leakiest arms and the top ten HR and
-            hit plays — all of it from that file. Until then the doors below still work, and the
-            Results tab still has every graded night behind it.
+            hit plays — all of it from that file. Until then the doors below still work, and
+            The record still has every graded night behind it.
           </div>
         </div>
       )}
@@ -1449,7 +1449,7 @@ export default function Home({
             <span style={{ fontSize: 9.5, color: C.text3 }}>in this order — it takes about two minutes</span>
             <button
               onClick={dismissStart}
-              title="Hide this. The full five-step version lives on the Guide tab."
+              title="Hide this. The full five-step version lives on How this works."
               style={{
                 marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`,
                 borderRadius: 999, padding: '2px 10px', cursor: 'pointer',
@@ -1490,7 +1490,7 @@ export default function Home({
               type="button"
               onClick={() => onNavigate?.('guide')}
               style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}
-            >Open the Guide →</button>{' '}
+            >Open “How this works” →</button>{' '}
             — five steps, a colour key and a plain-language glossary. Everywhere else on this site,
             hovering a number tells you what it is.
           </div>
@@ -1527,7 +1527,7 @@ export default function Home({
           — two minutes, in order. The longer version, with a colour key and a plain-language
           glossary, is on{' '}
           <button type="button" onClick={() => onNavigate?.('guide')} style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
-            the Guide
+            How this works
           </button>.
         </div>
       )}
