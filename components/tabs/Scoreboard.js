@@ -13,11 +13,14 @@ import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
-import BotPicksStrip from '../BotPicksStrip'
+import OffBoardStrip from '../OffBoardStrip'
+import WeakSpotCards from '../WeakSpotCards'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
 import LiveWire from '../LiveWire'
-import NearMisses, { nearMissRows } from '../NearMisses'
+// NearMisses is no longer mounted here (2026-09-03) — the component still
+// exists and is still imported by the pages that use it; only this page's
+// mount was removed.
 import ProjectedOutput, { slateProjHr } from '../ProjectedOutput'
 import { groupPitchers, groupGames } from '../../lib/data'
 import { airVerdict } from '../../lib/conditions'
@@ -651,6 +654,12 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   }, [results, players])
 
   // Every starter with at least one weak lineup slot the opposing order fills.
+  // The grouped entries themselves, for the cards — the flattened `weakSpots`
+  // rows below are still what the count and the fold label are built from.
+  const weakEntries = useMemo(
+    () => groupPitchers(players).filter((e) => (e.lineup || []).some((b) => b.weak_spot_flag)),
+    [players],
+  )
   const weakSpots = useMemo(() => {
     return groupPitchers(players)
       .map((e, i) => {
@@ -706,7 +715,16 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const secStart = <StartHere key="start" onNavigate={onNavigate} />
   const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />
   const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
-  const secPicks = <BotPicksStrip key="picks" players={players} onPlayerClick={onPlayerClick} />
+  // ── THE FOUR CAME OFF THIS PAGE (2026-09-03) ─────────────────────────────
+  // Donovan: "remove the four from the live page." It is the entire contents
+  // of the Picks tab, rendered here a second time — the same duplication the
+  // Ledger was pulled for on 08-30, and the same argument: Picks is where you
+  // go to be told what to back, this page is where you go to watch it happen.
+  // ◇ AND THIS TOOK ITS PLACE. The four headline surfaces on this page were
+  // all built from the ~105 tagged bats; the other ~160 men playing tonight
+  // appeared nowhere but row 140 of the table. See OffBoardStrip.js — the
+  // categories are capped, so being untagged is arithmetic, not a verdict.
+  const secOff = <OffBoardStrip key="off" players={players} onPlayerClick={onPlayerClick} />
   // 🧱 NEAR MISSES replaced Storylines AND the slate-strength fold here
   // (2026-08-15, Donovan, this page only: "take storylines off and put near
   // misses from players who haven't gone yard in 2+ games, and statcast
@@ -727,12 +745,11 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // single row of the actual board. Nothing is removed — see the counts
   // below, computed off the same helpers the open panels use, so a closed
   // fold still states its headline fact instead of hiding it behind a click.
-  const nearCount = useMemo(() => nearMissRows(players).length, [players])
-  const secNear = (
-    <Fold key="near" label={`🧱 Near misses (${nearCount}) — the contact that says one's coming`}>
-      <NearMisses players={players} onPlayerClick={onPlayerClick} />
-    </Fold>
-  )
+  // 🧱 NEAR MISSES CAME OFF (2026-09-03, Donovan: "remove the near misses").
+  // It answered "who is due" — which is what the Due board and the Homer
+  // Ledger are both for, and neither of those has to be folded shut to fit.
+  // Removed from the running order rather than nulled — see the order arrays
+  // at the foot of this component.
   // 📈 PROJECTED OUTPUT, MOVED HERE FROM GAMES (2026-08-18). Donovan: "put the
   // projected output on the scoreboard page" — Games is a per-game browsing
   // tool, and this is a slate-wide check ("did the model see what I'm looking
@@ -847,19 +864,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         answers="which starters have a soft lineup slot tonight, and which hitters are standing in it."
         note="Damage is how hard that pitcher gets hit in those spots. Sorted hardest first."
       >
-        <DenseTable
-          rows={weakSpots}
-          columns={[
-            { key: 'pitcher', label: 'Pitcher', heat: false, w: 126, bold: true },
-            { key: 'hr9',     label: 'HR/9',    w: 44, dp: 2 },
-            { key: 'spots',   label: 'Spots',   heat: false, w: 54, mono: true, dim: true },
-            { key: 'hitters', label: 'Hitters', heat: false, w: 190, dim: true },
-            { key: 'damage',  label: 'Damage',  w: 52, dp: 1 },
-          ]}
-          initialSort="damage"
-          maxHeight={260}
-          caption=""
-        />
+        {/* Cards, not five columns (2026-09-03, Donovan: "weak spots strips
+            can be better than just names and numbers"). The old table joined
+            a comma-joined list of slots to a comma-joined list of hitters and
+            left the reader to line them up, and it threw away
+            pitcher_spot_damage_reason — the bot's own sentence explaining the
+            flag. See WeakSpotCards.js. */}
+        <WeakSpotCards entries={weakEntries} onPlayerClick={onPlayerClick} />
       </Tracker>
     </Fold>
   )
@@ -915,8 +926,12 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // that ordering, not the ledger removal above, is what was actually
   // burying it.
   const order = liveNow
-    ? [secPicks, secWire, secGone, secProjected, secNear, secStart, secPulse, secWeak]
-    : [secPicks, secStart, secPulse, secProjected, secNear, secWire, secGone, secWeak]
+    // Live — the lead is what just happened.
+    ? [secWire, secGone, secOff, secProjected, secStart, secPulse, secWeak]
+    // Pre-game — the lead is the plan. With The Four gone, StartHere leads
+    // again (it is the orientation panel and it self-dismisses), then what the
+    // bot changed its mind about, then the men it never named.
+    : [secStart, secPulse, secOff, secProjected, secWire, secGone, secWeak]
 
   return (
     <div>

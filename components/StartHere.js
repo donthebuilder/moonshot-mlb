@@ -31,8 +31,12 @@ const KEY = 'moonshot_start_here_v1'
 // Destinations updated for the nine-tab merge at the same time: Track record
 // is a Results view now, not its own tab, so the copy says so.
 const STEPS = [
-  { n: 1, title: 'Tonight’s picks', color: '#f97316', link: null,
-    body: 'is The Four, immediately below — the bot’s best bat per category, three deep. If you only have a minute, that is the whole site.' },
+  // 2026-09-03: this said "is The Four, immediately below". The Four came off
+  // this page in the same pass — it is the whole of the Picks tab and was
+  // being rendered here a second time — so the sentence was pointing at
+  // nothing. Copy that names a section has to move when the section does.
+  { n: 1, title: 'Tonight’s picks', color: '#f97316', link: 'bot', linkWord: 'Picks',
+    body: 'is The Four — the bot’s best bat per category, three deep. If you only have a minute, that is the whole site.' },
   { n: 2, title: 'Rank the slate', color: '#FCD34D', link: 'board', linkWord: 'Boards',
     body: 'ranks every hitter tonight, one board per bet type, with Power and Patterns alongside them. A brighter cell is stronger for the hitter, scaled to tonight and nothing else. Click any name for his full breakdown.' },
   { n: 3, title: 'Check the matchup', color: '#22d3ee', link: 'games', linkWord: 'Games',

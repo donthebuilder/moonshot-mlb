@@ -200,6 +200,21 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
         </div>
       )}
 
+      {/* ── THE CLOSED LABEL SAYS THE NEWS, NOT THE DATE (2026-09-03) ──────
+          Donovan: "figure out how to actually use the since blank blank strip
+          and make it better."
+
+          It was headed "🔁 Since 09-02" with four raw counts under it, and the
+          panel is CLOSED by default — so what the page actually showed was a
+          date and some arithmetic, and the one sentence that says whether any
+          of it matters ("3 real demotions — the other 9 drops are just
+          today's schedule") was computed INSIDE the fold and only rendered
+          once you had already decided to open it. Nobody opens a date.
+
+          The headline is now computed out here and leads the closed header,
+          with the counts demoted to the line beneath. Same rule the near-miss
+          fold on Scoreboard was already following: a closed fold states its
+          headline fact rather than hiding it behind a click. */}
       {diff && (diff.added.length || diff.dropped.length || diff.changed.length) > 0 && (
         <div style={{
           background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px',
@@ -208,16 +223,35 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
             onClick={() => setShowDiff((v) => !v)}
             style={{ display: 'flex', alignItems: 'baseline', gap: 8, cursor: 'pointer' }}
           >
-            <span style={{ fontSize: 11, fontWeight: 800 }}>🔁 Since {diff.date.slice(5)} {showDiff ? '▾' : '▸'}</span>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              {diff.added.length} new · {diff.held?.length || 0} held
-              {(() => {
-                const marked = (diff.held || []).filter((h) => h.cleared != null)
-                const ok = marked.filter((h) => h.cleared).length
-                return marked.length ? ` (${ok}/${marked.length} cleared last night)` : ''
-              })()}
-              {' '}· {diff.changed.length} moved · {diff.dropped.length} dropped
-            </span>
+            <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>🔁 Since {diff.date.slice(5)} {showDiff ? '▾' : '▸'}</span>
+            {(() => {
+              // A drop is only news when the man is STILL PLAYING tonight and
+              // the bot took the pick off him. A drop because he is not on
+              // today's card is the schedule, and calling that a demotion is
+              // the single most misleading thing this panel could say.
+              const onSlate = new Set(players.map((p) => String(nameOf(p)).toLowerCase().trim()))
+              const demotions = (diff.dropped || []).filter(([nm]) => onSlate.has(nm)).length
+              const offSlate = (diff.dropped || []).length - demotions
+              const afterMiss = (diff.changed || []).filter((c) => c.cleared === false).length
+              const marked = (diff.held || []).filter((h) => h.cleared != null)
+              const ok = marked.filter((h) => h.cleared).length
+              const news = [
+                demotions ? `${demotions} real demotion${demotions > 1 ? 's' : ''}` : null,
+                afterMiss ? `${afterMiss} moved after a miss` : null,
+                marked.length ? `${ok} of ${marked.length} held picks cleared last night` : null,
+                diff.added.length ? `${diff.added.length} new` : null,
+              ].filter(Boolean)
+              return (
+                <span style={{ fontSize: 9.5, color: C.text2, fontFamily: NUM_FONT, minWidth: 0 }}>
+                  {news.length ? news.join(' · ') : 'no changes worth the word'}
+                  {offSlate > 0 && (
+                    <span style={{ color: C.text3 }}>
+                      {' '}· {offSlate} more drop{offSlate > 1 ? 's' : ''} are just today&apos;s schedule
+                    </span>
+                  )}
+                </span>
+              )
+            })()}
           </div>
           {/* COLUMNS, NOT RIVERS (2026-08-06). Thirty-six names run together
               in a paragraph is a wall, not information. Three columns with
