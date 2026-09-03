@@ -17,6 +17,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { ORANGE_RAMP, RAMP_CHIPS, rampColor, inkFor } from './Heatmap'
 import { hotColdZones } from '../lib/situational'
+import { isLeaky } from '../lib/hr9'
 import ZoneMap from './ZoneMap'
 import { catColor, verdictInk, verdictWash, alpha } from '../lib/scales'
 
@@ -572,7 +573,7 @@ function DangerSignals({ p }) {
       {/* Extra pitcher stats row */}
       <div style={{marginTop:10,display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
         {[
-          {label:'Pitcher HR/9',  val:p.pitcher_hr9,  fmt:v=>v.toFixed(2), hot:v=>v>=1.0},
+          {label:'Pitcher HR/9',  val:p.pitcher_hr9,  fmt:v=>v.toFixed(2), hot:isLeaky},
           {label:'Pitcher WHIP',  val:p.pitcher_whip, fmt:v=>v.toFixed(2), hot:v=>v>=1.40},
           {label:'K rate',        val:p.pitcher_k_rate,fmt:v=>`${(v*100).toFixed(0)}%`, hot:v=>v<=0.18},
         ].filter(s=>s.val!=null).map(s=>(

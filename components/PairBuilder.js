@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { isLeaky } from '../lib/hr9'
 import { arr, obj, n, clean, nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
 import DenseTable from './DenseTable'
 import { WhatThis } from './ui'
@@ -126,7 +127,9 @@ function whyPartner(p, mkt, anchorLabel) {
     parts.push(`${p.days} shared homer day${p.days === 1 ? '' : 's'}, none in the same game`)
   }
   if (p.hr >= 60) parts.push(`he's a ${p.hr.toFixed(0)} on tonight's ${mkt.label} board`)
-  if (p.hr9 >= 1.4) parts.push(`the arm he faces gives up ${p.hr9.toFixed(2)} HR/9`)
+  // Whether this sentence appears at all is a display decision, so it uses
+  // the shared line rather than its own 1.4.
+  if (isLeaky(p.hr9)) parts.push(`the arm he faces gives up ${p.hr9.toFixed(2)} HR/9`)
   if (p.weak) parts.push('he sits in a weak spot against that starter')
   if (p.since != null && p.since <= 21) {
     parts.push(p.since === 0 ? 'they did it today' : `last together only ${p.since}d ago`)

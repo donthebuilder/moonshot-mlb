@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
+import { hr9Color } from '../lib/hr9'
 import { n, clean, txt } from '../lib/player'
 import { compactRole, gradeFor, bestBet } from '../lib/scoring'
 import { quoteFor, fmtOdds, fairOdds, hrPerGame, impliedPct } from '../lib/odds'
@@ -89,7 +90,7 @@ export default function PlayerRead({ p, odds }) {
   const matchesWeak = weakSide && batsHand && (
     (weakSide === 'LHB' && batsHand === 'L') || (weakSide === 'RHB' && batsHand === 'R')
   )
-  const hr9Col = Number.isFinite(hr9) ? (hr9 >= 1.5 ? C.orange : hr9 <= 0.8 ? '#38bdf8' : C.text) : C.text
+  const hr9Col = hr9Color(hr9)
 
   // ── 4. the power state ───────────────────────────────────────────────────
   // Same near-miss bar the Scoreboard board uses: a drought only reads as

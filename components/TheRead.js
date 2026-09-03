@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { hr9Color } from '../lib/hr9'
 import { quoteFor, fmtOdds, impliedPct } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
 import { isoAdjustedHr, isoMultiplier } from '../lib/scoring_additions'
@@ -451,7 +452,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
             </h2>
             <Para>
               He draws {clean(p?.pitcher_name, 'a TBD arm')}
-              {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9 >= 1.4 ? '#f87171' : C.text2 }}>{hr9.toFixed(2)} home runs per nine</b><ThinNote p={p} /></>}
+              {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9Color(hr9, C.text2) }}>{hr9.toFixed(2)} home runs per nine</b><ThinNote p={p} /></>}
               {spot != null && spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
               {clearanceClause(hero)}
             </Para>
@@ -498,7 +499,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
               </div>
               <Para>
                 <Name p={p} /> ({teamOf(p)}) draws {clean(p?.pitcher_name, 'a TBD arm')}
-                {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9 >= 1.4 ? '#f87171' : C.text2 }}>{hr9.toFixed(2)} HR per nine</b><ThinNote p={p} /></>}
+                {hr9 != null && hr9 > 0 && <>, who is giving up <b style={{ color: hr9Color(hr9, C.text2) }}>{hr9.toFixed(2)} HR per nine</b><ThinNote p={p} /></>}
                 {spot != null && spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
                 {why && <> {why}.</>}
               </Para>

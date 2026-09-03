@@ -9,6 +9,7 @@ import {
   gradedHistory, HIST_FIRST, HIST_MAX, HIST_MIN_PICKS, HIST_MIN_NIGHTS,
 } from '../../lib/leaders'
 import { tone, alpha } from '../../lib/scales'
+import { hr9Color } from '../../lib/hr9'
 
 // League Leaders — SEASON STATS ONLY.
 //
@@ -130,7 +131,7 @@ function LeaderTile({ label, rows, fmt, color, onPlayerClick }) {
           title={`Tonight: ${top.team} vs ${top.opp} — he faces ${facing}${n(top._raw?.pitcher_hr9, 0) ? `, ${n(top._raw.pitcher_hr9, 0).toFixed(2)} HR/9` : ''}`}>
           tonight vs {facing.split(' ').slice(-1)[0]}
           {n(top._raw?.pitcher_hr9, 0) > 0 && (
-            <span style={{ color: n(top._raw.pitcher_hr9, 0) >= 1.4 ? C.orange : C.text3 }}>
+            <span style={{ color: hr9Color(n(top._raw.pitcher_hr9, 0), C.text3) }}>
               {' '}· {n(top._raw.pitcher_hr9, 0).toFixed(2)} HR/9
             </span>
           )}

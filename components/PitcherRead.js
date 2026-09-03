@@ -1,6 +1,7 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean } from '../lib/player'
+import { hr9Color, isLeaky, isWall } from '../lib/hr9'
 
 // 🧭 THE READ, for the arm (2026-08-15, Donovan: "upgrade that pitcher modal
 // all the way around"). Same treatment the batter modal just got: the story
@@ -75,12 +76,14 @@ export default function PitcherRead({ name, throws, stats, lineup }) {
 
   // ── the leak ─────────────────────────────────────────────────────────────
   if (hr9 != null || brlAllowed != null || hhAllowed != null) {
-    const leaky = (hr9 != null && hr9 >= 1.3) || (brlAllowed != null && brlAllowed >= 0.09)
-    const wall = (hr9 != null && hr9 <= 0.85) && (brlAllowed == null || brlAllowed <= 0.06)
+    // The barrel terms stay -- they are what make this read richer than a
+    // colour. Only the HR/9 cut moved onto the shared line.
+    const leaky = isLeaky(hr9) || (brlAllowed != null && brlAllowed >= 0.09)
+    const wall = isWall(hr9) && (brlAllowed == null || brlAllowed <= 0.06)
     lines.push(
       <Line key="leak" icon={leaky ? '💣' : wall ? '🧱' : '⚾'}>
         <b style={{ color: C.text }}>The leak:</b>{' '}
-        {hr9 != null && <>gives up <B col={hr9 >= 1.3 ? C.orange : hr9 <= 0.85 ? C.blue : C.text}>{hr9.toFixed(2)} HR/9</B></>}
+        {hr9 != null && <>gives up <B col={hr9Color(hr9)}>{hr9.toFixed(2)} HR/9</B></>}
         {hr9 != null && (brlAllowed != null || hhAllowed != null || fbAllowed != null) && <>, with </>}
         {brlAllowed != null && <>barrels at <B col={brlAllowed >= 0.09 ? C.orange : brlAllowed <= 0.05 ? C.blue : C.text}>{(100 * brlAllowed).toFixed(1)}%</B></>}
         {brlAllowed != null && hhAllowed != null && <> and </>}

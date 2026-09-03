@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { hr9Color, hr9Word, isLeaky, isWall } from '../lib/hr9'
 import { n, clean, obj, arr, nameOf } from '../lib/player'
 import { pitcherDetailUrl } from '../lib/dataSource'
 import Explain from './Explain'
@@ -421,7 +422,7 @@ export default function MatchupPitcher({ player, slateMode }) {
   const attack = n(player?.pitcher_attack_score, 0)
   const pmix = n(player?.pitch_mix_score, 0)
   const reasons = [
-    { on: hr9 != null && hr9 >= 1.3, good: true,
+    { on: isLeaky(hr9), good: true,
       text: `Gives up ${hr9?.toFixed(2)} HR per nine — above league, and the single most direct signal here.` },
     { on: matchesWeak, good: true,
       text: `His weak side is ${weakSide}, and this hitter bats ${bats}HB.` },
@@ -429,7 +430,7 @@ export default function MatchupPitcher({ player, slateMode }) {
       text: `Pitch-mix fit ${pmix.toFixed(0)} of 95 — this batter handles what this arm throws.` },
     { on: attack >= 30, good: true,
       text: `Attack score ${attack.toFixed(0)} — top of tonight's range, which tops out near 54 rather than 100.` },
-    { on: hr9 != null && hr9 <= 0.9, good: false,
+    { on: isWall(hr9), good: false,
       text: `Only ${hr9?.toFixed(2)} HR per nine — he suppresses the long ball.` },
     { on: n(player?.pitcher_swstr_pct, 0) >= 0.13 || n(player?.pitcher_swstr_pct, 0) >= 13, good: false,
       text: 'High swinging-strike rate — he misses bats, which is his edge and not yours.' },
@@ -692,8 +693,8 @@ export default function MatchupPitcher({ player, slateMode }) {
               blurb="What he gives up. Every bar here fills to the right when it's good news for the bat."
             >
               <Stat label="HR/9" value={hr9 == null ? '—' : hr9.toFixed(2)}
-                tone={hr9 >= 1.4 ? C.orange : hr9 <= 0.9 ? C.text3 : C.text}
-                note={hr9 == null ? 'not published' : hr9 >= 1.4 ? 'gives them up' : hr9 <= 0.9 ? 'suppresses them' : 'league-ish'}
+                tone={hr9Color(hr9)}
+                note={hr9 == null ? 'not published' : hr9Word(hr9)}
                 meter={hr9} meterKey="hr9" />
               <Stat label={effHand ? `HR/9 vs ${effHand}HB` : 'HR/9 overall'}
                 value={sideHr9 == null ? '—' : sideHr9.toFixed(2)}

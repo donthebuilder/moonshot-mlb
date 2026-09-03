@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { FilterPill, FilterLabel, FilterSelect } from '../Filters'
 import { STATE, alpha } from '../../lib/scales'
+import { hr9Color, hr9Fill, hr9Tone, isLeaky, isWall } from '../../lib/hr9'
 
 // NOTE (2026-08-23): the accent tint is computed AT RENDER, never hoisted —
 // applyTheme() mutates C in place after hydration, so a module-scope
@@ -411,11 +412,11 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                 {r.st?.hr9 != null && (
                   <div style={{
                     width: `${Math.min(100, (100 * r.st.hr9) / worst)}%`, height: '100%',
-                    background: r.st.hr9 >= 1.3 ? C.red : r.st.hr9 >= 1.05 ? C.orange : C.green,
+                    background: hr9Fill(r.st.hr9),
                   }} />
                 )}
               </div>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 38, flexShrink: 0, color: (r.st?.hr9 ?? 0) >= 1.3 ? C.red : C.text2 }}>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 38, flexShrink: 0, color: hr9Color(r.st?.hr9, C.text2) }}>
                 {r.st?.hr9 != null ? r.st.hr9.toFixed(2) : '—'}
               </span>
               {/* The raw counts the bar is built from, on the row instead of
@@ -759,9 +760,12 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
   // HITTER's point of view — a leaky starter is a 🎯 TARGET and burns, a
   // stingy one is a 🔒 WALL and cools. HR/9 + weak spots decide it.
   const hr9 = Number(pitcher.pitcher_hr9) || 0
+  // THREE bands, so this legitimately needs a cut the two-tone line does not
+  // have: TARGET is "worse than merely leaky" and keeps its own 1.5. LEAKY and
+  // WALL were 1.2 and 0.85 by eye and now agree with the rest of the site.
   const band = (hr9 >= 1.5 || pitcher.weak_spot_count >= 3) ? { icon: '🎯', word: 'TARGET', col: '#f97316' }
-    : (hr9 >= 1.2 || pitcher.weak_spot_count >= 1) ? { icon: '🔥', word: 'LEAKY', col: '#fb923c' }
-    : hr9 > 0 && hr9 <= 0.85 ? { icon: '🔒', word: 'WALL', col: '#38bdf8' }
+    : (isLeaky(hr9) || pitcher.weak_spot_count >= 1) ? { icon: '🔥', word: 'LEAKY', col: '#fb923c' }
+    : hr9 > 0 && isWall(hr9) ? { icon: '🔒', word: 'WALL', col: '#38bdf8' }
     : { icon: '', word: '', col: '' }
   return (
     <div style={{
@@ -1027,7 +1031,7 @@ export default function Pitchers({ players, onPlayerClick }) {
             <ArmBand title="What he gives up" note="season, and lately">
               <div style={{ display: 'flex', gap: 5, minWidth: 0, flexWrap: 'wrap' }}>
                 <ArmStat label="HR/9" value={hr9 ? hr9.toFixed(2) : '—'}
-                  tone={hr9 >= 1.3 ? 'hot' : hr9 && hr9 <= 0.9 ? 'cold' : null}
+                  tone={hr9Tone(hr9)}
                   tip="Home runs allowed per nine innings — the leak itself. Warm is bad for him." />
                 <ArmStat label={l3n ? `Last ${l3n}` : 'Last 3'}
                   value={Number.isFinite(l3) && l3n > 0 ? l3.toFixed(2) : '—'}

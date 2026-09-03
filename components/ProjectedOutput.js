@@ -2,6 +2,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, oppOf, hrScore, hitScore, n, clean, playerId } from '../lib/player'
+import { isLeaky, LEAGUE_HR9 } from '../lib/hr9'
 import { penStatsFor } from '../lib/bullpen'
 import { xpaFor } from '../lib/xpa'
 import { projectPool, projectionPublished } from '../lib/projection'
@@ -278,8 +279,11 @@ const LENSES = [
     tip: 'Only the top five lineup spots — the bats that get the extra trip.' },
   { key: 'pad', label: '🌋 Launch pads', hit: (p) => n(p?.park_hr_factor, 1) >= 1.05,
     tip: "Only hitters in a park that adds home runs (factor 1.05 and up), before weather." },
-  { key: 'leak', label: '🩹 Leaky arms', hit: (p) => n(p?.pitcher_hr9, 0) >= 1.3,
-    tip: 'Only hitters facing a starter giving up 1.30 HR/9 or worse.' },
+  // A chip called "Leaky arms" has to mean what leaky means everywhere else,
+  // so the cut and the sentence both come from lib/hr9.js now. It used to say
+  // 1.30 while the game card called 1.30 ordinary.
+  { key: 'leak', label: '🩹 Leaky arms', hit: (p) => isLeaky(n(p?.pitcher_hr9, 0)),
+    tip: `Only hitters facing a starter at or over the ${LEAGUE_HR9.toFixed(2)} league HR/9 line.` },
   { key: 'hot', label: '🔥 Hot bats', hit: (p) => n(p?.last5_hr, 0) >= 1,
     tip: 'Only hitters with a home run in their last five games.' },
   // 2026-08-30, Donovan: "projected output needs more/better filters."

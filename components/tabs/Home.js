@@ -8,6 +8,7 @@ import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
 import Storylines from '../Storylines'
 import ScoreRail from '../ScoreRail'
+import { hr9Color, isLeaky } from '../../lib/hr9'
 import YourPlayers from '../YourPlayers'
 import Fold from '../Fold'
 import BotPicksStrip from '../BotPicksStrip'
@@ -1258,7 +1259,7 @@ export default function Home({
                   {rows.map((p, i) => {
                     const s = score(p)
                     const hr9 = n(p?.pitcher_hr9, 0)
-                    const leaky = hr9 >= 1.4
+                    const leaky = isLeaky(hr9)
                     return (
                       <button type="button" key={i} onClick={() => onPlayerClick?.(p)} className="tap-row" style={{
                         ...BARE_BUTTON, width: '100%', textAlign: 'left',
@@ -1364,7 +1365,9 @@ export default function Home({
             {showTrend && a.l3hr9 != null && (
               <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: '#f87171', flexShrink: 0 }}>L3 {a.l3hr9.toFixed(2)}</span>
             )}
-            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: a.hr9 >= 1.6 ? '#f87171' : '#FB923C', flexShrink: 0 }}>
+            {/* 1.6-or-red / else-orange was a private two-step nobody else
+                used; the shared line decides now (2026-09-03). */}
+            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: hr9Color(a.hr9, C.text2), flexShrink: 0 }}>
               {a.hr9.toFixed(2)}
             </span>
             {/* The blended rank, plus the one term carrying it — so a row that

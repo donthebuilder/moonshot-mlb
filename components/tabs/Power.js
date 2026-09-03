@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { hr9Color } from '../../lib/hr9'
 import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { convictionOf, percentileOf, standingPhrase } from '../../lib/whyPick'
 import { airParts } from '../../lib/conditions'
@@ -335,7 +336,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
                 for. This is where the ranked park board used to live. */}
             <Para>
               {arm ? <>He draws <b style={{ color: C.text2 }}>{arm}</b></> : <>He is in the lineup</>}
-              {hr9 > 0 && <>, who is giving up <Num color={hr9 >= 1.4 ? C.red : C.text2}>{hr9.toFixed(2)}</Num> home runs per nine</>}
+              {hr9 > 0 && <>, who is giving up <Num color={hr9Color(hr9, C.text2)}>{hr9.toFixed(2)}</Num> home runs per nine</>}
               {spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
               {' '}He does it in <b style={{ color: C.text2 }}>{clean(p?.venue_name, 'a park the slate has not named')}</b>
               {heroPark && (

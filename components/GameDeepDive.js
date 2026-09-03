@@ -395,8 +395,12 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
         <ArmStat label={l3n > 0 ? `WHIP L${l3n}` : 'WHIP L3'} value={l3whip != null ? l3whip.toFixed(2) : '—'}
           tone={l3whip == null ? null : l3whip >= 1.4 ? 'hot' : l3whip <= 1.1 ? 'cold' : null}
           title="Walks + hits per inning over his last three starts — recent traffic. High traffic means more RBI chances for the bats. Three outings is a direction, not a rate." />
+        {/* Same line as the season tile — L3 is this statistic over a shorter
+            window, not a different statistic. `bleeding` stays as an extra way
+            IN to hot: an arm under the league line whose last three are 0.2
+            above his own season number is a live trend the line cannot see. */}
         <ArmStat label={l3n > 0 ? `HR/9 L${l3n}` : 'HR/9 L3'} value={l3hr9 != null && l3hr9 > 0 ? l3hr9.toFixed(2) : '—'}
-          tone={l3hr9 == null ? null : bleeding || l3hr9 >= 1.4 ? 'hot' : l3hr9 <= 0.85 ? 'cold' : null}
+          tone={bleeding ? 'hot' : hr9Tone(l3hr9)}
           title="Homers per nine over his last three starts. Above his season number means he is bleeding lately." />
         <ArmStat label="HR luck" value={xbbe >= 50 && xluck !== 0 ? `${xluck > 0 ? '+' : '−'}${Math.abs(xluck).toFixed(1)}` : '—'}
           tone={xbbe < 50 || xluck === 0 ? null : xluck < 0 ? 'hot' : 'cold'}

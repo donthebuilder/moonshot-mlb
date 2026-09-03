@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
+import { hr9Tone, hr9Title } from '../lib/hr9'
 import { n, clean, nameOf } from '../lib/player'
 import { runningGame, runningGameLine } from '../lib/running'
 import { divTone, sampleDim, verdictInk } from '../lib/scales'
@@ -369,8 +370,10 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
       tip: 'Season earned-run average.' },
     { label: 'WHIP', value: fmt2(whip), tone: whip == null ? null : whip >= 1.4 ? 'hot' : whip <= 1.1 ? 'cold' : null,
       tip: 'Walks + hits per inning — traffic. High traffic means more RBI chances for the bats.' },
-    { label: 'HR/9', value: fmt2(hr9), tone: hr9 == null ? null : hr9 >= 1.3 ? 'hot' : hr9 <= 0.85 ? 'cold' : null,
-      tip: 'Homers allowed per nine — the leak. 1.30+ is a live power window; 0.85 or under is a wall.' },
+    // The tip used to name 1.30 and 0.85 while the tone used the same pair;
+    // both now come from lib/hr9.js, so the sentence cannot drift from the
+    // colour the way it did on four other surfaces.
+    { label: 'HR/9', value: fmt2(hr9), tone: hr9Tone(hr9), tip: hr9Title(hr9) },
     { label: 'K/9', value: k9 == null ? '—' : k9.toFixed(1), tone: k9 == null ? null : k9 <= 7 ? 'hot' : k9 >= 9.5 ? 'cold' : null,
       tip: 'Strikeouts per nine. LOW is good for the bats — more balls in play. High is his strength.' },
     { label: 'FB%', value: fmtPct(fbAllowed), tone: fbAllowed == null ? null : fbAllowed >= 0.42 ? 'hot' : fbAllowed <= 0.32 ? 'cold' : null,
@@ -379,7 +382,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
       tip: 'Hard-hit rate allowed (95+ mph). Slate mean ~38%.' },
     { label: 'BRL%', value: fmtPct(brlAllowed), tone: brlAllowed == null ? null : brlAllowed >= 0.09 ? 'hot' : brlAllowed <= 0.05 ? 'cold' : null,
       tip: 'Barrel rate allowed — the single best contact-quality signal for homers. Slate mean ~7%.' },
-    ...(l3n > 0 ? [{ label: `L3 HR/9`, value: fmt2(l3hr9), tone: l3hr9 == null ? null : l3hr9 >= 1.3 ? 'hot' : l3hr9 <= 0.85 ? 'cold' : null,
+    ...(l3n > 0 ? [{ label: `L3 HR/9`, value: fmt2(l3hr9), tone: l3hr9 == null ? null : hr9Tone(l3hr9) === 'hot' ? 'hot' : l3hr9 <= 0.85 ? 'cold' : null,
       tip: `Last ${l3n} start${l3n === 1 ? '' : 's'} — a direction, not a rate. Three outings is a handful of innings.` }] : []),
   ]
 

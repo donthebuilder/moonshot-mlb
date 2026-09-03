@@ -2,6 +2,7 @@
 import Leaders from './Leaders'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { hr9Color } from '../../lib/hr9'
 import { catColor, verdictInk } from '../../lib/scales'
 import { gradedResultsUrl } from '../../lib/dataSource'
 import { dedupeGraded } from '../../lib/graded'
@@ -443,7 +444,7 @@ const Row = ({ p, accent }) => {
         </div>
         <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
           our picks vs him: <b style={{ color: hitPicks ? accent : C.text3 }}>{hitPicks}/{p.picks.length} homered</b>
-          {p.hr9 > 0 && <> · HR/9 <span style={{ color: p.hr9 >= 1.2 ? verdictInk(true).color : C.text2 }}>{p.hr9.toFixed(2)}</span></>}
+          {p.hr9 > 0 && <> · HR/9 <span style={{ color: hr9Color(p.hr9, C.text2) }}>{p.hr9.toFixed(2)}</span></>}
           {p.whip > 0 && <> · WHIP <span style={{ color: p.whip >= 1.30 ? verdictInk(true).color : C.text2 }}>{p.whip.toFixed(2)}</span></>}
         </div>
       </div>

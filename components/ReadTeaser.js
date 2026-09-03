@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { hr9Color } from '../lib/hr9'
 import { oddsPaths } from '../lib/dataSource'
 import { quoteFor, fmtOdds, impliedPct, oddsLooksReal } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
@@ -189,7 +190,7 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
           out rather than guesses when its field is missing. */}
       <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.7, maxWidth: 720 }}>
         He draws {clean(p?.pitcher_name, 'a TBD arm')}
-        {hr9 != null && hr9 > 0 && <>, who is giving up <Fig col={hr9 >= 1.4 ? C.red : C.text2}>{hr9.toFixed(2)}</Fig> home runs per nine</>}
+        {hr9 != null && hr9 > 0 && <>, who is giving up <Fig col={hr9Color(hr9, C.text2)}>{hr9.toFixed(2)}</Fig> home runs per nine</>}
         {spot != null && spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
         {clear && (
           <> He is <Fig col={C.text}>{clear.gap.toFixed(1)}</Fig> points clear of the next {hero.role} name

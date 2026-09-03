@@ -13,6 +13,7 @@
 // Still canvas, still zero dependencies, still downloads instantly.
 
 import { nameOf, teamOf, oppOf, hrScore, n } from '../lib/player'
+import { hr9Color } from '../lib/hr9'
 
 const pickOf = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
 
@@ -427,7 +428,7 @@ export function downloadPlayerCard(p, { jersey = null } = {}) {
   let ry = y3 + 30
   const arm = [
     ['Pitcher', `${clean(p?.pitcher_name, 'TBD')}${clean(p?.pitcher_throws, '') && clean(p?.pitcher_throws, '') !== '—' ? ` (${clean(p?.pitcher_throws, '')}HP)` : ''}`, '#f4f4f5'],
-    ['HR/9', Number.isFinite(hr9) ? hr9.toFixed(2) : '—', Number.isFinite(hr9) && hr9 >= 1.3 ? '#f97316' : Number.isFinite(hr9) && hr9 <= 0.85 ? '#60a5fa' : '#f4f4f5'],
+    ['HR/9', Number.isFinite(hr9) ? hr9.toFixed(2) : '—', hr9Color(hr9, '#f4f4f5')],
     ['WHIP', Number.isFinite(whip2) ? whip2.toFixed(2) : '—', Number.isFinite(whip2) && whip2 >= 1.4 ? '#f97316' : '#f4f4f5'],
     ['Weak vs', weakSide ? `${weakSide}${hisSide ? ' — his side ✓' : ''}` : '—', hisSide ? '#f97316' : '#f4f4f5'],
     ['Park', Number.isFinite(parkF) ? `${clean(p?.venue_name, '').split(' ').slice(0, 3).join(' ') || 'tonight'} · ${parkF >= 1.05 ? '+' : ''}${Math.round(100 * (parkF - 1))}% HR` : clean(p?.venue_name, '—'), Number.isFinite(parkF) && parkF >= 1.05 ? '#f97316' : '#f4f4f5'],
