@@ -4515,6 +4515,15 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   color: #ff7b43;
   animation: franchiseTapPulse .7s ease-in-out infinite alternate;
 }
+/* #90: a pulsing red line means "this is happening right now." Once the pick
+   has been overdue long enough that no foreground tab is completing it, the
+   pulse is a lie -- nothing is happening in this browser, the server clock has
+   it. Steady, and no longer shouting. */
+.clockChip [data-stalled="true"],
+.clockTime [data-stalled="true"] {
+  animation: none;
+  color: var(--muted);
+}
 .weekSwitch {
   display: inline-flex;
   align-items: center;

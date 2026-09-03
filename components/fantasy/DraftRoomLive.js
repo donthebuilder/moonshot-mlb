@@ -72,14 +72,39 @@ export default function DraftRoomLive({ leagueId, status, deadline, currentPick,
   if (!live) {
     return <span>{status === 'paused' ? 'Paused' : status === 'setup' ? 'Not started' : ''}</span>
   }
+  // ── #90: WHAT AN EXPIRED PICK SAYS TO SOMEONE WHO CANNOT FIX IT ──────────
+  //
+  // "Time — auto-picking…" is true for about a second. When the tick fails, or
+  // when the only person with a tab open is not the one on the clock, that
+  // same red line sits there indefinitely -- which is exactly what a league
+  // stared at for a week (#88). A member has no Force button, so the message
+  // was both wrong and useless to them.
+  //
+  // It now tells the truth in two stages. For the first stretch it is a tab
+  // ticking, which is what it says. After that the honest statement is that
+  // the server clock has it: /api/fantasy/draft-tick runs every five minutes
+  // and calls the same RPC, so the pick WILL be made whether or not anybody is
+  // watching. That is a thing a member can act on -- by waiting, or by asking
+  // the commissioner to force it -- instead of a spinner that means nothing.
+  const overdue = deadline ? Math.floor((now - new Date(deadline).getTime()) / 1000) : 0
   const label = remaining === null
     ? 'On the clock'
     : remaining > 0
       ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} on the clock`
-      : 'Time — auto-picking…'
+      : overdue < 20
+        ? 'Time — auto-picking…'
+        : 'Time — waiting on the draft clock'
 
   return (
-    <span aria-live="polite" data-expired={remaining === 0 ? 'true' : undefined} data-urgent={remaining !== null && remaining <= 10 ? 'true' : undefined}>
+    <span
+      aria-live="polite"
+      title={remaining === 0 && overdue >= 20
+        ? 'The pick is past its deadline and this tab could not complete it. The server draft clock runs every five minutes and will auto-pick; the commissioner can also force it immediately.'
+        : undefined}
+      data-expired={remaining === 0 ? 'true' : undefined}
+      data-stalled={remaining === 0 && overdue >= 20 ? 'true' : undefined}
+      data-urgent={remaining !== null && remaining <= 10 ? 'true' : undefined}
+    >
       {label}
     </span>
   )
