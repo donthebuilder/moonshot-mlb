@@ -7,6 +7,7 @@ import Boxes from './Boxes'
 import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
+import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
@@ -1485,8 +1486,17 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               )}
                             </span>
                             <span style={{ marginLeft: 'auto', display: 'flex', gap: 7, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5 }}>
+                              {/* ── THE TEXT AND THE BAR AGREE NOW (2026-09-03) ──
+                                  Flagged twice: this label went warm at 1.30
+                                  saying "higher favors the bats" while the bar
+                                  beside it went RED at the same 1.30 — red
+                                  being this site's losing side. Both read from
+                                  lib/hr9.js, which holds the league line the
+                                  product already prints, so they cannot
+                                  disagree about a number or about which way it
+                                  points. */}
                               {s.hr9 != null && (
-                                <span title="HR allowed per 9 innings — higher favors the bats" style={{ color: s.hr9 >= 1.3 ? C.orange : C.text3, fontWeight: 700 }}>
+                                <span title={hr9Title(s.hr9)} style={{ color: hr9Color(s.hr9, C.text3), fontWeight: 700 }}>
                                   {s.hr9.toFixed(2)} HR/9
                                 </span>
                               )}
@@ -1523,28 +1533,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               {/* Bars speak (owner feedback 2026-08-08): the
                                   duel's HR/9 gets one too, scaled 0–2.00 like
                                   the pen board reads, when the bar toggle
-                                  (below, on the picks) is on. */}
-                              {/* FLAGGED, NOT FIXED: this bar's red/cyan/green
-                                  ladder is byte-identical to C.red/C.cyan/
-                                  C.green, so it's token-substituted rather
-                                  than left as raw hex -- but it is exactly
-                                  the "four-hue ladder" the verdict pair
-                                  exists to retire, and this pass stops short
-                                  of retiring it because doing so means
-                                  picking a direction, and this bar
-                                  DISAGREES with its own sibling five lines
-                                  up: the text label colours hr9>=1.3 warm
-                                  (C.orange) because the tooltip says "higher
-                                  favors the bats," while this bar colours
-                                  the same threshold C.red (i.e. treats high
-                                  hr9 as the LOSING side). Reconciling which
-                                  one is right is a product call, not a
-                                  colour-plumbing one -- flagged in the
-                                  session report rather than silently
-                                  resolved here. */}
+                                  (below, on the picks) is on.
+                                  RESOLVED 2026-09-03. The four-hue red/cyan/
+                                  green ladder that used to live here is gone:
+                                  it disagreed with its own text label about
+                                  which direction a high number pointed, and it
+                                  was the "four-hue ladder the verdict pair
+                                  exists to retire" its own comment named. One
+                                  fill, from the same function the label uses.
+                                  The 0–2.00 scale is unchanged. */}
                               {barsOn && s.hr9 != null && (
-                                <span style={{ width: 44, height: 5, background: 'rgba(255,255,255,.07)', borderRadius: 3, overflow: 'hidden', alignSelf: 'center' }}>
-                                  <span style={{ display: 'block', width: `${Math.min(100, (s.hr9 / 2) * 100)}%`, height: '100%', background: s.hr9 >= 1.3 ? C.red : s.hr9 >= 1.05 ? C.cyan : C.green }} />
+                                <span title={hr9Title(s.hr9)} style={{ width: 44, height: 5, background: 'rgba(255,255,255,.07)', borderRadius: 3, overflow: 'hidden', alignSelf: 'center' }}>
+                                  <span style={{ display: 'block', width: `${hr9Pct(s.hr9)}%`, height: '100%', background: hr9Fill(s.hr9) }} />
                                 </span>
                               )}
                               {/* the same established gold accent, no C token match -- left literal */}
@@ -1787,9 +1787,15 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         // Three fixed per-metric colours, one per bar, so
                         // HRW/DMG/ARM read as three different rows at a
                         // glance -- not a verdict on any one value (each bar
-                        // is this same colour whatever the number is). ARM's
-                        // hex is byte-identical to C.red and is
-                        // token-substituted; HRW's pink and DMG's emerald
+                        // is this same colour whatever the number is). ARM
+                        // was C.red until 2026-09-03, which said "losing side"
+                        // about a row whose own tip reads "higher favors the
+                        // bat" -- the same contradiction the duel strip's bar
+                        // had. It is C.orange now: still ONE fixed colour
+                        // whatever the number is, so the row stays a legend
+                        // rather than becoming a verdict, but the hue no
+                        // longer argues with the sentence beside it. HRW's
+                        // pink and DMG's emerald
                         // don't match any C token (DMG's #34d399 is a
                         // distinct shade from C.green's #4ade80, not the
                         // same colour) and stay literal as a legend-only
@@ -1799,7 +1805,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         const extras = [
                           { l: 'HRW', v: Number(p?.hrw_score) || 0, max: 100, c2: '#f472b6', txt: (Number(p?.hrw_score) || 0).toFixed(0), tip: 'HR Watch score' },
                           { l: 'DMG', v: Number(p?.damage_conversion_score) || 0, max: 100, c2: '#34d399', txt: (Number(p?.damage_conversion_score) || 0).toFixed(0), tip: 'Damage conversion score' },
-                          { l: 'ARM', v: Number(p?.pitcher_hr9) || 0, max: 2, c2: C.red, txt: (Number(p?.pitcher_hr9) || 0).toFixed(2), tip: 'Opposing starter HR/9 — bar runs 0 to 2.00, higher favors the bat' },
+                          { l: 'ARM', v: Number(p?.pitcher_hr9) || 0, max: 2, c2: C.orange, txt: (Number(p?.pitcher_hr9) || 0).toFixed(2), tip: 'Opposing starter HR/9 — bar runs 0 to 2.00, higher favors the bat' },
                         ].filter((e) => e.v > 0)
                         if (!extras.length) return null
                         return (

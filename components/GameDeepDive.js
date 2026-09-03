@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, verdictInk } from '../lib/scales'
+import { hr9Tone, hr9Title } from '../lib/hr9'
 import { n, nn, clean, nameOf, hrScore } from '../lib/player'
 import { airParts, airVerdict } from '../lib/conditions'
 import { quoteFor, fmtOdds, CATEGORY_LINE } from '../lib/odds'
@@ -68,7 +69,10 @@ import TeamVsStarter from './TeamVsStarter'
 // Splitting rather than deleting is deliberate: the sections still exist, they
 // are just no longer stacked on top of each other by force.
 
-const LEAGUE_HR9 = 1.25   // same reference ProjectedOutput's armOf() uses
+// LEAGUE_HR9 moved to lib/hr9.js (2026-09-03), along with the tone and the
+// tooltip, so the fifteen hardcoded HR/9 thresholds across this codebase can
+// start collapsing into one. Imported at the top of the file with the rest.
+// The prose above still names 1.25 and lib/hr9.js still holds 1.25.
 
 // ── The air ──────────────────────────────────────────────────────────────────
 
@@ -226,14 +230,29 @@ function PickCard({ p, role, alsoRoles = [], odds, onPlayerClick }) {
 // them are the RECENT window (pitcher_l3_*) because that is what "recent" was
 // asking for, and HR LUCK keeps its sign: −3.3 means three fewer homers than
 // his contact deserved, so regression is on the hitters' side.
+// ── THE COMMENT AND THE CODE DISAGREED (fixed 2026-09-03) ──────────────────
+//
+// The row above says, in its own comment: "A missing number prints '—' rather
+// than dropping its tile, because a tile that disappears is what made the old
+// row ragged." This function's first line then returned null on exactly that
+// '—', and every caller passes '—' explicitly for a missing value. So the
+// design was written down, the opposite was implemented, and the ragged row
+// the comment was written to prevent is what shipped -- on any arm missing a
+// last-3 line, an ERA or an xHR sample, which is most of them early in a week.
+//
+// The comment was right and the grid is a fixed five columns to make it right,
+// so the code moved: a missing value renders as a dimmed placeholder tile and
+// the line stays even. Only a genuinely absent prop (null/'') still drops.
 function ArmStat({ label, value, tone, title }) {
-  if (value == null || value === '' || value === '—') return null
-  const col = tone === 'hot' ? C.orange : tone === 'cold' ? C.blue : C.text
+  if (value == null || value === '') return null
+  const missing = value === '—'
+  const col = missing ? C.text3 : tone === 'hot' ? C.orange : tone === 'cold' ? C.blue : C.text
   return (
-    <span title={title} style={{
+    <span title={missing ? `${label} — not published for this arm` : title} style={{
       minWidth: 0, textAlign: 'center', padding: '5px 4px', borderRadius: 9,
-      border: `1px solid ${tone ? alpha(col, 0.4) : C.border}`,
-      background: tone ? alpha(col, 0.07) : C.glass,
+      border: `1px solid ${tone && !missing ? alpha(col, 0.4) : C.border}`,
+      background: tone && !missing ? alpha(col, 0.07) : C.glass,
+      opacity: missing ? 0.55 : 1,
       cursor: title ? 'inherit' : 'default',
     }}>
       <span style={{
@@ -382,9 +401,12 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
         <ArmStat label="HR luck" value={xbbe >= 50 && xluck !== 0 ? `${xluck > 0 ? '+' : '−'}${Math.abs(xluck).toFixed(1)}` : '—'}
           tone={xbbe < 50 || xluck === 0 ? null : xluck < 0 ? 'hot' : 'cold'}
           title="Actual homers allowed minus expected-from-contact (calibrated xHR). NEGATIVE means fewer than his contact deserved — regression is on the hitters' side. Positive means he has been unlucky rather than hittable. Blank under 50 batted balls." />
+        {/* The tooltip said "the league line is 1.25 — warm is over it" while
+            the tone went warm at 1.40. Its own sentence and its own threshold
+            disagreed. Both come from lib/hr9.js now. */}
         <ArmStat label="HR/9 szn" value={hr9 != null && hr9 > 0 ? hr9.toFixed(2) : '—'}
-          tone={hr9 == null ? null : hr9 >= 1.4 ? 'hot' : hr9 <= 1.0 ? 'cold' : null}
-          title={`Season homers allowed per nine. The league line is ${LEAGUE_HR9.toFixed(2)} — warm is over it, and over it is good for the bats.`} />
+          tone={hr9Tone(hr9)}
+          title={hr9Title(hr9)} />
       </div>
 
       {/* ── HOW MANY, AND TO WHOM ────────────────────────────────────────
