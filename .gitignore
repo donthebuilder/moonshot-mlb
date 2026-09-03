@@ -38,3 +38,4 @@ bot-ship/
 
 # local render fixture (scripts/dev-fixture.mjs regenerates it)
 public/__devfixture/
+.env*

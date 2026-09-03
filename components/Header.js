@@ -34,7 +34,7 @@ const PRIMARY_TABS = [
   ['bot', '🎯 Picks'],
 ]
 const MORE_TABS = [
-  ['board', '📊 Charts'],
+  ['board', '📊 Boards'],
   ['pitchers', '⚾ Pitchers'],
   ['combos', '🎟 Combos'],
   ['odds', '💵 Odds'],
