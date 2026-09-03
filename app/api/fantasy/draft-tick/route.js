@@ -8,12 +8,20 @@
 // stopped and stayed stopped, and no member could restart it, because the
 // escape hatch ("Force expired pick") is a commissioner control (#90).
 //
-// The 08-28 note concluded a server-side timer "isn't available" because
-// Vercel Hobby caps cron at one run per day. That is true of *Vercel* cron. It
-// is not true of GitHub Actions, which this project already uses for scheduled
-// work in the bot repo. So: this endpoint, and a `*/5 * * * *` workflow that
-// POSTs to it. Worst case a stalled pick now waits five minutes instead of a
-// week.
+// WHY THIS NEEDED NO NEW INFRASTRUCTURE AT ALL. The 08-28 note concluded a
+// server-side timer "isn't available" because Vercel Hobby caps cron at one run
+// per day, and every plan since has been written around that. It is not true of
+// this project. `vercel.json` already carries NINE cron entries, several of them
+// per-minute (`* 17-23 * * *` for the push sender), and they demonstrably fire --
+// the phone notifications work. Hobby allows two. So this account has not been on
+// Hobby for a long time, and the constraint the draft timer was designed around
+// stopped existing without anybody noticing. A league sat hung for a week behind
+// a limitation that had already been paid to go away.
+//
+// So the whole fix is one more line in `vercel.json`, on the same
+// `CRON_SECRET` that already authorizes /api/dash/push/tick and
+// /api/fantasy/scoring. No new secret, no external scheduler, nothing to
+// configure. Worst case a stalled pick now waits sixty seconds.
 //
 // WHY IT DOES THE SAME THING THE TAB DOES, AND NOTHING MORE. It calls
 // `run_expired_fantasy_auto_pick`, the identical RPC behind both the foreground
