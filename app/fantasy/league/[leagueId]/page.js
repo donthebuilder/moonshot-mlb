@@ -12,7 +12,7 @@ import StartDraftButton from '../../../../components/fantasy/StartDraftButton'
 import SubmitButton from '../../../../components/fantasy/SubmitButton'
 import { addToQueue, assignDraftPick, draftPlayer, prepareDraft, removeFromQueue, runAutoPick, setDraftState, startDraft, syncPlayerCatalog, tickAutoPick } from './actions'
 import LeagueNav from '../../../../components/fantasy/LeagueNav'
-import { projectionIsPartial, seasonValue } from '../../../../lib/fantasy/scoring'
+import { draftValue, projectionIsPartial, replacementLevels, seasonValue } from '../../../../lib/fantasy/scoring'
 
 const POSITIONS = ['ALL','QB','RB','WR','TE','FLEX','K','DEF']
 
@@ -70,8 +70,23 @@ export default async function LeagueRoom({ params, searchParams }) {
   for (const entry of roster) if (entry.player_id) takenIds.add(entry.player_id)
   const selectedPosition = POSITIONS.includes(query?.position) ? query.position : 'ALL'
   const search = String(query?.q || '').trim().toLowerCase().slice(0,40)
-  const rankedPlayers = players.map((player) => ({ ...player, dash_score: seasonValue(player, league.scoring) }))
-    .sort((a,b) => b.dash_score - a.dash_score || a.name.localeCompare(b.name))
+  // The number shown is points per game; the ORDER is points per game above
+  // replacement at that position, from this league's own roster settings. Two
+  // quantities on purpose -- see lib/fantasy/scoring.js. Sorting by raw PPG
+  // put four quarterbacks in the top ten of a one-QB league the moment the
+  // bot published passing touchdowns; sorting by value over replacement is
+  // stable whether that field is present or not, which is the test that
+  // convinced me it was the right sort rather than a cleverer one.
+  const levels = replacementLevels(players, league, league.scoring)
+  const posRank = new Map()
+  const seenAt = {}
+  const rankedPlayers = players
+    .map((player) => ({ ...player, dash_score: seasonValue(player, league.scoring), draft_value: draftValue(player, levels, league.scoring) }))
+    .sort((a,b) => b.draft_value - a.draft_value || a.name.localeCompare(b.name))
+  for (const player of rankedPlayers) {
+    seenAt[player.position] = (seenAt[player.position] || 0) + 1
+    posRank.set(player.id, `${player.position}${seenAt[player.position]}`)
+  }
   const undrafted = rankedPlayers.filter((player) => !takenIds.has(player.id))
   const available = undrafted
     .filter((player) => selectedPosition === 'ALL' || (selectedPosition === 'FLEX' ? ['RB','WR','TE'].includes(player.position) : player.position === selectedPosition))
@@ -144,9 +159,9 @@ export default async function LeagueRoom({ params, searchParams }) {
                 (0 / 62 / 104), so anything that makes the head taller silently
                 pushes the pills under it -- which is #78's exact mechanism. An
                 explanation is read once; it does not need to be pinned. */}
-            <p className={styles.boardNote}>Ranked by projected {String(league.scoring||'ppr').replace('_','-').toUpperCase()} points per game, from this season&apos;s per-game averages — not by this week&apos;s matchup. <b>*</b> the feed carries no passing touchdowns, so QB and D/ST projections read low.</p>
+            <p className={styles.boardNote}>The number is projected {String(league.scoring||'ppr').replace('_','-').toUpperCase()} points per game, from this season&apos;s per-game averages — not this week&apos;s matchup. The <b>order</b> also accounts for how many of each position you start, so a quarterback who scores more than a running back can still rank below him: you start one QB and can only use so many. The tag beside each name is his rank at his own position. <b>*</b> marks a projection the feed cannot complete.</p>
             {!players.length ? <p className={styles.emptyRoom}>Commissioner: sync the NFL player catalog to begin.</p> : available.slice(0,80).map((player) => (
-              <div className={styles.draftPlayer} key={player.id} style={{ '--pos': colorForPosition(player.position) }}><span className={styles.rankNumber}>{rankedPlayers.findIndex((ranked)=>ranked.id===player.id)+1}</span><span className={styles.positionTag} style={{ color: colorForPosition(player.position), borderColor: `${colorForPosition(player.position)}55` }}>{player.position}</span><div className={styles.playerIdentity}><NflTeamMark team={player.team}/><span><b>{player.name}</b><small>{player.team || 'FA'}{player.injury_status ? ` · ${player.injury_status}` : ''}</small></span></div><strong className={styles.playerDash} data-partial={projectionIsPartial(player)?'true':undefined} title={projectionIsPartial(player)?`Projected ${player.dash_score} points per game. ${player.position==='QB'?'The feed carries no passing touchdowns, so quarterback projections are low by roughly 6-8 points a game.':'The feed carries no sacks, interceptions or fumble recoveries, so defence projections are low.'}`:`Projected ${player.dash_score} points per game, from this season's per-game averages`} style={{ color: colorForPosition(player.position) }}>{player.dash_score}{projectionIsPartial(player)?<em className={styles.partialMark}>*</em>:null}<i className={styles.dashMeter} style={{ '--w': `${Math.max(4,Math.min(100,Math.round(player.dash_score/TOP_PPG*100)))}%`, '--c': colorForPosition(player.position) }}/></strong>{canPick?<><form action={draftPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="overallPick" value={draft?.current_overall_pick||''}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton pendingLabel="Drafting…">Draft</SubmitButton></form></>:draft&&myTeam?<form action={addToQueue}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton className={styles.queueButton} pendingLabel="Adding…">+ Queue</SubmitButton></form>:<span className={styles.lockedPick}>{draft?.status === 'paused' ? 'PAUSED' : draft?.status === 'live' ? 'WAIT' : 'SCOUT'}</span>}</div>
+              <div className={styles.draftPlayer} key={player.id} style={{ '--pos': colorForPosition(player.position) }}><span className={styles.rankNumber}>{rankedPlayers.findIndex((ranked)=>ranked.id===player.id)+1}</span><span className={styles.positionTag} title={`${posRank.get(player.id)} — ${player.position} number ${(posRank.get(player.id)||'').replace(player.position,'')} on this board`} style={{ color: colorForPosition(player.position), borderColor: `${colorForPosition(player.position)}55` }}>{posRank.get(player.id) || player.position}</span><div className={styles.playerIdentity}><NflTeamMark team={player.team}/><span><b>{player.name}</b><small>{player.team || 'FA'}{player.injury_status ? ` · ${player.injury_status}` : ''}</small></span></div><strong className={styles.playerDash} data-partial={projectionIsPartial(player)?'true':undefined} title={projectionIsPartial(player)?`Projected ${player.dash_score} points per game. ${player.position==='QB'?'The feed carries no passing touchdowns, so quarterback projections are low by roughly 6-8 points a game.':'The feed carries no sacks, interceptions or fumble recoveries, so defence projections are low.'}`:`Projected ${player.dash_score} points per game, from this season's per-game averages`} style={{ color: colorForPosition(player.position) }}>{player.dash_score}{projectionIsPartial(player)?<em className={styles.partialMark}>*</em>:null}<i className={styles.dashMeter} style={{ '--w': `${Math.max(4,Math.min(100,Math.round(player.dash_score/TOP_PPG*100)))}%`, '--c': colorForPosition(player.position) }}/></strong>{canPick?<><form action={draftPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="overallPick" value={draft?.current_overall_pick||''}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton pendingLabel="Drafting…">Draft</SubmitButton></form></>:draft&&myTeam?<form action={addToQueue}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton className={styles.queueButton} pendingLabel="Adding…">+ Queue</SubmitButton></form>:<span className={styles.lockedPick}>{draft?.status === 'paused' ? 'PAUSED' : draft?.status === 'live' ? 'WAIT' : 'SCOUT'}</span>}</div>
             ))}
           </section>
           <aside className={styles.draftSide}>

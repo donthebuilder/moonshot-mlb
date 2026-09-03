@@ -32,6 +32,12 @@ if (/function dashScore\s*\(/.test(board)) miss('draft board has its own copy of
 const code = (src) => src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
 if (/\bdashScore\b/.test(code(board))) miss('draft board references dashScore -- it must rank by seasonValue')
 if (!/seasonValue\(/.test(board)) miss('draft board does not call seasonValue')
+// The sort is the whole finding. Ranking by raw points per game put four
+// quarterbacks in the top ten of a one-QB league the moment passing TDs were
+// published -- #71 arriving from the other direction -- so the board must sort
+// by value over replacement, not by the number it displays.
+if (!/replacementLevels\(/.test(board)) miss('draft board does not compute replacement levels')
+if (!/draft_value\s*-\s*a\.draft_value|b\.draft_value/.test(board)) miss('draft board does not SORT by draft_value')
 if (!/boardNote/.test(board)) miss('draft board head lost the line saying what its number means')
 if (!/projectionIsPartial/.test(board)) miss('draft board no longer marks projections the feed cannot complete')
 
@@ -41,6 +47,12 @@ if (!/boardNote/.test(wire)) miss('the wire lost the line distinguishing its wee
 const scoring = fs.readFileSync('lib/fantasy/scoring.js', 'utf8')
 if (!/export function seasonValue/.test(scoring)) miss('seasonValue is gone from lib/fantasy/scoring.js')
 if (!/export function projectionIsPartial/.test(scoring)) miss('projectionIsPartial is gone from lib/fantasy/scoring.js')
+if (!/export function replacementLevels/.test(scoring)) miss('replacementLevels is gone from lib/fantasy/scoring.js')
+// A QB's TD column is rushing TDs (td_rec + td_rush in the bot, never
+// passing), so it is worth 6 like anyone else's, and passing TDs come in
+// separately as PATD. Charging a QB 4 for a TD was the old bug.
+if (/stats\.TD\)\s*\*\s*\(position === 'QB'/.test(scoring)) miss("QB TDs are charged 4 again -- they are RUSHING TDs, worth 6")
+if (!/stats\.PATD/.test(scoring)) miss('passing touchdowns (PATD) are no longer read')
 
 console.log(bad
   ? `\n${bad} problem(s) — the draft board may be ranking by the wrong question again`
