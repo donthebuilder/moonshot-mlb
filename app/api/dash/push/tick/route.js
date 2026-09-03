@@ -35,6 +35,7 @@ import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/va
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom } from '../../../../../lib/dash/franchise'
 import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -266,6 +267,7 @@ async function worthSweepingAgain(audience) {
 
 export async function GET(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (await isMaintenanceMode()) return Response.json({ skipped: 'maintenance_mode' })
   const vapidBad = vapidProblem()
   if (vapidBad) {
     // Named, and at error level, so it shows up in the log filter rather than
@@ -348,6 +350,7 @@ export async function GET(request) {
 /** One pass: what happened, who has not been told, tell them. */
 async function sweep(db, subs, stateByUser, audience, { full }) {
   const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [] }
+  const redZoneEnabled = await isRedZoneAlertsEnabled()
   const events = [
     ...(await mlbEvents(audience)),
     ...(await nflEvents(audience)),
@@ -365,7 +368,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // list and the team on every rostered player, and must not be able to
     // take the empty-slot alert down with it.
     ...(full ? await byeStarterEventsFrom(db) : []),
-  ]
+  ].filter((e) => redZoneEnabled || e.category !== 'nflred')
   if (!events.length) return nothing
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.

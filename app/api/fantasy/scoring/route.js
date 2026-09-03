@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
+import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edgeConfig'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -35,6 +36,8 @@ async function authorization(request) {
 async function synchronize(request) {
   const access=await authorization(request)
   if(!access.ok)return Response.json({error:'Unauthorized'},{status:401})
+  if(await isMaintenanceMode())return Response.json({ok:true,skipped:'maintenance_mode'})
+  if(!(await isFranchiseSchedulerEnabled()))return Response.json({ok:true,skipped:'franchise_scheduler_disabled'})
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY
   if(!url||!serviceKey)return Response.json({error:'Scoring service is not configured'},{status:503})
