@@ -5247,3 +5247,26 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font-size: 14px;
   letter-spacing: .12em;
 }
+
+/* #71: the draft board's number is projected points per game now, not an
+   opaque 0-100. A number whose meaning changed needs its meaning on the page,
+   under the heading where someone reads it before scanning the list. */
+.boardNote {
+  display: block;
+  max-width: 62ch;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+.boardNote b { color: var(--fx-accent); }
+/* The star on a projection the feed cannot complete. Small, non-coloured, and
+   it never changes the number's own colour -- it marks the number, it is not
+   part of it. */
+.partialMark {
+  font-style: normal;
+  margin-left: 1px;
+  opacity: .6;
+  font-size: .8em;
+  vertical-align: super;
+}

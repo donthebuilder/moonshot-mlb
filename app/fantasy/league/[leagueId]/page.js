@@ -12,13 +12,24 @@ import StartDraftButton from '../../../../components/fantasy/StartDraftButton'
 import SubmitButton from '../../../../components/fantasy/SubmitButton'
 import { addToQueue, assignDraftPick, draftPlayer, prepareDraft, removeFromQueue, runAutoPick, setDraftState, startDraft, syncPlayerCatalog, tickAutoPick } from './actions'
 import LeagueNav from '../../../../components/fantasy/LeagueNav'
+import { projectionIsPartial, seasonValue } from '../../../../lib/fantasy/scoring'
 
 const POSITIONS = ['ALL','QB','RB','WR','TE','FLEX','K','DEF']
 
-function dashScore(player) {
-  const values = Object.values(player.source_payload?.scores || {}).map(Number).filter(Number.isFinite)
-  return values.length ? Math.round(Math.max(...values)) : 50
-}
+// #71: this page used to rank by its own inline copy of dashScore -- the MAX
+// of TUDDY's per-market scores for the coming week. That is "how likely is he
+// to clear a prop on Sunday," which is not the question a season draft asks.
+// It put Jared Goff 11th overall and a KICKER 14th in a single-QB PPR league.
+// seasonValue reads the same slate's SEASON PER-GAME averages instead. See
+// lib/fantasy/scoring.js for the re-rank and for the one thing it gets wrong
+// (the feed carries no passing touchdowns, so QBs read low, and that is
+// surfaced rather than patched with a guess).
+//
+// The meter beside each number was scaled as a percentage, which was right for
+// a 0-100 score and wrong for points per game. TOP_PPG is the elite mark on
+// the current board (McCaffrey, 24.5), so the bar reads as "share of the best
+// man on the board" rather than a percentage of nothing.
+const TOP_PPG = 25
 
 export default async function LeagueRoom({ params, searchParams }) {
   const [{leagueId}, query] = await Promise.all([params, searchParams])
@@ -59,7 +70,7 @@ export default async function LeagueRoom({ params, searchParams }) {
   for (const entry of roster) if (entry.player_id) takenIds.add(entry.player_id)
   const selectedPosition = POSITIONS.includes(query?.position) ? query.position : 'ALL'
   const search = String(query?.q || '').trim().toLowerCase().slice(0,40)
-  const rankedPlayers = players.map((player) => ({ ...player, dash_score: dashScore(player) }))
+  const rankedPlayers = players.map((player) => ({ ...player, dash_score: seasonValue(player, league.scoring) }))
     .sort((a,b) => b.dash_score - a.dash_score || a.name.localeCompare(b.name))
   const undrafted = rankedPlayers.filter((player) => !takenIds.has(player.id))
   const available = undrafted
@@ -114,11 +125,18 @@ export default async function LeagueRoom({ params, searchParams }) {
 
         <div className={styles.draftLayout}>
           <section className={styles.playerBoard} data-live={draft?.status==='live'?'true':undefined} data-yours={isMyPick?'true':undefined}>
-            <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>DASH NFL board</h2></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q || ''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{available.length} available</span></div>
+            {/* #71: the board's number changed meaning, so it says what it is. It was
+                an opaque 0-100 that people read as a rating; it is now projected
+                fantasy points per game in this league's scoring, which is a
+                quantity a first-time drafter already understands. The asterisk
+                note is not a disclaimer for its own sake -- a QB projection
+                here is genuinely low, and a board that knows its own number is
+                incomplete should say so on the page rather than in a comment. */}
+            <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>DASH NFL board</h2><small className={styles.boardNote}>Ranked by projected {String(league.scoring||'ppr').replace('_','-').toUpperCase()} points per game, from this season&apos;s per-game averages. <b>*</b> the feed carries no passing touchdowns, so QB and D/ST projections read low.</small></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q || ''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{available.length} available</span></div>
             <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`}>{position}</Link>)}</div>
             <div className={styles.draftColumns}><span>RK</span><span>POS</span><span>PLAYER</span><span>DASH</span><span>STATUS</span></div>
             {!players.length ? <p className={styles.emptyRoom}>Commissioner: sync the NFL player catalog to begin.</p> : available.slice(0,80).map((player) => (
-              <div className={styles.draftPlayer} key={player.id} style={{ '--pos': colorForPosition(player.position) }}><span className={styles.rankNumber}>{rankedPlayers.findIndex((ranked)=>ranked.id===player.id)+1}</span><span className={styles.positionTag} style={{ color: colorForPosition(player.position), borderColor: `${colorForPosition(player.position)}55` }}>{player.position}</span><div className={styles.playerIdentity}><NflTeamMark team={player.team}/><span><b>{player.name}</b><small>{player.team || 'FA'}{player.injury_status ? ` · ${player.injury_status}` : ''}</small></span></div><strong className={styles.playerDash} style={{ color: colorForPosition(player.position) }}>{player.dash_score}<i className={styles.dashMeter} style={{ '--w': `${Math.max(4,Math.min(100,player.dash_score))}%`, '--c': colorForPosition(player.position) }}/></strong>{canPick?<><form action={draftPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="overallPick" value={draft?.current_overall_pick||''}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton pendingLabel="Drafting…">Draft</SubmitButton></form></>:draft&&myTeam?<form action={addToQueue}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton className={styles.queueButton} pendingLabel="Adding…">+ Queue</SubmitButton></form>:<span className={styles.lockedPick}>{draft?.status === 'paused' ? 'PAUSED' : draft?.status === 'live' ? 'WAIT' : 'SCOUT'}</span>}</div>
+              <div className={styles.draftPlayer} key={player.id} style={{ '--pos': colorForPosition(player.position) }}><span className={styles.rankNumber}>{rankedPlayers.findIndex((ranked)=>ranked.id===player.id)+1}</span><span className={styles.positionTag} style={{ color: colorForPosition(player.position), borderColor: `${colorForPosition(player.position)}55` }}>{player.position}</span><div className={styles.playerIdentity}><NflTeamMark team={player.team}/><span><b>{player.name}</b><small>{player.team || 'FA'}{player.injury_status ? ` · ${player.injury_status}` : ''}</small></span></div><strong className={styles.playerDash} data-partial={projectionIsPartial(player)?'true':undefined} title={projectionIsPartial(player)?`Projected ${player.dash_score} points per game. ${player.position==='QB'?'The feed carries no passing touchdowns, so quarterback projections are low by roughly 6-8 points a game.':'The feed carries no sacks, interceptions or fumble recoveries, so defence projections are low.'}`:`Projected ${player.dash_score} points per game, from this season's per-game averages`} style={{ color: colorForPosition(player.position) }}>{player.dash_score}{projectionIsPartial(player)?<em className={styles.partialMark}>*</em>:null}<i className={styles.dashMeter} style={{ '--w': `${Math.max(4,Math.min(100,Math.round(player.dash_score/TOP_PPG*100)))}%`, '--c': colorForPosition(player.position) }}/></strong>{canPick?<><form action={draftPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="overallPick" value={draft?.current_overall_pick||''}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton pendingLabel="Drafting…">Draft</SubmitButton></form></>:draft&&myTeam?<form action={addToQueue}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><input type="hidden" name="viewPosition" value={selectedPosition}/><input type="hidden" name="viewQuery" value={String(query?.q||'')}/><SubmitButton className={styles.queueButton} pendingLabel="Adding…">+ Queue</SubmitButton></form>:<span className={styles.lockedPick}>{draft?.status === 'paused' ? 'PAUSED' : draft?.status === 'live' ? 'WAIT' : 'SCOUT'}</span>}</div>
             ))}
           </section>
           <aside className={styles.draftSide}>
