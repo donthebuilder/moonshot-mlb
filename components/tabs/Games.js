@@ -232,11 +232,19 @@ function sidesOf(g) {
       // written), so the split is the total broken out, not a second
       // measurement that can disagree with it.
       //
-      // NOT INCLUDED: innings pitched and games started. Both are in the
-      // field list and NEITHER is published in today_slim.json -- 0 of 160
-      // rows carry them -- so "13 HR in 75 IP" would have rendered as "13 HR
-      // in — IP" all season. A number the feed does not have is not a number.
+      // INNINGS, AS OF 2026-09-03. This note used to say IP could not be
+      // shown because pitcher_ip published on 0 of 160 rows. That turned out
+      // to be a three-line bot bug -- flatten_pitching parsed innings, used
+      // them to compute K/9, and did not return them -- and it is fixed. The
+      // bubble omits the row while the field is absent, so this reads
+      // correctly before and after the pipeline ships.
+      // Games started stays out: gamesStarted is not among the keys this
+      // codebase has ever read off a pitching stat blob, and this repo's
+      // standing rule is that an API's shape gets verified before it is
+      // used, not assumed. statsapi.mlb.com is outside this session's egress,
+      // so it could not be checked from here and was not guessed at.
       hrTotal: num(lineup[0]?.pitcher_hr_allowed),
+      ip: num(lineup[0]?.pitcher_ip),
       hrL: num(lineup[0]?.pitcher_hr_vs_lhb),
       hrR: num(lineup[0]?.pitcher_hr_vs_rhb),
       hr9L: num(lineup[0]?.pitcher_hr9_vs_lhb),
@@ -286,6 +294,7 @@ function ArmBubble({ s }) {
   const [open, setOpen] = useState(false)
   const rows = [
     ['HR allowed', s.hrTotal != null ? String(s.hrTotal) : null, 'this season'],
+    ['Innings', s.ip ? s.ip.toFixed(1) : null, 'the sample every rate here is measured over'],
     ['vs LHB', s.hrL != null || s.hr9L != null
       ? `${s.hrL != null ? `${s.hrL} HR` : ''}${s.hrL != null && s.hr9L != null ? ' · ' : ''}${s.hr9L != null ? `${s.hr9L.toFixed(2)} HR/9` : ''}`
       : null, 'left-handed bats'],
