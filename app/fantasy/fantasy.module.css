@@ -5215,3 +5215,26 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .settingsChecks input[type="checkbox"] {
   width: 16px; height: 16px; accent-color: var(--gold, #f2a33c);
 }
+
+/* #75: the invite code is the league's only lock, and the League HQ hero
+   printed it in the subtitle line beside the scoring format -- so it was on
+   screen for every member, permanently, in the largest block on the page.
+   It now sits in its own row behind a Show/Copy control (InviteCode.js).
+   Laid out as a row rather than the leagues-list card's space-between, which
+   would push the buttons to the far edge of the hero. */
+.leagueInvite {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+.leagueInvite small {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+.leagueInvite strong {
+  font-family: monospace;
+  font-size: 14px;
+  letter-spacing: .12em;
+}

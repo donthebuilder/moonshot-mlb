@@ -12,6 +12,7 @@ import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_LAST_WEEK, FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { saveLineupSlot, saveTeamIdentity } from './actions'
+import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const SEASON = FANTASY_SEASON
 
@@ -43,9 +44,13 @@ export default async function TeamPage({ params, searchParams }) {
   // Was a hardcoded WEEK = 1: from week 2 on, lineups were written for week 1
   // while the matchup page scored the real week, so every team scored 0.00.
   const WEEK = await resolveFantasyWeek(supabase, query?.week)
-  const [{ data: league }, { data: team }] = await Promise.all([
+  // #83: this page never read the membership row, which is why its copy of the
+  // league nav showed Settings to everyone -- it had nothing to gate on. One
+  // more single-row select, matching every other league page.
+  const [{ data: league }, { data: team }, { data: membership }] = await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).eq('owner_id',user.id).single(),
+    supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
   ])
   if (!league) notFound()
   if (!team) return <main className={styles.roomApp}><div className={styles.roomBody}><section className={styles.waitingRoom}><span>◷</span><div><p className={styles.panelLabel}>NO TEAM YET</p><strong>You don&apos;t have a team in this league.</strong><small>Ask the commissioner to add you, then your lineup board opens here.</small></div></section><p><Link href={`/fantasy/league/${leagueId}`}>← Back to the league</Link></p></div></main>
@@ -89,7 +94,7 @@ export default async function TeamPage({ params, searchParams }) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>WEEK {WEEK}</small><strong>{team.name}</strong></div><span className={styles.weekSwitch}>{WEEK>1&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK-1}`}>‹</Link>}<b>{roster.length} rostered</b>{WEEK<FANTASY_LAST_WEEK&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK+1}`}>›</Link>}</span></header>
-    <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><a className={styles.roomActive}>Team</a><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link><Link href={`/fantasy/league/${leagueId}/settings`}>Settings</Link></nav>
+    <LeagueNav leagueId={leagueId} active="team" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.teamHero}><div><p className={styles.panelLabel}>WEEK {WEEK} LINEUP</p><h1 style={{display:'flex',alignItems:'center',gap:12}}><TeamMark size={38} team={team}/>{team.name}</h1><p>Set each player before their individual game begins. Locked players cannot be moved.</p></div><div className={styles.roomStats}><span><small>STARTERS</small><b>{lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).length}/{starterCount}</b></span><span><small>BENCH</small><b>{lineup.filter((row)=>row.slot==='BENCH').length}/6</b></span><span><small>IR</small><b>{lineup.filter((row)=>row.slot==='IR').length}/{league.ir_slots}</b></span><span><small>PROJECTED</small><b>{startersProjected.toFixed(1)}</b></span></div></section>

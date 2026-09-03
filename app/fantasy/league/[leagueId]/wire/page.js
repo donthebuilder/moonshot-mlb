@@ -6,6 +6,7 @@ import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import styles from '../../../fantasy.module.css'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { addFreeAgent, cancelWaiverClaim, processWaivers, submitWaiverClaim } from './actions'
+import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
 
@@ -60,7 +61,7 @@ export default async function WirePage({params,searchParams}) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>PLAYER MARKET</small><strong>{league.name}</strong></div><span>{myTeam?`Priority #${safeTeams.findIndex((team)=>team.id===myTeam.id)+1}`:'No team yet'}</span></header>
-    <nav aria-label="League sections" className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><a className={styles.roomActive}>Wire</a><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link>{membership.role==='commissioner'&&<Link href={`/fantasy/league/${leagueId}/settings`}>Settings</Link>}</nav>
+    <LeagueNav leagueId={leagueId} active="wire" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.wireHero}><div><p className={styles.panelLabel}>THE WIRE</p><h1>Find the next difference-maker.</h1><p>Free agents join immediately. Dropped players spend 24 hours on rolling-priority waivers.</p></div><div className={styles.roomStats}><span><small>PRIORITY</small><b>{myTeam?`#${safeTeams.findIndex((team)=>team.id===myTeam.id)+1}`:'—'}</b></span><span><small>CLAIMS</small><b>{myClaims.length}</b></span><span><small>ROSTER</small><b>{myRoster.length}/15</b></span></div></section>

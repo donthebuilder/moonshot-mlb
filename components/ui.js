@@ -150,10 +150,15 @@ export function Card({ children, color = C.border, onClick, style, title }) {
 export function Band({ children, note, right, style }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8, marginTop: 2, ...style }}>
-      <span style={{
+      {/* #93: a Band IS a section divider -- it names the block of content
+          under it and draws a rule across the rest of the row. It was a
+          <span>, so that name existed only for people who can see the type.
+          margin:0 because the flex row already owns the spacing. */}
+      <h2 style={{
+        margin: 0,
         fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
         color: C.text2, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-      }}>{children}</span>
+      }}>{children}</h2>
       {note && (
         <span style={{
           fontSize: 9.5, color: C.text3, minWidth: 0,

@@ -11,6 +11,7 @@ import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import styles from '../../../fantasy.module.css'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { generateSchedule } from './actions'
+import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const SEASON = 2026
 
@@ -81,7 +82,7 @@ export default async function MatchupPage({ params, searchParams }) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>WEEK {week}</small><strong>{league.name}</strong></div><span>{matchups.length} matchups</span></header>
-    <nav aria-label="League sections" className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><a className={styles.roomActive}>Matchup</a><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link>{membership.role==='commissioner'&&<Link href={`/fantasy/league/${leagueId}/settings`}>Settings</Link>}</nav>
+    <LeagueNav leagueId={leagueId} active="matchup" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <LiveMatchupCenter leagueId={leagueId} live={hasLiveGames} lastUpdated={latestSync?.completed_at}/>

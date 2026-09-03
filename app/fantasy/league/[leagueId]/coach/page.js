@@ -9,6 +9,7 @@ import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { refreshMatchupScores, syncNflWeekFeed } from './actions'
+import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const SEASON=FANTASY_SEASON
 
@@ -63,7 +64,7 @@ export default async function CoachPage({params,searchParams}) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>DASH INTELLIGENCE</small><strong>{league.name}</strong></div><span>{latestSync?.status==='complete'?'Scoring automation healthy':games.length?'NFL feed connected':'Feed awaiting sync'}</span></header>
-    <nav className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><a className={styles.roomActive}>Coach</a><Link href={`/fantasy/league/${leagueId}/settings`}>Settings</Link></nav>
+    <LeagueNav leagueId={leagueId} active="coach" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.coachHero}><div><p className={styles.panelLabel}>DASH COACH · WEEK {WEEK}</p><h1>{recommendations[0]?.title||'Your next move starts here.'}</h1><p>{recommendations[0]?.detail||'Draft players and set a lineup to unlock personalized recommendations.'}</p></div><div className={styles.coachGrade}><small>DASH SCORE</small><strong>{graded?overallScore:'—'}</strong><span>{graded?grade(overallScore):'not graded yet'}</span>{graded&&<CoachShareCard className={styles.coachShareButton} team={myTeam?.name} league={league.name} score={overallScore} grade={grade(overallScore)} headline={recommendations[0]?.title} detail={recommendations[0]?.detail}/>}</div></section>

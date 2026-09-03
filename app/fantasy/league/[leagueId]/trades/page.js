@@ -6,6 +6,7 @@ import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
 import styles from '../../../fantasy.module.css'
 import { cancelTrade, proposeTrade, respondTrade, reviewTrade } from './actions'
+import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 export default async function TradesPage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
@@ -36,7 +37,7 @@ export default async function TradesPage({params,searchParams}) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{reviewCount} awaiting review</span></header>
-    <nav aria-label="League sections" className={styles.roomNav}><Link href={`/fantasy/league/${leagueId}`}>Draft</Link><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><a className={styles.roomActive}>Trades</a><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link><Link href={`/fantasy/league/${leagueId}/settings`}>Settings</Link></nav>
+    <LeagueNav leagueId={leagueId} active="trades" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.tradeHero}><div><p className={styles.panelLabel}>TRADE DESK</p><h1>Build a deal. Make both teams better.</h1><p>Owners agree first. The commissioner reviews the final deal before any roster changes occur.</p></div><div className={styles.roomStats}><span><small>ACTIVE</small><b>{relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length}</b></span><span><small>REVIEW</small><b>{reviewCount}</b></span><span><small>DONE</small><b>{relevant.filter((trade)=>trade.status==='completed').length}</b></span></div></section>

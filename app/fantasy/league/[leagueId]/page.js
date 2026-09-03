@@ -11,6 +11,7 @@ import DraftRoomLive from '../../../../components/fantasy/DraftRoomLive'
 import StartDraftButton from '../../../../components/fantasy/StartDraftButton'
 import SubmitButton from '../../../../components/fantasy/SubmitButton'
 import { addToQueue, assignDraftPick, draftPlayer, prepareDraft, removeFromQueue, runAutoPick, setDraftState, startDraft, syncPlayerCatalog, tickAutoPick } from './actions'
+import LeagueNav from '../../../../components/fantasy/LeagueNav'
 
 const POSITIONS = ['ALL','QB','RB','WR','TE','FLEX','K','DEF']
 
@@ -73,7 +74,7 @@ export default async function LeagueRoom({ params, searchParams }) {
   return (
     <main className={styles.roomApp}>
       <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
-      <nav aria-label="League sections" className={styles.roomNav}><a aria-current="page" className={styles.roomActive}>Draft</a><Link href={`/fantasy/league/${leagueId}/team`}>Team</Link><Link href={`/fantasy/league/${leagueId}/matchup`}>Matchup</Link><Link href={`/fantasy/league/${leagueId}/league`}>League</Link><Link href={`/fantasy/league/${leagueId}/wire`}>Wire</Link><Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link><Link href={`/fantasy/league/${leagueId}/feed`}>Feed</Link><Link href={`/fantasy/league/${leagueId}/coach`}>Coach</Link>{membership.role==='commissioner'&&<Link href={`/fantasy/league/${leagueId}/settings`}>Settings</Link>}</nav>
+      <LeagueNav leagueId={leagueId} active="draft" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
       <div className={styles.roomBody}>
         <DraftBanner error={query?.error} message={query?.message}/>
         <section className={styles.draftHero}>

@@ -59,8 +59,16 @@ export default function Fold({
     return next
   })
 
+  // #93 (a11y): the fold header was a bare <button> holding a <span>, so a
+  // screen-reader user landing on Tonight got one <h1> and then nine
+  // unlabelled buttons -- no section list, no way to jump. The disclosure
+  // pattern the ARIA APG actually specifies is heading-wraps-button: the
+  // heading gives the section a name in the outline, the button keeps the
+  // aria-expanded state. Nothing changes visually; the h2's own margins and
+  // font size are zeroed because the span inside already carries both.
   return (
     <section style={{ marginBottom: open ? 14 : 6 }}>
+      <h2 style={{ margin: 0, fontSize: 'inherit', fontWeight: 'inherit' }}>
       <button
         type="button"
         onClick={toggle}
@@ -84,6 +92,7 @@ export default function Fold({
           fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0,
         }}>{open ? '▴' : '▾'}</span>
       </button>
+      </h2>
       {open ? <div style={{ marginTop: 8 }}>{children}</div> : null}
     </section>
   )
