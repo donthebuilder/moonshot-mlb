@@ -103,6 +103,25 @@ export default function MobileCSS() {
       }
 
       @media (max-width: 520px) {
+        /* ── COLUMNS THAT EARN THEIR PLACE ON A DESK, NOT IN A HAND ────────
+           The three season panels added on 2026-09-03 (October odds, the
+           comeback board, the moneyline log) each carry seven or eight
+           columns. Each table is wrapped in its own overflow-x:auto — it has
+           to be, because body{overflow-x:clip} above turns a too-wide table
+           into a SILENTLY TRUNCATED one rather than a scrolling one — but a
+           panel you have to drag sideways to read is a panel nobody reads.
+
+           So the supporting columns come out at phone width and the question
+           each panel answers stays: who wins the World Series, who comes
+           back, where the model disagrees. The full table is still one
+           rotation or one desktop away, and nothing is removed from the DOM
+           on a wide screen, so this costs a reader nothing.
+
+           Donovan, on the standing mobile item: "a lot of the optimizing in
+           general is just fitting everything in the screen without it being
+           overbearing." */
+        .sm-hide { display: none !important; }
+
         /* ── THE HIGHLIGHT PILL STOPS TAKING A WHOLE ROW (2026-09-03) ──────
            Donovan: "the highlight button being on its own row pisses me off,
            it can sit right next to All teams if sized right."

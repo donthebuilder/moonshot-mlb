@@ -84,14 +84,16 @@ export default function MoneylineBoard() {
       {today.length === 0 ? (
         <Empty text="No disagreements on tonight's board that clear the floor. That is the normal outcome." />
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT, minWidth: 330 }}>
           <caption className="sr-only">Tonight&apos;s disagreements between the model and the market</caption>
           <thead>
             <tr>
-              {[['Game', 'left'], ['Leans', 'left'], ['Price', 'right'],
-                ['Model', 'right'], ['Market', 'right'], ['Gap', 'right'], ['From the arms', 'right']]
-                .map(([l, a]) => (
-                  <th key={l} scope="col" style={{
+              {[['Game', 'left', ''], ['Leans', 'left', ''], ['Price', 'right', ''],
+                ['Model', 'right', 'sm-hide'], ['Market', 'right', 'sm-hide'], ['Gap', 'right', ''],
+                ['From the arms', 'right', 'sm-hide']]
+                .map(([l, a, cls]) => (
+                  <th key={l} scope="col" className={cls || undefined} style={{
                     textAlign: a, padding: '4px 6px', fontSize: 8.5, fontWeight: 900,
                     letterSpacing: '.1em', textTransform: 'uppercase', color: C.text3,
                     borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
@@ -107,15 +109,15 @@ export default function MoneylineBoard() {
                 </td>
                 <td style={{ padding: '5px 6px', fontSize: 11.5, fontWeight: 800, color: C.text }}>{p.side}</td>
                 <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11, color: C.text }}>{price(p.price)}</td>
-                <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>{pct(p.model_p)}</td>
-                <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
+                <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>{pct(p.model_p)}</td>
+                <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
                     title={`Book's raw hold on this game: ${pct(p.hold)}`}>{pct(p.market_p)}</td>
                 <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11, fontWeight: 800, color: C.orange }}>
                   {pct(p.edge)}
                 </td>
                 {/* How much of the opinion is the pitching rather than the
                     records — the thing version one could not see at all. */}
-                <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10, color: C.text3, whiteSpace: 'nowrap' }}
+                <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10, color: C.text3, whiteSpace: 'nowrap' }}
                     title={p.home_sp || p.away_sp ? `${p.away_sp || '?'} vs ${p.home_sp || '?'}` : undefined}>
                   {p.starter_shift ? `${Number(p.starter_shift) > 0 ? '+' : ''}${Math.round(p.starter_shift * 100)}pt` : '—'}
                 </td>
@@ -123,6 +125,7 @@ export default function MoneylineBoard() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '10px 2px 0', maxWidth: 720 }}>

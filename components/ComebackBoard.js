@@ -62,8 +62,8 @@ export default function ComebackBoard() {
     .slice(0, 12)
   const active = SORTS.find(([k]) => k === sort)
 
-  const th = (label, align = 'right') => (
-    <th scope="col" style={{
+  const th = (label, align = 'right', cls = '') => (
+    <th scope="col" className={cls || undefined} style={{
       textAlign: align, padding: '4px 6px', fontSize: 8.5, fontWeight: 900,
       letterSpacing: '.1em', textTransform: 'uppercase', color: C.text3,
       borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
@@ -86,14 +86,17 @@ export default function ComebackBoard() {
         ))}
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT }}>
+      {/* See PennantRace for why this wrapper exists: body { overflow-x: clip }
+          turns a too-wide table into a silently truncated one. */}
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT, minWidth: 320 }}>
         <caption className="sr-only">
           Comeback wins and blown leads by team, sorted by {active?.[1]}
         </caption>
         <thead>
           <tr>
-            {th('', 'left')}{th('Team', 'left')}{th('W-L')}
-            {th('Came back')}{th('Rate')}{th('Biggest')}{th('Gave away')}
+            {th('', 'left')}{th('Team', 'left')}{th('W-L', 'right', 'sm-hide')}
+            {th('Came back')}{th('Rate', 'right', 'sm-hide')}{th('Biggest')}{th('Gave away')}
           </tr>
         </thead>
         <tbody>
@@ -101,14 +104,14 @@ export default function ComebackBoard() {
             <tr key={t.abbr} style={{ borderBottom: `1px solid ${C.border}` }}>
               <td style={{ padding: '5px 6px', fontSize: 9.5, color: C.text3, width: 18 }}>{i + 1}</td>
               <td style={{ padding: '5px 6px' }}><b style={{ fontSize: 11.5, color: C.text }}>{t.abbr}</b></td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>
+              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>
                 {t.wins}-{t.losses}
               </td>
               <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11.5, fontWeight: 800,
                            color: sort === 'comeback_wins' ? C.orange : C.text }}>
                 {t.comeback_wins}
               </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5,
+              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5,
                            color: sort === 'comeback_rate' ? C.orange : C.text2 }}>
                 {Math.round((Number(t.comeback_rate) || 0) * 100)}%
               </td>
@@ -131,6 +134,7 @@ export default function ComebackBoard() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '9px 2px 0', maxWidth: 720 }}>
         {data.method} Read from {Number(data.games || 0).toLocaleString()} finished games.

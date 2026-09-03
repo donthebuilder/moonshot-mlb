@@ -84,16 +84,28 @@ export default function PennantRace() {
 
   return (
     <div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT }}>
+      {/* A SCROLLER, NOT A CLIP. MobileCSS sets body { overflow-x: clip }, which
+          means a table wider than the phone does not scroll -- its right-hand
+          columns are simply cut off with no way to reach them. Every other wide
+          table on the site (BoxTable, DenseTable) wraps itself for exactly this
+          reason and these three new ones did not, which was mine to fix before
+          anybody opened the fold on a phone.
+
+          The wrapper is the safety net. The real fix is the `sm-hide` classes
+          below: at phone width the columns that only matter when you are
+          comparing teams closely are dropped, so the common case needs no
+          sideways scrolling at all. */}
+      <div className="pr-scroll" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT, minWidth: 340 }}>
         <caption className="sr-only">
           Playoff, pennant and World Series odds by team, from {Number(data.sims).toLocaleString()} simulations
         </caption>
         <thead>
           <tr>
-            {[['', 'left'], ['Team', 'left'], ['W-L', 'right'], ['Proj', 'right'],
-              ['Playoffs', 'right'], ['Division', 'right'], ['Pennant', 'right'], ['Series', 'right']]
-              .map(([label, align], i) => (
-                <th key={label + i} scope="col" style={{
+            {[['', 'left', ''], ['Team', 'left', ''], ['W-L', 'right', 'sm-hide'], ['Proj', 'right', 'sm-hide'],
+              ['Playoffs', 'right', ''], ['Division', 'right', 'sm-hide'], ['Pennant', 'right', 'sm-hide'], ['Series', 'right', '']]
+              .map(([label, align, cls], i) => (
+                <th key={label + i} scope="col" className={cls || undefined} style={{
                   textAlign: align, padding: '4px 6px', fontSize: 8.5, fontWeight: 900,
                   letterSpacing: '.1em', textTransform: 'uppercase', color: C.text3,
                   borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
@@ -107,22 +119,22 @@ export default function PennantRace() {
               <td style={{ padding: '5px 6px', fontSize: 9.5, color: C.text3, width: 18 }}>{i + 1}</td>
               <td style={{ padding: '5px 6px', minWidth: 0 }}>
                 <b style={{ fontSize: 11.5, color: C.text }}>{t.abbr}</b>
-                <span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{t.division}</span>
+                <span className="sm-hide" style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{t.division}</span>
               </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap' }}>
+              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap' }}>
                 {t.wins}-{t.losses}
               </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
+              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
                   title="Average wins across every simulated season">
                 {Number(t.proj_wins).toFixed(0)}
               </td>
               <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11, color: tone(t.make_playoffs) }}>
                 {pct(t.make_playoffs)}
               </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>
+              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>
                 {pct(t.win_division)}
               </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>
+              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>
                 {pct(t.win_league)}
               </td>
               <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11.5, fontWeight: 800, color: tone(t.win_world_series), minWidth: 54 }}>
@@ -133,6 +145,7 @@ export default function PennantRace() {
           ))}
         </tbody>
       </table>
+      </div>
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '9px 2px 0', maxWidth: 720 }}>
         {leftOut > 0 ? `${leftOut} teams with no realistic path are not listed. ` : ''}
         {data.method}
