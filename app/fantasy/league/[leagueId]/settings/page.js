@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
+import TeamMark from '../../../../../components/fantasy/TeamMark'
 import styles from '../../../fantasy.module.css'
 import { deleteLeague, regenerateInviteCode, resetDraft, updateLeagueSettings } from './actions'
 
