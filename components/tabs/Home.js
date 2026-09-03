@@ -448,21 +448,77 @@ export default function Home({
   const weakStars = useMemo(() => players.filter((p) => p?.weak_spot_flag === true).length, [players])
   const picks = useMemo(() => players.filter((p) => String(p?.game_pick_role || '').trim()).length, [players])
   const homersSoFar = (results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []).length
+  // ── THE ROTATING LINE STOPPED COUNTING AND STARTED TELLING (2026-09-03) ──
+  //
+  // Donovan: "I'd like some storyline in those rotating messages — make sure
+  // they're saying what people are looking for. Who, what, when, where and
+  // why."
+  //
+  // Every line here was a COUNT ABOUT THE SITE: how many picks the bot made,
+  // how many hitters carry a star, what the archive grades at. All true, none
+  // of them naming a player, a park, an arm or a time — so the strip read as
+  // site telemetry rather than tonight's news, and a reader learned nothing
+  // they could act on.
+  //
+  // The facts to say it with were already computed one screen away and never
+  // used here: `topHrBat` (the board's own leader), `headline` (the game to
+  // circle), `airRanked[0]` (the best park and by how much), `firstPitch`.
+  //
+  // One line each for who, what, when, where and why, and every one of them
+  // names something. The trust line stays last, because a record is the one
+  // claim that should not rotate away before it is read.
   const lines = useMemo(() => {
     const out = []
-    if (isLive && homersSoFar > 0) out.push(`⚡ ${homersSoFar} ball${homersSoFar > 1 ? 's have' : ' has'} already left a yard tonight — the Scoreboard is grading live.`)
-    // 2026-08-29: this line used to end "— The Four on the Scoreboard is the
-    // headline cut", which was the front door telling you the headline lived
-    // on another tab. The Four is mounted on this page now, a screen above.
+    const top = [...players].filter((p) => Number.isFinite(hrScore(p)))
+      .sort((a, b) => hrScore(b) - hrScore(a))[0] || null
+    const arm = clean(top?.pitcher_name, '')
+    const armHr9 = n(top?.pitcher_hr9, 0)
+    const air = airRanked[0]
+    // Counted here rather than read from `liveGames`, which is declared 80
+    // lines BELOW this memo -- referencing it would be a temporal dead zone
+    // at render, i.e. a ReferenceError the build cannot see because this
+    // component only runs with a slate in hand.
+    const nLive = games.filter((g) => g?.row?.game_state === 'live' || g?.live === true).length
+
+    // WHAT — the only thing that outranks a name is a ball already gone.
+    if (isLive && homersSoFar > 0) out.push(`⚡ ${homersSoFar} ball${homersSoFar > 1 ? 's have' : ' has'} already left a yard tonight — every pick on this page is grading live.`)
+
+    // WHO — the board's leader, the arm he draws, and what that arm gives up.
+    if (top) {
+      out.push(`💥 ${nameOf(top)} tops the HR board at ${hrScore(top).toFixed(1)}${teamOf(top) ? ` for ${teamOf(top)}` : ''}${
+        arm ? ` — he draws ${arm}${armHr9 > 0 ? `, ${armHr9.toFixed(2)} HR/9` : ''}` : ''}.`)
+    }
+
+    // WHERE — the park, the number, and who is standing in it.
+    if (air && air.edge > 0) {
+      out.push(`🌤 ${air.venue} is the best air on the slate at +${air.edge.toFixed(0)}%${air.matchup ? ` — ${air.matchup} plays there` : ''}.`)
+    }
+
+    // WHEN — a time, and whether the night has started.
+    if (firstPitch) {
+      const t = firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      out.push(isLive
+        ? `🕐 First pitch was ${t} — ${nLive} of ${games.length} game${games.length === 1 ? '' : 's'} under way.`
+        : `🕐 First pitch is ${t} — ${games.length} game${games.length === 1 ? '' : 's'} on the slate.`)
+    }
+
+    // THE GAME TO CIRCLE — named, with the two bats carrying it.
+    if (headline?.bats?.length) {
+      const who = headline.bats.map((b) => nameOf(b)).filter(Boolean).slice(0, 2)
+      if (who.length) {
+        out.push(`⭐ ${clean(headline.g.away, '?')} @ ${clean(headline.g.home, '?')} is the game to circle — ${who.join(' and ')} carry the heat.`)
+      }
+    }
+
+    // WHY — the count kept, but now it says what the star MEANS rather than
+    // how many there are.
+    if (weakStars > 0) out.push(`★ ${weakStars} hitters draw a lineup spot tonight's starter has already been beaten in — that is what a star means on every board.`)
     if (picks > 0) out.push(`🎯 The bot designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
-    if (weakStars > 0) out.push(`★ ${weakStars} hitters sit in a weak lineup spot against tonight's arm — the stars on every board.`)
     if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — confirmed picks homer at a meaningfully higher clip.`)
-    // "the projection tile has the range" until 2026-08-16 — there is no tile
-    // any more, the range is a clause in the sentence right above this line.
     if (proj?.grade) out.push(`💣 The bot calls tonight's power grade "${proj.grade}" — the range is in the line above.`)
     if (record) out.push(`📈 Every pick gets graded in public — ${record.acc.toFixed(1)}% base-hit accuracy across ${record.days} days is the honest number.`)
     return out
-  }, [isLive, homersSoFar, picks, weakStars, confirmed, players.length, proj, record])
+  }, [isLive, homersSoFar, picks, weakStars, confirmed, players, proj, record, airRanked, firstPitch, headline, games])
   const pulse = useRotating(lines)
 
   const empty = !players.length

@@ -85,10 +85,34 @@ export default function MobileCSS() {
         h2 { font-size: 20px !important; }
         button { min-height: 32px; }
         input, select { font-size: 12px !important; }
+
+        /* ── ★ YOUR PLAYERS, ON A PHONE (2026-09-03) ──────────────────────
+           Shipped this morning as one flex line: dot, name, role, matchup,
+           then the line and the game state pushed right with margin-left
+           auto. That fits a monitor. On a 390px screen the right-hand group
+           had nowhere to go, so "HR · HRR" broke onto its own line under the
+           middle of the row and "top 5th" ran off the edge under the × —
+           exactly the screenshot.
+           Two lines here instead of one squeezed one: who, then what he did.
+           The × pins to the first line so the hit area is never under the
+           numbers, and nothing is dropped — the same facts, stacked. */
+        .yp-row { flex-wrap: wrap !important; row-gap: 2px !important; }
+        .yp-line { margin-left: 0 !important; width: 100% !important; padding-left: 14px !important; }
+        .yp-x { position: absolute !important; right: 6px !important; top: 4px !important; }
+        .yp-row { position: relative !important; padding-right: 30px !important; }
       }
 
       @media (max-width: 520px) {
-        .dash-controls { grid-template-columns: 1fr !important; }
+        /* ── THE HIGHLIGHT PILL STOPS TAKING A WHOLE ROW (2026-09-03) ──────
+           Donovan: "the highlight button being on its own row pisses me off,
+           it can sit right next to All teams if sized right."
+           It was 1fr — one column — so search, the team dropdown and the ✨
+           pill each got a line of their own, three rows deep before any
+           content. Search keeps a full-width line because a search box that
+           cannot show what you typed is useless; the other two share the
+           second line, which is what they were always narrow enough to do. */
+        .dash-controls { grid-template-columns: 1fr auto !important; }
+        .dash-controls > :first-child { grid-column: 1 / -1 !important; }
         .modal-backdrop { padding: 8px !important; align-items: flex-start !important; }
         .modal-box { max-height: 94vh !important; }
         .modal-content { padding: 14px 12px 16px !important; }
@@ -267,7 +291,30 @@ export default function MobileCSS() {
            thumb instead of squeezing shut. */
         .slate-tiles-set > * { flex-basis: 116px; }
         .slate-tiles-set > .slate-tile-wide { flex-basis: 158px; }
-        .hero-stats > * { flex-basis: 124px; }
+
+        /* ── THE HERO CHIPS STOP CUTTING THEIR OWN VALUES OFF (2026-09-03) ──
+           Donovan: "for the home page please make sure everything is
+           readable."
+           At 124px basis, two to a line, every chip was an ellipsis: PROJ HR
+           read "2…", FIRST PITCH WAS "4:15…", BEST AIR "UNIQLO Fiel…". A tile
+           whose whole job is one number, printing a truncated number, is
+           worse than no tile — you cannot even tell whether it is 2 or 24.
+           Full width and two lines here: the label keeps its own line and the
+           value gets the whole screen, so nothing truncates and nothing is
+           dropped. Five short rows on a phone, one even strip on a monitor. */
+        .hero-stats { flex-direction: column !important; gap: 5px !important; }
+        .hero-stats > * {
+          flex: 0 0 auto !important;
+          width: 100% !important;
+          align-items: baseline !important;
+          flex-wrap: wrap !important;
+        }
+        .hero-stats > * > b,
+        .hero-stats > * > span:last-child {
+          white-space: normal !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+        }
       }
 
       /* ── THE TICKER (2026-08-24, later still) ─────────────────────────────

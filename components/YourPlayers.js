@@ -255,7 +255,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
         {shown.map((r) => (
           <div
             key={r.id}
-            className="quiet-tile"
+            className="quiet-tile yp-row"
             role="button"
             tabIndex={0}
             onClick={() => r.p && onPlayerClick?.(r.p)}
@@ -289,7 +289,9 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
             {/* THE LINE. This is the whole reason the section was rebuilt, so
                 it gets the weight: the numbers are the same size as the name
                 and the context around them is grey. */}
-            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+            {/* yp-line: one line with the name on a monitor, its own line
+                under it on a phone — see MobileCSS. */}
+            <span className="yp-line" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
               {r.bars.length > 0 && (
                 <span style={{ fontSize: 9, fontWeight: 800, color: C.green, fontFamily: NUM_FONT }}>
                   {r.bars.join(' · ')}
@@ -321,6 +323,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
               {r.followed && (
                 <button
                   type="button"
+                  className="yp-x"
                   aria-label={`Stop following ${r.name}`}
                   title="Stop following"
                   onClick={(e) => { e.stopPropagation(); unfollow(r.id) }}
