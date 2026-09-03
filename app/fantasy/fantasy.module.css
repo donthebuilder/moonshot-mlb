@@ -9,9 +9,11 @@
 
    Colors live in the token block below. Change a token, change the product.
    295 distinct hex values existed before this; the ones that repeat are now
-   named. Near-duplicates that are NOT yet consolidated (#111 vs #0e0e0e vs
-   #0d0d0d vs #101010 vs #0b0b0b, etc.) are left exactly as they were, since
-   merging them WOULD be a visual change — that belongs to the look pass.
+   named. The near-duplicate darks (#111 vs #0e0e0e vs #0d0d0d vs #101010 vs
+   #0b0b0b, etc.) WERE consolidated on 2026-09-03 — 141 literal values across
+   six bands collapsed into the tokens below, median shift 2 luma, which is
+   under the threshold anything is visible at. That was deferred here as "the
+   look pass"; it happened because it is the thing that was blocking #76.
    ========================================================================= */
 
 :global(:root) {
@@ -19,6 +21,7 @@
   --fx-panel: #141311; /* raised card */
   --fx-panel-2: #111; /* inner panel / list surface */
   --fx-well: #0c0c0b; /* inset field */
+  --fx-row: #1a1917; /* raised row -- added 2026-09-03, see the note below */
   --fx-line: #302d29; /* default border */
   --fx-line-2: #34312f; /* border, slightly lighter */
   --fx-line-3: #292826; /* hairline / divider */
@@ -34,6 +37,70 @@
   --fx-good: #18c878; /* positive / win / free agent */
   --fx-info: #28b9e7; /* informational */
   --fx-violet: #bd8dff; /* secondary data hue */
+}
+
+/* ── #76 · FRANCHISE FOLLOWS THE NETWORK'S THEME NOW ───────────────────────
+   The finding was "FRANCHISE is a visibly different design system from the
+   rest of the network." Most of that is IDENTITY — gold buttons, a warm
+   accent, its own chrome — and a product inside a network is allowed those.
+
+   One part was not a decision: FRANCHISE ignored the theme completely. Pick
+   Light and the whole site went pale while this stayed near-black, which is
+   the same defect lib/theme.js already documents about the Franchise dock.
+
+   THE REASON IT COULD NOT BE FIXED BEFORE. The tokens above only covered part
+   of the surface: 450 literal hex values sat in the rules, 184 of them dark.
+   Redefining tokens alone would have repainted the ground and left dozens of
+   dark patches on a pale page — worse than the honest inconsistency. So the
+   consolidation above had to come first, and now 141 of those literals are
+   tokens and this block is four lines of real work instead of a repaint.
+
+   WHAT MOVES AND WHAT DOES NOT. Only the neutrals flip. Gold, warm orange and
+   hot orange are what FRANCHISE looks like, so they are darkened just enough
+   to stay readable on white rather than replaced — this is FRANCHISE in
+   daylight, not a different product. Same for the three data hues, which fail
+   contrast on white at their dark-mode values and are the same hues, darker.
+
+   applyTheme() in lib/theme.js stamps html[data-theme]; there is exactly one
+   light palette among the five and the other four are near-black grounds
+   close enough to FRANCHISE's own that nothing reads as broken. */
+/* The page BODY belongs to app/globals.css, which paints var(--dash-bg,
+   #09090b) -- a MOONSHOT token that only exists once applyTheme() has run, and
+   applyTheme only runs on /app. So on a Franchise route the body has always
+   been MOONSHOT's ember ground with Franchise's own slightly different ground
+   painted on top of it, and in light mode it would have been a black frame
+   around a pale page. Franchise owns its own ground in both themes now. */
+:global(body) {
+  background: var(--fx-bg);
+  color: var(--fx-ink);
+}
+
+:global(html[data-theme='light']) {
+  --fx-bg: #f1f1ef;
+  --fx-panel: #ffffff;
+  --fx-panel-2: #f8f8f6;
+  --fx-well: #eceae6;
+  --fx-row: #f4f3f0;
+  --fx-line: #d7d4ce;
+  --fx-line-2: #cbc7c0;
+  --fx-line-3: #e6e3dd;
+  --fx-ink: #16150f;
+  --fx-ink-2: #34322b;
+  --fx-muted: #5b584f;
+  --fx-muted-2: #6e6a60;
+  --fx-muted-3: #726e64;
+  --fx-dim: #8a867b;
+  /* Same hues, darkened until they clear 4.5:1 on the page ground — measured,
+     not eyeballed: gold and accent both landed at 3.89 and 4.45 on the first
+     pass and were taken down until they cleared. --fx-dim stays at 3.2 on
+     purpose; it is the faded/inactive tier and is never the only carrier of
+     anything. */
+  --fx-gold: #916503;
+  --fx-accent: #af540e;
+  --fx-accent-hot: #c0361a;
+  --fx-good: #0d7d4a;
+  --fx-info: #0b6f92;
+  --fx-violet: #6a3dc2;
 }
 
 
@@ -117,7 +184,7 @@
 .card input,
 .card select {
   width: 100%;
-  border: 1px solid #3a3732;
+  border: 1px solid var(--fx-line-2);
   border-radius: 9px;
   background: var(--fx-well);
   color: var(--ink);
@@ -353,7 +420,7 @@
   --muted: #8d8a86;
   --line: var(--fx-line-3);
   min-height: 100vh;
-  background: #0b0b0b;
+  background: var(--fx-bg);
   color: var(--ink);
   font-family: Arial,Helvetica,sans-serif;
   padding-bottom: 70px;
@@ -370,7 +437,7 @@
   min-height: 58px;
   padding: 7px 14px;
   border-top: 3px solid var(--orange);
-  border-bottom: 1px solid #1d1c1b;
+  border-bottom: 1px solid var(--fx-row);
 }
 .brandRow {
   display: flex;
@@ -393,7 +460,7 @@
 }
 .sportPill {
   padding: 8px 11px;
-  border: 1px solid #302d2b;
+  border: 1px solid var(--fx-line);
   border-radius: 999px;
   color: var(--fx-dim);
   font: 700 10px/1 monospace;
@@ -413,7 +480,7 @@
   padding: 7px 12px;
   border: 1px solid #27343b;
   border-radius: 10px;
-  background: linear-gradient(135deg,#151718,#101010);
+  background: linear-gradient(135deg,var(--fx-row),var(--fx-panel-2));
 }
 .scoreRail small {
   display: block;
@@ -437,7 +504,7 @@
   display: flex;
   justify-content: space-between;
   padding: 8px 14px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--fx-line-3);
   color: #8d8982;
   font: 11px/1.2 monospace;
 }
@@ -452,7 +519,7 @@
   justify-content: center;
   gap: 46px;
   height: 50px;
-  border-bottom: 1px solid #242322;
+  border-bottom: 1px solid var(--fx-line-3);
 }
 .desktopNav a {
   position: relative;
@@ -535,7 +602,7 @@
   padding: 30px 28px;
   border: 1px solid #3a2a22;
   border-radius: 20px;
-  background: radial-gradient(circle at 85% 15%,rgba(255,94,54,.18),transparent 35%),linear-gradient(135deg,#1a1210,#11100f 60%,#151610);
+  background: radial-gradient(circle at 85% 15%,rgba(255,94,54,.18),transparent 35%),linear-gradient(135deg,#1a1210,var(--fx-panel-2) 60%,var(--fx-row));
   box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
 }
 .panelLabel {
@@ -694,7 +761,7 @@
 .projectionBar {
   height: 4px;
   margin: 0 18px;
-  background: #292929;
+  background: var(--fx-line-3);
   border-radius: 5px;
   overflow: hidden;
 }
@@ -774,8 +841,8 @@
 }
 .lineupHeader {
   padding: 7px 14px;
-  border-top: 1px solid #222;
-  border-bottom: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
+  border-bottom: 1px solid var(--fx-line-3);
   color: #666;
   font: 8px/1 monospace;
 }
@@ -785,12 +852,12 @@
 .playerRow {
   min-height: 45px;
   padding: 0 14px;
-  border-bottom: 1px solid #202020;
+  border-bottom: 1px solid var(--fx-line-3);
 }
 .slot {
   width: 34px;
   padding: 5px 0;
-  border: 1px solid #34302d;
+  border: 1px solid var(--fx-line);
   border-radius: 5px;
   color: var(--orange2);
   text-align: center;
@@ -830,7 +897,7 @@
   align-items: center;
   margin: 0 14px;
   padding: 11px 4px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .feedItem>span {
   color: var(--orange2);
@@ -852,7 +919,7 @@
 }
 .standingsMini {
   margin: 8px 14px 14px;
-  border: 1px solid #272625;
+  border: 1px solid var(--fx-line-3);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -861,7 +928,7 @@
   grid-template-columns: 24px 1fr auto;
   margin: 0;
   padding: 8px 10px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--fx-line-3);
   font-size: 10px;
 }
 .standingsMini p:last-child {
@@ -1021,7 +1088,7 @@
     right: 0;
     bottom: 0;
     height: 62px;
-    border-top: 1px solid #2c2927;
+    border-top: 1px solid var(--fx-line-3);
     background: rgba(11,11,11,.97);
     backdrop-filter: blur(12px);
   }
@@ -1059,7 +1126,7 @@
   --green: var(--fx-good);
   --line: var(--fx-line-3);
   min-height: 100vh;
-  background: #0b0b0b;
+  background: var(--fx-bg);
   color: #f4f1eb;
   font-family: Arial,Helvetica,sans-serif;
 }
@@ -1121,7 +1188,7 @@
   justify-content: center;
   gap: 44px;
   height: 45px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--fx-line-3);
 }
 .roomNav a {
   display: flex;
@@ -1147,7 +1214,7 @@
   padding: 30px 26px;
   border: 1px solid #3d2920;
   border-radius: 17px;
-  background: radial-gradient(circle at 85% 20%,rgba(255,89,49,.18),transparent 37%),#13100f;
+  background: radial-gradient(circle at 85% 20%,rgba(255,89,49,.18),transparent 37%),var(--fx-panel-2);
 }
 .draftHero h1 {
   margin: 0 0 9px;
@@ -1166,9 +1233,9 @@
 .roomStats span {
   min-width: 85px;
   padding: 10px;
-  border: 1px solid #35302d;
+  border: 1px solid var(--fx-line);
   border-radius: 9px;
-  background: #0e0e0e;
+  background: var(--fx-bg);
 }
 .roomStats small,
 .roomStats b {
@@ -1225,7 +1292,7 @@
   margin-left: 4px;
   background: var(--fx-panel-2);
   color: #ddd;
-  border: 1px solid #333;
+  border: 1px solid var(--fx-line);
 }
 .waitingRoom {
   display: flex;
@@ -1293,7 +1360,7 @@
 .positionFilters a {
   min-width: 42px;
   padding: 7px 10px;
-  border: 1px solid #302e2c;
+  border: 1px solid var(--fx-line);
   border-radius: 999px;
   color: var(--fx-dim);
   text-align: center;
@@ -1309,8 +1376,8 @@
   display: grid;
   grid-template-columns: 32px 45px 1fr 50px 58px;
   padding: 7px 14px;
-  border-top: 1px solid #222;
-  background: #0e0e0e;
+  border-top: 1px solid var(--fx-line-3);
+  background: var(--fx-bg);
   color: #5e5b58;
   font: 8px/1 monospace;
 }
@@ -1324,7 +1391,7 @@
   align-items: center;
   min-height: 56px;
   padding: 0 14px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .rankNumber {
   color: #5e5b58;
@@ -1374,7 +1441,7 @@
   align-items: center;
   min-height: 42px;
   padding: 0 13px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .pickRow span,
 .activePick span {
@@ -1403,7 +1470,7 @@
   display: grid;
   grid-template-columns: 40px 1fr 35px;
   padding: 10px 14px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
   font-size: 10px;
 }
 .rosterRow span {
@@ -1477,7 +1544,7 @@
   padding: 12px 14px;
   border: 1px solid #34333f;
   border-radius: 10px;
-  background: #111219;
+  background: var(--fx-panel-2);
 }
 .assignmentBar>div {
   margin-right: auto;
@@ -1492,7 +1559,7 @@
   height: 32px;
   border: 1px solid var(--fx-line-2);
   border-radius: 7px;
-  background: #0d0d0d;
+  background: var(--fx-bg);
   color: #c9c4bd;
   padding: 0 9px;
   font: 9px/1 monospace;
@@ -1522,7 +1589,7 @@
   grid-template-columns: 26px 1fr 28px;
   align-items: center;
   padding: 10px 13px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .queueRow>span {
   color: var(--green);
@@ -1587,7 +1654,7 @@
   margin-bottom: 12px;
   border: 1px solid #283a33;
   border-radius: 16px;
-  background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.13),transparent 38%),#101412;
+  background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.13),transparent 38%),var(--fx-panel-2);
 }
 .teamHero h1 {
   margin: 0 0 8px;
@@ -1623,7 +1690,7 @@
   gap: 8px;
   min-height: 59px;
   padding: 7px 13px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .slotBadge {
   width: 38px;
@@ -1650,7 +1717,7 @@
   height: 34px;
   border: 1px solid var(--fx-line-2);
   border-radius: 7px;
-  background: #0c0c0c;
+  background: var(--fx-bg);
   color: #bcb7b0;
   padding: 0 8px;
   font-size: 10px;
@@ -1664,14 +1731,14 @@
   font: 800 9px/1 monospace;
 }
 .slotLocked {
-  background: #151311;
+  background: var(--fx-panel-2);
 }
 .slotLocked .slotBadge {
   color: var(--fx-dim);
 }
 .slotLocked button {
-  border-color: #333;
-  background: #171717;
+  border-color: var(--fx-line);
+  background: var(--fx-row);
   color: #666;
 }
 .positionCount {
@@ -1679,7 +1746,7 @@
   grid-template-columns: 1fr auto;
   align-items: center;
   padding: 11px 14px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .positionCount span {
   color: var(--fx-dim);
@@ -1720,7 +1787,7 @@
 .weekStrip a {
   min-width: 42px;
   padding: 9px 8px;
-  border: 1px solid #2c2b29;
+  border: 1px solid var(--fx-line);
   border-radius: 7px;
   color: var(--fx-dim);
   text-align: center;
@@ -1740,7 +1807,7 @@
   padding: 30px;
   border: 1px solid #3d2920;
   border-radius: 17px;
-  background: radial-gradient(circle at 90% 10%,rgba(255,99,62,.14),transparent 40%),#12100f;
+  background: radial-gradient(circle at 90% 10%,rgba(255,99,62,.14),transparent 40%),var(--fx-panel-2);
 }
 .scheduleEmpty>span {
   display: grid;
@@ -1790,7 +1857,7 @@
   padding: 25px;
   border: 1px solid #3d2920;
   border-radius: 17px;
-  background: radial-gradient(circle at 50% 50%,rgba(255,99,62,.12),transparent 33%),#12100f;
+  background: radial-gradient(circle at 50% 50%,rgba(255,99,62,.12),transparent 33%),var(--fx-panel-2);
   text-align: center;
 }
 .matchupHero>div small,
@@ -1847,7 +1914,7 @@
   align-items: center;
   min-height: 52px;
   padding: 0 14px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .matchupPlayer>span {
   color: var(--fx-accent);
@@ -1879,7 +1946,7 @@
   align-items: center;
   min-height: 46px;
   padding: 0 15px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .weekGame b {
   font-size: 10px;
@@ -1902,7 +1969,7 @@
   margin-bottom: 12px;
   border: 1px solid #2d3b36;
   border-radius: 17px;
-  background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.12),transparent 38%),#101311;
+  background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.12),transparent 38%),var(--fx-panel-2);
 }
 .leagueHero h1 {
   margin: 0 0 9px;
@@ -1927,14 +1994,14 @@
 }
 .standingHead {
   min-height: 28px;
-  border-top: 1px solid #222;
-  background: #0d0d0d;
+  border-top: 1px solid var(--fx-line-3);
+  background: var(--fx-bg);
   color: #595754;
   font: 8px/1 monospace;
 }
 .standingRow {
   min-height: 58px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .standingRow>span:first-child {
   color: var(--fx-dim);
@@ -2024,7 +2091,7 @@
   margin-bottom: 12px;
   border: 1px solid #3d2920;
   border-radius: 17px;
-  background: radial-gradient(circle at 85% 20%,rgba(255,99,62,.16),transparent 38%),#13100f;
+  background: radial-gradient(circle at 85% 20%,rgba(255,99,62,.16),transparent 38%),var(--fx-panel-2);
 }
 .wireHero h1 {
   max-width: 680px;
@@ -2062,8 +2129,8 @@
 }
 .wireColumns {
   min-height: 27px;
-  border-top: 1px solid #222;
-  background: #0d0d0d;
+  border-top: 1px solid var(--fx-line-3);
+  background: var(--fx-bg);
   color: #5f5c58;
   font: 8px/1 monospace;
 }
@@ -2072,7 +2139,7 @@
 }
 .wirePlayer {
   min-height: 61px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .wirePlayer b,
 .wirePlayer small {
@@ -2114,7 +2181,7 @@
   height: 31px;
   border: 1px solid var(--fx-line-2);
   border-radius: 6px;
-  background: #0c0c0c;
+  background: var(--fx-bg);
   color: var(--fx-muted-3);
   padding: 0 5px;
   font: 8px/1 monospace;
@@ -2138,7 +2205,7 @@
   align-items: center;
   min-height: 55px;
   padding: 8px 13px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .claimRow b,
 .claimRow small {
@@ -2154,7 +2221,7 @@
 }
 .claimRow button {
   border-color: #3a3330;
-  background: #151312;
+  background: var(--fx-panel-2);
   color: #888;
 }
 .priorityRow {
@@ -2163,7 +2230,7 @@
   align-items: center;
   min-height: 42px;
   padding: 0 13px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .priorityRow span {
   color: var(--fx-accent);
@@ -2218,7 +2285,7 @@
   margin-bottom: 12px;
   border: 1px solid #342c42;
   border-radius: 17px;
-  background: radial-gradient(circle at 85% 20%,rgba(129,82,255,.15),transparent 38%),#111012;
+  background: radial-gradient(circle at 85% 20%,rgba(129,82,255,.15),transparent 38%),var(--fx-panel-2);
 }
 .tradeHero h1 {
   max-width: 690px;
@@ -2269,7 +2336,7 @@
   margin-top: 5px;
   border: 1px solid var(--fx-line-2);
   border-radius: 7px;
-  background: #0d0d0d;
+  background: var(--fx-bg);
   color: #bcb7b0;
   padding: 0 9px;
   font: 9px/1 monospace;
@@ -2284,7 +2351,7 @@
   display: grid;
   grid-template-columns: 1fr 50px 1fr;
   align-items: center;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .tradeSides>section {
   padding: 15px;
@@ -2306,7 +2373,7 @@
   align-items: center;
   min-height: 46px;
   padding: 0 9px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
   cursor: pointer;
 }
 .tradeRoster label:first-child {
@@ -2332,7 +2399,7 @@
   display: flex;
   gap: 7px;
   padding: 13px 15px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .tradeNote input {
   flex: 1;
@@ -2346,7 +2413,7 @@
 }
 .tradeCard {
   padding: 14px 16px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .tradeCardTop {
   display: flex;
@@ -2359,7 +2426,7 @@
 }
 .tradeStatus {
   padding: 5px 7px;
-  border: 1px solid #383432;
+  border: 1px solid var(--fx-line-2);
   border-radius: 999px;
   color: #aaa;
   font: 900 7px/1 monospace;
@@ -2410,7 +2477,7 @@
   margin: 12px 0 0;
   padding: 9px 11px;
   border-left: 2px solid #6d4198;
-  background: #151219;
+  background: var(--fx-panel-2);
   color: #9b949e;
   font: 9px/1.4 monospace;
 }
@@ -2477,7 +2544,7 @@
   margin-bottom: 12px;
   border: 1px solid #293c37;
   border-radius: 17px;
-  background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.14),transparent 38%),#101311;
+  background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.14),transparent 38%),var(--fx-panel-2);
 }
 .feedHero h1 {
   max-width: 680px;
@@ -2504,7 +2571,7 @@
   gap: 9px;
   margin-bottom: 12px;
   padding: 14px;
-  border: 1px solid #30302d;
+  border: 1px solid var(--fx-line);
   border-radius: 13px;
   background: var(--fx-panel-2);
 }
@@ -2526,7 +2593,7 @@
   resize: vertical;
   border: 1px solid var(--fx-line-2);
   border-radius: 8px;
-  background: #0c0c0c;
+  background: var(--fx-bg);
   color: #d4cfc8;
   padding: 11px;
   font: 11px/1.5 Arial;
@@ -2588,9 +2655,9 @@
 .reactionBar button {
   height: 29px;
   min-width: 36px;
-  border: 1px solid #302e2c;
+  border: 1px solid var(--fx-line);
   border-radius: 999px;
-  background: #0e0e0e;
+  background: var(--fx-bg);
   color: var(--fx-muted-2);
   font-size: 13px;
 }
@@ -2605,14 +2672,14 @@
 }
 .commentList {
   margin-top: 12px;
-  border-top: 1px solid #242321;
+  border-top: 1px solid var(--fx-line-3);
 }
 .commentList>div {
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 8px;
   padding: 10px 4px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--fx-line-3);
 }
 .commentList b {
   color: var(--fx-accent);
@@ -2636,9 +2703,9 @@
 .commentForm input {
   flex: 1;
   height: 34px;
-  border: 1px solid #302e2c;
+  border: 1px solid var(--fx-line);
   border-radius: 7px;
-  background: #0c0c0c;
+  background: var(--fx-bg);
   color: #c9c4bd;
   padding: 0 9px;
   font-size: 10px;
@@ -2678,7 +2745,7 @@
 }
 .feedEmpty {
   padding: 30px;
-  border: 1px dashed #333;
+  border: 1px dashed var(--fx-line);
   border-radius: 12px;
   color: var(--fx-dim);
   text-align: center;
@@ -2700,7 +2767,7 @@
   align-items: center;
   gap: 9px;
   padding: 10px 13px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .feedOwner>span {
   width: 32px;
@@ -2753,7 +2820,7 @@
   padding: 30px 28px;
   border: 1px solid #344052;
   border-radius: 18px;
-  background: radial-gradient(circle at 85% 20%,rgba(45,165,255,.16),transparent 38%),radial-gradient(circle at 25% 100%,rgba(130,74,255,.1),transparent 42%),#101114;
+  background: radial-gradient(circle at 85% 20%,rgba(45,165,255,.16),transparent 38%),radial-gradient(circle at 25% 100%,rgba(130,74,255,.1),transparent 42%),var(--fx-panel-2);
 }
 .coachHero h1 {
   max-width: 760px;
@@ -2805,7 +2872,7 @@
   padding: 15px;
   border: 1px solid #2c3035;
   border-radius: 11px;
-  background: #111214;
+  background: var(--fx-panel-2);
 }
 .scoreCards small {
   grid-column: 1/3;
@@ -2843,16 +2910,16 @@
 .coachRecommendations,
 .coachSide>section {
   overflow: hidden;
-  border: 1px solid #292c30;
+  border: 1px solid var(--fx-line);
   border-radius: 13px;
-  background: #111214;
+  background: var(--fx-panel-2);
 }
 .coachRecommendations article {
   display: grid;
   grid-template-columns: 44px 1fr;
   gap: 10px;
   padding: 14px;
-  border-top: 1px solid #24272b;
+  border-top: 1px solid var(--fx-line-3);
 }
 .coachRecommendations article>span {
   display: grid;
@@ -2888,7 +2955,7 @@
   grid-template-columns: 1fr auto;
   align-items: center;
   padding: 12px 14px;
-  border-top: 1px solid #24272b;
+  border-top: 1px solid var(--fx-line-3);
 }
 .coachMetric span {
   color: var(--fx-muted-3);
@@ -2925,7 +2992,7 @@
   padding: 6px;
   border: 1px solid var(--fx-line-3);
   border-radius: 10px;
-  background: #101010;
+  background: var(--fx-panel-2);
   overflow-x: auto;
 }
 .leagueViews>a {
@@ -2950,7 +3017,7 @@
   height: 31px;
   border: 1px solid var(--fx-line-2);
   border-radius: 6px;
-  background: #0c0c0c;
+  background: var(--fx-bg);
   color: #aaa;
   padding: 0 8px;
   font: 8px/1 monospace;
@@ -2970,7 +3037,7 @@
   align-items: center;
   min-height: 72px;
   padding: 8px 15px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .powerBoard article>strong {
   color: var(--fx-accent);
@@ -3006,7 +3073,7 @@
   padding: 29px 27px;
   border: 1px solid #3d2920;
   border-radius: 16px;
-  background: radial-gradient(circle at 85% 20%,rgba(255,99,62,.16),transparent 40%),#13100f;
+  background: radial-gradient(circle at 85% 20%,rgba(255,99,62,.16),transparent 40%),var(--fx-panel-2);
 }
 .recapHero h2 {
   max-width: 760px;
@@ -3029,7 +3096,7 @@
 }
 .awardGrid article {
   padding: 18px;
-  border: 1px solid #2e2c29;
+  border: 1px solid var(--fx-line);
   border-radius: 12px;
   background: var(--fx-panel-2);
 }
@@ -3079,7 +3146,7 @@
 /* Shared Franchise product shell and commissioner experience. */ .roomApp {
   position: relative;
   overflow-x: hidden;
-  background: radial-gradient(circle at 82% -10%,rgba(255,99,62,.12),transparent 31%),radial-gradient(circle at -10% 48%,rgba(32,184,212,.05),transparent 30%),#0b0b0b;
+  background: radial-gradient(circle at 82% -10%,rgba(255,99,62,.12),transparent 31%),radial-gradient(circle at -10% 48%,rgba(32,184,212,.05),transparent 30%),var(--fx-bg);
 }
 .roomHeader {
   position: sticky;
@@ -3163,7 +3230,7 @@
 .powerBoard:hover,
 .settingsPanel:hover,
 .settingsSide>section:hover {
-  border-color: #3a3734;
+  border-color: var(--fx-line-2);
 }
 .leagueSettingsLink {
   display: inline-flex;
@@ -3196,7 +3263,7 @@
   padding: 30px 28px;
   border: 1px solid #4a3023;
   border-radius: 18px;
-  background: radial-gradient(circle at 86% 18%,rgba(255,99,62,.2),transparent 38%),radial-gradient(circle at 12% 120%,rgba(246,169,40,.08),transparent 40%),#13100f;
+  background: radial-gradient(circle at 86% 18%,rgba(255,99,62,.2),transparent 38%),radial-gradient(circle at 12% 120%,rgba(246,169,40,.08),transparent 40%),var(--fx-panel-2);
 }
 .settingsHero h1 {
   margin: 0 0 10px;
@@ -3253,7 +3320,7 @@
   height: 42px;
   border: 1px solid var(--fx-line-2);
   border-radius: 8px;
-  background: #0c0c0c;
+  background: var(--fx-bg);
   color: #e6e0d7;
   padding: 0 11px;
   font: 600 12px/1 Arial;
@@ -3273,7 +3340,7 @@
   gap: 8px;
   flex: 1;
   padding: 12px;
-  border: 1px solid #312e2b;
+  border: 1px solid var(--fx-line);
   border-radius: 8px;
   color: #aaa49c;
   font: 800 10px/1 monospace;
@@ -3321,7 +3388,7 @@
   align-items: center;
   min-height: 42px;
   padding: 0 14px;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--fx-line-3);
 }
 .settingsTeam span {
   color: var(--fx-accent);
@@ -3336,7 +3403,7 @@
 .loadingNav,
 .loadingBody section,
 .loadingBody article {
-  border: 1px solid #242321;
+  border: 1px solid var(--fx-line-3);
   background: var(--fx-panel-2);
 }
 .loadingHeader {
@@ -3354,7 +3421,7 @@
   display: block;
   overflow: hidden;
   border-radius: 6px;
-  background: linear-gradient(100deg,#161514 30%,#262320 50%,#161514 70%);
+  background: linear-gradient(100deg,var(--fx-row) 30%,var(--fx-line-3) 50%,var(--fx-row) 70%);
   background-size: 220% 100%;
   animation: franchiseShimmer 1.25s infinite;
 }
@@ -3461,7 +3528,7 @@
     right: 8px;
     bottom: max(8px,env(safe-area-inset-bottom));
     height: 64px;
-    border: 1px solid #36312e;
+    border: 1px solid var(--fx-line);
     border-radius: 17px;
     background: rgba(17,16,15,.94);
     box-shadow: 0 14px 44px rgba(0,0,0,.62);
@@ -3556,12 +3623,12 @@
 .syncMetrics {
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr;
-  border-top: 1px solid #24272b;
-  border-bottom: 1px solid #24272b;
+  border-top: 1px solid var(--fx-line-3);
+  border-bottom: 1px solid var(--fx-line-3);
 }
 .syncMetrics span {
   padding: 12px 14px;
-  border-right: 1px solid #24272b;
+  border-right: 1px solid var(--fx-line-3);
 }
 .syncMetrics span:last-child {
   border: 0;
@@ -3588,7 +3655,7 @@
   padding: 20px;
   border: 1px solid #652d2b;
   border-radius: 13px;
-  background: radial-gradient(circle at 90% 0,rgba(239,68,68,.1),transparent 42%),#130e0e;
+  background: radial-gradient(circle at 90% 0,rgba(239,68,68,.1),transparent 42%),var(--fx-panel-2);
 }
 .dangerZone h2 {
   margin: 0 0 7px;
@@ -3618,7 +3685,7 @@
   margin-top: 7px;
   border: 1px solid #56302e;
   border-radius: 7px;
-  background: #0d0909;
+  background: var(--fx-bg);
   color: #f0d9d6;
   padding: 0 10px;
 }
@@ -3640,7 +3707,7 @@
   padding: 12px 14px;
   border: 1px solid #2a4038;
   border-radius: 11px;
-  background: linear-gradient(120deg,#0e1713,#101111);
+  background: linear-gradient(120deg,#0e1713,var(--fx-panel-2));
 }
 .liveMatchupPulse {
   width: 8px;
@@ -3683,7 +3750,7 @@
 }
 .liveMatchupActive {
   border-color: #276948;
-  background: linear-gradient(120deg,#0c1c14,#101311);
+  background: linear-gradient(120deg,#0c1c14,var(--fx-panel-2));
 }
 .liveMatchupActive .liveMatchupPulse {
   background: var(--fx-good);
@@ -3707,9 +3774,9 @@
 }
 .nflGameGrid article {
   padding: 11px;
-  border: 1px solid #292b29;
+  border: 1px solid var(--fx-line);
   border-radius: 9px;
-  background: #0d0e0d;
+  background: var(--fx-bg);
 }
 .nflGameGrid article>span {
   display: block;
@@ -3850,7 +3917,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   --launchMuted: #96918a;
   min-height: 100vh;
   overflow: hidden;
-  background: radial-gradient(circle at 78% 6%,rgba(255,99,62,.14),transparent 27%),radial-gradient(circle at 8% 28%,rgba(32,184,212,.07),transparent 24%),#090909;
+  background: radial-gradient(circle at 78% 6%,rgba(255,99,62,.14),transparent 27%),radial-gradient(circle at 8% 28%,rgba(32,184,212,.07),transparent 24%),var(--fx-bg);
   color: var(--launchInk);
   font-family: Arial,Helvetica,sans-serif;
 }
@@ -3869,7 +3936,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   height: 74px;
   margin: auto;
   padding: 0 22px;
-  border-bottom: 1px solid #242321;
+  border-bottom: 1px solid var(--fx-line-3);
 }
 .launchBrand {
   display: flex;
@@ -3972,7 +4039,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .launchActions a {
   padding: 15px 18px;
-  border: 1px solid #34312e;
+  border: 1px solid var(--fx-line);
   border-radius: 10px;
   color: #aaa49c;
   text-decoration: none;
@@ -4002,7 +4069,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   padding: 25px;
   border: 1px solid #4c3529;
   border-radius: 22px;
-  background: radial-gradient(circle at 82% 8%,rgba(255,99,62,.17),transparent 35%),linear-gradient(145deg,#17120f,#101010);
+  background: radial-gradient(circle at 82% 8%,rgba(255,99,62,.17),transparent 35%),linear-gradient(145deg,var(--fx-panel-2),var(--fx-panel-2));
   box-shadow: 0 35px 90px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.04);
   transform: rotate(1.5deg);
 }
@@ -4063,7 +4130,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   padding-top: 16px;
-  border-top: 1px solid #2c2926;
+  border-top: 1px solid var(--fx-line-3);
   color: #77716b;
   font: 800 7px/1.3 monospace;
 }
@@ -4081,9 +4148,9 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   grid-template-columns: repeat(4,1fr);
   max-width: 1240px;
   margin: 0 auto 110px;
-  border: 1px solid #292725;
+  border: 1px solid var(--fx-line-3);
   border-radius: 14px;
-  background: #10100f;
+  background: var(--fx-panel-2);
 }
 .launchProof>div {
   display: grid;
@@ -4092,7 +4159,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   gap: 13px;
   min-height: 82px;
   padding: 16px 22px;
-  border-right: 1px solid #292725;
+  border-right: 1px solid var(--fx-line-3);
 }
 .launchProof>div:last-child {
   border: 0;
@@ -4108,9 +4175,9 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .launchProduct {
   padding: 105px 18px 115px;
-  border-top: 1px solid #211f1d;
-  border-bottom: 1px solid #211f1d;
-  background: linear-gradient(var(--fx-well),#080808);
+  border-top: 1px solid var(--fx-line-3);
+  border-bottom: 1px solid var(--fx-line-3);
+  background: linear-gradient(var(--fx-well),var(--fx-bg));
 }
 .launchSectionHead {
   max-width: 1000px;
@@ -4171,15 +4238,15 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   position: relative;
   min-height: 270px;
   padding: 25px;
-  border: 1px solid #292725;
+  border: 1px solid var(--fx-line-3);
   border-radius: 16px;
-  background: linear-gradient(145deg,#111110,#0d0d0c);
+  background: linear-gradient(145deg,var(--fx-panel-2),var(--fx-bg));
 }
 .launchReasons article>span {
   position: absolute;
   top: 20px;
   right: 22px;
-  color: #2e2b28;
+  color: var(--fx-line);
   font: 1000 46px/1 monospace;
 }
 .launchReasons article>p {
@@ -4205,7 +4272,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .launchReasons article:nth-child(2) {
   border-color: #293a40;
-  background: radial-gradient(circle at 80% 0,rgba(40,185,231,.09),transparent 40%),#0e1011;
+  background: radial-gradient(circle at 80% 0,rgba(40,185,231,.09),transparent 40%),var(--fx-panel-2);
 }
 .launchReasons article:nth-child(2)>p {
   color: var(--fx-info);
@@ -4218,7 +4285,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .launchAuth {
   padding: 105px 20px 120px;
-  border-top: 1px solid #211f1d;
+  border-top: 1px solid var(--fx-line-3);
   background: radial-gradient(circle at 50% 0,rgba(255,99,62,.09),transparent 34%),var(--fx-bg);
 }
 .launchAuthIntro {
@@ -4255,14 +4322,14 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchAuthCard {
   align-self: start;
   padding: 27px;
-  border: 1px solid #312e2b;
+  border: 1px solid var(--fx-line);
   border-radius: 17px;
-  background: #121110;
+  background: var(--fx-panel-2);
   box-shadow: 0 25px 70px rgba(0,0,0,.22);
 }
 .launchAuthCard:first-child {
   border-color: #603725;
-  background: radial-gradient(circle at 95% 0,rgba(255,99,62,.11),transparent 32%),#13110f;
+  background: radial-gradient(circle at 95% 0,rgba(255,99,62,.11),transparent 32%),var(--fx-panel-2);
 }
 .launchAuthCard h3 {
   margin: 0 0 9px;
@@ -4287,9 +4354,9 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchAuthCard input {
   width: 100%;
   height: 45px;
-  border: 1px solid #383431;
+  border: 1px solid var(--fx-line-2);
   border-radius: 9px;
-  background: #0a0a09;
+  background: var(--fx-bg);
   color: #f1ece4;
   padding: 0 12px;
   font: 600 14px/1 Arial;
@@ -4332,7 +4399,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   justify-content: center;
   gap: 28px;
   min-height: 82px;
-  border-top: 1px solid #201f1d;
+  border-top: 1px solid var(--fx-line-3);
   color: #5f5b57;
   font: 800 8px/1 monospace;
 }
@@ -4397,8 +4464,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     gap: 6px;
     min-height: 92px;
     padding: 15px;
-    border-right: 1px solid #292725;
-    border-bottom: 1px solid #292725;
+    border-right: 1px solid var(--fx-line-3);
+    border-bottom: 1px solid var(--fx-line-3);
   }
   .launchProof>div:nth-child(2) {
     border-right: 0;
@@ -4538,7 +4605,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #3a3732;
+  border: 1px solid var(--fx-line-2);
   border-radius: 999px;
   background: var(--fx-panel);
   color: var(--fx-gold);
@@ -4621,6 +4688,18 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   --fx-edge: #24211d; /* hairline inside a panel */
   --fx-edge-2: #322e28;
   background: var(--fx-s0);
+}
+/* #76: the league room carries its OWN surface scale — the one real surface
+   scale this file has, added when the room was rebuilt — so it needs the light
+   values too. Missing this is what would leave the room dark while the rest of
+   FRANCHISE went pale, which is the half-fix this whole pass exists to avoid. */
+:global(html[data-theme='light']) .roomApp {
+  --fx-s0: #f1f1ef;
+  --fx-s1: #ffffff;
+  --fx-s2: #f7f6f3;
+  --fx-s3: #eeece7;
+  --fx-edge: #e4e1db;
+  --fx-edge-2: #d3cfc8;
 }
 
 /* --- panels ------------------------------------------------------------- */
@@ -4811,7 +4890,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .roomApp .playerSearch button {
   height: 34px;
   border-radius: 8px;
-  background: #0e0d0c;
+  background: var(--fx-bg);
   transition: border-color .14s ease, color .14s ease;
 }
 .roomApp .playerSearch input:focus,
@@ -4938,7 +5017,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .roomApp .slotRow select {
   height: 34px;
   border-radius: 8px;
-  background: #0e0d0c;
+  background: var(--fx-bg);
   transition: border-color .14s ease, color .14s ease;
 }
 .roomApp .slotRow select:focus {
@@ -5018,7 +5097,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   position: relative;
   height: 8px;
   border-radius: 999px;
-  background: #2a2723;
+  background: var(--fx-line-3);
   overflow: hidden;
 }
 .marginTrack i {
@@ -5226,7 +5305,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .resetZone b { color: var(--fx-gold); }
 .resetZone form { display: flex; flex-direction: column; gap: 9px; min-width: 240px; }
 .resetZone label { display: flex; flex-direction: column; gap: 6px; color: var(--fx-muted-2); font: 700 9px/1.4 monospace; }
-.resetZone input { border: 1px solid var(--fx-line-2); border-radius: 8px; background: #0e0d0c; color: var(--fx-ink); padding: 9px; font: inherit; font-size: 13px; }
+.resetZone input { border: 1px solid var(--fx-line-2); border-radius: 8px; background: var(--fx-bg); color: var(--fx-ink); padding: 9px; font: inherit; font-size: 13px; }
 .resetZone button { border: 1px solid #6b4a20; border-radius: 8px; background: #241a10; color: var(--fx-gold); padding: 10px; font: 900 10px/1 monospace; cursor: pointer; }
 @media(max-width:760px) {
   .resetZone { flex-direction: column; align-items: stretch; }
@@ -5249,7 +5328,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   transition: transform .1s ease, box-shadow .1s ease;
 }
 .identitySwatches input:checked + span {
-  box-shadow: 0 0 0 2px #0f0e0d, 0 0 0 4px rgba(255,255,255,.85);
+  box-shadow: 0 0 0 2px var(--fx-bg), 0 0 0 4px rgba(255,255,255,.85);
   transform: scale(1.06);
 }
 .identitySwatches input:focus-visible + span {
@@ -5258,7 +5337,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .identityMonogram { display: grid; gap: 7px; color: var(--fx-muted); font: 800 9px/1.4 monospace; letter-spacing: .08em; text-transform: uppercase; }
 .identityMonogram input {
   width: 100%; box-sizing: border-box; padding: 10px 12px;
-  border: 1px solid #3a3732; border-radius: 9px; background: var(--fx-well);
+  border: 1px solid var(--fx-line-2); border-radius: 9px; background: var(--fx-well);
   color: var(--ink); font: 900 15px/1 monospace; letter-spacing: .2em; text-transform: uppercase;
 }
 .identityHint { color: var(--fx-muted); font-size: 9.5px; line-height: 1.5; }
@@ -5324,4 +5403,206 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   opacity: .6;
   font-size: .8em;
   vertical-align: super;
+}
+
+
+/* ── #76 · TINTED SURFACES IN DAYLIGHT (generated 2026-09-03) ──────────────
+   The token block above flips every NEUTRAL surface. These are the other
+   kind: 43 tinted darks — the warm glow behind a selected pill, the green
+   behind a success message, the red behind an error — painting 48
+   backgrounds. A token cannot reach them because each one is a different
+   deliberate tint, and collapsing them into a handful of role tokens moved
+   some by seventeen points of luma, which is visible. So they are left
+   EXACTLY as they are in dark mode and answered here instead.
+
+   Generated, not hand-written: each value is the same hue at pale lightness,
+   with saturation pulled down because a tint that reads as a subtle glow at
+   12% lightness reads as a highlighter at 94%. Regenerate with
+   scripts/check-franchise-theme.mjs --write if a new tinted surface appears;
+   the check script fails when one is added and this block is not updated. */
+:global(html[data-theme='light']) .error {
+  background: hsl(5 27% 92%);
+}
+:global(html[data-theme='light']) .message {
+  background: hsl(137 19% 92%);
+}
+:global(html[data-theme='light']) .selectedPill {
+  background: hsl(16 22% 93%);
+}
+:global(html[data-theme='light']) .previewMode {
+  background: hsl(42 19% 93%);
+}
+:global(html[data-theme='light']) .weekTicker {
+  background: hsl(163 19% 93%);
+}
+:global(html[data-theme='light']) .previewHero {
+  background: radial-gradient(circle at 85% 15%,rgba(255,94,54,.18),transparent 35%),linear-gradient(135deg,hsl(12 13% 93%),var(--fx-panel-2) 60%,var(--fx-row));
+}
+:global(html[data-theme='light']) .avatar {
+  background: hsl(14 23% 93%);
+}
+:global(html[data-theme='light']) .rivalAvatar {
+  background: hsl(204 10% 93%);
+}
+:global(html[data-theme='light']) .coachPanel {
+  background: linear-gradient(145deg,hsl(30 17% 93%),var(--fx-panel-2));
+}
+:global(html[data-theme='light']) .orangeButton {
+  background: hsl(16 26% 93%);
+}
+:global(html[data-theme='light']) .myStanding {
+  background: hsl(20 21% 93%);
+}
+:global(html[data-theme='light']) .commishBar {
+  background: hsl(36 15% 93%);
+}
+:global(html[data-theme='light']) .commishBar button,
+:global(html[data-theme='light']) .draftPlayer button {
+  background: hsl(17 25% 93%);
+}
+:global(html[data-theme='light']) .waitingRoom {
+  background: hsl(158 16% 93%);
+}
+:global(html[data-theme='light']) .positionFilters .positionActive {
+  background: hsl(16 25% 93%);
+}
+:global(html[data-theme='light']) .activePick {
+  background: hsl(17 23% 93%);
+}
+:global(html[data-theme='light']) .queueButton {
+  background: hsl(157 16% 93%);
+}
+:global(html[data-theme='light']) .slotRow button {
+  background: hsl(17 25% 93%);
+}
+:global(html[data-theme='light']) .weekStrip .weekActive {
+  background: hsl(17 25% 93%);
+}
+:global(html[data-theme='light']) .scheduleEmpty button {
+  background: hsl(16 26% 93%);
+}
+:global(html[data-theme='light']) .wireMove button,
+:global(html[data-theme='light']) .claimRow button {
+  background: hsl(16 26% 93%);
+}
+:global(html[data-theme='light']) .tradeActions button {
+  background: hsl(275 13% 93%);
+}
+:global(html[data-theme='light']) .feedComposer>span,
+:global(html[data-theme='light']) .feedPostHead>span,
+:global(html[data-theme='light']) .feedOwner>span {
+  background: hsl(147 12% 93%);
+}
+:global(html[data-theme='light']) .feedComposer button,
+:global(html[data-theme='light']) .commentForm button {
+  background: hsl(150 18% 93%);
+}
+:global(html[data-theme='light']) .reactionBar .reacted {
+  background: hsl(21 25% 93%);
+}
+:global(html[data-theme='light']) .leagueViews .leagueViewActive {
+  background: hsl(20 24% 93%);
+}
+:global(html[data-theme='light']) .leagueSettingsLink {
+  background: hsl(16 24% 93%);
+}
+:global(html[data-theme='light']) .leagueSettingsLink:hover {
+  background: hsl(16 27% 92%);
+}
+:global(html[data-theme='light']) .settingsSave,
+:global(html[data-theme='light']) .settingsSide button {
+  background: linear-gradient(135deg,hsl(20 26% 92%),hsl(16 25% 93%));
+}
+:global(html[data-theme='light']) .syncHealth {
+  background: hsl(154 18% 93%);
+}
+:global(html[data-theme='light']) .syncFailed {
+  background: hsl(3 20% 93%);
+}
+:global(html[data-theme='light']) .dangerZone button {
+  background: hsl(2 27% 92%);
+}
+:global(html[data-theme='light']) .liveMatchupControl {
+  background: linear-gradient(120deg,hsl(153 13% 93%),var(--fx-panel-2));
+}
+:global(html[data-theme='light']) .liveMatchupControl button {
+  background: hsl(152 18% 93%);
+}
+:global(html[data-theme='light']) .liveMatchupActive {
+  background: linear-gradient(120deg,hsl(150 22% 93%),var(--fx-panel-2));
+}
+:global(html[data-theme='light']) .nflGameGrid .nflGameLive {
+  background: hsl(150 17% 93%);
+}
+:global(html[data-theme='light']) .launchHeader .launchNavCta {
+  background: hsl(16 25% 93%);
+}
+:global(html[data-theme='light']) .launchScoreCard:before {
+  background: hsl(153 17% 93%);
+}
+:global(html[data-theme='light']) .launchAuthCard:last-child button {
+  background: hsl(146 17% 93%);
+}
+:global(html[data-theme='light']) .coachShareButton {
+  background: hsl(200 22% 93%);
+}
+:global(html[data-theme='light']) .roomApp .activePick {
+  background: hsl(32 16% 93%);
+}
+:global(html[data-theme='light']) .roomApp .draftPlayer button:hover:not(:disabled) {
+  background: hsl(17 30% 92%);
+}
+:global(html[data-theme='light']) .roomApp .reactionBar .reacted {
+  background: hsl(30 21% 93%);
+}
+:global(html[data-theme='light']) :global(.draftBannerMessage) {
+  background: hsl(137 19% 92%);
+}
+:global(html[data-theme='light']) :global(.draftBannerError) {
+  background: hsl(5 27% 92%);
+}
+:global(html[data-theme='light']) :global(.startConfirm) {
+  background: hsl(26 31% 93%);
+}
+:global(html[data-theme='light']) :global(.startConfirm) button[type="submit"] {
+  background: hsl(15 38% 90%);
+}
+:global(html[data-theme='light']) .resetZone button {
+  background: hsl(30 21% 93%);
+}
+
+
+/* ── #76 · THE TRANSLUCENT ONES ────────────────────────────────────────────
+   Seven scrims written as rgba() rather than hex, which is why the first
+   version of the generator walked straight past them: the sticky room header,
+   the nav under it, the draft clock bar, the coach grade, the hero score
+   panel and the settings hero. A blurred near-black bar is the right chrome
+   over a dark page and a black stripe across a pale one, and these are the
+   most persistent elements in the product — the header and the clock are on
+   screen the entire time somebody is in a league.
+
+   Hand-written rather than generated, because a scrim is not a tint: the
+   alpha is doing real work (the blur behind it needs something to blur) and
+   the generator's "same hue, pale" rule would have produced an opaque wash
+   and killed the effect. Same alpha, light ground. */
+:global(html[data-theme='light']) .roomHeader {
+  background: rgba(252,252,251,.86);
+}
+:global(html[data-theme='light']) .roomNav {
+  background: rgba(250,250,248,.9);
+}
+:global(html[data-theme='light']) .heroScores>div {
+  background: rgba(245,245,243,.62);
+}
+:global(html[data-theme='light']) .coachGrade {
+  background: rgba(243,245,248,.78);
+}
+:global(html[data-theme='light']) .settingsHero>span {
+  background: rgba(247,245,243,.75);
+}
+:global(html[data-theme='light']) .clockBar {
+  background: rgba(249,248,246,.95);
+}
+:global(html[data-theme='light']) .clockBar[data-yours="true"] {
+  background: linear-gradient(90deg,rgba(24,200,120,.14),rgba(249,248,246,.95) 40%);
 }

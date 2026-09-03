@@ -33,10 +33,14 @@ export const metadata = {
 // league index) rather than fighting it for the same strip, and the page gets
 // the extra bottom padding so nothing lands underneath either one.
 import NetworkSwitch from '../../components/NetworkSwitch'
+// #76: stamps html[data-theme] on Franchise routes. Without it every light
+// rule in fantasy.module.css matches nothing — see ThemeSync.js.
+import ThemeSync from '../../components/fantasy/ThemeSync'
 
 export default function FantasyLayout({ children }) {
   return (
     <>
+      <ThemeSync />
       {children}
       <div aria-hidden="true" className="fantasyNetworkDockSpacer" />
       <div className="fantasyNetworkDock">
