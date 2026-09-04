@@ -618,7 +618,17 @@ export default function GameLineup({ players, onPlayerClick }) {
           </div>
         </>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div
+          // A SCROLLER NEEDS A KEY TO SCROLL IT. This table is wider than a
+          // phone, so the wrapper scrolls -- but a div that scrolls and cannot
+          // be focused is reachable by finger and by mouse and by nothing
+          // else. tabIndex makes it a tab stop; the role and label mean that
+          // stop announces what it is rather than an unnamed group.
+          style={{ overflowX: 'auto' }}
+          tabIndex={0}
+          role="region"
+          aria-label="Lineup table — scrolls sideways"
+        >
         <DenseTable
           heatMode="sorted"
 rows={rows}

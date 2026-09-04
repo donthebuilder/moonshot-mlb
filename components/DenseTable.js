@@ -420,6 +420,13 @@ export default function DenseTable({
                   <th
                     key={c.key}
                     scope="col"
+                    // A COLUMN CAN HAVE A BLANK CAP AND STILL NEED A NAME.
+                    // The rank column's label is deliberately empty — the
+                    // numbers under it say what it is — but that leaves a
+                    // sortable header announced as nothing, and every cell in
+                    // the column inherits that silence. The visible label
+                    // stays blank; the accessible one falls back to the
+                    // column's own title or key.
                     aria-sort={on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     className={c.sticky ? 'dense-sticky' : undefined}
                     onClick={(e) => toggle(c.key, e.shiftKey)}
@@ -441,7 +448,19 @@ export default function DenseTable({
                       width: c.w, minWidth: c.w,
                     }}
                   >
-                    {c.label}
+                    {String(c.label || '').trim()
+                      ? c.label
+                      : (
+                        // A BLANK CAP STILL NEEDS A NAME — AS TEXT, NOT A LABEL.
+                        // The first version of this fix put the fallback in an
+                        // aria-label. The header did then have an accessible
+                        // name, and axe still reported empty-table-header on
+                        // every one of them: that rule wants text content in
+                        // the cell, not an attribute standing in for it. An
+                        // sr-only span is text — invisible in the cap, read
+                        // aloud, and counted by the rule.
+                        <span className="sr-only">{c.title || c.key || 'Column'}</span>
+                      )}
                     {plain && (
                       <InfoDot
                         on={explain?.key === c.key}

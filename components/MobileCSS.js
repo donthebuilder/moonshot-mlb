@@ -610,7 +610,11 @@ export default function MobileCSS() {
           display: block; margin-top: 5px;
           font-size: 10px; color: #f97316; line-height: 1.5;
         }
-        .dense-swipe span { color: #6b6b74; }
+        /* #6b6b74 was 3.77:1 on the ember ground — this is a hint telling a
+           phone user the table scrolls sideways, so it is the one label that
+           must not be hard to read. C.text3 (#8b8b95) is 5.9:1 and is the
+           token this should have used in the first place. */
+        .dense-swipe span { color: ${C.text3}; }
       }
 
       /* ── 2. ANYTHING UNDER 9px IS NOT READABLE ON A PHONE ──

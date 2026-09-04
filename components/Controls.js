@@ -105,6 +105,12 @@ export default function Controls({ query, setQuery, team, setTeam, players }) {
           value={team}
           onChange={(e) => setTeam(e.target.value)}
           className="moon-select"
+          // A title attribute is not a label: it never reaches a touch device,
+          // it is not announced as the control's name, and axe flags it as the
+          // only label precisely because it looks like one to a sighted mouse
+          // user and to nobody else. The title stays -- it is genuinely useful
+          // on hover and it changes with state -- and the name is now real.
+          aria-label="Filter every board to one team"
           title={filtering ? `Showing ${team} only — pick "All teams" to release` : 'Filter every board to one team'}
           style={{
             appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',

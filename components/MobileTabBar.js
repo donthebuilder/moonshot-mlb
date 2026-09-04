@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
 import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
@@ -81,6 +81,13 @@ const SEEN_KEY = 'moonshot_more_seen_v1'
 
 export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT' }) {
   const [open, setOpen] = useState(false)
+  const sheetRef = useRef(null)
+  useEffect(() => {
+    const el = sheetRef.current
+    if (!el) return
+    if (open) el.removeAttribute('inert')
+    else el.setAttribute('inert', '')
+  }, [open])
   const [seen, setSeen] = useState(true)   // assume seen until the client says otherwise
   useEffect(() => {
     try { setSeen(localStorage.getItem(SEEN_KEY) === '1') } catch { setSeen(true) }
@@ -102,8 +109,28 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
   return (
     <>
       {open && <button className="mobileTabScrim" aria-label="Close More menu" onClick={() => setOpen(false)} />}
-      <aside className={`mobileMore ${open ? 'open' : ''}`} aria-hidden={!open}>
-        <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small><strong>Everything on this site</strong></div><button onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
+      {/* ── A HIDDEN SHEET THAT COULD STILL BE TABBED INTO ────────────────
+          aria-hidden told a screen reader this was not here; nothing told the
+          keyboard. So every link in the closed More sheet stayed in the tab
+          order, and a keyboard user tabbing off the last visible control fell
+          into a panel they could not see and could not read — announced as
+          nothing, because aria-hidden had removed the names.
+
+          `inert` is the attribute that means both at once, and it is set on
+          the node in an effect rather than passed as a prop: React 18 does not
+          know `inert`, drops it silently, and the first version of this fix
+          therefore rendered nothing at all while reading as correct in the
+          source. Verified with axe, not by looking at it.
+
+          The per-child tabIndex={-1} stays as well. `inert` alone would be
+          enough in a current browser, but a browser that ignores it would
+          leave the entire bug in place behind a fix that looks done. */}
+      <aside
+        ref={sheetRef}
+        className={`mobileMore ${open ? 'open' : ''}`}
+        aria-hidden={!open}
+      >
+        <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small><strong>Everything on this site</strong></div><button tabIndex={open ? undefined : -1} onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
         <p className="mobileMoreLede">Every page, what each one is for, and the way across to the other two sites.</p>
         <div className="mobileMoreGrid">
           {/* THE NETWORK SWITCH LIVES HERE NOW (2026-08-29). Donovan: "remove
@@ -119,7 +146,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
             key.startsWith('@') ? (
               <div key={key} className="mobileMoreGroup">{key.slice(1)}</div>
             ) : (
-              <button key={key} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
+              <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
                 <span>{label}</span><small>{detail}</small>
               </button>
             )
@@ -129,7 +156,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
 
       <nav className="mobileTabBar" aria-label={`${brand} primary navigation`}>
         {main.map(([key, icon, label]) => (
-          <button key={key} className={tab === key ? 'active' : ''} onClick={() => go(key)} aria-current={tab === key ? 'page' : undefined}>
+          <button key={key} tabIndex={open ? undefined : -1} className={tab === key ? 'active' : ''} onClick={() => go(key)} aria-current={tab === key ? 'page' : undefined}>
             <i>{icon}</i><span>{label}</span>
           </button>
         ))}

@@ -518,7 +518,12 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
               style={{
                 padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
                 background:mode === 'today' ? '#f97316' : 'transparent',
-                color:mode === 'today' ? '#fff' : C.text3,
+                // WHITE ON THE ORANGE WAS 2.8:1 — under half of what 11px bold
+                // text needs. The sibling button beside this one has always
+                // been right (dark text on its cyan fill, 11:1), so this is
+                // the odd one out rather than a new decision: dark on the fill
+                // takes it to 7.1:1 and the pill looks the same shape.
+                color:mode === 'today' ? C.bg : C.text3,
                 transition:'all .12s',
               }}
             >Today</button>

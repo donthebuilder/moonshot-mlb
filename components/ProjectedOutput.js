@@ -673,7 +673,18 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
           else { setSortCol(col); setSortDir('desc') }
         }
         return (
-          <div style={{ overflowX: 'auto' }}>
+          <div
+            style={{ overflowX: 'auto' }}
+            // A SIDEWAYS-SCROLLING TABLE IS A KEYBOARD DEAD END WITHOUT THIS.
+            // The wrapper scrolls on a phone and holds nothing focusable, so a
+            // keyboard or switch user has no way to reach the columns off the
+            // right edge. tabIndex makes the region itself scrollable by arrow
+            // key; the role and label tell a screen reader what it just landed
+            // in rather than announcing a nameless group.
+            tabIndex={0}
+            role="region"
+            aria-label="Projected output table — scrolls sideways"
+          >
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <thead>
                 <tr>
