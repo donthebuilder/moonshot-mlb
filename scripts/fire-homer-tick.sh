@@ -11,8 +11,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
 SITE="${DASH_SITE_URL:-https://dashnetwork.vercel.app}"
-SECRET="${CRON_SECRET:-}"
-[ -z "$SECRET" ] && [ -f .calledit.env ] && SECRET=$(grep '^CRON_SECRET=' .calledit.env | cut -d= -f2- || true)
+SECRET="${CALLEDIT_SECRET:-${CRON_SECRET:-}}"
+[ -z "$SECRET" ] && [ -f .calledit.env ] && SECRET=$(grep -E '^(CALLEDIT_SECRET|CRON_SECRET)=' .calledit.env | head -1 | cut -d= -f2- || true)
 if [ -z "$SECRET" ]; then
   npx vercel env pull .env.vercel.tmp --environment=production >/dev/null 2>&1 || true
   SECRET=$(grep '^CRON_SECRET=' .env.vercel.tmp 2>/dev/null | cut -d= -f2- | tr -d '"' || true)

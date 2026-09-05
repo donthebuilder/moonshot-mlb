@@ -57,7 +57,10 @@ const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pre
 function authorized(request) {
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
   if (!supplied) return false
-  return [process.env.CRON_SECRET, process.env.FRANCHISE_CRON_SECRET].filter(Boolean).some((expected) => {
+  // CALLEDIT_SECRET is the manual-fire key (scripts/fire-homer-tick.sh).
+  // CRON_SECRET is a Sensitive variable on Vercel — write-only, so a person
+  // can never copy it out to test with; this one is a plain Config value.
+  return [process.env.CRON_SECRET, process.env.FRANCHISE_CRON_SECRET, process.env.CALLEDIT_SECRET].filter(Boolean).some((expected) => {
     const a = Buffer.from(expected)
     const b = Buffer.from(supplied)
     return a.length === b.length && timingSafeEqual(a, b)
