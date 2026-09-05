@@ -70,6 +70,10 @@ export function shopRows(players, odds) {
       const rate = mk === 'batter_home_runs' && band && !band.thin ? band.rate : null
       const bestOver = bestQ ? bestQ.over : n(q.best_over, NaN)
       const edge = rate != null && Number.isFinite(bestOver) ? Math.round(10 * (rate - impliedPct(bestOver))) / 10 : null
+      // The same edge at the WORST book -- what betting at the wrong shop
+      // costs on this exact play (Donovan, 2026-09-05).
+      const worstOver = worstQ ? worstQ.over : null
+      const edgeWorst = rate != null && Number.isFinite(worstOver) && needs.length > 1 ? Math.round(10 * (rate - impliedPct(worstOver))) / 10 : null
       const perBook = Object.fromEntries(books.map(([bk, b]) => [shortBook(bk), { line: n(b.line, NaN), over: n(b.over, NaN), under: n(b.under, NaN) }]))
       out.push({
         id: `${p?.player_id ?? p?.id}-${mk}`, _p: p, _mk: mk,
@@ -79,7 +83,7 @@ export function shopRows(players, odds) {
         perBook, spread, split, splitText: split ? books.map(([bk, b]) => `${shortBook(bk)} ${b.line}`).join(' / ') : '',
         best: Number.isFinite(bestOver) ? bestOver : null, bestBook: bestQ ? shortBook(bestQ.bk) : shortBook(clean(q.best_book, '')),
         worst: worstQ ? worstQ.over : null, worstBook: worstQ ? shortBook(worstQ.bk) : '',
-        hold, rate, edge, frozen: Boolean(q.frozen),
+        hold, rate, edge, edgeWorst, cost: edge != null && edgeWorst != null ? Math.round(10 * (edge - edgeWorst)) / 10 : null, frozen: Boolean(q.frozen),
       })
     })
   })
@@ -180,8 +184,15 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
               fmt: (v) => (v ? <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: '#FCD34D' }}>{v}</b> : <span style={{ color: C.text3 }}>—</span>) },
             { key: 'hold', label: 'HOLD', w: 52, dp: 1, invert: true, title: "The book's margin on the over/under pair at the consensus line. Thin = the book is sure; fat = it is guessing.",
               fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT, color: v <= 4 ? C.green : v >= 8 ? C.red : C.text2 }}>{v.toFixed(1)}%</span>) },
-            { key: 'edge', label: 'EDGE', w: 60, dp: 1, title: 'HR only: his season homer rate minus the break-even at the BEST price. Blank where the site has no rate.',
-              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? C.green : v <= -3 ? C.red : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>) },
+            { key: 'edge', label: 'EDGE', w: 72, dp: 1, title: 'HR only: his season homer rate minus the break-even at the BEST price. The small number under it is the same edge at the WORST book — the gap between them is what betting at the wrong shop costs you.',
+              fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : (
+                <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
+                  <b style={{ color: v >= 3 ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>
+                  {r?.edgeWorst != null && <span style={{ display: 'block', fontSize: 8, color: r.edgeWorst >= 3 ? '#4ade80' : r.edgeWorst <= -3 ? '#f87171' : C.text3 }}>{r.edgeWorst > 0 ? '+' : ''}{r.edgeWorst.toFixed(1)} @ {r.worstBook}</span>}
+                </span>
+              )) },
+            { key: 'cost', label: 'COST', w: 52, dp: 1, title: 'Edge at the best book minus edge at the worst — the points you give up by betting this at the wrong shop. HR only.',
+              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? '#f87171' : C.text2 }}>{v.toFixed(1)}</b>) },
             { key: 'frozen', label: '❄', w: 30, flag: true, mark: '❄', title: 'Pregame price, frozen at first pitch.' },
           ]}
           onRowClick={(r) => r?._p && onPlayerClick?.(r._p)}
