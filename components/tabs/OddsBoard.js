@@ -815,7 +815,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
             </button>
           )
         })}
-        <button onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, '#22d3ee')}
+        <button onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, C.cyan)}
           title="Hide frozen quotes — games already under way. What's left is still bettable.">
           ⏱ Still bettable
         </button>

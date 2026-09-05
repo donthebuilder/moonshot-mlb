@@ -125,6 +125,7 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
           _raw: p,
           player: nameOf(p), tm: teamOf(p), opp: oppOf(p),
           market: MARKET_LABEL[market] || market,
+          _mk: market,
           opening: m.opening_over == null ? null : Number(m.opening_over),
           current: q.over == null ? null : Number(q.over),
           moveOpen: hasOpenMove ? openMove : null,
@@ -147,14 +148,21 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
     return out.sort((a, b) => b.magnitude - a.magnitude)
   }, [players, odds])
 
+  // 2026-09-05: a market picker and a search on the moves table -- it lists
+  // every market the books moved, and there was no way to look at one.
+  const [mkFilter, setMkFilter] = useState('all')
+  const [q, setQ] = useState('')
+  const marketsMoved = useMemo(() => [...new Set(movements.map((r) => r._mk))], [movements])
   const shownMoves = useMemo(() => {
-    if (moveFilter === 'all') return movements
-    if (moveFilter === 'line') return movements.filter((r) => r.direction === 'LINE CHANGED')
-    if (moveFilter === 'short') return movements.filter((r) => Number(r.moveOpen) >= WATCH_MOVE_PP)
-    if (moveFilter === 'drift') return movements.filter((r) => Number(r.moveOpen) <= -WATCH_MOVE_PP)
-    if (moveFilter === 'model') return movements.filter((r) => r.alignment === 'MODEL + MARKET' || r.alignment === 'MODEL VALUE + DRIFT')
-    return movements.filter((r) => r.direction === 'LINE CHANGED' || r.magnitude >= LARGE_MOVE_PP)
-  }, [movements, moveFilter])
+    const needle = q.trim().toLowerCase()
+    const scope = movements.filter((r) => (mkFilter === 'all' || r._mk === mkFilter) && (!needle || String(r.player).toLowerCase().includes(needle) || String(r.tm).toLowerCase() === needle))
+    if (moveFilter === 'all') return scope
+    if (moveFilter === 'line') return scope.filter((r) => r.direction === 'LINE CHANGED')
+    if (moveFilter === 'short') return scope.filter((r) => Number(r.moveOpen) >= WATCH_MOVE_PP)
+    if (moveFilter === 'drift') return scope.filter((r) => Number(r.moveOpen) <= -WATCH_MOVE_PP)
+    if (moveFilter === 'model') return scope.filter((r) => r.alignment === 'MODEL + MARKET' || r.alignment === 'MODEL VALUE + DRIFT')
+    return scope.filter((r) => r.direction === 'LINE CHANGED' || r.magnitude >= LARGE_MOVE_PP)
+  }, [movements, moveFilter, mkFilter, q])
 
   const large = movements.filter((r) => r.direction === 'LINE CHANGED' || r.magnitude >= LARGE_MOVE_PP)
   const biggestShorten = movements.filter((r) => Number(r.moveOpen) >= LARGE_MOVE_PP)
@@ -270,6 +278,12 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
             ].map(([k, label]) => (
               <button key={k} onClick={() => setMoveFilter(k)} style={btnStyle(C.blue, moveFilter === k)}>{label}</button>
             ))}
+          </div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+            <button onClick={() => setMkFilter('all')} style={btnStyle(C.orange, mkFilter === 'all')}>All markets</button>
+            {marketsMoved.map((k) => <button key={k} onClick={() => setMkFilter(k)} style={btnStyle(C.orange, mkFilter === k)}>{MARKET_LABEL[k] || k}</button>)}
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team" aria-label="Search the moves"
+              style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10.5, padding: '4px 9px', borderRadius: 999, border: `1px solid ${q ? C.orange : C.border}`, background: 'transparent', color: C.text, minWidth: 120, outline: 'none' }} />
           </div>
           {shownMoves.length ? (
             <DenseTable
