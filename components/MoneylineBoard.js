@@ -68,6 +68,11 @@ export default function MoneylineBoard() {
   const ll = (x) => (x && Number.isFinite(Number(x.log_loss)) ? Number(x.log_loss).toFixed(4) : '—')
   const beatsRecord = oos && oos.moneyball && oos.records_only && oos.moneyball.log_loss < oos.records_only.log_loss
   const beatsHome = oos && oos.moneyball && oos.home_always && oos.moneyball.log_loss < oos.home_always.log_loss
+  // The merge. "Merge the good findings": the live base is w·OBP/SLG +
+  // (1−w)·record, and w is whatever the walk-forward found lowest. Before
+  // it has run the bot uses half each, and this says so.
+  const w = Number.isFinite(Number(tm.blend_weight)) ? Number(tm.blend_weight) : 0.5
+  const blendScore = oos && oos.blend && oos.blend.score
 
   return (
     <div>
@@ -117,11 +122,15 @@ export default function MoneylineBoard() {
               {' '}log loss <b style={{ color: C.text }}>{ll(oos.moneyball)}</b> OBP/SLG
               {' '}· <span style={{ color: C.text3 }}>{ll(oos.records_only)} record-only · {ll(oos.home_always)} home-always · {ll(oos.coin)} coin</span>
               {' '}· picks the winner {pct(oos.moneyball.fav_accuracy)} of the time
+              <span style={{ display: 'block', marginTop: 3 }}>
+                <b style={{ color: C.text }}>Live base: {Math.round(w * 100)}% OBP/SLG · {Math.round((1 - w) * 100)}% record</b>
+                {blendScore ? <span style={{ color: C.text3 }}> — the merge scored {ll(blendScore)}, the best of every mix tried</span> : null}
+              </span>
               <span style={{ display: 'block', color: C.text3, marginTop: 2 }}>{oos.verdict} {oos.limits}</span>
             </>
           ) : (
             <span style={{ color: C.text3 }}>
-              Out of sample: not graded yet — <code>bots/moneyball.py</code> writes the walk-forward result on its next run, and this line reads it. Nothing is claimed until then.
+              Out of sample: not graded yet — <code>bots/moneyball.py</code> writes the walk-forward result on its next run, and this line reads it. Until then the live base is half OBP/SLG, half record. Nothing is claimed until then.
             </span>
           )}
         </div>
@@ -154,7 +163,7 @@ export default function MoneylineBoard() {
                   {p.away} @ {p.home}
                 </td>
                 <td style={{ padding: '5px 6px', fontSize: 11.5, fontWeight: 800, color: C.text }}
-                    title={p.base === 'record' ? 'Priced from the record — a side had too few games for its rates' : 'Priced from OBP and SLG'}>
+                    title={p.base === 'record' ? 'Priced from the record — a side had too few games for its rates' : `Priced from OBP/SLG merged with the record (${p.base})`}>
                   {p.side}
                   {p.base === 'record' ? <span style={{ fontSize: 8, color: C.text3, marginLeft: 5, fontWeight: 700 }}>REC</span> : null}
                 </td>

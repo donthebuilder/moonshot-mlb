@@ -257,10 +257,9 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
   // The cap, in one line: the first COLLAPSED_N by rank. `rows` is ranked
   // live-first then homers-first, so the preview is the three loudest nights
   // and the header carries the totals for everyone behind the fold.
-  // The watchlist tab passes collapsible={false}: it is the page you open ON
-  // PURPOSE to look at your guys, and folding it there would make the
-  // dedicated view the weaker of the two — which is the exact note You.js
-  // already carries about this section.
+  // collapsible={false} is still honoured for any caller that wants the
+  // whole list, but no page passes it any more: You.js dropped it on
+  // 2026-09-05 because the full list on a phone "makes the scroll too much".
   const shown = (open || !collapsible) ? rows : rows.slice(0, COLLAPSED_N)
   const restN = rows.length - shown.length
   const hidden = rows.slice(shown.length)

@@ -73,14 +73,17 @@ export default function You({
       )}
       {view === 'watch' && (
         <>
-        {/* Same section as Home's (2026-09-03). The watchlist tab is where
-            you go ON PURPOSE to look at your guys, so it must not be the
-            weaker of the two views of them. */}
+        {/* Same section as Home's (2026-09-03). It used to be forced open
+            here (collapsible={false}) on the theory that the dedicated tab
+            should not be the weaker view. 2026-09-05, Donovan, on a phone:
+            the full list "makes the scroll too much" -- so it previews three
+            here too, same cap, same one-tap Show-more, and the Watchlist
+            below it is reachable without a thumb workout. Mobile first,
+            before every upgrade. */}
         <YourPlayers
           players={players}
           watchIds={new Set((watchItems || []).map(playerId))}
           onPlayerClick={onPlayerClick}
-          collapsible={false}
         />
         <Watchlist
           items={watchItems}
