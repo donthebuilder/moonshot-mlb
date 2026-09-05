@@ -39,6 +39,7 @@ import { boardIndexFrom, captureFrom, homersFrom, hooksFor, partnerFor, postText
 import { homerCard, pregameCard, recapCard } from '../../../../../lib/dash/homerCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
+import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -149,8 +150,12 @@ export async function GET(request) {
   if (!db) return Response.json({ skipped: 'supabase-service-key-missing' })
 
   const day = easternToday()
+  // The nights before the feed existed, one per tick until the /called window
+  // is full (lib/dash/homerBackfill). Runs before the no-games exits on
+  // purpose: an off day is exactly when there is time for it.
+  const backfill = await backfillOneNight(db, day)
   const snap = await fetchLiveSlate({ force: true }).catch(() => null)
-  if (!snap?.games?.length) return Response.json({ day, skipped: 'no-games' })
+  if (!snap?.games?.length) return Response.json({ day, skipped: 'no-games', backfill })
 
   const started = snap.games.some((g) => g?.state === 'Live' || g?.state === 'Final')
   const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
@@ -184,7 +189,7 @@ export async function GET(request) {
     return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted' })
   }
   const homers = homersFrom(snap, day, board, odds)
-  const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE }
+  const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }
 
   // ── 1. claim the new ones ────────────────────────────────────────────────
   let freshKeys = new Set()
