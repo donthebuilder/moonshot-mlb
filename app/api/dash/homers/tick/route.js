@@ -49,6 +49,13 @@ const SITE = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 const CALLED_URL = SITE ? `${SITE}/called` : ''
 const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.vercel.app'
 const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dashnetwork" — optional
+// NO URL IN THE POST TEXT (2026-09-05). X's pay-per-use pricing: a post is
+// $0.015, a post CONTAINING A URL is $0.200 — thirteen times the price for a
+// link that already sits in the account's bio. The card and Discord embeds
+// still carry the page; the tweet text does not. `site` is passed empty to
+// every text builder for that reason. Set X_POST_LINK=1 to put it back if X
+// ever changes the rule.
+const TAIL = process.env.X_POST_LINK === '1' ? { site: CALLED_URL, handle: HANDLE } : { site: '', handle: '' }
 const MODE = /^flagged$/i.test(String(process.env.X_POST_MODE || '')) ? 'flagged' : 'all'
 const cardUrl = (row) => (SITE ? `${SITE}/api/dash/homers/card?day=${row.day}&pid=${row.player_id}&n=${row.hr_n}` : null)
 const recapUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&recap=1` : null)
@@ -173,7 +180,7 @@ async function postRecap(db, day, { force = false } = {}) {
         roles ? `⭐ ${roles}` : '',
         c.rated ? `⚪ ${c.rated} more were on the board, no call` : '',
         straight >= 2 ? `🔥 A TOP pick has gone deep ${straight} straight nights` : '',
-        [CALLED_URL, HANDLE].filter(Boolean).join(' · '),
+        [TAIL.site, TAIL.handle].filter(Boolean).join(' · '),
       ].filter(Boolean).join('\n')
       await postToDiscord(text, { imageUrl: recapUrl(day) })
       if (xOn) {
@@ -194,7 +201,7 @@ async function postRecap(db, day, { force = false } = {}) {
         if (wk?.length) {
           const from = shiftDay(day, -6)
           const week = (hist || []).filter((r) => r.day >= from && r.day <= day)
-          const wtext = weeklyText(week, { from, to: day, site: CALLED_URL, handle: HANDLE })
+          const wtext = weeklyText(week, { from, to: day, ...TAIL })
           const wc = captureFrom(week)
           const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
           const d = await postToDiscord(wtext)
@@ -252,7 +259,7 @@ export async function GET(request) {
     if (!claim?.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
     const picks = pregamePicks(boardRows(), odds, day)
     if (!picks.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
-    const text = pregameText(picks, { day, site: CALLED_URL, handle: HANDLE })
+    const text = pregameText(picks, { day, ...TAIL })
     const patch = { payload: { picks } }
     // The payload goes in FIRST so the public card route can render the
     // Discord embed from it; the post ids follow.
@@ -341,7 +348,7 @@ export async function GET(request) {
   for (const row of pending || []) {
     const live = byKey.get(`${row.player_id}:${row.hr_n}`)
     const ev = { ...row, _roles: live?._roles || row.role || '' }
-    const text = postText(ev, { site: CALLED_URL, handle: HANDLE })
+    const text = postText(ev, TAIL)
     const patch = {}
 
     if (!row.discord_sent) {
