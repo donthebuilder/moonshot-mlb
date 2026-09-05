@@ -1,5 +1,20 @@
 'use client'
+import { Fragment } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { useSort } from '../lib/useSort'
+import SortTh from './SortTh'
+
+// Sortable headers (2026-09-05). A box score opens in lineup order -- no
+// sort key -- and any column click ranks it; clicking Batters/Pitchers puts
+// the lineup order back.
+const BOX_SORT = { key: '', dir: 'desc' }
+const BAT_GET = { spot: (p) => Number(p.spot) || 99, avg: (p) => Number(p.avg) }
+const BAT_OPTS = { text: new Set([]) }
+const boxTh = (label, key, thProps, extra = {}) => (
+  <SortTh label={label} align={extra.align || 'right'} className={extra.className} title={extra.title}
+    style={{ fontFamily: NUM_FONT, letterSpacing: '.06em', padding: '0 5px 4px', borderBottom: 'none', ...(extra.style || {}) }}
+    {...(key ? thProps(key) : {})} />
+)
 
 // 📋 ONE BOX SCORE, ONE COMPONENT.
 //
@@ -51,7 +66,8 @@ const BAT_COLS = [
 // box-score rewrite because it read variables the rewrite removed, so the
 // tags come back here, in the shared table, where the Boxes tab gets them too.
 export function BattingBox({ side, highlight, onPlayerClick, title, marks = null }) {
-  const rows = side?.batting || []
+  const { sorted: rows, thProps, sort, setSort } = useSort(side?.batting || [], BOX_SORT, BAT_GET, BAT_OPTS)
+  const lineupOrder = () => setSort({ key: '', dir: 'desc' })
   if (!rows.length) return null
   const t = side?.totals?.batting
   return (
@@ -81,9 +97,10 @@ export function BattingBox({ side, highlight, onPlayerClick, title, marks = null
           <caption className="sr-only">{`${title || side?.team?.name || 'Team'} batting`}</caption>
           <thead>
             <tr>
-              <th scope="col" style={{ ...thCell(), textAlign: 'left', width: '100%' }}>Batters</th>
-              {BAT_COLS.map(([k, l]) => <th scope="col" key={k} style={thCell()}>{l}</th>)}
-              <th scope="col" className="box-avg" style={thCell()} title="Season batting average coming into today">AVG</th>
+              <SortTh label={sort.key ? 'Batters ↩' : 'Batters'} align="left" title="Back to lineup order" onSort={sort.key ? lineupOrder : null} active={false}
+                style={{ fontFamily: NUM_FONT, letterSpacing: '.06em', padding: '0 5px 4px', borderBottom: 'none', width: '100%' }} />
+              {BAT_COLS.map(([k, l]) => <Fragment key={k}>{boxTh(l, k, thProps)}</Fragment>)}
+              {boxTh('AVG', 'avg', thProps, { className: 'box-avg', title: 'Season batting average coming into today' })}
             </tr>
           </thead>
           <tbody>

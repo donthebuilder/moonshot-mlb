@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { verdictInk } from '../../lib/scales'
 import { fetchJSON } from '../../lib/data'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
+import SortTh from '../SortTh'
 import { oddsHistoryPaths } from '../../lib/dataSource'
 import { fmtOdds, impliedPct } from '../../lib/odds'
 import { hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
@@ -50,16 +51,27 @@ import { RoiErrorBars, GapFunnel, GapIntervals } from '../OddsChart'
 // bottom, where a manual belongs. Nothing was deleted; the paragraph is intact
 // inside "How to read this page".
 
+// The quick sorts. Every column header sorts too (2026-09-05, Donovan: "I
+// don't like that you can't sort them") -- these are the same keys the
+// headers use, so a pill and a header click can never disagree.
 const SORTS = [
   ['gap', 'Biggest gap'],
   ['support', 'Best-supported rate'],
-  ['rate', 'Hit rate'],
   ['streak', 'Hottest streak'],
   ['tonight', 'Tonight’s edge'],
-  ['n', 'Most nights'],
-  ['price', 'Longest true price'],
-  ['name', 'Name'],
 ]
+// Columns whose first click reads better ascending.
+const ASC_FIRST = new Set(['name', 'market', 'goesAt'])
+
+// ── MORE WAYS TO CUT IT (2026-09-05) ────────────────────────────────────────
+// Donovan: "add more filters to the true price thing." Each one answers a
+// question a bettor actually asks of this archive:
+//   TONIGHT   only lines with a price on the board right now (the bettable ones)
+//   LEAN      gaps in his favour (the market is slow on him) or against (the fade)
+//   READS AS  only rows whose gap clears its own error bar, or the thin ones
+//   PLUS      only lines that have been paying plus money on average
+//   TEAM      one club
+const READS = [['all', 'Any'], ['real', 'Real'], ['leaning', 'Leaning'], ['noise', 'Noise'], ['thin', 'Thin']]
 
 // ── TONIGHT, BESIDE THE HISTORY (2026-09-01) ────────────────────────────────
 //
@@ -129,7 +141,6 @@ const chip = (on) => ({
 
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const thCell = () => ({ fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px 4px', whiteSpace: 'nowrap' })
 
 export default function TruePrice({ onPlayerClick, players = [], odds = null }) {
   const [hist, setHist] = useState(undefined)   // undefined = loading, null = absent
@@ -137,8 +148,23 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
   // null = "the page chooses" (see MIN_NIGHT_RUNGS). A number means the reader
   // clicked a rung and owns the choice from then on.
   const [minNPin, setMinNPin] = useState(null)
-  const [sort, setSort] = useState('gap')
+  const [sort, setSortKey] = useState('gap')
+  const [dir, setDir] = useState('desc')
+  // A header click on the active column flips it; on a new column it opens
+  // the way that column reads best. A pill always opens descending.
+  const setSort = (k, fromHeader = false) => {
+    if (fromHeader && k === sort) { setDir((d) => (d === 'desc' ? 'asc' : 'desc')); return }
+    setSortKey(k); setDir(fromHeader && ASC_FIRST.has(k) ? 'asc' : 'desc')
+  }
+  const th = (label, key, title, align = 'right') => (
+    <SortTh label={label} title={title} align={align} style={{ padding: '0 6px 4px', borderBottom: 'none', letterSpacing: '.07em' }} active={sort === key} dir={sort === key ? dir : null} onSort={key ? () => setSort(key, true) : null} />
+  )
   const [q, setQ] = useState('')
+  const [tonightOnly, setTonightOnly] = useState(false)
+  const [lean, setLean] = useState('all')      // all | up | down
+  const [reads, setReads] = useState('all')
+  const [plusOnly, setPlusOnly] = useState(false)
+  const [team, setTeam] = useState('all')
   const [open, setOpen] = useState(null)
   const oddsStatus = useOddsStatus()
 
@@ -245,6 +271,12 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
     let r = rows.filter((x) => x.n >= minN)
     if (market !== 'all') r = r.filter((x) => x.market === market)
     if (needle) r = r.filter((x) => x.name.toLowerCase().includes(needle) || x.team.toLowerCase().includes(needle))
+    if (team !== 'all') r = r.filter((x) => x.team === team)
+    if (tonightOnly) r = r.filter((x) => x.tonight?.price != null)
+    if (lean === 'up') r = r.filter((x) => x.edge > 0)
+    if (lean === 'down') r = r.filter((x) => x.edge < 0)
+    if (reads !== 'all') r = r.filter((x) => x.trust === reads)
+    if (plusOnly) r = r.filter((x) => Number(x.avgImplied) < 50)
     const by = {
       // DEFAULT. Sorted by the gap, but PROVEN gaps first — a 30-point gap on
       // eleven nights ranking above a 9-point gap on ninety would be the page
@@ -265,9 +297,20 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
       n: (a, b) => b.n - a.n,
       price: (a, b) => (b.truePrice ?? -1e9) - (a.truePrice ?? -1e9),
       name: (a, b) => a.name.localeCompare(b.name) || a.marketLabel.localeCompare(b.marketLabel),
+      // header-only keys
+      market: (a, b) => a.marketLabel.localeCompare(b.marketLabel) || a.name.localeCompare(b.name),
+      goesAt: (a, b) => (a.avgImplied ?? 1e9) - (b.avgImplied ?? 1e9),
+      reads: (a, b) => (rank(b) - rank(a)) || (Math.abs(b.edge) - Math.abs(a.edge)),
+      cashed: (a, b) => (b.cashPrice ?? -1e9) - (a.cashPrice ?? -1e9),
+      score: (a, b) => (b.tonight?.score ?? -1e9) - (a.tonight?.score ?? -1e9),
+      tonightPrice: (a, b) => (b.tonight?.price ?? -1e9) - (a.tonight?.price ?? -1e9),
     }
-    return [...r].sort(by[sort] || by.gap)
-  }, [rows, market, minN, sort, q])
+    const out = [...r].sort(by[sort] || by.gap)
+    // Every comparator above is written descending; ascending is the mirror.
+    return dir === 'asc' ? out.reverse() : out
+  }, [rows, market, minN, sort, dir, q, team, tonightOnly, lean, reads, plusOnly])
+
+  const teams = useMemo(() => [...new Set(rows.map((x) => x.team).filter(Boolean))].sort(), [rows])
 
   // How many different sample sizes the CHARTED rows actually span — the rows
   // after the rung filter, not flatten()'s whole output. Caught in render
@@ -495,6 +538,26 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
           }}
         />
       </div>
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+        <button onClick={() => setTonightOnly((v) => !v)} style={chip(tonightOnly)} title="Only lines the book is posting right now at this exact number — the ones you can actually bet">Priced tonight</button>
+        <span style={{ width: 4 }} />
+        <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Lean</span>
+        <button onClick={() => setLean(lean === 'up' ? 'all' : 'up')} style={chip(lean === 'up')} title="The market has been slow on him — his rate beats what his prices needed">Market slow ↑</button>
+        <button onClick={() => setLean(lean === 'down' ? 'all' : 'down')} style={chip(lean === 'down')} title="The fade — his prices have needed more than he delivers">Fade ↓</button>
+        <span style={{ width: 4 }} />
+        <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Reads as</span>
+        {READS.map(([k, label]) => <button key={k} onClick={() => setReads(k)} style={chip(reads === k)}>{label}</button>)}
+        <span style={{ width: 4 }} />
+        <button onClick={() => setPlusOnly((v) => !v)} style={chip(plusOnly)} title="Only lines that have averaged plus money">Plus money</button>
+        <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Team"
+          style={{ fontFamily: NUM_FONT, fontSize: 10, padding: '3px 8px', borderRadius: 999, border: `1px solid ${team !== 'all' ? C.orange : C.border}`, background: C.bg2, color: team !== 'all' ? C.orange : C.text2 }}>
+          <option value="all">All teams</option>
+          {teams.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        {(tonightOnly || lean !== 'all' || reads !== 'all' || plusOnly || team !== 'all') && (
+          <button onClick={() => { setTonightOnly(false); setLean('all'); setReads('all'); setPlusOnly(false); setTeam('all') }} style={{ ...chip(false), marginLeft: 'auto' }}>× clear</button>
+        )}
+      </div>
 
       {!shown.length ? (
         // AN EMPTY TABLE NOW HAS TO SAY WHOSE FAULT IT IS. The page only opens
@@ -533,19 +596,19 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 2px', fontFamily: NUM_FONT }}>
             <thead>
               <tr>
-                <th style={{ ...thCell(), textAlign: 'left' }}>Player</th>
-                <th style={{ ...thCell(), textAlign: 'left' }}>Prop</th>
-                <th style={thCell()} title="Nights he was priced at this exact line AND graded. Games he never batted in are void, not misses.">N</th>
-                <th style={thCell()}>Hit rate</th>
-                <th style={thCell()} title="The American price at which his own rate breaks even. This is the number the page is named after.">True</th>
-                <th style={thCell()} title="What the book has actually been paying him, averaged as probability and converted back.">Goes at</th>
-                <th style={thCell()} title="His rate minus what those prices needed. Positive = the market has been slow on him.">Gap</th>
-                <th style={{ ...thCell(), textAlign: 'left' }} title="Whether the gap is bigger than its own error bar.">Reads as</th>
-                <th style={thCell()} title="Current run, newest night first. +3 = cleared his last three priced nights; −4 = missed his last four.">Streak</th>
-                <th style={thCell()} title="The average pregame price on the nights he actually cashed this prop — what it cost to be on him when it worked. Averaged as probability, like Goes at.">Cashed at</th>
-                <th style={thCell()} title="The model's score for this same market, off tonight's slate. Blank if he isn't playing tonight.">Score</th>
-                <th style={thCell()} title="What the book is posting right now at this exact line. Blank if he isn't priced tonight, or the book is at a different number.">Tonight</th>
-                <th style={thCell()} title="His rate minus what tonight's price needs. The gap column, against a number you can actually bet.">Edge</th>
+                {th('Player', 'name', 'Sort by name', 'left')}
+                {th('Prop', 'market', 'Sort by prop', 'left')}
+                {th('N', 'n', 'Nights he was priced at this exact line AND graded. Games he never batted in are void, not misses.')}
+                {th('Hit rate', 'rate', 'His rate at this line')}
+                {th('True', 'price', 'The American price at which his own rate breaks even. This is the number the page is named after.')}
+                {th('Goes at', 'goesAt', 'What the book has actually been paying him, averaged as probability and converted back.')}
+                {th('Gap', 'gap', 'His rate minus what those prices needed. Positive = the market has been slow on him. Proven gaps sort first.')}
+                {th('Reads as', 'reads', 'Whether the gap is bigger than its own error bar.', 'left')}
+                {th('Streak', 'streak', 'Current run, newest night first. +3 = cleared his last three priced nights; −4 = missed his last four.')}
+                {th('Cashed at', 'cashed', 'The average pregame price on the nights he actually cashed this prop — what it cost to be on him when it worked.')}
+                {th('Score', 'score', "The model's score for this same market, off tonight's slate. Blank if he isn't playing tonight.")}
+                {th('Tonight', 'tonightPrice', "What the book is posting right now at this exact line. Blank if he isn't priced tonight, or the book is at a different number.")}
+                {th('Edge', 'tonight', "His rate minus what tonight's price needs. The gap column, against a number you can actually bet.")}
               </tr>
             </thead>
             <tbody>

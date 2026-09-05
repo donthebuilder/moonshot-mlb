@@ -40,6 +40,12 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { oddsHistoryPaths } from '../lib/dataSource'
 import { historyLooksReal, roiRows, roiVerdict } from '../lib/oddsHistory'
+import { useSort } from '../lib/useSort'
+import SortTh from './SortTh'
+
+const MA_SORT = { key: 'roi', dir: 'desc' }
+const MA_GET = { n: (r) => r.all?.n, roi: (r) => r.all?.roi, se: (r) => r.all?.roi_se, verdict: (r) => r.verdict?.label }
+const MA_OPTS = { text: new Set(['label', 'verdict']) }
 
 const pct = (v) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}%`
 
@@ -69,10 +75,14 @@ export default function MoneyAnswer({ compact = false, onNavigate = null }) {
     return { rows, up, down, flat, bets, days, widest }
   }, [hist])
 
+  // Hook before the early returns, as hooks must be.
+  const { sorted: maSorted, thProps } = useSort(read?.rows || [], MA_SORT, MA_GET, MA_OPTS)
+
   if (state === 'loading') return null
   if (state === 'empty' || !read) return null
 
-  const { rows, up, down, flat, bets, days, widest } = read
+  const { up, down, flat, bets, days, widest } = read
+  const rows = maSorted
   const headline = up.length
     ? `${up.length} of ${rows.length} markets ${up.length === 1 ? 'is' : 'are'} measurably profitable`
     : `No market is measurably profitable yet`
@@ -117,11 +127,8 @@ export default function MoneyAnswer({ compact = false, onNavigate = null }) {
         <caption className="sr-only">Return on investment by market, with the verdict for each</caption>
         <thead>
           <tr>
-            {[['Market', 'left'], ['Bets', 'right'], ['ROI', 'right'], ['± error bar', 'right'], ['Verdict', 'left']].map(([l, a]) => (
-              <th key={l} scope="col" style={{
-                textAlign: a, padding: '3px 6px', fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em',
-                textTransform: 'uppercase', color: C.text3, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
-              }}>{l}</th>
+            {[['Market', 'left', 'label'], ['Bets', 'right', 'n'], ['ROI', 'right', 'roi'], ['± error bar', 'right', 'se'], ['Verdict', 'left', 'verdict']].map(([l, a, key]) => (
+              <SortTh key={l} label={l} align={a} {...thProps(key)} />
             ))}
           </tr>
         </thead>

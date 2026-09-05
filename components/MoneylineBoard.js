@@ -28,6 +28,13 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { moneylinePaths } from '../lib/dataSource'
 import { Empty } from './ui'
+import { useSort } from '../lib/useSort'
+import SortTh from './SortTh'
+
+// Hoisted so the sort memo sees stable references.
+const ML_SORT = { key: 'edge', dir: 'desc' }
+const ML_GET = { game: (p) => `${p.away} @ ${p.home}` }
+const ML_OPTS = { text: new Set(['game', 'side']) }
 
 const price = (v) => (Number(v) > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`)
 const pct = (v) => `${Math.round((Number(v) || 0) * 100)}%`
@@ -36,6 +43,7 @@ const signed = (v) => `${Number(v) >= 0 ? '+' : ''}${(Number(v) || 0).toFixed(2)
 export default function MoneylineBoard() {
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
+  const { sorted: todaySorted, thProps } = useSort(data?.today || [], ML_SORT, ML_GET, ML_OPTS)
 
   useEffect(() => {
     let alive = true
@@ -54,7 +62,7 @@ export default function MoneylineBoard() {
   }
 
   const r = data.record || {}
-  const today = data.today || []
+  const today = todaySorted
   const roiTone = (Number(r.roi) || 0) > 0 ? C.green : (r.graded ? C.red : C.text3)
   // ── THE TEAM MODEL, AND HOW IT DID OUT OF SAMPLE (2026-09-05) ────────────
   // Donovan: "use OBP and SLG over BA, weighted — think Moneyball — and tell
@@ -150,15 +158,11 @@ export default function MoneylineBoard() {
           <caption className="sr-only">Tonight&apos;s disagreements between the model and the market</caption>
           <thead>
             <tr>
-              {[['Game', 'left', ''], ['Leans', 'left', ''], ['Price', 'right', ''],
-                ['Model', 'right', 'sm-hide'], ['Market', 'right', 'sm-hide'], ['Gap', 'right', ''],
-                ['From the arms', 'right', 'sm-hide']]
-                .map(([l, a, cls]) => (
-                  <th key={l} scope="col" className={cls || undefined} style={{
-                    textAlign: a, padding: '4px 6px', fontSize: 8.5, fontWeight: 900,
-                    letterSpacing: '.1em', textTransform: 'uppercase', color: C.text3,
-                    borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
-                  }}>{l}</th>
+              {[['Game', 'left', '', 'game'], ['Leans', 'left', '', 'side'], ['Price', 'right', '', 'price'],
+                ['Model', 'right', 'sm-hide', 'model_p'], ['Market', 'right', 'sm-hide', 'market_p'], ['Gap', 'right', '', 'edge'],
+                ['From the arms', 'right', 'sm-hide', 'starter_shift']]
+                .map(([l, a, cls, key]) => (
+                  <SortTh key={l} label={l} align={a} className={cls || undefined} {...thProps(key)} />
                 ))}
             </tr>
           </thead>

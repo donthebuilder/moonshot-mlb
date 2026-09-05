@@ -27,6 +27,12 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { comebackPaths } from '../lib/dataSource'
 import { Empty } from './ui'
+import { useSort } from '../lib/useSort'
+import SortTh from './SortTh'
+
+const CB_SORT = { key: 'comeback_wins', dir: 'desc' }
+const CB_GET = {}
+const CB_OPTS = { text: new Set(['abbr']) }
 
 const SORTS = [
   ['comeback_wins', 'Most comebacks', 'Games won after trailing'],
@@ -38,7 +44,10 @@ const SORTS = [
 export default function ComebackBoard() {
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
-  const [sort, setSort] = useState('comeback_wins')
+  // Header clicks and the pills drive the same sort (lib/useSort.js).
+  const { sorted, sort: sortState, setSort: setSortState, thProps } = useSort(data?.teams || [], CB_SORT, CB_GET, CB_OPTS)
+  const sort = sortState.key
+  const setSort = (key) => setSortState({ key, dir: 'desc' })
 
   useEffect(() => {
     let alive = true
@@ -57,17 +66,11 @@ export default function ComebackBoard() {
     return <Empty text="No comeback board published yet — the bot writes this on its next run." />
   }
 
-  const rows = [...data.teams]
-    .sort((a, b) => (Number(b[sort]) || 0) - (Number(a[sort]) || 0) || String(a.abbr || '').localeCompare(String(b.abbr || '')))
-    .slice(0, 12)
+  const rows = sorted.slice(0, 12)
   const active = SORTS.find(([k]) => k === sort)
 
-  const th = (label, align = 'right', cls = '') => (
-    <th scope="col" className={cls || undefined} style={{
-      textAlign: align, padding: '4px 6px', fontSize: 8.5, fontWeight: 900,
-      letterSpacing: '.1em', textTransform: 'uppercase', color: C.text3,
-      borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
-    }}>{label}</th>
+  const th = (label, align = 'right', cls = '', key = null) => (
+    <SortTh label={label} align={align} className={cls || undefined} {...(key ? thProps(key) : {})} />
   )
 
   return (
@@ -91,12 +94,12 @@ export default function ComebackBoard() {
       <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT, minWidth: 320 }}>
         <caption className="sr-only">
-          Comeback wins and blown leads by team, sorted by {active?.[1]}
+          Comeback wins and blown leads by team, sorted by {active?.[1] || sort}
         </caption>
         <thead>
           <tr>
-            {th('', 'left')}{th('Team', 'left')}{th('W-L', 'right', 'sm-hide')}
-            {th('Came back')}{th('Rate', 'right', 'sm-hide')}{th('Biggest')}{th('Gave away')}
+            {th('', 'left')}{th('Team', 'left', '', 'abbr')}{th('W-L', 'right', 'sm-hide', 'wins')}
+            {th('Came back', 'right', '', 'comeback_wins')}{th('Rate', 'right', 'sm-hide', 'comeback_rate')}{th('Biggest', 'right', '', 'biggest_comeback')}{th('Gave away', 'right', '', 'blown_leads')}
           </tr>
         </thead>
         <tbody>

@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { btnStyle, WhatThis } from './ui'
+import SortTh from './SortTh'
 
 // ══ 🧾 THE SEASON RECORD ══════════════════════════════════════════════════════
 //
@@ -99,7 +100,16 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
   const [allNights, setAllNights] = useState(false)
   const [allHitters, setAllHitters] = useState(false)
   const [q, setQ] = useState('')
-  const [hSort, setHSort] = useState('hr')
+  const [hSort, setHSortKey] = useState('hr')
+  const [hDir, setHDir] = useState('desc')
+  // Pills open descending; a header click on the active column flips it.
+  const setHSort = (k, fromHeader = false) => {
+    if (fromHeader && k === hSort) { setHDir((d) => (d === 'desc' ? 'asc' : 'desc')); return }
+    setHSortKey(k); setHDir(fromHeader && k === 'name' ? 'asc' : 'desc')
+  }
+  const hTh = (label, key, title, align = 'center') => (
+    <SortTh label={label} title={title} align={align} style={{ padding: '0 6px 4px', borderBottom: 'none', letterSpacing: '.07em' }} active={hSort === key} dir={hSort === key ? hDir : null} onSort={key ? () => setHSort(key, true) : null} />
+  )
 
   const hitters = useMemo(() => {
     if (!season) return []
@@ -112,9 +122,15 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
       badged: (a, b) => b.badgedNights - a.badgedNights || b.hr - a.hr,
       far: (a, b) => (b.longest?.ft || 0) - (a.longest?.ft || 0),
       name: (a, b) => a.name.localeCompare(b.name),
+      // header-only keys
+      nights: (a, b) => b.nights - a.nights || b.hr - a.hr,
+      sheet: (a, b) => b.sheetNights - a.sheetNights || b.hr - a.hr,
+      score: (a, b) => (b.avgScore ?? -1) - (a.avgScore ?? -1),
+      ev: (a, b) => (b.ev || 0) - (a.ev || 0),
     }
-    return [...r].sort(by[hSort] || by.hr)
-  }, [season, q, hSort])
+    const out = [...r].sort(by[hSort] || by.hr)
+    return hDir === 'asc' ? out.reverse() : out
+  }, [season, q, hSort, hDir])
 
   const open = (r) => onPlayerClick?.({ player_id: r.pid != null ? Number(r.pid) : undefined, player_name: r.name, name: r.name, team: r.team })
 
@@ -259,15 +275,15 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
               <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 2px' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...thCell(), textAlign: 'left' }}>Hitter</th>
-                    <th style={thCell()} title="Home runs across the nights held">HR</th>
-                    <th style={thCell()} title="Nights he went deep">Nights</th>
-                    <th style={thCell()} title="Nights he went deep wearing TOP or HR">Badged</th>
-                    <th style={thCell()} title="Nights he went deep while on the sheet at all (badged or not)">On sheet</th>
-                    <th style={thCell()} title="Average of the bot's HR score on his homer nights, where the sheet had him">Avg score</th>
-                    <th style={thCell()} title="His longest in the window, feet">Longest</th>
-                    <th style={thCell()} title="Hardest, mph">Max EV</th>
-                    <th style={thCell()}>Last</th>
+                    {hTh('Hitter', 'name', 'Sort by name', 'left')}
+                    {hTh('HR', 'hr', 'Home runs across the nights held')}
+                    {hTh('Nights', 'nights', 'Nights he went deep')}
+                    {hTh('Badged', 'badged', 'Nights he went deep wearing TOP or HR')}
+                    {hTh('On sheet', 'sheet', 'Nights he went deep while on the sheet at all (badged or not)')}
+                    {hTh('Avg score', 'score', "Average of the bot's HR score on his homer nights, where the sheet had him")}
+                    {hTh('Longest', 'far', 'His longest in the window, feet')}
+                    {hTh('Max EV', 'ev', 'Hardest, mph')}
+                    {hTh('Last', 'recent', 'Most recent homer night')}
                     <th style={thCell()} title="Season total the slate carried for him on his latest homer night — not added to">Was on</th>
                   </tr>
                 </thead>

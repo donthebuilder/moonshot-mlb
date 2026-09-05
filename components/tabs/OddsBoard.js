@@ -10,6 +10,7 @@ import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus } from '../OddsStatus'
 import { oddsAgeHours, oddsExpired } from '../../lib/oddsFreshness'
 import TruePrice from './TruePrice'
+import OddsDiscrepancies from './OddsDiscrepancies'
 import OddsSignals from './OddsSignals'
 import { btnStyle } from '../ui'
 
@@ -154,12 +155,13 @@ const PAGE_VIEWS = [
   // freshness gate below) — the label now claims nothing about when.
   ['board', '💵 Odds board'],
   ['signals', '⚡ Moves & gaps'],
+  ['shop', '🛒 Line shop'],
   ['trueprice', '🏷 True Price'],
 ]
 
 export default function OddsBoard({ players = [], odds = null, onPlayerClick, initialView = 'board' }) {
   const [view, setView] = useState(
-    initialView === 'trueprice' ? 'trueprice' : initialView === 'signals' ? 'signals' : 'board'
+    initialView === 'trueprice' ? 'trueprice' : initialView === 'signals' ? 'signals' : initialView === 'shop' ? 'shop' : 'board'
   )
   const [market, setMarket] = useState('batter_home_runs')
   const [plusOnly, setPlusOnly] = useState(false)
@@ -516,6 +518,15 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     )
   }
 
+  if (view === 'shop') {
+    return (
+      <div>
+        {viewBar}
+        <OddsDiscrepancies players={players} odds={odds} onPlayerClick={onPlayerClick} />
+      </div>
+    )
+  }
+
   return (
     <div>
       <style>{'@keyframes oddsIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@keyframes oddsDot{0%,100%{opacity:1}50%{opacity:.25}}'}</style>
@@ -844,7 +855,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       ) : (
         <DenseTable
           heatMode="sorted"
-key={`${market}-${plusOnly}-${offStd}-${need}`}
+key={market}
           rows={shown}
           columns={[
             { key: 'player', label: 'Hitter', heat: false, w: 152, bold: true, sticky: true },

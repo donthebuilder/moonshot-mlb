@@ -27,6 +27,12 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { playoffOddsPaths } from '../lib/dataSource'
 import { Empty } from './ui'
+import { useSort } from '../lib/useSort'
+import SortTh from './SortTh'
+
+const PR_SORT = { key: 'win_world_series', dir: 'desc' }
+const PR_GET = { wl: (t) => Number(t.wins) - Number(t.losses), now: (t) => (t.race?.divisionRank || 9) * 10 + (t.race?.wildCardRank || 9) }
+const PR_OPTS = { text: new Set(['abbr']) }
 
 // ── THE LIVE RACE, NOT LAST NIGHT'S ─────────────────────────────────────────
 //
@@ -106,8 +112,12 @@ const tone = (v) => {
   return C.text3
 }
 
-function Bar({ v, color }) {
-  const w = Math.max(2, Math.min(100, Math.round((Number(v) || 0) * 100 / 0.25 * 100) / 100))
+// Scaled to the FIELD'S favourite, not a fixed 25%: a 30% favourite used to
+// clip at full width and read the same as a 25% one. The leader fills the
+// bar; everyone else is a fraction of him.
+function Bar({ v, color, top = 0.25 }) {
+  const scale = Math.max(Number(top) || 0, 0.05)
+  const w = Math.max(2, Math.min(100, Math.round((Number(v) || 0) / scale * 100 * 100) / 100))
   return (
     <i style={{
       display: 'block', height: 3, marginTop: 3, borderRadius: 2,
@@ -147,15 +157,11 @@ export default function PennantRace() {
     return () => { alive = false }
   }, [])
 
-  if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '6px 2px' }}>Simulating…</div>
-  if (state === 'empty' || !data) {
-    return <Empty text="No playoff odds published yet — the bot writes this on its next run." />
-  }
 
   // Merge: the bot's odds, tonight's standing. The payload's own `race` field
   // (bot-side snapshot, same shape) is the fallback when the browser cannot
   // reach statsapi, so the lock rule still holds offline.
-  const teams = [...data.teams].map((t) => {
+  const teams = [...(data?.teams || [])].map((t) => {
     const lv = live?.get(Number(t.team_id)) || null
     const race = lv || (t.race ? {
       clinch: t.race.clinch || '', eliminated: !!t.race.eliminated,
@@ -173,12 +179,21 @@ export default function PennantRace() {
       make_playoffs: locked === 'in' ? 1 : locked === 'out' ? 0 : t.make_playoffs,
       win_division: race?.clinch === 'y' || race?.clinch === 'z' ? 1 : t.win_division,
     }
-  }).sort((a, b) =>
-    (b.win_world_series - a.win_world_series) || (b.make_playoffs - a.make_playoffs))
-  const shown = teams.filter((t) => t.make_playoffs > 0.005 || t.locked === 'in').slice(0, 16)
+  })
+  // Header clicks sort (lib/useSort.js); the default is the Series column,
+  // playoff odds as the tie-break -- the order the table always had.
+  const { sorted: teamsSorted, thProps } = useSort(teams, PR_SORT, PR_GET, PR_OPTS)
+
+  if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '6px 2px' }}>Simulating…</div>
+  if (state === 'empty' || !data) {
+    return <Empty text="No playoff odds published yet — the bot writes this on its next run." />
+  }
+
+  const shown = teamsSorted.filter((t) => t.make_playoffs > 0.005 || t.locked === 'in').slice(0, 16)
   const leftOut = teams.length - shown.length
   const clinchedN = teams.filter((t) => t.locked === 'in').length
   const fieldLocked = clinchedN >= 12
+  const topWs = Math.max(0.05, ...teams.map((t) => Number(t.win_world_series) || 0))
 
   return (
     <div>
@@ -200,14 +215,10 @@ export default function PennantRace() {
         </caption>
         <thead>
           <tr>
-            {[['', 'left', ''], ['Team', 'left', ''], ['W-L', 'right', 'sm-hide'], ['Now', 'left', ''], ['Proj', 'right', 'sm-hide'],
-              ['Playoffs', 'right', ''], ['Division', 'right', 'sm-hide'], ['Pennant', 'right', 'sm-hide'], ['Series', 'right', '']]
-              .map(([label, align, cls], i) => (
-                <th key={label + i} scope="col" className={cls || undefined} style={{
-                  textAlign: align, padding: '4px 6px', fontSize: 8.5, fontWeight: 900,
-                  letterSpacing: '.1em', textTransform: 'uppercase', color: C.text3,
-                  borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
-                }}>{label}</th>
+            {[['', 'left', '', null], ['Team', 'left', '', 'abbr'], ['W-L', 'right', 'sm-hide', 'wl'], ['Now', 'left', '', null], ['Proj', 'right', 'sm-hide', 'proj_wins'],
+              ['Playoffs', 'right', '', 'make_playoffs'], ['Division', 'right', 'sm-hide', 'win_division'], ['Pennant', 'right', 'sm-hide', 'win_league'], ['Series', 'right', '', 'win_world_series']]
+              .map(([label, align, cls, key], i) => (
+                <SortTh key={label + i} label={label} align={align} className={cls || undefined} {...(key ? thProps(key) : {})} />
               ))}
           </tr>
         </thead>
@@ -247,7 +258,7 @@ export default function PennantRace() {
               </td>
               <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11.5, fontWeight: 800, color: tone(t.win_world_series), minWidth: 54 }}>
                 {pct(t.win_world_series)}
-                <Bar v={t.win_world_series} color={tone(t.win_world_series)} />
+                <Bar v={t.win_world_series} color={tone(t.win_world_series)} top={topWs} />
               </td>
             </tr>
           ))}
