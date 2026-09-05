@@ -80,7 +80,7 @@ put X_API_SECRET    "$(getv X_API_SECRET)"
 put X_ACCESS_TOKEN  "$(getv X_ACCESS_TOKEN)"
 put X_ACCESS_SECRET "$(getv X_ACCESS_SECRET)"
 put X_HANDLE        "$(getv X_HANDLE)"
-put X_POST_MODE     "all"
+put X_POST_MODE     "flagged"   # free X tier: only called homers go to X (~300/mo). Change to "all" on Basic.
 put NEXT_PUBLIC_SITE_URL "$SITE_URL"
 have DISCORD_HOMER_WEBHOOK && put DISCORD_HOMER_WEBHOOK "$(getv DISCORD_HOMER_WEBHOOK)"
 

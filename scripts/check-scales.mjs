@@ -79,6 +79,7 @@ const EXEMPT = new Set([
   'lib/hrShape.js',        // HR_BANDS: one definition, four consumers, already right
   'lib/nfl/theme.js',      // the NFL fork — its own problem, tracked separately
   'components/shareCard.js', // a PNG poster: 32 team colours, dark by construction
+  'lib/dash/homerCard.js',   // the same poster, rendered server-side for @CalledItHR: same 32 colours, same dark field
 
   // ── THE TWO CLUB REGISTRIES (added 2026-08-31) ───────────────────────────
   // Exempt on the SAME stated ground as shareCard.js above, and on the rule

@@ -168,20 +168,20 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
                 const off = Number.isFinite(b.line) && r.line != null && Math.abs(b.line - r.line) > 1e-9
                 return (
                   <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
-                    <b style={{ color: isBest ? '#4ade80' : b.over > 0 ? C.text : C.text2 }}>{fmtOdds(b.over)}</b>
+                    <b style={{ color: isBest ? C.green : b.over > 0 ? C.text : C.text2 }}>{fmtOdds(b.over)}</b>
                     {off && <span style={{ display: 'block', fontSize: 8, color: '#FCD34D' }}>@ {b.line}</span>}
                   </span>
                 )
               },
             })),
             { key: 'spread', label: 'SPREAD', w: 64, dp: 1, title: 'Break-even points between the best and worst price at the same line. Bigger = more left on the table at the wrong book.',
-              fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT }}><b style={{ color: v >= 3 ? '#4ade80' : v >= 1 ? C.text : C.text3 }}>{v.toFixed(1)}</b>{r?.bestBook ? <span style={{ fontSize: 8, color: C.text3, marginLeft: 3 }}>{r.bestBook}</span> : null}</span>) },
+              fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT }}><b style={{ color: v >= 3 ? C.green : v >= 1 ? C.text : C.text3 }}>{v.toFixed(1)}</b>{r?.bestBook ? <span style={{ fontSize: 8, color: C.text3, marginLeft: 3 }}>{r.bestBook}</span> : null}</span>) },
             { key: 'splitText', label: 'SPLIT', w: 92, heat: false, title: 'The books are on different bars — two different bets, not one price.',
               fmt: (v) => (v ? <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: '#FCD34D' }}>{v}</b> : <span style={{ color: C.text3 }}>—</span>) },
             { key: 'hold', label: 'HOLD', w: 52, dp: 1, invert: true, title: "The book's margin on the over/under pair at the consensus line. Thin = the book is sure; fat = it is guessing.",
-              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT, color: v <= 4 ? '#4ade80' : v >= 8 ? '#f87171' : C.text2 }}>{v.toFixed(1)}%</span>) },
+              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT, color: v <= 4 ? C.green : v >= 8 ? C.red : C.text2 }}>{v.toFixed(1)}%</span>) },
             { key: 'edge', label: 'EDGE', w: 60, dp: 1, title: 'HR only: his season homer rate minus the break-even at the BEST price. Blank where the site has no rate.',
-              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>) },
+              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? C.green : v <= -3 ? C.red : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>) },
             { key: 'frozen', label: '❄', w: 30, flag: true, mark: '❄', title: 'Pregame price, frozen at first pitch.' },
           ]}
           onRowClick={(r) => r?._p && onPlayerClick?.(r._p)}
