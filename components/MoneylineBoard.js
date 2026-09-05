@@ -124,7 +124,13 @@ export default function MoneylineBoard() {
               {' '}· picks the winner {pct(oos.moneyball.fav_accuracy)} of the time
               <span style={{ display: 'block', marginTop: 3 }}>
                 <b style={{ color: C.text }}>Live base: {Math.round(w * 100)}% OBP/SLG · {Math.round((1 - w) * 100)}% record</b>
-                {blendScore ? <span style={{ color: C.text3 }}> — the merge scored {ll(blendScore)}, the best of every mix tried</span> : null}
+                {blendScore ? <span style={{ color: C.text3 }}> — the merge scored {ll(blendScore)}</span> : null}
+                {/* Who chose the weight. Log loss until enough priced games
+                    have settled; then ROI at the book's own prices, which is
+                    the number that pays. The bar to switch is printed. */}
+                {oos.blend?.chooser === 'roi' && oos.blend?.roi
+                  ? <span style={{ color: C.green }}> · chosen by ROI over {oos.blend.roi.settled} settled prices ({signed(oos.blend.roi.best_roi * 100)}% at that mix)</span>
+                  : <span style={{ color: C.text3 }}> · chosen by log loss{oos.blend?.roi ? ` — ROI takes over at ${oos.blend.roi.needed} settled prices, ${oos.blend.roi.settled} so far` : ''}</span>}
               </span>
               <span style={{ display: 'block', color: C.text3, marginTop: 2 }}>{oos.verdict} {oos.limits}</span>
             </>
