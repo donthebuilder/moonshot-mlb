@@ -35,15 +35,13 @@ import { useEffect, useRef, useState } from 'react'
 
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { fetchNflLive, gameFor, lineFor, marketValue, tdsIn } from '../../lib/nfl/liveSlate'
+import { worthPolling as slateWorthPolling } from '../../lib/nfl/liveMerge'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import { useFollowing } from '../../lib/dash/follow'
 import { alertPrefs, alertWanted } from '../../lib/dash/alerts'
 import { notify } from '../../lib/notify'
 
 const POLL_MS = 45000
-// Start watching a little before kickoff so the "his game just started" alert
-// is early rather than a minute late.
-const PREGAME_WINDOW_MS = 20 * 60 * 1000
 
 export default function NflWire({ data, onPlayerClick }) {
   const { pins } = useNflWatchlist(data)
@@ -150,27 +148,11 @@ export default function NflWire({ data, onPlayerClick }) {
       push(out)
     }
 
-    // Longer than any football game, including a delay. Past this a game the
-    // payload still calls neither live nor complete is stale data.
-    const STALE_AFTER_MS = 6 * 60 * 60 * 1000
 
     // Only poll when there is something to poll for.
-    const worthPolling = () => {
-      const games = data?.games || []
-      if (!games.length) return false
-      const now = Date.now()
-      return games.some((g) => {
-        if (g.state === 'in') return true
-        if (g.completed || g.state === 'post') return false
-        const t = g.kickoff ? new Date(g.kickoff).getTime() : NaN
-        if (!Number.isFinite(t)) return false
-        // Soon, or recently started. STALE_AFTER_MS is the far side the
-        // original test was missing: a game whose kickoff was six hours ago
-        // and which never reported completing is a bad payload, not a game
-        // worth polling for, and no amount of asking ESPN will fix it.
-        return t - now < PREGAME_WINDOW_MS && now - t < STALE_AFTER_MS
-      })
-    }
+    // One test, shared with the tabs' poller (lib/nfl/liveMerge.js) so the
+    // Wire and the Live page can never disagree about whether football is on.
+    const worthPolling = () => slateWorthPolling(data?.games)
 
     const loop = () => {
       if (!worthPolling()) return

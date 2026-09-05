@@ -272,7 +272,7 @@ function buildStackRows(players, bars, results) {
       pairName: `${a.name} + ${b.name}`,
       team,
       opp: a.opp ? `vs ${a.opp}` : '',
-      why: `${team}'s two highest anytime-TD scores tonight, same team, same red-zone opportunity — no same-game-correlation claim beyond that.`,
+      why: `${team}'s two highest anytime-TD scores this week, same team, same red-zone opportunity — no same-game-correlation claim beyond that.`,
       legA: sa,
       legB: sb,
       weaker: Math.min(sa, sb),

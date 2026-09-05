@@ -1,7 +1,8 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
+import { useResultsArchive, seasonTotals, grandTotal, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { downloadNflPickCard } from '../shareCard'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
@@ -435,7 +436,71 @@ function ScoreBands({ data, results }) {
 
 // ── the tab ──────────────────────────────────────────────────────────────────
 
-export default function Accountability({ data, results, onPlayerClick }) {
+// ── SEASON TO DATE (2026-09-05) ─────────────────────────────────────────────
+//
+// The "doesn't do yet" above is done: the bot now writes one file per graded
+// week and lib/nfl/resultsArchive.js harvests them. This strip is the season
+// in one row per market, and the picker under it swaps which week the rest
+// of the page grades. Everything below it is unchanged -- it always read one
+// payload, and now it reads whichever one you picked.
+function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
+  const totals = seasonTotals(keys.map((k) => archive[k]))
+  const grand = grandTotal(totals)
+  const markets = MARKETS.map(([k, label]) => [k, label, totals[k]]).filter(([, , t]) => t && t.n > 0)
+  const col = MARKET_COLOR()
+  return (
+    <section className="acc-season">
+      <div className="acc-season-head">
+        <div><small>SEASON TO DATE</small><h2>{grand.n ? `${grand.hit}/${grand.n} · ${grand.pct}%` : loading ? 'Harvesting weeks…' : 'One week graded so far'}</h2>
+          <p>{keys.length} graded week{keys.length === 1 ? '' : 's'} on the branch. The bot&apos;s own card, every rung, every week, bars unchanged. Refreshes on load; older weeks are remembered on this device.</p></div>
+      </div>
+      {markets.length > 0 && (
+        <div className="acc-season-row">
+          {markets.map(([k, label, t]) => (
+            <div key={k} style={{ borderTopColor: col[k] }}>
+              <small>{label}</small>
+              <b style={{ color: t.pct >= 55 ? C.green : t.pct < 45 ? C.red : C.text }}>{t.pct == null ? '—' : `${t.pct}%`}</b>
+              <span>{t.hit}/{t.n}{t.void ? ` · ${t.void} void` : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {keys.length > 1 && (
+        <div className="acc-season-picker" role="tablist" aria-label="Graded week">
+          {keys.map((k) => {
+            const t = grandTotal(archive[k]?.totals)
+            return <button key={k} role="tab" aria-selected={picked === k} className={picked === k ? 'on' : ''} onClick={() => onPick(k)}>
+              <b>{labelOf(k)}{k === currentKey ? ' · latest' : ''}</b><span>{t.n ? `${t.hit}/${t.n}` : 'void'}</span>
+            </button>
+          })}
+        </div>
+      )}
+      <style>{`
+      .acc-season{margin-bottom:14px;padding:16px 18px;border:1px solid ${C.border};border-radius:14px;background:linear-gradient(160deg,rgba(34,197,94,.07),${C.bg2} 55%)}
+      .acc-season-head small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
+      .acc-season-head h2{margin:6px 0 4px;font:900 clamp(22px,4vw,34px)/1 ${NUM_FONT};letter-spacing:-.03em}
+      .acc-season-head p{margin:0;color:${C.text3};font-size:10px;line-height:1.5;max-width:620px}
+      .acc-season-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px;margin-top:12px}
+      .acc-season-row>div{padding:8px 10px;border:1px solid ${C.border};border-top:3px solid;border-radius:9px;background:${C.bg}}
+      .acc-season-row small{display:block;color:${C.text3};font:800 7.5px/1 ${NUM_FONT};letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .acc-season-row b{display:block;margin-top:5px;font:900 19px/1 ${NUM_FONT}}
+      .acc-season-row span{display:block;margin-top:3px;color:${C.text3};font:700 8.5px/1 ${NUM_FONT}}
+      .acc-season-picker{display:flex;gap:5px;overflow-x:auto;margin-top:12px;padding-bottom:2px}
+      .acc-season-picker button{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:7px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg};color:${C.text3};cursor:pointer;font-family:${NUM_FONT}}
+      .acc-season-picker button b{font-size:9px;color:${C.text2}}.acc-season-picker button span{font-size:8px}
+      .acc-season-picker button.on{border-color:${C.green};background:rgba(34,197,94,.08)}.acc-season-picker button.on b{color:${C.green}}
+      @media(max-width:560px){.acc-season-row{grid-template-columns:repeat(2,1fr)}}
+      `}</style>
+    </section>
+  )
+}
+
+export default function Accountability({ data, results: latest, onPlayerClick }) {
+  const { archive, keys, loading } = useResultsArchive(latest, data?.season)
+  const currentKey = latest?.week ? weekKey(latest.season, latest.mode, latest.week) : null
+  const [picked, setPicked] = useState(null)
+  // The page grades the picked week, or the latest grade when nothing is picked.
+  const results = (picked && archive[picked]) || latest
   const byPid = useMemo(
     () => Object.fromEntries((data?.players || []).map((p) => [String(p.player_id), p])),
     [data],
@@ -461,6 +526,7 @@ export default function Accountability({ data, results, onPlayerClick }) {
 
   return (
     <div>
+      <SeasonStrip archive={archive} keys={keys} loading={loading} picked={picked || currentKey} onPick={(k) => setPicked(k === currentKey ? null : k)} currentKey={currentKey} />
       <ReceiptHero results={results} when={when} />
 
       <div style={{
@@ -468,7 +534,7 @@ export default function Accountability({ data, results, onPlayerClick }) {
         borderRadius: 10, padding: '10px 14px', marginBottom: 14,
         fontSize: 11, color: C.text3, lineHeight: 1.6,
       }}>
-        Last graded: <b style={{ color: C.text2 }}>{when}</b>
+        {picked && picked !== currentKey ? 'Showing' : 'Last graded'}: <b style={{ color: C.text2 }}>{when}</b>
         {results.exhibition && <> · <b style={{ color: C.yellow }}>preseason counts</b>, starters play two series</>}
         {results.graded_at_human && <> · graded {results.graded_at_human}</>}. This is the
         bot&apos;s own record on its own published card — not anyone&apos;s personal calls. For

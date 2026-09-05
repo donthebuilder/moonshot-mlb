@@ -1,10 +1,12 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
 import TabNotFound from '../TabNotFound'
 import { C } from '../../lib/nfl/theme'
 import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
-import { initialHashParams } from '../../lib/sport'
+import { initialHashParams, setSport } from '../../lib/sport'
+import { useNflLive } from '../../lib/nfl/useNflLive'
+import { withLive } from '../../lib/nfl/liveMerge'
 import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
 import MobileCSS from '../MobileCSS'
@@ -23,6 +25,8 @@ import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
 import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
+import Live from './tabs/Live'
+import Streaks from './tabs/Streaks'
 import { liveOdds } from '../../lib/oddsFreshness'
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -108,7 +112,13 @@ export default function NflDashboard({ palettePass = 0 }) {
     const readHash = () => {
       try {
         const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-        if (hash.get('sport') !== 'nfl') return
+        const sp = hash.get('sport')
+        // A hash that names the other product is a sport switch, not noise:
+        // the MLB shell has honoured this since its apply() grew setSport,
+        // and a notification tapped from the football side can carry an
+        // MLB url. lib/sport.js has no hashchange listener of its own.
+        if (sp && sp !== 'nfl') { setSport(sp); return }
+        if (sp !== 'nfl') return
         const r = resolveTab('nfl', hash.get('tab'))
         // Finding 16: this used to bail on anything not in the key set, so a
         // hash change to an unrecognised tab left the PREVIOUS panel rendered
@@ -119,7 +129,25 @@ export default function NflDashboard({ palettePass = 0 }) {
       } catch { /* ignore malformed hashes */ }
     }
     window.addEventListener('hashchange', readHash)
-    return () => window.removeEventListener('hashchange', readHash)
+    // public/sw.js posts the tapped notification's URL here after focusing
+    // this tab. Only the MLB shell listened until 2026-09-05, so a TUDDY push
+    // (pushRules.js sends people to #sport=nfl&tab=watchlist) tapped while
+    // the football board was open focused the tab and went nowhere. Same
+    // contract as components/Dashboard.js: write the hash, let readHash route.
+    const fromWorker = (ev) => {
+      const d = ev?.data
+      if (!d || d.type !== 'dash-open' || typeof d.url !== 'string') return
+      const i = d.url.indexOf('#')
+      if (i < 0) return
+      const next = d.url.slice(i)
+      if (window.location.hash === next) readHash()
+      else window.location.hash = next
+    }
+    navigator.serviceWorker?.addEventListener?.('message', fromWorker)
+    return () => {
+      window.removeEventListener('hashchange', readHash)
+      navigator.serviceWorker?.removeEventListener?.('message', fromWorker)
+    }
   }, [])
 
   useEffect(() => {
@@ -143,11 +171,23 @@ export default function NflDashboard({ palettePass = 0 }) {
     return () => { alive = false }
   }, [refreshKey])
 
+  // The bot payload only changes when the bot runs, so this poll is for the
+  // bot's OUTPUT (a re-published card, graded results). The score on the
+  // card comes from the league feed below, not from here -- until 2026-09-05
+  // this 45s poll was the only thing behind a "live" score, and it re-read a
+  // file that had not changed.
   useEffect(() => {
     const live = (data?.games || []).some((g) => g.state === 'in')
-    const id = setInterval(() => setRefreshKey((k) => k + 1), live ? 45_000 : 10 * 60_000)
-    return () => clearInterval(id)
+    const id = setInterval(() => setRefreshKey((k) => k + 1), live ? 3 * 60_000 : 10 * 60_000)
+    const onVis = () => { if (!document.hidden) setRefreshKey((k) => k + 1) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
   }, [data])
+
+  // The league feed, laid over the slate. Games/Home/Live/Watchlist read the
+  // overlaid copy; everything with a score on it is now ESPN's score.
+  const liveSnap = useNflLive(data)
+  const slate = useMemo(() => withLive(data, liveSnap), [data, liveSnap])
 
   const openPlayer = (player, market = 'TD') => setModal({ player, market })
   const openFullProfile = (player) => {
@@ -175,7 +215,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             sport="nfl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['picks', '🎯 PICKS'], ['boards', '📊 BOARDS'], ['accountability', '🧾 RESULTS'], ['report', '📋 REPORT CARD'], ['guide', '📖 GUIDE']]}
+            doors={[['home', '🏠 HOME'], ['live', '🏈 LIVE'], ['picks', '🎯 PICKS'], ['boards', '📊 BOARDS'], ['accountability', '🧾 RESULTS'], ['report', '📋 REPORT CARD'], ['guide', '📖 GUIDE']]}
           />
         ) : loading ? (
           <div style={{
@@ -184,10 +224,10 @@ export default function NflDashboard({ palettePass = 0 }) {
           }}>Loading slate…</div>
         ) : (
           <>
-            {tab === 'home' && <Home data={data} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
+            {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} />}
-            {tab === 'watchlist' && <Watchlist data={data} onPlayerClick={openPlayer} />}
-            {tab === 'games' && <Games data={data} picks={picks} matchup={matchup} onPlayerClick={openPlayer} />}
+            {tab === 'watchlist' && <Watchlist data={slate} onPlayerClick={openPlayer} />}
+            {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} onPlayerClick={openPlayer} />}
             {tab === 'boards' && <Boards data={data} logs={logs} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
@@ -196,14 +236,16 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
+            {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} onPlayerClick={openPlayer} setTab={setTab} />}
+            {tab === 'streaks' && <Streaks data={data} logs={logs} onPlayerClick={openPlayer} />}
           </>
         )}
       </main>
-      <MobileTabBarNfl tab={tab} setTab={setTab} />
+      <MobileTabBarNfl tab={tab} setTab={setTab} data={slate} />
       {/* The live wire. Renders nothing until something actually happens to
           one of your names, and polls nothing unless a game is in progress or
           about to start — see components/nfl/NflWire.js. */}
-      <NflWire data={data} onPlayerClick={openPlayer} />
+      <NflWire data={slate} onPlayerClick={openPlayer} />
       <NflPlayerModal
         player={modal?.player}
         market={modal?.market}

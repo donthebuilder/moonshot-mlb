@@ -7,7 +7,7 @@ import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
 import {
-  CONVICTION, CONVICTION_ORDER, slateKey, slotKey, isLocked,
+  CONVICTION, slateKey, slotKey, isLocked,
   getPicks, savePick, setConviction, clearPick,
   gradeSlate, recordSlate, ledgerTotals, exportStore, importStore, clearAll,
 } from '../../../lib/nfl/myPicks'
@@ -167,7 +167,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
       const blob = new Blob([exportStore()], { type: 'application/json' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `moonshot-nfl-picks-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = `tuddy-nfl-picks-${new Date().toISOString().slice(0, 10)}.json`
       a.click(); URL.revokeObjectURL(a.href); setMsg('Exported.')
     } catch { setMsg("Couldn't export.") }
   }

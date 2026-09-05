@@ -376,9 +376,12 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
                   carries it (bots/nfl/nfl_espn.py's best-effort situation parse,
                   unverified against a real live game as of this build) -- falls
                   back to the same honest caveat as before when it doesn't. */}
-              {live && (g.down_distance
-                ? <div style={{ margin: '1px 0 7px', color: g.red_zone ? C.yellow : C.cyan, fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT }}>{g.down_distance}{g.red_zone ? ' · RED ZONE' : ''}</div>
-                : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Drive possession and down/distance are not published in the current feed · ESPN state: {g.detail || 'live'}</div>
+              {/* 2026-09-05: read off the live overlay (lib/nfl/liveMerge.js), so
+                  possession and down/distance are the league feed's, not the
+                  bot's last run. Absent only when ESPN's situation block is. */}
+              {live && (g.down_distance || g.possession
+                ? <div style={{ margin: '1px 0 7px', color: g.red_zone ? C.yellow : C.cyan, fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT }}>{g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}</div>
+                : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Waiting on the drive feed · {g.detail || 'live'}</div>
               )}
 
               {open ? (

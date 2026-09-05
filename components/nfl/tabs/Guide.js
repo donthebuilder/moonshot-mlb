@@ -148,6 +148,8 @@ export default function Guide({ onNavigate }) {
           <PageCard tab="research" title="Research" note="Deeper model inputs and supporting context. Useful after the verdict, not before it." onNavigate={onNavigate} />
           <PageCard tab="matchups" title="Matchups" note="Defense-versus-position and matchup context without turning team context into a player pick." onNavigate={onNavigate} />
           <PageCard tab="pairs" title="Pairs" note="Related same-game combinations. Relationship labels are context, not a guarantee or independent grade." onNavigate={onNavigate} />
+          <PageCard tab="live" title="Live" note="Every rung on the card against its bar, on the league feed, while the game is on. Cleared, live, or missed — plus the scoring plays as they land." onNavigate={onNavigate} />
+          <PageCard tab="streaks" title="Streaks" note="Who is hot or cold at a line you pick, last 30 games, no model in the way. Hot is the play; cold is the fade." onNavigate={onNavigate} />
           <PageCard tab="accountability" title="The record" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
           <PageCard tab="report" title="Report Card" note="Backtests each model against a simple trailing-average baseline." onNavigate={onNavigate} />
         </div>

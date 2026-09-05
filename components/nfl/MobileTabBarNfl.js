@@ -1,6 +1,8 @@
 'use client'
 import MobileTabBar from '../MobileTabBar'
+import { useMemo } from 'react'
 import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
+import { worthPolling } from '../../lib/nfl/liveMerge'
 
 // C3's NFL half: "if it feels right, NFL copies it" (dash-network-master-
 // plan-2026-08-28.md). MOONSHOT's mobile bar shape is 4 essential destinations
@@ -23,7 +25,13 @@ import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 // (◎ home, ▥ boards, ◉ games/live, ✦ picks) on purpose -- same glyph, same
 // meaning, cross-sport, one design language rather than two.
 const MAIN_KEYS = ['boards', 'games', 'picks', 'research']
-const MAIN = MAIN_KEYS.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
+// GAME DAY (2026-09-05): while football is on -- or twenty minutes out --
+// Live takes Research's slot on the phone bar. Research is a Tuesday page;
+// the Live page is the one you open with the game on, and burying it under
+// More on a Sunday defeats it. Research stays one tap away in the sheet.
+const GAMEDAY_KEYS = ['boards', 'live', 'picks', 'games']
+const mainFor = (keys) => keys.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
+const MAIN = mainFor(MAIN_KEYS)
 
 // Grouped, like MOONSHOT's. A group heading is an entry whose key starts '@'.
 // This week leads even though it is not on the bar: the sheet calls itself
@@ -37,6 +45,14 @@ const MORE = [
   ]),
 ]
 
-export default function MobileTabBarNfl({ tab, setTab }) {
-  return <MobileTabBar tab={tab} setTab={setTab} main={MAIN} more={MORE} brand="TUDDY" />
+export default function MobileTabBarNfl({ tab, setTab, data }) {
+  const games = data?.games
+  const gameday = useMemo(() => worthPolling(games), [games])
+  const main = gameday ? mainFor(GAMEDAY_KEYS) : MAIN
+  // On game day Live is on the bar, so its More group goes and Research
+  // (which left the bar) takes a group of its own at the top of the sheet.
+  const more = useMemo(() => gameday
+    ? [['@Research', ''], ['research', NFL_NAV.research.label, NFL_NAV.research.blurb], ...MORE.filter(([k]) => k !== 'live' && k !== '@Sunday')]
+    : MORE, [gameday])
+  return <MobileTabBar tab={tab} setTab={setTab} main={main} more={more} brand="TUDDY" />
 }

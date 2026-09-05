@@ -19,7 +19,7 @@ const JOBS = [
   { key: 'CONTACT', label: 'Total bases', color: '#4ade80' },
 ]
 
-export default function PaletteButton() {
+export default function PaletteButton({ jobs = JOBS, accent = C.orange }) {
   const [open, setOpen] = useState(false)
   const wrap = useRef(null)
 
@@ -53,11 +53,11 @@ export default function PaletteButton() {
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '4px 8px', borderRadius: 8, cursor: 'pointer',
           background: open ? C.bg3 : 'transparent',
-          border: `1px solid ${open ? C.orange : C.border}`,
+          border: `1px solid ${open ? accent : C.border}`,
         }}
       >
         <span aria-hidden="true" style={{ display: 'flex', width: 30, height: 12, borderRadius: 3, overflow: 'hidden' }}>
-          {JOBS.map((job) => <span key={job.key} style={{ flex: 1, background: job.color }} />)}
+          {jobs.map((job) => <span key={job.key} style={{ flex: 1, background: job.color }} />)}
         </span>
         <span style={{ fontSize: 10, fontWeight: 800, color: C.text3, fontFamily: NUM_FONT }}>Key</span>
       </button>
@@ -85,7 +85,7 @@ export default function PaletteButton() {
             <span style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>same on every page</span>
           </div>
           <div className="site-colour-key-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            {JOBS.map((job) => (
+            {jobs.map((job) => (
               <div key={job.key} style={{
                 display: 'flex', alignItems: 'center', gap: 7, minWidth: 0,
                 padding: '7px 8px', borderRadius: 8,

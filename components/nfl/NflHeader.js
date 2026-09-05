@@ -4,6 +4,21 @@ import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 import PaletteButton from '../PaletteButton'
+import ThemeModeButton from '../ThemeModeButton'
+import AlertBell from './AlertBell'
+
+// The colour key, in football's words. PaletteButton used to render MOONSHOT's
+// four pick jobs (Home run / Base hit / Runs + RBI / Total bases) on this
+// header. Same seven accents Accountability.js assigns per market.
+const NFL_JOBS = () => [
+  { key: 'TD', label: 'Anytime TD', color: C.green },
+  { key: 'REC YDS', label: 'Receiving yards', color: C.cyan },
+  { key: 'REC', label: 'Receptions', color: C.lime },
+  { key: 'RUSH YDS', label: 'Rushing yards', color: C.blue },
+  { key: 'CARRIES', label: 'Rush attempts', color: C.purple },
+  { key: 'PASS YDS', label: 'Passing yards', color: C.orange },
+  { key: 'KICK', label: 'Kicking points', color: C.yellow },
+]
 
 // Order matches the mobile bottom bar (MobileTabBarNfl.js: Home · Boards ·
 // Games · Picks) and MOONSHOT's own bar shape — the 2026-08-29 review caught
@@ -393,7 +408,9 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             {meta?.built_at_human || data?.built_at_human || '—'}
             {freshLabel && <b style={{ color: freshCol, fontWeight: 800 }}>{` · ${freshLabel}`}</b>}
           </span>
-          <PaletteButton />
+          <AlertBell />
+          <ThemeModeButton />
+          <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
         </div>
       </div>
 
@@ -471,7 +488,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               background:C.glass, color:C.text2, fontSize:10, fontWeight:750, textDecoration:'none',
             }}>
               <span style={{ color:C.green }}>⌂ DASH HOME</span>
-              <span style={{ color:C.text3, fontWeight:600 }}>Tonight across MOONSHOT · TUDDY · FRANCHISE →</span>
+              <span style={{ color:C.text3, fontWeight:600 }}>This week across MOONSHOT · TUDDY · FRANCHISE →</span>
             </a>
             {/* Grouped, same as MOONSHOT's (2026-09-03). TUDDY has no orphan
                 pages to rescue -- every key was already named somewhere -- so
