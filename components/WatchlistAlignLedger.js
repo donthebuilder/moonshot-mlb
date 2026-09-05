@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { C } from '../lib/theme'
+import MobileFold from './MobileFold'
 import { playerId } from '../lib/player'
 import { easternToday } from '../lib/data'
 import {
@@ -51,6 +52,12 @@ export default function WatchlistAlignLedger({ players = [], watchIds = null, sl
   const yesterdayKey = shiftDateKey(todayKey, -1)
   const tomorrowKey = shiftDateKey(todayKey, 1)
   const [archiveTick, setArchiveTick] = useState(0)
+  // 2026-09-05, Donovan: "I don't understand the Y and the other
+  // thing... make it take up less of the page." Quiet names (nothing
+  // lit up) carry zero signal by this panel's own rule -- pattern
+  // watching, not evidence -- so they default to hidden instead of
+  // padding the page as 30-odd dimmed chips. One tap reveals them.
+  const [showQuiet, setShowQuiet] = useState(false)
   useEffect(() => {
     const id = setInterval(() => setArchiveTick((t) => t + 1), 60_000)
     return () => clearInterval(id)
@@ -93,53 +100,95 @@ export default function WatchlistAlignLedger({ players = [], watchIds = null, sl
   if (!watchIds || !watchIds.size || !rows.length) return null
 
   const anyAligning = watchedRows.some((w) => w.any)
+  const aligningCount = watchedRows.filter((w) => w.any).length
+
+  // 2026-09-05, Donovan: "make it better and collapsible." Two problems with
+  // the old panel: it was an always-open wall of every watched name, quiet
+  // ones and hits mixed together in whatever order the slate happened to
+  // list them; and it had no fold at all, so a 36-name watchlist cost you a
+  // full screen of chips even on a dead night. Fixed both:
+  //   · richest hit first — sort by how many things actually lit up (Y/T/+1
+  //     plus the braid), so the names worth looking at aren't buried in the
+  //     "·" rows
+  //   · MobileFold (same component every other board on the site folds
+  //     with) — its summary line carries the headline ("3 of 36 aligning
+  //     tonight") whether the panel is open or closed, and it opens itself
+  //     automatically the moment there's something to see, closed the rest
+  //     of the time. rememberKey means a manual open/close survives past
+  //     that default on the next visit.
+  const hitCount = (w) => (w.hitsYesterday ? 1 : 0) + (w.hitsToday ? 1 : 0) + (w.hitsTomorrow ? 1 : 0) + (w.braid ? 1 : 0)
+  const sortedRows = [...watchedRows]
+    .map((w) => ({ ...w, hits: hitCount(w) }))
+    .sort((x, y) => y.hits - x.hits || x.a.name.localeCompare(y.a.name))
+
+  const summary = watchedRows.length === 0
+    ? 'no saved hitters on tonight’s slate'
+    : aligningCount > 0
+      ? `${aligningCount} of ${watchedRows.length} aligning tonight`
+      : `${watchedRows.length} watched · none aligning yet`
 
   return (
+    <MobileFold
+      title="🔮 Alignment ledger"
+      summary={summary}
+      count={aligningCount || null}
+      accent={anyAligning ? C.orange : C.text3}
+      always
+      defaultOpen={aligningCount > 0}
+      rememberKey="moonshot_watch_align_fold_v1"
+    >
     <div style={{
       border: `1px solid ${anyAligning ? C.orange + '77' : C.border}`,
       background: anyAligning ? 'rgba(249,115,22,.06)' : C.bg2,
       borderRadius: 10, padding: '9px 13px', marginBottom: 10,
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text2 }}>🔮 Alignment ledger — your watchlist</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>pattern watching, not evidence — feeds no score</span>
-      </div>
+      <div style={{ fontSize: 9, color: C.text3, marginBottom: 4 }}>pattern watching, not evidence — feeds no score</div>
       {watchedRows.length === 0 ? (
         <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.5 }}>
           None of your saved hitters are on tonight&apos;s slate — nothing to cross-check yet.
         </div>
       ) : (
         <>
-          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, marginBottom: 6 }}>
-            Checked against each man&apos;s own jersey / birthday / life-path roots —{' '}
-            <b style={{ color: C.orange }}>Y</b> = matches yesterday&apos;s leading root,{' '}
-            <b style={{ color: C.orange }}>T</b> = today&apos;s so far, <b style={{ color: C.orange }}>+1</b> = tomorrow&apos;s date,{' '}
-            <b style={{ color: '#38bdf8' }}>🧬</b> = his own numbers agree with each other, no archive needed.
-            {' '}Hover a name for exactly which numbers. Every axis, all nine root clubs: Parlays → 🔮 Alignments.
+          {/* PLAIN ENGLISH, NO LETTER CODES (2026-09-05). The old legend
+              spelled out Y / T / +1 / 🧬 as if they were a key you had to
+              memorize before the panel meant anything; Donovan: "I don't
+              understand the Y and the other thing." The exact match still
+              lives in each name's hover title — this just stops requiring
+              you to learn a code to read the row at a glance. */}
+          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, marginBottom: 6 }}>
+            A name lights up when his own jersey / birthday / life-path numbers echo something from
+            the last few days — hover a name for exactly which. More dots, more of them lining up.
           </div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {watchedRows.map(({ a, hitsYesterday, hitsToday, hitsTomorrow, braid, any, tip }) => (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {(showQuiet ? sortedRows : sortedRows.filter((w) => w.any)).map(({ a, any, tip, hits }) => (
               <button key={a.pid} onClick={() => onPlayerClick?.(a.p)}
                 title={`${a.name} — ${tip} — click to open his card`}
                 style={{
                   padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
                   border: `1px solid ${any ? C.orange + '55' : C.border}`,
-                  background: 'transparent', color: C.text2,
+                  background: any ? 'rgba(249,115,22,.08)' : 'transparent', color: C.text2,
+                  opacity: any ? 1 : 0.6,
                 }}>
                 {a.name}
-                {hitsYesterday && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>Y</span>}
-                {hitsToday && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>T</span>}
-                {hitsTomorrow && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>+1</span>}
-                {/* 🧬 his OWN numbers agreeing — no archive needed, so it's
-                    the one badge that can show up even on a slate with no
-                    daily leading root at all. */}
-                {braid && <span style={{ color: '#38bdf8', fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>🧬{braid.root}</span>}
-                {!any && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>·</span>}
+                {any && (
+                  <span style={{ color: C.orange, fontSize: 8, marginLeft: 5, letterSpacing: '1px' }}>
+                    {'●'.repeat(Math.min(hits, 3))}
+                  </span>
+                )}
               </button>
             ))}
+            {aligningCount < watchedRows.length && (
+              <button onClick={() => setShowQuiet((v) => !v)} style={{
+                padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5, fontWeight: 700,
+                border: `1px dashed ${C.border2}`, background: 'transparent', color: C.text3,
+              }}>
+                {showQuiet ? '– hide the quiet ones' : `+${watchedRows.length - aligningCount} quiet, not shown`}
+              </button>
+            )}
           </div>
         </>
       )}
     </div>
+    </MobileFold>
   )
 }

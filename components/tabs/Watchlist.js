@@ -584,26 +584,34 @@ function WatchTracker({ items, nightOf, slateDate, mode, onLedger }) {
           <b style={{ color: C.text2 }}>{led.extras.totalHr}</b> homers.
         </div>
       )}
+      {/* SIZING FIX (2026-09-05) — Donovan: the mobile sizing of this chart.
+          The caption used to sit on the SAME flex row as the bars with no
+          wrap, so on a narrow phone the two fought for width and the caption
+          got clipped by body{overflow-x:clip} instead of wrapping. Caption
+          now sits on its own line below; the bar row keeps flex-wrap as a
+          second guard if this ever grows past 14 nights. */}
       {spark.length > 1 && (
-        <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', marginBottom: 6 }}>
-          {spark.map((r) => {
-            // Bar height is the night's homer rate; the tooltip carries the
-            // raw counts, because a tall bar off two at-bats is not a good night.
-            const rate = r.n ? r.hr / r.n : 0
-            const h = 4 + Math.round(rate * 20)
-            return (
-              <span key={r.date}
-                title={`${r.date} — ${r.hr} of ${r.n} saved hitters homered${r.void ? `, ${r.void} never batted` : ''}`}
-                style={{
-                  width: 12, height: h, borderRadius: 2, cursor: 'default',
-                  background: r.hr ? '#4ade80' : 'rgba(255,255,255,.10)',
-                  boxShadow: r.hr ? '0 0 6px rgba(74,222,128,.35)' : 'none',
-                }} />
-            )
-          })}
-          <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 4, alignSelf: 'center' }}>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            {spark.map((r) => {
+              // Bar height is the night's homer rate; the tooltip carries the
+              // raw counts, because a tall bar off two at-bats is not a good night.
+              const rate = r.n ? r.hr / r.n : 0
+              const h = 4 + Math.round(rate * 20)
+              return (
+                <span key={r.date}
+                  title={`${r.date} — ${r.hr} of ${r.n} saved hitters homered${r.void ? `, ${r.void} never batted` : ''}`}
+                  style={{
+                    width: 12, height: h, borderRadius: 2, cursor: 'default',
+                    background: r.hr ? '#4ade80' : 'rgba(255,255,255,.10)',
+                    boxShadow: r.hr ? '0 0 6px rgba(74,222,128,.35)' : 'none',
+                  }} />
+              )
+            })}
+          </div>
+          <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 3 }}>
             last {spark.length} nights · bar = share who homered
-          </span>
+          </div>
         </div>
       )}
       <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.55 }}>

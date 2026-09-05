@@ -7,6 +7,7 @@ import { Dial } from './VerdictHero'
 import { useSpot } from '../lib/spotlight'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
 import MobileFold from './MobileFold'
+import Rail from './Rail'
 
 // Game selector strip — the PropFinder pattern.
 //
@@ -347,10 +348,12 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           remaining shouts (tint, glow, heat-scaled numeral) down to the band
           glyph and the rank. Same even grid, one flat surface, nothing lost. */}
       <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
-      <div style={{
-        display: 'grid', gap: 8,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 264px), 1fr))',
-      }}>
+      {/* THE STRIP (2026-09-05) — Donovan: hard to scroll through on
+          desktop, and the wrapped grid ran the page too tall on both mobile
+          and desktop. One row now, on a Rail (components/Rail.js) so a mouse
+          gets wheel-to-scroll + nubs and a phone gets native momentum — same
+          264px card floor as the old grid, it just doesn't wrap anymore. */}
+      <Rail itemMin={264} gap={8}>
         {cards.map((c) => {
           const on = activeGame === c.pk
           // PERSONALITY BANDS (2026-08-07, same language as the park board):
@@ -572,7 +575,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
             </button>
           )
         })}
-      </div>
+      </Rail>
 
       <div style={{ marginTop: 7 }}>
         <div style={{ fontSize: 9.5, color: C.text3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
