@@ -122,7 +122,7 @@ export default function DashAuthCard({
           </label>
           <label>Email
             <input name="email" type="email" autoComplete="email" defaultValue={defaultEmail} required />
-            <small className={styles.hint}>We send one confirmation link here. Nothing else.</small>
+            <small className={styles.hint}>Used to sign you in and for nothing else.</small>
           </label>
           <label>Password
             <PasswordInput autoComplete="new-password" minLength={8} />
@@ -132,7 +132,7 @@ export default function DashAuthCard({
             <small className={styles.hint}>At least 8 characters. Tap SHOW to check what you typed.</small>
           </label>
           <SubmitButton pendingLabel="Creating your account…">Create account <span>→</span></SubmitButton>
-          <small>Free. No card, no payment screen, and the site stays readable without an account.</small>
+          <small>Free. No card, no payment screen. The board, the picks and the odds are all yours the second you&apos;re in.</small>
         </form>
       ) : (
         <form action={dashSignIn} key="signin">
