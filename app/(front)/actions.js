@@ -47,8 +47,15 @@ function safeNext(value) {
 // deliberately NOT carried — a password in a URL ends up in history, in
 // server logs and in the back button, and no amount of convenience is worth
 // that.
+// WHICH PAGE HOLDS THE FORM (2026-09-05). Now that the boards are behind an
+// account, `next` is usually a board URL (`/app#sport=mlb&tab=home`) — a page
+// with no form on it, and a gated one, so a bounce there would loop back to
+// /login with the message lost. The form lives in exactly two places: the
+// front door when `next` is `/`, and /login?next=… for everything else.
+const host = (next) => (safeNext(next) === '/' ? '/' : `/login?next=${encodeURIComponent(safeNext(next))}`)
+
 function back(next, type, message, keep = {}) {
-  const target = safeNext(next)
+  const target = host(next)
   const q = new URLSearchParams({ [type]: message })
   if (keep.email) q.set('em', keep.email)
   if (keep.name) q.set('nm', keep.name)
@@ -119,13 +126,18 @@ export async function dashSignUp(formData) {
   // had happened. `confirm` makes the card replace itself with the
   // instruction — see components/DashAuthCard.js.
   if (!data.session) {
-    redirect(`${safeNext(next)}?confirm=${encodeURIComponent(email)}#create-account`)
+    const h = host(next)
+    redirect(`${h}${h.includes('?') ? '&' : '?'}confirm=${encodeURIComponent(email)}#create-account`)
   }
   revalidatePath('/', 'layout')
   // WHAT NOW. Donovan's third report was "didn't know what to do after signing
   // up", and the old code redirected to `/` — the same page, no acknowledgement
   // that anything had happened at all. `welcome` turns the auth section into a
   // short first-run panel with the three things worth doing first.
+  // The welcome panel is a front-door section; a board `next` carries its own
+  // hash (the tab) that `#sign-in` would overwrite. So: front door gets the
+  // welcome, anywhere else gets where they were going.
+  if (safeNext(next) !== '/') redirect(safeNext(next))
   redirect(`${safeNext(next)}?welcome=${encodeURIComponent(displayName)}#sign-in`)
 }
 

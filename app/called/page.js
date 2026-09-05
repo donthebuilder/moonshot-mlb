@@ -71,6 +71,14 @@ async function load() {
   return { today, rows, picks, calledIds, history: history.reverse(), configured: true }
 }
 
+// Every link into the board goes through /login carrying its destination
+// (2026-09-05: the boards are behind an account now). Signed in, /login
+// bounces straight to `next`; signed out, it opens the create tab. The hash
+// rides inside `next`, so a player link still opens that player.
+const gated = (href) => `/login?next=${encodeURIComponent(href)}#create-account`
+const BOARD = gated('/app#sport=mlb&tab=home')
+const PREVIEW = 5
+
 const glyph = (r) => (r.role ? '⭐' : r.on_board ? '⚪' : '💥')
 const callWord = (r) => (r.role
   ? `${roleWord(r.role)}${r.board_rank ? ` · #${r.board_rank}` : ''}`
@@ -93,8 +101,7 @@ export default async function CalledPage() {
           <div><small>DASH NETWORK · MOONSHOT</small><strong>CALLED IT</strong></div>
         </a>
         <nav className={styles.nav}>
-          <a href="/app#sport=mlb&tab=home">Tonight&apos;s board</a>
-          <a href="/app#sport=mlb&tab=results">Results</a>
+          <a className={styles.navCta} href={BOARD}>Get tonight&apos;s calls</a>
         </nav>
       </header>
 
@@ -119,10 +126,12 @@ export default async function CalledPage() {
             </p>
           </>
         )}
+        <a className={styles.cta} href={BOARD}>
+          <strong>See who the bot likes tonight</strong>
+          <span>Free account · the full board, every call, before first pitch</span>
+        </a>
         <p className={styles.rule}>
-          ⭐ = the hitter carried a bot designation (TOP · Top 15 · HR · HIT · HRR · CONTACT · HR Watch) on the published board
-          when the ball left. ⚪ = on the board, no call. 💥 = not on the board. The tag is frozen the moment
-          the homer is first seen and never re-graded.
+          ⭐ on the bot before the ball left &nbsp;·&nbsp; ⚪ on the board, no call &nbsp;·&nbsp; 💥 not on the board. Tags are frozen when the homer is first seen and never re-graded.
         </p>
       </section>
 
@@ -133,7 +142,7 @@ export default async function CalledPage() {
             {picks.map((p, i) => (
               <li key={p.player_id || i} className={calledIds.has(String(p.player_id)) ? styles.callHit : ''}>
                 <span className={styles.callN}>{i + 1}</span>
-                <a className={styles.name} href={`/app#sport=mlb&p=${encodeURIComponent(p.player_id)}`}>{p.name}</a>
+                <a className={styles.name} href={gated(`/app#sport=mlb&p=${encodeURIComponent(p.player_id)}`)}>{p.name}</a>
                 <span className={styles.meta}>{p.team || ''}{p.opponent ? ` vs ${p.opponent}` : ''}{p.odds_over && p.odds_book ? ` · ${p.odds_over > 0 ? '+' : ''}${p.odds_over} ${p.odds_book}` : ''}</span>
                 <span className={styles.call}>{calledIds.has(String(p.player_id)) ? '⭐ went deep' : 'live'}</span>
               </li>
@@ -167,17 +176,35 @@ export default async function CalledPage() {
           ) : null}
           {rest.length ? (
             <>
-              <h3 className={styles.h3}>Not called</h3>
+              <h3 className={styles.h3}>Not called · {rest.length}</h3>
               <ul className={styles.list}>
-                {rest.map((r) => <Row key={`${r.player_id}:${r.hr_n}`} r={r} dim />)}
+                {rest.slice(0, PREVIEW).map((r) => <Row key={`${r.player_id}:${r.hr_n}`} r={r} dim />)}
               </ul>
+              {rest.length > PREVIEW ? (
+                // A phone should not scroll through thirty misses to reach
+                // the sign-up. Five preview, the rest behind one tap, no JS.
+                <details className={styles.more}>
+                  <summary>Show the other {rest.length - PREVIEW}</summary>
+                  <ul className={styles.list}>
+                    {rest.slice(PREVIEW).map((r) => <Row key={`${r.player_id}:${r.hr_n}`} r={r} dim />)}
+                  </ul>
+                </details>
+              ) : null}
             </>
           ) : null}
         </section>
       ) : null}
 
+      <section className={styles.close}>
+        <h2 className={styles.closeH}>Tomorrow&apos;s calls are already on the board.</h2>
+        <p>The bot publishes its picks every morning. The ⭐ you see here is what it said before first pitch.</p>
+        <a className={styles.cta} href={BOARD}>
+          <strong>Create a free account</strong>
+          <span>Board · picks · odds · alerts when your guys go deep</span>
+        </a>
+      </section>
+
       <footer className={styles.foot}>
-        <a href="/app#sport=mlb&tab=home">See tonight&apos;s board →</a>
         <span>CALLED IT is MOONSHOT&apos;s home run record — every home run, graded in public. Data from MLB&apos;s public feeds.</span>
       </footer>
     </main>
@@ -188,7 +215,7 @@ function Row({ r, dim }) {
   return (
     <li className={`${styles.row} ${dim ? styles.rowDim : ''}`}>
       <span className={styles.glyph}>{glyph(r)}</span>
-      <a className={styles.name} href={`/app#sport=mlb&p=${encodeURIComponent(r.player_id)}&view=spray`}>
+      <a className={styles.name} href={gated(`/app#sport=mlb&p=${encodeURIComponent(r.player_id)}&view=spray`)}>
         {r.name}{r.hr_n > 1 ? <small> ({r.hr_n})</small> : null}
       </a>
       <span className={styles.meta}>

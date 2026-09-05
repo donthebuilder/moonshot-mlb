@@ -82,3 +82,20 @@
 .callN { grid-area: n; color: var(--mlb); font-weight: 700; font-variant-numeric: tabular-nums; }
 .callHit .name { color: var(--mlb); }
 @media (max-width: 480px) { .calls li { grid-template-columns: 22px 1fr; grid-template-areas: "n name" "n meta" "n call"; } }
+
+/* ── THE ASK (2026-09-05) ──────────────────────────────────────────────────
+   Donovan: "make sure it leads to a sign up." One button shape, used twice:
+   under the headline and at the bottom after the list. */
+.cta { display: flex; flex-direction: column; gap: 3px; margin: 18px 0 0; padding: 14px 18px; background: var(--mlb); color: #0d0c0a; border-radius: 12px; text-decoration: none; max-width: 420px; }
+.cta strong { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.cta span { font-size: 12px; opacity: 0.8; }
+.cta:hover { filter: brightness(1.07); }
+.navCta { color: var(--mlb) !important; border: 1px solid var(--mlb); border-radius: 999px; padding: 6px 12px; }
+.more { margin-top: 8px; }
+.more summary { cursor: pointer; font-size: 13px; color: var(--mlb); padding: 8px 0; list-style: none; }
+.more summary::-webkit-details-marker { display: none; }
+.more summary::before { content: '+ '; }
+.more[open] summary::before { content: '− '; }
+.close { margin-top: 28px; padding: 22px 0 0; border-top: 1px solid var(--line); }
+.closeH { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 800; }
+.close p { margin: 8px 0 0; font-size: 14px; color: var(--dim); max-width: 520px; }
