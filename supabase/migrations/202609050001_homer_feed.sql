@@ -46,6 +46,13 @@ create table if not exists public.homer_feed (
   -- without a book is never stored or shown.
   odds_over     integer,
   odds_book     text,
+  -- The board row's bat/arm numbers as the card prints them (lib/dash/homerFeed
+  -- statsFrom) plus his jersey, and the hook lines (same-day partner,
+  -- back-to-back, the bot's record on him, numerology) — all computed when
+  -- the homer was first seen so a re-rendered card a month later says what
+  -- the post said.
+  stats         jsonb,
+  hooks         jsonb       not null default '[]'::jsonb,
   -- Where it went, so a failed post can be retried and a sent one never
   -- duplicated. NULL = not sent (yet).
   x_post_id     text,

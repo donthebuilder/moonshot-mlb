@@ -106,19 +106,22 @@ const TEXTS = {
   },
 }
 
-export default function TabExplainer({ tab }) {
-  const info = TEXTS[tab === 'due' ? 'longest' : tab === 'hitshrr' ? 'board' : tab]
+// 2026-09-05: generalised for TUDDY -- pass `texts` (its own map), a
+// `storageKey` (the two products share tab names, so 'home' seen on one must
+// not silence the other) and an `accent`.
+export default function TabExplainer({ tab, texts = TEXTS, storageKey = 'tab_explained', accent = C.orange }) {
+  const info = texts[tab === 'due' ? 'longest' : tab === 'hitshrr' ? 'board' : tab]
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (!info) return
     // Auto-open on the FIRST visit to each tab, pill afterward.
     try {
-      const seen = JSON.parse(localStorage.getItem('tab_explained') || '{}')
+      const seen = JSON.parse(localStorage.getItem(storageKey) || '{}')
       if (!seen[tab]) {
         setOpen(true)
         seen[tab] = 1
-        localStorage.setItem('tab_explained', JSON.stringify(seen))
+        localStorage.setItem(storageKey, JSON.stringify(seen))
       } else {
         setOpen(false)
       }
@@ -141,8 +144,8 @@ export default function TabExplainer({ tab }) {
     // above wears it too, so quiet means gone rather than collapsed to a
     // control you now have to ignore instead of read.
     <div className="tab-explainer" style={{
-      background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
-      border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`,
+      background: `linear-gradient(155deg, ${C.bg2}, ${accent}0a)`,
+      border: `1px solid ${C.border}`, borderLeft: `3px solid ${accent}`,
       borderRadius: 10, padding: '9px 13px', marginBottom: 12,
       display: 'flex', gap: 10, alignItems: 'flex-start',
     }}>

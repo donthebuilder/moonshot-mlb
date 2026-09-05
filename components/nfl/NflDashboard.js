@@ -12,6 +12,8 @@ import NflPlayerModal from './NflPlayerModal'
 import MobileCSS from '../MobileCSS'
 import MobileTabBarNfl from './MobileTabBarNfl'
 import NflWire from './NflWire'
+import TabExplainer from '../TabExplainer'
+import { NFL_TEXTS } from './tabExplainerTexts'
 
 import Home from './tabs/Home'
 import StatPortal from './tabs/StatPortal'
@@ -209,6 +211,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
         <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
+        {!missingTab && !loading && <TabExplainer tab={tab} texts={NFL_TEXTS} storageKey="tab_explained_nfl" accent={C.green} />}
         {missingTab ? (
           <TabNotFound
             asked={missingTab}
@@ -253,7 +256,9 @@ export default function NflDashboard({ palettePass = 0 }) {
         splitMeta={{ pairs: data?.split_pairs, labels: data?.split_labels }}
         logs={logs}
         matchup={matchup}
-        slate={data}
+        slate={slate}
+        picks={picks}
+        results={nflResults}
         onClose={() => setModal(null)}
         onFullProfile={openFullProfile}
       />

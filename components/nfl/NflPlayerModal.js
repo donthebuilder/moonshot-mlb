@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import useScrollLock from '../../lib/useScrollLock'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
+import PlayerNotes from '../PlayerNotes'
+import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
 import DvpTable, { GROUP } from './DvpTable'
 import { downloadNflPickCard } from './shareCard'
@@ -299,7 +301,7 @@ function pickFromPlayer(player, market, spec) {
   }
 }
 
-export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, onClose, onFullProfile }) {
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile }) {
   useScrollLock(Boolean(player))
   const watchlist = useNflWatchlist(slate)
   useEffect(() => {
@@ -401,6 +403,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           })}
         </div>
 
+        {/* graded state and your card, before the matchup: the two things a
+            bettor opens the card to do (2026-09-05, Batch 2). */}
+        <VerdictStamp player={player} results={results} bars={Object.fromEntries((markets || []).map((m) => [m.key, Number(m.bar)]))} />
+        <PutOnCard player={player} market={market} picks={picks} slate={slate} />
         <MatchupSection player={player} matchup={matchup} market={market} />
         <DvpSection player={player} matchup={matchup} />
 
@@ -478,6 +484,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         <CoverageAndExplosive player={player} matchup={matchup} />
 
         <Splits player={player} market={market} data={splitMeta} />
+        {/* Same per-device note store as MOONSHOT's card; ids can't collide. */}
+        <PlayerNotes playerId={player.player_id} />
 
         {player.carryover && (
           <div style={{
