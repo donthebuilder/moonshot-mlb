@@ -143,11 +143,88 @@ const shiftDay = (iso, n) => {
   return d.toISOString().slice(0, 10)
 }
 
+
+/**
+ * The night's recap — text + card to Discord and X, and on a Sunday the week.
+ * Claimed on `homerfeed:recap:<day>` so it goes out once; `force` re-posts
+ * (a test, or a night whose post failed) without touching the claim.
+ */
+async function postRecap(db, day, { force = false } = {}) {
+  const out = { recap: 'posted' }
+  const xOn = hasX()
+  const key = `homerfeed:recap:${day}`
+  const { data: claim } = await db
+    .from('dash_push_seen')
+    .upsert([{ event_key: key }], { onConflict: 'event_key', ignoreDuplicates: true })
+    .select('event_key')
+  if (!claim?.length && !force) return { recap: 'already' }
+  {
+    const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank').eq('day', day)
+    const c = captureFrom(rows)
+    if (c.total) {
+      const roles = Object.entries(c.byRole).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(' · ')
+      const { data: hist } = await db.from('homer_feed').select('day,role,name,odds_over,odds_book').gte('day', shiftDay(day, -12)).lte('day', day)
+      const straight = topStreakFrom(hist || [], day, false)
+      const text = [
+        `📋 ${day} — the bot called ${c.called} of ${c.total} home runs (${c.pct}%)`,
+        roles ? `⭐ ${roles}` : '',
+        c.rated ? `⚪ ${c.rated} more were on the board, no call` : '',
+        straight >= 2 ? `🔥 A TOP pick has gone deep ${straight} straight nights` : '',
+        [CALLED_URL, HANDLE].filter(Boolean).join(' · '),
+      ].filter(Boolean).join('\n')
+      await postToDiscord(text, { imageUrl: recapUrl(day) })
+      if (xOn) {
+        const png = await bytesOf(() => recapCard(day, rows || [], hist || [], { site: SITE_HOST }))
+        const mediaId = png ? await uploadImageToX(png) : null
+        const r = await postToX(text, { mediaId })
+        if (r.ok) out.recap = r.id
+        else console.error(`[homers] recap refused: ${r.status} ${r.error}`)
+      }
+      // SUNDAY: the week. Claimed on its own key so a recap that failed
+      // halfway cannot skip it, and a week is never posted twice.
+      if (new Date(`${day}T12:00:00Z`).getUTCDay() === 0) {
+        const { data: wk } = await db
+          .from('homer_feed_posts')
+          .upsert([{ day, kind: 'weekly', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+          .select('day')
+        if (wk?.length) {
+          const from = shiftDay(day, -6)
+          const week = (hist || []).filter((r) => r.day >= from && r.day <= day)
+          const wtext = weeklyText(week, { from, to: day, site: CALLED_URL, handle: HANDLE })
+          const wc = captureFrom(week)
+          const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
+          const d = await postToDiscord(wtext)
+          if (d.ok) patch.discord_sent = true
+          if (xOn) {
+            const r = await postToX(wtext)
+            if (r.ok && r.id) patch.x_post_id = r.id
+            else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
+          }
+          await db.from('homer_feed_posts').update(patch).match({ day, kind: 'weekly' })
+        }
+      }
+    }
+  }
+  return out
+}
+
 export async function GET(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (await isMaintenanceMode()) return Response.json({ skipped: 'maintenance_mode' })
   const db = service()
   if (!db) return Response.json({ skipped: 'supabase-service-key-missing' })
+
+  // A RECAP ON DEMAND: ?recap=YYYY-MM-DD posts that night's recap from
+  // whatever homer_feed holds for it (live rows or backfill). &force=1
+  // re-posts one that already went out. This is how the first recap gets
+  // tested at 1am without waiting for a night to end.
+  const u = new URL(request.url)
+  const want = String(u.searchParams.get('recap') || '')
+  if (/^\d{4}-\d{2}-\d{2}$/.test(want)) {
+    const { count } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('day', want)
+    if (!count) return Response.json({ day: want, recap: 'no-rows', hint: 'nothing recorded for that night yet — the backfill fills one past night per tick' })
+    return Response.json({ day: want, rows: count, ...(await postRecap(db, want, { force: u.searchParams.get('force') === '1' })) })
+  }
 
   const day = easternToday()
   // The nights before the feed existed, one per tick until the /called window
@@ -296,60 +373,7 @@ export async function GET(request) {
 
   // ── 4. the recap, once, when the night is over ───────────────────────────
   const allDone = snap.games.every((g) => g?.settled || g?.postponed || g?.suspended || g?.state === 'Final')
-  if (allDone) {
-    const key = `homerfeed:recap:${day}`
-    const { data: claim } = await db
-      .from('dash_push_seen')
-      .upsert([{ event_key: key }], { onConflict: 'event_key', ignoreDuplicates: true })
-      .select('event_key')
-    if (claim?.length) {
-      const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank').eq('day', day)
-      const c = captureFrom(rows)
-      if (c.total) {
-        const roles = Object.entries(c.byRole).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(' · ')
-        const { data: hist } = await db.from('homer_feed').select('day,role,name,odds_over,odds_book').gte('day', shiftDay(day, -12)).lte('day', day)
-        const straight = topStreakFrom(hist || [], day, false)
-        const text = [
-          `📋 ${day} — the bot called ${c.called} of ${c.total} home runs (${c.pct}%)`,
-          roles ? `⭐ ${roles}` : '',
-          c.rated ? `⚪ ${c.rated} more were on the board, no call` : '',
-          straight >= 2 ? `🔥 A TOP pick has gone deep ${straight} straight nights` : '',
-          [CALLED_URL, HANDLE].filter(Boolean).join(' · '),
-        ].filter(Boolean).join('\n')
-        await postToDiscord(text, { imageUrl: recapUrl(day) })
-        if (xOn) {
-          const png = await bytesOf(() => recapCard(day, rows || [], hist || [], { site: SITE_HOST }))
-          const mediaId = png ? await uploadImageToX(png) : null
-          const r = await postToX(text, { mediaId })
-          if (r.ok) totals.recap = r.id
-          else console.error(`[homers] recap refused: ${r.status} ${r.error}`)
-        }
-        // SUNDAY: the week. Claimed on its own key so a recap that failed
-        // halfway cannot skip it, and a week is never posted twice.
-        if (new Date(`${day}T12:00:00Z`).getUTCDay() === 0) {
-          const { data: wk } = await db
-            .from('homer_feed_posts')
-            .upsert([{ day, kind: 'weekly', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-            .select('day')
-          if (wk?.length) {
-            const from = shiftDay(day, -6)
-            const week = (hist || []).filter((r) => r.day >= from && r.day <= day)
-            const wtext = weeklyText(week, { from, to: day, site: CALLED_URL, handle: HANDLE })
-            const wc = captureFrom(week)
-            const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
-            const d = await postToDiscord(wtext)
-            if (d.ok) patch.discord_sent = true
-            if (xOn) {
-              const r = await postToX(wtext)
-              if (r.ok && r.id) patch.x_post_id = r.id
-              else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
-            }
-            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'weekly' })
-          }
-        }
-      }
-    }
-  }
+  if (allDone) Object.assign(totals, await postRecap(db, day))
 
   return Response.json(totals)
 }

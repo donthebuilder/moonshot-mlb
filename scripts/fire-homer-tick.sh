@@ -1,22 +1,31 @@
 #!/bin/bash
-# Fire one homer-feed tick by hand and see what it did — the same call the
-# Vercel cron makes every minute. Run from the Mac:
+# Fire the homer-feed tick by hand — the same call the Vercel cron makes
+# every minute — or post one night's recap on demand.
 #
-#   CRON_SECRET=<the value on Vercel> bash fire-tick.sh
+#   bash scripts/fire-homer-tick.sh                       one tick, right now
+#   bash scripts/fire-homer-tick.sh --recap 2026-09-04    post that night's recap
+#   bash scripts/fire-homer-tick.sh --recap 2026-09-04 --force   re-post it even if it already went out
 #
-# Reads: { day, seen, fresh, discord, x, xFailed, board, mode }
-#   seen     homers in the live feed right now
-#   fresh    ones this call was the first to record (and posted)
-#   pregame  set when the pregame call went out (its X post id, or "already")
-#   skipped  "no-games" / "nothing-started" — nothing to do yet
-#
-# Safe to run as often as you like: every claim is an insert that either
-# sticks or doesn't, so a second run never double-posts.
+# CRON_SECRET comes from .calledit.env if the ship script saved it there,
+# else from the environment, else it is pulled from Vercel.
 set -euo pipefail
+cd "$(dirname "$0")/.." || exit 1
 SITE="${DASH_SITE_URL:-https://dashnetwork.vercel.app}"
-: "${CRON_SECRET:?set CRON_SECRET to the value on Vercel}"
-curl -sS -H "Authorization: Bearer ${CRON_SECRET}" "${SITE}/api/dash/homers/tick" | python3 -m json.tool
+SECRET="${CRON_SECRET:-}"
+[ -z "$SECRET" ] && [ -f .calledit.env ] && SECRET=$(grep '^CRON_SECRET=' .calledit.env | cut -d= -f2- || true)
+if [ -z "$SECRET" ]; then
+  npx vercel env pull .env.vercel.tmp --environment=production >/dev/null 2>&1 || true
+  SECRET=$(grep '^CRON_SECRET=' .env.vercel.tmp 2>/dev/null | cut -d= -f2- | tr -d '"' || true)
+  rm -f .env.vercel.tmp
+  [ -n "$SECRET" ] && [ -f .calledit.env ] && printf 'CRON_SECRET=%s\n' "$SECRET" >> .calledit.env
+fi
+[ -z "$SECRET" ] && { echo "no CRON_SECRET — run: npx vercel login   then try again"; exit 1; }
+
+Q=""
+if [ "${1:-}" = "--recap" ]; then
+  Q="?recap=${2:?give the night, e.g. --recap 2026-09-04}"
+  [ "${3:-}" = "--force" ] && Q="$Q&force=1"
+fi
+curl -sS -H "Authorization: Bearer ${SECRET}" "${SITE}/api/dash/homers/tick${Q}" | python3 -m json.tool
 echo
-echo "cards:  ${SITE}/api/dash/homers/card?day=$(date -u +%F)&pregame=1"
-echo "        ${SITE}/api/dash/homers/card?day=$(date -u +%F)&recap=1"
 echo "page:   ${SITE}/called"
