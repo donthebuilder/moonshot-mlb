@@ -37,7 +37,7 @@ import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { boardIndexFrom, captureFrom, homersFrom, hooksFor, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard } from '../../../../../lib/dash/homerCard'
-import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
+import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
 
@@ -153,8 +153,8 @@ const shiftDay = (iso, n) => {
  * (a test, or a night whose post failed) without touching the claim.
  */
 async function postRecap(db, day, { force = false } = {}) {
-  const out = { recap: 'posted' }
   const xOn = hasX()
+  const out = { recap: xOn ? 'posted' : 'x-not-configured', ...(xOn ? {} : { x_problem: xProblem() }) }
   const key = `homerfeed:recap:${day}`
   const { data: claim } = await db
     .from('dash_push_seen')
@@ -181,7 +181,8 @@ async function postRecap(db, day, { force = false } = {}) {
         const mediaId = png ? await uploadImageToX(png) : null
         const r = await postToX(text, { mediaId })
         if (r.ok) out.recap = r.id
-        else console.error(`[homers] recap refused: ${r.status} ${r.error}`)
+        else { out.recap = 'x-refused'; out.x_error = `${r.status} ${r.error}`; console.error(`[homers] recap refused: ${r.status} ${r.error}`) }
+        out.card = png ? 'attached' : 'failed'
       }
       // SUNDAY: the week. Claimed on its own key so a recap that failed
       // halfway cannot skip it, and a week is never posted twice.
