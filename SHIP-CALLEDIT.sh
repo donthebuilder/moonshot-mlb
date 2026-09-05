@@ -19,7 +19,10 @@ ENVF=".calledit.env"
 SITE_URL="https://dashnetwork.vercel.app"
 
 say()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
-ask()  { local v; printf '  %s: ' "$1"; read -r v; printf '%s' "$v"; }
+# The prompt goes to STDERR. The first version printed it to stdout, and
+# because the caller captures stdout, every saved key began with its own
+# label ("  API Key: xxxx") — and Vercel got those. Never again.
+ask()  { local v; printf '  %s: ' "$1" >&2; read -r v; printf '%s' "${v//[[:space:]]/}"; }
 have() { grep -q "^$1=." "$ENVF" 2>/dev/null; }
 getv() { grep "^$1=" "$ENVF" | head -1 | cut -d= -f2-; }
 setv() { touch "$ENVF"; chmod 600 "$ENVF"; grep -v "^$1=" "$ENVF" > "$ENVF.tmp" 2>/dev/null || true; printf '%s=%s\n' "$1" "$2" >> "$ENVF.tmp"; mv "$ENVF.tmp" "$ENVF"; }
@@ -69,11 +72,18 @@ fi
 
 # ── 3. vercel ──────────────────────────────────────────────────────────────
 say "3/6  Vercel environment (production)"
+# Output is NOT hidden here: the first run of this script sat silent on this
+# step and nobody could tell whether it was logging in, asking a question, or
+# hung. Whatever Vercel says, you see.
+if ! npx vercel whoami >/dev/null 2>&1; then
+  echo "  Vercel needs you to log in once (a browser tab will open):"
+  npx vercel login || { echo "  login did not complete — run the script again."; exit 1; }
+fi
+FAILED=0
 put() {  # name value
   [ -z "$2" ] && return 0
-  npx vercel env rm "$1" production -y >/dev/null 2>&1 || true
-  if printf '%s' "$2" | npx vercel env add "$1" production >/dev/null 2>&1; then echo "  set  $1"
-  else echo "  FAILED to set $1 — run:  npx vercel login   and try again"; exit 1; fi
+  if printf '%s' "$2" | npx vercel env add "$1" production --force --yes 2>&1 | sed 's/^/    /' | grep -viE "^ *$|Vercel CLI" ; then :; fi
+  if npx vercel env ls production 2>/dev/null | grep -q " $1 "; then echo "  set  $1"; else echo "  NOT set: $1"; FAILED=1; fi
 }
 put X_API_KEY       "$(getv X_API_KEY)"
 put X_API_SECRET    "$(getv X_API_SECRET)"
@@ -83,6 +93,20 @@ put X_HANDLE        "$(getv X_HANDLE)"
 put X_POST_MODE     "flagged"   # free X tier: only called homers go to X (~300/mo). Change to "all" on Basic.
 put NEXT_PUBLIC_SITE_URL "$SITE_URL"
 have DISCORD_HOMER_WEBHOOK && put DISCORD_HOMER_WEBHOOK "$(getv DISCORD_HOMER_WEBHOOK)"
+if [ "$FAILED" = "1" ]; then
+  echo
+  echo "  The CLI could not set some of them. Do it by hand — a browser tab is opening"
+  echo "  on the project's Environment Variables page. Add each of these (Production):"
+  echo
+  for k in X_API_KEY X_API_SECRET X_ACCESS_TOKEN X_ACCESS_SECRET X_HANDLE DISCORD_HOMER_WEBHOOK; do
+    have "$k" && printf '    %-24s %s\n' "$k" "$(getv "$k")"
+  done
+  printf '    %-24s %s\n' X_POST_MODE flagged
+  printf '    %-24s %s\n' NEXT_PUBLIC_SITE_URL "$SITE_URL"
+  open "https://vercel.com/dashboard" 2>/dev/null
+  echo
+  printf '  Press Enter here when they are saved… '; read -r _
+fi
 
 # ── 4. build · commit · push ───────────────────────────────────────────────
 say "4/6  Commit and ship"
@@ -91,22 +115,25 @@ if [ -n "$(git status --porcelain)" ]; then
   git commit -q -m "Called It: public homer feed — X/Discord bot, cards, /called page, pregame call, recap, weekly
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>" && echo "  committed"
+  bash SHIP.sh || { echo; echo "SHIP.sh stopped — fix what it printed, then run this again."; exit 1; }
+else
+  # Nothing to push, but the env vars above only reach the functions on a
+  # NEW deployment — so redeploy the current one.
+  echo "  nothing new to commit — redeploying so the environment variables take effect"
+  npx vercel redeploy "$SITE_URL" --yes 2>&1 | grep -iE "production|ready|error|https://" | sed 's/^/    /'
 fi
-bash SHIP.sh || { echo; echo "SHIP.sh stopped — fix what it printed, then run this again."; exit 1; }
 
 # ── 5. first tick ──────────────────────────────────────────────────────────
 say "5/6  First tick"
 echo "  waiting 90s for Vercel to finish the deploy…"
 sleep 90
-npx vercel env pull .env.vercel.tmp --environment=production >/dev/null 2>&1 || true
-SECRET=$(grep '^CRON_SECRET=' .env.vercel.tmp 2>/dev/null | cut -d= -f2- | tr -d '"')
-rm -f .env.vercel.tmp
+SECRET=$(getv CALLEDIT_SECRET)
 if [ -n "$SECRET" ]; then
   curl -sS -H "Authorization: Bearer $SECRET" "$SITE_URL/api/dash/homers/tick" | python3 -m json.tool | sed 's/^/  /'
   echo
   echo "  'fresh' = homers it just posted. 'skipped: nothing-started' before games = normal."
 else
-  echo "  could not read CRON_SECRET from Vercel — the cron will fire on its own within a minute anyway."
+  echo "  no CALLEDIT_SECRET in $ENVF — the cron will fire on its own within a minute anyway."
 fi
 
 # ── 6. the two images ──────────────────────────────────────────────────────
