@@ -33,10 +33,30 @@ if [ ! -d node_modules ] || [ package.json -nt node_modules ] || [ package-lock.
 fi
 
 echo "── build ──"
-if ! npx next build >/tmp/ship-build.log 2>&1; then
-  echo "  BUILD FAILED — nothing pushed. Last 20 lines:"
-  tail -20 /tmp/ship-build.log | sed 's/^/    /'
-  exit 1
+# 2026-09-05: three consecutive ships died inside Turbopack itself -- a
+# missing .tmp manifest, "Unexpected type in cell", then a Rust panic in
+# turbo-tasks -- three different errors on the same tree, which is the
+# signature of a corrupt persistent cache, not of the code. So: start from a
+# clean .next every time (costs ~a minute, saves an evening), and if
+# Turbopack still falls over internally, build once more with webpack,
+# which is the same code through a different bundler. A real error in the
+# code fails both and is printed.
+rm -rf .next
+build_once() { npx next build "$@" >/tmp/ship-build.log 2>&1; }
+if ! build_once; then
+  if grep -qiE "TurbopackInternalError|turbo-tasks|panicked|Unexpected type in cell|_buildManifest.js.tmp" /tmp/ship-build.log; then
+    echo "  Turbopack crashed internally — retrying with webpack…"
+    rm -rf .next
+    if ! build_once --webpack; then
+      echo "  BUILD FAILED (webpack too) — nothing pushed. Last 20 lines:"
+      tail -20 /tmp/ship-build.log | sed 's/^/    /'
+      exit 1
+    fi
+  else
+    echo "  BUILD FAILED — nothing pushed. Last 20 lines:"
+    tail -20 /tmp/ship-build.log | sed 's/^/    /'
+    exit 1
+  fi
 fi
 echo "  ok"
 echo

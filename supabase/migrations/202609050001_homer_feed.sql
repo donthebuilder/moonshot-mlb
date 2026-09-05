@@ -53,6 +53,9 @@ create table if not exists public.homer_feed (
   -- the post said.
   stats         jsonb,
   hooks         jsonb       not null default '[]'::jsonb,
+  -- His most frequent same-day partner (pair_history_summary), so a later
+  -- homer by that man tonight can say "pair complete".
+  partner_id    text,
   -- Where it went, so a failed post can be retried and a sent one never
   -- duplicated. NULL = not sent (yet).
   x_post_id     text,
@@ -68,3 +71,22 @@ create index if not exists homer_feed_day_idx on public.homer_feed (day desc);
 alter table public.homer_feed enable row level security;
 drop policy if exists homer_feed_read_all on public.homer_feed;
 create policy homer_feed_read_all on public.homer_feed for select using (true);
+
+-- THE ACCOUNT'S OWN POSTS that are not a home run: the pregame call (the
+-- proof that the ⭐ was public before first pitch — every called homer quotes
+-- it), the nightly recap, the Sunday week. One row per (day, kind); the
+-- primary key is the claim, same as everything else here. `payload` keeps
+-- what was said (the pregame pick list, the week's numbers) so a quote or a
+-- re-render never depends on a file that has since been rebuilt.
+create table if not exists public.homer_feed_posts (
+  day           date        not null,
+  kind          text        not null check (kind in ('pregame', 'recap', 'weekly')),
+  x_post_id     text,
+  discord_sent  boolean     not null default false,
+  payload       jsonb       not null default '{}'::jsonb,
+  seen_at       timestamptz not null default now(),
+  primary key (day, kind)
+);
+alter table public.homer_feed_posts enable row level security;
+drop policy if exists homer_feed_posts_read_all on public.homer_feed_posts;
+create policy homer_feed_posts_read_all on public.homer_feed_posts for select using (true);

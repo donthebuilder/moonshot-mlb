@@ -47,3 +47,6 @@ ARCHIVE/
 itself/
 Claude outputs/
 _to_delete/
+
+# Called It — X keys, kept out of git (SHIP-CALLEDIT.sh)
+.calledit.env

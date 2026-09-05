@@ -167,6 +167,10 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
   const [plusOnly, setPlusOnly] = useState(false)
   const [offStd, setOffStd] = useState(false)
   const [need, setNeed] = useState('any')   // 1+ / 2+ / 3+
+  // 2026-09-05: a name/team search and a live-only lens, the two things
+  // every other board has that this one didn't.
+  const [q, setQ] = useState('')
+  const [hideFrozen, setHideFrozen] = useState(false)
 
   const status = useOddsStatus()
   const live = MK[market] || MARKETS[0]
@@ -371,8 +375,11 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     // exists so the bet can't push, and reading it as "one and a half hits"
     // is how people misread every prop board there is. Filter in his units.
     if (need !== 'any') r = r.filter((x) => Number.isFinite(x.line) && Math.round(x.line + 0.5) === Number(need))
+    if (hideFrozen) r = r.filter((x) => !x.frozen)
+    const needle = q.trim().toLowerCase()
+    if (needle) r = r.filter((x) => String(x.player).toLowerCase().includes(needle) || String(x.tm).toLowerCase() === needle || String(x.opp).toLowerCase() === needle)
     return r
-  }, [rows, plusOnly, offStd, live.std, need])
+  }, [rows, plusOnly, offStd, live.std, need, hideFrozen, q])
 
   const offCount = rows.filter((x) => Number.isFinite(x.line) && Math.abs(x.line - live.std) > 1e-9).length
   const plusCount = rows.filter((x) => x.over > 0).length
@@ -808,7 +815,13 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
             </button>
           )
         })}
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+        <button onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, '#22d3ee')}
+          title="Hide frozen quotes — games already under way. What's left is still bettable.">
+          ⏱ Still bettable
+        </button>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team" aria-label="Search the board"
+          style={{ fontFamily: NUM_FONT, fontSize: 10.5, padding: '4px 9px', borderRadius: 999, border: `1px solid ${q ? C.orange : C.border}`, background: 'transparent', color: C.text, minWidth: 120, outline: 'none' }} />
+        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
           {shown.length} of {rows.length} shown
         </span>
       </div>

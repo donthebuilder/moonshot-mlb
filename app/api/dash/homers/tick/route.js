@@ -35,8 +35,8 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, homersFrom, hooksFor, postText } from '../../../../../lib/dash/homerFeed'
-import { homerCard, recapCard } from '../../../../../lib/dash/homerCard'
+import { boardIndexFrom, captureFrom, homersFrom, hooksFor, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { homerCard, pregameCard, recapCard } from '../../../../../lib/dash/homerCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 
@@ -46,11 +46,12 @@ export const maxDuration = 60
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 const CALLED_URL = SITE ? `${SITE}/called` : ''
-const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.app'
+const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.vercel.app'
 const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dashnetwork" — optional
 const MODE = /^flagged$/i.test(String(process.env.X_POST_MODE || '')) ? 'flagged' : 'all'
 const cardUrl = (row) => (SITE ? `${SITE}/api/dash/homers/card?day=${row.day}&pid=${row.player_id}&n=${row.hr_n}` : null)
 const recapUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&recap=1` : null)
+const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pregame=1` : null)
 
 function authorized(request) {
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -80,9 +81,14 @@ async function boardIndex(day) {
   const index = boardIndexFrom(rows)
   // An empty board is not cached: a bot that has not published yet should be
   // asked again next minute, not remembered as "nobody is on it" for ten.
-  if (index.size) _cache.board = { at: Date.now(), day, index }
+  if (index.size) _cache.board = { at: Date.now(), day, index, rows }
   return index
 }
+const boardRows = () => _cache.board.rows || []
+
+// The pregame post goes out once the lineups start posting, or at 4pm ET if
+// they have not — whichever comes first — and only while nothing has started.
+const PREGAME_HOUR_UTC = 20
 
 async function published(slot, paths, ok) {
   const c = _cache[slot]
@@ -147,9 +153,36 @@ export async function GET(request) {
   if (!snap?.games?.length) return Response.json({ day, skipped: 'no-games' })
 
   const started = snap.games.some((g) => g?.state === 'Live' || g?.state === 'Final')
-  if (!started) return Response.json({ day, skipped: 'nothing-started' })
-
   const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
+
+  // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
+  if (!started) {
+    const ready = board.size && (snap.games.some((g) => g?.lineupPosted) || new Date().getUTCHours() >= PREGAME_HOUR_UTC)
+    if (!ready) return Response.json({ day, skipped: 'nothing-started' })
+    const { data: claim } = await db
+      .from('homer_feed_posts')
+      .upsert([{ day, kind: 'pregame', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+      .select('day')
+    if (!claim?.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
+    const picks = pregamePicks(boardRows(), odds, day)
+    if (!picks.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
+    const text = pregameText(picks, { day, site: CALLED_URL, handle: HANDLE })
+    const patch = { payload: { picks } }
+    // The payload goes in FIRST so the public card route can render the
+    // Discord embed from it; the post ids follow.
+    await db.from('homer_feed_posts').update({ payload: { picks } }).match({ day, kind: 'pregame' })
+    const d = await postToDiscord(text, { imageUrl: pregameUrl(day) })
+    if (d.ok) patch.discord_sent = true
+    if (hasX()) {
+      const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
+      const mediaId = png ? await uploadImageToX(png) : null
+      const r = await postToX(text, { mediaId })
+      if (r.ok && r.id) patch.x_post_id = r.id
+      else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
+    }
+    await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
+    return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted' })
+  }
   const homers = homersFrom(snap, day, board, odds)
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE }
 
@@ -176,19 +209,26 @@ export async function GET(request) {
   // homer in this tick.
   if (freshKeys.size) {
     const todayIds = new Set(homers.map((h) => String(h.player_id)))
-    const { data: yRows } = await db.from('homer_feed').select('player_id').eq('day', shiftDay(day, -1))
+    const [{ data: yRows }, { data: tonightRows }, { data: recent }] = await Promise.all([
+      db.from('homer_feed').select('player_id').eq('day', shiftDay(day, -1)),
+      db.from('homer_feed').select('player_id,name,inning,partner_id').eq('day', day),
+      db.from('homer_feed').select('day,role').gte('day', shiftDay(day, -12)).lt('day', day).eq('role', 'TOP'),
+    ])
     const yesterdayIds = new Set((yRows || []).map((r) => String(r.player_id)))
+    const topStraight = topStreakFrom(recent || [], day, true)
     for (const ev of homers) {
       if (!freshKeys.has(`${ev.player_id}:${ev.hr_n}`)) continue
       const [{ data: hist }, jersey] = await Promise.all([
         db.from('homer_feed').select('role').eq('player_id', ev.player_id).lt('day', day).order('day', { ascending: false }).limit(5),
         jerseyOf(ev.player_id),
       ])
-      const hooks = hooksFor(ev, { pairs, todayIds, yesterdayIds, history: hist || [], jersey })
+      const partner = partnerFor(pairs, ev.player_id, ev.name)
+      const hooks = hooksFor(ev, { pairs, board, todayIds, yesterdayIds, history: hist || [], jersey, pairedEarlier: tonightRows || [], topStraight })
       const stats = { ...(ev.stats || {}), jersey }
       ev.hooks = hooks
       ev.stats = stats
-      await db.from('homer_feed').update({ hooks, stats }).match({ day, player_id: ev.player_id, hr_n: ev.hr_n })
+      ev.partner_id = partner?.id || null
+      await db.from('homer_feed').update({ hooks, stats, partner_id: ev.partner_id }).match({ day, player_id: ev.player_id, hr_n: ev.hr_n })
     }
   }
 
@@ -208,6 +248,10 @@ export async function GET(request) {
 
   const byKey = new Map(homers.map((h) => [`${h.player_id}:${h.hr_n}`, h]))
   const xOn = hasX()
+  // The morning's call, so a homer by one of its names quotes it.
+  const { data: pre } = await db.from('homer_feed_posts').select('x_post_id,payload').match({ day, kind: 'pregame' }).maybeSingle()
+  const preIds = new Set(((pre?.payload?.picks) || []).map((p) => String(p.player_id)))
+  const quoteFor = (row) => (pre?.x_post_id && preIds.has(String(row.player_id)) ? pre.x_post_id : null)
   for (const row of pending || []) {
     const live = byKey.get(`${row.player_id}:${row.hr_n}`)
     const ev = { ...row, _roles: live?._roles || row.role || '' }
@@ -225,7 +269,7 @@ export async function GET(request) {
         // image step failing degrades to a text post, never to no post.
         const png = await bytesOf(() => homerCard(ev, { site: SITE_HOST }))
         const mediaId = png ? await uploadImageToX(png) : null
-        const r = await postToX(text, { mediaId })
+        const r = await postToX(text, { mediaId, quoteId: quoteFor(row) })
         if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
         else {
           totals.xFailed += 1
@@ -258,20 +302,45 @@ export async function GET(request) {
       const c = captureFrom(rows)
       if (c.total) {
         const roles = Object.entries(c.byRole).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(' · ')
+        const { data: hist } = await db.from('homer_feed').select('day,role,name,odds_over,odds_book').gte('day', shiftDay(day, -12)).lte('day', day)
+        const straight = topStreakFrom(hist || [], day, false)
         const text = [
           `📋 ${day} — the bot called ${c.called} of ${c.total} home runs (${c.pct}%)`,
           roles ? `⭐ ${roles}` : '',
-          c.rated ? `⚪ ${c.rated} more were rated, not picked` : '',
+          c.rated ? `⚪ ${c.rated} more were on the board, no call` : '',
+          straight >= 2 ? `🔥 A TOP pick has gone deep ${straight} straight nights` : '',
           [CALLED_URL, HANDLE].filter(Boolean).join(' · '),
         ].filter(Boolean).join('\n')
         await postToDiscord(text, { imageUrl: recapUrl(day) })
         if (xOn) {
-          const { data: hist } = await db.from('homer_feed').select('day,role').gte('day', shiftDay(day, -9)).lte('day', day)
           const png = await bytesOf(() => recapCard(day, rows || [], hist || [], { site: SITE_HOST }))
           const mediaId = png ? await uploadImageToX(png) : null
           const r = await postToX(text, { mediaId })
           if (r.ok) totals.recap = r.id
           else console.error(`[homers] recap refused: ${r.status} ${r.error}`)
+        }
+        // SUNDAY: the week. Claimed on its own key so a recap that failed
+        // halfway cannot skip it, and a week is never posted twice.
+        if (new Date(`${day}T12:00:00Z`).getUTCDay() === 0) {
+          const { data: wk } = await db
+            .from('homer_feed_posts')
+            .upsert([{ day, kind: 'weekly', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+            .select('day')
+          if (wk?.length) {
+            const from = shiftDay(day, -6)
+            const week = (hist || []).filter((r) => r.day >= from && r.day <= day)
+            const wtext = weeklyText(week, { from, to: day, site: CALLED_URL, handle: HANDLE })
+            const wc = captureFrom(week)
+            const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
+            const d = await postToDiscord(wtext)
+            if (d.ok) patch.discord_sent = true
+            if (xOn) {
+              const r = await postToX(wtext)
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'weekly' })
+          }
         }
       }
     }

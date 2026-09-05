@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const metadata = {
-  title: 'Did the bot call it? — MOONSHOT',
+  title: 'Called It — MOONSHOT · DASH Network',
   description: 'Every MLB home run tonight, tagged with whether MOONSHOT had the hitter on its board before first pitch. Ten-night capture rate, graded in public.',
 }
 
@@ -49,7 +49,7 @@ function prettyDay(iso) {
 async function load() {
   const db = client()
   const today = easternToday()
-  if (!db) return { today, rows: [], history: [], configured: false }
+  if (!db) return { today, rows: [], picks: [], calledIds: new Set(), history: [], configured: false }
   const since = shiftDay(today, -(DAYS - 1))
   const { data } = await db
     .from('homer_feed')
@@ -58,22 +58,26 @@ async function load() {
     .lte('day', today)
     .order('seen_at', { ascending: false })
   const rows = (data || []).filter((r) => r.day === today)
+  // The morning's call, so the page shows the names BEFORE any homer lands.
+  const { data: pre } = await db.from('homer_feed_posts').select('payload,x_post_id').match({ day: today, kind: 'pregame' }).maybeSingle()
+  const picks = Array.isArray(pre?.payload?.picks) ? pre.payload.picks.slice(0, 5) : []
+  const calledIds = new Set(rows.filter((r) => r.role).map((r) => String(r.player_id)))
   const history = []
   for (let i = 0; i < DAYS; i += 1) {
     const day = shiftDay(today, -i)
     const c = captureFrom((data || []).filter((r) => r.day === day))
     history.push({ day, ...c })
   }
-  return { today, rows, history: history.reverse(), configured: true }
+  return { today, rows, picks, calledIds, history: history.reverse(), configured: true }
 }
 
 const glyph = (r) => (r.role ? '⭐' : r.on_board ? '⚪' : '💥')
 const callWord = (r) => (r.role
   ? `${roleWord(r.role)}${r.board_rank ? ` · #${r.board_rank}` : ''}`
-  : r.on_board ? `rated${r.board_rank ? ` · #${r.board_rank}` : ''}` : 'not on the board')
+  : r.on_board ? `on the board, no call${r.board_rank ? ` · #${r.board_rank}` : ''}` : 'not on the board')
 
 export default async function CalledPage() {
-  const { today, rows, history, configured } = await load()
+  const { today, rows, picks, calledIds, history, configured } = await load()
   const tonight = captureFrom(rows)
   const graded = history.filter((h) => h.total > 0)
   const span = graded.reduce((a, h) => ({ called: a.called + h.called, total: a.total + h.total }), { called: 0, total: 0 })
@@ -86,7 +90,7 @@ export default async function CalledPage() {
       <header className={styles.bar}>
         <a className={styles.brand} href="/" aria-label="DASH Network home">
           <img src="/icon-192.png" alt="" width="30" height="30" />
-          <div><small>MOONSHOT</small><strong>CALLED IT?</strong></div>
+          <div><small>DASH NETWORK · MOONSHOT</small><strong>CALLED IT</strong></div>
         </a>
         <nav className={styles.nav}>
           <a href="/app#sport=mlb&tab=home">Tonight&apos;s board</a>
@@ -103,7 +107,7 @@ export default async function CalledPage() {
             </h1>
             <p className={styles.sub}>
               {tonight.pct}% tonight
-              {tonight.rated ? ` · ${tonight.rated} more rated but not picked` : ''}
+              {tonight.rated ? ` · ${tonight.rated} more on the board, no call` : ''}
               {tonight.off ? ` · ${tonight.off} off the board` : ''}
             </p>
           </>
@@ -116,11 +120,27 @@ export default async function CalledPage() {
           </>
         )}
         <p className={styles.rule}>
-          ⭐ = the hitter carried a bot designation (TOP · Top 15 · HR · HIT · HRR · CONTACT) on the published board
-          when the ball left. ⚪ = on the board, not designated. 💥 = not on the board. The tag is frozen the moment
+          ⭐ = the hitter carried a bot designation (TOP · Top 15 · HR · HIT · HRR · CONTACT · HR Watch) on the published board
+          when the ball left. ⚪ = on the board, no call. 💥 = not on the board. The tag is frozen the moment
           the homer is first seen and never re-graded.
         </p>
       </section>
+
+      {picks.length ? (
+        <section className={styles.panel}>
+          <h2 className={styles.h2}>Tonight&apos;s calls <span className={styles.pill}>posted before first pitch</span></h2>
+          <ol className={styles.calls}>
+            {picks.map((p, i) => (
+              <li key={p.player_id || i} className={calledIds.has(String(p.player_id)) ? styles.callHit : ''}>
+                <span className={styles.callN}>{i + 1}</span>
+                <a className={styles.name} href={`/app#sport=mlb&p=${encodeURIComponent(p.player_id)}`}>{p.name}</a>
+                <span className={styles.meta}>{p.team || ''}{p.opponent ? ` vs ${p.opponent}` : ''}{p.odds_over && p.odds_book ? ` · ${p.odds_over > 0 ? '+' : ''}${p.odds_over} ${p.odds_book}` : ''}</span>
+                <span className={styles.call}>{calledIds.has(String(p.player_id)) ? '⭐ went deep' : 'live'}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
 
       <section className={styles.panel}>
         <h2 className={styles.h2}>Last {DAYS} nights {spanPct != null ? <span className={styles.pill}>{span.called} / {span.total} · {spanPct}%</span> : null}</h2>
@@ -158,7 +178,7 @@ export default async function CalledPage() {
 
       <footer className={styles.foot}>
         <a href="/app#sport=mlb&tab=home">See tonight&apos;s board →</a>
-        <span>Every call graded in public. Data from MLB&apos;s public feeds.</span>
+        <span>CALLED IT is MOONSHOT&apos;s home run record — every home run, graded in public. Data from MLB&apos;s public feeds.</span>
       </footer>
     </main>
   )

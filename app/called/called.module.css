@@ -74,3 +74,11 @@
   .row { grid-template-columns: 22px 1fr; grid-template-areas: "g name" "g meta" "g call"; }
   .call { text-align: left; }
 }
+
+/* tonight's calls — the pregame post, on the page before any homer lands */
+.calls { list-style: none; margin: 0; padding: 0; }
+.calls li { display: grid; grid-template-columns: 22px 1fr auto; grid-template-areas: "n name call" "n meta call"; gap: 2px 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.calls li:first-child { border-top: 0; }
+.callN { grid-area: n; color: var(--mlb); font-weight: 700; font-variant-numeric: tabular-nums; }
+.callHit .name { color: var(--mlb); }
+@media (max-width: 480px) { .calls li { grid-template-columns: 22px 1fr; grid-template-areas: "n name" "n meta" "n call"; } }
