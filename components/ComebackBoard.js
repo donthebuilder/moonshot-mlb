@@ -58,7 +58,7 @@ export default function ComebackBoard() {
   }
 
   const rows = [...data.teams]
-    .sort((a, b) => (Number(b[sort]) || 0) - (Number(a[sort]) || 0) || a.abbr.localeCompare(b.abbr))
+    .sort((a, b) => (Number(b[sort]) || 0) - (Number(a[sort]) || 0) || String(a.abbr || '').localeCompare(String(b.abbr || '')))
     .slice(0, 12)
   const active = SORTS.find(([k]) => k === sort)
 
@@ -103,7 +103,7 @@ export default function ComebackBoard() {
           {rows.map((t, i) => (
             <tr key={t.abbr} style={{ borderBottom: `1px solid ${C.border}` }}>
               <td style={{ padding: '5px 6px', fontSize: 9.5, color: C.text3, width: 18 }}>{i + 1}</td>
-              <td style={{ padding: '5px 6px' }}><b style={{ fontSize: 11.5, color: C.text }}>{t.abbr}</b></td>
+              <td style={{ padding: '5px 6px' }}><b style={{ fontSize: 11.5, color: C.text }}>{t.abbr && t.abbr !== '?' ? t.abbr : (t.name || '?')}</b></td>
               <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>
                 {t.wins}-{t.losses}
               </td>

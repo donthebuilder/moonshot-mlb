@@ -56,6 +56,18 @@ export default function MoneylineBoard() {
   const r = data.record || {}
   const today = data.today || []
   const roiTone = (Number(r.roi) || 0) > 0 ? C.green : (r.graded ? C.red : C.text3)
+  // ── THE TEAM MODEL, AND HOW IT DID OUT OF SAMPLE (2026-09-05) ────────────
+  // Donovan: "use OBP and SLG over BA, weighted — think Moneyball — and tell
+  // me how that does out of sample." The bot answers both here: the fitted
+  // weight of a point of on-base against a point of slugging, and the
+  // walk-forward grade against the record-only model it replaced. When the
+  // harness has not run, the line says so rather than quoting the book.
+  const tm = data.team_model || {}
+  const coef = tm.coef || null
+  const oos = tm.out_of_sample || null
+  const ll = (x) => (x && Number.isFinite(Number(x.log_loss)) ? Number(x.log_loss).toFixed(4) : '—')
+  const beatsRecord = oos && oos.moneyball && oos.records_only && oos.moneyball.log_loss < oos.records_only.log_loss
+  const beatsHome = oos && oos.moneyball && oos.home_always && oos.moneyball.log_loss < oos.home_always.log_loss
 
   return (
     <div>
@@ -79,6 +91,40 @@ export default function MoneylineBoard() {
         <span style={{ fontSize: 9.5, color: C.text3 }}>
           {r.graded || 0} graded, flat one unit at the price offered
         </span>
+      </div>
+
+      <div style={{
+        border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px',
+        marginBottom: 10, fontFamily: NUM_FONT,
+      }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'baseline' }}>
+          <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.12em', color: C.text3 }}>THE TEAM MODEL</span>
+          <span style={{ fontSize: 11, color: C.text2 }}>
+            runs = a + b·OBP + c·SLG
+            {coef ? (
+              <span style={{ color: C.text3 }}>
+                {' '}· a point of on-base worth <b style={{ color: C.text }}>{Number(coef.obp_per_slg).toFixed(2)}×</b> a point of slugging
+                {' '}<span title={`Fitted on ${coef.rows} team-snapshots; ${Math.round((Number(coef.prior_share) || 0) * 100)}% of the answer is still the prior`}>({coef.rows} rows)</span>
+              </span>
+            ) : <span style={{ color: C.text3 }}> · not fitted yet</span>}
+          </span>
+        </div>
+        <div style={{ marginTop: 5, fontSize: 10.5, lineHeight: 1.55, color: C.text2 }}>
+          {oos && oos.moneyball && oos.moneyball.n ? (
+            <>
+              <b style={{ color: beatsRecord && beatsHome ? C.green : beatsHome ? C.yellow : C.red }}>Out of sample</b>
+              {' '}({Number(oos.games).toLocaleString()} games, walk-forward, months {oos.months?.[0]}–{oos.months?.[oos.months.length - 1]}):
+              {' '}log loss <b style={{ color: C.text }}>{ll(oos.moneyball)}</b> OBP/SLG
+              {' '}· <span style={{ color: C.text3 }}>{ll(oos.records_only)} record-only · {ll(oos.home_always)} home-always · {ll(oos.coin)} coin</span>
+              {' '}· picks the winner {pct(oos.moneyball.fav_accuracy)} of the time
+              <span style={{ display: 'block', color: C.text3, marginTop: 2 }}>{oos.verdict} {oos.limits}</span>
+            </>
+          ) : (
+            <span style={{ color: C.text3 }}>
+              Out of sample: not graded yet — <code>bots/moneyball.py</code> writes the walk-forward result on its next run, and this line reads it. Nothing is claimed until then.
+            </span>
+          )}
+        </div>
       </div>
 
       {today.length === 0 ? (
@@ -107,7 +153,11 @@ export default function MoneylineBoard() {
                 <td style={{ padding: '5px 6px', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap' }}>
                   {p.away} @ {p.home}
                 </td>
-                <td style={{ padding: '5px 6px', fontSize: 11.5, fontWeight: 800, color: C.text }}>{p.side}</td>
+                <td style={{ padding: '5px 6px', fontSize: 11.5, fontWeight: 800, color: C.text }}
+                    title={p.base === 'record' ? 'Priced from the record — a side had too few games for its rates' : 'Priced from OBP and SLG'}>
+                  {p.side}
+                  {p.base === 'record' ? <span style={{ fontSize: 8, color: C.text3, marginLeft: 5, fontWeight: 700 }}>REC</span> : null}
+                </td>
                 <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11, color: C.text }}>{price(p.price)}</td>
                 <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>{pct(p.model_p)}</td>
                 <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
@@ -134,8 +184,10 @@ export default function MoneylineBoard() {
         edge floor — and raising the floor made it worse, not better, because being choosier
         concentrates the vig instead of finding an edge. Adding the starting pitchers cut its
         opinions to about a fifth, which means most of what it used to call an edge was not
-        knowing who was pitching. Whether anything real is left cannot be settled by
-        simulation, only by the record above.
+        knowing who was pitching. The team base is now on-base and slugging rather than the
+        record — the Moneyball argument, that a walk and a single reach first the same way and
+        batting average only counts one of them. Whether anything real is left cannot be settled
+        by simulation, only by the record above.
       </p>
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '6px 2px 0', maxWidth: 720 }}>
         {data.method}

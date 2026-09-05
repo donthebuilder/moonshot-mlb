@@ -96,7 +96,20 @@ const RANK = { live: 0, pre: 1, final: 2, off: 3 }
 // night is still changing (live) or who has already done something (a homer)
 // is shown regardless of where he falls. Collapsing can only ever hide men who
 // are finished, not yet playing, or not on tonight's board at all.
-const COLLAPSED_N = 5
+//
+// 2026-09-05, Donovan, with a screenshot of 32 live rows filling Home: "make
+// sure it only shows 3 players max for the preview, it takes up the whole
+// page." He is right again, and the floor rule above is exactly why: on a
+// full slate nearly everyone he follows is live, so "the first five plus
+// anyone live" was the whole list. The floor became the page.
+//
+// So the preview is now a HARD CAP of three. What survives from the floor
+// idea is the RANKING, not the exemption: rows are already sorted live-first,
+// homers-first, loudest-first, so the three that show are the three that
+// matter most tonight, and the header still counts every live man and every
+// homer across the whole list so nothing is hidden twice. One tap opens the
+// rest.
+const COLLAPSED_N = 3
 const OPEN_KEY = 'dash_yourplayers_open_v1'
 // A SECOND, SEPARATE STATE, and the distinction is the whole point.
 //   OPEN_KEY  — show every row, or the first few plus anyone live/deep
@@ -241,18 +254,18 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
   const liveN = rows.filter((r) => r.status === 'live').length
   const hrN = rows.reduce((a, r) => a + r.hr, 0)
 
-  // The floor rule, in one line: the first COLLAPSED_N by rank, plus anyone
-  // live or with a homer wherever he sits. `rows` is already ranked live-first,
-  // so in practice this only pulls up a FINAL line that went deep — which is
-  // exactly the row you would be angry to have hidden.
+  // The cap, in one line: the first COLLAPSED_N by rank. `rows` is ranked
+  // live-first then homers-first, so the preview is the three loudest nights
+  // and the header carries the totals for everyone behind the fold.
   // The watchlist tab passes collapsible={false}: it is the page you open ON
   // PURPOSE to look at your guys, and folding it there would make the
   // dedicated view the weaker of the two — which is the exact note You.js
   // already carries about this section.
-  const shown = (open || !collapsible)
-    ? rows
-    : rows.filter((r, i) => i < COLLAPSED_N || r.status === 'live' || r.hr > 0)
+  const shown = (open || !collapsible) ? rows : rows.slice(0, COLLAPSED_N)
   const restN = rows.length - shown.length
+  const hidden = rows.slice(shown.length)
+  const hiddenLive = hidden.filter((r) => r.status === 'live').length
+  const hiddenHr = hidden.filter((r) => r.hr > 0).length
 
   // WHY THE COUNTS STAY IN THE HEADER WHEN IT IS SHUT. This section exists
   // because starred players were getting lost. A closed section that says
@@ -411,10 +424,13 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
         >
           {open
             ? 'Show less'
-            /* Name what is behind the fold, and name why it is safe to leave
-               it there — stated as the guarantee the filter actually makes,
-               not as a guess about what those men are doing. */
-            : `Show ${restN} more — nothing live, nothing that homered`}
+            /* Name what is behind the fold. With a hard cap the fold CAN hide
+               live men and homers, so the button says how many of each rather
+               than promising it hid nothing — the counts come from the whole
+               list minus the three on show. */
+            : `Show ${restN} more${hiddenLive || hiddenHr
+                ? ` — ${[hiddenLive ? `${hiddenLive} live` : '', hiddenHr ? `${hiddenHr} with a HR` : ''].filter(Boolean).join(', ')}`
+                : ''}`}
         </button>
       )}
     </div>

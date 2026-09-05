@@ -28,6 +28,66 @@ import { fetchJSON } from '../lib/data'
 import { playoffOddsPaths } from '../lib/dataSource'
 import { Empty } from './ui'
 
+// ── THE LIVE RACE, NOT LAST NIGHT'S ─────────────────────────────────────────
+//
+// 2026-09-05, Donovan: "always use the live snapshot of the playoff race
+// until everything is locked in." The bot's odds are a nightly file — it
+// simulates from the standings at 00:22 UTC and the file sits still until the
+// next run. Meanwhile the race moves every night. So the ODDS stay the bot's
+// (only the bot can run 10,000 seasons), but the STANDING beside them — the
+// record, the seed, games back, and whether the league has already stamped
+// the team clinched or eliminated — is read live from the same statsapi feed
+// the live slate already pulls, straight from the browser, on every open.
+//
+// And the lock rule: a team the league marks clinched is 100% to make the
+// field whatever the simulation printed, and a team marked eliminated from
+// both the division and the wild card is 0. The sim is allowed to disagree
+// with the standings page about the future, never about the present.
+const STANDINGS_FIELDS = 'records,division,id,league,teamRecords,team,id,name,abbreviation,wins,losses,clinchIndicator,divisionRank,wildCardRank,gamesBack,wildCardGamesBack,eliminationNumber,wildCardEliminationNumber,streak,streakCode'
+
+async function fetchLiveStandings(season) {
+  const url = `https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=${season}&standingsTypes=regularSeason&hydrate=team&fields=${STANDINGS_FIELDS}`
+  const r = await fetch(url, { cache: 'no-store' })
+  if (!r.ok) throw new Error(`standings ${r.status}`)
+  const j = await r.json()
+  const out = new Map()
+  for (const rec of j?.records || []) {
+    for (const tr of rec?.teamRecords || []) {
+      const id = Number(tr?.team?.id)
+      if (!id) continue
+      const clinch = String(tr.clinchIndicator || '')
+      const divE = String(tr.eliminationNumber || '') === 'E'
+      const wcE = String(tr.wildCardEliminationNumber || '') === 'E'
+      out.set(id, {
+        abbr: String(tr?.team?.abbreviation || ''),
+        name: String(tr?.team?.name || ''),
+        wins: Number(tr.wins) || 0,
+        losses: Number(tr.losses) || 0,
+        clinch,                    // '', 'w' wild card, 'x' berth, 'y' division, 'z' best record
+        eliminated: divE && wcE,
+        divisionRank: Number(tr.divisionRank) || 0,
+        wildCardRank: Number(tr.wildCardRank) || 0,
+        gamesBack: String(tr.gamesBack || '-'),
+        wildCardGamesBack: String(tr.wildCardGamesBack || '-'),
+        streak: String(tr?.streak?.streakCode || ''),
+      })
+    }
+  }
+  return out
+}
+
+const CLINCH_WORD = { w: 'clinched wild card', x: 'clinched a berth', y: 'clinched division', z: 'clinched best record' }
+
+/** Where a team stands tonight, in the fewest words that are still true. */
+function raceWord(r) {
+  if (!r) return ''
+  if (r.eliminated) return 'out'
+  if (r.divisionRank === 1) return 'leads div'
+  if (r.wildCardRank >= 1 && r.wildCardRank <= 3) return `WC ${r.wildCardRank}`
+  const gb = r.wildCardGamesBack && r.wildCardGamesBack !== '-' ? r.wildCardGamesBack : r.gamesBack
+  return gb && gb !== '-' ? `${gb} back` : ''
+}
+
 const pct = (v) => {
   const n = Number(v)
   if (!Number.isFinite(n)) return '—'
@@ -59,6 +119,21 @@ function Bar({ v, color }) {
 export default function PennantRace() {
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
+  const [live, setLive] = useState(null)   // Map(team_id → tonight's standing), or null if unreachable
+  const [liveAt, setLiveAt] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    const season = Number(data?.season) || new Date().getFullYear()
+    const pull = () => fetchLiveStandings(season)
+      .then((m) => { if (alive && m.size) { setLive(m); setLiveAt(new Date()) } })
+      .catch(() => {})
+    pull()
+    // Standings only change when games end; five minutes is plenty and it is
+    // the same "not while hidden" guard every live surface on Home uses.
+    const t = setInterval(() => { if (!document.hidden) pull() }, 5 * 60 * 1000)
+    return () => { alive = false; clearInterval(t) }
+  }, [data?.season])
 
   useEffect(() => {
     let alive = true
@@ -77,10 +152,33 @@ export default function PennantRace() {
     return <Empty text="No playoff odds published yet — the bot writes this on its next run." />
   }
 
-  const teams = [...data.teams].sort((a, b) =>
+  // Merge: the bot's odds, tonight's standing. The payload's own `race` field
+  // (bot-side snapshot, same shape) is the fallback when the browser cannot
+  // reach statsapi, so the lock rule still holds offline.
+  const teams = [...data.teams].map((t) => {
+    const lv = live?.get(Number(t.team_id)) || null
+    const race = lv || (t.race ? {
+      clinch: t.race.clinch || '', eliminated: !!t.race.eliminated,
+      divisionRank: t.race.division_rank || 0, wildCardRank: t.race.wild_card_rank || 0,
+      gamesBack: t.race.games_back || '-', wildCardGamesBack: t.race.wild_card_games_back || '-',
+    } : null)
+    const locked = race?.clinch ? 'in' : race?.eliminated ? 'out' : ''
+    return {
+      ...t,
+      abbr: t.abbr || lv?.abbr || t.name || String(t.team_id),
+      wins: lv ? lv.wins : t.wins,
+      losses: lv ? lv.losses : t.losses,
+      race,
+      locked,
+      make_playoffs: locked === 'in' ? 1 : locked === 'out' ? 0 : t.make_playoffs,
+      win_division: race?.clinch === 'y' || race?.clinch === 'z' ? 1 : t.win_division,
+    }
+  }).sort((a, b) =>
     (b.win_world_series - a.win_world_series) || (b.make_playoffs - a.make_playoffs))
-  const shown = teams.filter((t) => t.make_playoffs > 0.005).slice(0, 16)
+  const shown = teams.filter((t) => t.make_playoffs > 0.005 || t.locked === 'in').slice(0, 16)
   const leftOut = teams.length - shown.length
+  const clinchedN = teams.filter((t) => t.locked === 'in').length
+  const fieldLocked = clinchedN >= 12
 
   return (
     <div>
@@ -102,7 +200,7 @@ export default function PennantRace() {
         </caption>
         <thead>
           <tr>
-            {[['', 'left', ''], ['Team', 'left', ''], ['W-L', 'right', 'sm-hide'], ['Proj', 'right', 'sm-hide'],
+            {[['', 'left', ''], ['Team', 'left', ''], ['W-L', 'right', 'sm-hide'], ['Now', 'left', ''], ['Proj', 'right', 'sm-hide'],
               ['Playoffs', 'right', ''], ['Division', 'right', 'sm-hide'], ['Pennant', 'right', 'sm-hide'], ['Series', 'right', '']]
               .map(([label, align, cls], i) => (
                 <th key={label + i} scope="col" className={cls || undefined} style={{
@@ -118,11 +216,21 @@ export default function PennantRace() {
             <tr key={t.team_id} style={{ borderBottom: `1px solid ${C.border}` }}>
               <td style={{ padding: '5px 6px', fontSize: 9.5, color: C.text3, width: 18 }}>{i + 1}</td>
               <td style={{ padding: '5px 6px', minWidth: 0 }}>
-                <b style={{ fontSize: 11.5, color: C.text }}>{t.abbr}</b>
+                <b style={{ fontSize: 11.5, color: C.text }}>{t.abbr || t.name || t.team_id}</b>
                 <span className="sm-hide" style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{t.division}</span>
               </td>
               <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap' }}>
                 {t.wins}-{t.losses}
+              </td>
+              {/* NOW — tonight's standing, live. Clinched and eliminated are
+                  the league's own stamps, not the model's. */}
+              <td style={{ padding: '5px 6px', fontSize: 9.5, whiteSpace: 'nowrap',
+                           color: t.locked === 'in' ? C.green : t.locked === 'out' ? C.text3 : C.text2 }}
+                  title={t.race?.clinch ? CLINCH_WORD[t.race.clinch] || 'clinched' : t.race?.eliminated ? 'Eliminated' : (t.race ? `${t.race.gamesBack} GB in the division, ${t.race.wildCardGamesBack} in the wild card` : undefined)}>
+                {t.locked === 'in' ? `✓ ${t.race.clinch === 'y' || t.race.clinch === 'z' ? 'div' : t.race.clinch === 'w' ? 'WC' : 'in'}`
+                  : t.locked === 'out' ? '✗ out'
+                    : raceWord(t.race) || '—'}
+                {t.race?.streak && t.locked !== 'out' ? <span style={{ color: C.text3, marginLeft: 5 }}>{t.race.streak}</span> : null}
               </td>
               <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
                   title="Average wins across every simulated season">
@@ -147,6 +255,11 @@ export default function PennantRace() {
       </table>
       </div>
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '9px 2px 0', maxWidth: 720 }}>
+        {fieldLocked
+          ? <b style={{ color: C.green }}>The field is locked — all twelve spots are clinched. Odds below are the bracket only. </b>
+          : live
+            ? `Standings are live (${liveAt ? liveAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'now'}); ${clinchedN} of 12 spots clinched. `
+            : 'Standings are from the bot\u2019s last run — live feed unreachable right now. '}
         {leftOut > 0 ? `${leftOut} teams with no realistic path are not listed. ` : ''}
         {data.method}
         {data.note ? ` ${data.note}` : ''}
