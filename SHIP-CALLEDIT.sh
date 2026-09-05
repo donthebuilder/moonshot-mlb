@@ -90,7 +90,7 @@ put X_API_SECRET    "$(getv X_API_SECRET)"
 put X_ACCESS_TOKEN  "$(getv X_ACCESS_TOKEN)"
 put X_ACCESS_SECRET "$(getv X_ACCESS_SECRET)"
 put X_HANDLE        "$(getv X_HANDLE)"
-put X_POST_MODE     "flagged"   # free X tier: only called homers go to X (~300/mo). Change to "all" on Basic.
+put X_POST_MODE     "all"   # every homer to X — Donovan: "full tracker, we promo through tracking all the home runs". ~$17/mo at $0.015/post.
 put NEXT_PUBLIC_SITE_URL "$SITE_URL"
 have DISCORD_HOMER_WEBHOOK && put DISCORD_HOMER_WEBHOOK "$(getv DISCORD_HOMER_WEBHOOK)"
 if [ "$FAILED" = "1" ]; then
@@ -101,7 +101,7 @@ if [ "$FAILED" = "1" ]; then
   for k in X_API_KEY X_API_SECRET X_ACCESS_TOKEN X_ACCESS_SECRET X_HANDLE DISCORD_HOMER_WEBHOOK; do
     have "$k" && printf '    %-24s %s\n' "$k" "$(getv "$k")"
   done
-  printf '    %-24s %s\n' X_POST_MODE flagged
+  printf '    %-24s %s\n' X_POST_MODE all
   printf '    %-24s %s\n' NEXT_PUBLIC_SITE_URL "$SITE_URL"
   open "https://vercel.com/dashboard" 2>/dev/null
   echo
