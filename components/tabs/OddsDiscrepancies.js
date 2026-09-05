@@ -187,12 +187,12 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
             { key: 'edge', label: 'EDGE', w: 72, dp: 1, title: 'HR only: his season homer rate minus the break-even at the BEST price. The small number under it is the same edge at the WORST book — the gap between them is what betting at the wrong shop costs you.',
               fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : (
                 <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
-                  <b style={{ color: v >= 3 ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>
-                  {r?.edgeWorst != null && <span style={{ display: 'block', fontSize: 8, color: r.edgeWorst >= 3 ? '#4ade80' : r.edgeWorst <= -3 ? '#f87171' : C.text3 }}>{r.edgeWorst > 0 ? '+' : ''}{r.edgeWorst.toFixed(1)} @ {r.worstBook}</span>}
+                  <b style={{ color: v >= 3 ? C.green : v <= -3 ? C.red : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>
+                  {r?.edgeWorst != null && <span style={{ display: 'block', fontSize: 8, color: r.edgeWorst >= 3 ? C.green : r.edgeWorst <= -3 ? C.red : C.text3 }}>{r.edgeWorst > 0 ? '+' : ''}{r.edgeWorst.toFixed(1)} @ {r.worstBook}</span>}
                 </span>
               )) },
             { key: 'cost', label: 'COST', w: 52, dp: 1, title: 'Edge at the best book minus edge at the worst — the points you give up by betting this at the wrong shop. HR only.',
-              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? '#f87171' : C.text2 }}>{v.toFixed(1)}</b>) },
+              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? C.red : C.text2 }}>{v.toFixed(1)}</b>) },
             { key: 'frozen', label: '❄', w: 30, flag: true, mark: '❄', title: 'Pregame price, frozen at first pitch.' },
           ]}
           onRowClick={(r) => r?._p && onPlayerClick?.(r._p)}
