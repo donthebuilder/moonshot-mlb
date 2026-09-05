@@ -57,6 +57,15 @@ const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dash
 // ever changes the rule.
 const TAIL = process.env.X_POST_LINK === '1' ? { site: CALLED_URL, handle: HANDLE } : { site: '', handle: '' }
 const MODE = /^flagged$/i.test(String(process.env.X_POST_MODE || '')) ? 'flagged' : 'all'
+// Discord is optional — Donovan hasn't webhooked it yet. Without this gate,
+// EVERY row ever seen sits at discord_sent=false forever (postToDiscord
+// no-ops with no webhook and never sets it true), so "pending" — ordered
+// oldest-first, LIMIT 12 — fills up on the same permanently-Discord-pending
+// rows every single tick and never reaches a real new homer once a night
+// has more than 12. Found 2026-09-05: 12 old rows jammed the queue and the
+// night's 13th+ homers (Stowers, De La Cruz, Schwarber, Caminero) never got
+// an X post despite already having x_post_id null and wanting one.
+const DISCORD_ON = Boolean(process.env.DISCORD_HOMER_WEBHOOK)
 const cardUrl = (row) => (SITE ? `${SITE}/api/dash/homers/card?day=${row.day}&pid=${row.player_id}&n=${row.hr_n}` : null)
 const recapUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&recap=1` : null)
 const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pregame=1` : null)
@@ -335,7 +344,7 @@ export async function GET(request) {
     .from('homer_feed')
     .select('*')
     .eq('day', day)
-    .or('discord_sent.eq.false,x_post_id.is.null')
+    .or(DISCORD_ON ? 'discord_sent.eq.false,x_post_id.is.null' : 'x_post_id.is.null')
     .order('seen_at', { ascending: true })
     .limit(12)
 
@@ -351,7 +360,7 @@ export async function GET(request) {
     const text = postText(ev, TAIL)
     const patch = {}
 
-    if (!row.discord_sent) {
+    if (DISCORD_ON && !row.discord_sent) {
       const r = await postToDiscord(text, { imageUrl: cardUrl(row) })
       if (r.ok) { patch.discord_sent = true; totals.discord += 1 }
     }
