@@ -1,8 +1,8 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
-import { useResultsArchive, seasonTotals, grandTotal, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
+import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { downloadNflPickCard } from '../shareCard'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
@@ -443,11 +443,16 @@ function ScoreBands({ data, results }) {
 // in one row per market, and the picker under it swaps which week the rest
 // of the page grades. Everything below it is unchanged -- it always read one
 // payload, and now it reads whichever one you picked.
+// The letter's own colour, by feeding gradeFor a score inside that band.
+const BAND_SCORE = { 'A+': 80, A: 72, 'A-': 64, 'B+': 56, B: 48, 'C+': 30 }
+const bandColor = (label) => gradeFor(BAND_SCORE[label] ?? 30).color
+
 function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
   const totals = seasonTotals(keys.map((k) => archive[k]))
   const grand = grandTotal(totals)
   const markets = MARKETS.map(([k, label]) => [k, label, totals[k]]).filter(([, , t]) => t && t.n > 0)
   const col = MARKET_COLOR()
+  const bands = gradeBands(keys.map((k) => archive[k]), gradeFor)
   return (
     <section className="acc-season">
       <div className="acc-season-head">
@@ -463,6 +468,12 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
               <span>{t.hit}/{t.n}{t.void ? ` · ${t.void} void` : ''}</span>
             </div>
           ))}
+        </div>
+      )}
+      {bands.length > 0 && grand.n >= 10 && (
+        <div className="acc-season-bands" title="Every graded rung this season, bucketed by the letter the site printed on it. The Report tab's deciles are the backtest's version of this; this is the live one.">
+          <small>WHAT A GRADE HAS BEEN WORTH · THIS SEASON</small>
+          <div>{bands.map((b) => { const col = bandColor(b.label); return <span key={b.label} style={{ borderColor: col + '66' }}><b style={{ color: col }}>{b.label}</b><strong>{b.pct}%</strong><em>{b.hit}/{b.n}</em></span> })}</div>
         </div>
       )}
       {keys.length > 1 && (
@@ -485,6 +496,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
       .acc-season-row small{display:block;color:${C.text3};font:800 7.5px/1 ${NUM_FONT};letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .acc-season-row b{display:block;margin-top:5px;font:900 19px/1 ${NUM_FONT}}
       .acc-season-row span{display:block;margin-top:3px;color:${C.text3};font:700 8.5px/1 ${NUM_FONT}}
+      .acc-season-bands{margin-top:12px}.acc-season-bands>small{display:block;color:${C.text3};font:900 7.5px/1 ${NUM_FONT};letter-spacing:.1em;margin-bottom:6px}.acc-season-bands>div{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px}.acc-season-bands span{flex:0 0 auto;display:flex;align-items:baseline;gap:5px;padding:6px 9px;border:1px solid;border-radius:8px;background:${C.bg};font-family:${NUM_FONT}}.acc-season-bands b{font-size:10px}.acc-season-bands strong{font-size:13px;font-weight:900}.acc-season-bands em{font-style:normal;font-size:8px;color:${C.text3}}
       .acc-season-picker{display:flex;gap:5px;overflow-x:auto;margin-top:12px;padding-bottom:2px}
       .acc-season-picker button{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:7px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg};color:${C.text3};cursor:pointer;font-family:${NUM_FONT}}
       .acc-season-picker button b{font-size:9px;color:${C.text2}}.acc-season-picker button span{font-size:8px}
