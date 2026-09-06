@@ -51,7 +51,10 @@ function Picker({ players, value, onChange, placeholder }) {
 export default function StartSit({ players = [], onPlayerClick }) {
   const [a, setA] = useState(null)
   const [b, setB] = useState(null)
-  const pool = useMemo(() => (players || []).filter((p) => p?.name && p?.position), [players])
+  // A start/sit helper that offers a man on his bye is worse than one that
+  // offers nothing: he still has season averages, so he projects normally and
+  // can win the comparison outright.
+  const pool = useMemo(() => (players || []).filter((p) => p?.name && p?.position && !p?.on_bye), [players])
   const pa = a ? projectPlayer(a) : null
   const pb = b ? projectPlayer(b) : null
   const gap = pa != null && pb != null ? Math.round((pa - pb) * 10) / 10 : null

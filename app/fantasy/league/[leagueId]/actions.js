@@ -9,6 +9,7 @@ import { fantasyDefenseCatalog } from '../../../../lib/nfl/teams'
 import { fetchNfl, nflSlateLooksReal, nflSlatePaths } from '../../../../lib/nfl/dataSource'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { syncCatalogChunked } from '../../../../lib/fantasy/sync'
+import { withSeasonValue } from '../../../../lib/fantasy/scoring'
 
 const routeFor = (leagueId, type, message, view) => {
   const params = new URLSearchParams()
@@ -59,7 +60,7 @@ export async function syncPlayerCatalog(formData) {
   if (!live) raw = weekSlate
   const normalized = normalizeNflCatalog(raw)
   const season = Number(raw.season || raw.stat_season)
-  const catalog = [...normalized, ...fantasyDefenseCatalog(season)]
+  const catalog = withSeasonValue([...normalized, ...fantasyDefenseCatalog(season)])
 
   // RETIRE WHOEVER IS NO LONGER IN THE LEAGUE.
   //
