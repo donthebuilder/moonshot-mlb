@@ -3119,6 +3119,20 @@
 @media (prefers-reduced-motion: reduce) {
   .roomBody { animation: none; }
 }
+.inviteBanner {
+  max-width: 1000px;
+  margin: 0 auto 18px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(255,99,62,.12);
+  border: 1px solid rgba(255,99,62,.35);
+  color: var(--gold);
+  font-weight: 700;
+  animation: franchiseEnter .3s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inviteBanner { animation: none; }
+}
 .draftHero,
 .leagueHero,
 .teamHero,

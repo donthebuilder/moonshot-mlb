@@ -27,10 +27,15 @@ function Notice({ error, message }) {
   return <p className={error ? styles.error : styles.message}>{error || message}</p>
 }
 
-function AuthScreen({ error, message }) {
+function AuthScreen({ error, message, invite }) {
   return (
     <main className={styles.launchApp}>
       {(error || message) && <div className={styles.authBanner}><Notice error={error} message={message} /></div>}
+      {invite && (
+        <div className={styles.authBanner}>
+          <p className={styles.inviteBanner}>🔗 You&apos;ve been invited to a league — create an account or sign in, then confirm your team below.</p>
+        </div>
+      )}
       <header className={styles.launchHeader}>
         {/* Straight to the actual board, not the marketing front door
             (2026-08-29, same fix as app/login/page.js's brand link — a
@@ -84,6 +89,7 @@ function AuthScreen({ error, message }) {
         <Notice error={error} message={message} />
         <div className={styles.launchAuthGrid}>
         <form action={signUp} className={styles.launchAuthCard} id="create-account">
+          {invite && <input type="hidden" name="invite" value={invite} />}
           <p className={styles.kicker}>START HERE · FREE</p>
           <h3>Create your account</h3>
           <p>One account lets you own teams in multiple private leagues.</p>
@@ -94,6 +100,7 @@ function AuthScreen({ error, message }) {
           <small>No card. No payment. Just your league.</small>
         </form>
         <form action={signIn} className={styles.launchAuthCard} id="sign-in">
+          {invite && <input type="hidden" name="invite" value={invite} />}
           <p className={styles.kicker}>WELCOME BACK</p>
           <h3>Enter your front office</h3>
           <p>Use the email and password you created for Franchise.</p>
@@ -231,11 +238,15 @@ function CreateLeagueForm() {
 
 export default async function FantasyPage({ searchParams }) {
   const params = (await searchParams) || {}
+  // From an invite LINK (?invite=CODE) -- see components/fantasy/InviteCode.js.
+  // Kept as its own param (not `code`) so it never collides with Supabase's
+  // own OAuth `code` param on the /auth/callback round trip.
+  const invite = String(params.invite || '').trim().toUpperCase().slice(0, 20)
   if (!hasSupabaseConfig()) return <SetupScreen />
 
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return <AuthScreen error={params.error} message={params.message} />
+  if (!user) return <AuthScreen error={params.error} message={params.message} invite={invite} />
 
   const { data: membershipRows, error: membershipError } = await supabase
     .from('fantasy_league_memberships')
@@ -313,9 +324,13 @@ export default async function FantasyPage({ searchParams }) {
         <form action={joinLeague} className={styles.card}>
           <p className={styles.kicker}>JOIN THE ROOM</p>
           <h2>Enter a league</h2>
-          <p className={styles.muted}>Invite-only by design. Ask your commissioner for the code.</p>
-          <label>Invite code<input name="inviteCode" maxLength="20" autoCapitalize="characters" placeholder="A1B2C3D4" required /></label>
-          <label>Your team name<input name="teamName" maxLength="40" required /></label>
+          {invite ? (
+            <p className={styles.inviteBanner}>🔗 Invite link opened — confirm your team name to join.</p>
+          ) : (
+            <p className={styles.muted}>Invite-only by design. Ask your commissioner for the code.</p>
+          )}
+          <label>Invite code<input name="inviteCode" maxLength="20" autoCapitalize="characters" placeholder="A1B2C3D4" defaultValue={invite} required /></label>
+          <label>Your team name<input name="teamName" maxLength="40" autoFocus={!!invite} required /></label>
           <SubmitButton pendingLabel="Joining…">Join league</SubmitButton>
         </form>
       </section>
