@@ -35,8 +35,8 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, homersFrom, hooksFor, monthlyText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
-import { homerCard, pregameCard, recapCard } from '../../../../../lib/dash/homerCard'
+import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -258,7 +258,13 @@ async function postRecap(db, day, { force = false } = {}) {
           const d = await postToDiscord(mtext)
           if (d.ok) patch.discord_sent = true
           if (xOn) {
-            const r = await postToX(mtext)
+            const png = await bytesOf(() => statCard(day, {
+              pill: 'MONTHLY', label: monthLabel.toUpperCase(),
+              headline: `${mc.called} of ${mc.total} home runs on the bot (${mc.pct ?? 0}%)`,
+              lines: [`TOP ${mc.byRole.TOP || 0}  ·  HR ${mc.byRole.HR || 0}  ·  HR Watch ${mc.byRole.WATCH || 0}`],
+            }, { site: SITE_HOST }))
+            const mediaId = png ? await uploadImageToX(png) : null
+            const r = await postToX(mtext, { mediaId })
             if (r.ok && r.id) patch.x_post_id = r.id
             else console.error(`[homers] monthly refused: ${r.status} ${r.error}`)
           }
@@ -351,6 +357,68 @@ export async function GET(request) {
     if (!ready) {
       if (!started) return Response.json({ day, skipped: 'nothing-started' })
     } else {
+      // PAIRS TO WATCH + TONIGHT'S LONGEST CALL (2026-09-06, Donovan).
+      // Each claims its own (day, kind) row, independent of the pregame
+      // call below and of each other -- a slow news night for one is not a
+      // reason to hold back the other, and neither can double-post.
+      {
+        const hits = pairsToWatch(boardRows(), pairs)
+        if (hits.length) {
+          const { data: claim } = await db
+            .from('homer_feed_posts')
+            .upsert([{ day, kind: 'pairswatch', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+            .select('day')
+          if (claim?.length) {
+            const text = pairsToWatchText(hits, { day, ...TAIL })
+            const patch = { payload: { hits } }
+            const d = await postToDiscord(text)
+            if (d.ok) patch.discord_sent = true
+            if (hasX()) {
+              const png = await bytesOf(() => statCard(day, {
+                pill: 'PAIRS', label: 'PAIRS TO WATCH',
+                headline: hits.map((h) => `${h.a.name} & ${h.b.name}`).join('  ·  '),
+                lines: hits.map((h) => `${h.count}x same-day this season${h.rate != null ? ` (${h.rate}%)` : ''} · ${h.a.team || '?'} vs ${h.a.opponent || '?'}, ${h.b.team || '?'} vs ${h.b.opponent || '?'}`),
+              }, { site: SITE_HOST }))
+              const mediaId = png ? await uploadImageToX(png) : null
+              const r = await postToX(text, { mediaId })
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] pairs-to-watch refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pairswatch' })
+          }
+        }
+      }
+      {
+        const pick = longshotPick(boardRows(), odds, day)
+        if (pick) {
+          const { data: claim } = await db
+            .from('homer_feed_posts')
+            .upsert([{ day, kind: 'longshot', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+            .select('day')
+          if (claim?.length) {
+            const text = longshotText(pick, { day, ...TAIL })
+            const patch = { payload: { pick } }
+            const d = await postToDiscord(text)
+            if (d.ok) patch.discord_sent = true
+            if (hasX()) {
+              const png = await bytesOf(() => statCard(day, {
+                pill: 'LONGSHOT', label: "TONIGHT'S LONGEST CALL",
+                headline: `${pick.name}${pick.team ? ` (${pick.team})` : ''}`,
+                lines: [
+                  `${fmtOdds(pick.over)} · ${pick.book}${pick.opponent ? ` to go deep vs ${pick.opponent}` : ''}`,
+                  pick.hr_score != null ? `HR score ${Math.round(pick.hr_score)}` : '',
+                ],
+              }, { site: SITE_HOST }))
+              const mediaId = png ? await uploadImageToX(png) : null
+              const r = await postToX(text, { mediaId })
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] longshot refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'longshot' })
+          }
+        }
+      }
+
       const picks = pregamePicks(boardRows(), odds, day)
       if (!picks.length) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
