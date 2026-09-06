@@ -128,7 +128,7 @@ function TickerStrip({ children }) {
 // to make room, so the two navigations of one product disagreed about what
 // mattered.
 const PRIMARY_KEY_LIST = ['boards', 'games', 'picks', 'research']
-const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, NFL_NAV[k].label])
+const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${NFL_NAV[k].icon} ${NFL_NAV[k].label}`])
 const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
 // Same exception as MOONSHOT's: This week is reached from the wordmark, so it
 // must not make ••• More read as the active section.
@@ -240,15 +240,39 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         : `${Math.floor(ageHours / 24)}d ago`
   const freshCol = ageHours >= 24 ? C.orange : ageHours >= 8 ? C.yellow : C.text3
 
+  const tabBtn = (key, label, active, onClick, extra = {}) => (
+    <button key={key} onClick={onClick} {...extra} style={{
+      padding: '0 10px', height: 44, fontSize: 11.5, fontWeight: active ? 800 : 600, letterSpacing: '.01em',
+      cursor: 'pointer', border: 'none', borderRadius: 0, background: 'transparent',
+      color: active ? C.green : C.text3, position: 'relative', transition: 'color .12s',
+      whiteSpace: 'nowrap', flex: '1 1 0', textAlign: 'center',
+    }}>
+      {label}
+      {active && <div style={{
+        position: 'absolute', bottom: 0, left: 8, right: 8, height: 2,
+        background: GRADIENT, borderRadius: '2px 2px 0 0',
+      }} />}
+    </button>
+  )
+
   return (
+    // NOT STICKY (2026-09-06) — same rule MOONSHOT's header got the same
+    // day: Donovan, "no sticky header. once you scroll don't add that,
+    // ever." It scrolls away with the page now; the bottom bar owns
+    // navigation once you're down the page, same as MOONSHOT.
     <header className={tab === 'home' ? undefined : 'hdr-slate-on'} style={{
-      position: 'sticky', top: 0, zIndex: 40,
+      position: 'relative', zIndex: 50,
       background: 'rgba(9,9,11,0.86)', backdropFilter: 'blur(14px)',
       borderBottom: `1px solid ${C.border}`,
     }}>
-      <div style={{
-        maxWidth: 1300, margin: '0 auto', padding: '10px 16px',
-        display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+      {/* ── THREE ROWS, SAME SHAPE AS MOONSHOT'S (2026-09-06) ─────────────
+          brand + meta, then the moving ticker at full width, then the tab
+          rail splitting the row evenly — instead of one row cramming brand,
+          ticker and controls together and a horizontally-scrolling tab
+          strip sized to whatever each label happened to need. */}
+      <div className="nfl-hdr-row1" style={{
+        maxWidth: 1300, margin: '0 auto', padding: '10px 16px 6px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* The mark is the way home, same as MOONSHOT's (2026-08-31). ⌂ DASH
@@ -310,27 +334,22 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                   the bottom bar's More sheet owns product switching now — but
                   the desktop pair has to be right, and a shape bug that only
                   hides is still a shape bug.) */}
-              <span className="sport-switch" style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 5, alignSelf: 'center' }}>
-                {[['mlb', 'MLB'], ['nfl', 'NFL']].map(([key, label]) => {
-                  const on = key === 'nfl'
-                  return (
-                    <button
-                      key={key}
-                      onClick={on ? undefined : () => setSport(key)}
-                      aria-pressed={on}
-                      aria-label={on ? 'TUDDY · NFL (current)' : 'Switch to MOONSHOT · MLB'}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        height: 22, minHeight: 22, padding: '0 10px', lineHeight: 1,
-                        fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
-                        borderRadius: 999, cursor: on ? 'default' : 'pointer',
-                        border: `1px solid ${on ? `${C.green}73` : C.border2}`,
-                        background: on ? `${C.green}26` : 'transparent',
-                        color: on ? C.green : C.text3,
-                      }}
-                    >{label}</button>
-                  )
-                })}
+              {/* ONE BUTTON, NOT TWO (2026-09-06). MOONSHOT's header
+                  dropped its own self-referential "MLB" pill the same day,
+                  since a product's header already says which product you're
+                  in — the pill only needs to name the OTHER one. */}
+              <span className="sport-switch" style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 5, alignSelf: 'center' }}>
+                <button onClick={() => setSport('mlb')} aria-pressed={false}
+                  title="Switch to MOONSHOT · MLB" aria-label="Switch to MOONSHOT · MLB"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    height: 20, minHeight: 20, padding: '0 9px', lineHeight: 1,
+                    fontSize: 9.5, fontWeight: 900, letterSpacing: '0.08em', borderRadius: 999,
+                    cursor: 'pointer',
+                    border: `1px solid ${C.orange}55`,
+                    background: `${C.orange}10`,
+                    color: C.orange,
+                  }}>MOONSHOT</button>
               </span>
             </div>
             <div style={{
@@ -340,10 +359,33 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           </div>
         </div>
 
-        <div className="nfl-header-tiles" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 6, flexWrap: 'wrap', flex: '1 1 420px', minWidth: 0,
-        }}>
+        {/* ── date/build · account · settings — row 1's right side ────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            className="nfl-header-built"
+            title="When the NFL pipeline last published. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run."
+            style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}
+          >
+            {meta?.built_at_human || data?.built_at_human || '—'}
+            {freshLabel && <b style={{ color: freshCol, fontWeight: 800 }}>{` · ${freshLabel}`}</b>}
+          </span>
+          {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
+          <SignUpPill accent={C.green} />
+          <AlertBell />
+          <ThemeModeButton />
+          <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
+        </div>
+      </div>
+
+      {/* ── row 2: THE MOVING TICKER, ABOVE THE TABS (2026-09-06) ────────
+          Same move MOONSHOT's header made the same day: the strip gets a
+          full-width row of its own instead of splitting space with the
+          brand and the account controls, which is what used to squeeze it
+          down to three tiles wide on anything but a very wide desktop. */}
+      <div className="nfl-header-tiles" style={{
+        maxWidth: 1300, margin: '0 auto', padding: '0 16px 8px',
+        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0,
+      }}>
           {/* ── TUDDY GETS THE MOVING STRIP (2026-08-29) ────────────────────
               Donovan: "we need to add the moving headline thing on top for
               nfl." MOONSHOT has had it since 2026-08-24 (SlateTiles.js); NFL
@@ -398,23 +440,6 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               }}>PRESEASON · CARRYOVER</span>
             </div>
           )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            className="nfl-header-built"
-            title="When the NFL pipeline last published. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run."
-            style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}
-          >
-            {meta?.built_at_human || data?.built_at_human || '—'}
-            {freshLabel && <b style={{ color: freshCol, fontWeight: 800 }}>{` · ${freshLabel}`}</b>}
-          </span>
-          {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
-          <SignUpPill accent={C.green} />
-          <AlertBell />
-          <ThemeModeButton />
-          <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
-        </div>
       </div>
 
       {stale && (
@@ -432,51 +457,18 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         </div>
       )}
 
-      <div className="rail nfl-header-rail" style={{
-        maxWidth: 1300, margin: '0 auto', padding: '0 16px',
-        overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+      {/* ── row 3: the rail, equal and precise, same fix MOONSHOT's got
+          the same day. Was content-sized and horizontally scrolling, so
+          "Research" sat narrower than "Boards" and the row read as a strip
+          you had to swipe rather than a bar. tabBtn's flex is '1 1 0' now —
+          every tab, including More, splits the row evenly. */}
+      <nav className="rail nfl-header-rail" aria-label="TUDDY sections" style={{
+        maxWidth: 1300, margin: '0 auto', padding: '0 16px 6px',
+        display: 'flex', alignItems: 'stretch', width: '100%',
       }}>
-        <div style={{ display: 'flex', gap: 2, minWidth: 'max-content' }}>
-          {PRIMARY_TABS.map(([key, label]) => {
-            const active = tab === key
-            return (
-              <button
-                key={key}
-                onClick={() => go(key)}
-                style={{
-                  padding: '8px 13px', fontSize: 11, fontWeight: active ? 800 : 500,
-                  cursor: 'pointer', border: 'none', borderRadius: 0,
-                  background: 'transparent', color: active ? C.green : C.text3,
-                  position: 'relative', transition: 'color .12s', whiteSpace: 'nowrap',
-                }}
-              >
-                {label}
-                {active && <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
-                  background: GRADIENT, borderRadius: '2px 2px 0 0',
-                }} />}
-              </button>
-            )
-          })}
-          <button
-            onClick={() => setMoreOpen((open) => !open)}
-            aria-expanded={moreOpen}
-            style={{
-              padding:'8px 13px', fontSize:11,
-              fontWeight:inMore(tab) ? 800 : 500,
-              cursor:'pointer', border:'none', borderRadius:0,
-              background:'transparent', color:inMore(tab) ? C.green : C.text3,
-              position:'relative', transition:'color .12s', whiteSpace:'nowrap',
-            }}
-          >
-            More
-            {inMore(tab) && <div style={{
-              position:'absolute', bottom:0, left:0, right:0, height:2,
-              background:GRADIENT, borderRadius:'2px 2px 0 0',
-            }} />}
-          </button>
-        </div>
-      </div>
+        {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
+        {tabBtn('more', 'More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
+      </nav>
 
       {moreOpen && (
         <div style={{ borderTop:`1px solid ${C.border}`, background:'rgba(17,17,19,.98)' }}>
