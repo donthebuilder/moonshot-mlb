@@ -297,7 +297,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
       padding:'0 10px', height:44, fontSize:11.5, fontWeight:active ? 800 : 600, letterSpacing:'.01em',
       cursor:'pointer', border:'none', borderRadius:0, background:'transparent',
       color:active ? '#f97316' : C.text3, position:'relative', transition:'color .12s',
-      whiteSpace:'nowrap', flex:'1 0 auto', textAlign:'center',
+      whiteSpace:'nowrap', flex:'1 1 0', textAlign:'center',
     }}>
       {label}
       {active && <div style={{
@@ -317,80 +317,91 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
       backdropFilter:'blur(14px)',
       borderBottom:`1px solid ${C.border}`,
     }}>
-      {/* TWO ROWS, DETERMINISTIC (2026-09-06, same night). The first cut put
-          brand, rail and meta on one flex-wrap row; at desktop widths the meta
-          cluster wrapped under the rail and sat right-aligned on its own --
-          "looks funky". Now: row one is brand + scorebug on the left and
-          date / mode / account / ⚙ on the right, never wrapping; row two is
-          the rail, full width, tabs in equal shares under a hairline. */}
-      {/* ONE ROW AFTER ALL (2026-09-06, later). Donovan: "the tab sections
-          need to go next to Today, in the blank space." So: brand + scorebug
-          (capped, the scorebug scrolls inside its box) | the rail, flexing
-          into whatever is left | date · mode · account · ⚙. Nothing wraps
-          above the phone breakpoint. */}
+      {/* THREE ROWS (2026-09-06, third pass). The history: one flex row
+          (brand+scorebug, rail, meta side by side) wrapped funny on desktop;
+          "one row after all" put the rail in the blank space next to Today,
+          capping the scorebug into a 520px box. Then Donovan asked for both
+          things that box was fighting over: "the moving header needs to be
+          above [the tabs], with the stat i want" and "the tabs section need
+          to be equal and precise." Those don't fit in one row together, so
+          it's three now, stacked: brand+meta, then the scorebug at full
+          width, then the rail with every tab splitting it evenly. */}
       <div className="hdr-bar" style={{
         maxWidth:1300, margin:'0 auto', padding:'8px 16px 6px',
-        display:'flex', alignItems:'center', gap:14, flexWrap:'nowrap',
+        display:'flex', flexDirection:'column', gap:8,
       }}>
-        {/* ── brand + scorebug ───────────────────────────────────────────── */}
-        <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flex:'0 1 520px' }}>
-          {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
-              DASH front door; the wordmark is MOONSHOT's own home button. */}
-          <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE" aria-label="DASH Network home"
-            style={{ display:'flex', textDecoration:'none', borderRadius:10, flexShrink:0 }}>
-            <div className="hdr-mark" style={{ position:'relative', width:46, height:46, borderRadius:12, boxShadow:'0 0 20px rgba(249,115,22,0.35)' }}>
-              <img src="/icon-192.png" alt="" width={46} height={46} style={{ display:'block', width:'100%', height:'100%', borderRadius:12 }} />
-              <div style={{ position:'absolute', top:-2, right:-2, width:8, height:8, borderRadius:'50%', background:C.green, border:`2px solid ${C.bg}`, animation:'pulse 2s infinite' }} />
-            </div>
-          </a>
-          <div style={{ minWidth:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <button type="button" onClick={() => go('home')} title="MOONSHOT home — tonight in one page" aria-label="MOONSHOT home"
-                style={{
-                  padding:0, border:'none', background:'transparent', cursor:'pointer',
-                  fontSize:19, fontWeight:900, letterSpacing:'-0.02em', lineHeight:1.1,
-                  backgroundImage:'linear-gradient(90deg, #f97316, #ef4444)',
-                  WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-                }}>MOONSHOT</button>
-              <span className="sport-switch" style={{ display:'flex', alignItems:'center', gap:3 }}>
-                {/* MOONSHOT (orange, you are here) and TUDDY (green, the other
-                    product) -- named as products, not leagues, and each in its
-                    own colour so the switch reads as two shows, not a filter. */}
-                <button onClick={() => setSport('nfl')} aria-pressed={false}
-                  title="Switch to TUDDY · NFL" aria-label="Switch to TUDDY · NFL"
+        {/* ── row 1: brand · date · mode · account · settings ───────────── */}
+        <div className="hdr-row1" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:14, flexWrap:'nowrap' }}>
+          <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+            {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
+                DASH front door; the wordmark is MOONSHOT's own home button. */}
+            <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE" aria-label="DASH Network home"
+              style={{ display:'flex', textDecoration:'none', borderRadius:10, flexShrink:0 }}>
+              <div className="hdr-mark" style={{ position:'relative', width:46, height:46, borderRadius:12, boxShadow:'0 0 20px rgba(249,115,22,0.35)' }}>
+                <img src="/icon-192.png" alt="" width={46} height={46} style={{ display:'block', width:'100%', height:'100%', borderRadius:12 }} />
+                <div style={{ position:'absolute', top:-2, right:-2, width:8, height:8, borderRadius:'50%', background:C.green, border:`2px solid ${C.bg}`, animation:'pulse 2s infinite' }} />
+              </div>
+            </a>
+            <div style={{ minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <button type="button" onClick={() => go('home')} title="MOONSHOT home — tonight in one page" aria-label="MOONSHOT home"
                   style={{
-                    display:'inline-flex', alignItems:'center', justifyContent:'center',
-                    height:20, minHeight:20, padding:'0 9px', lineHeight:1,
-                    fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
-                    cursor:'pointer',
-                    border:`1px solid ${C.green}55`,
-                    background:`${C.green}10`,
-                    color: C.green,
-                  }}>TUDDY</button>
-              </span>
+                    padding:0, border:'none', background:'transparent', cursor:'pointer',
+                    fontSize:19, fontWeight:900, letterSpacing:'-0.02em', lineHeight:1.1,
+                    backgroundImage:'linear-gradient(90deg, #f97316, #ef4444)',
+                    WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+                  }}>MOONSHOT</button>
+                <span className="sport-switch" style={{ display:'flex', alignItems:'center', gap:3 }}>
+                  {/* MOONSHOT (orange, you are here) and TUDDY (green, the other
+                      product) -- named as products, not leagues, and each in its
+                      own colour so the switch reads as two shows, not a filter. */}
+                  <button onClick={() => setSport('nfl')} aria-pressed={false}
+                    title="Switch to TUDDY · NFL" aria-label="Switch to TUDDY · NFL"
+                    style={{
+                      display:'inline-flex', alignItems:'center', justifyContent:'center',
+                      height:20, minHeight:20, padding:'0 9px', lineHeight:1,
+                      fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
+                      cursor:'pointer',
+                      border:`1px solid ${C.green}55`,
+                      background:`${C.green}10`,
+                      color: C.green,
+                    }}>TUDDY</button>
+                </span>
+              </div>
             </div>
-            <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} onPlayerClick={onPlayerClick} go={go} />
+          </div>
+
+          {/* ── date · mode · account · settings ──────────────────────── */}
+          <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+            <DateMode label={dateLabel || 'Loading…'} mode={mode} setMode={setMode} />
+            <SignUpPill onWatchlist={() => go('you')} />
+            <SettingsSheet />
           </div>
         </div>
 
-        {/* ── the rail, in the blank space ─────────────────────────────── */}
+        {/* ── row 2: THE MOVING HEADER, ABOVE THE TABS (2026-09-06) ─────────
+            Donovan: "the moving header needs to be above [the tabs], with
+            the stat i want." It used to live squeezed inside the 520px
+            brand column, scrolling in its own little box under the
+            wordmark. Now it's a full-width row of its own, above the rail,
+            so the leader pills (top hitter/performer per game) actually
+            have room to be read instead of hiding three pills deep in a
+            narrow strip. */}
+        <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} onPlayerClick={onPlayerClick} go={go} />
+
+        {/* ── row 3: the rail, equal and precise ─────────────────────────
+            Donovan: "the tabs section need to be equal and precise." Was
+            content-sized (flex:'1 0 auto'), so "Bot" sat narrower than
+            "Scoreboard" -- five uneven widths reading as unstyled rather
+            than as a bar. tabBtn's flex is '1 1 0' now: every tab, including
+            More, splits the row evenly, same grid idea the phone bar's five
+            equal columns already use. */}
         <nav className="rail hdr-rail" aria-label="MOONSHOT sections" style={{
-          flex:'1 1 0', minWidth:0, alignSelf:'stretch',
-          overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
-          display:'flex', alignItems:'stretch',
+          display:'flex', alignItems:'stretch', width:'100%',
         }}>
-          <div style={{ display:'flex', gap:0, minWidth:'max-content', width:'100%' }}>
-            {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
-            {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
-          </div>
+          {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
+          {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
         </nav>
-
-        {/* ── date · mode · account · settings ──────────────────────────── */}
-        <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-          <DateMode label={dateLabel || 'Loading…'} mode={mode} setMode={setMode} />
-          <SignUpPill onWatchlist={() => go('you')} />
-          <SettingsSheet />
-        </div>
       </div>
 
 
@@ -446,7 +457,8 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
            hdr-rail is hidden -- .rail is a shared scroll utility. */
         @media (max-width: 760px) {
           .hdr-rail { display: none !important; }
-          .hdr-bar { gap: 6px !important; flex-wrap: wrap !important; padding-bottom: 6px !important; }
+          .hdr-bar { gap: 6px !important; padding-bottom: 6px !important; }
+          .hdr-row1 { flex-wrap: wrap !important; gap: 6px !important; }
           .hdr-mark { width: 40px !important; height: 40px !important; }
           .hdr-mark img { width: 40px !important; height: 40px !important; }
           .hdr-brand { flex-basis: 100% !important; }
