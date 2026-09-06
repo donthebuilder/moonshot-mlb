@@ -1245,7 +1245,25 @@
   border: 1px solid var(--line);
   border-radius: 13px;
   background: var(--fx-panel-2);
+  /* ── THE 108px HOLE AT THE TOP OF BOTH BOARDS ────────────────────────────
+     `overflow: hidden` is here to clip row backgrounds to the panel's rounded
+     corners. It also, silently, makes this panel A SCROLL CONTAINER -- and the
+     three board header rows inside it are `position: sticky` with tops of
+     108 / 170 / 212, written by #78 to clear the page's own sticky header and
+     nav. Sticky resolves against the nearest scrollport, so those offsets
+     stopped meaning "108px below the page chrome" and started meaning "108px
+     below the top edge of this panel": an empty 108px band above AVAILABLE
+     PLAYERS, and the pinned rows sitting on top of the note and the first
+     player instead of above them. Measured on the live draft board: panel top
+     290, board head painted at 399, and 399 - 108 = 291.
+
+     `overflow: clip` clips exactly the same pixels but does NOT establish a
+     scroll container, so the sticky rows go back to measuring themselves
+     against the page and #78 works as written. `hidden` is left in front of it
+     for anything too old to know `clip` -- those browsers keep today's
+     behaviour rather than losing the corner clipping. */
   overflow: hidden;
+  overflow: clip;
 }
 .draftSide {
   display: flex;
@@ -1256,6 +1274,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* The head is three flex children with no gap between them, so the "546
+     available" count began at exactly the pixel the Search button ended on --
+     they touched, and at narrower widths they overlapped. */
+  gap: 14px;
   padding: 16px;
 }
 .boardHead h2 {
@@ -1263,6 +1285,8 @@
   font-size: 18px;
 }
 .boardHead>span {
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: var(--fx-dim);
   font: 9px/1 monospace;
 }
@@ -1289,7 +1313,8 @@
 }
 .draftColumns {
   display: grid;
-  grid-template-columns: 32px 45px 1fr 50px 58px;
+  grid-template-columns: 32px 45px 1fr 58px 58px;
+  column-gap: 10px;
   padding: 7px 14px;
   border-top: 1px solid var(--fx-line-3);
   background: var(--fx-bg);
@@ -1302,7 +1327,8 @@
 }
 .draftPlayer {
   display: grid;
-  grid-template-columns: 32px 45px 1fr 50px 58px;
+  grid-template-columns: 32px 45px 1fr 58px 58px;
+  column-gap: 10px;
   align-items: center;
   min-height: 56px;
   padding: 0 14px;
@@ -1486,6 +1512,9 @@
 .playerSearch {
   display: flex;
   gap: 5px;
+  /* Shrinks instead of wrapping. The board head must keep a fixed height --
+     the three sticky rows below it are pinned at offsets measured from it. */
+  min-width: 0;
   margin-left: auto;
 }
 .playerSearch input {
@@ -3088,18 +3117,49 @@
   position: sticky;
   z-index: 30;
   top: 0;
-  background: rgba(11,11,11,.82);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  /* The blur for this bar is in the @supports block below, not here -- a bare
+     declaration is what the build strips. The alpha here is the no-blur floor. */
+  background: rgba(11,11,11,.86);
 }
 .roomNav {
   position: sticky;
   z-index: 29;
   top: 62px;
-  background: rgba(11,11,11,.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(11,11,11,.9);
 }
+/* ── THE FROSTED BARS THAT WERE NEVER FROSTED ────────────────────────────────
+   .roomHeader and .roomNav have declared `backdrop-filter: blur(...)` directly
+   above this since they were written, and it has never reached a browser.
+   Checked against the live stylesheet: the served rule is
+   `.roomHeader { z-index: 30; background: rgba(11,11,11,.82); position: sticky;
+   top: 0 }` -- the property is simply absent, and `getComputedStyle` agrees it
+   is `none`. Every surviving `backdrop-filter` in the built file sits inside an
+   `@media` block; every top-level one has been dropped. So the build keeps the
+   property in grouping rules and strips it from bare ones.
+
+   Translucent with no blur is the worst of both: at .82 alpha the player rows
+   scrolling underneath stay legible THROUGH the header, which is what made the
+   draft board look broken while scrolling.
+
+   `@supports` is a grouping rule like `@media`, so the declaration survives --
+   and it is the honest wrapper anyway, since it is exactly a progressive
+   enhancement. The alphas move up a little at the same time, so that a browser
+   without backdrop-filter gets something near-opaque rather than a window. */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .roomHeader {
+    background: rgba(11,11,11,.86);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+  .roomNav {
+    background: rgba(11,11,11,.9);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+  }
+  :global(html[data-theme='light']) .roomHeader { background: rgba(252,252,251,.88); }
+  :global(html[data-theme='light']) .roomNav { background: rgba(250,250,248,.92); }
+}
+
 .roomNav a {
   position: relative;
   text-decoration: none;
@@ -4756,8 +4816,15 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   --fx-chrome: 108px;
 }
 .roomApp .playerBoard>.boardHead { top: var(--fx-chrome); }
-.roomApp .playerBoard>.positionFilters { top: calc(var(--fx-chrome) + 62px); }
-.roomApp .playerBoard>.draftColumns { top: calc(var(--fx-chrome) + 104px); border-bottom: 1px solid var(--fx-edge); }
+/* 62 and 104 were one head-height out of date: the head is 71px tall, so the
+   pills pinned 9px UNDER its bottom edge and, worse, the column row pinned 5px
+   BELOW the pills' bottom -- a 5px window with nothing opaque in it, through
+   which player rows visibly streamed while you scrolled. Measured live on the
+   draft board: head 108-179, pills 170-207, columns 212-236.
+   70 and 106 land each row 1px INTO the one above it, so the stack is airtight
+   at every scroll position and no seam can open. */
+.roomApp .playerBoard>.positionFilters { top: calc(var(--fx-chrome) + 70px); }
+.roomApp .playerBoard>.draftColumns { top: calc(var(--fx-chrome) + 106px); border-bottom: 1px solid var(--fx-edge); }
 .roomApp .boardHead h2 { font-size: 17px; letter-spacing: -.02em; }
 .roomApp .panelLabel { letter-spacing: .16em; }
 
