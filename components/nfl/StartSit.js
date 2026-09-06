@@ -54,7 +54,7 @@ export default function StartSit({ players = [], onPlayerClick }) {
   // A start/sit helper that offers a man on his bye is worse than one that
   // offers nothing: he still has season averages, so he projects normally and
   // can win the comparison outright.
-  const pool = useMemo(() => (players || []).filter((p) => p?.name && p?.position && !p?.on_bye), [players])
+  const pool = useMemo(() => (players || []).filter((p) => p?.name && p?.position && !p?.on_bye && !p?.no_data), [players])
   const pa = a ? projectPlayer(a) : null
   const pb = b ? projectPlayer(b) : null
   const gap = pa != null && pb != null ? Math.round((pa - pb) * 10) / 10 : null
