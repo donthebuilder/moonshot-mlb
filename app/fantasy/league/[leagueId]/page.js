@@ -102,14 +102,6 @@ export default async function LeagueRoom({ params, searchParams }) {
   // is the order.
   const orderProvisional = (!draft || draft.status === 'setup') && teams.length < Number(league.team_count || 0)
 
-  // Round-1 order as team rows, straight off the stored order the draft was
-  // built from -- not re-derived from picks, so it is visible before the first
-  // pick exists and cannot drift from what the server actually snaked.
-  const orderTeams = (Array.isArray(draft?.order_team_ids) ? draft.order_team_ids : [])
-    .map((id) => teams.find((team) => team.id === id))
-    .filter(Boolean)
-  const myOrderSlot = myTeam ? orderTeams.findIndex((team) => team.id === myTeam.id) + 1 : 0
-
   return (
     <main className={styles.roomApp}>
       <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
@@ -141,11 +133,6 @@ export default async function LeagueRoom({ params, searchParams }) {
             <div><p className={styles.panelLabel}>COMMISSIONER CONTROLS</p><strong>Catalog → order → live draft</strong></div>
             <form action={syncPlayerCatalog}><input type="hidden" name="leagueId" value={leagueId}/><button>Refresh NFL players</button></form>
             <form action={prepareDraft} className={styles.orderForm}><input type="hidden" name="leagueId" value={leagueId}/>{league.draft_order_method === 'manual' && teams.map((team,index)=><label key={team.id}>{team.name}<select name={`position_${team.id}`} defaultValue={index+1}>{teams.map((_,i)=><option key={i+1}>{i+1}</option>)}</select></label>)}<SubmitButton disabled={!players.length} pendingLabel="Preparing…">Prepare snake draft</SubmitButton></form>
-            {/* Re-rolling is deliberate and separate. Preparing no longer
-                reshuffles, so this is the only way the order changes. */}
-            {league.draft_order_method === 'random' && draft?.status === 'setup' && orderTeams.length > 0 && (
-              <form action={prepareDraft}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="reroll" value="1"/><SubmitButton pendingLabel="Rolling…">Re-roll draft order</SubmitButton></form>
-            )}
             <form action={startDraft}><input type="hidden" name="leagueId" value={leagueId}/><StartDraftButton disabled={!draft || draft.status !== 'setup'} expected={league.team_count} joined={teams.length}/></form>
             {draft?.status==='live'&&<form action={runAutoPick}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Forcing…">Force expired pick</SubmitButton></form>}
             {['live','paused'].includes(draft?.status) && <form action={setDraftState}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="state" value={draft.status === 'live' ? 'paused' : 'live'}/><SubmitButton pendingLabel="Updating…">{draft.status === 'live' ? 'Pause draft' : 'Resume draft'}</SubmitButton></form>}
@@ -154,43 +141,7 @@ export default async function LeagueRoom({ params, searchParams }) {
 
         {membership.role === 'commissioner' && draft && draft.status !== 'paused' && picks.some((pick)=>!pick.player_id) && <form action={assignDraftPick} className={styles.assignmentBar}><div><p className={styles.panelLabel}>MANUAL ASSIGNMENT</p><strong>Place a player into any open pick</strong><small>Resume the draft first — assigning while paused leaves the clock behind.</small></div><select name="overallPick">{picks.filter((pick)=>!pick.player_id).map((pick)=><option value={pick.overall_pick} key={pick.id}>#{pick.overall_pick} · {teams.find((team)=>team.id===pick.team_id)?.name}</option>)}</select><select name="playerId">{undrafted.slice(0,600).map((player)=><option value={player.id} key={player.id}>{player.position} · {player.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Assigning…">Assign pick</SubmitButton></form>}
 
-        {/* THE ORDER IS THE LEAGUE'S, NOT THE COMMISSIONER'S (2026-09-06).
-            Members used to see only "the commissioner is setting the draft
-            order" and then find out where they picked when the draft started.
-            A random order nobody can see before it matters is indistinguishable
-            from one that was rolled until it looked good. It is shown to
-            everyone the moment it exists, with your own seat called out. */}
-        {(!draft || draft.status === 'setup') && (
-          orderTeams.length ? (
-            <section className={styles.waitingRoom} style={{ display: 'block' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                <div>
-                  <p className={styles.panelLabel}>ROUND 1 ORDER</p>
-                  <strong>{myOrderSlot ? `You pick ${myOrderSlot} of ${orderTeams.length}` : 'Draft order is set'}</strong>
-                </div>
-                <small style={{ opacity: .8 }}>{league.draft_order_method === 'random' ? 'Rolled at random' : 'Set by the commissioner'} · snake, so round 2 runs backwards</small>
-              </div>
-              <ol style={{ listStyle: 'none', margin: '11px 0 0', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))', gap: 6 }}>
-                {orderTeams.map((team, index) => (
-                  <li key={team?.id || index}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8, minWidth: 0,
-                      padding: '6px 9px', borderRadius: 8,
-                      background: team?.id === myTeam?.id ? 'rgba(249,115,22,.14)' : 'rgba(127,127,127,.09)',
-                      border: team?.id === myTeam?.id ? '1px solid rgba(249,115,22,.45)' : '1px solid transparent',
-                    }}>
-                    <b style={{ width: 20, flexShrink: 0, textAlign: 'right', opacity: .7, fontVariantNumeric: 'tabular-nums' }}>{index + 1}</b>
-                    <TeamMark size={18} team={team}/>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{team?.name || 'Open seat'}</span>
-                  </li>
-                ))}
-              </ol>
-              {orderProvisional && <small className={styles.boardNote} style={{ display: 'block', marginTop: 9 }}>{teams.length} of {league.team_count} teams have joined, so this order still changes when the rest do.</small>}
-            </section>
-          ) : membership.role !== 'commissioner' ? (
-            <section className={styles.waitingRoom}><span>◷</span><div><p className={styles.panelLabel}>DRAFT LOBBY</p><strong>The commissioner is setting the draft order.</strong><small>You can study the DASH board now. Draft controls unlock when the room goes live.</small></div></section>
-          ) : null
-        )}
+        {membership.role !== 'commissioner' && (!draft || draft.status === 'setup') && <section className={styles.waitingRoom}><span>◷</span><div><p className={styles.panelLabel}>DRAFT LOBBY</p><strong>The commissioner is setting the draft order.</strong><small>You can study the DASH board now. Draft controls unlock when the room goes live.</small></div></section>}
 
         <div className={styles.draftLayout}>
           <section className={styles.playerBoard} data-live={draft?.status==='live'?'true':undefined} data-yours={isMyPick?'true':undefined}>

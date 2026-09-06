@@ -2368,7 +2368,8 @@
 }
 .tradeRoster label {
   display: grid;
-  grid-template-columns: 20px 40px 1fr;
+  grid-template-columns: 18px 34px 28px 1fr;
+  gap: 8px;
   align-items: center;
   min-height: 46px;
   padding: 0 9px;
@@ -5798,4 +5799,61 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     flex-basis: 100%;
     margin: 0;
   }
+}
+
+
+/* ── THE TRADE DESK'S LEFTOVERS ──────────────────────────────────────────────
+   The checkbox was the only unstyled control in FRANCHISE: a white system
+   square on a near-black panel, thirty of them down two columns. `accent-color`
+   is the whole fix -- it recolours the native control, so the checkbox stays a
+   real checkbox for a keyboard and a screen reader and stops being the
+   brightest thing on the page. */
+.tradeRoster input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--fx-accent);
+  cursor: pointer;
+}
+.tradeRoster label:hover {
+  background: var(--fx-s2);
+}
+.tradeRoster label:has(input:checked) {
+  background: linear-gradient(90deg,rgba(246,169,40,.1),transparent 70%);
+  box-shadow: inset 2px 0 0 var(--fx-accent);
+}
+
+/* "iwwiw sends" and, beside it, how many of the five you have taken. The RPC
+   has always capped a side at 1-5 and the builder never said so. */
+.tradeSideHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: var(--fx-gold, var(--fx-accent));
+  font: 900 10px/1 monospace;
+  letter-spacing: .14em;
+}
+.tradeSideHead b {
+  color: var(--fx-dim);
+  font: 800 9px/1 monospace;
+  letter-spacing: .08em;
+}
+.tradeSideHead b[data-none] {
+  color: #5f5c58;
+}
+.tradeSideHead b[data-over] {
+  color: #ff5c5c;
+}
+
+/* A commissioner reviewing a trade they are in. Not forbidden -- in a league
+   where the commissioner also plays, forbidding it strands every deal they are
+   part of -- but never silent either. */
+.tradeSelfReview {
+  align-self: center;
+  margin-right: auto;
+  color: var(--fx-accent);
+  font: 800 9px/1 monospace;
+  font-style: normal;
+  letter-spacing: .1em;
 }

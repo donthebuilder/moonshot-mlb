@@ -4,6 +4,9 @@ import { notFound, redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
+import PlayerFace from '../../../../../components/fantasy/PlayerFace'
+import InjuryTag from '../../../../../components/fantasy/InjuryTag'
+import TradeSideCount from '../../../../../components/fantasy/TradeSideCount'
 import styles from '../../../fantasy.module.css'
 import { cancelTrade, proposeTrade, respondTrade, reviewTrade } from './actions'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
@@ -19,7 +22,7 @@ export default async function TradesPage({params,searchParams}) {
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).order('created_at'),
-    supabase.from('fantasy_roster_entries').select('team_id,player:nfl_players(id,name,position,team,source_payload)').eq('league_id',leagueId).is('released_at',null),
+    supabase.from('fantasy_roster_entries').select('team_id,player:nfl_players(id,name,position,team,injury_status,source_payload,source_player_id)').eq('league_id',leagueId).is('released_at',null),
     supabase.from('fantasy_trades').select('*,items:fantasy_trade_items(*,player:nfl_players(id,name,position,team))').eq('league_id',leagueId).order('created_at',{ascending:false}),
   ])
   if(!league||!membership)notFound()
@@ -33,10 +36,12 @@ export default async function TradesPage({params,searchParams}) {
   const myRoster=rosterFor(myTeam?.id)
   const targetRoster=rosterFor(target?.id)
   const relevant=trades.filter((trade)=>trade.proposer_team_id===myTeam?.id||trade.recipient_team_id===myTeam?.id||membership.role==='commissioner')
-  const reviewCount=trades.filter((trade)=>trade.status==='accepted').length
+  // A member cannot review anything, so "3 awaiting review" in their header was
+  // a number about somebody else's job. Commissioners still see it.
+  const reviewCount=membership.role==='commissioner'?trades.filter((trade)=>trade.status==='accepted').length:0
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{reviewCount} awaiting review</span></header>
+    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{membership.role==='commissioner'?`${reviewCount} awaiting review`:`${relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length} open`}</span></header>
     <LeagueNav leagueId={leagueId} active="trades" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
@@ -49,7 +54,7 @@ export default async function TradesPage({params,searchParams}) {
 }
 
 function PlayerSelect({title,name,players}) {
-  return <section><p className={styles.panelLabel}>{title}</p><div className={styles.tradeRoster}>{players.map((player)=><label key={player.id}><input type="checkbox" name={name} value={player.id}/><span>{player.position}</span><div><b>{player.name}</b><small>{player.team}</small></div></label>)}{!players.length&&<p className={styles.emptyRoom}>No players rostered.</p>}</div></section>
+  return <section><p className={styles.tradeSideHead}>{title}<TradeSideCount name={name}/></p><div className={styles.tradeRoster}>{players.map((player)=><label key={player.id}><input type="checkbox" name={name} value={player.id}/><span>{player.position}</span><PlayerFace player={player} size={28}/><div><b>{player.name}<InjuryTag status={player.injury_status}/></b><small>{player.team}</small></div></label>)}{!players.length&&<p className={styles.emptyRoom}>No players rostered.</p>}</div></section>
 }
 
 function TradeCard({trade,teams,myTeam,commissioner,leagueId}) {
@@ -59,7 +64,7 @@ function TradeCard({trade,teams,myTeam,commissioner,leagueId}) {
   const requested=trade.items?.filter((item)=>item.from_team_id===recipient?.id)||[]
   const incoming=trade.recipient_team_id===myTeam?.id&&trade.status==='pending'
   const outgoing=trade.proposer_team_id===myTeam?.id&&trade.status==='pending'
-  return <article className={styles.tradeCard}><div className={styles.tradeCardTop}><span className={`${styles.tradeStatus} ${styles[`trade_${trade.status}`]||''}`}>{trade.status}</span><small><LocalTime mode="date" value={trade.created_at}/></small></div><div className={styles.tradeSummary}><div><b>{proposer?.name}</b>{offered.map((item)=><span key={item.id}>{item.player?.position} · {item.player?.name}</span>)}</div><em>⇄</em><div><b>{recipient?.name}</b>{requested.map((item)=><span key={item.id}>{item.player?.position} · {item.player?.name}</span>)}</div></div>{trade.note&&<p className={styles.tradeMessage}>“{trade.note}”</p>}<div className={styles.tradeActions}>{incoming&&<><TradeAction action={respondTrade} leagueId={leagueId} tradeId={trade.id} name="response" value="accepted" label="Accept"/><TradeAction action={respondTrade} leagueId={leagueId} tradeId={trade.id} name="response" value="rejected" label="Reject"/></>}{outgoing&&<TradeAction action={cancelTrade} leagueId={leagueId} tradeId={trade.id} label="Cancel offer"/>}{commissioner&&trade.status==='accepted'&&<><TradeAction action={reviewTrade} leagueId={leagueId} tradeId={trade.id} name="decision" value="approve" label="Approve trade"/><TradeAction action={reviewTrade} leagueId={leagueId} tradeId={trade.id} name="decision" value="veto" label="Veto"/></>}</div></article>
+  return <article className={styles.tradeCard}><div className={styles.tradeCardTop}><span className={`${styles.tradeStatus} ${styles[`trade_${trade.status}`]||''}`}>{trade.status}</span><small><LocalTime mode="date" value={trade.created_at}/></small></div><div className={styles.tradeSummary}><div><b>{proposer?.name}</b>{offered.map((item)=><span key={item.id}>{item.player?.position} · {item.player?.name}</span>)}</div><em>⇄</em><div><b>{recipient?.name}</b>{requested.map((item)=><span key={item.id}>{item.player?.position} · {item.player?.name}</span>)}</div></div>{trade.note&&<p className={styles.tradeMessage}>“{trade.note}”</p>}<div className={styles.tradeActions}>{incoming&&<><TradeAction action={respondTrade} leagueId={leagueId} tradeId={trade.id} name="response" value="accepted" label="Accept"/><TradeAction action={respondTrade} leagueId={leagueId} tradeId={trade.id} name="response" value="rejected" label="Reject"/></>}{outgoing&&<TradeAction action={cancelTrade} leagueId={leagueId} tradeId={trade.id} label="Cancel offer"/>}{commissioner&&trade.status==='accepted'&&<>{(trade.proposer_team_id===myTeam?.id||trade.recipient_team_id===myTeam?.id)&&<em className={styles.tradeSelfReview}>your own deal</em>}<TradeAction action={reviewTrade} leagueId={leagueId} tradeId={trade.id} name="decision" value="approve" label="Approve trade"/><TradeAction action={reviewTrade} leagueId={leagueId} tradeId={trade.id} name="decision" value="veto" label="Veto"/></>}</div></article>
 }
 
 function TradeAction({action,leagueId,tradeId,name,value,label}) {
