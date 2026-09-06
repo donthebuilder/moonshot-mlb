@@ -350,6 +350,16 @@ export async function GET(request) {
 
   const byKey = new Map(homers.map((h) => [`${h.player_id}:${h.hr_n}`, h]))
   const xOn = hasX()
+  // 2026-09-06: X posting went silent for 90+ minutes with zero logged
+  // errors — hasX() was apparently false at request time even though the
+  // X_* env vars looked present and unchanged in the dashboard, across two
+  // different production deployments. Root cause was never pinned (looked
+  // like a Vercel Sensitive-env-var resolution issue, not an app bug), so
+  // this loud, cheap check means the NEXT occurrence is a one-line log
+  // instead of an hour of Vercel-log archaeology.
+  if ((pending || []).length && !xOn) {
+    console.error(`[homers] ${pending.length} pending row(s) want X but hasX() is false: ${xProblem()}`)
+  }
   // The morning's call, so a homer by one of its names quotes it.
   const { data: pre } = await db.from('homer_feed_posts').select('x_post_id,payload').match({ day, kind: 'pregame' }).maybeSingle()
   const preIds = new Set(((pre?.payload?.picks) || []).map((p) => String(p.player_id)))
