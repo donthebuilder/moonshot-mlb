@@ -8,6 +8,7 @@ import PaletteButton from './PaletteButton'
 import ThemeModeButton from './ThemeModeButton'
 import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
+import SignUpPill from './SignUpPill'
 
 // The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
 // literal copy of ember's C.bg — so even the four EXISTING dark palettes
@@ -502,6 +503,11 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
 
         <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div className="date-badge"><DateBadge label={dateLabel || 'Loading…'} /></div>
+          {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. This is
+              the one thing in the header that says an account exists; /login
+              itself no-ops back to `next` if you're already signed in, so
+              this needs no session check of its own. */}
+          <SignUpPill />
           {/* PALETTE, GLOBAL (2026-08-10). It used to live in the Guide tab and
               on the heat map legend only — two clicks away from the board you
               are squinting at. It is a view setting, so it sits with the other

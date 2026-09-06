@@ -99,3 +99,27 @@
 .close { margin-top: 28px; padding: 22px 0 0; border-top: 1px solid var(--line); }
 .closeH { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 800; }
 .close p { margin: 8px 0 0; font-size: 14px; color: var(--dim); max-width: 520px; }
+
+/* ── PAST NIGHTS (2026-09-06) ────────────────────────────────────────────
+   Each bar in "Last N nights" links to one of these, or to #tonight for
+   today's bar. Modern browsers auto-open a <details> that is itself the
+   link target (HTML spec behavior) — no JS. Falls back gracefully to a
+   scroll-and-tap if a browser doesn't. */
+.bars a.barCol { text-decoration: none; color: inherit; cursor: pointer; }
+.bars a.barCol:hover .barFill { filter: brightness(1.15); }
+.bars a.barCol:hover .barPct { color: var(--mlb); }
+
+.nights { margin-top: 14px; }
+.night { border-top: 1px solid var(--line); }
+.night:first-child { border-top: 0; }
+.night summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 11px 0; font-size: 13px;
+}
+.night summary::-webkit-details-marker { display: none; }
+.night summary::before { content: '+ '; color: var(--mlb); }
+.night[open] summary::before { content: '− '; }
+.nightDay { font-weight: 700; color: var(--ink); }
+.nightStat { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
+.night .list { padding-bottom: 10px; }
+#tonight:target, .night:target { scroll-margin-top: 70px; }

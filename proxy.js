@@ -31,13 +31,23 @@ export async function proxy(request) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // THE GATE (2026-09-05). Donovan: "the whole site needs to be behind a sign
-  // up if it already isn't — no just free link and look around." Until today
-  // this file refreshed a session and never denied a request. Now the boards
-  // and the leagues need an account; what stays open is exactly what brings
-  // people to the door:
+  // THE GATE, PARTIALLY REVERSED (2026-09-06). It went up 2026-09-05 on
+  // Donovan's own call ("the whole site needs to be behind a sign up... no
+  // just free link and look around"), then came back down for /app after
+  // hearing the other side of it: a brand-new site asking for an email
+  // before anyone has seen what's on it costs more visitors than the account
+  // is worth. The account did not go away — it is what saves your
+  // watchlist, your picks, and turns on alerts (lib/dash/sync.js) — it just
+  // stopped being the price of admission to look. Header.js and
+  // NflHeader.js each carry a Sign-up pill now so the offer is visible
+  // without being a wall.
+  //
+  // /fantasy stays gated: FRANCHISE is not content to browse, it is a real
+  // roster tied to a real account — there is nothing to see there without
+  // one. /account obviously stays gated too.
   //
   //   /            the front door — it IS the sign-up form
+  //   /app         MOONSHOT + TUDDY — open again, see above
   //   /called      the public record every X post links to (the funnel)
   //   /login etc.  the auth pages themselves
   //   /api/*       cron routes carry their own bearer check, card images are
@@ -57,7 +67,7 @@ export async function proxy(request) {
   return response
 }
 
-const GATED = [/^\/app(\/|$)/, /^\/fantasy(\/|$)/, /^\/account(\/|$)/]
+const GATED = [/^\/fantasy(\/|$)/, /^\/account(\/|$)/]
 const isGated = (pathname) => GATED.some((re) => re.test(pathname))
 
 // THE MATCHER IS THE WHOLE NETWORK NOW (2026-08-28).
@@ -68,11 +78,12 @@ const isGated = (pathname) => GATED.some((re) => re.test(pathname))
 // (lib/dash/sync.js) — so the session cookie has to be refreshed on the pages
 // that read it, not just on /fantasy.
 //
-// THE GATE LIVES HERE TOO, as of 2026-09-05 — see isGated above. The earlier
-// rule ("MOONSHOT and TUDDY stay fully readable signed out, forever") was
-// reversed by Donovan that night: an account buys entry to the boards and the
-// leagues now. /api/dash/:path* still answers a signed-out request with an
-// empty bag and a 200 — the gate is on pages, not on data routes.
+// THE GATE LIVES HERE TOO, for /fantasy and /account only — see isGated
+// above. It briefly covered /app as well (2026-09-05 to 2026-09-06): MOONSHOT
+// and TUDDY are back to "fully readable signed out," which is what the
+// original rule said before that one-day detour. /api/dash/:path* still
+// answers a signed-out request with an empty bag and a 200 either way — the
+// gate was always on pages, not on data routes.
 //
 // Listed path by path rather than as a catch-all with exclusions: every entry
 // here is a page or route that actually reads the session, and a matcher that

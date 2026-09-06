@@ -6,6 +6,7 @@ import { setSport } from '../../lib/sport'
 import PaletteButton from '../PaletteButton'
 import ThemeModeButton from '../ThemeModeButton'
 import AlertBell from './AlertBell'
+import SignUpPill from '../SignUpPill'
 
 // The colour key, in football's words. PaletteButton used to render MOONSHOT's
 // four pick jobs (Home run / Base hit / Runs + RBI / Total bases) on this
@@ -408,6 +409,8 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             {meta?.built_at_human || data?.built_at_human || '—'}
             {freshLabel && <b style={{ color: freshCol, fontWeight: 800 }}>{` · ${freshLabel}`}</b>}
           </span>
+          {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
+          <SignUpPill accent={C.green} />
           <AlertBell />
           <ThemeModeButton />
           <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
