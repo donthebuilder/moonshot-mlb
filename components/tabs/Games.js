@@ -2019,31 +2019,23 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
   // pills are the way to move between those screens, and they were pinned to
   // the top of the game, i.e. off-screen the moment you used them once.
   //
-  // Sticking them keeps "everything is open" AND makes any section one tap
-  // away. The offset has to be MEASURED, not guessed: the site header is
-  // itself sticky (position:sticky, top:0, z-index 50) and its height changes
-  // with the slate banner, the tab row wrapping, and the theme row. A
-  // hardcoded top would tuck the pills under the header on some slates and
-  // leave a gap on others.
-  const [stickTop, setStickTop] = useState(0)
-  useEffect(() => {
-    if (!isPhone) return undefined
-    const measure = () => {
-      const h = document.querySelector('header')?.offsetHeight
-      setStickTop(Number.isFinite(h) ? h : 0)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    // The header shrinks as the page scrolls past the hero, so re-measure on
-    // scroll too — cheap, and it is the difference between the pills sitting
-    // flush and hovering in mid-air.
-    window.addEventListener('scroll', measure, { passive: true })
-    return () => {
-      window.removeEventListener('resize', measure)
-      window.removeEventListener('scroll', measure)
-    }
-  }, [isPhone])
-
+  // NO MORE JS MEASUREMENT (2026-09-06). Donovan: opening a game on phone and
+  // trying to scroll through it "keeps refreshing or something." This offset
+  // used to be measured by hand -- a `scroll` listener called
+  // `document.querySelector('header')?.offsetHeight` on every single scroll
+  // tick, forcing the browser to stop and recompute layout each time, right
+  // while the user was mid-scroll on a card that is now several screens tall
+  // (GameDeepDive x2 + GameLineup + GameSimPanel, all mounted at once). That
+  // was written back when the header was itself `position: sticky` and
+  // shrank as you scrolled past the hero, so the offset genuinely changed
+  // and needed live measuring. Header.js dropped that condensing behavior
+  // (see its own "the `condensed` scroll logic went with the tiles" note)
+  // and now just publishes a stable `--hdr-h` CSS variable via a
+  // ResizeObserver -- the same variable the Lineups-mode jump strip already
+  // reads a few hundred lines up. Reading that variable directly in the
+  // style, like GameSwitcher.js's own `--gsw-h`, needs no JS at all: the
+  // browser keeps `position: sticky` in sync with a changed custom property
+  // on its own, with no scroll listener and no forced reflow.
   const badge = { lineups: weakSpots ? `★${weakSpots}` : '', picks: pickCount ? String(pickCount) : '' }
   const jump = (k) => {
     setPanel(k)
@@ -2057,7 +2049,7 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
       // screen), published by components/GameSwitcher.js. Both bars pin under
       // the header; without this term they pin to the SAME offset and the
       // pills sit on top of the rail, which is exactly what happened.
-      marginBottom: 10, position: 'sticky', top: `calc(${stickTop}px + var(--gsw-h, 0px))`, zIndex: 30,
+      marginBottom: 10, position: 'sticky', top: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px))', zIndex: 30,
       background: C.bg, margin: '0 -14px 10px', padding: '8px 14px 6px',
       borderBottom: `1px solid ${C.border}`,
     } : { marginBottom: 10 }}>
