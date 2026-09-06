@@ -402,7 +402,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
              centre on the page; header and the button under it seem off"). */
           .hdr-brand { flex: 1 1 100%; justify-content: center; text-align: center; }
           .hdr-brand > div > div:first-child { justify-content: center; }
-          .hdr-scorebug { justify-content: center; margin-left: auto; margin-right: auto; }
+          .hdr-scorebug { flex-wrap: wrap !important; overflow: visible !important; justify-content: center; row-gap: 3px; }
           .hdr-meta { padding-bottom: 8px; margin-left: auto !important; margin-right: auto !important; width: auto; justify-content: center; gap: 12px; }
           .hdr-meta .date-badge { display: none !important; }
         }
