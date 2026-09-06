@@ -110,9 +110,10 @@ function TileSet({ stats, projected, capture, staleSlate }) {
   )
 }
 
-export default function SlateTiles({ players = [], results, games = [], projected = null, capture = null, slateDate = '', mode = 'today' }) {
-  const [tickerPaused, setTickerPaused] = useState(false)
-  const stats = useMemo(() => {
+// THE NUMBERS, FACTORED OUT (2026-09-06). The header's scorebug line
+// (Header.js) reads the same six facts this strip did, so the arithmetic
+// lives once and the two can never disagree.
+export function computeSlateStats(players = [], results, games = []) {
     if (!players.length) return null
 
     const lineupTeamsSet = new Set(players.map(teamOf).filter(Boolean))
@@ -149,7 +150,11 @@ export default function SlateTiles({ players = [], results, games = [], projecte
       lineupTeams: lineupTeamsSet.size,
       aligned, hot, weak, actual, onSheet, settled, best, gameCount,
     }
-  }, [players, results, games])
+}
+
+export default function SlateTiles({ players = [], results, games = [], projected = null, capture = null, slateDate = '', mode = 'today' }) {
+  const [tickerPaused, setTickerPaused] = useState(false)
+  const stats = useMemo(() => computeSlateStats(players, results, games), [players, results, games])
 
   if (!stats) return null
 

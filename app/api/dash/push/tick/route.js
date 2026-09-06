@@ -37,7 +37,7 @@ import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 
@@ -84,9 +84,46 @@ const service = () => {
 // league dates its own games in. There is no second opinion about the day.
 const today = () => easternToday()
 
-async function mlbEvents(audience) {
+// ── THE DROP-OUT'S MEMORY (2026-09-06) ─────────────────────────────────────
+//
+// mlbEventsFrom stays pure -- no I/O, testable without a database -- so the
+// one piece of state a drop-out alert needs (which team did we last see this
+// follow start for) is read and written here, at the edge, against
+// dash_lineup_state. Read before the tick's events are computed; written
+// right after, from the same snapshot, so a man in tonight's posted lineup
+// updates his own row before this function returns -- ready for whichever
+// future night actually needs it.
+async function fetchLineupState(db, audience) {
+  if (!audience?.mlb?.size) return {}
+  const { data } = await db
+    .from('dash_lineup_state')
+    .select('player_id,team_id,name,last_seen_day')
+    .in('player_id', [...audience.mlb])
+  const out = {}
+  for (const row of data || []) {
+    out[row.player_id] = { teamId: row.team_id, name: row.name, lastSeenDay: row.last_seen_day }
+  }
+  return out
+}
+
+// Best-effort, like everything else in this file that isn't the send itself:
+// a missed write costs one night's drop-out check for whoever it belonged
+// to, not a broken cron.
+async function saveLineupState(db, rows) {
+  if (!rows.length) return
+  try {
+    await db.from('dash_lineup_state').upsert(rows, { onConflict: 'player_id' })
+  } catch (err) {
+    console.error('[push] dash_lineup_state upsert failed: ' + String(err?.message || err))
+  }
+}
+
+async function mlbEvents(db, audience) {
   const snap = await fetchLiveSlate({ force: true }).catch(() => null)
-  return mlbEventsFrom(snap, today(), audience)
+  const lineupState = await fetchLineupState(db, audience)
+  const events = mlbEventsFrom(snap, today(), audience, lineupState)
+  await saveLineupState(db, lineupUpdatesFrom(snap, today(), audience))
+  return events
 }
 
 // BEFORE FIRST PITCH. Costs a board read, so it is gated three ways: somebody
@@ -357,7 +394,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0 }
   const redZoneEnabled = await isRedZoneAlertsEnabled()
   const events = [
-    ...(await mlbEvents(audience)),
+    ...(await mlbEvents(db, audience)),
     ...(await nflEvents(audience)),
     ...(full ? await pregameEvents(db, audience) : []),
     // FRANCHISE needs no audience: these are addressed to the owner of a team,
