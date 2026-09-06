@@ -44,7 +44,11 @@ function PageCard({ tab, title, note, onNavigate }) {
   )
 }
 
-export default function Guide({ onNavigate }) {
+export default function Guide({ onNavigate, data }) {
+  // The Guide is the one page that makes claims about what the numbers ARE,
+  // so it is the one page that goes wrong the moment the bot flips modes.
+  const isPre = data?.mode !== 'week'
+  const statSeason = data?.stat_season
   return (
     <div style={{ maxWidth: 760 }}>
       <Section title="Start here — three taps">
@@ -133,7 +137,9 @@ export default function Guide({ onNavigate }) {
             damped 15%. Out and Doubtful never appear at all.</div>
           <div><span style={{ color: C.purple, fontWeight: 900, fontFamily: NUM_FONT }}>CO</span>
             {' '}— carryover. No current-season form exists yet, so every number on him is
-            last season&apos;s per-game baseline. All of preseason is like this.</div>
+            {statSeason ? ` ${statSeason}` : " last season"}&apos;s per-game baseline. All of
+            preseason is like this, and so is most of Weeks 1 and 2 — the badge clears
+            player by player as each man banks two games of his own.</div>
           <div><span style={{ color: C.text3, fontWeight: 900 }}>dimmed</span>
             {' '}— low sample. A rate built on four touches has no business sitting at the
             same visual weight as one built on two hundred.</div>
@@ -161,24 +167,41 @@ export default function Guide({ onNavigate }) {
         chips to return to the full slate.
       </Section>
 
-      <Section title="What preseason is and isn't">
-        Starters play two series. Weekly form does not exist in August and inventing it
-        would be dishonest, so every board right now is built from last season&apos;s
-        per-game baselines — a futures read, not a slate read. There are no lines, so the
-        game-context inputs are missing entirely; where that happens their weight is
-        redistributed across the components that remain, and the board tells you which
-        ones were dropped.
-        <Card accent={C.yellow}>
-          The bot is being tuned through preseason and into the early weeks. It should be
-          fully formed by late season — same arc the baseball side took.
-        </Card>
-      </Section>
+      {isPre ? (
+        <Section title="What preseason is and isn't">
+          Starters play two series. Weekly form does not exist in August and inventing it
+          would be dishonest, so every board right now is built from last season&apos;s
+          per-game baselines — a futures read, not a slate read. There are no lines, so the
+          game-context inputs are missing entirely; where that happens their weight is
+          redistributed across the components that remain, and the board tells you which
+          ones were dropped.
+          <Card accent={C.yellow}>
+            The bot is being tuned through preseason and into the early weeks. It should be
+            fully formed by late season — same arc the baseball side took.
+          </Card>
+        </Section>
+      ) : (
+        <Section title="What the early weeks are">
+          The game context is real from Week 1: the spread, the total, the roof and the
+          wind are published before kickoff, so the implied-total and matchup components
+          carry their full weight now instead of being redistributed away.
+          {' '}<b style={{ color: C.text }}>The player form is not real yet.</b> Nobody has
+          banked two games of {data?.season || 'this'} season, so almost every row is
+          still carrying {statSeason ? statSeason : 'last season'}&apos;s per-game baseline
+          — that is what the CO badge means, and it is why a Week 1 board is a read on who
+          these players were, priced into this week&apos;s game.
+          <Card accent={C.yellow}>
+            The badge clears a player at a time. By Week 3 most of the board is this
+            season&apos;s own form, and the defence-vs-position tables switch over with it.
+          </Card>
+        </Section>
+      )}
 
       <Section title="Where the numbers come from">
         Player stats, play-by-play, Next Gen Stats, snap counts, depth charts and injury
         reports all come from <b style={{ color: C.text }}>nflverse</b>. Schedules and live
-        scores come from a public scoreboard feed, because nflverse carries no
-        preseason at all. Expected TDs are computed from the league&apos;s own TD rate by
+        scores come from a public scoreboard feed, which is also the only place preseason
+        exists — nflverse carries none of it. Expected TDs are computed from the league&apos;s own TD rate by
         distance from the end zone — inside five yards a target scores 41.8% of the time,
         from thirty out it&apos;s 3.3%.
       </Section>
