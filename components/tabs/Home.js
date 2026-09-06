@@ -242,7 +242,11 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
         <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.orange}66, transparent)` }} />
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any · swipe or let it roll</span>
       </div>
-      <div className="home-headlines-viewport" ref={stripRef} style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)', maskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)' }}>
+      {/* #97: WebkitOverflowScrolling:'touch' dropped here too -- see the
+          matching note in components/Header.js. Same useAutoScroll hook,
+          same iOS quirk (a touch-momentum layer ignores a JS scrollLeft
+          write until a real touch unlocks it), same fix. */}
+      <div className="home-headlines-viewport" ref={stripRef} style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)', maskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)' }}>
         <div className="home-headlines-track" style={{ display: 'flex', gap: 12, width: 'max-content', paddingBottom: 2 }}>
           {cards.map((c, i) => <Card key={c.k} c={c} i={i} />)}
           {cards.map((c, i) => <Card key={`${c.k}-echo`} c={c} i={i} echo />)}

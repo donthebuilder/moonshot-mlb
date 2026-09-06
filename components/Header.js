@@ -182,9 +182,25 @@ function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go 
       </span>
     </button>
   )
+  // ── #97: -webkit-overflow-scrolling:touch FREEZES A JS-DRIVEN SCROLLLEFT
+  // ON iOS SAFARI (2026-09-06) ─────────────────────────────────────────────
+  // Donovan, on his phone: "the header and the headliners aren't moving."
+  // Both this strip and Home's headline strip (same useAutoScroll hook,
+  // same symptom) carried this property. It is a long-documented WebKit
+  // quirk: once iOS puts a `touch`-momentum container into its own
+  // compositing layer, it stops repainting for a plain `el.scrollLeft = x`
+  // assignment made from JS while nobody's finger is on the screen -- the
+  // layer only updates from a live touch gesture. Desktop Chrome has no such
+  // layer and never showed this. iOS has applied momentum scrolling to any
+  // plain `overflow-x: auto` container by default since iOS 13 (2019), so
+  // the property is not doing anything a modern phone needs here -- it is
+  // only doing the one thing it should not: silently pinning the auto-scroll
+  // in place until the user manually swipes it once. Dropped from both
+  // JS-driven strips; left alone on the ~16 other purely-manual-scroll
+  // surfaces across the site, where it isn't in the way of anything.
   return (
     <div className="hdr-scorebug" ref={trackRef}
-      style={{ overflowX:'auto', overflowY:'hidden', scrollbarWidth:'none', lineHeight:1, marginTop:5, maxWidth:'100%', WebkitOverflowScrolling:'touch',
+      style={{ overflowX:'auto', overflowY:'hidden', scrollbarWidth:'none', lineHeight:1, marginTop:5, maxWidth:'100%',
         WebkitMaskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)', maskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)' }}>
       <div className="hdr-ticker-track" style={{ display:'flex', width:'max-content' }}>
         {items.map((it) => <Pill key={it.k} it={it} />)}
