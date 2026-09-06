@@ -45,7 +45,9 @@ export default function Streaks({ data, logs, onPlayerClick }) {
     // board was every quarterback at "30 straight under 40 receiving yards",
     // which is true and worthless.
     const eligible = new Set((data?.markets || []).find((m) => m.key === market.key)?.positions || [])
-    const players = (data?.players || []).filter((p) => (!eligible.size || eligible.has(p.position)) && (pos === 'ALL' || p.position === pos))
+    // A man on a bye is carried in the payload for the catalog's sake, but
+    // "who is hot right now" is a question about people who are playing.
+    const players = (data?.players || []).filter((p) => !p.on_bye && (!eligible.size || eligible.has(p.position)) && (pos === 'ALL' || p.position === pos))
     return streakBoard(logs, players, market.field, line, side, 30, market.key).filter((r) => r.streak > 0).slice(0, 60)
   }, [logs, data, market, line, side, pos])
 

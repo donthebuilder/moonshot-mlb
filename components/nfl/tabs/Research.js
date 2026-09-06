@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
+import { oppShort } from '../../../lib/nfl/oppLabel'
 import { btnStyle, selectStyle } from '../../ui'
 
 // Research — every number the bot has, in one sortable table.
@@ -53,7 +54,7 @@ export default function Research({ data, onPlayerClick }) {
         name: p.name,
         pos: p.position,
         team: p.team,
-        opp: p.opp || '—',
+        opp: oppShort(p),
         TDSC: p.scores?.TD ?? null,
       }))
   }, [data, pos, team, q])
