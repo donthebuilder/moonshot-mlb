@@ -16,6 +16,13 @@ import NetworkSwitch from '../../components/NetworkSwitch'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 
+const statusLabel = {
+  setup: 'SETTING UP',
+  drafting: 'DRAFTING',
+  active: 'IN SEASON',
+  complete: 'FINISHED',
+}
+
 const scoringLabel = {
   ppr: 'PPR',
   half_ppr: 'Half-PPR',
@@ -306,12 +313,12 @@ export default async function FantasyPage({ searchParams }) {
               const membership = memberships.find((row) => row.league_id === league.id)
               return (
                 <article className={styles.leagueCard} key={league.id}>
-                  <div className={styles.leagueHead}><span>{membership?.role === 'commissioner' ? 'COMMISSIONER' : 'MEMBER'}</span><b>{memberTeams.length}/{league.team_count} teams</b></div>
+                  <div className={styles.leagueHead}><span>{membership?.role === 'commissioner' ? 'COMMISSIONER' : 'MEMBER'}</span><em className={styles.leagueStatus} data-status={league.status}>{statusLabel[league.status] || String(league.status || '').toUpperCase()}</em><b>{memberTeams.length}/{league.team_count} teams</b></div>
                   <h3>{league.name}</h3>
                   <p className={styles.teamName} style={{display:'flex',alignItems:'center',gap:8}}>{myTeam&&<TeamMark size={20} team={myTeam}/>}{myTeam?.name}</p>
                   <div className={styles.chips}><span>{scoringLabel[league.scoring]}</span><span>{league.draft_timer_seconds}s draft</span><span>{league.draft_order_method} order</span></div>
-                  <InviteCode className={styles.invite} code={league.invite_code} />
                   <Link className={styles.enterLeague} href={`/fantasy/league/${league.id}`}>Enter league room →</Link>
+                  <InviteCode className={styles.invite} code={league.invite_code} />
                 </article>
               )
             })}
