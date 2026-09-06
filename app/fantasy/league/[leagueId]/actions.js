@@ -73,8 +73,13 @@ export async function syncPlayerCatalog(formData) {
   // the absent rows back through it with active:false, carrying their existing
   // name/position/team/payload so nothing else about the row changes. A player
   // who returns to a roster comes back through the same door with active:true.
+  //
+  // WEEK MODE ONLY. A preseason payload is built from the teams on that week's
+  // exhibition slate -- 15 games, 30 teams -- so two clubs' players are absent
+  // for reasons that have nothing to do with being cut. Retiring "everyone
+  // missing" from one of those would retire two entire rosters.
   let retired = 0
-  if (live && catalog.length >= MIN_CATALOG_FOR_RETIRE) {
+  if (live && raw?.mode === 'week' && catalog.length >= MIN_CATALOG_FOR_RETIRE) {
     const { data: existing } = await supabase
       .from('nfl_players')
       .select('source, source_player_id, season, name, position, team, injury_status, source_payload, active')
@@ -97,6 +102,10 @@ export async function syncPlayerCatalog(formData) {
     }
     retired = gone.length
   }
+
+  // Bye players are in the payload with active:true and an empty `scores`, so
+  // they are never caught by the pass above -- which is the point. A man on a
+  // bye is on a roster.
 
   let data
   try { data = await syncCatalogChunked(supabase, catalog) }
