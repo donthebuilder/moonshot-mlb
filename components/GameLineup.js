@@ -139,7 +139,8 @@ const COLUMNS = [
   { key: 'tb',     label: 'TB',    w: 40, dp: 1, ...SCORE },
   { key: 'hrw',    label: 'HRW',   w: 40, dp: 1, ...SCORE },
   { key: 'dc',     label: 'DC',    w: 40, dp: 1 },
-  { key: 'due',    label: 'Due',   w: 40, dp: 1, ...SCORE },
+  { key: 'p3',     label: 'Pwr-3', w: 44, dp: 0, ...SCORE,
+    title: 'Season power ranked on tonight\'s slate (HR/BBE, avg EV, max EV). Replaced the due score 2026-09-06.' },
   { key: 'pmix',   label: 'PMix',  w: 42, dp: 1, ...SCORE },
   { key: 'barrel', label: 'Brl%',  w: 42, dp: 1 },
   { key: 'ihr',    label: 'IHR',   w: 42, dp: 3 },
@@ -397,7 +398,7 @@ function SideRead({ team, rows, onPlayerClick }) {
 // wrap into a multi-column grid instead of one 30-cell-wide row.
 const CARD_DETAIL = [
   ['sdmg', 'Spot dmg', 1], ['spa', 'Spot PA', 0], ['sslg', 'Spot SLG', 3], ['zdmg', 'Zone dmg', 1],
-  ['hrw', 'HRW', 1], ['dc', 'DC', 1], ['due', 'Due', 1], ['pmix', 'PMix', 1],
+  ['hrw', 'HRW', 1], ['dc', 'DC', 1], ['p3', 'Pwr-3', 0], ['pmix', 'PMix', 1],
   ['barrel', 'Brl%', 1], ['ihr', 'IHR', 3], ['d375', '375+', 0],
   ['a5', 'L5 AVG', 3], ['a10', 'L10 AVG', 3], ['aSzn', 'Szn AVG', 3], ['aArm', 'vs Arm', 3],
   ['xw10', 'xwOBA10', 3], ['ev', 'EV', 1], ['hh', 'HH%', 0], ['since', 'Since HR', 0], ['hr9', 'P HR/9', 2],
@@ -514,7 +515,7 @@ export default function GameLineup({ players, onPlayerClick }) {
         tb: tbScore(p),
         hrw: nn(p?.hrw_score),
         dc: nn(p?.damage_conversion_score),
-        due: nn(p?.hr_due_score),
+        p3: nn(p?.power3_score),
         pmix: pitchMixScore(p),
         barrel: barrelRate(p) * 100,
         ihr: ihrVal(p),

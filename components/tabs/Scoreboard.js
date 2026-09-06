@@ -318,7 +318,12 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'tb',      label: 'TB',     w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
   { key: 'hrw',     label: 'HRW',    w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100],
     title: 'The HR-window score. The 🌋 🚀 ⚡ 🌤️ 🧊 band on a hitter card is this number — see lib/hrwBand.js.' },
-  { key: 'due',     label: 'Due',    w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
+  // Due -> Power-3 (2026-09-06). The due score measured backwards in the homer
+  // night audit; Power-3 (season HR/BBE + avg EV + max EV, ranked on the
+  // slate) is the signal that held on 150 of 155 nights. Drought stays as its
+  // own column further right.
+  { key: 'p3',      label: 'Power-3', w: 54, dp: 0, scale: 'div', anchor: DIV_FIELD, domain: [0, 100],
+    title: 'Season power, ranked on tonight\'s slate: mean of his HR-per-ball-in-play, average EV and max EV ranks. The top ten homer 21% of the time.' },
   { key: 'longest', label: 'Long',   w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
   { key: 'pmix',    label: 'PMix',   w: 48, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
   // Counts. No ceiling, no midpoint — a number, drawn as a number.
@@ -527,7 +532,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       runScore: runScore(p),
       tb: tbScore(p),
       hrw: n(p?.hrw_score, 0),
-      due: n(p?.hr_due_score, 0),
+      p3: n(p?.power3_score, 0),
       longest: n(p?.longest_hr_score, 0),
       pmix: pitchMixScore(p),
       d375: recent375(p),

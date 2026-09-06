@@ -22,7 +22,8 @@ import { worthPolling } from '../../lib/nfl/liveMerge'
 // the TUDDY wordmark in the header, the same move MOONSHOT made.
 //
 // Icons come from NFL_NAV, which reuses MOONSHOT's glyph vocabulary 1:1
-// (◎ home, ▥ boards, ◉ games/live, ✦ picks) on purpose -- same glyph, same
+// (🌙 home, 📊 boards, 🏈 games, 📡 live, 🎯 picks -- colour emoji since 2026-09-06; the old
+// ◎ ▥ ◉ ✦ text glyphs vanished on the bar next to real emoji) -- same glyph, same
 // meaning, cross-sport, one design language rather than two.
 const MAIN_KEYS = ['boards', 'games', 'picks', 'research']
 // GAME DAY (2026-09-05): while football is on -- or twenty minutes out --

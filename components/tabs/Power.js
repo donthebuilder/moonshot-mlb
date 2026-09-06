@@ -8,7 +8,7 @@ import { airParts } from '../../lib/conditions'
 import { hrPerGame } from '../../lib/odds'
 import { btnStyle, Band } from '../ui'
 import LongestBoard from './LongestBoard'
-import DueBoard from './DueBoard'
+import Power3Board from './Power3Board'
 import LuckReport from '../LuckReport'
 import ParkBoard, { parkRows } from '../ParkBoard'
 import FenceBoard from '../FenceBoard'
@@ -31,14 +31,14 @@ import { alpha } from '../../lib/scales'
 //   1. ONE LEAD. The single strongest power read of the night, argued in a
 //      couple of sentences with the numbers inside them. It is chosen by
 //      CONVICTION, not by category order (the idiom TheRead established):
-//      the farthest-ball name and the most-overdue name are each measured
+//      the farthest-ball name and the strongest season-power name are each measured
 //      against their OWN field in their own standard deviations, and the one
 //      standing further clear of its field leads. Comparing a distance score
-//      to a due score directly would be meaningless; comparing "how far clear
+//      to a Power-3 score directly would be meaningless; comparing "how far clear
 //      of his own field" is the same question asked twice, so the answers
 //      rank. The other lens gets a one-clause nod so neither night is lost.
 //
-//   2. ONE BOARD, THREE LENSES. Longest and Due were two boards behind a
+//   2. ONE BOARD, THREE LENSES. Longest and Due (now Power-3) were two boards behind a
 //      toggle that read as two boards. They are two lenses on one question —
 //      where is the power hiding tonight — so the switch now says that, and
 //      the boards no longer print their own h2 under a pill that already
@@ -58,7 +58,8 @@ import { alpha } from '../../lib/scales'
 //
 // Every prop this tab is mounted with (players, slateDate, results, onWatch,
 // watchIds, onPlayerClick, initial) works exactly as before, including the
-// #tab=due deep link that arrives as initial="due".
+// #tab=due deep link that arrives as initial="due" -- which now lands on the
+// Power-3 lens (2026-09-06): the Due board is gone, see Power3Board.js.
 //
 // ── 5. 🧬 SHAPE IS THE FOURTH LENS (2026-08-16) ──────────────────────────────
 //
@@ -78,13 +79,23 @@ import { alpha } from '../../lib/scales'
 // ungraded description the same voice this page uses for measured reads. The
 // lens row is exactly where a fourth lens with nothing to claim should sit.
 
-// The floor under the DUE lead. A drought only means something with power
-// behind it — that is this board's own standing warning — so the lead is
-// never allowed to be a hitter who simply does not homer. .030 HR/PA is about
-// one homer every 33 plate appearances; below that the drought is the hitter,
-// not a slump. The BOARD still shows everybody; this gate only decides who is
-// allowed to be argued at the top of the page.
-const DUE_POWER_FLOOR = 0.03
+// ── DUE IS GONE, POWER-3 IS THE SECOND LENS (2026-09-06) ────────────────────
+//
+// The homer night audit (158 nights, 4,596 HR hitter-nights) measured the
+// due score against the field: it ranked the night's homer hitters BELOW
+// everyone else (AUC 0.459), and HR rate is highest the game after a homer,
+// falling as the drought lengthens. Donovan: "remove the due board, it's not
+// good and doesn't help." The one thing he did want to keep -- knowing a
+// hitter's drought -- lives on as a plain column, here and on the boards.
+//
+// What replaced it is the signal that audit found holds night in, night out:
+// an equal average of three within-slate ranks -- season HR per ball in play,
+// season average EV, season max EV. Above the field on 150 of 155 nights;
+// its nightly top ten homered at 21.4% against an 11.2% base. The bot
+// publishes it as power3_score / power3_rank / power3_flag; nothing is
+// recomputed here. The lead below is only allowed to argue a hitter with a
+// real season sample behind the three numbers.
+const POWER3_LEAD_MIN_BBE = 60
 
 // ── AND THE SAMPLE UNDER THE RATE (2026-08-15) ──────────────────────────────
 //
@@ -111,7 +122,7 @@ const LEAD_MIN_PA = 150
 // site-wide (Donovan). Only the top-level nav tabs in lib/theme.js carry emoji.
 const LENSES = [
   { k: 'longest', label: 'Farthest', tag: 'who hits it the farthest', color: C.orange },
-  { k: 'due', label: 'Overdue', tag: 'who is sitting on one', color: C.purple },
+  { k: 'power3', label: 'Power-3', tag: 'who hits it hardest, all season', color: C.purple },
   { k: 'parks', label: 'Parks', tag: 'where the air is helping', color: C.cyan },
   // The tag says "hits" and not "will hit" because this lens describes homers
   // already struck; the other three project tonight. One word, and it is the
@@ -121,7 +132,7 @@ const LENSES = [
 
 const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
 const distOf = (p) => n(p?.longest_hr_score, 0)
-const dueOf = (p) => n(p?.hr_due_score, 0)
+const p3Of = (p) => n(p?.power3_score, 0)
 
 function Para({ children, dim }) {
   return <p style={{ margin: '0 0 7px', fontSize: 12.5, lineHeight: 1.72, color: dim ? C.text3 : C.text2, maxWidth: 760 }}>{children}</p>
@@ -176,7 +187,7 @@ function ConvictionClause({ conv, field }) {
 }
 
 export default function PowerTab({ players, slateDate = '', results = null, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
-  const [view, setView] = useState(initial)
+  const [view, setView] = useState(initial === 'due' ? 'power3' : initial)
   // Park click → filter the Farthest board to that game (2026-08-07). Clicking
   // a park from the Parks lens now also RETURNS you to the board, which is the
   // whole point of the filter — the click used to leave you looking at the
@@ -201,9 +212,8 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
     if (pool.length < 8) return null
 
     const far = [...pool].sort((a, b) => distOf(b) - distOf(a))[0]
-    const duePool = pool.filter((p) => n(p?.hr_per_pa, 0) >= DUE_POWER_FLOOR
-      && n(p?.season_pa, 0) >= LEAD_MIN_PA)
-    const overdue = [...duePool].sort((a, b) => dueOf(b) - dueOf(a))[0]
+    const p3Pool = pool.filter((p) => n(p?.season_bbe_n, 0) >= POWER3_LEAD_MIN_BBE && p3Of(p) > 0)
+    const strongest = [...p3Pool].sort((a, b) => p3Of(b) - p3Of(a))[0]
 
     const cands = []
     if (far && distOf(far) > 0) {
@@ -214,12 +224,12 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
         pct: percentileOf(distOf(far), pool.map(distOf)),
       })
     }
-    if (overdue && dueOf(overdue) > 0) {
+    if (strongest) {
       cands.push({
-        kind: 'due', p: overdue, color: C.purple, lens: 'due',
-        kicker: 'The overdue read of the night',
-        conv: convictionOf(overdue, pool, dueOf),
-        pct: percentileOf(dueOf(overdue), pool.map(dueOf)),
+        kind: 'power3', p: strongest, color: C.purple, lens: 'power3',
+        kicker: 'The season-power read of the night',
+        conv: convictionOf(strongest, p3Pool, p3Of),
+        pct: percentileOf(p3Of(strongest), p3Pool.map(p3Of)),
       })
     }
     if (!cands.length) return null
@@ -256,7 +266,6 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
         const arm = clean(p?.pitcher_name, '')
         const hr9 = n(p?.pitcher_hr9, 0)
         const drought = n(p?.games_since_last_hr, 0)
-        const ratio = n(p?.hr_due_ratio, 0)
         // The rate is only spoken when the sample under it can carry the
         // sentence. See LEAD_MIN_PA. Silence beats "about 35% to homer" off
         // four swings, and the plate appearances ride along so the reader can
@@ -308,18 +317,18 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
               </Para>
             ) : (
               <Para>
-                He has not gone deep in <Num color={h.color}>{drought} games</Num> — and unlike most of
-                that list, there is real power behind the gap.
-                {perGame != null && <> His own rate — <Num>{n(p?.season_hr, 0)}</Num> homers in{' '}
-                  <Num>{seasonPa}</Num> plate appearances — makes him about <Num color={h.color}>{perGame.toFixed(0)}%</Num> to homer
-                  in a given game, which is the number the drought has to be read against.</>}
-                {' '}The bot&apos;s due score has him at <Num>{dueOf(p).toFixed(1)}</Num>
+                Nobody on the slate has hit the ball harder and farther all season. Power-3 has him at{' '}
+                <Num color={h.color}>{p3Of(p).toFixed(0)}</Num>
+                {n(p?.power3_rank, 0) > 0 && <>, <Num color={h.color}>{n(p?.power3_rank, 0)}{ord(n(p?.power3_rank, 0))}</Num> of the slate</>}
                 {h.pct != null && <> — <b style={{ color: C.text2 }}>{standingPhrase(h.pct)}</b></>}
-                <ConvictionClause conv={conv} field="the field" />
-                {ratio > 0 && <>, and its ratio puts him <Num>{ratio.toFixed(1)}×</Num> past what his own rate predicts</>}.
-                {' '}A long drought <b style={{ color: C.text2 }}>without</b> that rate behind it is just a
-                hitter who does not homer, which is why this lead is picked on the rate and not on the
-                length of the gap.
+                <ConvictionClause conv={conv} field="the hitters with a real sample" />:{' '}
+                a homer every <Num>{n(p?.season_hr_per_bbe, 0) > 0 ? Math.round(1 / n(p?.season_hr_per_bbe, 0)) : '—'}</Num> balls in play,{' '}
+                <Num>{n(p?.season_avg_ev, 0).toFixed(1)}</Num> average exit velocity and a season-best{' '}
+                <Num>{n(p?.season_max_ev, 0).toFixed(1)}</Num>, over <Num>{n(p?.season_bbe_n, 0)}</Num> balls.
+                {perGame != null && <> His own rate makes him about <Num color={h.color}>{perGame.toFixed(0)}%</Num> to homer in a given game.</>}
+                {' '}He last went deep <Num>{drought === 0 ? 'in his most recent game' : `${drought} game${drought === 1 ? '' : 's'} ago`}</Num> — said
+                for the record, because measured over 155 nights the drought tells you{' '}
+                <b style={{ color: C.text2 }}>nothing</b> about tonight; the three season numbers are the whole read.
               </Para>
             )}
 
@@ -370,9 +379,9 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
                   onClick={() => onPlayerClick?.(lead.other.p)}
                   style={{ color: C.text2, cursor: onPlayerClick ? 'pointer' : 'default' }}
                 >{nameOf(lead.other.p)}</b>
-                {lead.other.kind === 'due'
-                  ? <> is the strongest overdue name with the power to back it — <Num color={C.purple}>{n(lead.other.p?.games_since_last_hr, 0)}</Num> games
-                      without one on a <Num color={C.purple}>{(n(lead.other.p?.hr_per_pa, 0) * 100).toFixed(1)}</Num> HR-per-100-PA bat</>
+                {lead.other.kind === 'power3'
+                  ? <> is the strongest season-power bat on the slate — Power-3 <Num color={C.purple}>{p3Of(lead.other.p).toFixed(0)}</Num>,{' '}
+                      <Num color={C.purple}>{n(lead.other.p?.season_avg_ev, 0).toFixed(1)}</Num> average EV all year</>
                   : <> is the farthest-ball projection on the slate at <Num color={C.orange}>{distOf(lead.other.p).toFixed(0)}</Num></>}
                 .{' '}
                 <button
@@ -446,8 +455,8 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           onPlayerClick={onPlayerClick}
           fold={false}
         />
-      ) : view === 'due' ? (
-        <DueBoard players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} showTitle={false} />
+      ) : view === 'power3' ? (
+        <Power3Board players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} showTitle={false} />
       ) : (
         <LongestBoard
           players={players}
@@ -468,7 +477,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           riders keeps its own fold, the luck report gets one, and both name
           their headline fact in the closed line.
 
-          Luck lives with power on purpose: Due is distance-based regression,
+          Luck lives with power on purpose: Power-3 is season contact quality,
           this is contact-quality regression — two lenses on the same idea. */}
       <Band note="folded — open what you need">More on tonight&apos;s power</Band>
       <FenceBoard players={players} onPlayerClick={onPlayerClick} />

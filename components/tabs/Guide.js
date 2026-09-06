@@ -349,7 +349,7 @@ export default function Guide({ onNavigate }) {
         <Term tab="games" go={onNavigate} icon="⚾" term="Games" def="one matchup at a time: the arm, the park, the lineup." />
         <Term tab="board" go={onNavigate} icon="🏆" term="HR Board" def="ranked purely by home-run score." />
         <Term tab="longest" go={onNavigate} icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
-        <Term tab="due" go={onNavigate} icon="💣" term="Due" def="hitters overdue for one. Read the HR/PA column, not the drought — a long gap with no power behind it is just a hitter who doesn't homer." />
+        <Term tab="due" go={onNavigate} icon="⚡" term="Power-3" def="who hits it hardest and farthest all season — HR per ball in play, average EV and max EV, ranked on tonight's slate and averaged. Replaced the Due board: measured over 155 nights, drought predicts nothing and the top ten by Power-3 homer 21% of the time." />
         <Term tab="board" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
         <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what the bot recommends." />
         <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="the bot's three- and four-man group tickets, plus the Pair Builder for making your own pair." />

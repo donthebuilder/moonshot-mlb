@@ -54,7 +54,7 @@ export const RANK_NOT_PERCENT =
 // Terms that get RANK_NOT_PERCENT attached automatically.
 export const SCORE_TERMS = new Set([
   'hr', 'hr score', 'hrr', 'hrr score', 'hit', 'hit score', 'tb', 'tb score',
-  'hrw', 'due', 'long', 'longest', 'damage', 'pmatch', 'pmix', 'pitch mix',
+  'hrw', 'due', 'power-3', 'pwr-3', 'long', 'longest', 'damage', 'pmatch', 'pmix', 'pitch mix',
   'score', 'fit', 'adj', 'raw', 'ovr', 'overall', 'leak', 'leak score',
 ])
 
@@ -87,7 +87,9 @@ export const GLOSSARY = {
   'contact': 'The total-bases market — doubles, triples and homers, not just whether he got a hit. The weakest of the four scores by a distance; see TB score.',
   'contact score': 'The total-bases market. Rebuilt 2026-08-09 after it graded out level with a random shuffle. Now built on recent extra-base form, the opposing arm’s contact allowed, and how many hits the park gives up. Better, not yet proven.',
   'hrw': 'HR Watch — the bot’s separate “he looks due to go deep” read, ranked. Higher ranks better.',
-  'due': 'How long it has been since his last home run, scored. High means overdue — which is a story, not a reason.',
+  'due': 'Retired 2026-09-06. The due score measured backwards — hitters 10+ games without a homer went deep 9% of the time against 12.6% for everyone else. Drought is still shown as a plain count; it does not move a score.',
+  'power-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks. The top ten each night homered 21.4% of the time over 155 nights (11.2% base).',
+  'pwr-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks. The top ten each night homered 21.4% of the time over 155 nights (11.2% base).',
   'long': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',
   'longest': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',
   'damage': 'When he does hit the ball hard, how often that turns into real damage instead of an out. Higher ranks better.',

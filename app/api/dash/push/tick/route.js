@@ -19,10 +19,13 @@
 //      league feed, a push service outage — each returns a counted, quiet
 //      no-op. A cron that throws is a cron that stops running.
 //
-// CADENCE. Every ten minutes during game windows (see vercel.json). That is
-// deliberately not "instant": instant needs a process holding a live socket to
-// the league, which this architecture does not have and should not grow for
-// this. Ten minutes is the honest promise, and the panel says so.
+// CADENCE. Stale as of 2026-09-06: this used to run every ten minutes, and
+// said so here. vercel.json now crons it every minute during game windows,
+// with the in-run sweep below (SWEEP_GAP_MS/MAX_SWEEPS) cutting worst-case
+// lag inside that minute further still. That is still deliberately not
+// "instant": instant needs a process holding a live socket to the league,
+// which this architecture does not have and should not grow for. But the
+// honest promise today is under a minute, not ten.
 
 import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
@@ -35,6 +38,7 @@ import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/va
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom } from '../../../../../lib/dash/franchise'
 import { audienceFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 
 export const dynamic = 'force-dynamic'
@@ -314,7 +318,7 @@ export async function GET(request) {
     return Response.json({ sent: 0, reason: 'vapid-rejected' })
   }
 
-  const totals = { sent: 0, held: 0, events: 0, fresh: 0, sweeps: 0 }
+  const totals = { sent: 0, held: 0, events: 0, fresh: 0, sweeps: 0, discord: 0 }
   const dead = []
   const startedAt = Date.now()
   let lastSweepMs = 0
@@ -339,6 +343,7 @@ export async function GET(request) {
     totals.held += r.held
     totals.events += r.events
     totals.fresh += r.fresh
+    totals.discord += r.discord
     for (const e of r.dead) if (!dead.includes(e)) dead.push(e)
   }
 
@@ -349,7 +354,7 @@ export async function GET(request) {
 
 /** One pass: what happened, who has not been told, tell them. */
 async function sweep(db, subs, stateByUser, audience, { full }) {
-  const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [] }
+  const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0 }
   const redZoneEnabled = await isRedZoneAlertsEnabled()
   const events = [
     ...(await mlbEvents(audience)),
@@ -382,6 +387,13 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   const fresh = new Set((claimed || []).map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
   if (!toSend.length) return { ...nothing, events: events.length }
+
+  // Fired alongside the push loop below, not after it -- a slow Discord
+  // webhook must never eat into the 55s sweep budget the push send needs.
+  // toSend is already the globally-fresh set for this tick (the claim above
+  // is what makes that true), so this is naturally exactly-once per event,
+  // the same guarantee the homer feed's own Discord post relies on.
+  const discordSend = fanOutToDiscord(toSend)
 
   let sent = 0
   let held = 0
@@ -422,5 +434,6 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     }
   }))
 
-  return { sent, held, events: events.length, fresh: toSend.length, dead }
+  const discord = await discordSend
+  return { sent, held, events: events.length, fresh: toSend.length, dead, discord: discord.sent }
 }
