@@ -182,58 +182,91 @@ const BARE_BUTTON = {
   color: 'inherit', font: 'inherit', textAlign: 'left',
 }
 
-// ── THE RUNDOWN ──────────────────────────────────────────────────────────────
-// Five looks, ranked by what a viewer opens the show for: the ball that just
-// left (live only), the bot's top HR bat, the strongest season-power bat
-// (Power-3, once the bot publishes it), the hottest bat by the last five, and
-// the game to circle. Each row is a name, a reason and a number; the whole row
-// is the tap target. Nothing here is computed beyond a sort.
-function Rundown({ players = [], headline, results, isLive, onPlayerClick, onNavigate }) {
-  const looks = useMemo(() => {
+// ── THE HEADLINES (2026-09-06, second cut) ────────────────────────────────────
+// Donovan: "expand the row ... add more headlines like old-school SportsCenter
+// and have it in motion and clickable." The vertical rundown became a
+// horizontal strip of headline cards -- the same height as the Four cards
+// below -- that rolls right-to-left on its own, pauses under the pointer, and
+// where every card is a tap (a hitter opens his modal, a game opens Slate).
+// The set renders twice back to back for a seamless loop, the same trick the
+// old header ticker used. Reduced-motion users get a plain swipeable row.
+//
+// Every headline is a field already on this page; nothing is computed beyond
+// a sort. Order is the order a viewer opens the show for.
+function Headlines({ players = [], headline, results, isLive, airRanked = [], odds, onPlayerClick, onNavigate }) {
+  const cards = useMemo(() => {
     const out = []
-    const scored = players.filter((p) => Number.isFinite(hrScore(p)))
-    const top = [...scored].sort((a, b) => hrScore(b) - hrScore(a))[0]
+    const by = (fn) => [...players].filter((p) => Number.isFinite(fn(p))).sort((a, b) => fn(b) - fn(a))[0] || null
+    const top = by(hrScore)
     const p3 = [...players].filter((p) => n(p?.power3_score, 0) > 0 && n(p?.season_bbe_n, 0) >= 60).sort((a, b) => n(b.power3_score, 0) - n(a.power3_score, 0))[0]
     const hot = [...players].filter((p) => n(p?.last5_hr, 0) >= 2).sort((a, b) => (n(b.last5_hr, 0) - n(a.last5_hr, 0)) || (n(b.last5_avg, 0) - n(a.last5_avg, 0)))[0]
+    const hitBat = by((p) => n(p?.hit_score, NaN))
+    const hrrBat = by((p) => n(p?.hrr_score, NaN))
+    const tbBat = by((p) => n(p?.contact_score, NaN))
+    const hrw = by((p) => n(p?.hrw_score, NaN))
     const homers = results?.merged_homers || results?.hr_capture_report?.all_homer_entries || []
     const latest = isLive && homers.length ? homers[homers.length - 1] : null
+    const air = airRanked[0]
+    const weak = players.filter((p) => p?.weak_spot_flag).length
+    const avg3 = (v) => n(v, 0).toFixed(3).replace(/^0/, '')
 
-    if (latest) out.push({ k: 'gone', icon: '💣', tag: 'JUST LEFT', name: clean(latest.name, ''), why: `${latest.longest_ft ? `${latest.longest_ft} ft` : 'gone'}${latest.max_ev_mph ? ` · ${latest.max_ev_mph} mph` : ''}${latest.tags?.length ? ` · ${latest.tags.join(' ')}` : ''}`, stat: `${homers.length} HR`, statCol: C.orange, p: latest.base_row || null })
-    if (top) out.push({ k: 'top', icon: '🎯', tag: 'THE BOT’S #1', name: nameOf(top), why: `${teamOf(top)}${clean(top?.pitcher_name, '') ? ` vs ${clean(top?.pitcher_name, '')}` : ''}${n(top?.pitcher_hr9, 0) > 0 ? ` · ${n(top?.pitcher_hr9, 0).toFixed(2)} HR/9` : ''}`, stat: `HR ${hrScore(top).toFixed(0)}`, statCol: C.orange, p: top })
-    if (p3 && p3 !== top) out.push({ k: 'p3', icon: '⚡', tag: 'SEASON POWER', name: nameOf(p3), why: `Power-3 #${n(p3?.power3_rank, 0) || 1} on the slate · ${n(p3?.season_avg_ev, 0).toFixed(1)} avg EV · max ${n(p3?.season_max_ev, 0).toFixed(0)}`, stat: `P3 ${n(p3?.power3_score, 0).toFixed(0)}`, statCol: C.yellow, p: p3 })
-    if (hot && hot !== top && hot !== p3) out.push({ k: 'hot', icon: '🔥', tag: 'HOTTEST BAT', name: nameOf(hot), why: `${n(hot?.last5_hr, 0)} HR in his last 5 · hitting ${n(hot?.last5_avg, 0).toFixed(3).replace(/^0/, '')} over them`, stat: `L5 HR ${n(hot?.last5_hr, 0)}`, statCol: C.red || '#f87171', p: hot })
+    if (latest) out.push({ k: 'gone', icon: '💣', tag: 'WENT DEEP', name: clean(latest.name, ''), why: `${latest.longest_ft ? `${latest.longest_ft} ft` : 'gone'}${latest.max_ev_mph ? ` · ${latest.max_ev_mph} mph` : ''}`, stat: `${homers.length} HR tonight`, col: C.orange, p: latest.base_row || null })
+    if (top) out.push({ k: 'top', icon: '🎯', tag: 'THE BOT’S #1', name: nameOf(top), why: `${teamOf(top)}${clean(top?.pitcher_name, '') ? ` vs ${clean(top?.pitcher_name, '')}` : ''}${n(top?.pitcher_hr9, 0) > 0 ? ` · ${n(top?.pitcher_hr9, 0).toFixed(2)} HR/9` : ''}`, stat: `HR ${hrScore(top).toFixed(0)}`, col: C.orange, p: top })
+    if (p3 && p3 !== top) out.push({ k: 'p3', icon: '⚡', tag: 'SEASON POWER', name: nameOf(p3), why: `Power-3 #${n(p3?.power3_rank, 0) || 1} · ${n(p3?.season_avg_ev, 0).toFixed(1)} avg EV · max ${n(p3?.season_max_ev, 0).toFixed(0)}`, stat: `P3 ${n(p3?.power3_score, 0).toFixed(0)}`, col: C.yellow, p: p3 })
+    if (hot && hot !== top && hot !== p3) out.push({ k: 'hot', icon: '🔥', tag: 'HOTTEST BAT', name: nameOf(hot), why: `${n(hot?.last5_hr, 0)} HR in his last 5 · ${avg3(hot?.last5_avg)} over them`, stat: `L5 HR ${n(hot?.last5_hr, 0)}`, col: C.red, p: hot })
     if (headline?.g) {
       const who = (headline.bats || []).map((b) => nameOf(b)).filter(Boolean).slice(0, 2)
-      out.push({ k: 'game', icon: '⭐', tag: 'GAME TO CIRCLE', name: `${clean(headline.g.away, '?')} @ ${clean(headline.g.home, '?')}`, why: who.length ? `${who.join(' and ')} carry the heat` : 'the strongest board on the slate', stat: 'GAMES', statCol: C.blue, nav: 'games' })
+      out.push({ k: 'game', icon: '⭐', tag: 'GAME TO CIRCLE', name: `${clean(headline.g.away, '?')} @ ${clean(headline.g.home, '?')}`, why: who.length ? `${who.join(' and ')} carry the heat` : 'the strongest board on the slate', stat: 'OPEN', col: C.blue, nav: 'games' })
     }
-    return out.slice(0, 5)
-  }, [players, headline, results, isLive])
+    if (hitBat) out.push({ k: 'hit', icon: '🧢', tag: 'HIT MACHINE', name: nameOf(hitBat), why: `${n(hitBat?.last5_hits, 0)} H in his last 5 · ${avg3(hitBat?.season_avg)} season · K ${(n(hitBat?.season_k_rate, 0) * 100).toFixed(0)}%`, stat: `HIT ${n(hitBat?.hit_score, 0).toFixed(0)}`, col: C.purple || '#c084fc', p: hitBat })
+    if (hrrBat && hrrBat !== hitBat) out.push({ k: 'hrr', icon: '🏃', tag: 'RUNS + RBI', name: nameOf(hrrBat), why: `bats ${n(hrrBat?.lineup_spot, 0) || '—'} · ${n(hrrBat?.last5_rbi, 0)} RBI / ${n(hrrBat?.last5_runs, 0)} R last 5 · OBP ${avg3(hrrBat?.season_obp)}`, stat: `HRR ${n(hrrBat?.hrr_score, 0).toFixed(0)}`, col: C.cyan || '#22d3ee', p: hrrBat })
+    if (tbBat && tbBat !== hitBat && tbBat !== top) out.push({ k: 'tb', icon: '💪', tag: 'TOTAL BASES', name: nameOf(tbBat), why: `${n(tbBat?.last5_xbh, 0)} XBH last 5 · ISO ${avg3(tbBat?.season_iso)} · SLG ${avg3(tbBat?.season_slg)}`, stat: `TB ${n(tbBat?.contact_score, 0).toFixed(0)}`, col: C.green, p: tbBat })
+    if (hrw && hrw !== top) out.push({ k: 'hrw', icon: '🌋', tag: 'HR WINDOW', name: nameOf(hrw), why: `HRW ${n(hrw?.hrw_score, 0).toFixed(0)} — the audit’s strongest bot term (80+ homered 25%)`, stat: `HRW ${n(hrw?.hrw_score, 0).toFixed(0)}`, col: C.orange, p: hrw })
+    if (air && air.edge > 0) out.push({ k: 'air', icon: '🌤', tag: 'BEST AIR', name: air.venue, why: `${air.matchup ? `${air.matchup} plays there · ` : ''}park + weather`, stat: `+${air.edge.toFixed(0)}%`, col: C.orange, nav: 'power' })
+    if (weak > 0) out.push({ k: 'weak', icon: '★', tag: 'WEAK SPOTS', name: `${weak} hitters`, why: 'draw a lineup spot tonight’s starter has already been beaten in', stat: 'BOARDS', col: C.yellow, nav: 'board' })
+    return out
+  }, [players, headline, results, isLive, airRanked])
 
-  if (!looks.length) return null
+  const [paused, setPaused] = useState(false)
+  if (!cards.length) return null
+  const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
+  const Card = ({ c, i, echo }) => (
+    <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} onClick={() => open(c)}
+      className="home-headline"
+      style={{
+        display: 'grid', gridTemplateRows: 'auto 1fr auto', gap: 3, width: 232, minHeight: 104, flexShrink: 0,
+        padding: '10px 12px 9px', borderRadius: 10, border: `1px solid ${c.col}33`,
+        background: `linear-gradient(160deg, ${c.col}14, ${C.glass} 70%)`, color: C.text, textAlign: 'left', cursor: 'pointer', font: 'inherit',
+      }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, color: c.col }}>{String(i + 1).padStart(2, '0')}</span>
+        <span style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: c.col }}>{c.tag}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 13, lineHeight: 1 }}>{c.icon}</span>
+      </span>
+      <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+      <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.why}</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: c.col, whiteSpace: 'nowrap', border: `1px solid ${c.col}44`, background: `${c.col}14`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>{c.stat}</span>
+      </span>
+    </button>
+  )
+  // Duration scales with the number of cards so the speed feels the same on a
+  // three-headline night and a ten-headline one (~22px/s).
+  const dur = Math.max(18, Math.round((cards.length * 244) / 22))
   return (
-    <div className="home-rundown" style={{ display: 'grid', gap: 4, maxWidth: 760 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
-        <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>THE RUNDOWN</span>
+    <div className="home-headlines" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onTouchStart={() => setPaused(true)}
+      style={{ margin: '2px 0 0' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>HEADLINES</span>
         <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.orange}66, transparent)` }} />
+        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any</span>
       </div>
-      {looks.map((l, i) => (
-        <button key={l.k} type="button"
-          onClick={() => (l.p ? onPlayerClick?.(l.p) : l.nav ? onNavigate?.(l.nav) : null)}
-          style={{
-            display: 'grid', gridTemplateColumns: '22px 22px minmax(0,1fr) auto', alignItems: 'center', gap: 8,
-            padding: '7px 10px 7px 8px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.glass,
-            color: C.text, textAlign: 'left', cursor: 'pointer', font: 'inherit',
-          }}>
-          <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: C.orange, lineHeight: 1 }}>{i + 1}</span>
-          <span style={{ fontSize: 14, lineHeight: 1 }}>{l.icon}</span>
-          <span style={{ minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: C.text3 }}>{l.tag}</span>
-            <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, letterSpacing: '-.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.name}</span>
-            <span style={{ display: 'block', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.why}</span>
-          </span>
-          <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: l.statCol, whiteSpace: 'nowrap', border: `1px solid ${l.statCol}44`, background: `${l.statCol}12`, borderRadius: 4, padding: '3px 7px' }}>{l.stat}</span>
-        </button>
-      ))}
+      <div className="home-headlines-viewport" style={{ overflow: 'hidden', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)', maskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)' }}>
+        <div className="home-headlines-track" style={{ display: 'flex', gap: 12, width: 'max-content', animation: `homeHeadlines ${dur}s linear infinite`, animationPlayState: paused ? 'paused' : 'running' }}>
+          {cards.map((c, i) => <Card key={c.k} c={c} i={i} />)}
+          {cards.map((c, i) => <Card key={`${c.k}-echo`} c={c} i={i} echo />)}
+        </div>
+      </div>
     </div>
   )
 }
@@ -674,6 +707,12 @@ export default function Home({
       <style>{`
         @keyframes homePulse { 0%,100%{opacity:1} 50%{opacity:.35} }
         @keyframes homeFade { from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none} }
+        @keyframes homeHeadlines { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+        .home-headline:hover { filter: brightness(1.12); }
+        @media (prefers-reduced-motion: reduce) {
+          .home-headlines-track { animation: none !important; }
+          .home-headlines-viewport { overflow-x: auto !important; -webkit-mask-image: none !important; mask-image: none !important; }
+        }
       `}</style>
 
       {/* ── ORIENT, THEN READ (2026-08-29) ────────────────────────────────
@@ -867,7 +906,7 @@ export default function Home({
             No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands.
           </div>
         ) : (
-          <Rundown players={players} headline={headline} results={results} isLive={isLive} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
+          <Headlines players={players} headline={headline} results={results} isLive={isLive} airRanked={airRanked} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
         )}
         {/* the crawl — rotates through tonight's storylines */}
         {pulse && (

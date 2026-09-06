@@ -139,7 +139,8 @@ function Scorebug({ players, results, games, mode, slateDate }) {
   const sep = <span aria-hidden="true" style={{ color:C.text3, opacity:.55, margin:'0 6px', fontSize:9 }}>·</span>
 
   return (
-    <div className="hdr-scorebug" style={{ display:'flex', alignItems:'center', flexWrap:'nowrap', overflowX:'auto', scrollbarWidth:'none', lineHeight:1, marginTop:3, maxWidth:'100%' }}>
+    <div className="hdr-scorebug" style={{ display:'flex', alignItems:'center', flexWrap:'nowrap', overflowX:'auto', scrollbarWidth:'none', lineHeight:1, marginTop:4, maxWidth:'100%',
+      WebkitMaskImage:'linear-gradient(90deg, #000 calc(100% - 18px), transparent)', maskImage:'linear-gradient(90deg, #000 calc(100% - 18px), transparent)' }}>
       <Bug label="games" value={stats.gameCount} title="Games on this slate" />
       {proj != null && <>{sep}<Bug label="HR proj" value={proj} color="#f97316"
         title={`${modelHr != null ? `The site's own model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}`} /></>}
@@ -257,7 +258,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
 
   const tabBtn = (key, label, active, onClick, extra = {}) => (
     <button key={key} onClick={onClick} {...extra} style={{
-      padding:'0 12px', height:36, fontSize:11, fontWeight:active ? 800 : 600,
+      padding:'0 10px', height:44, fontSize:11.5, fontWeight:active ? 800 : 600, letterSpacing:'.01em',
       cursor:'pointer', border:'none', borderRadius:0, background:'transparent',
       color:active ? '#f97316' : C.text3, position:'relative', transition:'color .12s',
       whiteSpace:'nowrap', flex:'1 0 auto', textAlign:'center',
@@ -280,18 +281,29 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
       backdropFilter:'blur(14px)',
       borderBottom:`1px solid ${C.border}`,
     }}>
+      {/* TWO ROWS, DETERMINISTIC (2026-09-06, same night). The first cut put
+          brand, rail and meta on one flex-wrap row; at desktop widths the meta
+          cluster wrapped under the rail and sat right-aligned on its own --
+          "looks funky". Now: row one is brand + scorebug on the left and
+          date / mode / account / ⚙ on the right, never wrapping; row two is
+          the rail, full width, tabs in equal shares under a hairline. */}
+      {/* ONE ROW AFTER ALL (2026-09-06, later). Donovan: "the tab sections
+          need to go next to Today, in the blank space." So: brand + scorebug
+          (capped, the scorebug scrolls inside its box) | the rail, flexing
+          into whatever is left | date · mode · account · ⚙. Nothing wraps
+          above the phone breakpoint. */}
       <div className="hdr-bar" style={{
-        maxWidth:1300, margin:'0 auto', padding:'8px 16px 0',
-        display:'flex', alignItems:'center', gap:14, flexWrap:'wrap',
+        maxWidth:1300, margin:'0 auto', padding:'8px 16px 6px',
+        display:'flex', alignItems:'center', gap:14, flexWrap:'nowrap',
       }}>
         {/* ── brand + scorebug ───────────────────────────────────────────── */}
-        <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, paddingBottom:8 }}>
+        <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flex:'0 1 460px' }}>
           {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
               DASH front door; the wordmark is MOONSHOT's own home button. */}
           <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE" aria-label="DASH Network home"
             style={{ display:'flex', textDecoration:'none', borderRadius:10, flexShrink:0 }}>
-            <div style={{ position:'relative', width:36, height:36, borderRadius:10, boxShadow:'0 0 18px rgba(249,115,22,0.35)' }}>
-              <img src="/icon-192.png" alt="" width={36} height={36} style={{ display:'block', width:'100%', height:'100%', borderRadius:10 }} />
+            <div className="hdr-mark" style={{ position:'relative', width:46, height:46, borderRadius:12, boxShadow:'0 0 20px rgba(249,115,22,0.35)' }}>
+              <img src="/icon-192.png" alt="" width={46} height={46} style={{ display:'block', width:'100%', height:'100%', borderRadius:12 }} />
               <div style={{ position:'absolute', top:-2, right:-2, width:8, height:8, borderRadius:'50%', background:C.green, border:`2px solid ${C.bg}`, animation:'pulse 2s infinite' }} />
             </div>
           </a>
@@ -300,24 +312,28 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
               <button type="button" onClick={() => go('home')} title="MOONSHOT home — tonight in one page" aria-label="MOONSHOT home"
                 style={{
                   padding:0, border:'none', background:'transparent', cursor:'pointer',
-                  fontSize:17, fontWeight:900, letterSpacing:'-0.02em', lineHeight:1.1,
+                  fontSize:19, fontWeight:900, letterSpacing:'-0.02em', lineHeight:1.1,
                   backgroundImage:'linear-gradient(90deg, #f97316, #ef4444)',
                   WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
                 }}>MOONSHOT</button>
               <span className="sport-switch" style={{ display:'flex', alignItems:'center', gap:3 }}>
-                {[['mlb', 'MLB'], ['nfl', 'NFL']].map(([key, label]) => {
+                {/* MOONSHOT (orange, you are here) and TUDDY (green, the other
+                    product) -- named as products, not leagues, and each in its
+                    own colour so the switch reads as two shows, not a filter. */}
+                {[['mlb', 'MLB', C.orange], ['nfl', 'TUDDY', C.green]].map(([key, label, col]) => {
                   const on = key === 'mlb'
                   return (
                     <button key={key} onClick={on ? undefined : () => setSport(key)} aria-pressed={on}
+                      title={on ? 'MOONSHOT · MLB — you are here' : 'Switch to TUDDY · NFL'}
                       aria-label={on ? 'MOONSHOT · MLB (current)' : 'Switch to TUDDY · NFL'}
                       style={{
                         display:'inline-flex', alignItems:'center', justifyContent:'center',
-                        height:18, minHeight:18, padding:'0 8px', lineHeight:1,
-                        fontSize:9, fontWeight:800, letterSpacing:'0.06em', borderRadius:999,
+                        height:20, minHeight:20, padding:'0 9px', lineHeight:1,
+                        fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
                         cursor: on ? 'default' : 'pointer',
-                        border:`1px solid ${on ? 'rgba(249,115,22,.45)' : C.border2}`,
-                        background: on ? 'rgba(249,115,22,.15)' : 'transparent',
-                        color: on ? C.orange : C.text3,
+                        border:`1px solid ${col}${on ? '88' : '55'}`,
+                        background: on ? `${col}26` : `${col}10`,
+                        color: col,
                       }}>{label}</button>
                   )
                 })}
@@ -327,11 +343,11 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
           </div>
         </div>
 
-        {/* ── the rail, in the bar ───────────────────────────────────────── */}
+        {/* ── the rail, in the blank space ─────────────────────────────── */}
         <nav className="rail hdr-rail" aria-label="MOONSHOT sections" style={{
-          flex:'1 1 420px', minWidth:0, alignSelf:'stretch',
+          flex:'1 1 0', minWidth:0, alignSelf:'stretch',
           overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
-          display:'flex', alignItems:'flex-end',
+          display:'flex', alignItems:'stretch',
         }}>
           <div style={{ display:'flex', gap:0, minWidth:'max-content', width:'100%' }}>
             {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
@@ -340,12 +356,13 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
         </nav>
 
         {/* ── date · mode · account · settings ──────────────────────────── */}
-        <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, paddingBottom:8, marginLeft:'auto' }}>
+        <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
           <DateMode label={dateLabel || 'Loading…'} mode={mode} setMode={setMode} />
           <SignUpPill onWatchlist={() => go('you')} />
           <SettingsSheet />
         </div>
       </div>
+
 
       {moreOpen && (
         <div style={{ borderTop:`1px solid ${C.border}`, background:hexToRgba(C.bg2, .98) }}>
@@ -397,12 +414,15 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
            hdr-rail is hidden -- .rail is a shared scroll utility. */
         @media (max-width: 760px) {
           .hdr-rail { display: none !important; }
-          .hdr-bar { gap: 6px !important; }
+          .hdr-bar { gap: 6px !important; flex-wrap: wrap !important; padding-bottom: 6px !important; }
+          .hdr-mark { width: 40px !important; height: 40px !important; }
+          .hdr-mark img { width: 40px !important; height: 40px !important; }
+          .hdr-brand { flex-basis: 100% !important; }
           /* Centred, both rows (Donovan: "the MOONSHOT button should be
              centre on the page; header and the button under it seem off"). */
           .hdr-brand { flex: 1 1 100%; justify-content: center; text-align: center; }
           .hdr-brand > div > div:first-child { justify-content: center; }
-          .hdr-scorebug { flex-wrap: wrap !important; overflow: visible !important; justify-content: center; row-gap: 3px; }
+          .hdr-scorebug { flex-wrap: wrap !important; overflow: visible !important; justify-content: center; row-gap: 3px; -webkit-mask-image: none !important; mask-image: none !important; }
           .hdr-meta { padding-bottom: 8px; margin-left: auto !important; margin-right: auto !important; width: auto; justify-content: center; gap: 12px; }
           .hdr-meta .date-badge { display: none !important; }
         }
