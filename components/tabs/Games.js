@@ -18,6 +18,7 @@ import { FilterPill } from '../Filters'
 import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
 import { fetchLiveSlate, lineupStatus, liveSlateStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
+import Explain from '../Explain'
 import AtThePlate from './AtThePlate'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
@@ -1435,8 +1436,21 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         <span style={{ fontSize: 17, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
                           {past ? '✓ ' : ''}{g.away || '—'} <span style={{ color: C.text3, fontWeight: 400 }}>@</span> {g.home || '—'}
                         </span>
+                        {/* GLOSSARY-ON-TAP (2026-09-06). Donovan found this
+                            badge "confusing, not broken" -- it had zero
+                            explanation, and the richer three-tier version of
+                            this same badge further down only explains itself
+                            through a `title=` hover, which Explain.js's own
+                            header comment says plainly is invisible on a
+                            phone. Same fix that component exists for: a tap
+                            target, not a hover. */}
                         <span style={{ fontSize: 10, fontWeight: 700, fontFamily: NUM_FONT, color: g.lineup_confirmed ? C.green : C.text3 }}>
-                          {g.lineup_confirmed ? '✓ lineups in' : '◻ projected'}
+                          <Explain
+                            label={g.lineup_confirmed ? '✓ lineups in' : '◻ projected'}
+                            text={g.lineup_confirmed
+                              ? 'The bot saw the real, confirmed starting lineup on its last run \u2014 not a guess.'
+                              : "The real batting order hasn't posted yet, so this is the bot's best projection. It can still change before first pitch."}
+                          />
                         </span>
                         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
                         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT, flexShrink: 0 }}>
