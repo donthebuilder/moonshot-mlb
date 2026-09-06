@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { logUrl, dataUrl } from '../../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
@@ -19,7 +19,7 @@ import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
-import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown } from '../../lib/headlines'
+import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown, useAutoScroll } from '../../lib/headlines'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
 import { btnStyle } from '../ui'
 import Scoreboard from './Scoreboard'
@@ -197,7 +197,8 @@ const BARE_BUTTON = {
 function Headlines({ players = [], headline, results, isLive, airRanked = [], odds, onPlayerClick, onNavigate }) {
   // Built in lib/headlines.js -- the header's ticker rolls the same set.
   const cards = useMemo(() => buildHeadlines({ players, headline, results, isLive, airRanked }), [players, headline, results, isLive, airRanked])
-  const [paused, setPaused] = useState(false)
+  const stripRef = useRef(null)
+  useAutoScroll(stripRef, { speed: 22 })
   if (!cards.length) return null
   const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
   const Card = ({ c, i, echo }) => (
@@ -220,19 +221,15 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
       </span>
     </button>
   )
-  // Duration scales with the number of cards so the speed feels the same on a
-  // three-headline night and a ten-headline one (~22px/s).
-  const dur = Math.max(18, Math.round((cards.length * 244) / 22))
   return (
-    <div className="home-headlines" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onTouchStart={() => setPaused(true)}
-      style={{ margin: '2px 0 0' }}>
+    <div className="home-headlines" style={{ margin: '2px 0 0' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>HEADLINES</span>
         <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.orange}66, transparent)` }} />
-        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any</span>
+        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any · swipe or let it roll</span>
       </div>
-      <div className="home-headlines-viewport" style={{ overflow: 'hidden', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)', maskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)' }}>
-        <div className="home-headlines-track" style={{ display: 'flex', gap: 12, width: 'max-content', animation: `homeHeadlines ${dur}s linear infinite`, animationPlayState: paused ? 'paused' : 'running' }}>
+      <div className="home-headlines-viewport" ref={stripRef} style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)', maskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)' }}>
+        <div className="home-headlines-track" style={{ display: 'flex', gap: 12, width: 'max-content', paddingBottom: 2 }}>
           {cards.map((c, i) => <Card key={c.k} c={c} i={i} />)}
           {cards.map((c, i) => <Card key={`${c.k}-echo`} c={c} i={i} echo />)}
         </div>
@@ -686,12 +683,8 @@ export default function Home({
       <style>{`
         @keyframes homePulse { 0%,100%{opacity:1} 50%{opacity:.35} }
         @keyframes homeFade { from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none} }
-        @keyframes homeHeadlines { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         .home-headline:hover { filter: brightness(1.12); }
-        @media (prefers-reduced-motion: reduce) {
-          .home-headlines-track { animation: none !important; }
-          .home-headlines-viewport { overflow-x: auto !important; -webkit-mask-image: none !important; mask-image: none !important; }
-        }
+        .home-headlines-viewport::-webkit-scrollbar { display: none; }
       `}</style>
 
       {/* ── ORIENT, THEN READ (2026-08-29) ────────────────────────────────

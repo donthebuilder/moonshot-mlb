@@ -9,7 +9,7 @@ import ThemeModeButton from './ThemeModeButton'
 import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
 import { easternToday } from '../lib/data'
-import { buildHeadlines, useLiveScores } from '../lib/headlines'
+import { buildHeadlines, useLiveScores, useAutoScroll } from '../lib/headlines'
 import SignUpPill from './SignUpPill'
 
 // The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
@@ -138,7 +138,8 @@ function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go 
   const modelHr = useMemo(() => slateProjHr(players), [players])
   const projection = useProjection(mode)
   const live = useLiveScores()
-  const [paused, setPaused] = useState(false)
+  const trackRef = useRef(null)
+  useAutoScroll(trackRef, { speed: 26 })
   const isLive = live.items.some((i) => i.live) || (stats?.actual ?? 0) > 0
   const heads = useMemo(() => buildHeadlines({ players, results, isLive, headline: null, airRanked: [] }), [players, results, isLive])
   if (!stats) return <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>loading the slate…</span>
@@ -164,22 +165,28 @@ function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go 
   for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, label: 'final', value: i.text, icon: i.icon, color: C.text3, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: 'Final' })
 
   const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.nav === 'nfl') setSport('nfl'); else if (it.nav) go?.(it.nav) }
+  // ONE SHAPE FOR EVERY PILL: same height, same padding, label over value in
+  // a fixed two-line stack, a dot on the left slot whether live or not (so
+  // the pills line up), value truncated at 150px. The strip reads as one
+  // instrument instead of a row of differently-sized chips.
   const Pill = ({ it, echo }) => (
     <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} onClick={() => open(it)} title={it.title}
-      style={{ display:'inline-flex', alignItems:'baseline', gap:5, whiteSpace:'nowrap', padding:'2px 9px 2px 0', marginRight:10,
-        background:'transparent', border:'none', borderRight:`1px solid ${C.border}`, cursor:'pointer', color:'inherit', font:'inherit' }}>
-      {it.live && <span aria-hidden="true" style={{ width:5, height:5, borderRadius:'50%', background:it.color || C.green, alignSelf:'center', animation:'pulse 2s infinite' }} />}
-      {it.icon && <span style={{ fontSize:10, alignSelf:'center' }}>{it.icon}</span>}
-      <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:900, color: it.color || C.text, letterSpacing:'-.01em' }}>{it.value}</span>
-      <span style={{ fontSize:8.5, fontWeight:800, letterSpacing:'.08em', textTransform:'uppercase', color:C.text3 }}>{it.label}</span>
+      style={{ display:'inline-grid', gridTemplateColumns:'8px auto', alignItems:'center', columnGap:6, height:26, whiteSpace:'nowrap',
+        padding:'0 10px 0 8px', marginRight:6, borderRadius:6, flexShrink:0,
+        background:`${it.color || C.text3}10`, border:`1px solid ${it.color || C.border}33`, cursor:'pointer', color:'inherit', font:'inherit',
+        transition:'background .12s' }}>
+      <span aria-hidden="true" style={{ width:5, height:5, borderRadius:'50%', background: it.live ? (it.color || C.green) : 'transparent', border: it.live ? 'none' : `1px solid ${it.color || C.text3}66`, animation: it.live ? 'pulse 2s infinite' : 'none' }} />
+      <span style={{ display:'grid', lineHeight:1.05 }}>
+        <span style={{ fontSize:7.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:C.text3 }}>{it.icon ? `${it.icon} ` : ''}{it.label}</span>
+        <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:900, color: it.color || C.text, letterSpacing:'-.01em', maxWidth:150, overflow:'hidden', textOverflow:'ellipsis' }}>{it.value}</span>
+      </span>
     </button>
   )
-  const dur = Math.max(24, Math.round(items.length * 6))
   return (
-    <div className="hdr-scorebug" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
-      style={{ overflow:'hidden', lineHeight:1, marginTop:4, maxWidth:'100%',
+    <div className="hdr-scorebug" ref={trackRef}
+      style={{ overflowX:'auto', overflowY:'hidden', scrollbarWidth:'none', lineHeight:1, marginTop:5, maxWidth:'100%', WebkitOverflowScrolling:'touch',
         WebkitMaskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)', maskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)' }}>
-      <div className="hdr-ticker-track" style={{ display:'flex', width:'max-content', animation:`hdrTicker ${dur}s linear infinite`, animationPlayState: paused ? 'paused' : 'running' }}>
+      <div className="hdr-ticker-track" style={{ display:'flex', width:'max-content' }}>
         {items.map((it) => <Pill key={it.k} it={it} />)}
         {items.map((it) => <Pill key={`${it.k}-echo`} it={it} echo />)}
       </div>
@@ -326,7 +333,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
         display:'flex', alignItems:'center', gap:14, flexWrap:'nowrap',
       }}>
         {/* ── brand + scorebug ───────────────────────────────────────────── */}
-        <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flex:'0 1 460px' }}>
+        <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flex:'0 1 520px' }}>
           {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
               DASH front door; the wordmark is MOONSHOT's own home button. */}
           <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE" aria-label="DASH Network home"
@@ -431,8 +438,8 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
-        @keyframes hdrTicker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-        @media (prefers-reduced-motion: reduce) { .hdr-ticker-track { animation: none !important; } .hdr-scorebug { overflow-x: auto !important; } }
+        .hdr-scorebug::-webkit-scrollbar { display: none; }
+        .hdr-ticker-track button:hover { filter: brightness(1.25); }
         header div::-webkit-scrollbar { display: none; }
         .hdr-scorebug::-webkit-scrollbar { display: none; }
         @media (max-width: 700px) {
