@@ -246,10 +246,9 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
   useEffect(() => {
     const el = hdrRef.current
     if (!el) return
-    const write = () => {
-      const h = Math.round(el.getBoundingClientRect().height)
-      if (h > 0) document.documentElement.style.setProperty('--hdr-h', `${h}px`)
-    }
+    // --hdr-h is what the Games jump strip sticks under. A header that
+    // scrolls away occupies no fixed space, so the strip pins to the top.
+    const write = () => { document.documentElement.style.setProperty('--hdr-h', '0px') }
     write()
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(write) : null
     if (ro) ro.observe(el)
@@ -273,7 +272,10 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
 
   return (
     <header ref={hdrRef} className="hdr-one-bar" style={{
-      position:'sticky', top:0, zIndex:50,
+      // NOT STICKY (2026-09-06). Donovan: "no sticky header. once you scroll
+      // don't add that, ever." The bar scrolls away with the page; the phone
+      // bottom bar owns navigation while you are down the page.
+      position:'relative', zIndex:50,
       background: hexToRgba(C.bg, 0.92),
       backdropFilter:'blur(14px)',
       borderBottom:`1px solid ${C.border}`,
@@ -395,9 +397,13 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
            hdr-rail is hidden -- .rail is a shared scroll utility. */
         @media (max-width: 760px) {
           .hdr-rail { display: none !important; }
-          .hdr-bar { gap: 8px !important; }
-          .hdr-brand { flex: 1 1 100%; }
-          .hdr-meta { padding-bottom: 8px; margin-left: 0 !important; width: 100%; justify-content: space-between; }
+          .hdr-bar { gap: 6px !important; }
+          /* Centred, both rows (Donovan: "the MOONSHOT button should be
+             centre on the page; header and the button under it seem off"). */
+          .hdr-brand { flex: 1 1 100%; justify-content: center; text-align: center; }
+          .hdr-brand > div > div:first-child { justify-content: center; }
+          .hdr-scorebug { justify-content: center; margin-left: auto; margin-right: auto; }
+          .hdr-meta { padding-bottom: 8px; margin-left: auto !important; margin-right: auto !important; width: auto; justify-content: center; gap: 12px; }
           .hdr-meta .date-badge { display: none !important; }
         }
       `}</style>

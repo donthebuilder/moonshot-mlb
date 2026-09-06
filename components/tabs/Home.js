@@ -76,11 +76,14 @@ import ComebackBoard from '../ComebackBoard'
 // off the number itself. lib/conditions.js speaks the weather/park clause so
 // this page is not the fifth surface with its own chip strip.
 
+// THE EDITION (2026-09-06). "Burning the midnight oil" is gone -- Donovan:
+// "the messaging is trash". The hero reads like the top of a broadcast now:
+// which edition of the show this is, then the rundown. Same hour buckets.
 const greeting = (h) => {
-  if (h >= 5 && h < 12) return ['Good morning', '☀️']
-  if (h >= 12 && h < 17) return ['Good afternoon', '⚾']
-  if (h >= 17 && h < 22) return ['Good evening', '🌆']
-  return ['Burning the midnight oil', '🌙']
+  if (h >= 5 && h < 12) return ['MORNING EDITION', '☀️']
+  if (h >= 12 && h < 17) return ['AFTERNOON EDITION', '⚾']
+  if (h >= 17 && h < 22) return ['PRIME TIME', '🌆']
+  return ['LATE EDITION', '🌙']
 }
 
 // One line that changes every few seconds — the "living" part. All computed
@@ -177,6 +180,62 @@ const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))
 const BARE_BUTTON = {
   border: 'none', background: 'transparent', padding: 0,
   color: 'inherit', font: 'inherit', textAlign: 'left',
+}
+
+// ── THE RUNDOWN ──────────────────────────────────────────────────────────────
+// Five looks, ranked by what a viewer opens the show for: the ball that just
+// left (live only), the bot's top HR bat, the strongest season-power bat
+// (Power-3, once the bot publishes it), the hottest bat by the last five, and
+// the game to circle. Each row is a name, a reason and a number; the whole row
+// is the tap target. Nothing here is computed beyond a sort.
+function Rundown({ players = [], headline, results, isLive, onPlayerClick, onNavigate }) {
+  const looks = useMemo(() => {
+    const out = []
+    const scored = players.filter((p) => Number.isFinite(hrScore(p)))
+    const top = [...scored].sort((a, b) => hrScore(b) - hrScore(a))[0]
+    const p3 = [...players].filter((p) => n(p?.power3_score, 0) > 0 && n(p?.season_bbe_n, 0) >= 60).sort((a, b) => n(b.power3_score, 0) - n(a.power3_score, 0))[0]
+    const hot = [...players].filter((p) => n(p?.last5_hr, 0) >= 2).sort((a, b) => (n(b.last5_hr, 0) - n(a.last5_hr, 0)) || (n(b.last5_avg, 0) - n(a.last5_avg, 0)))[0]
+    const homers = results?.merged_homers || results?.hr_capture_report?.all_homer_entries || []
+    const latest = isLive && homers.length ? homers[homers.length - 1] : null
+
+    if (latest) out.push({ k: 'gone', icon: '💣', tag: 'JUST LEFT', name: clean(latest.name, ''), why: `${latest.longest_ft ? `${latest.longest_ft} ft` : 'gone'}${latest.max_ev_mph ? ` · ${latest.max_ev_mph} mph` : ''}${latest.tags?.length ? ` · ${latest.tags.join(' ')}` : ''}`, stat: `${homers.length} HR`, statCol: C.orange, p: latest.base_row || null })
+    if (top) out.push({ k: 'top', icon: '🎯', tag: 'THE BOT’S #1', name: nameOf(top), why: `${teamOf(top)}${clean(top?.pitcher_name, '') ? ` vs ${clean(top?.pitcher_name, '')}` : ''}${n(top?.pitcher_hr9, 0) > 0 ? ` · ${n(top?.pitcher_hr9, 0).toFixed(2)} HR/9` : ''}`, stat: `HR ${hrScore(top).toFixed(0)}`, statCol: C.orange, p: top })
+    if (p3 && p3 !== top) out.push({ k: 'p3', icon: '⚡', tag: 'SEASON POWER', name: nameOf(p3), why: `Power-3 #${n(p3?.power3_rank, 0) || 1} on the slate · ${n(p3?.season_avg_ev, 0).toFixed(1)} avg EV · max ${n(p3?.season_max_ev, 0).toFixed(0)}`, stat: `P3 ${n(p3?.power3_score, 0).toFixed(0)}`, statCol: C.yellow, p: p3 })
+    if (hot && hot !== top && hot !== p3) out.push({ k: 'hot', icon: '🔥', tag: 'HOTTEST BAT', name: nameOf(hot), why: `${n(hot?.last5_hr, 0)} HR in his last 5 · hitting ${n(hot?.last5_avg, 0).toFixed(3).replace(/^0/, '')} over them`, stat: `L5 HR ${n(hot?.last5_hr, 0)}`, statCol: C.red || '#f87171', p: hot })
+    if (headline?.g) {
+      const who = (headline.bats || []).map((b) => nameOf(b)).filter(Boolean).slice(0, 2)
+      out.push({ k: 'game', icon: '⭐', tag: 'GAME TO CIRCLE', name: `${clean(headline.g.away, '?')} @ ${clean(headline.g.home, '?')}`, why: who.length ? `${who.join(' and ')} carry the heat` : 'the strongest board on the slate', stat: 'GAMES', statCol: C.blue, nav: 'games' })
+    }
+    return out.slice(0, 5)
+  }, [players, headline, results, isLive])
+
+  if (!looks.length) return null
+  return (
+    <div className="home-rundown" style={{ display: 'grid', gap: 4, maxWidth: 760 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+        <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>THE RUNDOWN</span>
+        <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.orange}66, transparent)` }} />
+      </div>
+      {looks.map((l, i) => (
+        <button key={l.k} type="button"
+          onClick={() => (l.p ? onPlayerClick?.(l.p) : l.nav ? onNavigate?.(l.nav) : null)}
+          style={{
+            display: 'grid', gridTemplateColumns: '22px 22px minmax(0,1fr) auto', alignItems: 'center', gap: 8,
+            padding: '7px 10px 7px 8px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.glass,
+            color: C.text, textAlign: 'left', cursor: 'pointer', font: 'inherit',
+          }}>
+          <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: C.orange, lineHeight: 1 }}>{i + 1}</span>
+          <span style={{ fontSize: 14, lineHeight: 1 }}>{l.icon}</span>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: C.text3 }}>{l.tag}</span>
+            <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, letterSpacing: '-.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.name}</span>
+            <span style={{ display: 'block', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.why}</span>
+          </span>
+          <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: l.statCol, whiteSpace: 'nowrap', border: `1px solid ${l.statCol}44`, background: `${l.statCol}12`, borderRadius: 4, padding: '3px 7px' }}>{l.stat}</span>
+        </button>
+      ))}
+    </div>
+  )
 }
 
 export default function Home({
@@ -735,14 +794,11 @@ export default function Home({
             </>
           )}
         </h1>
-        <div style={{ fontSize: 12, color: C.text2, margin: '0 0 8px', fontWeight: 600 }}>
-          {hello} {icon} — {empty
-            ? 'the bot posts the board once tonight\u2019s card is final.'
-            : isLive
-              ? 'every pick on this page is being graded in public, right now.'
-              : slateInPast
-                ? 'the receipts are at the foot of this page.'
-                : 'every pick is graded in public, receipts at the foot of this page.'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 10px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.orange, border: `1px solid ${C.orange}55`, background: `${C.orange}12`, borderRadius: 3, padding: '2px 7px' }}>{icon} {hello}</span>
+          <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
+            {empty ? 'board posts when tonight\u2019s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? 'final · every pick graded' : 'the sheet is set · every pick graded in public'}
+          </span>
         </div>
         {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
             The old body was the same mission statement every single day —
@@ -799,26 +855,29 @@ export default function Home({
           </div>
         )}
 
-        <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.75, maxWidth: 720 }}>
-          {empty ? (
-            'No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands; no refresh ritual required.'
-          ) : (
-            <>
-              {isLive && homersSoFar > 0 && <><b style={{ color: C.orange }}>⚡ {homersSoFar} already gone tonight.</b>{' '}</>}
-              {headline && <>The game to circle is <Fig>{clean(headline.g.away, '?')} @ {clean(headline.g.home, '?')}</Fig>, immediately below.{' '}</>}
-              {record
-                ? <>Every pick is graded in public — the receipts are at the foot of this page.</>
-                : <>Every pick is graded in public, but the archive hasn&apos;t published a base-hit accuracy yet — the receipts door at the foot of this page still has every graded night.</>}
-            </>
-          )}
-        </div>
-        {/* the living line — rotates through real facts about tonight */}
+        {/* ── THE RUNDOWN (2026-09-06) ─────────────────────────────────────
+            Donovan: "I feel that should be the best place for quick picks and
+            looks ... vintage SportsCenter vibe." So the paragraph of mission
+            statement is gone and the hero's body is a rundown -- the top of
+            the show: five numbered looks, each a name and one reason, each a
+            tap to open. Every look is a field already on this page. The
+            rotating line survives as the crawl underneath. */}
+        {empty ? (
+          <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.75, maxWidth: 720 }}>
+            No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands.
+          </div>
+        ) : (
+          <Rundown players={players} headline={headline} results={results} isLive={isLive} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
+        )}
+        {/* the crawl — rotates through tonight's storylines */}
         {pulse && (
           <div key={pulse} style={{
-            marginTop: 12, fontSize: 11, color: C.text2, fontFamily: NUM_FONT,
-            borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, lineHeight: 1.5,
+            marginTop: 12, display: 'flex', alignItems: 'stretch', overflow: 'hidden', borderRadius: 4,
             animation: 'homeFade .5s ease both',
-          }}>{pulse}</div>
+          }}>
+            <span style={{ background: C.orange, color: C.bg, fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, padding: '6px 8px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>CRAWL</span>
+            <span style={{ flex: 1, minWidth: 0, background: `${C.orange}12`, borderTop: `1px solid ${C.orange}33`, borderBottom: `1px solid ${C.orange}33`, fontSize: 11, color: C.text, fontFamily: NUM_FONT, padding: '6px 10px', lineHeight: 1.5 }}>{pulse}</span>
+          </div>
         )}
       </div>
 
