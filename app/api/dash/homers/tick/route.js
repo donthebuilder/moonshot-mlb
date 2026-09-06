@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, homersFrom, hooksFor, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { boardIndexFrom, captureFrom, homersFrom, hooksFor, monthlyText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard } from '../../../../../lib/dash/homerCard'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -236,6 +236,33 @@ async function postRecap(db, day, { force = false } = {}) {
             else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
           }
           await db.from('homer_feed_posts').update(patch).match({ day, kind: 'weekly' })
+        }
+      }
+      // THE 1ST OF THE MONTH: the month just finished, TOP/HR/HR Watch
+      // broken out (Donovan: "all three vs homerun on the month"). Same
+      // claim-first shape as weekly/pregame -- a failed half never blocks a
+      // retry, and this can never double-post for the same month.
+      if (new Date(`${day}T12:00:00Z`).getUTCDate() === 1) {
+        const { data: mo } = await db
+          .from('homer_feed_posts')
+          .upsert([{ day, kind: 'monthly', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+          .select('day')
+        if (mo?.length) {
+          const prevLastDay = shiftDay(day, -1)
+          const monthFrom = `${prevLastDay.slice(0, 7)}-01`
+          const { data: monthRows } = await db.from('homer_feed').select('day,role').gte('day', monthFrom).lte('day', prevLastDay)
+          const monthLabel = new Date(`${monthFrom}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+          const mtext = monthlyText(monthRows || [], { month: monthLabel, ...TAIL })
+          const mc = captureFrom(monthRows || [])
+          const patch = { payload: { from: monthFrom, to: prevLastDay, called: mc.called, total: mc.total } }
+          const d = await postToDiscord(mtext)
+          if (d.ok) patch.discord_sent = true
+          if (xOn) {
+            const r = await postToX(mtext)
+            if (r.ok && r.id) patch.x_post_id = r.id
+            else console.error(`[homers] monthly refused: ${r.status} ${r.error}`)
+          }
+          await db.from('homer_feed_posts').update(patch).match({ day, kind: 'monthly' })
         }
       }
     }
