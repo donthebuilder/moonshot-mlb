@@ -369,6 +369,7 @@ export async function GET(request) {
     const ev = { ...row, _roles: live?._roles || row.role || '' }
     const text = postText(ev, TAIL)
     const patch = {}
+    let stopTick = false
 
     if (DISCORD_ON && !row.discord_sent) {
       const r = await postToDiscord(text, { imageUrl: cardUrl(row) })
@@ -377,17 +378,50 @@ export async function GET(request) {
     const wantsX = xOn && (MODE === 'all' || Boolean(row.role))
     if (!row.x_post_id) {
       if (wantsX) {
-        // Card first, then the post with it attached. Either half of the
-        // image step failing degrades to a text post, never to no post.
-        const png = await bytesOf(() => homerCard(ev, { site: SITE_HOST }))
-        const mediaId = png ? await uploadImageToX(png) : null
-        const r = await postToX(text, { mediaId, quoteId: quoteFor(row) })
-        if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
-        else {
-          totals.xFailed += 1
-          console.error(`[homers] X refused ${row.name}: ${r.status} ${r.error}`)
-          // A quota or auth refusal will refuse every row; stop spending the tick.
-          if (r.status === 429 || r.status === 401 || r.status === 403) break
+        // CLAIM BEFORE POSTING (2026-09-06). This used to SELECT the pending
+        // rows, then post to X, then write x_post_id back -- three separate
+        // round trips with a real network call to X sitting in the middle.
+        // A card render + image upload + post that is still running when the
+        // next minute's cron starts finds the SAME row still at x_post_id
+        // null and posts it again -- Donovan caught this live, two homers
+        // doubled on X.
+        //
+        // The fix is a conditional UPDATE ... WHERE x_post_id IS NULL before
+        // any of that work happens: the same insert-and-see-what-stuck shape
+        // every other dedupe in this file already uses, just against an
+        // UPDATE instead of an INSERT. Only the tick that actually flips the
+        // null to a sentinel gets to post this row; a tick racing it for the
+        // same row gets zero rows back from `.select()` and leaves it alone.
+        const { data: claim } = await db
+          .from('homer_feed')
+          .update({ x_post_id: 'posting' })
+          .match({ day, player_id: row.player_id, hr_n: row.hr_n })
+          .is('x_post_id', null)
+          .select('player_id')
+        if (claim?.length) {
+          // Card first, then the post with it attached. Either half of the
+          // image step failing degrades to a text post, never to no post.
+          const png = await bytesOf(() => homerCard(ev, { site: SITE_HOST }))
+          const mediaId = png ? await uploadImageToX(png) : null
+          const r = await postToX(text, { mediaId, quoteId: quoteFor(row) })
+          if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
+          else {
+            totals.xFailed += 1
+            console.error(`[homers] X refused ${row.name}: ${r.status} ${r.error}`)
+            // A refused post is not a posted post -- release the claim so the
+            // next tick retries instead of the sentinel hiding this homer
+            // forever. (One gap left on purpose: a run killed by the 60s
+            // limit between the claim above and this line leaves the row
+            // stuck at 'posting' rather than retried. Rare, and the recovery
+            // is the same as any other stuck row here — a manual UPDATE
+            // clearing x_post_id — rather than something worth a second
+            // moving part for.)
+            patch.x_post_id = null
+            // A quota or auth refusal will refuse every row; stop spending
+            // the tick, but only once this row's own patch (the claim
+            // release) is written below.
+            if (r.status === 429 || r.status === 401 || r.status === 403) stopTick = true
+          }
         }
       } else if (xOn) {
         // Not going to X by policy (flagged mode, no role) — mark it so it
@@ -399,6 +433,7 @@ export async function GET(request) {
     if (Object.keys(patch).length) {
       await db.from('homer_feed').update(patch).match({ day, player_id: row.player_id, hr_n: row.hr_n })
     }
+    if (stopTick) break
   }
 
   // ── 4. the recap, once, when the night is over ───────────────────────────
