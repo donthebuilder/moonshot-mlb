@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -499,11 +499,54 @@ export async function GET(request) {
       ])
       const partner = partnerFor(pairs, ev.player_id, ev.name)
       const hooks = hooksFor(ev, { pairs, board, todayIds, yesterdayIds, history: hist || [], jersey, birthDate, pairedEarlier: tonightRows || [], topStraight })
-      const stats = { ...(ev.stats || {}), jersey }
+      const stats = { ...(ev.stats || {}), jersey, birthDate }
       ev.hooks = hooks
       ev.stats = stats
       ev.partner_id = partner?.id || null
       await db.from('homer_feed').update({ hooks, stats, partner_id: ev.partner_id }).match({ day, player_id: ev.player_id, hr_n: ev.hr_n })
+    }
+  }
+
+  // ── 2.5. the numerology moment, checked every tick, posted at most once ──
+  //
+  // Unlike pairswatch/longshot (pregame, off the published board), this
+  // depends on homers that have ACTUALLY happened tonight, so it reads back
+  // every one of today's rows -- not just this tick's fresh ones -- and
+  // re-checks as the night's homer count grows. Same one-claim-per-day
+  // pattern as every other kind on homer_feed_posts.
+  {
+    const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,hr_n,stats').eq('day', day)
+    const moment = numerologyMoment(dayRows || [])
+    if (moment) {
+      const { data: claim } = await db
+        .from('homer_feed_posts')
+        .upsert([{ day, kind: 'numerology', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+        .select('day')
+      if (claim?.length) {
+        const text = numerologyText(moment, { day, ...TAIL })
+        const patch = { payload: { moment } }
+        const d = await postToDiscord(text)
+        if (d.ok) patch.discord_sent = true
+        if (hasX()) {
+          const cardLabel = moment.tier === 'trifecta' ? 'TRIFECTA' : moment.tier === 'jersey' ? 'JERSEY MATCH' : 'CLUSTER'
+          const cardHeadline = moment.tier === 'jersey'
+            ? moment.players.map((p) => p.name).join(' & ')
+            : moment.players.slice(0, 4).map((p) => p.name).join(', ')
+          const cardLines = moment.tier === 'trifecta'
+            ? [`#${moment.players[0].jersey} · HR #${moment.players[0].nth} · born on the digit root ${moment.root}`]
+            : moment.tier === 'jersey'
+              ? [`Both wearing #${moment.jersey}, both deep tonight`]
+              : [`${moment.players.length} homers, jersey digit root ${moment.root}`]
+          const png = await bytesOf(() => statCard(day, {
+            pill: 'NUMEROLOGY', label: cardLabel, headline: cardHeadline, lines: cardLines,
+          }, { site: SITE_HOST }))
+          const mediaId = png ? await uploadImageToX(png) : null
+          const r = await postToX(text, { mediaId })
+          if (r.ok && r.id) patch.x_post_id = r.id
+          else console.error(`[homers] numerology refused: ${r.status} ${r.error}`)
+        }
+        await db.from('homer_feed_posts').update(patch).match({ day, kind: 'numerology' })
+      }
     }
   }
 
