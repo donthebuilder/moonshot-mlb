@@ -485,10 +485,19 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             header's own height ever changing gradually. display:none, NOT
             unmounted — SlateTiles owns polling state and a remount would
             re-derive it; the facts are one scroll-up away. */}
+        {/* ── THE TICKER STOPS SHORT OF THE CLOCK (2026-09-06) ────────────
+            Donovan's screenshot: the moving tiles ran straight into the clock
+            and the pause button sat on top of the last tile, so the row read
+            as two things overlapping. The strip now fades out at both edges
+            (a mask, so nothing is clipped hard) and keeps 14px clear of the
+            meta cluster, which is separated by a hairline. */}
         <div className="hdr-vitals" style={{
           display: condensed ? 'none' : 'flex',
           alignItems:'center', justifyContent:'center',
           gap:6, flexWrap:'wrap', flex:'1 1 480px', minWidth:0,
+          marginRight: 14,
+          WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 56px), transparent)',
+          maskImage: 'linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 56px), transparent)',
         }}>
           <SlateTiles
             players={players}
@@ -501,13 +510,13 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
           />
         </div>
 
-        <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, paddingLeft: 12, borderLeft:`1px solid ${C.border}` }}>
           <div className="date-badge"><DateBadge label={dateLabel || 'Loading…'} /></div>
           {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. This is
               the one thing in the header that says an account exists; /login
               itself no-ops back to `next` if you're already signed in, so
               this needs no session check of its own. */}
-          <SignUpPill />
+          <SignUpPill onWatchlist={() => go('you')} />
           {/* PALETTE, GLOBAL (2026-08-10). It used to live in the Guide tab and
               on the heat map legend only — two clicks away from the board you
               are squinting at. It is a view setting, so it sits with the other

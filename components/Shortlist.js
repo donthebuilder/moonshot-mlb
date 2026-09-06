@@ -8,6 +8,7 @@ import { hitterArchetype, marketFamily, primaryRole } from '../lib/verdict'
 import { catColor } from '../lib/scales'
 import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
+import { categoryColumns, categoryValues } from '../lib/categoryColumns'
 import { Empty } from './ui'
 import { DIV_FIELD } from '../lib/scales'
 import { rolesOf } from '../lib/hrGate'
@@ -80,6 +81,10 @@ const PACKS = [
 // Rates publish as fractions (barrel .267 max, hard-hit .759 max); printed as
 // whole percents because nobody reads a barrel rate as ".04".
 const pct1 = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
+
+// Already on this table under its own names: HRW, ISO, K%, the locked L5
+// line, park. The shared set adds the rest of the TOP set after them.
+const SHORTLIST_OMIT = ['hrw', 'iso', 'k', 'hrL5', 'xbh5', 'pHR9', 'hrBBE']
 
 export default function Shortlist({ players = [], odds = null, onPlayerClick, onWatch, watchIds = null }) {
   const [view, setView] = useState('profile')
@@ -192,6 +197,9 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           team: teamOf(p),
           opp: oppOf(p),
           type: arch.label,
+          // THE TOP-PICK STAT SET (2026-09-06) -- lib/categoryColumns.js; the
+          // shortlist is every category's best, so it wears the TOP set.
+          ...categoryValues(p, 'top', { omit: SHORTLIST_OMIT }),
           _typeColor: archColor,
           _typeTitle: `${arch.label} — ${arch.why}`
             + `\nRead in his ${fam === 'HR' ? 'home-run' : fam === 'HIT' ? '1+ hit' : fam === 'HRR' ? 'H+R+RBI' : 'total-bases'} lane.`
@@ -538,6 +546,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
               title: 'Tonight’s park home-run factor. 1.00 is neutral; above it the yard helps, below it the yard takes homers away. Narrow by nature — the whole league runs about 0.87 to 1.09.',
               fmt: (v) => (v == null ? '—' : v.toFixed(2)) },
           ]),
+          ...categoryColumns('top', { omit: SHORTLIST_OMIT }),
           { key: 'price', label: 'Price', heat: false, w: 56, mono: true,
             fmt: (v, r) => r.priceTxt,
             title: 'The book’s 1+ HR price. ≠ means the book is on a different line — a multi-homer bet, not this one.' },

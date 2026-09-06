@@ -54,7 +54,19 @@ export async function GET(request) {
 
   const state = {}
   for (const row of data || []) state[row.key] = { value: row.value, updatedAt: row.updated_at }
-  return Response.json({ signedIn: true, configured: true, state })
+
+  // WHO YOU ARE (2026-09-06). The header's account pill used to be a static
+  // "Sign up" whether or not you had -- Donovan: "once signed up make it
+  // like your account name or something of the sorts." The same fetch the
+  // sync layer already makes on every load now carries the display name, so
+  // the pill needs no second request and no client-side Supabase.
+  let name = user.user_metadata?.display_name || ''
+  try {
+    const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle()
+    if (profile?.display_name) name = profile.display_name
+  } catch { /* the pill falls back to the email prefix */ }
+  const who = { name, email: user.email || '' }
+  return Response.json({ signedIn: true, configured: true, state, who })
 }
 
 export async function PUT(request) {

@@ -14,6 +14,7 @@ import DenseTable from '../DenseTable'
 import { heatModeFromUrl } from '../../lib/heatMode'
 import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { SCORE } from '../../lib/scales'
+import { categoryColumns, categoryValues } from '../../lib/categoryColumns'
 import { downloadBoardCard } from '../shareCard'
 
 // The nine inputs the old profile grid drew as columns. They are not drawn
@@ -70,6 +71,13 @@ function fetchMatrix() {
 }
 // Which archive category answers for each board type.
 const ARCHIVE_CAT = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }
+
+// Columns this board already draws under its own names, so the shared set
+// skips them rather than printing HRW or the arm's HR/9 twice.
+const CAT_OMIT = {
+  default: ['hrw', 'pHR9', 'hrsc'],
+  hr: ['hrw', 'pHR9', 'hrsc', 'iso'],
+}
 
 export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60, slateDate = null, filterState = null, setupHomers }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
@@ -280,6 +288,9 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               // on 0 tracked batted balls" on a row that has no sample to
               // describe. Absent stays absent.
               hr9Bbe: Number.isFinite(Number(p?.pitcher_xhr_bbe)) ? Number(p.pitcher_xhr_bbe) : null,
+              // THE CATEGORY'S OWN STAT SET (2026-09-06) -- lib/categoryColumns.js.
+              // Same keys, same order, on every table that shows this category.
+              ...categoryValues(p, type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
             }
           })}
           columns={[
@@ -364,6 +375,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                   </span>
                 )
               } },
+            ...categoryColumns(type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
           ]}
           onRowClick={onPlayerClick}
           initialSort={type === 'hr' ? 'raw' : null}

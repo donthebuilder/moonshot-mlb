@@ -299,6 +299,13 @@ const buildColumns = (onWatch, dhOn = false) => [
   { key: 'avg',     label: 'AVG',    w: 50, dp: 3, scale: 'div', anchor: LG.avg, ceiling: 0.080,
     anchorLabel: `league ${LG.avg.toFixed(3).replace(/^0/, '')}`,
     title: `Season batting average, against a league mark of ${LG.avg.toFixed(3).replace(/^0/, '')}. ▲ above it, ▼ below, blank when he is league-average — which is a fact about him, not a finding.` },
+  // L5 / L10 AVG (2026-09-06) -- Donovan: "we need like last 5 BA and last
+  // 10 BA, I like those stats, we need those across the board." Same fields
+  // the game lineup table reads (last5_avg / last10_avg), printed plain.
+  { key: 'a5',      label: 'L5 AVG',  w: 54, heat: false, mono: true, fmt: (v) => (v == null ? '—' : Number(v).toFixed(3).replace(/^0/, '')),
+    title: 'Batting average over his last five games' },
+  { key: 'a10',     label: 'L10 AVG', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : Number(v).toFixed(3).replace(/^0/, '')),
+    title: 'Batting average over his last ten games' },
   { key: 'obp',     label: 'OBP',    w: 50, dp: 3, scale: 'div', anchor: LG.obp, ceiling: 0.080,
     anchorLabel: `league ${LG.obp.toFixed(3).replace(/^0/, '')}`,
     title: `Season on-base percentage, against a league mark of ${LG.obp.toFixed(3).replace(/^0/, '')}.` },
@@ -526,6 +533,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       hrr: prodScore(p),
       hit: hitScore(p),
       avg: n(p?.season_avg, 0),
+      a5: n(p?.last5_avg, null),
+      a10: n(p?.last10_avg, null),
       obp: n(p?.season_obp, 0),
       vsHand: matchupAvg(p) ?? 0,
       rbiScore: rbiScore(p),

@@ -100,8 +100,18 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
   const behind = daysBetween(expected, slateDate)
   if (behind <= 0) return null   // current, or ahead — nothing to say
 
-  const early = behind === 1 && now.hour < 9
-  const col = early ? '#FCD34D' : '#f87171'
+  // ── THE BASEBALL DAY DOES NOT END AT MIDNIGHT (2026-09-06) ──────────────
+  // Donovan, 9:16pm in Phoenix on Sep 5, with West-coast games still on:
+  // "Tonight's slate hasn't published yet · 1 day behind". It was 00:16 ET,
+  // so the ET date had rolled to Sep 6 and the Sep 5 slate -- the correct,
+  // current one -- was being called stale. A slate dated yesterday is the
+  // right slate to be showing until the morning build replaces it; the old
+  // 9am cutoff only softened the wording, it still put a banner on the page.
+  // Now: one day behind before 10am ET says nothing at all. After 10am ET
+  // the build is genuinely late and the banner is right to say so.
+  if (behind === 1 && now.hour < 10) return null
+  const early = false
+  const col = '#f87171'
 
   return (
     <div style={{

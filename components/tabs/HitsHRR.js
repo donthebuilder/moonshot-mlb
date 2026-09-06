@@ -10,7 +10,8 @@ import GapBoard from './GapBoard'
 import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
-import HitterHeat from '../HitterHeat'
+// HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
+// "I don't like those ones." The cards below carry the same names.
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
 import { useSetupHomers, useBackToBack, B2B_VALIDATED } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
@@ -241,15 +242,6 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
 
   return (
     <div style={{ marginBottom: 18 }}>
-      {/* The cards below say who qualified. This says whether they qualified
-          for the same reason -- a category where every name is carried by one
-          column is a category worth distrusting. */}
-      <HitterHeat
-        players={ws}
-        type="hr"
-        title="Weak spot matchups"
-        onPlayerClick={onPlayerClick}
-      />
       <SectionHead
         color={C.yellow} icon="⭐" title="Weak Spot Matchups"
         rate="18.0% HR"
@@ -285,12 +277,6 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
       {/* The cards below say who qualified. This says whether they qualified
           for the same reason -- a category where every name is carried by one
           column is a category worth distrusting. */}
-      <HitterHeat
-        players={aligned}
-        type="hr"
-        title="Aligned signals"
-        onPlayerClick={onPlayerClick}
-      />
       <SectionHead
         color={C.purple} icon="🧩" title="Aligned Signals"
         rate="29.2% HR"
@@ -329,12 +315,6 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
       {/* The cards below say who qualified. This says whether they qualified
           for the same reason -- a category where every name is carried by one
           column is a category worth distrusting. */}
-      <HitterHeat
-        players={edge}
-        type="hr"
-        title="Matchup edge"
-        onPlayerClick={onPlayerClick}
-      />
       <SectionHead
         color={C.cyan} icon="🎯" title="Matchup Edge"
         rate="23.9% HR"

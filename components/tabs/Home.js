@@ -26,7 +26,6 @@ import Boxes from './Boxes'
 import MoneyAnswer from '../MoneyAnswer'
 import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'
-import MoneylineBoard from '../MoneylineBoard'
 
 // HOME — the front porch.
 //
@@ -1046,7 +1045,8 @@ export default function Home({
           is. It says "disagrees", not "picks", because the simulation says the
           model has no demonstrated edge — only a record being built in public. */}
       <Fold id="moneyline" title="💰 Where the model disagrees" meta="game lines vs the bot — logged and graded, not tipped">
-        <MoneylineBoard />
+        {/* MoneylineBoard was mounted here until 2026-09-06 -- Donovan: "if easy just remove". The
+            model and its log live on (bots/moneyline_bot.py, moneyline_board.json); only the panel is gone. */}
       </Fold>
 
       {/* ── 🎟 YOUR NIGHT — only exists when he made calls for this slate ── */}

@@ -461,7 +461,13 @@ export default function GameLineup({ players, onPlayerClick }) {
   // always one click away. Reversed: the full stat table is what opening a
   // game shows, the read is the pill. Nothing removed — same two views, the
   // other default.
-  const [shape, setShape] = useState('cards')
+  // ── (2026-09-06) TABLE, AGAIN, AND CARDS OFF THE PILL ROW ─────────────────
+  // Cards had crept back in as the default. Donovan: "make it so the full
+  // table opens when you look at the game, not the cards." Table is the
+  // default and the pill row offers Full table / Spot read; the card grid
+  // still renders if `shape` is ever set to 'cards' programmatically, but
+  // nothing on the page sets it any more.
+  const [shape, setShape] = useState('table')
 
   const teams = useMemo(
     () => Array.from(new Set(players.map(teamOf).filter(Boolean))).sort(),
@@ -580,9 +586,6 @@ export default function GameLineup({ players, onPlayerClick }) {
           </div>
         )}
         <div style={{ display: 'flex', gap: 4 }}>
-          {/* Cards first in the row too — the pill order matches the default. */}
-          <button onClick={(e) => { e.stopPropagation(); setShape('cards') }} style={pill(shape === 'cards')}
-            title="One card per hitter — the key numbers up front, everything else one tap away">Cards</button>
           <button onClick={(e) => { e.stopPropagation(); setShape('table') }} style={pill(shape === 'table')}
             title="The full dense lineup table — every column, sortable">Full table</button>
           <button onClick={(e) => { e.stopPropagation(); setShape('read') }} style={pill(shape === 'read')}

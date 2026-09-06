@@ -163,6 +163,18 @@ export default function MobileCSS() {
         .dense-scroll::-webkit-scrollbar { display: none; }
         .dense-scroll table { font-size: 10px !important; }
         .dense-scroll th, .dense-scroll td { padding: 5px 5px !important; }
+      }
+      /* -- PORTRAIT ZOOMS OUT (2026-09-06) --------------------------------
+         Donovan: "when in portrait I think the chart should be visually
+         smaller or zoom out more so we can see more." Every dense table
+         gained a category stat set today, so a phone held upright now
+         sees more columns per swipe: 9px type, tighter cells, and the
+         sticky name column narrowed. Landscape keeps the 10px rule above. */
+      @media (max-width: 860px) and (orientation: portrait) {
+        .dense-scroll table { font-size: 9px !important; }
+        .dense-scroll th, .dense-scroll td { padding: 4px 4px !important; }
+        .dense-scroll th { letter-spacing: 0 !important; }
+        .dense-scroll .dense-sticky { max-width: 108px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
         /* -- THE BOX SCORE, ON A PHONE (2026-09-01) ------------------------
            Measured at 375px once it was visible again: the batting table wants
