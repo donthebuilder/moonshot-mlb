@@ -31,6 +31,7 @@ import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { signOutEverywhere, updateDisplayName, updateEmail, updatePassword } from './actions'
 import { dashSignOut } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'
+import '../(front)/scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 
 export const metadata = { title: 'Your account · DASH Network' }
 export const dynamic = 'force-dynamic'

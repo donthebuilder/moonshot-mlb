@@ -42,6 +42,7 @@ import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { dashSignOut } from './actions'
 import styles from './dash.module.css'
+import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 
 export const metadata = {
   title: 'DASH Network — one network, three ways to play',

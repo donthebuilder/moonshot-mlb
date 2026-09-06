@@ -14,6 +14,7 @@ import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { dashResetPassword } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'
+import '../(front)/scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 
 export const metadata = { title: 'Set a new password · DASH Network' }
 export const dynamic = 'force-dynamic'

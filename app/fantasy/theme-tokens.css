@@ -1,0 +1,155 @@
+/* fantasy-theme-tokens.css — split out of fantasy.module.css on 2026-09-06
+ *
+ * A CSS Modules file (.module.css) has to pass css-loader's "pure selector"
+ * check: every rule needs at least one local (module-scoped) class or id.
+ * These rules never had one on purpose — :root, body, html[data-theme] and a
+ * few classnames applied outside the component tree (draft banners, the
+ * start-draft confirm) are meant to be genuinely global, which is exactly
+ * what :global() was saying. css-loader doesn't carve out an exception for
+ * "entirely global on purpose", so the build failed here and in
+ * app/(front)/dash.module.css (see scroll-anchor.css) on every run.
+ *
+ * Moving them to a plain, non-module stylesheet fixes the build without
+ * changing behavior: this file is imported once, from app/fantasy/layout.js,
+ * which already wraps every /fantasy route the same way fantasy.module.css
+ * itself reaches them.
+ */
+
+:root {
+  --fx-bg: #0b0b0a; /* page ground */
+  --fx-panel: #141311; /* raised card */
+  --fx-panel-2: #111; /* inner panel / list surface */
+  --fx-well: #0c0c0b; /* inset field */
+  --fx-row: #1a1917; /* raised row -- added 2026-09-03, see the note below */
+  --fx-line: #302d29; /* default border */
+  --fx-line-2: #34312f; /* border, slightly lighter */
+  --fx-line-3: #292826; /* hairline / divider */
+  --fx-ink: #f8f4ec; /* primary text */
+  --fx-ink-2: #d8d2c8; /* label text */
+  --fx-muted: #a9a39a; /* secondary text */
+  --fx-muted-2: #89847e; /* tertiary text */
+  --fx-muted-3: #85817c; /* tertiary text, cooler */
+  --fx-dim: #777; /* faded text / inactive icon */
+  --fx-gold: #f6a928; /* FRANCHISE accent */
+  --fx-accent: #ff9d42; /* warm accent / hover */
+  --fx-accent-hot: #ff633e; /* active accent, live states */
+  --fx-good: #18c878; /* positive / win / free agent */
+  --fx-info: #28b9e7; /* informational */
+  --fx-violet: #bd8dff; /* secondary data hue */
+}
+
+/* ── #76 · FRANCHISE FOLLOWS THE NETWORK'S THEME NOW ───────────────────────
+   The finding was "FRANCHISE is a visibly different design system from the
+   rest of the network." Most of that is IDENTITY — gold buttons, a warm
+   accent, its own chrome — and a product inside a network is allowed those.
+
+   One part was not a decision: FRANCHISE ignored the theme completely. Pick
+   Light and the whole site went pale while this stayed near-black, which is
+   the same defect lib/theme.js already documents about the Franchise dock.
+
+   THE REASON IT COULD NOT BE FIXED BEFORE. The tokens above only covered part
+   of the surface: 450 literal hex values sat in the rules, 184 of them dark.
+   Redefining tokens alone would have repainted the ground and left dozens of
+   dark patches on a pale page — worse than the honest inconsistency. So the
+   consolidation above had to come first, and now 141 of those literals are
+   tokens and this block is four lines of real work instead of a repaint.
+
+   WHAT MOVES AND WHAT DOES NOT. Only the neutrals flip. Gold, warm orange and
+   hot orange are what FRANCHISE looks like, so they are darkened just enough
+   to stay readable on white rather than replaced — this is FRANCHISE in
+   daylight, not a different product. Same for the three data hues, which fail
+   contrast on white at their dark-mode values and are the same hues, darker.
+
+   applyTheme() in lib/theme.js stamps html[data-theme]; there is exactly one
+   light palette among the five and the other four are near-black grounds
+   close enough to FRANCHISE's own that nothing reads as broken. */
+/* The page BODY belongs to app/globals.css, which paints var(--dash-bg,
+   #09090b) -- a MOONSHOT token that only exists once applyTheme() has run, and
+   applyTheme only runs on /app. So on a Franchise route the body has always
+   been MOONSHOT's ember ground with Franchise's own slightly different ground
+   painted on top of it, and in light mode it would have been a black frame
+   around a pale page. Franchise owns its own ground in both themes now. */
+body {
+  background: var(--fx-bg);
+  color: var(--fx-ink);
+}
+
+html[data-theme='light'] {
+  --fx-bg: #f1f1ef;
+  --fx-panel: #ffffff;
+  --fx-panel-2: #f8f8f6;
+  --fx-well: #eceae6;
+  --fx-row: #f4f3f0;
+  --fx-line: #d7d4ce;
+  --fx-line-2: #cbc7c0;
+  --fx-line-3: #e6e3dd;
+  --fx-ink: #16150f;
+  --fx-ink-2: #34322b;
+  --fx-muted: #5b584f;
+  --fx-muted-2: #6e6a60;
+  --fx-muted-3: #726e64;
+  --fx-dim: #8a867b;
+  /* Same hues, darkened until they clear 4.5:1 on the page ground — measured,
+     not eyeballed: gold and accent both landed at 3.89 and 4.45 on the first
+     pass and were taken down until they cleared. --fx-dim stays at 3.2 on
+     purpose; it is the faded/inactive tier and is never the only carrier of
+     anything. */
+  --fx-gold: #916503;
+  --fx-accent: #af540e;
+  --fx-accent-hot: #c0361a;
+  --fx-good: #0d7d4a;
+  --fx-info: #0b6f92;
+  --fx-violet: #6a3dc2;
+}
+
+/* == DRAFT NIGHT · start guard, reset, dismissible banner ================= */
+.draftBannerMessage,
+.draftBannerError {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font: 700 11px/1.4 monospace;
+}
+.draftBannerMessage { background: #17301e; color: #baf3c7; }
+.draftBannerError { background: #3b1714; color: #ffb3a7; }
+.draftBannerMessage button,
+.draftBannerError button {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: .65;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.startConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-width: 330px;
+  padding: 11px 12px;
+  border: 1px solid #6b3723;
+  border-radius: 10px;
+  background: #1d1108;
+}
+.startConfirm b { color: var(--fx-gold); font: 900 11px/1 monospace; }
+.startConfirm small { color: var(--fx-muted); font: 9px/1.5 monospace; }
+.startConfirm > span { display: flex; gap: 7px; }
+.startConfirm button[type="submit"] { background: #7a2f16; border-color: #a24521; color: #ffd9c4; }
+
+html[data-theme='light'] .draftBannerMessage {
+  background: hsl(137 19% 92%);
+}
+html[data-theme='light'] .draftBannerError {
+  background: hsl(5 27% 92%);
+}
+html[data-theme='light'] .startConfirm {
+  background: hsl(26 31% 93%);
+}
+html[data-theme='light'] .startConfirm button[type="submit"] {
+  background: hsl(15 38% 90%);
+}

@@ -8,6 +8,7 @@ import SubmitButton from '../../components/fantasy/SubmitButton'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { dashForgotPassword } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'
+import '../(front)/scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 
 export const metadata = { title: 'Reset your password · DASH Network' }
 export const dynamic = 'force-dynamic'

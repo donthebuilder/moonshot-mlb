@@ -16,92 +16,7 @@
    look pass"; it happened because it is the thing that was blocking #76.
    ========================================================================= */
 
-:global(:root) {
-  --fx-bg: #0b0b0a; /* page ground */
-  --fx-panel: #141311; /* raised card */
-  --fx-panel-2: #111; /* inner panel / list surface */
-  --fx-well: #0c0c0b; /* inset field */
-  --fx-row: #1a1917; /* raised row -- added 2026-09-03, see the note below */
-  --fx-line: #302d29; /* default border */
-  --fx-line-2: #34312f; /* border, slightly lighter */
-  --fx-line-3: #292826; /* hairline / divider */
-  --fx-ink: #f8f4ec; /* primary text */
-  --fx-ink-2: #d8d2c8; /* label text */
-  --fx-muted: #a9a39a; /* secondary text */
-  --fx-muted-2: #89847e; /* tertiary text */
-  --fx-muted-3: #85817c; /* tertiary text, cooler */
-  --fx-dim: #777; /* faded text / inactive icon */
-  --fx-gold: #f6a928; /* FRANCHISE accent */
-  --fx-accent: #ff9d42; /* warm accent / hover */
-  --fx-accent-hot: #ff633e; /* active accent, live states */
-  --fx-good: #18c878; /* positive / win / free agent */
-  --fx-info: #28b9e7; /* informational */
-  --fx-violet: #bd8dff; /* secondary data hue */
-}
-
-/* ── #76 · FRANCHISE FOLLOWS THE NETWORK'S THEME NOW ───────────────────────
-   The finding was "FRANCHISE is a visibly different design system from the
-   rest of the network." Most of that is IDENTITY — gold buttons, a warm
-   accent, its own chrome — and a product inside a network is allowed those.
-
-   One part was not a decision: FRANCHISE ignored the theme completely. Pick
-   Light and the whole site went pale while this stayed near-black, which is
-   the same defect lib/theme.js already documents about the Franchise dock.
-
-   THE REASON IT COULD NOT BE FIXED BEFORE. The tokens above only covered part
-   of the surface: 450 literal hex values sat in the rules, 184 of them dark.
-   Redefining tokens alone would have repainted the ground and left dozens of
-   dark patches on a pale page — worse than the honest inconsistency. So the
-   consolidation above had to come first, and now 141 of those literals are
-   tokens and this block is four lines of real work instead of a repaint.
-
-   WHAT MOVES AND WHAT DOES NOT. Only the neutrals flip. Gold, warm orange and
-   hot orange are what FRANCHISE looks like, so they are darkened just enough
-   to stay readable on white rather than replaced — this is FRANCHISE in
-   daylight, not a different product. Same for the three data hues, which fail
-   contrast on white at their dark-mode values and are the same hues, darker.
-
-   applyTheme() in lib/theme.js stamps html[data-theme]; there is exactly one
-   light palette among the five and the other four are near-black grounds
-   close enough to FRANCHISE's own that nothing reads as broken. */
-/* The page BODY belongs to app/globals.css, which paints var(--dash-bg,
-   #09090b) -- a MOONSHOT token that only exists once applyTheme() has run, and
-   applyTheme only runs on /app. So on a Franchise route the body has always
-   been MOONSHOT's ember ground with Franchise's own slightly different ground
-   painted on top of it, and in light mode it would have been a black frame
-   around a pale page. Franchise owns its own ground in both themes now. */
-:global(body) {
-  background: var(--fx-bg);
-  color: var(--fx-ink);
-}
-
-:global(html[data-theme='light']) {
-  --fx-bg: #f1f1ef;
-  --fx-panel: #ffffff;
-  --fx-panel-2: #f8f8f6;
-  --fx-well: #eceae6;
-  --fx-row: #f4f3f0;
-  --fx-line: #d7d4ce;
-  --fx-line-2: #cbc7c0;
-  --fx-line-3: #e6e3dd;
-  --fx-ink: #16150f;
-  --fx-ink-2: #34322b;
-  --fx-muted: #5b584f;
-  --fx-muted-2: #6e6a60;
-  --fx-muted-3: #726e64;
-  --fx-dim: #8a867b;
-  /* Same hues, darkened until they clear 4.5:1 on the page ground — measured,
-     not eyeballed: gold and accent both landed at 3.89 and 4.45 on the first
-     pass and were taken down until they cleared. --fx-dim stays at 3.2 on
-     purpose; it is the faded/inactive tier and is never the only carrier of
-     anything. */
-  --fx-gold: #916503;
-  --fx-accent: #af540e;
-  --fx-accent-hot: #c0361a;
-  --fx-good: #0d7d4a;
-  --fx-info: #0b6f92;
-  --fx-violet: #6a3dc2;
-}
+/* fantasy-theme-tokens.css: :root tokens, body, html[data-theme='light'] moved here (css-loader pure-selector fix, 2026-09-06) */
 
 
 /* == SHELL · signed-in dashboard ========================================= */
@@ -5249,44 +5164,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font: 9px/1.4 monospace;
 }
 
-/* == DRAFT NIGHT · start guard, reset, dismissible banner ================= */
-:global(.draftBannerMessage),
-:global(.draftBannerError) {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 12px;
-  padding: 11px 14px;
-  border-radius: 10px;
-  font: 700 11px/1.4 monospace;
-}
-:global(.draftBannerMessage) { background: #17301e; color: #baf3c7; }
-:global(.draftBannerError) { background: #3b1714; color: #ffb3a7; }
-:global(.draftBannerMessage) button,
-:global(.draftBannerError) button {
-  margin-left: auto;
-  border: 0;
-  background: none;
-  color: inherit;
-  opacity: .65;
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-:global(.startConfirm) {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  max-width: 330px;
-  padding: 11px 12px;
-  border: 1px solid #6b3723;
-  border-radius: 10px;
-  background: #1d1108;
-}
-:global(.startConfirm) b { color: var(--fx-gold); font: 900 11px/1 monospace; }
-:global(.startConfirm) small { color: var(--fx-muted); font: 9px/1.5 monospace; }
-:global(.startConfirm) > span { display: flex; gap: 7px; }
-:global(.startConfirm) button[type="submit"] { background: #7a2f16; border-color: #a24521; color: #ffd9c4; }
+/* fantasy-theme-tokens.css: draft banner + start-confirm rules moved here (css-loader pure-selector fix, 2026-09-06) */
 .roomApp .commishBar button[data-short="true"] { border-color: #6b3723; color: var(--fx-gold); }
 
 .resetZone {
@@ -5555,18 +5433,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 :global(html[data-theme='light']) .roomApp .reactionBar .reacted {
   background: hsl(30 21% 93%);
 }
-:global(html[data-theme='light']) :global(.draftBannerMessage) {
-  background: hsl(137 19% 92%);
-}
-:global(html[data-theme='light']) :global(.draftBannerError) {
-  background: hsl(5 27% 92%);
-}
-:global(html[data-theme='light']) :global(.startConfirm) {
-  background: hsl(26 31% 93%);
-}
-:global(html[data-theme='light']) :global(.startConfirm) button[type="submit"] {
-  background: hsl(15 38% 90%);
-}
+/* fantasy-theme-tokens.css: light-theme overrides for .draftBannerMessage/.draftBannerError/.startConfirm moved here (css-loader pure-selector fix, 2026-09-06) */
 :global(html[data-theme='light']) .resetZone button {
   background: hsl(30 21% 93%);
 }

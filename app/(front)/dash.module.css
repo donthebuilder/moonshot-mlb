@@ -48,13 +48,7 @@
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
 }
-/* ── ANCHORS HAVE TO CLEAR THE STICKY BAR ────────────────────────────────────
-   The other half of the same render. Every nav item on this page is a #hash,
-   and the moment the header became sticky each one scrolled its target UNDER
-   the header — so clicking "Create account" put the top of the auth card, tabs
-   and all, behind the logo. One line, and it fixes every anchor on the page
-   including the bare #create-account span inside the card. */
-:global(html) { scroll-padding-top: 84px; }
+/* scroll-anchor.css: html { scroll-padding-top: 84px } moved here (css-loader pure-selector fix, 2026-09-06) */
 /* The brand is a link on every other surface of the network as of 2026-08-31
    (components/Header.js, components/nfl/NflHeader.js). It was a bare <div>
    here — on the one page where a lost person is most likely to reach for it. */

@@ -1,0 +1,16 @@
+/* scroll-anchor.css — split out of dash.module.css on 2026-09-06
+ * Same css-loader "pure selector" problem as fantasy/theme-tokens.css: a
+ * CSS Modules rule that is entirely :global() with no local class fails the
+ * build. This one line was always meant to apply to <html>, unscoped, so it
+ * lives here as plain CSS instead. Imported from every file that used to
+ * pull it in via dash.module.css: app/(front)/page.js, app/login/page.js,
+ * app/account/page.js, app/forgot-password/page.js, app/reset-password/page.js.
+ */
+
+/* ── ANCHORS HAVE TO CLEAR THE STICKY BAR ────────────────────────────────────
+   The other half of the same render. Every nav item on this page is a #hash,
+   and the moment the header became sticky each one scrolled its target UNDER
+   the header — so clicking "Create account" put the top of the auth card, tabs
+   and all, behind the logo. One line, and it fixes every anchor on the page
+   including the bare #create-account span inside the card. */
+html { scroll-padding-top: 84px; }

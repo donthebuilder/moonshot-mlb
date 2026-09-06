@@ -23,8 +23,16 @@
 import fs from 'node:fs'
 import postcss from 'postcss'
 
-const FILE = 'app/fantasy/fantasy.module.css'
-const root = postcss.parse(fs.readFileSync(FILE, 'utf8'))
+const FILES = [
+  'app/fantasy/fantasy.module.css',
+  // 2026-09-06: the :root / body / html[data-theme='light'] token blocks and
+  // a few genuinely-global classnames (draft banner, start-confirm) moved
+  // here so fantasy.module.css passes css-loader's pure-selector check. The
+  // theme guarantee this script checks now lives across both files.
+  'app/fantasy/theme-tokens.css',
+]
+const css = FILES.map((f) => fs.readFileSync(f, 'utf8')).join('\n')
+const root = postcss.parse(css)
 
 const rgb = (h) => {
   h = h.replace('#', '')
@@ -35,6 +43,12 @@ const rgb = (h) => {
 const lum = (h) => { const [r, g, b] = rgb(h); return 0.299 * r + 0.587 * g + 0.114 * b }
 const sat = (h) => { const [r, g, b] = rgb(h); return Math.max(r, g, b) - Math.min(r, g, b) }
 const isLightRule = (sel) => sel.includes("data-theme='light'") || sel.includes('data-theme="light"')
+// 2026-09-06: theme-tokens.css holds these same rules as plain CSS (no
+// :global() — that syntax is CSS-Modules-only and invalid outside it), while
+// fantasy.module.css's remaining rules still carry it. Normalize both sides
+// before comparing so a selector's coverage doesn't depend on which of the
+// two files it happens to live in.
+const norm = (sel) => sel.replace(/:global\(([^)]*)\)/g, '$1').replace(/\s+/g, ' ').trim()
 
 const paints = (p) => p === 'background' || p.startsWith('background-') || p === 'fill'
 
@@ -58,7 +72,7 @@ root.walkDecls((d) => {
   // surfaces as uncovered, and would have sent me rewriting a block that was
   // already correct. A checker that cannot see the fix is worse than none.
   if (isLightRule(sel)) {
-    if (paints(prop)) sel.split(',').forEach((s) => covered.add(`${s.trim()}|${prop}`))
+    if (paints(prop)) sel.split(',').forEach((s) => covered.add(`${norm(s.trim())}|${prop}`))
     return
   }
   // Hex AND rgb()/rgba(). The first version knew only hex and so walked past
@@ -77,7 +91,7 @@ root.walkDecls((d) => {
   if (!paints(prop) || media) return
   const rgbDark = rgbs.some(([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b < 75)
   if (hexes.some((h) => lum(h) < 75) || rgbDark) {
-    sel.split(',').forEach((s) => dark.push({ key: `:global(html[data-theme='light']) ${s.trim()}|${prop}`, sel: s.trim(), prop, line: d.source.start.line }))
+    sel.split(',').forEach((s) => dark.push({ key: `${norm("html[data-theme='light'] " + s.trim())}|${prop}`, sel: s.trim(), prop, line: d.source.start.line }))
   }
 })
 
@@ -99,7 +113,6 @@ if (orphans.length) {
 }
 
 // The light token blocks themselves must exist, or none of the above matters.
-const css = fs.readFileSync(FILE, 'utf8')
 for (const need of ["--fx-bg: #f1f1ef", "--fx-s0: #f1f1ef"]) {
   if (!css.includes(need)) { bad++; console.log(`MISS the light palette is missing (${need})`) }
 }

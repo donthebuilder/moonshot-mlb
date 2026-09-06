@@ -36,6 +36,8 @@ import NetworkSwitch from '../../components/NetworkSwitch'
 // #76: stamps html[data-theme] on Franchise routes. Without it every light
 // rule in fantasy.module.css matches nothing — see ThemeSync.js.
 import ThemeSync from '../../components/fantasy/ThemeSync'
+// css-loader pure-selector fix, 2026-09-06 — see theme-tokens.css's own header
+import './theme-tokens.css'
 
 export default function FantasyLayout({ children }) {
   return (
