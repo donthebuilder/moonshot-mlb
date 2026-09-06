@@ -105,9 +105,18 @@ export default async function LeagueRoom({ params, searchParams }) {
   // Round-1 order as team rows, straight off the stored order the draft was
   // built from -- not re-derived from picks, so it is visible before the first
   // pick exists and cannot drift from what the server actually snaked.
-  const orderTeams = (Array.isArray(draft?.order_team_ids) ? draft.order_team_ids : [])
-    .map((id) => teams.find((team) => team.id === id))
-    .filter(Boolean)
+  const storedOrderIds = Array.isArray(draft?.order_team_ids) ? draft.order_team_ids : []
+  const orderTeamsRaw = storedOrderIds.map((id) => teams.find((team) => team.id === id)).filter(Boolean)
+  // The stored order must cover EVERY team that exists right now, or it is a
+  // leftover from a smaller league and showing it is worse than showing
+  // nothing. The live league is the case that caught this: seven owners have
+  // joined and order_team_ids still holds the single team that existed when
+  // Prepare was last pressed, which would have rendered as "You pick 1 of 1"
+  // to whoever that team belongs to and left the other six absent. Same test
+  // prepareDraft uses to decide whether a stored order is reusable.
+  const orderCoversLeague = orderTeamsRaw.length === teams.length && teams.length > 0
+  const orderTeams = orderCoversLeague ? orderTeamsRaw : []
+  const orderStale = storedOrderIds.length > 0 && !orderCoversLeague
   const myOrderSlot = myTeam ? orderTeams.findIndex((team) => team.id === myTeam.id) + 1 : 0
 
   return (
@@ -188,7 +197,9 @@ export default async function LeagueRoom({ params, searchParams }) {
               {orderProvisional && <small className={styles.boardNote} style={{ display: 'block', marginTop: 9 }}>{teams.length} of {league.team_count} teams have joined, so this order still changes when the rest do.</small>}
             </section>
           ) : membership.role !== 'commissioner' ? (
-            <section className={styles.waitingRoom}><span>◷</span><div><p className={styles.panelLabel}>DRAFT LOBBY</p><strong>The commissioner is setting the draft order.</strong><small>You can study the DASH board now. Draft controls unlock when the room goes live.</small></div></section>
+            <section className={styles.waitingRoom}><span>◷</span><div><p className={styles.panelLabel}>DRAFT LOBBY</p><strong>The commissioner is setting the draft order.</strong><small>{orderStale ? 'An order exists but it was built before everyone joined, so it will be rebuilt. You can study the DASH board now.' : 'You can study the DASH board now. Draft controls unlock when the room goes live.'}</small></div></section>
+          ) : orderStale ? (
+            <section className={styles.waitingRoom}><span>⚠</span><div><p className={styles.panelLabel}>DRAFT ORDER</p><strong>The stored order is out of date.</strong><small>It was built when {orderTeamsRaw.length} of the current {teams.length} teams existed. Press Prepare snake draft again to rebuild it over everyone who has joined.</small></div></section>
           ) : null
         )}
 
