@@ -928,6 +928,7 @@ export default function Home({
         players={players}
         watchIds={watchIds}
         onPlayerClick={onPlayerClick}
+      />
 
       {/* ── TONIGHT'S ANGLES — hero lines, not tables ─────────────────
           Renamed from "storylines" in the 2026-08-09 polish pass: the full
@@ -1359,8 +1360,6 @@ export default function Home({
       })()}
         </Fold>
       )}
-
-      />
 
       {/* ── THE SNAPSHOT (2026-08-29) ──────────────────────────────────────
           Four tiles, straight off TUDDY's Home, which has had them since it
