@@ -139,7 +139,7 @@ function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go 
   const projection = useProjection(mode)
   const live = useLiveScores()
   const trackRef = useRef(null)
-  useAutoScroll(trackRef, { speed: 26 })
+  useAutoScroll(trackRef, { speed: 55 })
   const isLive = live.items.some((i) => i.live) || (stats?.actual ?? 0) > 0
   const heads = useMemo(() => buildHeadlines({ players, results, isLive, headline: null, airRanked: [] }), [players, results, isLive])
   if (!stats) return <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>loading the slate…</span>
@@ -158,11 +158,11 @@ function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go 
   if (proj != null) items.push({ k: 'proj', label: 'HR proj', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
   items.push({ k: 'cap', label: captured ? 'HR on sheet' : 'HR capture', value: captured ? `${stats.onSheet}/${stats.actual}` : 'tracking', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the sheet tonight (${pct.toFixed(0)}%).` : 'Live HR capture — starts scoring when the first homer lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
-  for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page' })
+  for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
   for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
   items.push({ k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
   items.push({ k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
-  for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, label: 'final', value: i.text, icon: i.icon, color: C.text3, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: 'Final' })
+  for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
 
   const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.nav === 'nfl') setSport('nfl'); else if (it.nav) go?.(it.nav) }
   // ONE SHAPE FOR EVERY PILL: same height, same padding, label over value in
@@ -356,23 +356,17 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
                 {/* MOONSHOT (orange, you are here) and TUDDY (green, the other
                     product) -- named as products, not leagues, and each in its
                     own colour so the switch reads as two shows, not a filter. */}
-                {[['mlb', 'MLB', C.orange], ['nfl', 'TUDDY', C.green]].map(([key, label, col]) => {
-                  const on = key === 'mlb'
-                  return (
-                    <button key={key} onClick={on ? undefined : () => setSport(key)} aria-pressed={on}
-                      title={on ? 'MOONSHOT · MLB — you are here' : 'Switch to TUDDY · NFL'}
-                      aria-label={on ? 'MOONSHOT · MLB (current)' : 'Switch to TUDDY · NFL'}
-                      style={{
-                        display:'inline-flex', alignItems:'center', justifyContent:'center',
-                        height:20, minHeight:20, padding:'0 9px', lineHeight:1,
-                        fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
-                        cursor: on ? 'default' : 'pointer',
-                        border:`1px solid ${col}${on ? '88' : '55'}`,
-                        background: on ? `${col}26` : `${col}10`,
-                        color: col,
-                      }}>{label}</button>
-                  )
-                })}
+                <button onClick={() => setSport('nfl')} aria-pressed={false}
+                  title="Switch to TUDDY · NFL" aria-label="Switch to TUDDY · NFL"
+                  style={{
+                    display:'inline-flex', alignItems:'center', justifyContent:'center',
+                    height:20, minHeight:20, padding:'0 9px', lineHeight:1,
+                    fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
+                    cursor:'pointer',
+                    border:`1px solid ${C.green}55`,
+                    background:`${C.green}10`,
+                    color: C.green,
+                  }}>TUDDY</button>
               </span>
             </div>
             <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} onPlayerClick={onPlayerClick} go={go} />
