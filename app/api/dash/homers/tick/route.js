@@ -106,9 +106,24 @@ async function boardIndex(day) {
 }
 const boardRows = () => _cache.board.rows || []
 
-// The pregame post goes out once the lineups start posting, or at 4pm ET if
-// they have not — whichever comes first — and only while nothing has started.
+// The pregame post goes out once the lineups start posting, or once the
+// earliest first pitch on tonight's board is under an hour away, whichever
+// comes first -- and only while nothing has started, unless that one-hour
+// deadline has already passed (see `overdue` below), because a slate that
+// blows past its own deadline needs the post late more than it needs the
+// "before anything started" rule kept perfectly. PREGAME_HOUR_UTC is now
+// only the last-resort fallback for the one night the board has no
+// game_time data at all to compute a real deadline from.
 const PREGAME_HOUR_UTC = 20
+const PREGAME_LEAD_MS = 60 * 60 * 1000
+
+/** The earliest game_time on tonight's board, in ms, or null if none parse. */
+function firstPitchOf(rows) {
+  const times = (Array.isArray(rows) ? rows : [])
+    .map((r) => Date.parse(r?.game_time || ''))
+    .filter((t) => Number.isFinite(t))
+  return times.length ? Math.min(...times) : null
+}
 
 async function published(slot, paths, ok) {
   const c = _cache[slot]
@@ -186,7 +201,7 @@ async function postRecap(db, day, { force = false } = {}) {
       const straight = topStreakFrom(hist || [], day, false)
       const text = [
         `📋 ${day} — the bot called ${c.called} of ${c.total} home runs (${c.pct}%)`,
-        roles ? `⭐ ${roles}` : '',
+        roles ? `🤖 ${roles}` : '',
         c.rated ? `⚪ ${c.rated} more were on the board, no call` : '',
         straight >= 2 ? `🔥 A TOP pick has gone deep ${straight} straight nights` : '',
         [TAIL.site, TAIL.handle].filter(Boolean).join(' · '),
@@ -256,6 +271,11 @@ export async function GET(request) {
 
   const started = snap.games.some((g) => g?.state === 'Live' || g?.state === 'Final')
   const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
+  // 2026-09-06 (Donovan: "at least a hour before first pitch"). Computed off
+  // whatever the board holds right now -- boardIndex() only just resolved
+  // above, so this always sees the freshest cached rows.
+  const firstPitch = firstPitchOf(boardRows())
+  const overdue = firstPitch != null && Date.now() >= firstPitch - PREGAME_LEAD_MS
 
   // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
   //
@@ -283,32 +303,57 @@ export async function GET(request) {
   // only claim the day's slot once there is something to post. A tick that
   // finds nothing yet costs nothing and simply tries again next minute, same
   // as the picks/odds fetch above it already does.
-  if (!started) {
-    const ready = board.size && (snap.games.some((g) => g?.lineupPosted) || new Date().getUTCHours() >= PREGAME_HOUR_UTC)
-    if (!ready) return Response.json({ day, skipped: 'nothing-started' })
-    const picks = pregamePicks(boardRows(), odds, day)
-    if (!picks.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
-    const { data: claim } = await db
-      .from('homer_feed_posts')
-      .upsert([{ day, kind: 'pregame', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-      .select('day')
-    if (!claim?.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
-    const text = pregameText(picks, { day, ...TAIL })
-    const patch = { payload: { picks } }
-    // The payload goes in FIRST so the public card route can render the
-    // Discord embed from it; the post ids follow.
-    await db.from('homer_feed_posts').update({ payload: { picks } }).match({ day, kind: 'pregame' })
-    const d = await postToDiscord(text, { imageUrl: pregameUrl(day) })
-    if (d.ok) patch.discord_sent = true
-    if (hasX()) {
-      const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
-      const mediaId = png ? await uploadImageToX(png) : null
-      const r = await postToX(text, { mediaId })
-      if (r.ok && r.id) patch.x_post_id = r.id
-      else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
+  // `overdue` is allowed through even once `started` is true: the one-hour
+  // deadline is the promise that actually matters (Donovan asked for it
+  // explicitly), and posting late beats never posting at all if a cron gap
+  // let an early game go Live before this ran. On a normal night `overdue`
+  // never flips true before `!started` already let this block run, because
+  // the earliest game cannot go Live before its own first pitch, and the
+  // deadline sits a full hour before that.
+  if (!started || overdue) {
+    const ready = board.size && (
+      overdue ||
+      snap.games.some((g) => g?.lineupPosted) ||
+      (firstPitch == null && new Date().getUTCHours() >= PREGAME_HOUR_UTC)
+    )
+    // Every early return below is now guarded on `!started`: when overdue is
+    // the ONLY reason this block ran (a cron gap let an early game go Live
+    // before the deadline post went out), the pregame attempt still happens
+    // but this falls through to homer processing afterward instead of
+    // returning -- a late tick must not also skip tonight's live homers.
+    if (!ready) {
+      if (!started) return Response.json({ day, skipped: 'nothing-started' })
+    } else {
+      const picks = pregamePicks(boardRows(), odds, day)
+      if (!picks.length) {
+        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
+      } else {
+        const { data: claim } = await db
+          .from('homer_feed_posts')
+          .upsert([{ day, kind: 'pregame', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+          .select('day')
+        if (!claim?.length) {
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
+        } else {
+          const text = pregameText(picks, { day, ...TAIL })
+          const patch = { payload: { picks } }
+          // The payload goes in FIRST so the public card route can render the
+          // Discord embed from it; the post ids follow.
+          await db.from('homer_feed_posts').update({ payload: { picks } }).match({ day, kind: 'pregame' })
+          const d = await postToDiscord(text, { imageUrl: pregameUrl(day) })
+          if (d.ok) patch.discord_sent = true
+          if (hasX()) {
+            const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
+            const mediaId = png ? await uploadImageToX(png) : null
+            const r = await postToX(text, { mediaId })
+            if (r.ok && r.id) patch.x_post_id = r.id
+            else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
+          }
+          await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted' })
+        }
+      }
     }
-    await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
-    return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted' })
   }
   const homers = homersFrom(snap, day, board, odds)
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }

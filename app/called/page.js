@@ -106,7 +106,7 @@ const boardLink = (href) => href
 const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
 const PREVIEW = 5
 
-const glyph = (r) => (r.role ? '⭐' : r.on_board ? '⚪' : '💥')
+const glyph = (r) => (r.role ? '🤖' : r.on_board ? '⚪' : '💥')
 const callWord = (r) => (r.role
   ? `${roleWord(r.role)}${r.board_rank ? ` · #${r.board_rank}` : ''}`
   : r.on_board ? `on the board, no call${r.board_rank ? ` · #${r.board_rank}` : ''}` : 'not on the board')
@@ -160,7 +160,7 @@ export default async function CalledPage() {
           <span>The full board, every call, before first pitch — no account needed</span>
         </a>
         <p className={styles.rule}>
-          ⭐ on the bot before the ball left &nbsp;·&nbsp; ⚪ on the board, no call &nbsp;·&nbsp; 💥 not on the board. Tags are frozen when the homer is first seen and never re-graded.
+          🤖 on the bot before the ball left &nbsp;·&nbsp; ⚪ on the board, no call &nbsp;·&nbsp; 💥 not on the board. Tags are frozen when the homer is first seen and never re-graded.
         </p>
       </section>
 
@@ -173,7 +173,7 @@ export default async function CalledPage() {
                 <span className={styles.callN}>{i + 1}</span>
                 <a className={styles.name} href={boardLink(`/app#sport=mlb&p=${encodeURIComponent(p.player_id)}`)}>{p.name}</a>
                 <span className={styles.meta}>{p.team || ''}{p.opponent ? ` vs ${p.opponent}` : ''}{p.odds_over && p.odds_book ? ` · ${p.odds_over > 0 ? '+' : ''}${p.odds_over} ${p.odds_book}` : ''}</span>
-                <span className={styles.call}>{calledIds.has(String(p.player_id)) ? '⭐ went deep' : 'live'}</span>
+                <span className={styles.call}>{calledIds.has(String(p.player_id)) ? '🤖 went deep' : 'live'}</span>
               </li>
             ))}
           </ol>
@@ -243,7 +243,7 @@ export default async function CalledPage() {
 
       <section className={styles.close}>
         <h2 className={styles.closeH}>Tomorrow&apos;s calls are already on the board.</h2>
-        <p>The bot publishes its picks every morning. The ⭐ you see here is what it said before first pitch.</p>
+        <p>The bot publishes its picks every morning. The 🤖 you see here is what it said before first pitch.</p>
         <a className={styles.cta} href={SIGNUP}>
           <strong>Create a free account</strong>
           <span>Save your watchlist, picks and alerts when your guys go deep</span>
