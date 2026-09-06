@@ -23,7 +23,7 @@ export const POSITION_COLORS = {
   DST: '#9aa0a6',
 }
 
-const DEFAULT_COLOR = '#ff9d42' // the existing --gold fallback, unchanged for an unrecognized position
+export const DEFAULT_COLOR = '#ff9d42' // the existing --gold fallback, unchanged for an unrecognized position
 
 export function colorForPosition(position) {
   return POSITION_COLORS[String(position || '').toUpperCase()] || DEFAULT_COLOR
