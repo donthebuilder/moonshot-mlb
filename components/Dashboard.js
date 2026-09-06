@@ -619,8 +619,16 @@ export default function Dashboard({ palettePass = 0 }) {
     // and grey in the player's card. See lib/statline.js.
     <SlateScaleProvider players={allPlayers}>
       <MobileCSS />
-      {/* The ember signature — same bar the night-receipts card wears. */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
+      {/* The ember signature — same bar the night-receipts card wears.
+          NOT FIXED (2026-09-06). Donovan: "I don't like how the yellow line
+          stays on the screen when you scroll." It was `position: fixed` at
+          zIndex 400 -- ABOVE the header's own 50 -- so when the header
+          scrolled away (2026-09-06's "no sticky header, once you scroll
+          don't add that, ever") this bar was the one thing left glued to
+          y=0, sitting on top of the phone's own status bar for the rest of
+          the page. Static now: it renders once at the top of the document
+          and scrolls off with everything else, same as the header. */}
+      <div style={{ height: 3, flexShrink: 0,
         background: 'linear-gradient(90deg, #f97316, #FCD34D 50%, #f97316)' }} />
       {/* ── THE DOCUMENT LAYER (2026-09-02, finding 93) ───────────────────
           The board page carried 79 buttons, a 60-row table, and ZERO headings.
