@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import weekSlate from '../../../../public/data/nfl/week.json'
 import { normalizeNflCatalog } from '../../../../lib/nfl/playerCatalog'
 import { fantasyDefenseCatalog } from '../../../../lib/nfl/teams'
+import { fetchNfl, nflSlateLooksReal, nflSlatePaths } from '../../../../lib/nfl/dataSource'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { syncCatalogChunked } from '../../../../lib/fantasy/sync'
 
@@ -29,18 +30,84 @@ async function clientAndUser() {
   return { supabase, user }
 }
 
+// Below this, a payload is treated as degraded and the retire pass is skipped.
+// A real NFL catalog is ~400 skill players plus 32 defences; anything under
+// this is a half-published or preseason file, and retiring "everyone missing"
+// from one of those would empty the draft board.
+const MIN_CATALOG_FOR_RETIRE = 300
+
 export async function syncPlayerCatalog(formData) {
   const leagueId = String(formData.get('leagueId') || '')
   const { supabase } = await clientAndUser()
-  const raw = weekSlate
+
+  // THE LIVE FEED, NOT THE FILE IN THIS REPO (2026-09-06).
+  //
+  // This read `weekSlate` -- the committed snapshot at public/data/nfl/week.json
+  // -- which is a PRESEASON build from 2026-08-14 carrying 102 players and 3
+  // games. The button that calls this sits on the draft page under "Commissioner:
+  // sync the NFL player catalog to begin", so the one action a commissioner is
+  // told to take before a draft filled the board from a three-game August file.
+  // Worse than incomplete: the RPC's upsert does `team=excluded.team`, so it
+  // actively rewrote those 102 players' teams back to their August ones, which
+  // is exactly what the roster fix had just corrected.
+  //
+  // Every other consumer (coach/actions.js, api/fantasy/scoring) already reads
+  // the live payload. The snapshot stays as a floor for the case where the data
+  // branch is unreachable, which is what it was committed for.
+  let raw = await fetchNfl(nflSlatePaths(), nflSlateLooksReal)
+  let live = nflSlateLooksReal(raw)
+  if (!live) raw = weekSlate
   const normalized = normalizeNflCatalog(raw)
   const season = Number(raw.season || raw.stat_season)
   const catalog = [...normalized, ...fantasyDefenseCatalog(season)]
+
+  // RETIRE WHOEVER IS NO LONGER IN THE LEAGUE.
+  //
+  // sync_nfl_player_catalog is a pure upsert -- nothing in it, or anywhere else,
+  // ever sets active=false. So the board kept every player the payload had ever
+  // carried, including men who have retired or been cut, still holding last
+  // season's team and last season's per-game stats. Those rank on real numbers,
+  // so they sort high and are draftable.
+  //
+  // The RPC writes `active=excluded.active`, so the fix rides the same call: send
+  // the absent rows back through it with active:false, carrying their existing
+  // name/position/team/payload so nothing else about the row changes. A player
+  // who returns to a roster comes back through the same door with active:true.
+  let retired = 0
+  if (live && catalog.length >= MIN_CATALOG_FOR_RETIRE) {
+    const { data: existing } = await supabase
+      .from('nfl_players')
+      .select('source, source_player_id, season, name, position, team, injury_status, source_payload, active')
+      .eq('season', season)
+      .eq('active', true)
+    const present = new Set(catalog.map((row) => `${row.source}:${row.sourcePlayerId}`))
+    const gone = (existing || []).filter((row) => !present.has(`${row.source}:${row.source_player_id}`))
+    for (const row of gone) {
+      catalog.push({
+        source: row.source,
+        sourcePlayerId: row.source_player_id,
+        season: row.season,
+        name: row.name,
+        position: row.position,
+        team: row.team,
+        active: false,
+        injuryStatus: row.injury_status,
+        analytics: row.source_payload || {},
+      })
+    }
+    retired = gone.length
+  }
+
   let data
   try { data = await syncCatalogChunked(supabase, catalog) }
   catch (error) { redirect(routeFor(leagueId, 'error', String(error?.message || error))) }
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
-  redirect(routeFor(leagueId, 'message', `${data} NFL players synced`))
+  const note = [
+    `${data} NFL players synced`,
+    retired ? `${retired} retired` : '',
+    live ? '' : 'from the committed snapshot — the live feed was unreachable',
+  ].filter(Boolean).join(' · ')
+  redirect(routeFor(leagueId, 'message', note))
 }
 
 export async function prepareDraft(formData) {
