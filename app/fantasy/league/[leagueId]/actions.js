@@ -129,11 +129,42 @@ export async function prepareDraft(formData) {
     .from('fantasy_teams').select('id').eq('league_id', leagueId).order('created_at')
   if (leagueError || teamError || !teams?.length) redirect(routeFor(leagueId, 'error', leagueError?.message || teamError?.message || 'No teams found'))
 
-  let order = teams.map((team) => team.id)
+  // A RANDOM ORDER IS ROLLED ONCE, NOT ON EVERY PRESS (2026-09-06).
+  //
+  // prepare_fantasy_draft is `on conflict do update`, and it only requires the
+  // league to still be in `setup`. So before this, every press of "Prepare
+  // snake draft" reshuffled the order and overwrote the previous one, leaving
+  // no record. The commissioner could roll until he liked his own slot, and
+  // nobody in the league could tell -- not because he would, but because the
+  // league has no way to know he didn't. In a ten-owner league that is the
+  // kind of thing that gets argued about after the fact.
+  //
+  // Now: once a random order exists over this exact set of teams, re-preparing
+  // REUSES it. Re-rolling is a separate, explicitly-labelled button that
+  // announces itself to the league feed. Preparing is idempotent; changing the
+  // order is a deliberate act. A manual order still applies the form every
+  // time -- that is the commissioner typing an order, not chance.
+  const { data: existingDraft } = await supabase
+    .from('fantasy_drafts').select('order_team_ids').eq('league_id', leagueId).maybeSingle()
+  const teamIds = teams.map((team) => team.id)
+  const stored = Array.isArray(existingDraft?.order_team_ids) ? existingDraft.order_team_ids : []
+  // Only reusable if it covers exactly today's teams -- a late joiner has to
+  // change the order, and #70's provisional-order note already says so.
+  const storedUsable = stored.length === teamIds.length
+    && stored.every((id) => teamIds.includes(id))
+    && new Set(stored).size === stored.length
+  const wantsReroll = String(formData.get('reroll') || '') === '1'
+
+  let order = teamIds
   if (league.draft_order_method === 'random') {
-    for (let i = order.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[order[i], order[j]] = [order[j], order[i]]
+    if (storedUsable && !wantsReroll) {
+      order = stored
+    } else {
+      order = [...teamIds]
+      for (let i = order.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[order[i], order[j]] = [order[j], order[i]]
+      }
     }
   } else {
     order = teams.map((team) => ({ id: team.id, position: Number(formData.get(`position_${team.id}`)) || 999 }))
