@@ -258,16 +258,41 @@ export async function GET(request) {
   const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
 
   // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
+  //
+  // CLAIM-BEFORE-VALIDATE (2026-09-06). Donovan: "I don't see the pregame
+  // reads posting on the twitter" -- and a full scroll of @CalledItHR's
+  // history confirmed it: homer alerts and the nightly recap both post fine,
+  // the pregame call never has, not once.
+  //
+  // The claim row used to go in BEFORE checking whether pregamePicks() found
+  // anything. `ready` flips true the moment ANY game's lineup posts, or at
+  // 4pm ET -- which on a slate with an early getaway game can be well before
+  // fetchBoardFull('today') has the day's TOP/HR picks cached yet (boardIndex
+  // only replaces the cache once `index.size` is non-empty, so a cold or
+  // not-yet-published board just leaves it holding whatever the last
+  // non-empty fetch was, possibly nothing for today at all). On whichever
+  // tick `ready` first flips true, if the board happened to still be empty
+  // that minute, `picks` came back `[]` -- but the upsert above it had
+  // ALREADY inserted the `(day, 'pregame')` claim row with
+  // `ignoreDuplicates: true`. Every tick for the rest of the day then hit
+  // that same row on the upsert, got zero rows back, and returned
+  // `pregame: 'already'` -- burned on one bad minute, no retry, no error
+  // anywhere Donovan would see it.
+  //
+  // Fix: compute `picks` first -- pure, in-memory, touches no table -- and
+  // only claim the day's slot once there is something to post. A tick that
+  // finds nothing yet costs nothing and simply tries again next minute, same
+  // as the picks/odds fetch above it already does.
   if (!started) {
     const ready = board.size && (snap.games.some((g) => g?.lineupPosted) || new Date().getUTCHours() >= PREGAME_HOUR_UTC)
     if (!ready) return Response.json({ day, skipped: 'nothing-started' })
+    const picks = pregamePicks(boardRows(), odds, day)
+    if (!picks.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
     const { data: claim } = await db
       .from('homer_feed_posts')
       .upsert([{ day, kind: 'pregame', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
       .select('day')
     if (!claim?.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
-    const picks = pregamePicks(boardRows(), odds, day)
-    if (!picks.length) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
     const text = pregameText(picks, { day, ...TAIL })
     const patch = { payload: { picks } }
     // The payload goes in FIRST so the public card route can render the
