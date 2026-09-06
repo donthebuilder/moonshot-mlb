@@ -142,15 +142,23 @@ const oddsFile = () => published('odds', oddsPaths(), (j) => Boolean(j?.by_playe
 const pairsFile = () => published('pairs', pairSummaryPaths(), (j) => Array.isArray(j?.top_pairs))
 
 /** His jersey number off the league, or null. One small call per new homer. */
-async function jerseyOf(id) {
+// Jersey number and birthDate now ride the SAME batched statsapi call — the
+// Ledger's own established pattern (lib/ledgerArchive.js), because neither
+// value ever changes, so re-asking the league for one and not the other is
+// pure waste. birthDate feeds the fallback numerology hook in hooksFor() for
+// a call-up with no homer history yet (lib/dash/homerFeed.js).
+async function personInfoOf(id) {
   try {
-    const res = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${encodeURIComponent(id)}&fields=people,id,primaryNumber`, { cache: 'no-store' })
-    if (!res.ok) return null
+    const res = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${encodeURIComponent(id)}&fields=people,id,primaryNumber,birthDate`, { cache: 'no-store' })
+    if (!res.ok) return { jersey: null, birthDate: null }
     const j = await res.json()
-    const raw = String(j?.people?.[0]?.primaryNumber ?? '').trim()
-    return raw && Number.isFinite(Number(raw)) ? Number(raw) : null
+    const person = j?.people?.[0] || {}
+    const raw = String(person.primaryNumber ?? '').trim()
+    const jersey = raw && Number.isFinite(Number(raw)) ? Number(raw) : null
+    const birthDate = person.birthDate || null
+    return { jersey, birthDate }
   } catch {
-    return null
+    return { jersey: null, birthDate: null }
   }
 }
 
@@ -485,12 +493,12 @@ export async function GET(request) {
     const topStraight = topStreakFrom(recent || [], day, true)
     for (const ev of homers) {
       if (!freshKeys.has(`${ev.player_id}:${ev.hr_n}`)) continue
-      const [{ data: hist }, jersey] = await Promise.all([
+      const [{ data: hist }, { jersey, birthDate }] = await Promise.all([
         db.from('homer_feed').select('role').eq('player_id', ev.player_id).lt('day', day).order('day', { ascending: false }).limit(5),
-        jerseyOf(ev.player_id),
+        personInfoOf(ev.player_id),
       ])
       const partner = partnerFor(pairs, ev.player_id, ev.name)
-      const hooks = hooksFor(ev, { pairs, board, todayIds, yesterdayIds, history: hist || [], jersey, pairedEarlier: tonightRows || [], topStraight })
+      const hooks = hooksFor(ev, { pairs, board, todayIds, yesterdayIds, history: hist || [], jersey, birthDate, pairedEarlier: tonightRows || [], topStraight })
       const stats = { ...(ev.stats || {}), jersey }
       ev.hooks = hooks
       ev.stats = stats
