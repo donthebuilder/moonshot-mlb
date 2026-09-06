@@ -60,7 +60,7 @@ export async function syncPlayerCatalog(formData) {
   if (!live) raw = weekSlate
   const normalized = normalizeNflCatalog(raw)
   const season = Number(raw.season || raw.stat_season)
-  const catalog = withSeasonValue([...normalized, ...fantasyDefenseCatalog(season)])
+  const catalog = withSeasonValue([...normalized, ...fantasyDefenseCatalog(season, raw?.team_defense?.per_game)])
 
   // RETIRE WHOEVER IS NO LONGER IN THE LEAGUE.
   //
