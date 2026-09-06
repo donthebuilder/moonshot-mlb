@@ -50,3 +50,8 @@ _to_delete/
 
 # Called It — X keys, kept out of git (SHIP-CALLEDIT.sh)
 .calledit.env
+
+# Scratch that Claude sessions move aside because `rm` is not permitted
+# through the desktop file bridge (stale .next builds, stale git lock files).
+# Safe to delete by hand at any time; never source.
+_to_delete*
