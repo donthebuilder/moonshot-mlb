@@ -5,6 +5,13 @@ import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import styles from '../../../fantasy.module.css'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
+import PlayerFace from '../../../../../components/fantasy/PlayerFace'
+import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
+import InjuryTag from '../../../../../components/fantasy/InjuryTag'
+import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
+import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
+import { projectedFantasyPoints, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
+import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { addFreeAgent, cancelWaiverClaim, processWaivers, submitWaiverClaim } from './actions'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
@@ -29,16 +36,28 @@ export default async function WirePage({params,searchParams}) {
   if(!supabase)redirect('/fantasy')
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
-  const [{data:league},{data:membership},{data:teams=[]},{data:players=[]},{data:rosters=[]},{data:availability=[]},{data:claims=[]}]=await Promise.all([
+  // The Wire had no idea what week it was, which is why no row could say who a
+  // man plays or when he kicks off. One extra select, the same one the Team and
+  // Matchup pages already make.
+  const WEEK=await resolveFantasyWeek(supabase,query?.week)
+  const [{data:league},{data:membership},{data:teams=[]},{data:players=[]},{data:rosters=[]},{data:availability=[]},{data:claims=[]},{data:weekGames=[]}]=await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).order('waiver_priority'),
-    supabase.from('nfl_players').select('id,name,position,team,injury_status,source_payload').eq('active',true),
+    supabase.from('nfl_players').select('id,name,position,team,injury_status,source_payload,source_player_id').eq('active',true),
     supabase.from('fantasy_roster_entries').select('team_id,player_id').eq('league_id',leagueId).is('released_at',null),
     supabase.from('fantasy_player_availability').select('*').eq('league_id',leagueId),
     supabase.from('fantasy_waiver_claims').select('*,player:nfl_players!fantasy_waiver_claims_player_id_fkey(name,position,team)').eq('league_id',leagueId).order('created_at',{ascending:false}),
+    // In the same round trip as everything else. This page already pulls the
+    // whole active player table; a serial eighth query in front of it, run even
+    // for a request that is about to notFound(), is not the place to spend a
+    // round trip.
+    supabase.from('nfl_week_games').select('home_team,away_team,season_type,kickoff,status').eq('season',FANTASY_SEASON).eq('week',WEEK),
   ])
   if(!league||!membership)notFound()
+  const schedule=teamScheduleFor(weekGames)
+  // Null when the slate is too thin to be sure -- see lib/fantasy/bye.js.
+  const byeTeams=byeTeamsFor(weekGames)
   const safeTeams=teams||[]
   const safePlayers=players||[]
   const safeRosters=rosters||[]
@@ -49,11 +68,20 @@ export default async function WirePage({params,searchParams}) {
   const myRoster=safePlayers.filter((player)=>myRosterIds.includes(player.id)).sort((a,b)=>(a.position||'').localeCompare(b.position||'')||a.name.localeCompare(b.name))
   const selectedPosition=POSITIONS.includes(query?.position)?query.position:'ALL'
   const search=String(query?.q||'').trim().toLowerCase().slice(0,40)
-  const availablePlayers=safePlayers.map((player)=>({...player,dash_score:dashScore(player)}))
+  const availablePlayers=safePlayers.map((player)=>({...player,dash_score:dashScore(player),projection:projectedFantasyPoints(player,league.scoring)||0}))
     .filter((player)=>!rosteredIds.has(player.id))
     .filter((player)=>selectedPosition==='ALL'||player.position===selectedPosition)
     .filter((player)=>!search||player.name.toLowerCase().includes(search)||player.team?.toLowerCase().includes(search))
     .sort((a,b)=>b.dash_score-a.dash_score||a.name.localeCompare(b.name))
+  // #7: the list cut silently at 80 of 577 and the only count was up in the
+  // board header, nowhere near the cut. The cut stays -- 577 rows of headshots
+  // is not a page anyone wants on a phone -- but it now says so where it
+  // happens, and grows by a link rather than not at all. Query param, not
+  // client state: this page has no client JS and does not need any.
+  const PAGE=80
+  const limit=Math.min(560,Math.max(PAGE,Math.round(Number(query?.limit)||PAGE)))
+  const shownPlayers=availablePlayers.slice(0,limit)
+  const moreHref=`/fantasy/league/${leagueId}/wire?position=${selectedPosition}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}&limit=${limit+PAGE}`
   const waiverMap=new Map(safeAvailability.map((row)=>[row.player_id,row]))
   const safeClaims=claims||[]
   const myClaims=safeClaims.filter((claim)=>claim.team_id===myTeam?.id&&claim.status==='pending')
@@ -75,9 +103,10 @@ export default async function WirePage({params,searchParams}) {
               questions, two numbers, and now each says which it is. */}
           <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>Free agents &amp; waivers</h2><small className={styles.boardNote}>Ranked by this week&apos;s market score — how likely each man is to clear a prop on Sunday. That is a different question from the draft board, which ranks season value.</small></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q||''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{availablePlayers.length} players</span></div>
           <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}/wire?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`}>{position}</Link>)}</div>
-          <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
-          {availablePlayers.slice(0,80).map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><div><b>{player.name}</b><small>{player.team||'FA'}{player.injury_status?` · ${player.injury_status}`:''}</small></div><strong>{player.dash_score}</strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
+          <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>PROJ</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
+          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><div className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span></div><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong title="This week's market score: how likely this man is to clear a prop on Sunday. Not points.">{player.dash_score}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
           {!availablePlayers.length&&<p className={styles.emptyRoom}>No available players match this filter.</p>}
+          {availablePlayers.length>0&&<p className={styles.wireMore}><span>Showing {shownPlayers.length} of {availablePlayers.length}</span>{availablePlayers.length>shownPlayers.length&&<Link href={moreHref}>Show {Math.min(PAGE,availablePlayers.length-shownPlayers.length)} more →</Link>}</p>}
         </section>
         <aside className={styles.wireSide}><section><div className={styles.boardHead}><div><p className={styles.panelLabel}>MY CLAIMS</p><h2>Pending moves</h2></div><span>{myClaims.length}</span></div>{myClaims.map((claim)=><div className={styles.claimRow} key={claim.id}><div><b>{claim.player?.name}</b><small>{claim.player?.position} · clears in {remaining(claim.process_after)}</small></div><form action={cancelWaiverClaim}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="claimId" value={claim.id}/><SubmitButton pendingLabel="…">Cancel</SubmitButton></form></div>)}{!myClaims.length&&<p className={styles.emptyRoom}>You have no pending claims.</p>}</section>
           <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>ROLLING PRIORITY</p><h2>Waiver order</h2></div></div>{safeTeams.map((team,index)=><div className={styles.priorityRow} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}><TeamMark size={22} team={team}/><b style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{team.name}</b></div><small>{team.id===myTeam?.id?'YOU':''}</small></div>)}</section>

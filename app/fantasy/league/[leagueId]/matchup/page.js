@@ -8,6 +8,10 @@ import LiveMatchupCenter from '../../../../../components/fantasy/LiveMatchupCent
 import LocalTime from '../../../../../components/fantasy/LocalTime'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
+import PlayerFace from '../../../../../components/fantasy/PlayerFace'
+import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
+import InjuryTag from '../../../../../components/fantasy/InjuryTag'
+import { teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import styles from '../../../fantasy.module.css'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { generateSchedule } from './actions'
@@ -42,7 +46,7 @@ export default async function MatchupPage({ params, searchParams }) {
   let lineups = []
   if (featured) {
     const { data = [] } = await supabase.from('fantasy_lineup_slots')
-      .select('*,player:nfl_players(id,name,position,team,source_payload)')
+      .select('*,player:nfl_players(id,name,position,team,injury_status,source_payload,source_player_id)')
       .in('team_id',[featured.home_team_id,featured.away_team_id]).eq('season',SEASON).eq('week',week)
       .not('slot','in','(BENCH,IR)').order('slot_index')
     lineups = data || []
@@ -55,6 +59,7 @@ export default async function MatchupPage({ params, searchParams }) {
   const statsByPlayer=new Map(weeklyStats.map((item)=>[item.player_id,item]))
   // Null when the slate is too thin to be sure -- never "nobody is on bye".
   const byeTeams=byeTeamsFor(nflGames)
+  const schedule=teamScheduleFor(nflGames)
   const withLiveScores=(rows)=>rows.map((row)=>({...row,weekStats:statsByPlayer.get(row.player_id)}))
   const scoredHomeLineup=withLiveScores(homeLineup)
   const scoredAwayLineup=withLiveScores(awayLineup)
@@ -99,15 +104,15 @@ export default async function MatchupPage({ params, searchParams }) {
             <span>{away?.name}</span>
           </div>
         </section>
-        <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams}/></div>
+        <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/></div>
         <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</span></b><span>{game.status==='scheduled'?'vs':`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</span><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
       </>}
     </div>
   </main>
 }
 
-function Lineup({ title, rows, scoring, byeTeams }) {
-  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div><b>{row.player?.name}</b><small>{row.player?.position} · {row.player?.team}{bye?' · BYE':''}</small></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
+function Lineup({ title, rows, scoring, byeTeams, schedule }) {
+  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
 // ── #81: TWO PRODUCTS IN ONE NETWORK, DISAGREEING ABOUT THE SCHEDULE ────────

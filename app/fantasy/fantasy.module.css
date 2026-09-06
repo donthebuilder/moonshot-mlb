@@ -1600,7 +1600,7 @@
 }
 .slotRow {
   display: grid;
-  grid-template-columns: 48px 1fr minmax(180px,290px) 58px;
+  grid-template-columns: 48px 1fr 52px 122px;
   align-items: center;
   gap: 8px;
   min-height: 59px;
@@ -1684,6 +1684,9 @@
   }
   .slotRow {
     grid-template-columns: 42px 1fr 54px;
+  }
+  .slotAction {
+    grid-column: 1/4;
   }
   .slotRow select {
     grid-column: 1/4;
@@ -2038,7 +2041,7 @@
 .wireColumns,
 .wirePlayer {
   display: grid;
-  grid-template-columns: 46px 1fr 48px 72px minmax(160px,230px);
+  grid-template-columns: 46px 1fr 52px 48px 64px minmax(140px,210px);
   align-items: center;
   padding: 0 13px;
 }
@@ -2177,12 +2180,30 @@
     display: none;
   }
   .wirePlayer {
-    grid-template-columns: 40px 1fr 42px 65px;
+    /* Four columns, not six. STATUS drops to the second line beside the move
+       controls -- "FREE" is the state of nearly every row, so it is the least
+       costly thing to move off the first line, and PROJ/DASH are the two the
+       eye is actually scanning for. */
+    grid-template-columns: 34px 1fr 46px 44px;
     padding: 8px 9px;
   }
+  .wirePlayer>.freeStatus,
+  .wirePlayer>.waiverStatus {
+    grid-column: 1/2;
+    margin-top: 7px;
+    text-align: left;
+    align-self: center;
+  }
   .wireMove {
-    grid-column: 1/5;
+    grid-column: 2/5;
     margin: 7px 0 0;
+  }
+  /* .wireColumns is display:none here, so every number carries its own label
+     instead. This is the whole of finding #6: on a phone the 81 and the 12.4
+     were unlabelled columns under a header that had been hidden. */
+  .wireProj i,
+  .wirePlayer>strong i {
+    display: block;
   }
   .wireMove select {
     flex: 1;
@@ -4900,7 +4921,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 
 /* --- slot rows ---------------------------------------------------------- */
 .roomApp .slotRow {
-  grid-template-columns: 48px 1fr 52px minmax(150px,250px) 74px;
+  grid-template-columns: 48px 1fr 52px 122px;
   border-top: 1px solid var(--fx-edge);
   transition: background .12s ease;
 }
@@ -4963,8 +4984,14 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     grid-template-columns: 42px 1fr 52px;
     row-gap: 7px;
   }
-  .roomApp .slotRow select { grid-column: 1/4; width: 100%; }
-  .roomApp .slotRow button { grid-column: 1/4; width: 100%; }
+  .roomApp .slotAction {
+    grid-column: 1/4;
+    justify-content: flex-start;
+  }
+  .roomApp .slotAction a,
+  .roomApp .slotAction button {
+    flex: 1;
+  }
   .slotGroupHead { top: 0; }
 }
 
@@ -5486,4 +5513,189 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 :global(html[data-theme='light']) .clockBar[data-yours="true"] {
   background: linear-gradient(90deg,rgba(24,200,120,.14),rgba(249,248,246,.95) 40%);
+}
+
+
+/* ── THE WIRE'S TWO NUMBERS, AND WHAT EACH ONE IS ───────────────────────────
+   PROJ is fantasy points this week under this league's own scoring rules.
+   DASH is the 0-100 market score -- how likely the man is to clear a prop on
+   Sunday. They are different questions and they were never going to be
+   distinguishable as two bare numerals side by side, so each carries its
+   label. The labels are hidden on desktop, where .wireColumns is showing the
+   same two words as a table header, and revealed in the mobile block above,
+   where that header is not rendered at all. */
+.wireProj {
+  text-align: right;
+  color: var(--fx-text);
+  font: 800 13px/1 monospace;
+}
+.wireProj i,
+.wirePlayer>strong i {
+  display: none;
+  margin-top: 4px;
+  color: #5f5c58;
+  font: 7px/1 monospace;
+  font-style: normal;
+  letter-spacing: .08em;
+}
+.wirePlayer>strong {
+  line-height: 1;
+}
+
+/* Showing 80 of 577, and the link that changes it. */
+.wireMore {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 13px;
+  border-top: 1px solid var(--fx-line-3);
+  color: var(--fx-dim);
+  font: 8px/1 monospace;
+  letter-spacing: .08em;
+}
+.wireMore a {
+  color: var(--fx-accent);
+  font-weight: 800;
+  text-decoration: none;
+}
+.wireMore a:hover {
+  text-decoration: underline;
+}
+
+/* ── COLUMN HEADERS ON THE TEAM LINEUP BOARD (finding #5) ───────────────────
+   The Wire has had .wireColumns since it shipped; the lineup board, which is
+   the page people spend the most time on, had nothing -- so "12.4 / PROJ" was
+   decoded row by row. Same geometry as .slotRow so the labels sit over their
+   own columns, and the same disappearing act on mobile, where .slotRow itself
+   collapses to three columns and the select and button take their own lines. */
+.slotColumns {
+  display: grid;
+  grid-template-columns: 48px 1fr 52px 122px;
+  align-items: center;
+  gap: 8px;
+  min-height: 27px;
+  padding: 0 13px;
+  border-top: 1px solid var(--fx-line-3);
+  background: var(--fx-bg);
+  color: #5f5c58;
+  font: 8px/1 monospace;
+  letter-spacing: .08em;
+}
+.slotColumns span:nth-child(n+3) {
+  text-align: right;
+}
+@media (max-width: 760px) {
+  .slotColumns {
+    display: none;
+  }
+}
+
+
+/* ── PICK A MAN UP, PUT HIM DOWN (finding #3) ───────────────────────────────
+   What replaced fifteen <select>s and fifteen Save buttons. The row's last
+   cell is one control at a time and never a disabled one: Move on an occupied
+   row, Move here / Swap here on a slot that will take the man being carried,
+   nothing at all on a slot that will not. */
+.slotAction {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.slotAction form {
+  display: contents;
+}
+.roomApp .slotAction .slotMove,
+.roomApp .slotAction .slotCancel,
+.roomApp .slotAction .slotTargetButton {
+  height: 30px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--fx-edge-2);
+  background: var(--fx-bg);
+  color: var(--fx-muted);
+  font: 800 9px/1 monospace;
+  letter-spacing: .1em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color .14s ease, color .14s ease, background .14s ease;
+}
+.roomApp .slotAction .slotMove:hover,
+.roomApp .slotAction .slotCancel:hover {
+  border-color: var(--fx-accent);
+  color: var(--fx-ink);
+}
+.roomApp .slotAction .slotTargetButton {
+  border-color: #2f6a48;
+  background: rgba(24,200,120,.1);
+  color: #6fe0a6;
+}
+.roomApp .slotAction .slotTargetButton:hover {
+  background: rgba(24,200,120,.18);
+  color: #b6f3d3;
+}
+.slotMovingTag {
+  color: var(--fx-accent);
+  font: 900 9px/1 monospace;
+  letter-spacing: .12em;
+}
+.slotLockedTag {
+  color: var(--fx-dim);
+  font: 800 9px/1 monospace;
+  letter-spacing: .1em;
+}
+
+/* the row being carried, and the rows that will take him */
+.roomApp .slotRow[data-moving="true"] {
+  background: linear-gradient(90deg,rgba(246,169,40,.12),transparent 55%);
+  box-shadow: inset 2px 0 0 var(--fx-accent);
+}
+.roomApp .slotRow[data-target="true"] {
+  background: linear-gradient(90deg,rgba(24,200,120,.09),transparent 55%);
+  box-shadow: inset 2px 0 0 #2f6a48;
+}
+
+/* Moving <name> — the banner above the board, so the state is legible without
+   hunting for the highlighted row (it may be scrolled off on a phone). */
+.moveBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 11px 13px;
+  border-top: 1px solid var(--fx-line-3);
+  background: linear-gradient(90deg,rgba(246,169,40,.1),transparent 70%);
+}
+.moveBanner b {
+  color: var(--fx-ink);
+  font: 900 11px/1 monospace;
+  letter-spacing: .04em;
+}
+.moveBanner small {
+  margin-right: auto;
+  color: var(--fx-dim);
+  font: 9px/1.4 monospace;
+}
+.moveBanner a {
+  color: var(--fx-accent);
+  font: 800 9px/1 monospace;
+  letter-spacing: .1em;
+  text-decoration: none;
+}
+.moveBanner a:hover {
+  text-decoration: underline;
+}
+
+@media(max-width:760px) {
+  .moveBanner small {
+    flex-basis: 100%;
+    margin: 0;
+  }
 }
