@@ -632,7 +632,7 @@ export default function Dashboard({ palettePass = 0 }) {
           It is sr-only because the visual design already answers "where am I"
           through the tab row; the document never did. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} onPlayerClick={setModalPlayer} />
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         <h1 className="sr-only">{pageTitle('mlb', missingTab ? 'home' : tab)}</h1>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
