@@ -10,17 +10,12 @@ import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
-import { projectedFantasyPoints, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
+import { dashScore, projectedFantasyPoints, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { addFreeAgent, cancelWaiverClaim, processWaivers, submitWaiverClaim } from './actions'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
-
-function dashScore(player) {
-  const values=Object.values(player.source_payload?.scores||{}).map(Number).filter(Number.isFinite)
-  return values.length?Math.round(Math.max(...values)):50
-}
 
 function remaining(until) {
   const ms=new Date(until).getTime()-Date.now()
