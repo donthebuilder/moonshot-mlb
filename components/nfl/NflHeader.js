@@ -7,6 +7,14 @@ import PaletteButton from '../PaletteButton'
 import ThemeModeButton from '../ThemeModeButton'
 import AlertBell from './AlertBell'
 import SignUpPill from '../SignUpPill'
+// THE TICKER GETS LIVE SCORES + MORE HEADLINES (2026-09-06). Donovan: "the
+// roatating thing needs more stats and headlines things." MOONSHOT's header
+// has carried live scores + leader stat lines since the ticker rework
+// earlier today (lib/headlines.js's useLiveScores) -- TUDDY's own ticker
+// never picked them up because it renders a fixed set of slate-projection
+// Tiles, not a live feed. Same hook, filtered to NFL only (it also carries
+// MLB games for MOONSHOT's header, which have no business on this one).
+import { useLiveScores } from '../../lib/headlines'
 
 // The colour key, in football's words. PaletteButton used to render MOONSHOT's
 // four pick jobs (Home run / Base hit / Runs + RBI / Total bases) on this
@@ -138,7 +146,7 @@ const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 // left, status strip centre, controls right, tab rail underneath — so the
 // switch feels like changing channel, not changing site. Only the accents move.
 
-function Tile({ label, value, color, title }) {
+function Tile({ label, value, color, title, live = false }) {
   return (
     <div
       title={title}
@@ -152,8 +160,14 @@ function Tile({ label, value, color, title }) {
       <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
         <span style={{
           fontSize: 8.5, color: C.text3, textTransform: 'uppercase',
-          letterSpacing: '.09em', fontWeight: 800,
-        }}>{label}</span>
+          letterSpacing: '.09em', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          {/* Reuses the same @keyframes pulse this file already defines for
+              the account menu -- one animation, two consumers, not a second
+              copy. */}
+          {live && <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: color, animation: 'pulse 2s infinite' }} />}
+          {label}
+        </span>
         <span style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color }}>{value}</span>
       </div>
     </div>
@@ -179,6 +193,25 @@ export default function NflHeader({ tab, setTab, data, meta }) {
   // actually arrive with -- which game, and when.
   const topTd = rows.reduce(
     (best, p) => ((p?.scores?.TD ?? -1) > (best?.scores?.TD ?? -1) ? p : best), null)
+
+  // TWO MORE HEADLINE PICKS (2026-09-06): the strip had a touchdown threat
+  // and a game to circle, and nothing for the two other jobs on the board --
+  // who's getting the ball on the ground, and who's getting it in the air.
+  // Same reduce-over-rows shape as topTd, same 0-100 grade the board itself
+  // ranks by (scores.RUSH_YDS / scores.REC_YDS), so "top rusher" here means
+  // the same thing "top rusher" means on the Boards tab.
+  const topRush = rows.reduce(
+    (best, p) => ((p?.scores?.RUSH_YDS ?? -1) > (best?.scores?.RUSH_YDS ?? -1) ? p : best), null)
+  const topRec = rows.reduce(
+    (best, p) => ((p?.scores?.REC_YDS ?? -1) > (best?.scores?.REC_YDS ?? -1) ? p : best), null)
+
+  // LIVE SCORES + LEADERS RIDE THE TICKER TOO (2026-09-06). Same hook
+  // MOONSHOT's header ticker uses; filtered to NFL because it also carries
+  // MLB games for that header. `data.games` above is the slate's own
+  // projections payload (has a staleness clock, gets rebuilt on a schedule)
+  // -- this is the actual live ESPN poll, so during a real Sunday these two
+  // sources can (correctly) disagree about which games are "live" right now.
+  const nflLive = useLiveScores({ nfl: true }).items.filter((i) => i.sport === 'nfl')
 
   // Expected touchdowns summed per team, then per matchup. Same shape as
   // MOONSHOT's "best game" tile, so the two products read alike.
@@ -422,9 +455,21 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} />
             <Tile label="Best game" value={bestGame ? bestGame.label : '\u2014'} color={C.cyan}
               title={bestGame ? `${bestGame.label} — ${bestGame.total.toFixed(1)} expected touchdowns between the two, the most on the slate` : 'No games scored yet'} />
+            <Tile label="Top rusher" value={topRush?.scores?.RUSH_YDS ? Math.round(topRush.scores.RUSH_YDS) : '\u2014'} color={C.orange}
+              title={topRush?.name ? `${topRush.name} — ${Number(topRush.stats?.RUYD || 0).toFixed(1)} rush yds/game season average` : 'No scored players yet'} />
+            <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '\u2014'} color={C.purple}
+              title={topRec?.name ? `${topRec.name} — ${Number(topRec.stats?.RECYD || 0).toFixed(1)} rec yds/game season average` : 'No scored players yet'} />
             <Tile label={live > 0 ? 'Live' : 'Kickoff'} value={live > 0 ? live : kickLabel}
               color={live > 0 ? C.yellow : C.text2}
               title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
+            {/* LIVE, FROM ESPN, NOT FROM THE SLATE PAYLOAD (2026-09-06). One
+                tile per live/final game, a leader tile right after each --
+                same order MOONSHOT's ticker uses (score, then up to two
+                stat-line leaders), same useLiveScores() output shape. */}
+            {nflLive.map((i) => (
+              <Tile key={i.k} label={i.sub || (i.live ? 'live' : 'final')} value={i.text} color={i.col} live={!!i.live}
+                title={i.kind === 'leader' ? `Leading this game's stat line` : (i.live ? 'Live now — open TUDDY’s Live tab' : 'Final')} />
+            ))}
           </TickerStrip>
           {isPre && (
             <div
