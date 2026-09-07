@@ -12,7 +12,7 @@ import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import { dashScore, projectedFantasyPoints, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
-import { addFreeAgent, cancelWaiverClaim, processWaivers, submitWaiverClaim } from './actions'
+import { addFreeAgent, cancelWaiverClaim, dropPlayer, processWaivers, submitWaiverClaim } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
@@ -105,10 +105,43 @@ export default async function WirePage({params,searchParams}) {
           {!availablePlayers.length&&<p className={styles.emptyRoom}>No available players match this filter.</p>}
           {availablePlayers.length>0&&<p className={styles.wireMore}><span>Showing {shownPlayers.length} of {availablePlayers.length}</span>{availablePlayers.length>shownPlayers.length&&<Link href={moreHref}>Show {Math.min(PAGE,availablePlayers.length-shownPlayers.length)} more →</Link>}</p>}
         </section>
-        <aside className={styles.wireSide}><section><div className={styles.boardHead}><div><p className={styles.panelLabel}>MY CLAIMS</p><h2>Pending moves</h2></div><span>{myClaims.length}</span></div>{myClaims.map((claim)=><div className={styles.claimRow} key={claim.id}><div><b>{claim.player?.name}</b><small>{claim.player?.position} · clears in {remaining(claim.process_after)}</small></div><form action={cancelWaiverClaim}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="claimId" value={claim.id}/><SubmitButton pendingLabel="…">Cancel</SubmitButton></form></div>)}{!myClaims.length&&<p className={styles.emptyRoom}>You have no pending claims.</p>}</section>
+        <aside className={styles.wireSide}>
+        {/* ── DROP, WITHOUT HAVING TO ADD (2026-09-07) ────────────────────────
+            Donovan: "removing players should be easier." Until tonight it was
+            not merely hard -- the only way to release a player was to sign
+            another one in the same submit, because p_drop_player_id is a
+            PARAMETER of the add. A full roster and nobody worth adding was a
+            dead end. This panel calls drop_fantasy_player on its own.
+
+            The list is the roster in position order, which is the order you
+            think in when you are looking for the man to cut. Preview of five
+            with the rest behind a details toggle: fifteen rows of buttons in
+            a side rail is a wall on a phone. */}
+        {Boolean(myRoster.length)&&<section>
+          <div className={styles.boardHead}><div><p className={styles.panelLabel}>YOUR ROSTER</p><h2>Drop a player</h2></div><span>{myRoster.length}/15</span></div>
+          {myRoster.slice(0,5).map((rosterPlayer)=><DropRow key={rosterPlayer.id} leagueId={leagueId} player={rosterPlayer}/>)}
+          {myRoster.length>5&&<details className={styles.dropMore}>
+            <summary>{myRoster.length-5} more on the roster</summary>
+            {myRoster.slice(5).map((rosterPlayer)=><DropRow key={rosterPlayer.id} leagueId={leagueId} player={rosterPlayer}/>)}
+          </details>}
+          <p className={styles.boardNote}>A dropped player spends 24 hours on waivers before anyone can add him. A player whose game has kicked off cannot be dropped.</p>
+        </section>}
+        <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>MY CLAIMS</p><h2>Pending moves</h2></div><span>{myClaims.length}</span></div>{myClaims.map((claim)=><div className={styles.claimRow} key={claim.id}><div><b>{claim.player?.name}</b><small>{claim.player?.position} · clears in {remaining(claim.process_after)}</small></div><form action={cancelWaiverClaim}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="claimId" value={claim.id}/><SubmitButton pendingLabel="…">Cancel</SubmitButton></form></div>)}{!myClaims.length&&<p className={styles.emptyRoom}>You have no pending claims.</p>}</section>
           <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>ROLLING PRIORITY</p><h2>Waiver order</h2></div></div>{safeTeams.map((team,index)=><div className={styles.priorityRow} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}><TeamMark size={22} team={team}/><b style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{team.name}</b></div><small>{team.id===myTeam?.id?'YOU':''}</small></div>)}</section>
           <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH COACH</p><h2>Wire basics</h2></div></div><p className={styles.emptyRoom}>{league.status==='active'?'Use free agency for immediate adds. A successful waiver claim moves your team to the back of the priority order.':'The Wire opens when the draft is complete.'}</p></section></aside>
       </div>
     </div>
   </main>
+}
+
+
+// One roster row with a Drop button. Its own component so the roster list and
+// the "more" drawer cannot drift apart.
+function DropRow({leagueId,player}){
+  return <form action={dropPlayer} className={styles.claimRow}>
+    <div><b>{player.name}</b><small>{player.position} · {player.team||'FA'}</small></div>
+    <input type="hidden" name="leagueId" value={leagueId}/>
+    <input type="hidden" name="playerId" value={player.id}/>
+    <SubmitButton pendingLabel="Dropping…">Drop</SubmitButton>
+  </form>
 }

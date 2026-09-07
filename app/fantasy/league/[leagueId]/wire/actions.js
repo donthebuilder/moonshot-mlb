@@ -64,3 +64,33 @@ export async function processWaivers(formData) {
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   redirect(routeFor(leagueId,'message',`${data} waiver claims awarded`))
 }
+
+// ── DROPPING A PLAYER, ON ITS OWN (2026-09-07) ──────────────────────────────
+//
+// Donovan: "removing players should be easier." It was not hard, it was
+// impossible: p_drop_player_id exists only as a parameter of the two functions
+// above, so releasing a man required signing another in the same motion. A
+// full roster, a player you no longer want, and nobody worth adding had no
+// way out at all.
+//
+// drop_fantasy_player (migration 202609071000) is the drop half of
+// add_fantasy_free_agent with the add removed -- same lock rule, same
+// 24-hour waiver window, same transaction row.
+//
+// UNTIL THAT MIGRATION IS RUN this action fails loudly with Postgres's own
+// "could not find the function" message rather than appearing to work. That
+// is deliberate: the last thing shipped here that needed a hand-run migration
+// failed SILENTLY for a full day (homer_feed_posts_kind_check) because nobody
+// checked an error. A visible error on the first click is the cheap version of
+// that lesson.
+export async function dropPlayer(formData) {
+  const leagueId = String(formData.get('leagueId') || '')
+  const playerId = String(formData.get('playerId') || '')
+  const supabase = await clientAndUser()
+  const { error } = await supabase.rpc('drop_fantasy_player', {
+    p_league_id: leagueId, p_player_id: playerId,
+  })
+  if (error) redirect(routeFor(leagueId,'error',error.message))
+  revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
+  redirect(routeFor(leagueId,'message','Player dropped — he is on waivers for 24 hours'))
+}

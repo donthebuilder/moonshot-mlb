@@ -7,6 +7,7 @@ import weekSlate from '../../../../public/data/nfl/week.json'
 import { normalizeNflCatalog } from '../../../../lib/nfl/playerCatalog'
 import { fantasyDefenseCatalog } from '../../../../lib/nfl/teams'
 import { fetchNfl, nflSlateLooksReal, nflSlatePaths } from '../../../../lib/nfl/dataSource'
+import { createClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { syncCatalogChunked } from '../../../../lib/fantasy/sync'
 import { withSeasonValue } from '../../../../lib/fantasy/scoring'
@@ -39,7 +40,32 @@ const MIN_CATALOG_FOR_RETIRE = 300
 
 export async function syncPlayerCatalog(formData) {
   const leagueId = String(formData.get('leagueId') || '')
-  const { supabase } = await clientAndUser()
+  const { supabase, user } = await clientAndUser()
+
+  // ── THIS BUTTON WRITES A TABLE EVERY LEAGUE READS (2026-09-07) ────────────
+  //
+  // sync_nfl_player_catalog rewrites public.nfl_players -- one global table,
+  // shared by every Franchise league and by TUDDY's boards. Its guard used to
+  // accept "a commissioner of SOME league", with no league_id in it, and the
+  // call was made with the signed-in user's own client. Anyone can create a
+  // league; creating one makes you its commissioner. So any user was two
+  // clicks from rewriting every player's team and projection for everybody.
+  //
+  // Migration 202609071000 revokes that function from `authenticated`
+  // entirely. The button keeps working because the check now happens HERE --
+  // commissioner of THIS league, by id -- and the write goes through the
+  // service role, the same path the scoring cron uses.
+  const { data: membership } = await supabase.from('fantasy_league_memberships')
+    .select('role').eq('league_id', leagueId).eq('user_id', user.id).maybeSingle()
+  if (membership?.role !== 'commissioner') {
+    redirect(routeFor(leagueId, 'error', 'Only this league\u2019s commissioner can refresh the NFL catalog'))
+  }
+  const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceUrl || !serviceKey) {
+    redirect(routeFor(leagueId, 'error', 'The catalog service is not configured'))
+  }
+  const service = createClient(serviceUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
 
   // THE LIVE FEED, NOT THE FILE IN THIS REPO (2026-09-06).
   //
@@ -109,7 +135,7 @@ export async function syncPlayerCatalog(formData) {
   // bye is on a roster.
 
   let data
-  try { data = await syncCatalogChunked(supabase, catalog) }
+  try { data = await syncCatalogChunked(service, catalog) }
   catch (error) { redirect(routeFor(leagueId, 'error', String(error?.message || error))) }
   revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
   const note = [

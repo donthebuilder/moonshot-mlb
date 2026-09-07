@@ -6285,3 +6285,21 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     font-size: 12px;
   }
 }
+
+/* The rest of the roster in the drop panel. Five rows preview, the remainder
+   behind a toggle -- fifteen rows of buttons in a side rail is a wall on a
+   phone, and the man you are cutting is usually not your fifth-best player. */
+.dropMore {
+  border-top: 1px solid var(--fx-line-3);
+}
+.dropMore summary {
+  padding: 9px 13px;
+  color: var(--fx-muted-3);
+  font: 800 8px/1 monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.dropMore summary:hover {
+  color: var(--fx-accent);
+}
