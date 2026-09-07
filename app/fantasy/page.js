@@ -48,7 +48,8 @@ function AuthScreen({ error, message, invite }) {
             (2026-08-29, same fix as app/login/page.js's brand link — a
             person stuck on Franchise's sign-in screen was one click from the
             front door and no closer to MOONSHOT/TUDDY than before). */}
-        <Link className={styles.launchBrand} href="/app#sport=mlb&tab=home"><img src="/icon-192.png" alt="" width="39" height="39"/><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
+        <Link className={styles.launchBrand} href="/"><img src="/icon-192.png" alt="" width="39" height="39"/><div><small>DASH NETWORK</small><strong>FRANCHISE</strong></div></Link>
+        <NetworkSwitch variant="inline"/>
         <nav><a href="#product">See the product</a><a href="#sign-in">Sign in</a><a className={styles.launchNavCta} href="#create-account">Start free</a></nav>
       </header>
 
@@ -282,7 +283,7 @@ export default async function FantasyPage({ searchParams }) {
             in Franchise (the logged-out launch screen, /login) already goes
             straight to /app; this authenticated "Your franchises" screen was
             the gap. */}
-        <Link href="/app#sport=mlb&tab=home" style={{display:'flex',flexDirection:'column',textDecoration:'none',color:'inherit'}}><p>DASH NETWORK</p><strong>FRANCHISE</strong></Link>
+        <Link href="/" style={{display:'flex',flexDirection:'column',textDecoration:'none',color:'inherit'}}><p>DASH NETWORK</p><strong>FRANCHISE</strong></Link>
         <NetworkSwitch variant="inline"/>
         <form action={signOut}><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form>
       </header>

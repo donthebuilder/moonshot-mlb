@@ -5887,3 +5887,20 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     flex: none;
   }
 }
+
+
+/* The signed-out front door gets the same row. `.launchHeader nav` sets a 25px
+   gap and a link colour for its own three text links; the switcher is also a
+   <nav>, so it is named explicitly here rather than left to specificity. */
+.launchHeader {
+  gap: 18px;
+}
+.launchHeader>nav:first-of-type {
+  gap: 5px;
+  margin-right: auto;
+}
+@media(max-width:760px) {
+  .launchHeader {
+    gap: 10px;
+  }
+}
