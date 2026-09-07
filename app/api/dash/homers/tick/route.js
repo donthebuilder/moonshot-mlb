@@ -58,6 +58,9 @@ const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dash
 // ever changes the rule.
 const TAIL = process.env.X_POST_LINK === '1' ? { site: CALLED_URL, handle: HANDLE } : { site: '', handle: '' }
 const MODE = /^flagged$/i.test(String(process.env.X_POST_MODE || '')) ? 'flagged' : 'all'
+// X's Basic tier is ~1,100 posts a month. Override with X_MONTHLY_CAP if the
+// plan changes; this number is only ever used to decide when to shout.
+const X_MONTHLY_CAP = Number(process.env.X_MONTHLY_CAP || 1100) || 1100
 // Discord is optional — Donovan hasn't webhooked it yet. Without this gate,
 // EVERY row ever seen sits at discord_sent=false forever (postToDiscord
 // no-ops with no webhook and never sets it true), so "pending" — ordered
@@ -473,7 +476,7 @@ export async function GET(request) {
       await claimAndPostStat(db, day, 'hotcontact', HOTTEST_CONTACT_HOUR,
         hottestContactText(hc, { day, ...TAIL }),
         hc.length ? {
-          pill: 'HOT', label: 'HOTTEST CONTACT',
+          pill: 'HOT', label: 'THE HOT ZONE',
           headline: "Tonight's hottest recent blast rates",
           lines: hc.map((p) => `${p.name} (${p.team || '?'}) — ${p.blastPct}% blast vs ${p.pitcher}${p.pitcherTeam ? ` (${p.pitcherTeam})` : ''}`),
         } : null)
@@ -483,7 +486,7 @@ export async function GET(request) {
       await claimAndPostStat(db, day, 'dangercombos', DANGER_COMBOS_HOUR,
         dangerComboText(dc, { day, ...TAIL }),
         dc.length ? {
-          pill: 'DANGER', label: 'DANGER COMBOS',
+          pill: 'KILL', label: 'THE KILL LIST',
           headline: 'Hot bats vs pitchers getting hit hard lately',
           lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
         } : null)
@@ -533,7 +536,7 @@ export async function GET(request) {
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
               const png = await bytesOf(() => statCard(day, {
-                pill: 'PAIRS', label: 'PAIRS TO WATCH',
+                pill: 'PAIRS', label: 'THE PAIR TRAP',
                 headline: hits.map((h) => `${h.a.name} & ${h.b.name}`).join('  ·  '),
                 lines: hits.map((h) => `${h.count}x same-day this season${h.rate != null ? ` (${h.rate}%)` : ''} · ${h.a.team || '?'} vs ${h.a.opponent || '?'}, ${h.b.team || '?'} vs ${h.b.opponent || '?'}`),
               }, { site: SITE_HOST }))
@@ -557,11 +560,11 @@ export async function GET(request) {
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
               const png = await bytesOf(() => statCard(day, {
-                pill: 'LONGSHOT', label: "TONIGHT'S LONGEST CALL",
+                pill: 'LONGSHOT', label: 'THE MOONSHOT',
                 headline: `${pick.name}${pick.team ? ` (${pick.team})` : ''}`,
                 lines: [
                   `${fmtOdds(pick.over)} · ${pick.book}${pick.opponent ? ` to go deep vs ${pick.opponent}` : ''}`,
-                  pick.hr_score != null ? `HR score ${Math.round(pick.hr_score)}` : '',
+                  pick.hr_score != null ? `MOONSHOT Score ${Math.round(pick.hr_score)}` : '',
                 ],
               }, { site: SITE_HOST }))
               const mediaId = png ? await uploadImageToX(png) : null
@@ -625,7 +628,7 @@ export async function GET(request) {
     await claimAndPostStat(db, day, 'hotcontact_mid', HOTTEST_CONTACT_MID_HOUR,
       hottestContactText(hc, { day, ...TAIL, variant: 'mid' }),
       hc.length ? {
-        pill: 'HOT', label: 'STILL COOKING',
+        pill: 'HOT', label: 'HOT ZONE: STILL LIT',
         headline: "Tonight's hottest recent blast rates",
         lines: hc.map((p) => `${p.name} (${p.team || '?'}) — ${p.blastPct}% blast vs ${p.pitcher}${p.pitcherTeam ? ` (${p.pitcherTeam})` : ''}`),
       } : null)
@@ -635,7 +638,7 @@ export async function GET(request) {
     await claimAndPostStat(db, day, 'dangercombos_mid', DANGER_COMBOS_MID_HOUR,
       dangerComboText(dc, { day, ...TAIL, variant: 'mid' }),
       dc.length ? {
-        pill: 'DANGER', label: 'STILL DANGEROUS',
+        pill: 'KILL', label: 'KILL LIST: STILL LIVE',
         headline: 'Hot bats vs pitchers getting hit hard lately',
         lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
       } : null)
@@ -847,6 +850,43 @@ export async function GET(request) {
   // ── 4. the recap, once, when the night is over ───────────────────────────
   const allDone = snap.games.every((g) => g?.settled || g?.postponed || g?.suspended || g?.state === 'Final')
   if (allDone) Object.assign(totals, await postRecap(db, day))
+
+  // ── 5. THE MONTHLY X BUDGET, COUNTED (2026-09-07) ────────────────────────
+  // Nothing here has ever counted posts against the tier's monthly ceiling,
+  // so the first symptom of exhausting it is posts silently stopping -- the
+  // same shape of failure as the kind_check no-op that ate a week. This is a
+  // read-only count of what actually posted this calendar month: homer alerts
+  // carrying a REAL tweet id (the 'posting' and 'skipped' sentinels are not
+  // posts) plus the once-a-day posts.
+  //
+  // It deliberately never blocks a post. A guard that silences the whole feed
+  // on a miscount is a worse outcome than the overage it prevents, so this
+  // logs and reports and that is all. Counted only on ticks that actually
+  // posted (~30-40 a day, not 1,440) to keep it off the database's neck.
+  if (totals.x > 0) {
+    try {
+      const monthStart = `${day.slice(0, 7)}-01`
+      const [alerts, posts] = await Promise.all([
+        db.from('homer_feed').select('*', { count: 'exact', head: true })
+          .gte('day', monthStart).lte('day', day)
+          .not('x_post_id', 'is', null)
+          .not('x_post_id', 'in', '("posting","skipped")'),
+        db.from('homer_feed_posts').select('*', { count: 'exact', head: true })
+          .gte('day', monthStart).lte('day', day)
+          .not('x_post_id', 'is', null),
+      ])
+      const used = (alerts.count || 0) + (posts.count || 0)
+      totals.xMonth = { used, cap: X_MONTHLY_CAP, mode: MODE }
+      if (used >= X_MONTHLY_CAP) {
+        console.error(`[homers] X MONTHLY CAP REACHED: ${used}/${X_MONTHLY_CAP} this month (mode=${MODE}). Expect 429s until the cycle resets; X_POST_MODE=flagged is the switch.`)
+      } else if (used >= X_MONTHLY_CAP * 0.8) {
+        console.warn(`[homers] X monthly budget at ${used}/${X_MONTHLY_CAP} (mode=${MODE}).`)
+      }
+    } catch (e) {
+      // A failed count must never take the tick down with it.
+      console.error(`[homers] X budget count failed: ${e.message}`)
+    }
+  }
 
   return Response.json(totals)
 }
