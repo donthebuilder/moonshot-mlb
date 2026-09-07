@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { boardIndexFrom, captureFrom, fmtOdds, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import { dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, playableRows } from '../../../../../lib/dash/tweetFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
@@ -131,10 +131,14 @@ async function claimAndPostStat(db, day, kind, hourGate, text, card) {
   if (!text || etHoursSinceNoon() < hourGate) return false
   if (!(await claimSlot(db, day, kind))) return false
   const patch = { payload: {} }
-  const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+  // ONE RENDER, BOTH PLACES (2026-09-07). The card used to be built inside the
+  // `hasX()` branch, below Discord, so Discord got bare text while a finished
+  // PNG existed a few lines later -- and on a night with X off it was never
+  // built at all. Now it is rendered once, up front, and both take it.
+  const png = card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
+  const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
   if (hasX()) {
-    const png = card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
     const mediaId = png ? await uploadImageToX(png) : null
     const r = await postToX(text, { mediaId })
     if (r.ok && r.id) patch.x_post_id = r.id
@@ -383,10 +387,28 @@ async function postRecap(db, day, { force = false } = {}) {
           const wtext = weeklyText(week, { from, to: day, ...TAIL })
           const wc = captureFrom(week)
           const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
-          const d = await postToDiscord(wtext, {}, FEED_WEBHOOKS())
+          // WEEKLY WAS THE ONLY KIND POSTING NAKED TEXT TO X (2026-09-07).
+          // Twelve of thirteen built a card; this one called postToX(wtext)
+          // bare. A seven-day capture summary is the most card-shaped post on
+          // the account, and byRole is already computed -- every pick type the
+          // week produced, not just TOP, which is the whole point of the
+          // number. Same statCard the monthly twenty lines below uses.
+          const wRoles = Object.entries(wc.byRole).sort((a, b) => b[1] - a[1])
+          const wpng = await bytesOf(() => statCard(day, {
+            pill: 'WEEKLY',
+            label: 'CALLED IT · THE WEEK',
+            headline: `${wc.called} of ${wc.total} home runs${wc.pct != null ? ` · ${wc.pct}%` : ''}`,
+            lines: [
+              `${from} → ${day}`,
+              wRoles.length ? wRoles.map(([r, c]) => `${roleWord(r).toUpperCase()} ${c}`).join('   ·   ') : '',
+              wc.rated ? `${wc.rated} more on the board, no call` : '',
+            ].filter(Boolean),
+          }, { site: SITE_HOST }))
+          const d = await postToDiscord(wtext, { png: wpng }, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (xOn) {
-            const r = await postToX(wtext)
+            const mediaId = wpng ? await uploadImageToX(wpng) : null
+            const r = await postToX(wtext, { mediaId })
             if (r.ok && r.id) patch.x_post_id = r.id
             else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
           }
@@ -407,15 +429,34 @@ async function postRecap(db, day, { force = false } = {}) {
           const mtext = monthlyText(monthRows || [], { month: monthLabel, ...TAIL })
           const mc = captureFrom(monthRows || [])
           const patch = { payload: { from: monthFrom, to: prevLastDay, called: mc.called, total: mc.total } }
-          const d = await postToDiscord(mtext, {}, FEED_WEBHOOKS())
+          // EVERY ROLE, NOT THREE OF THEM (2026-09-07). Donovan: "the hr
+          // percentage should show watch players too not just top picks and
+          // hr ... all the different picks vs the hrs tonight."
+          //
+          // captureFrom's headline number was never the problem -- it counts
+          // any role, so WATCH and HRR and HIT have always been inside the
+          // percentage. The BREAKDOWN under it was the problem: this line
+          // hardcoded TOP, HR and WATCH, so a month's HRR, HIT, CONTACT and
+          // TOP15 calls were captured in the total and then invisible in the
+          // split. Over the last two weeks that is 20 HRR, 17 HIT, 7 CONTACT
+          // and 2 TOP15 -- 46 of 128 calls, a third of them, unaccounted for
+          // on the card that exists to account for them.
+          //
+          // Now it reads byRole itself, ordered by count, so a role the bot
+          // starts issuing tomorrow appears without anyone editing this line.
+          const mRoles = Object.entries(mc.byRole).sort((a, b) => b[1] - a[1])
+          const mpng = await bytesOf(() => statCard(day, {
+            pill: 'MONTHLY', label: monthLabel.toUpperCase(),
+            headline: `${mc.called} of ${mc.total} home runs on the bot (${mc.pct ?? 0}%)`,
+            lines: [
+              mRoles.length ? mRoles.map(([r, c]) => `${roleWord(r).toUpperCase()} ${c}`).join('   ·   ') : '',
+              mc.rated ? `${mc.rated} more on the board, no call` : '',
+            ].filter(Boolean),
+          }, { site: SITE_HOST }))
+          const d = await postToDiscord(mtext, { png: mpng }, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (xOn) {
-            const png = await bytesOf(() => statCard(day, {
-              pill: 'MONTHLY', label: monthLabel.toUpperCase(),
-              headline: `${mc.called} of ${mc.total} home runs on the bot (${mc.pct ?? 0}%)`,
-              lines: [`TOP ${mc.byRole.TOP || 0}  ·  HR ${mc.byRole.HR || 0}  ·  HR Watch ${mc.byRole.WATCH || 0}`],
-            }, { site: SITE_HOST }))
-            const mediaId = png ? await uploadImageToX(png) : null
+            const mediaId = mpng ? await uploadImageToX(mpng) : null
             const r = await postToX(mtext, { mediaId })
             if (r.ok && r.id) patch.x_post_id = r.id
             else console.error(`[homers] monthly refused: ${r.status} ${r.error}`)
@@ -598,14 +639,18 @@ export async function GET(request) {
           if (claim) {
             const text = pairsToWatchText(hits, { day, ...TAIL })
             const patch = { payload: { hits } }
-            const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+            // Rendered here, above the Discord post, so both services take the
+            // same one render -- see claimAndPostStat. It used to be built
+            // inside the X branch, which left Discord with bare text and, on
+            // a night with X off, built no card at all.
+            const png = await bytesOf(() => statCard(day, {
+              pill: 'PAIRS', label: 'THE PAIR TRAP',
+              headline: hits.map((h) => `${h.a.name} & ${h.b.name}`).join('  ·  '),
+              lines: hits.map((h) => `${h.count}x same-day this season${h.rate != null ? ` (${h.rate}%)` : ''} · ${h.a.team || '?'} vs ${h.a.opponent || '?'}, ${h.b.team || '?'} vs ${h.b.opponent || '?'}`),
+            }, { site: SITE_HOST }))
+            const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
-              const png = await bytesOf(() => statCard(day, {
-                pill: 'PAIRS', label: 'THE PAIR TRAP',
-                headline: hits.map((h) => `${h.a.name} & ${h.b.name}`).join('  ·  '),
-                lines: hits.map((h) => `${h.count}x same-day this season${h.rate != null ? ` (${h.rate}%)` : ''} · ${h.a.team || '?'} vs ${h.a.opponent || '?'}, ${h.b.team || '?'} vs ${h.b.opponent || '?'}`),
-              }, { site: SITE_HOST }))
               const mediaId = png ? await uploadImageToX(png) : null
               const r = await postToX(text, { mediaId })
               if (r.ok && r.id) patch.x_post_id = r.id
@@ -622,17 +667,21 @@ export async function GET(request) {
           if (claim) {
             const text = longshotText(pick, { day, ...TAIL })
             const patch = { payload: { pick } }
-            const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+            // Rendered here, above the Discord post, so both services take the
+            // same one render -- see claimAndPostStat. It used to be built
+            // inside the X branch, which left Discord with bare text and, on
+            // a night with X off, built no card at all.
+            const png = await bytesOf(() => statCard(day, {
+              pill: 'LONGSHOT', label: 'THE MOONSHOT',
+              headline: `${pick.name}${pick.team ? ` (${pick.team})` : ''}`,
+              lines: [
+                `${fmtOdds(pick.over)} · ${pick.book}${pick.opponent ? ` to go deep vs ${pick.opponent}` : ''}`,
+                pick.hr_score != null ? `MOONSHOT Score ${Math.round(pick.hr_score)}` : '',
+              ],
+            }, { site: SITE_HOST }))
+            const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
-              const png = await bytesOf(() => statCard(day, {
-                pill: 'LONGSHOT', label: 'THE MOONSHOT',
-                headline: `${pick.name}${pick.team ? ` (${pick.team})` : ''}`,
-                lines: [
-                  `${fmtOdds(pick.over)} · ${pick.book}${pick.opponent ? ` to go deep vs ${pick.opponent}` : ''}`,
-                  pick.hr_score != null ? `MOONSHOT Score ${Math.round(pick.hr_score)}` : '',
-                ],
-              }, { site: SITE_HOST }))
               const mediaId = png ? await uploadImageToX(png) : null
               const r = await postToX(text, { mediaId })
               if (r.ok && r.id) patch.x_post_id = r.id
@@ -774,21 +823,24 @@ export async function GET(request) {
       if (claim) {
         const text = numerologyText(moment, { day, ...TAIL })
         const patch = { payload: { moment } }
-        const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+        // Rendered above the Discord post so both services take one render --
+        // see claimAndPostStat. Sat inside the X branch, which left Discord
+        // with bare text and built nothing at all on a night with X off.
+        const cardLabel = moment.tier === 'trifecta' ? 'TRIFECTA' : moment.tier === 'jersey' ? 'JERSEY MATCH' : 'CLUSTER'
+        const cardHeadline = moment.tier === 'jersey'
+          ? moment.players.map((p) => p.name).join(' & ')
+          : moment.players.slice(0, 4).map((p) => p.name).join(', ')
+        const cardLines = moment.tier === 'trifecta'
+          ? [`#${moment.players[0].jersey} · HR #${moment.players[0].nth} · born on the digit root ${moment.root}`]
+          : moment.tier === 'jersey'
+            ? [`Both wearing #${moment.jersey}, both deep tonight`]
+            : [`${moment.players.length} homers, jersey digit root ${moment.root}`]
+        const png = await bytesOf(() => statCard(day, {
+          pill: 'NUMEROLOGY', label: cardLabel, headline: cardHeadline, lines: cardLines,
+        }, { site: SITE_HOST }))
+        const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
         if (hasX()) {
-          const cardLabel = moment.tier === 'trifecta' ? 'TRIFECTA' : moment.tier === 'jersey' ? 'JERSEY MATCH' : 'CLUSTER'
-          const cardHeadline = moment.tier === 'jersey'
-            ? moment.players.map((p) => p.name).join(' & ')
-            : moment.players.slice(0, 4).map((p) => p.name).join(', ')
-          const cardLines = moment.tier === 'trifecta'
-            ? [`#${moment.players[0].jersey} · HR #${moment.players[0].nth} · born on the digit root ${moment.root}`]
-            : moment.tier === 'jersey'
-              ? [`Both wearing #${moment.jersey}, both deep tonight`]
-              : [`${moment.players.length} homers, jersey digit root ${moment.root}`]
-          const png = await bytesOf(() => statCard(day, {
-            pill: 'NUMEROLOGY', label: cardLabel, headline: cardHeadline, lines: cardLines,
-          }, { site: SITE_HOST }))
           const mediaId = png ? await uploadImageToX(png) : null
           const r = await postToX(text, { mediaId })
           if (r.ok && r.id) patch.x_post_id = r.id
