@@ -1543,6 +1543,25 @@
   border-color: #703720;
   color: var(--gold);
 }
+
+/* The closed state of the manual-assignment panel: one link where 630 <option>
+   elements used to sit in the commissioner's DOM on every five-second refresh.
+   Same bar, so opening and closing it does not move the board underneath. */
+.assignToggle {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--fx-line-2);
+  border-radius: 7px;
+  padding: 0 9px;
+  color: #c9c4bd;
+  font: 9px/1 monospace;
+  text-decoration: none;
+}
+.assignToggle:hover {
+  border-color: #703720;
+  color: var(--gold);
+}
 .playerSearch {
   display: flex;
   gap: 5px;

@@ -75,6 +75,23 @@ export default async function LeagueRoom({ params, searchParams }) {
   for (const entry of roster) if (entry.player_id) takenIds.add(entry.player_id)
   const selectedPosition = POSITIONS.includes(query?.position) ? query.position : 'ALL'
   const search = String(query?.q || '').trim().toLowerCase().slice(0,40)
+  const assignOpen = String(query?.assign || '') === '1'
+  // Keeps the board's own filters when the assignment panel opens or closes --
+  // opening it used to be impossible without a full URL, and any link that
+  // dropped ?position=/?q= would silently reset what the commissioner was
+  // looking at mid-pick.
+  const boardHref = (changes = {}) => {
+    const next = new URLSearchParams()
+    if (selectedPosition && selectedPosition !== 'ALL') next.set('position', selectedPosition)
+    if (query?.q) next.set('q', String(query.q))
+    if (assignOpen) next.set('assign', '1')
+    for (const [key, value] of Object.entries(changes)) {
+      if (value === null) next.delete(key)
+      else next.set(key, String(value))
+    }
+    const qs = next.toString()
+    return `/fantasy/league/${leagueId}${qs ? `?${qs}` : ''}`
+  }
   // The number shown is points per game; the ORDER is points per game above
   // replacement at that position, from this league's own roster settings. Two
   // quantities on purpose -- see lib/fantasy/scoring.js. Sorting by raw PPG
@@ -165,7 +182,47 @@ export default async function LeagueRoom({ params, searchParams }) {
           </section>
         )}
 
-        {membership.role === 'commissioner' && draft && draft.status !== 'paused' && picks.some((pick)=>!pick.player_id) && <form action={assignDraftPick} className={styles.assignmentBar}><div><p className={styles.panelLabel}>MANUAL ASSIGNMENT</p><strong>Place a player into any open pick</strong><small>Resume the draft first — assigning while paused leaves the clock behind.</small></div><select name="overallPick">{picks.filter((pick)=>!pick.player_id).map((pick)=><option value={pick.overall_pick} key={pick.id}>#{pick.overall_pick} · {teams.find((team)=>team.id===pick.team_id)?.name}</option>)}</select><select name="playerId">{undrafted.slice(0,600).map((player)=><option value={player.id} key={player.id}>{player.position} · {player.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Assigning…">Assign pick</SubmitButton></form>}
+        {/* MANUAL ASSIGNMENT IS CLOSED UNTIL ASKED FOR (2026-09-07).
+            It rendered ~630 <option> elements -- 600 players plus one per open
+            pick -- into the commissioner's page and nobody else's. DraftRoomLive
+            re-renders this whole route every five seconds, so those nodes were
+            rebuilt and reconciled twelve times a minute in the one tab belonging
+            to the person running the draft. Behind a link they cost nothing
+            until he opens it.
+
+            The pick selector also no longer arrives pre-answered. It used to
+            default to the first open pick, which is always whoever is on the
+            clock: on draft night that put Drake Maye on Getbackkers instead of
+            Goin 4 It, consumed Getbackkers' pick, and pushed George Pickens
+            down to juu team's auto-pick. There is no undo for that --
+            commissioner_assign_fantasy_pick refuses any slot that is already
+            filled -- so the default has to be nothing, chosen deliberately. */}
+        {membership.role === 'commissioner' && draft && draft.status !== 'paused' && picks.some((pick)=>!pick.player_id) && (
+          assignOpen ? (
+            <form action={assignDraftPick} className={styles.assignmentBar}>
+              <div>
+                <p className={styles.panelLabel}>MANUAL ASSIGNMENT</p>
+                <strong>Place a player into any open pick</strong>
+                <small>Check the pick number — it is not filled in for you.</small>
+              </div>
+              <select name="overallPick" required defaultValue="">
+                <option value="" disabled>Choose a pick…</option>
+                {picks.filter((pick)=>!pick.player_id).map((pick)=><option value={pick.overall_pick} key={pick.id}>#{pick.overall_pick} · {teams.find((team)=>team.id===pick.team_id)?.name}</option>)}
+              </select>
+              <select name="playerId" required defaultValue="">
+                <option value="" disabled>Choose a player…</option>
+                {undrafted.slice(0,600).map((player)=><option value={player.id} key={player.id}>{player.position} · {player.name}</option>)}
+              </select>
+              <input type="hidden" name="leagueId" value={leagueId}/>
+              <SubmitButton pendingLabel="Assigning…">Assign pick</SubmitButton>
+              <Link href={boardHref({ assign: null })} className={styles.assignToggle}>Close</Link>
+            </form>
+          ) : (
+            <p className={styles.assignmentBar}>
+              <Link href={boardHref({ assign: '1' })} className={styles.assignToggle}>Manual assignment…</Link>
+            </p>
+          )
+        )}
 
         {/* THE ORDER IS THE LEAGUE'S, NOT THE COMMISSIONER'S (2026-09-06).
             Members used to see only "the commissioner is setting the draft
