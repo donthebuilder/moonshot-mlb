@@ -37,6 +37,7 @@ import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
+import { dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, hottestContactPicks, hottestContactText, hrLeadersByDowText } from '../../../../../lib/dash/tweetFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -69,6 +70,38 @@ const DISCORD_ON = Boolean(process.env.DISCORD_HOMER_WEBHOOK)
 const cardUrl = (row) => (SITE ? `${SITE}/api/dash/homers/card?day=${row.day}&pid=${row.player_id}&n=${row.hr_n}` : null)
 const recapUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&recap=1` : null)
 const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pregame=1` : null)
+
+// STAT-FEED CLAIM + POST (2026-09-07). Same claim-then-post shape as the
+// pairswatch/longshot blocks below -- claim (day, kind) in homer_feed_posts
+// ONLY once there is real text to post (the lesson from the pregame-post
+// bug documented further down: claiming before validating burns the day's
+// slot on one bad minute with nothing to show for it) -- factored out
+// because five stat-feed posts would otherwise repeat it five times.
+async function claimAndPostStat(db, day, kind, hourGate, text, card) {
+  if (!text || etHoursSinceNoon() < hourGate) return false
+  const { data: claim, error: claimError } = await db
+    .from('homer_feed_posts')
+    .upsert([{ day, kind, payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
+    .select('day')
+  // Unlike the older claim sites in this file (pairswatch/longshot/etc.),
+  // this one checks the error -- see the 2026-09-07 migration note on
+  // homer_feed_posts_kind_check for why that silence let four kinds go
+  // unposted for a full day with nothing anywhere saying so.
+  if (claimError) { console.error(`[homers] ${kind} claim failed: ${claimError.message}`); return false }
+  if (!claim?.length) return false
+  const patch = { payload: {} }
+  const d = await postToDiscord(text)
+  if (d.ok) patch.discord_sent = true
+  if (hasX()) {
+    const png = card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
+    const mediaId = png ? await uploadImageToX(png) : null
+    const r = await postToX(text, { mediaId })
+    if (r.ok && r.id) patch.x_post_id = r.id
+    else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
+  }
+  await db.from('homer_feed_posts').update(patch).match({ day, kind })
+  return true
+}
 
 function authorized(request) {
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -116,6 +149,24 @@ const boardRows = () => _cache.board.rows || []
 // game_time data at all to compute a real deadline from.
 const PREGAME_HOUR_UTC = 20
 const PREGAME_LEAD_MS = 60 * 60 * 1000
+
+// STAT-FEED POST TIMES (2026-09-07, Donovan: "3-5 posts minimum a day...
+// mostly pregame, then a couple mid-slate"). Expressed as hours after noon
+// ET so a late-evening threshold (9pm) compares correctly even once the UTC
+// clock has rolled to the next calendar date -- see etHoursSinceNoon below.
+// Same DST assumption as PREGAME_HOUR_UTC above (hardcoded for EDT, the
+// offset in effect for the whole regular season); accepted there already.
+const HOTTEST_CONTACT_HOUR = 1     // 1pm ET
+const HR_LEADERS_DOW_HOUR = 2      // 2pm ET
+const DANGER_COMBOS_HOUR = 4       // 4pm ET, same threshold PREGAME_HOUR_UTC uses
+const HOTTEST_CONTACT_MID_HOUR = 7 // 7pm ET
+const DANGER_COMBOS_MID_HOUR = 9   // 9pm ET
+
+function etHoursSinceNoon() {
+  const h = new Date().getUTCHours()
+  const rel = h < 12 ? h + 24 : h   // fold the early-UTC hours (late ET) forward
+  return rel - 16                  // 16:00 UTC = noon ET (EDT)
+}
 
 /** The earliest game_time on tonight's board, in ms, or null if none parse. */
 function firstPitchOf(rows) {
@@ -427,6 +478,42 @@ export async function GET(request) {
         }
       }
 
+      // ── HOTTEST CONTACT / DANGER COMBOS / MLB HR LEADERS — [DAY] ─────────
+      // Three more independently-claimed (day, kind) slots, gated by time of
+      // day rather than by anything found on the board (there's always
+      // SOMETHING to rank once board.size is non-zero, unlike pairswatch/
+      // longshot above which can come up empty some nights).
+      {
+        const hc = hottestContactPicks(boardRows())
+        await claimAndPostStat(db, day, 'hotcontact', HOTTEST_CONTACT_HOUR,
+          hottestContactText(hc, { day, ...TAIL }),
+          hc.length ? {
+            pill: 'HOT', label: 'HOTTEST CONTACT',
+            headline: "Tonight's hottest recent blast rates",
+            lines: hc.map((p) => `${p.name} (${p.team || '?'}) — ${p.blastPct}% blast vs ${p.pitcher}${p.pitcherTeam ? ` (${p.pitcherTeam})` : ''}`),
+          } : null)
+      }
+      {
+        const dc = dangerComboPicks(boardRows())
+        await claimAndPostStat(db, day, 'dangercombos', DANGER_COMBOS_HOUR,
+          dangerComboText(dc, { day, ...TAIL }),
+          dc.length ? {
+            pill: 'DANGER', label: 'DANGER COMBOS',
+            headline: 'Hot bats vs pitchers getting hit hard lately',
+            lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
+          } : null)
+      }
+      {
+        const { leaders, dow } = await fetchWeekdayHrLeaders(day)
+        await claimAndPostStat(db, day, 'hrleadersdow', HR_LEADERS_DOW_HOUR,
+          hrLeadersByDowText(leaders, dow, { day, ...TAIL }),
+          leaders.length ? {
+            pill: 'LEADERS', label: `MLB HR LEADERS — ${String(dow || '').toUpperCase()}S`,
+            headline: `Most home runs on a ${dow || 'this weekday'} this season`,
+            lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR${p.avgEv != null ? `, ${p.avgEv} mph avg EV` : ''}`),
+          } : null)
+      }
+
       const picks = pregamePicks(boardRows(), odds, day)
       if (!picks.length) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
@@ -458,6 +545,35 @@ export async function GET(request) {
       }
     }
   }
+
+  // ── MID-SLATE STAT-FEED REPOSTS (2026-09-07) ────────────────────────────
+  // Deliberately OUTSIDE the `!started || overdue` gate above -- these fire
+  // once the slate is already live, same board data (the underlying rates
+  // don't move once first pitch happens), reworded ("still cooking" /
+  // "still dangerous") for whoever's actually watching a game right now
+  // instead of scrolling at 1pm. Independently claimed, so a slow tick or a
+  // restart can never double-post either one.
+  {
+    const hc = hottestContactPicks(boardRows())
+    await claimAndPostStat(db, day, 'hotcontact_mid', HOTTEST_CONTACT_MID_HOUR,
+      hottestContactText(hc, { day, ...TAIL, variant: 'mid' }),
+      hc.length ? {
+        pill: 'HOT', label: 'STILL COOKING',
+        headline: "Tonight's hottest recent blast rates",
+        lines: hc.map((p) => `${p.name} (${p.team || '?'}) — ${p.blastPct}% blast vs ${p.pitcher}${p.pitcherTeam ? ` (${p.pitcherTeam})` : ''}`),
+      } : null)
+  }
+  {
+    const dc = dangerComboPicks(boardRows())
+    await claimAndPostStat(db, day, 'dangercombos_mid', DANGER_COMBOS_MID_HOUR,
+      dangerComboText(dc, { day, ...TAIL, variant: 'mid' }),
+      dc.length ? {
+        pill: 'DANGER', label: 'STILL DANGEROUS',
+        headline: 'Hot bats vs pitchers getting hit hard lately',
+        lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
+      } : null)
+  }
+
   const homers = homersFrom(snap, day, board, odds)
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }
 
