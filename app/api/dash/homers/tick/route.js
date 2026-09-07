@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import { dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, playableRows } from '../../../../../lib/dash/tweetFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
@@ -575,6 +575,9 @@ export async function GET(request) {
       }
 
       const picks = pregamePicks(pregameRows(), odds, day)
+      // Every roled name on tonight's board, for the receipt quote only --
+      // see pregameCalled() in homerFeed.js. Not used by any post text.
+      const called = pregameCalled(pregameRows())
       if (!picks.length) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
       } else {
@@ -583,10 +586,10 @@ export async function GET(request) {
           if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
         } else {
           const text = pregameText(picks, { day, ...TAIL })
-          const patch = { payload: { picks } }
+          const patch = { payload: { picks, called } }
           // The payload goes in FIRST so the public card route can render the
           // Discord embed from it; the post ids follow.
-          await db.from('homer_feed_posts').update({ payload: { picks } }).match({ day, kind: 'pregame' })
+          await db.from('homer_feed_posts').update({ payload: { picks, called } }).match({ day, kind: 'pregame' })
           const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (hasX()) {
@@ -755,7 +758,14 @@ export async function GET(request) {
   }
   // The morning's call, so a homer by one of its names quotes it.
   const { data: pre } = await db.from('homer_feed_posts').select('x_post_id,payload').match({ day, kind: 'pregame' }).maybeSingle()
-  const preIds = new Set(((pre?.payload?.picks) || []).map((p) => String(p.player_id)))
+  // `called` is every roled name on the board; `picks` is only the ten that
+  // fit the tweet. Fall back to picks so a pregame row written before this
+  // shipped (no `called` key) still quotes for its ten.
+  const preIds = new Set(
+    (pre?.payload?.called || []).length
+      ? (pre.payload.called).map((id) => String(id))
+      : ((pre?.payload?.picks) || []).map((p) => String(p.player_id))
+  )
   const quoteFor = (row) => (pre?.x_post_id && preIds.has(String(row.player_id)) ? pre.x_post_id : null)
   for (const row of pending || []) {
     const live = byKey.get(`${row.player_id}:${row.hr_n}`)
