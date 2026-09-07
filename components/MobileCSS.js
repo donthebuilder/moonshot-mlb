@@ -188,6 +188,51 @@ export default function MobileCSS() {
            nothing here shrinks it. */
         .box-avg { display: none !important; }
 
+        /* -- FILTER CHROME STOPS EATING THE SCREEN (2026-09-07) ------------
+           Donovan's standing rule is that anything adding scroll on a phone is
+           a problem. Measured on Boards at 400px: seven market chips wrapped
+           to THREE lines, then search, then Team, then Position, then Sample,
+           each on its own row -- about 330px of a 723px viewport spent before
+           the first player row. Two thirds of the opening screen was filters.
+
+           Games.js already solved exactly this for its sixteen game chips with
+           .nfl-game-picker: one row, sideways scroll, no wrap. This applies the
+           same shape to the SHARED primitives, so Boards, Picks, Research and
+           every other tab that uses PillRow/FilterBar get it at once.
+
+           Horizontal scroll is the right trade here and not a dodge: the chips
+           are a single ranked list you move along, not a grid you scan, and one
+           rail keeps the board itself above the fold. Nothing is hidden --
+           everything is still reachable, one swipe away. */
+        .filter-pills,
+        .filter-bar {
+          flex-wrap: nowrap !important;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          padding-bottom: 2px;
+        }
+        .filter-pills::-webkit-scrollbar,
+        .filter-bar::-webkit-scrollbar { display: none; }
+        /* Children must not compress to fit -- that is what makes a chip row
+           unreadable rather than scrollable. */
+        .filter-pills > *,
+        .filter-bar > * { flex: 0 0 auto; }
+
+        /* -- THE BOARD ROW GIVES THE NAME ITS SPACE BACK (2026-09-07) ------
+           Measured at 400px: the row spends ~270px on fixed columns -- rank 20,
+           score 36, grade ~30, position ~18, team/opponent 74, sparkline 88 --
+           and the name gets whatever is left, which was about 90px. So the
+           board read "Omarion Hamp...", "Christian McCaf...", "Jacory Croskey...".
+           The name is the one thing on the row you cannot infer from the others.
+
+           Nothing is hidden. The sparkline keeps its shape at half the rail and
+           the matchup keeps both teams; between them that is ~50px handed back
+           to the name, which clears every name on the current Week 1 card. */
+        .nfl-board-spark { min-width: 46px !important; }
+        .nfl-board-matchup { min-width: 56px !important; font-size: 9.5px !important; }
+        .nfl-board-name { font-size: 12px !important; }
+
         /* Modals go effectively full-screen. A centred card with margins wastes
            a third of a phone screen on backdrop. */
         .modal-backdrop { padding: 0 !important; align-items: flex-start !important; }

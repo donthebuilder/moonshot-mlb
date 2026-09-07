@@ -60,7 +60,13 @@ export function FilterPill({ active, onClick, children, count, title, disabled }
 // ── a labelled row of pills — the SplitControl shape, shared ────────────────
 export function PillRow({ label, hint, value, options, onChange, flag }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+    // `filter-pills` is a hook for MobileCSS, not a style. On a 400px phone
+    // seven market chips wrapped to THREE lines, and Boards spent ~330px of a
+    // 723px screen on filter chrome before the first player row. The mobile
+    // sheet turns this into one sideways-scrolling rail, the same shape
+    // Games.js's own .nfl-game-picker already uses for sixteen games.
+    <div className="filter-pills"
+         style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
       {label && <FilterLabel>{label}</FilterLabel>}
       {options.map((o) => (
         <FilterPill
@@ -220,7 +226,8 @@ export function FilterPanel({ open, onClose, children, width = 300 }) {
 // ── the row that hosts a filter set: trigger + active chips + slot ──────────
 export function FilterBar({ children }) {
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+    <div className="filter-bar"
+         style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       {children}
     </div>
   )

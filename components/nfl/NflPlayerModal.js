@@ -7,6 +7,7 @@ import PropsGrid from './PropsGrid'
 import PlayerNotes from '../PlayerNotes'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
+import NflFace from './NflFace'
 import DvpTable, { GROUP } from './DvpTable'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
@@ -393,7 +394,13 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         <div style={{
           display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10,
         }}>
-          <div>
+          {/* 2026-09-07. Donovan, 8/27: "site needs visuals; we don't have
+              player pictures." We did have them — FRANCHISE has rendered faces
+              for weeks — TUDDY just never got one. See NflFace for why this is
+              not the same component. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <NflFace player={player} size={44} />
+            <div>
             <div style={{ fontSize: 17, fontWeight: 900, color: C.text }}>{player.name}</div>
             <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
               {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
@@ -404,6 +411,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
                 </span>
               )}
               {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
+            </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

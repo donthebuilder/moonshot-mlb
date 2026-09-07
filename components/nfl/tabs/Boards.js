@@ -239,14 +239,15 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
                 border: `1px solid ${g.color}55`, borderRadius: 5,
                 padding: '1px 4px', textAlign: 'center',
               }}>{g.label}</span>
-              <span style={{
+              <span className="nfl-board-name" style={{
                 position: 'relative', fontSize: 12.5, fontWeight: 700, color: C.text,
-                flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}>{p.name}</span>
               <span style={{
                 position: 'relative', fontSize: 10, color: C.text3, fontFamily: NUM_FONT,
               }}>{p.position}</span>
-              <span style={{
+              <span className="nfl-board-matchup" style={{
                 position: 'relative', fontSize: 10.5, color: C.text2,
                 fontFamily: NUM_FONT, minWidth: 74, textAlign: 'right',
               }}>{p.team} {p.opp ? `vs ${p.opp}` : ''}</span>
@@ -259,7 +260,8 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
                   <OddsLine quote={quoteFor(odds, p, market)} compact />
                 </span>
               )}
-              <span style={{ position: 'relative', minWidth: 88, display: 'flex', justifyContent: 'flex-end' }}>
+              <span className="nfl-board-spark"
+                    style={{ position: 'relative', minWidth: 88, display: 'flex', justifyContent: 'flex-end' }}>
                 <FormSparkline form={form} bar={spec?.bar} color={g.color} />
               </span>
               {injuryTag(p) && (
