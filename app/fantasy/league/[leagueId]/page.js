@@ -227,6 +227,36 @@ export default async function LeagueRoom({ params, searchParams }) {
             ))}
           </section>
           <aside className={styles.draftSide}>
+            {/* ── OFF THE BOARD ──────────────────────────────────────────────
+                The DRAFT ORDER panel below shows a window AROUND the current
+                pick, ascending, with a bare name — which is the right shape for
+                "who is up next" and the wrong one for "what just happened".
+                During a live draft the question people actually ask every few
+                seconds is the second one, and answering it meant reading the
+                order panel backwards. This is the same picks, newest first,
+                with the face and the position colour, so a run on running backs
+                is visible as a run. Only picks that have actually come round —
+                a commissioner pre-assignment further down the board is not news
+                yet, and the order panel already labels those. */}
+            {draft && picks.some((pick)=>pick.player_id&&pick.overall_pick<=(draft.current_overall_pick||1)) && (
+              <section>
+                <div className={styles.boardHead}><div><p className={styles.panelLabel}>OFF THE BOARD</p><h2>Latest picks</h2></div><span>{picks.filter((pick)=>pick.player_id).length} taken</span></div>
+                {picks
+                  .filter((pick)=>pick.player_id&&pick.overall_pick<=(draft.current_overall_pick||1))
+                  .sort((a,b)=>b.overall_pick-a.overall_pick)
+                  .slice(0,8)
+                  .map((pick)=>{
+                    const player=rankedPlayers.find((entry)=>entry.id===pick.player_id)
+                    const team=teams.find((entry)=>entry.id===pick.team_id)
+                    return <div className={styles.feedPick} key={pick.id}>
+                      <span className={styles.feedNum}>{pick.overall_pick}</span>
+                      <PlayerFace player={player} size={28}/>
+                      <div><b>{player?.name||'—'}</b><small style={{color:colorForPosition(player?.position)}}>{player?.position||''}{player?.team?` · ${player.team}`:''}</small></div>
+                      <span className={styles.feedTeam}><TeamMark size={16} team={team}/><i>{team?.name}</i></span>
+                    </div>
+                  })}
+              </section>
+            )}
             {/* #70: in a league with one team of fifteen, prepareDraft snakes over the
                 teams that EXIST -- so the panel correctly listed that one team in
                 every slot, and read as "one team picks the whole board." The order

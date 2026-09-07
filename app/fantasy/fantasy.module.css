@@ -5904,3 +5904,65 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     gap: 10px;
   }
 }
+
+
+/* ── OFF THE BOARD — the live pick feed ────────────────────────────────────
+   Newest first, because during a draft the question is "what just went" and
+   the order panel below answers "who is up". Same row anatomy as the board
+   itself so the two read as one surface: number, face, name over a
+   position-coloured line, and the team that took him. */
+.feedPick {
+  display: grid;
+  grid-template-columns: 22px 28px 1fr auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 13px;
+  border-top: 1px solid var(--fx-line-3);
+}
+.feedPick:first-of-type {
+  background: linear-gradient(90deg,rgba(246,169,40,.08),transparent 60%);
+}
+.feedNum {
+  color: #5f5c58;
+  font: 800 9px/1 monospace;
+  text-align: right;
+}
+.feedPick>div {
+  min-width: 0;
+}
+.feedPick b,
+.feedPick small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feedPick b {
+  font-size: 11px;
+}
+.feedPick small {
+  margin-top: 3px;
+  font: 800 8px/1 monospace;
+  letter-spacing: .06em;
+}
+.feedTeam {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 108px;
+  min-width: 0;
+}
+.feedTeam i {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fx-dim);
+  font: 800 8px/1 monospace;
+  font-style: normal;
+}
+@media(max-width:760px) {
+  .feedTeam i {
+    display: none;
+  }
+}
