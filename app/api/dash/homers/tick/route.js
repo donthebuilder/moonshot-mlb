@@ -286,6 +286,47 @@ const shiftDay = (iso, n) => {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * The slate's own day, off the live snapshot rather than the wall clock.
+ * Live games win and the earliest of them decides, so a game running past
+ * midnight ET keeps its homers on the day it started. With nothing live,
+ * the most common scheduled gameDate wins, ties breaking to the earlier
+ * date. Returns '' when there is nothing to go on, so the caller can fall
+ * back to easternToday().
+ */
+const slateDayOf = (snap) => {
+  const games = Array.isArray(snap?.games) ? snap.games : []
+  const dayOf = (g) => (/^\d{4}-\d{2}-\d{2}$/.test(String(g?.gameDate || '')) ? String(g.gameDate) : '')
+  // A suspended or postponed game can sit in 'Live' indefinitely. Letting one
+  // count would pin the day backwards forever and silently freeze every dated
+  // post behind it, so both are excluded everywhere below.
+  const stuck = (g) => Boolean(g?.suspended || g?.postponed)
+  const live = games.filter((g) => g?.state === 'Live' && !stuck(g)).map(dayOf).filter(Boolean).sort()
+  if (live.length) return live[0]
+  // Nothing in progress. The snapshot still holds last night's finished games
+  // beside tonight's scheduled ones, and on a light slate that is a 1-1 tie --
+  // which an earlier-date tie-break would resolve BACKWARDS, sticking the feed
+  // on yesterday all day. So the vote is among games still to be settled, and
+  // only if every one is done does it fall back to counting them all.
+  const modal = (list) => {
+    const counts = new Map()
+    for (const g of list) {
+      const d = dayOf(g)
+      if (d) counts.set(d, (counts.get(d) || 0) + 1)
+    }
+    let best = ''
+    let bestN = -1
+    // Ties break to the EARLIER date -- a slate straddling a midnight belongs
+    // to the day it started. Same rule slateDateFromRows() documents.
+    for (const d of [...counts.keys()].sort()) {
+      const n = counts.get(d)
+      if (n > bestN) { bestN = n; best = d }
+    }
+    return best
+  }
+  return modal(games.filter((g) => g?.state !== 'Final' && !stuck(g))) || modal(games)
+}
+
 
 /**
  * The night's recap — text + card to Discord and X, and on a Sunday the week.
@@ -405,12 +446,37 @@ export async function GET(request) {
     return Response.json({ day: want, rows: count, ...(await postRecap(db, want, { force: u.searchParams.get('force') === '1' })) })
   }
 
-  const day = easternToday()
+  // WHICH DAY IS IT (2026-09-07). This used to be a bare easternToday(), and
+  // that is a wall clock -- it rolls at midnight ET whether or not a ball is
+  // still in the air in Los Angeles. Four homers between 08-25 and 09-07 were
+  // filed under TWO days because of it: the tick that ran at 04:01 UTC saw a
+  // game still in the 6th, computed tomorrow's date, and re-filed a homer it
+  // had already posted an hour earlier. The freshness key is (player_id,
+  // hr_n) scoped per day, so hr_n=1 read as brand new on the new date and
+  // went out a second time. Worse, yesterdayIds is shiftDay(day,-1) -- which
+  // was now the day the SAME homer already sat in -- so the duplicate stamped
+  // itself "Back-to-back nights" against its own earlier copy. CJ Abrams,
+  // game 823903, 09-06 + 09-07: same game_pk, same hr_n, two tweets.
+  //
+  // The snapshot's games already carry MLB's own `gameDate`, the North-
+  // American baseball calendar day (see lib/liveSlate.js:213), and the
+  // snapshot deliberately keeps a previous day's game while it is still Live
+  // (liveSlate.js:308). So: if anything is still being played, the slate day
+  // is the EARLIEST still-live game's own date. That is the same tie-break
+  // rule slateDateFromRows() documents -- a slate straddling a midnight
+  // belongs to the day it started. Only once every one of those is Final does
+  // the day roll to the modal scheduled date.
+  //
+  // Deliberately safe on rollover: while last night's game is still live the
+  // day stays back, so the new morning's stat slots gate on the old day, find
+  // its (day, kind) rows already claimed, and post nothing. They fire on the
+  // next tick after the day rolls, well before 9am ET.
+  const snap = await fetchLiveSlate({ force: true }).catch(() => null)
+  const day = slateDayOf(snap) || easternToday()
   // The nights before the feed existed, one per tick until the /called window
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
   const backfill = await backfillOneNight(db, day)
-  const snap = await fetchLiveSlate({ force: true }).catch(() => null)
   if (!snap?.games?.length) return Response.json({ day, skipped: 'no-games', backfill })
 
   const started = snap.games.some((g) => g?.state === 'Live' || g?.state === 'Final')
