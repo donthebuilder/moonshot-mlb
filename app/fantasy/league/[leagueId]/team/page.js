@@ -15,6 +15,7 @@ import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_LAST_WEEK, FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { moveLineupPlayer, saveLineupSlot, saveTeamIdentity } from './actions'
+import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const SEASON = FANTASY_SEASON
@@ -121,7 +122,7 @@ export default async function TeamPage({ params, searchParams }) {
   const teamHref = (params) => `/fantasy/league/${leagueId}/team?week=${WEEK}${params?`&${params}`:''}`
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>WEEK {WEEK}</small><strong>{team.name}</strong></div><span className={styles.weekSwitch}>{WEEK>1&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK-1}`}>‹</Link>}<b>{roster.length} rostered</b>{WEEK<FANTASY_LAST_WEEK&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK+1}`}>›</Link>}</span></header>
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>WEEK {WEEK}</small><strong>{team.name}</strong></div><span className={styles.weekSwitch}>{WEEK>1&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK-1}`}>‹</Link>}<b>{roster.length} rostered</b>{WEEK<FANTASY_LAST_WEEK&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK+1}`}>›</Link>}</span></header>
     <LeagueNav leagueId={leagueId} active="team" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}

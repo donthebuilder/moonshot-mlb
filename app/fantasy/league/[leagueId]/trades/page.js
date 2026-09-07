@@ -9,6 +9,7 @@ import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import TradeSideCount from '../../../../../components/fantasy/TradeSideCount'
 import styles from '../../../fantasy.module.css'
 import { cancelTrade, proposeTrade, respondTrade, reviewTrade } from './actions'
+import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 export default async function TradesPage({params,searchParams}) {
@@ -41,7 +42,7 @@ export default async function TradesPage({params,searchParams}) {
   const reviewCount=membership.role==='commissioner'?trades.filter((trade)=>trade.status==='accepted').length:0
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{membership.role==='commissioner'?`${reviewCount} awaiting review`:`${relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length} open`}</span></header>
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{membership.role==='commissioner'?`${reviewCount} awaiting review`:`${relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length} open`}</span></header>
     <LeagueNav leagueId={leagueId} active="trades" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}

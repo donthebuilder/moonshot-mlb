@@ -12,6 +12,7 @@ import DraftRoomLive from '../../../../components/fantasy/DraftRoomLive'
 import StartDraftButton from '../../../../components/fantasy/StartDraftButton'
 import SubmitButton from '../../../../components/fantasy/SubmitButton'
 import { addToQueue, assignDraftPick, draftPlayer, prepareDraft, removeFromQueue, runAutoPick, setDraftState, startDraft, syncPlayerCatalog, tickAutoPick } from './actions'
+import NetworkSwitch from '../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../components/fantasy/LeagueNav'
 import { draftValue, projectionIsPartial, replacementLevels, seasonValue } from '../../../../lib/fantasy/scoring'
 
@@ -121,7 +122,7 @@ export default async function LeagueRoom({ params, searchParams }) {
 
   return (
     <main className={styles.roomApp}>
-      <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
+      <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
       <LeagueNav leagueId={leagueId} active="draft" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
       <div className={styles.roomBody}>
         <DraftBanner error={query?.error} message={query?.message}/>

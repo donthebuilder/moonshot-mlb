@@ -5857,3 +5857,33 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font-style: normal;
   letter-spacing: .1em;
 }
+
+
+/* ── ONE NAV, NOT TWO (2026-09-06) ──────────────────────────────────────────
+   The /fantasy home used to stack a brand bar and a boxed three-tile network
+   switcher; a league room had neither, only "← FRANCHISE". Both now carry the
+   same inline switcher (components/NetworkSwitch.js, variant="inline"), and in
+   a room it REPLACES the back link -- FRANCHISE is one of its three tiles and
+   already points at /fantasy, so nothing was lost by removing the arrow.
+
+   `.roomHeader>a` above still styles the settings screen's "← LEAGUE HQ",
+   which is a within-league back link and a different job. */
+.topbar {
+  gap: 16px;
+}
+.topbar>nav {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.roomHeader>nav {
+  justify-self: start;
+  min-width: 0;
+}
+@media(max-width:760px) {
+  /* The room header is `auto 1fr auto` here and the league name owns the 1fr.
+     The switcher is already down to coloured letters at this width; this stops
+     it taking a pixel more than its chips need. */
+  .roomHeader>nav {
+    flex: none;
+  }
+}

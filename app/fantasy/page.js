@@ -283,19 +283,9 @@ export default async function FantasyPage({ searchParams }) {
             straight to /app; this authenticated "Your franchises" screen was
             the gap. */}
         <Link href="/app#sport=mlb&tab=home" style={{display:'flex',flexDirection:'column',textDecoration:'none',color:'inherit'}}><p>DASH NETWORK</p><strong>FRANCHISE</strong></Link>
+        <NetworkSwitch variant="inline"/>
         <form action={signOut}><SubmitButton className={styles.ghost} pendingLabel="Signing out…">Sign out</SubmitButton></form>
       </header>
-      {/* Donovan, 2026-08-29: "there no nav" -- the brand-link fix above made
-          the logo clickable, but this screen still had nothing that read as
-          NAVIGATION -- no visible way to see MOONSHOT/TUDDY exist from here at
-          all unless you already knew to click the logo. NetworkSwitch is the
-          same three-tile MOONSHOT/TUDDY/FRANCHISE switcher the mobile dock
-          shows (components/NetworkSwitch.js) -- that one is CSS-hidden on
-          desktop because league ROOM pages have their own "← FRANCHISE" +
-          room nav there. This top-level Franchise page has neither, on any
-          screen size, so it gets the switch inline instead of relying on a
-          dock that doesn't show here. */}
-      <div style={{maxWidth:420,margin:'14px auto 0'}}><NetworkSwitch/></div>
       <section className={styles.welcome}>
         <p className={styles.eyebrow}>YOUR FRONT OFFICE</p>
         <h1>Make every move count.</h1>

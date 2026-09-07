@@ -13,6 +13,7 @@ import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/sched
 import { dashScore, projectedFantasyPoints, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { addFreeAgent, cancelWaiverClaim, processWaivers, submitWaiverClaim } from './actions'
+import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
@@ -83,7 +84,7 @@ export default async function WirePage({params,searchParams}) {
   const nextProcessing=safeClaims.filter((claim)=>claim.status==='pending').sort((a,b)=>new Date(a.process_after)-new Date(b.process_after))[0]
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>PLAYER MARKET</small><strong>{league.name}</strong></div><span>{myTeam?`Priority #${safeTeams.findIndex((team)=>team.id===myTeam.id)+1}`:'No team yet'}</span></header>
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>PLAYER MARKET</small><strong>{league.name}</strong></div><span>{myTeam?`Priority #${safeTeams.findIndex((team)=>team.id===myTeam.id)+1}`:'No team yet'}</span></header>
     <LeagueNav leagueId={leagueId} active="wire" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}

@@ -6,6 +6,7 @@ import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { teamMonogram } from '../../../../../components/fantasy/teamIdentity'
 import styles from '../../../fantasy.module.css'
 import { createComment, createPost, toggleReaction } from './actions'
+import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const REACTIONS=[['fire','🔥'],['trophy','🏆'],['laugh','😂'],['smart','🧠']]
@@ -59,7 +60,7 @@ export default async function FeedPage({params,searchParams}) {
   const events=[...posts.map((post)=>({kind:'post',time:post.created_at,data:post})),...transactions.map((transaction)=>({kind:'transaction',time:transaction.created_at,data:transaction}))].sort((a,b)=>new Date(b.time)-new Date(a.time)).slice(0,40)
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>LEAGUE FEED</small><strong>{league.name}</strong></div><span>{teams.length} owners</span></header>
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>LEAGUE FEED</small><strong>{league.name}</strong></div><span>{teams.length} owners</span></header>
     <LeagueNav leagueId={leagueId} active="feed" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}

@@ -15,6 +15,7 @@ import { teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import styles from '../../../fantasy.module.css'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { generateSchedule } from './actions'
+import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const SEASON = 2026
@@ -86,7 +87,7 @@ export default async function MatchupPage({ params, searchParams }) {
   const margin = Math.abs(featuredHomeScore - featuredAwayScore)
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>WEEK {week}</small><strong>{league.name}</strong></div><span>{matchups.length} matchups</span></header>
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>WEEK {week}</small><strong>{league.name}</strong></div><span>{matchups.length} matchups</span></header>
     <LeagueNav leagueId={leagueId} active="matchup" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}

@@ -6,6 +6,7 @@ import styles from '../../../fantasy.module.css'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { generateWeeklyContent } from './actions'
+import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import InviteCode from '../../../../../components/fantasy/InviteCode'
 
@@ -40,7 +41,7 @@ export default async function LeaguePage({params,searchParams}) {
   const teamName=(id)=>teams.find((team)=>team.id===id)?.name||'Team'
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
     <LeagueNav leagueId={leagueId} active="league" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}

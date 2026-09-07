@@ -9,6 +9,7 @@ import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { refreshMatchupScores, syncNflWeekFeed } from './actions'
+import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 
 const SEASON=FANTASY_SEASON
@@ -63,7 +64,7 @@ export default async function CoachPage({params,searchParams}) {
   const nextGame=games.find((game)=>new Date(game.kickoff)>new Date())
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><Link href="/fantasy">← FRANCHISE</Link><div><small>DASH INTELLIGENCE</small><strong>{league.name}</strong></div><span>{latestSync?.status==='complete'?'Scoring automation healthy':games.length?'NFL feed connected':'Feed awaiting sync'}</span></header>
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>DASH INTELLIGENCE</small><strong>{league.name}</strong></div><span>{latestSync?.status==='complete'?'Scoring automation healthy':games.length?'NFL feed connected':'Feed awaiting sync'}</span></header>
     <LeagueNav leagueId={leagueId} active="coach" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
