@@ -6214,3 +6214,17 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     font-size: 18px;
   }
 }
+
+/* A team name is a way into that manager's roster (2026-09-07). It should read
+   as the same name it always was until you go looking for it -- a table of ten
+   underlined blue links is worse than the problem it solves. */
+.teamLink {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.teamLink:hover,
+.teamLink:focus-visible {
+  color: var(--fx-accent);
+  border-bottom-color: color-mix(in srgb, var(--fx-accent) 55%, transparent);
+}
