@@ -98,18 +98,35 @@ const FEED_WEBHOOKS = () => {
     .join(',')
 }
 
-async function claimAndPostStat(db, day, kind, hourGate, text, card) {
-  if (!text || etHoursSinceNoon() < hourGate) return false
-  const { data: claim, error: claimError } = await db
+// ── THE ONE CLAIM SITE ──────────────────────────────────────────────────────
+//
+// Every once-a-day post claims its (day, kind) row the same way: upsert with
+// ignoreDuplicates, and if the row came back it is yours to post. This used to
+// be written out longhand at six call sites, and five of them read only `data`
+// and threw `error` away.
+//
+// That silence is not theoretical. homer_feed_posts_kind_check allowed only
+// pregame/recap/weekly until 2026-09-07, while the code posted under monthly,
+// pairswatch, longshot and numerology too. Every claim under those four kinds
+// failed the constraint, returned `error`, inserted nothing, and nobody heard
+// about it -- for a full day, across four post types, with the route still
+// answering 200. Only when the table was read directly did it surface.
+//
+// So there is one function now, and it checks the error. A claim that cannot
+// be written says so in the log and returns false; a kind the database refuses
+// can never again look identical to a slow news night.
+async function claimSlot(db, day, kind) {
+  const { data, error } = await db
     .from('homer_feed_posts')
     .upsert([{ day, kind, payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
     .select('day')
-  // Unlike the older claim sites in this file (pairswatch/longshot/etc.),
-  // this one checks the error -- see the 2026-09-07 migration note on
-  // homer_feed_posts_kind_check for why that silence let four kinds go
-  // unposted for a full day with nothing anywhere saying so.
-  if (claimError) { console.error(`[homers] ${kind} claim failed: ${claimError.message}`); return false }
-  if (!claim?.length) return false
+  if (error) { console.error(`[homers] ${kind} claim failed: ${error.message}`); return false }
+  return Boolean(data?.length)
+}
+
+async function claimAndPostStat(db, day, kind, hourGate, text, card) {
+  if (!text || etHoursSinceNoon() < hourGate) return false
+  if (!(await claimSlot(db, day, kind))) return false
   const patch = { payload: {} }
   const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
@@ -276,10 +293,18 @@ async function postRecap(db, day, { force = false } = {}) {
   const xOn = hasX()
   const out = { recap: xOn ? 'posted' : 'x-not-configured', ...(xOn ? {} : { x_problem: xProblem() }) }
   const key = `homerfeed:recap:${day}`
-  const { data: claim } = await db
+  // Same read-the-error rule as claimSlot above, on the other claim table.
+  // This one is the worst place to be silent: an errored upsert returns no
+  // rows, which reads as "already posted", so a broken claim would retire the
+  // night's recap for good and answer 'already' every minute after.
+  const { data: claim, error: claimError } = await db
     .from('dash_push_seen')
     .upsert([{ event_key: key }], { onConflict: 'event_key', ignoreDuplicates: true })
     .select('event_key')
+  if (claimError) {
+    console.error(`[homers] recap claim failed for ${day}: ${claimError.message}`)
+    if (!force) return { recap: 'claim-failed', error: claimError.message }
+  }
   if (!claim?.length && !force) return { recap: 'already' }
   {
     const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank').eq('day', day)
@@ -307,11 +332,8 @@ async function postRecap(db, day, { force = false } = {}) {
       // SUNDAY: the week. Claimed on its own key so a recap that failed
       // halfway cannot skip it, and a week is never posted twice.
       if (new Date(`${day}T12:00:00Z`).getUTCDay() === 0) {
-        const { data: wk } = await db
-          .from('homer_feed_posts')
-          .upsert([{ day, kind: 'weekly', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-          .select('day')
-        if (wk?.length) {
+        const wk = await claimSlot(db, day, 'weekly')
+        if (wk) {
           const from = shiftDay(day, -6)
           const week = (hist || []).filter((r) => r.day >= from && r.day <= day)
           const wtext = weeklyText(week, { from, to: day, ...TAIL })
@@ -332,11 +354,8 @@ async function postRecap(db, day, { force = false } = {}) {
       // claim-first shape as weekly/pregame -- a failed half never blocks a
       // retry, and this can never double-post for the same month.
       if (new Date(`${day}T12:00:00Z`).getUTCDate() === 1) {
-        const { data: mo } = await db
-          .from('homer_feed_posts')
-          .upsert([{ day, kind: 'monthly', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-          .select('day')
-        if (mo?.length) {
+        const mo = await claimSlot(db, day, 'monthly')
+        if (mo) {
           const prevLastDay = shiftDay(day, -1)
           const monthFrom = `${prevLastDay.slice(0, 7)}-01`
           const { data: monthRows } = await db.from('homer_feed').select('day,role').gte('day', monthFrom).lte('day', prevLastDay)
@@ -506,11 +525,8 @@ export async function GET(request) {
       {
         const hits = pairsToWatch(pregameRows(), pairs)
         if (hits.length) {
-          const { data: claim } = await db
-            .from('homer_feed_posts')
-            .upsert([{ day, kind: 'pairswatch', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-            .select('day')
-          if (claim?.length) {
+          const claim = await claimSlot(db, day, 'pairswatch')
+          if (claim) {
             const text = pairsToWatchText(hits, { day, ...TAIL })
             const patch = { payload: { hits } }
             const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
@@ -533,11 +549,8 @@ export async function GET(request) {
       {
         const pick = longshotPick(pregameRows(), odds, day)
         if (pick) {
-          const { data: claim } = await db
-            .from('homer_feed_posts')
-            .upsert([{ day, kind: 'longshot', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-            .select('day')
-          if (claim?.length) {
+          const claim = await claimSlot(db, day, 'longshot')
+          if (claim) {
             const text = longshotText(pick, { day, ...TAIL })
             const patch = { payload: { pick } }
             const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
@@ -565,11 +578,8 @@ export async function GET(request) {
       if (!picks.length) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
       } else {
-        const { data: claim } = await db
-          .from('homer_feed_posts')
-          .upsert([{ day, kind: 'pregame', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-          .select('day')
-        if (!claim?.length) {
+        const claim = await claimSlot(db, day, 'pregame')
+        if (!claim) {
           if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
         } else {
           const text = pregameText(picks, { day, ...TAIL })
@@ -688,11 +698,8 @@ export async function GET(request) {
     const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,hr_n,stats').eq('day', day)
     const moment = numerologyMoment(dayRows || [])
     if (moment) {
-      const { data: claim } = await db
-        .from('homer_feed_posts')
-        .upsert([{ day, kind: 'numerology', payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-        .select('day')
-      if (claim?.length) {
+      const claim = await claimSlot(db, day, 'numerology')
+      if (claim) {
         const text = numerologyText(moment, { day, ...TAIL })
         const patch = { payload: { moment } }
         const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
@@ -778,12 +785,17 @@ export async function GET(request) {
         // UPDATE instead of an INSERT. Only the tick that actually flips the
         // null to a sentinel gets to post this row; a tick racing it for the
         // same row gets zero rows back from `.select()` and leaves it alone.
-        const { data: claim } = await db
+        const { data: claim, error: claimError } = await db
           .from('homer_feed')
           .update({ x_post_id: 'posting' })
           .match({ day, player_id: row.player_id, hr_n: row.hr_n })
           .is('x_post_id', null)
           .select('player_id')
+        // NOT claimSlot: this is a conditional UPDATE on homer_feed, not an
+        // upsert on the (day, kind) table, and `claim` here is the row array
+        // -- an EMPTY array means another tick won the race, so the length
+        // check is what prevents the double-post above and must stay.
+        if (claimError) console.error(`[homers] alert claim failed for ${row.player_id}: ${claimError.message}`)
         if (claim?.length) {
           // Card first, then the post with it attached. Either half of the
           // image step failing degrades to a text post, never to no post.

@@ -175,10 +175,11 @@ const shortId = (s) => createHash('sha1').update(String(s)).digest('hex').slice(
 
 async function claimQuietSlot(db, endpoint) {
   const key = `quiet:${shortId(endpoint)}:${Math.floor(Date.now() / QUIET_WINDOW_MS)}`
-  const { data } = await db
+  const { data, error } = await db
     .from('dash_push_seen')
     .upsert([{ event_key: key }], { onConflict: 'event_key', ignoreDuplicates: true })
     .select('event_key')
+  if (error) { console.error(`[push] quiet-slot claim failed: ${error.message}`); return false }
   return Boolean(data?.length)
 }
 
@@ -416,10 +417,19 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   // Insert-and-see-what-stuck: only rows this run actually created are new.
   // Doing it as one insert with ignoreDuplicates makes the check atomic — two
   // overlapping cron runs cannot both decide the same home run is theirs.
-  const { data: claimed } = await db
+  // Reading `error` matters more here than anywhere else in this file: an
+  // errored upsert returns no rows, `fresh` comes back empty, and EVERY event
+  // this tick reads as already-claimed. The whole push feed goes silent with
+  // the route still answering 200 -- the same shape as the
+  // homer_feed_posts_kind_check bug (2026-09-07), one table over.
+  const { data: claimed, error: claimError } = await db
     .from('dash_push_seen')
     .upsert(events.map((e) => ({ event_key: e.key })), { onConflict: 'event_key', ignoreDuplicates: true })
     .select('event_key')
+  if (claimError) {
+    console.error(`[push] event claim failed (${events.length} events): ${claimError.message}`)
+    return { ...nothing, events: events.length, error: claimError.message }
+  }
 
   const fresh = new Set((claimed || []).map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
