@@ -2187,7 +2187,8 @@
   font: 8px/1 monospace;
 }
 .wireMove button,
-.claimRow button {
+.claimRow button,
+.identitySave {
   height: 31px;
   border: 1px solid #6d3821;
   border-radius: 6px;
@@ -5522,7 +5523,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   background: hsl(16 26% 93%);
 }
 :global(html[data-theme='light']) .wireMove button,
-:global(html[data-theme='light']) .claimRow button {
+:global(html[data-theme='light']) .claimRow button,
+:global(html[data-theme='light']) .identitySave {
   background: hsl(16 26% 93%);
 }
 :global(html[data-theme='light']) .tradeActions button {
@@ -6104,24 +6106,12 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   }
 }
 
-/* The one control on Franchise with no class at all: it rendered as the
-   browser's default button — a grey slab here, an iOS blue pill on a phone,
-   the only unstyled thing on the page. Same shape as every other primary
-   action in the product. */
-.identitySave {
-  height: 34px;
-  border: 1px solid #703720;
-  border-radius: 8px;
-  background: #29160f;
-  color: var(--fx-accent);
-  padding: 0 14px;
-  font: 900 9px/1 monospace;
-  letter-spacing: .04em;
-  cursor: pointer;
-}
-.identitySave:hover {
-  background: #351b12;
-}
+/* "Save team look" had no class at all and rendered as the browser default —
+   a grey slab here, an iOS blue pill on a phone, the only unstyled control in
+   Franchise. It is the same kind of button as the Wire's Add and Claim, so it
+   JOINS that rule rather than declaring a second tinted surface of its own: a
+   new tinted background needs its own light-mode counterpart, and two of them
+   drift apart. check-franchise-theme caught exactly that. */
 .identitySave[disabled] {
   opacity: .6;
   cursor: default;
@@ -6163,7 +6153,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   white-space: nowrap;
 }
 .oddsGrid b {
-  color: #f4f1eb;
+  color: var(--fx-ink);
   font: 900 21px/1 monospace;
   letter-spacing: -.02em;
 }
@@ -6259,7 +6249,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   white-space: nowrap;
 }
 .playerRankRow strong {
-  color: #f4f1eb;
+  color: var(--fx-ink);
   font: 900 14px/1 monospace;
   text-align: right;
 }
@@ -6342,7 +6332,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font: 800 9px/1 monospace;
 }
 .duelName[data-win="true"] b {
-  color: #f4f1eb;
+  color: var(--fx-ink);
 }
 .duelName[data-win="true"] small {
   color: var(--fx-accent);
