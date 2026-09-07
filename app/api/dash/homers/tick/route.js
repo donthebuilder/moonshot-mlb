@@ -387,28 +387,15 @@ async function postRecap(db, day, { force = false } = {}) {
           const wtext = weeklyText(week, { from, to: day, ...TAIL })
           const wc = captureFrom(week)
           const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
-          // WEEKLY WAS THE ONLY KIND POSTING NAKED TEXT TO X (2026-09-07).
-          // Twelve of thirteen built a card; this one called postToX(wtext)
-          // bare. A seven-day capture summary is the most card-shaped post on
-          // the account, and byRole is already computed -- every pick type the
-          // week produced, not just TOP, which is the whole point of the
-          // number. Same statCard the monthly twenty lines below uses.
-          const wRoles = Object.entries(wc.byRole).sort((a, b) => b[1] - a[1])
-          const wpng = await bytesOf(() => statCard(day, {
-            pill: 'WEEKLY',
-            label: 'CALLED IT · THE WEEK',
-            headline: `${wc.called} of ${wc.total} home runs${wc.pct != null ? ` · ${wc.pct}%` : ''}`,
-            lines: [
-              `${from} → ${day}`,
-              wRoles.length ? wRoles.map(([r, c]) => `${roleWord(r).toUpperCase()} ${c}`).join('   ·   ') : '',
-              wc.rated ? `${wc.rated} more on the board, no call` : '',
-            ].filter(Boolean),
-          }, { site: SITE_HOST }))
-          const d = await postToDiscord(wtext, { png: wpng }, FEED_WEBHOOKS())
+          // WEEKLY STAYS TEXT-ONLY (2026-09-07). A card was built for it and
+          // Donovan took it back out -- the weekly post is a number and a
+          // sentence, and it is the one kind where a poster adds nothing the
+          // text does not already say. Deliberate, not the oversight it looks
+          // like next to the other twelve.
+          const d = await postToDiscord(wtext, {}, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (xOn) {
-            const mediaId = wpng ? await uploadImageToX(wpng) : null
-            const r = await postToX(wtext, { mediaId })
+            const r = await postToX(wtext)
             if (r.ok && r.id) patch.x_post_id = r.id
             else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
           }
