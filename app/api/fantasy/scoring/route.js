@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
+import {autoFillLineups} from '../../../../lib/fantasy/autoLineup'
 import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edgeConfig'
 
 export const dynamic='force-dynamic'
@@ -61,10 +62,33 @@ async function synchronize(request) {
     // and freeze every score silently. See lib/fantasy/sync.js.
     await syncCatalogChunked(supabase,feed.catalog)
     const sync=await syncWeekFeedChunked(supabase,feed.games,feed.players)
+    // AUTO-LINEUPS, BEFORE THE SCORES ARE REFRESHED (2026-09-07). Donovan:
+    // "make sure it auto lineups if the time comes." A manager who never
+    // opened the app started nobody and scored nothing, and his opponent got a
+    // free win that says nothing about either team -- five of nine teams in
+    // the DASH league were in that state three days out from Week 1.
+    //
+    // It runs from an hour before the week's first kickoff, fills ONLY empty
+    // starting slots, and never starts a player whose own game has already
+    // begun or who is on bye. Ordered before the refresh below so a slot
+    // filled on this tick is scored on this tick.
+    //
+    // It cannot throw -- autoFillLineups() returns its failure as a `skipped`
+    // string rather than raising, because a lineup helper must not be able to
+    // take scoring down with it. The result is logged and reported, never
+    // awaited on for correctness.
+    const lineupFills=[]
+    for(const week of weeks){
+      const fill=await autoFillLineups(supabase,{season:feed.season,week})
+      if(fill.slotsFilled||fill.skipped&&!['too_early','no_games','no_kickoffs','no_active_leagues'].includes(fill.skipped)){
+        console.log(`[franchise/scoring] auto-lineup week ${week}:`,JSON.stringify(fill))
+      }
+      lineupFills.push({week,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped})
+    }
     let matchups=0
     for(const week of weeks){const {data,error}=await supabase.rpc('refresh_all_fantasy_matchup_scores',{p_season:feed.season,p_week:week});if(error)throw error;matchups+=Number(data||0)}
     await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:new Date().toISOString()}).eq('id',runId)
-    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,builtAt:feed.builtAt})
+    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,builtAt:feed.builtAt})
   } catch(error) {
     console.error('[franchise/scoring] sync failed', error)
     if(runId)await supabase.from('fantasy_scoring_sync_runs').update({status:'failed',error_message:String(error?.message||error).slice(0,500),completed_at:new Date().toISOString()}).eq('id',runId)

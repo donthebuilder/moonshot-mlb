@@ -142,7 +142,7 @@ export default async function TeamRoster({ params, searchParams }) {
           const player = playerById.get(row.player_id)
           const bye = isOnBye(player, byeTeams)
           return <div className={styles.matchupPlayer} key={`${row.slot}-${row.slot_index}`}>
-            <span>{row.slot}</span>
+            <span>{row.slot}{row.slot_index > 1 ? row.slot_index : ''}</span>
             <div className={styles.playerIdentity}>
               <PlayerFace player={player} size={30} />
               <span><b>{player?.name || '—'}<InjuryTag status={player?.injury_status} /></b>
