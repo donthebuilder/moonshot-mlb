@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, catColor, verdictInk } from '../lib/scales'
 import { n, clean, obj, arr, nameOf } from '../lib/player'
-import { detailUrl, archiveDetailUrl } from '../lib/dataSource'
+import { fetchBatterDetail } from '../lib/dataSource'
 import { chipColor } from './Heatmap'
 // Pitch colours shared with ZoneMap and the live feed parser, so a sinker is
 // the same orange on the spray chips as it is on the strike-zone dots.
@@ -485,10 +485,10 @@ export default function SprayField({
     // league-wide, slate-independent archive spray_archive.py fills in
     // gradually (see lib/dataSource.js). Same fetch/shape either way — the
     // rest of this component doesn't know or care which source answered.
-    const url = player?.api_only ? archiveDetailUrl(pid) : detailUrl(pid, slateMode)
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
+    // Shared with PlayerModal / HRPitchProfile / HotZoneMap — one request per
+    // file per card open instead of four. See lib/dataSource.js.
+    fetchBatterDetail(pid, { archive: !!player?.api_only, mode: slateMode })
+      .then(({ data: j }) => {
         if (!alive) return
         // ── 🔴 THE SAME LIVE PULL THE EV LOG HAS HAD SINCE 2026-08-08 ──────
         // Donovan, on a hitter sitting at #146 of tonight's 303: "this should

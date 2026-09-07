@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj, arr } from '../lib/player'
-import { detailUrl } from '../lib/dataSource'
+import { fetchBatterDetail } from '../lib/dataSource'
 
 // What this hitter homers off — and whether tonight's starter throws it.
 //
@@ -34,10 +34,16 @@ export default function HRPitchProfile({ player, slateMode }) {
     if (!pid) return
     let alive = true
     setState('loading'); setData(null)
-    fetch(detailUrl(pid, slateMode))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive) { setData(j); setState('done') } })
-      .catch(() => { if (alive) setState('error') })
+    // fetchBatterDetail, not fetch(): three other components want this exact
+    // file on the same card open and now share one request for it. See
+    // lib/dataSource.js. `error` is reserved for a request that failed —
+    // a 404 is a published-nothing, which is 'done' with no data.
+    fetchBatterDetail(pid, { mode: slateMode })
+      .then(({ ok, status, data }) => {
+        if (!alive) return
+        setData(data)
+        setState(ok || status === 404 ? 'done' : 'error')
+      })
     return () => { alive = false }
   }, [pid, slateMode])
 

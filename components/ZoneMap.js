@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { hotColdZones } from '../lib/situational'
-import { zonesUrl } from '../lib/dataSource'
+import { fetchShared, zonesUrl } from '../lib/dataSource'
 import {
   KIND_LABEL, PITCH_NAMES as LIVE_PITCH_NAMES, pitchColor, pitchSummary,
   pitchTypes, zoneBox, zoneCell, zoneFrac, inZone as pitchInZone,
@@ -449,9 +449,10 @@ export default function ZoneMap({
     setApi(undefined); setBot(null); setStat('ev')
     hotColdZones(playerId).then((d) => { if (alive) setApi(d) })
     if (playerId) {
-      fetch(zonesUrl(playerId))
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
+      // Shared with HotZoneMap, which asks for the same zones file. See
+      // lib/dataSource.js.
+      fetchShared(zonesUrl(playerId))
+        .then(({ data: d }) => {
           if (!alive) return
           setBot(d)
           // Matchup is the map's whole point — make it the door, not a room.

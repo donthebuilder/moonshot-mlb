@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
-import { detailUrl, archiveDetailUrl } from '../lib/dataSource'
+import { fetchBatterDetail } from '../lib/dataSource'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
@@ -471,11 +471,20 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
     let alive = true
     setDetailState('loading'); setDetail(null)
     const archive = !!player?.api_only
-    const url = archive ? archiveDetailUrl(pid) : detailUrl(pid, slateMode)
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
+    // ── ONE REQUEST, AND A THROTTLE IS NOT AN ABSENCE (2026-09-07) ────────
+    // Three other panels on this card (SprayField, HRPitchProfile,
+    // HotZoneMap) fetch this same file; fetchBatterDetail collapses all four
+    // into one request. It also returns the HTTP status, which is the whole
+    // point: `r.ok ? json : null` used to turn a 429 from
+    // raw.githubusercontent into the same null as a real 404, and the header
+    // below then told the user "No detail file published for this hitter"
+    // about a hitter whose file is on the branch with 120 batted balls in it.
+    // See lib/dataSource.js for the measurement.
+    fetchBatterDetail(pid, { archive, mode: slateMode })
+      .then(({ ok, status, data: j }) => {
         if (!alive) return
+        // Couldn't ask — not "isn't there". Different state, different copy.
+        if (!ok && status !== 404) { setDetail(null); setDetailState('error'); return }
         // ── A DETAIL FILE FROM ANOTHER NIGHT IS NOT THIS MAN'S FILE ───────
         // (2026-08-29.) The slate detail directory on the data branch was
         // found holding a complete snapshot of a night that was on NEITHER
@@ -506,7 +515,6 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
         setDetail(j)
         setDetailState(j ? 'done' : 'missing')
       })
-      .catch(() => { if (alive) setDetailState('error') })
     return () => { alive = false }
   }, [pid, slateMode, player?.api_only, player?.game_pk])
 
@@ -934,7 +942,17 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
             {tab !== 'overview' && detailState === 'loading' && (
               <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>Loading detail…</span>
             )}
-            {tab !== 'overview' && (detailState === 'missing' || detailState === 'error') && (
+            {/* 'error' no longer borrows 'missing''s sentence (2026-09-07).
+                They are different facts: one says the bot published nothing
+                for this man, the other says we couldn't reach the file. Saying
+                the first when the second is true is the site lying about its
+                own data, and it was the most common thing it said. */}
+            {tab !== 'overview' && detailState === 'error' && (
+              <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
+                Couldn’t load his file just now — the data host didn’t answer. Reopen the card to retry.
+              </span>
+            )}
+            {tab !== 'overview' && detailState === 'missing' && (
               <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
                 {apiOnly
                   ? 'Not archived yet — this player isn’t on tonight’s slate and the off-slate archive hasn’t reached him'

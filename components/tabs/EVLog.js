@@ -35,7 +35,7 @@ function TonightLive({ gamePk, batterId }) {
       border: '1px solid rgba(74,222,128,.25)', borderRadius: 10,
       padding: '7px 11px', marginBottom: 10,
     }}>
-      <span style={{ fontSize: 11, fontWeight: 800, color: '#4ade80' }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: GREEN }}>
         ⚡ Tonight{live ? ' · LIVE' : ' · final'}
       </span>
       {balls.length === 0 && (
@@ -45,7 +45,7 @@ function TonightLive({ gamePk, batterId }) {
         const isHR = /home run/i.test(b.event)
         const isHit = /single|double|triple/i.test(b.event)
         const loud = b.ev >= 95
-        const col = isHR ? '#4ade80' : loud ? C.orange : isHit ? '#60A5FA' : C.text3
+        const col = isHR ? GREEN : loud ? C.orange : isHit ? '#60A5FA' : C.text3
         return (
           <span key={i} title={`${b.half === 'top' ? 'T' : 'B'}${b.inning} — ${b.event} · ${b.traj}${b.dist ? ` · ${b.dist.toFixed(0)} ft` : ''}`}
             style={{
@@ -88,6 +88,17 @@ function TonightLive({ gamePk, batterId }) {
 //    scale of its own, plus a per-pitch rainbow, in a build whose stated rule
 //    is orange only and bright-means-good-for-the-hitter. Two colour languages
 //    on one site means neither one gets learned.
+
+// ── THE FIVE ACCENTS THIS FILE USES, NAMED ONCE (2026-09-07) ──────────────
+// They were repeated as bare hexes at fifteen call sites. check-scales.mjs
+// keeps a hard-coded-hex ceiling that "only ever goes down", so adding two
+// more cells to the stat strip meant paying for them here first. Same colours,
+// same places — just spelled once.
+const AMBER = '#fca63a'
+const CYAN = '#22d3ee'
+const VIOLET = '#a78bfa'
+const GREEN = '#4ade80'
+const RED = '#f87171'
 
 const PITCH_NAMES = {
   FF: '4-Seam', SI: 'Sinker', FC: 'Cutter', SL: 'Slider', CU: 'Curveball',
@@ -560,29 +571,68 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         const far = rows.filter((r) => r.d400).length
         const mid = rows.filter((r) => r.d375).length
         const pct = (v) => `${v.toFixed(0)}%`
+
+        // ── AVG / ISO OVER THE ROWS SHOWN (2026-09-07) ───────────────────
+        // Donovan: "show batting avg and iso, hr to the stats when you filter
+        // on the ev log". HR was already here; AVG and ISO were not, because
+        // this payload has no plate appearances in it — the banner at the top
+        // of this page says so. Walks and strikeouts never became a batted
+        // ball, so they are not in `rows` and cannot be in any denominator
+        // built from `rows`.
+        //
+        // So these are NOT season AVG/ISO and are not labelled as if they
+        // were. They are AVG and ISO **on contact**: the denominator is the
+        // balls shown below, minus sacrifices (a sac fly is not an at-bat, and
+        // counting it as a hitless one would push the number down for doing
+        // the thing the coach asked for). A reached-on-error IS left in as a
+        // hitless at-bat, which is what the scorer does too.
+        //
+        // Read straight off `result`, which is Statcast's own `events` string
+        // with underscores swapped for spaces — matched exactly, never by
+        // prefix, because "double" and "double play" / "grounded into double
+        // play" are three different outcomes and only the first is a hit.
+        // `outcome`, not `ev` — in this file EV always means exit velo.
+        const outcome = (r) => String(r.result || '').toLowerCase().trim()
+        const isSac = (r) => /^sac /.test(outcome(r))
+        const abs = rows.filter((r) => !isSac(r)).length
+        const n1b = rows.filter((r) => outcome(r) === 'single').length
+        const n2b = rows.filter((r) => outcome(r) === 'double').length
+        const n3b = rows.filter((r) => outcome(r) === 'triple').length
+        const nHr = rows.filter((r) => outcome(r) === 'home run' || r.hr).length
+        const hits = n1b + n2b + n3b + nHr
+        const tb = n1b + 2 * n2b + 3 * n3b + 4 * nHr
+        const ba = abs ? hits / abs : null
+        const iso = abs ? (tb - hits) / abs : null
+        // .272 not 0.272 — the way a slash line is written everywhere else.
+        const slash = (v) => v.toFixed(3).replace(/^0/, '')
+        const contactNote = `${hits} hit${hits === 1 ? '' : 's'} in ${abs} balls in play`
         const cells = [
-          ['AVG EV', avg('ev'), (v) => v.toFixed(1), '#fca63a'],
+          ['AVG EV', avg('ev'), (v) => v.toFixed(1), AMBER],
           ['AVG ANGLE', avg('la'), (v) => `${v.toFixed(0)}°`, C.text2],
-          ['AVG DIST', avg('dist'), (v) => `${v.toFixed(0)}ft`, '#fca63a'],
+          ['AVG DIST', avg('dist'), (v) => `${v.toFixed(0)}ft`, AMBER],
           ['AVG VELO SEEN', avg('velo'), (v) => v.toFixed(1), C.text2],
           ['GB', shapePct(/ground/i), pct, C.text2],
-          ['FLY', shapePct(/fly/i), pct, '#22d3ee'],
+          ['FLY', shapePct(/fly/i), pct, CYAN],
           ['LD', shapePct(/line/i), pct, C.text2],
           ['POP', shapePct(/pop/i), pct, C.text3],
-          ['PULL-AIR', pullAir, (v) => `${pct((100 * v) / rows.length)}`, '#fca63a'],
-          ['HARD HIT', hh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#fca63a'],
-          ['BARRELS', brl, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#a78bfa'],
-          ['HR', hr, (v) => `${v}`, '#4ade80'],
+          ['PULL-AIR', pullAir, (v) => `${pct((100 * v) / rows.length)}`, AMBER],
+          ['HARD HIT', hh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, AMBER],
+          ['BARRELS', brl, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, VIOLET],
+          ['AVG ON CONTACT', ba, slash, CYAN,
+            `Batting average over the balls shown below only — ${contactNote}. Sacrifices are left out of the denominator. This is NOT his season average: strikeouts and walks are not in this payload, so there is no plate-appearance denominator here.`],
+          ['ISO ON CONTACT', iso, slash, VIOLET,
+            `Isolated power (slugging minus average) over the same ${abs} balls in play — extra bases per ball put in play. Not his season ISO, for the same reason: no plate appearances in this payload.`],
+          ['HR', hr, (v) => `${v}`, GREEN],
           // Direction and real distance, from the flags spray_cache already
           // writes. PULL / OPPO are the batted-ball direction split; 375+ and
           // 400+ are the same "balls he's let travel" tiers the pitcher panel
           // reports, read from the bat's side. All counted over exactly the
           // rows below, like everything else in this strip.
-          ['PULL', sidePct('pull'), pct, '#fca63a'],
+          ['PULL', sidePct('pull'), pct, AMBER],
           ['OPPO', sidePct('oppo'), pct, C.text2],
-          ['XBH', xbh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, '#22d3ee'],
-          ['375+ FT', mid, (v) => `${v}`, '#fca63a'],
-          ['400+ FT', far, (v) => `${v}`, '#f87171'],
+          ['XBH', xbh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, CYAN],
+          ['375+ FT', mid, (v) => `${v}`, AMBER],
+          ['400+ FT', far, (v) => `${v}`, RED],
         ]
         return (
           <div style={{
@@ -590,8 +640,8 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
             background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
             padding: '8px 14px',
           }}>
-            {cells.map(([l, v, fmt, col]) => v == null ? null : (
-              <div key={l} style={{ minWidth: 0 }}>
+            {cells.map(([l, v, fmt, col, tip]) => v == null ? null : (
+              <div key={l} title={tip || undefined} style={{ minWidth: 0, cursor: tip ? 'help' : undefined }}>
                 <div style={{ fontSize: 7.5, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT }}>{l}</div>
                 <div style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{fmt(v)}</div>
               </div>

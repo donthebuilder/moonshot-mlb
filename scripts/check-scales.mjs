@@ -118,7 +118,12 @@ const EXEMPT = new Set([
 //         The uppercase spellings went too — #60A5FA and #60a5fa are the
 //         same colour and two spellings defeat exactly the grep this
 //         budget is counted with.
-const HEX_BUDGET = 809
+//    801  2026-09-07: EVLog's five accent colours, repeated as bare hexes at
+//         fifteen call sites, named once at the top of the file. Prompted by
+//         adding two cells to its stat strip — the budget is a ratchet, so
+//         two new literals had to be paid for, and paying tidied a file that
+//         had been spelling the same amber six times.
+const HEX_BUDGET = 801
 
 let hexTotal = 0
 const perFile = []

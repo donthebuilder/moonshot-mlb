@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
+import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import { C } from '../../lib/nfl/theme'
 import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
@@ -226,7 +227,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             textAlign: 'center', color: C.text3, fontSize: 12.5,
           }}>Loading slate…</div>
         ) : (
-          <>
+          <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} />}
             {tab === 'watchlist' && <Watchlist data={slate} onPlayerClick={openPlayer} />}
@@ -241,7 +242,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'streaks' && <Streaks data={data} logs={logs} onPlayerClick={openPlayer} />}
-          </>
+          </ErrorBoundary>
         )}
       </main>
       <MobileTabBarNfl tab={tab} setTab={setTab} data={slate} />
@@ -249,6 +250,8 @@ export default function NflDashboard({ palettePass = 0 }) {
           one of your names, and polls nothing unless a game is in progress or
           about to start — see components/nfl/NflWire.js. */}
       <NflWire data={slate} onPlayerClick={openPlayer} />
+      {/* A crash in the card should close the card, not the site. */}
+      <ErrorBoundary resetKey={modal?.player?.player_id ?? modal?.player?.id} label="the player card">
       <NflPlayerModal
         player={modal?.player}
         market={modal?.market}
@@ -262,6 +265,7 @@ export default function NflDashboard({ palettePass = 0 }) {
         onClose={() => setModal(null)}
         onFullProfile={openFullProfile}
       />
+      </ErrorBoundary>
     </>
   )
 }

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj } from '../lib/player'
-import { splitsUrl } from '../lib/dataSource'
+import { fetchShared, splitsUrl } from '../lib/dataSource'
 import DenseTable from './DenseTable'
 
 // Situational splits — day/night, home/away, day of week, win/loss.
@@ -308,10 +308,14 @@ export default function PlayerSplits({ player, slateMode }) {
     if (!pid) return
     let alive = true
     setState('loading'); setData(null)
-    fetch(splitsUrl(pid, slateMode))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive) { setData(j); setState(j ? 'done' : 'missing') } })
-      .catch(() => { if (alive) setState('error') })
+    // fetchShared retries a throttled request and reports the status, so a
+    // 429 from the data host stops rendering as "no splits published".
+    fetchShared(splitsUrl(pid, slateMode))
+      .then(({ ok, status, data }) => {
+        if (!alive) return
+        if (!ok && status !== 404) { setData(null); setState('error'); return }
+        setData(data); setState(data ? 'done' : 'missing')
+      })
     return () => { alive = false }
   }, [pid, slateMode])
 

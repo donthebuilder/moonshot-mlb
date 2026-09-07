@@ -12,7 +12,7 @@
  */
 
 'use client'
-import { detailUrl, zonesUrl } from '../lib/dataSource'
+import { fetchBatterDetail, fetchShared, zonesUrl } from '../lib/dataSource'
 import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { ORANGE_RAMP, RAMP_CHIPS, rampColor, inkFor } from './Heatmap'
@@ -727,13 +727,23 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
     // false since ddaef65 — zones/today/ is live on the data branch (verified
     // against the branch today). A 404 now just means the nightly batch
     // hasn't reached this player yet; the empty state below says so.
+    // The detail half is the same file three other panels are asking for on
+    // this card open; fetchBatterDetail hands them all one request. It also
+    // reports WHY it came back empty, which is the difference between "the
+    // nightly batch hasn't reached him" and "GitHub throttled us" — those had
+    // been rendered with the same sentence. See lib/dataSource.js.
     Promise.all([
-      fetch(detailUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch(zonesUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetchBatterDetail(pid, { mode: slateMode }),
+      fetchShared(zonesUrl(pid, slateMode)),
     ])
-      .then(([detail, zones])=>{
+      .then(([d, z])=>{
         if (!alive) return
-        if (!detail && !zones) { setError('no data published'); setLoading(false); return }
+        const detail = d?.data, zones = z?.data
+        if (!detail && !zones) {
+          const throttled = ![404, 200].includes(d?.status) || ![404, 200].includes(z?.status)
+          setError(throttled ? 'could not load — the data host did not answer' : 'no data published')
+          setLoading(false); return
+        }
         setCacheData({ ...(detail||{}), ...(zones||{}) })
         setLoading(false)
       })

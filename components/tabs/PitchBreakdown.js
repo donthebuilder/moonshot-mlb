@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import DenseTable from '../DenseTable'
 import MixDuel from '../MixDuel'
-import { pitcherDetailUrl } from '../../lib/dataSource'
+import { fetchPitcherDetail } from '../../lib/dataSource'
 
 // COLOUR NOTE. This page ran a green/red good-bad scale and a per-pitch rainbow
 // until now — its own footer read "Green = favorable for batter, Red =
@@ -127,10 +127,10 @@ export default function PitchBreakdown({ player, detail = null }) {
     let alive = true
     setPdetail(null)
     if (!pitcherId) return undefined
-    fetch(pitcherDetailUrl(pitcherId))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive) setPdetail(j) })
-      .catch(() => { /* the overall summary on the row still renders */ })
+    // Shared request — MatchupPitcher and PitcherProfile want this same
+    // starter file on the same card open. See lib/dataSource.js.
+    fetchPitcherDetail(pitcherId)
+      .then(({ data }) => { if (alive) setPdetail(data) })
     return () => { alive = false }
   }, [pitcherId])
 

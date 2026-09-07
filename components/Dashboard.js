@@ -52,6 +52,7 @@ import { SlateScaleProvider } from '../lib/statline'
 import { follow, useFollowing } from '../lib/dash/follow'
 import { liveOdds } from '../lib/oddsFreshness'
 import { markDirty } from '../lib/dash/sync'
+import ErrorBoundary from './ErrorBoundary'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
 
@@ -675,6 +676,10 @@ export default function Dashboard({ palettePass = 0 }) {
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
           <div key={tab} className="tab-fade">
+            {/* Same boundary the NFL side got (2026-09-07, components/
+                ErrorBoundary.js): a throw inside one tab used to unmount the
+                whole app to a white screen. Now it is one panel. */}
+            <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {/* resultsForSlate, NOT results (2026-08-09 audit). Home's pulse line
                 counts "balls already left a yard tonight" straight out of the
                 results payload, and results_live.json holds the LAST graded
@@ -751,6 +756,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
+            </ErrorBoundary>
           </div>
         )}
         {/* THE DISCLAIMER (2026-08-08, Donovan: "make sure we know it's all
@@ -775,6 +781,8 @@ export default function Dashboard({ palettePass = 0 }) {
           any component's effect deps — the detail fetches never re-ran and you
           kept looking at the other slate's spray chart, splits and arsenal.
           Threaded as a prop it's in the deps array, so a mode flip refetches. */}
+      {/* A crash in the card should close the card, not the site. */}
+      <ErrorBoundary resetKey={modalPlayer && (modalPlayer.player_id ?? modalPlayer.id)} label="the player card">
       <PlayerModal
         player={modalPlayer}
         initialTab={modalPlayer && String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') === modalView.pid ? modalView.view : ''}
@@ -800,6 +808,7 @@ export default function Dashboard({ palettePass = 0 }) {
         pairSummary={pairSummary}
         onOpenPairHistory={() => setTab('pairhist')}
       />
+      </ErrorBoundary>
     </SlateScaleProvider>
   )
 }

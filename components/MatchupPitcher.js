@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { hr9Color, hr9Word, isLeaky, isWall } from '../lib/hr9'
 import { n, clean, obj, arr, nameOf } from '../lib/player'
-import { pitcherDetailUrl } from '../lib/dataSource'
+import { fetchPitcherDetail } from '../lib/dataSource'
 import Explain from './Explain'
 import DenseTable from './DenseTable'
 import PitchMixChart from './PitchMixChart'
@@ -250,10 +250,15 @@ export default function MatchupPitcher({ player, slateMode }) {
     if (!pitcherId) return
     let alive = true
     setState('loading'); setDetail(null)
-    fetch(pitcherDetailUrl(pitcherId, slateMode))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive) { setDetail(j); setState(j ? 'done' : 'missing') } })
-      .catch(() => { if (alive) setState('error') })
+    // Shared request, and a throttled response is 'error' (we couldn't ask)
+    // rather than 'missing' (nothing was published) — the same distinction
+    // PlayerModal now draws. See lib/dataSource.js.
+    fetchPitcherDetail(pitcherId, slateMode)
+      .then(({ ok, status, data }) => {
+        if (!alive) return
+        if (!ok && status !== 404) { setDetail(null); setState('error'); return }
+        setDetail(data); setState(data ? 'done' : 'missing')
+      })
     return () => { alive = false }
   }, [pitcherId, slateMode])
 

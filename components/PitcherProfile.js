@@ -2,7 +2,7 @@
 import { useMemo, useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean } from '../lib/player'
-import { pitcherDetailUrl } from '../lib/dataSource'
+import { fetchPitcherDetail } from '../lib/dataSource'
 import Heatmap, { RAMP_CHIPS } from './Heatmap'
 
 // Command / swing profile, platoon splits and arsenal — ported from Streamlit.
@@ -167,10 +167,9 @@ function OrderZones({ pitcherId }) {
   useEffect(() => {
     if (!pitcherId) return
     let alive = true
-    fetch(pitcherDetailUrl(pitcherId))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive) setZones(j?.pitcher_lineup_zone_damage || null) })
-      .catch(() => {})
+    // Shared request. See lib/dataSource.js.
+    fetchPitcherDetail(pitcherId)
+      .then(({ data }) => { if (alive) setZones(data?.pitcher_lineup_zone_damage || null) })
     return () => { alive = false }
   }, [pitcherId])
 
