@@ -46,42 +46,10 @@ button {
   font-family: inherit;
 }
 
-/* ── FRANCHISE'S NETWORK DOCK (2026-08-29) ─────────────────────────────────
-   Mounted once in app/fantasy/layout.js — see the note there for why it lives
-   at the layout level and not in each of the nine league-room pages.
-
-   Phone only. It is fixed so it is reachable without scrolling to the end of
-   a draft board, and it sits 74px up so it clears Franchise's own 64px
-   .mobileNav on the league index instead of covering it. The spacer is a
-   normal in-flow block of the same height: Franchise's page padding lives in
-   a CSS module with hashed class names that a global sheet can't reach, so
-   the layout reserves the space itself rather than reaching into it.
-
-   Desktop shows neither. There the room header's "← FRANCHISE" link and the
-   front door already carry you out, and a docked bar over a wide layout is
-   furniture. */
-.fantasyNetworkDock,
-.fantasyNetworkDockSpacer {
-  display: none;
-}
-
-@media (max-width: 760px) {
-  .fantasyNetworkDock {
-    position: fixed;
-    z-index: 6;
-    display: block;
-    left: 10px;
-    right: 10px;
-    bottom: calc(74px + env(safe-area-inset-bottom));
-    border-radius: 13px;
-    background: var(--dash-scrim, rgba(11, 11, 10, .96));
-    backdrop-filter: blur(12px);
-  }
-  .fantasyNetworkDockSpacer {
-    display: block;
-    height: calc(96px + env(safe-area-inset-bottom));
-  }
-}
+/* Franchise's phone-only network dock lived here until 2026-09-07. Removed
+   with the dock itself — a league room on a phone was stacking three
+   navigations, and the room header's switch row already does this job. See
+   app/fantasy/layout.js. */
 
 /* ── NO QUESTION-MARK CURSOR, ANYWHERE (2026-08-29) ────────────────────────
    Donovan: "site wide, i dont like when i hover over something or a name /

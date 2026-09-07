@@ -19,20 +19,17 @@ export const metadata = {
   },
 }
 
-// ── FRANCHISE KEEPS ITS WAY BACK (2026-08-29) ───────────────────────────────
-// The floating DASH launcher used to be the only thing on a Franchise screen
-// that could reach MOONSHOT or TUDDY. It is deleted (Donovan: "remove the
-// little floating ico, its redundant now"), and MOONSHOT/TUDDY replaced it
-// with the network switch inside their bottom bar — but Franchise has no such
-// bar to put it in, and its league rooms are server components spread over
-// nine files. So the switch is mounted once here, for every Franchise route,
-// as a slim dock that only appears on a phone; on desktop the room header's
-// "← FRANCHISE" and the front door carry it, exactly as before.
+// ── THE THREE-SITE DOCK IS GONE (2026-09-07) ────────────────────────────────
+// Donovan: "the mobile thing that has the three sites needs to be just removed
+// from the navigator."
 //
-// It sits ABOVE Franchise's own .mobileNav (64px tall, fixed at bottom on the
-// league index) rather than fighting it for the same strip, and the page gets
-// the extra bottom padding so nothing lands underneath either one.
-import NetworkSwitch from '../../components/NetworkSwitch'
+// It was mounted here for every Franchise route as a fixed phone-only dock. By
+// tonight a league room on a phone was stacking THREE navigations up the
+// bottom of the screen: the network switch inline in the room header, this
+// dock, and the league bar under it. The header row does this job already, on
+// every screen, and it is the row that replaced the old back link -- so the
+// way out of Franchise is not lost with the dock, it is just only stated once.
+//
 // #76: stamps html[data-theme] on Franchise routes. Without it every light
 // rule in fantasy.module.css matches nothing — see ThemeSync.js.
 import ThemeSync from '../../components/fantasy/ThemeSync'
@@ -44,10 +41,6 @@ export default function FantasyLayout({ children }) {
     <>
       <ThemeSync />
       {children}
-      <div aria-hidden="true" className="fantasyNetworkDockSpacer" />
-      <div className="fantasyNetworkDock">
-        <NetworkSwitch />
-      </div>
     </>
   )
 }

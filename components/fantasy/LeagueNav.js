@@ -19,16 +19,13 @@
 
 import Link from 'next/link'
 
-const ITEMS = [
-  ['draft',    '',           'Draft'],
-  ['team',     '/team',      'Team'],
-  ['matchup',  '/matchup',   'Matchup'],
-  ['league',   '/league',    'League'],
-  ['wire',     '/wire',      'Wire'],
-  ['trades',   '/trades',    'Trades'],
-  ['feed',     '/feed',      'Feed'],
-  ['coach',    '/coach',     'Coach'],
-]
+// LABELS AND ORDER COME FROM ONE TABLE NOW (2026-09-07). This file spelled out
+// its own list and LeagueMobileNav spelled out a different one, in a different
+// order, with a different name for the same page -- the exact drift the header
+// above describes, one level up. Both navs read lib/fantasy/nav.js.
+import { FRANCHISE_NAV, FRANCHISE_RAIL } from '../../lib/fantasy/nav'
+
+const ITEMS = FRANCHISE_RAIL.map((key) => [key, FRANCHISE_NAV[key].path, FRANCHISE_NAV[key].label])
 
 export default function LeagueNav({ leagueId, active, role, className, activeClassName }) {
   const base = `/fantasy/league/${leagueId}`
@@ -42,8 +39,8 @@ export default function LeagueNav({ leagueId, active, role, className, activeCla
       ))}
       {isCommissioner && (
         active === 'settings'
-          ? <a aria-current="page" className={activeClassName}>Settings</a>
-          : <Link href={`${base}/settings`}>Settings</Link>
+          ? <a aria-current="page" className={activeClassName}>{FRANCHISE_NAV.settings.label}</a>
+          : <Link href={`${base}/settings`}>{FRANCHISE_NAV.settings.label}</Link>
       )}
     </nav>
   )
