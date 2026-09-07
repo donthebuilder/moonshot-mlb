@@ -39,17 +39,39 @@ const rateCol = (pct) => (pct >= 60 ? C.green : pct >= 45 ? C.yellow : pct >= 25
 const cellBg = (pct) => (pct == null ? 'transparent'
   : pct >= 60 ? `${C.green}21` : pct >= 45 ? `${C.yellow}1a` : pct >= 25 ? 'rgba(249,115,22,.12)' : `${C.red}12`)
 
-export default function PropsGrid({ log, market: initialMarket, defaultBar }) {
+export default function PropsGrid({ log, market: initialMarket, defaultBar, scores }) {
   const [mkt, setMkt] = useState(initialMarket || 'REC')
   const [lines, setLines] = useState({})          // per-market line override
   const [sort, setSort] = useState(null)          // {w, dir} or null
 
-  // Only markets this player actually produces in — a kicker gets one row,
-  // not seven rows of zeros wearing percentages.
+  // Only markets this player actually plays.
+  //
+  // 2026-09-07. The old test was "has he ever recorded a non-zero value here",
+  // and it is far too weak. Ten of the league's sixty-five quarterbacks have
+  // caught a pass at some point in their log, so ten quarterbacks were handed a
+  // "5+ Rec" row reading 0 / 0 / 0 / 0 with an L34 cold streak stamped on the
+  // end of it. Same for the kicker with one career carry and the nine wide
+  // receivers with a trick-play completion. A row that can only ever say zero
+  // is not information, and the signed-streak column made it read as a finding.
+  //
+  // A market earns its row three ways, cheapest test first:
+  //   · it is the market you opened him from — never hide the row you came for
+  //   · the bot scores him in it — the model has already ruled him eligible
+  //   · he has cleared the market's EASIEST line at least once, which is
+  //     precisely the question "could this row ever show a number but zero"
+  //
+  // Checked against the live Week 1 payload: 259 all-zero rows disappear across
+  // 219 players. Goff drops from six rows to three (rush yds, pass yds, TD);
+  // Chase keeps rec / rec yds / TD and loses the phantom carries; Barkley, who
+  // genuinely does all five, keeps all five; Dicker keeps his one.
   const live = useMemo(() => {
     const all = log || []
-    return MARKETS.filter(([, , key]) => all.some((g) => Number(g[key]) > 0))
-  }, [log])
+    return MARKETS.filter(([key, , statKey, presets]) => {
+      if (key === initialMarket) return true
+      if (Number.isFinite(scores?.[key])) return true
+      return all.some((g) => Number(g[statKey]) > presets[0])
+    })
+  }, [log, initialMarket, scores])
 
   const active = live.find(([k]) => k === mkt) || live[0]
   if (!log?.length || !active) return null
