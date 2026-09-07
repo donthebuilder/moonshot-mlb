@@ -15,6 +15,7 @@ import { addToQueue, assignDraftPick, draftPlayer, prepareDraft, removeFromQueue
 import NetworkSwitch from '../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../components/fantasy/LeagueNav'
 import { draftValue, projectionIsPartial, replacementLevels, seasonValue } from '../../../../lib/fantasy/scoring'
+import { loadPlayerCatalog } from '../../../../lib/fantasy/playerCatalog'
 
 const POSITIONS = ['ALL','QB','RB','WR','TE','FLEX','K','DEF']
 
@@ -45,7 +46,9 @@ export default async function LeagueRoom({ params, searchParams }) {
   const [{ data: membership }, { data: teamRows }, { data: playerRows }, { data: draft }] = await Promise.all([
     supabase.from('fantasy_league_memberships').select('role').eq('league_id', leagueId).eq('user_id', user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id', leagueId).order('created_at'),
-    supabase.from('nfl_players').select('id,name,position,team,injury_status,source_payload,source_player_id').eq('active', true),
+    // Cached for a minute -- see lib/fantasy/playerCatalog.js. This exact query
+    // ran on every router.refresh() from every open tab, five seconds apart.
+    loadPlayerCatalog(supabase).then((rows) => ({ data: rows })),
     supabase.from('fantasy_drafts').select('*').eq('league_id', leagueId).maybeSingle(),
   ])
   if (!membership) notFound()

@@ -11,6 +11,7 @@ import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/w
 import { refreshMatchupScores, syncNflWeekFeed } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
+import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
 
 const SEASON=FANTASY_SEASON
 
@@ -27,7 +28,7 @@ export default async function CoachPage({params,searchParams}) {
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId),
-    supabase.from('nfl_players').select('id,name,position,team,injury_status,source_payload').eq('active',true),
+    loadPlayerCatalog(supabase).then((rows) => ({ data: rows })),
     supabase.from('fantasy_roster_entries').select('team_id,player_id').eq('league_id',leagueId).is('released_at',null),
     supabase.from('nfl_week_games').select('*').eq('season',SEASON).order('kickoff'),
     supabase.from('fantasy_scoring_sync_runs').select('*').order('started_at',{ascending:false}).limit(1).maybeSingle(),

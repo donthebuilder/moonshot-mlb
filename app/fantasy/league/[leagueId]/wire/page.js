@@ -15,6 +15,7 @@ import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/w
 import { addFreeAgent, cancelWaiverClaim, processWaivers, submitWaiverClaim } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
+import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
 
@@ -40,7 +41,7 @@ export default async function WirePage({params,searchParams}) {
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).order('waiver_priority'),
-    supabase.from('nfl_players').select('id,name,position,team,injury_status,source_payload,source_player_id').eq('active',true),
+    loadPlayerCatalog(supabase).then((rows) => ({ data: rows })),
     supabase.from('fantasy_roster_entries').select('team_id,player_id').eq('league_id',leagueId).is('released_at',null),
     supabase.from('fantasy_player_availability').select('*').eq('league_id',leagueId),
     supabase.from('fantasy_waiver_claims').select('*,player:nfl_players!fantasy_waiver_claims_player_id_fkey(name,position,team)').eq('league_id',leagueId).order('created_at',{ascending:false}),
