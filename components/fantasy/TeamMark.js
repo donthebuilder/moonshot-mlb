@@ -1,4 +1,5 @@
 import { teamColor, teamMonogram } from './teamIdentity'
+import { emblemPath } from './emblems'
 
 // The colored monogram medallion that stands in for a team logo. Renders for
 // EVERY team — owner-picked identity when it exists, deterministic fallback
@@ -9,6 +10,10 @@ import { teamColor, teamMonogram } from './teamIdentity'
 export default function TeamMark({ team, size = 26 }) {
   const color = teamColor(team)
   const monogram = teamMonogram(team)
+  // An emblem replaces the monogram rather than joining it -- two marks in one
+  // 26px medallion is no mark at all. A team with no emblem, or one this build
+  // does not draw, keeps the initials it has always had.
+  const path = emblemPath(team?.emblem)
   return (
     <span
       aria-hidden="true"
@@ -22,6 +27,8 @@ export default function TeamMark({ team, size = 26 }) {
         letterSpacing: monogram.length > 1 ? '.02em' : '0',
         verticalAlign: 'middle',
       }}
-    >{monogram}</span>
+    >{path
+      ? <svg aria-hidden="true" viewBox="0 0 24 24" width={Math.round(size * 0.62)} height={Math.round(size * 0.62)} fill="currentColor"><path d={path}/></svg>
+      : monogram}</span>
   )
 }

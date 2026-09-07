@@ -31,10 +31,15 @@ export async function saveLineupSlot(formData) {
 // row; the .eq guards here are belt on top of that suspender.
 export async function saveTeamIdentity(formData) {
   const { isValidTeamColor, cleanMonogram } = await import('../../../../../components/fantasy/teamIdentity')
+  const { cleanEmblem } = await import('../../../../../components/fantasy/emblems')
   const leagueId = String(formData.get('leagueId') || '')
   const route = `/fantasy/league/${leagueId}/team`
   const color = String(formData.get('color') || '')
   const monogram = cleanMonogram(formData.get('monogram'))
+  // null for 'none' and for any slug this build does not draw -- the column's
+  // check constraint names the same eight, so an unknown value cannot be stored
+  // by going around this form either.
+  const emblem = cleanEmblem(formData.get('emblem'))
 
   const supabase = await createSupabaseServerClient()
   if (!supabase) redirect('/fantasy')
@@ -44,7 +49,7 @@ export async function saveTeamIdentity(formData) {
 
   const { error } = await supabase
     .from('fantasy_teams')
-    .update({ color, monogram: monogram || null })
+    .update({ color, monogram: monogram || null, emblem })
     .eq('league_id', leagueId)
     .eq('owner_id', user.id)
   if (error) redirect(`${route}?error=${encodeURIComponent(error.message)}`)

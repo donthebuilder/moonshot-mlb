@@ -17,7 +17,7 @@ export default async function SettingsPage({params,searchParams}) {
   const [{data:league},{data:membership},{data:teamRows}]=await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
-    supabase.from('fantasy_teams').select('id,name').eq('league_id',leagueId),
+    supabase.from('fantasy_teams').select('id,name,color,monogram,emblem').eq('league_id',leagueId),
   ])
   if(!league||!membership)notFound()
   if(membership.role!=='commissioner')return <main className={styles.roomApp}><div className={styles.roomBody}><section className={styles.waitingRoom}><span>⚙</span><div><p className={styles.panelLabel}>COMMISSIONER ONLY</p><strong>Only the commissioner can open the control room.</strong><small>Ask them to change a league rule for you.</small></div></section><p><Link href={`/fantasy/league/${leagueId}/league`}>← Back to League HQ</Link></p></div></main>

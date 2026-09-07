@@ -11,6 +11,7 @@ import styles from '../../../fantasy.module.css'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { TEAM_COLORS, teamColor, teamMonogram } from '../../../../../components/fantasy/teamIdentity'
+import { EMBLEMS, cleanEmblem } from '../../../../../components/fantasy/emblems'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_LAST_WEEK, FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
@@ -170,12 +171,27 @@ export default async function TeamPage({ params, searchParams }) {
             <div className={styles.identitySwatches} role="radiogroup" aria-label="Team color">
               {TEAM_COLORS.map(([hex,label])=><label key={hex} title={label}><input defaultChecked={teamColor(team)===hex} name="color" type="radio" value={hex} required/><span style={{background:hex}}/></label>)}
             </div>
+            <p className={styles.identityLabel}>Emblem</p>
+            <div className={styles.emblemPicker} role="radiogroup" aria-label="Team emblem">
+              <label title="No emblem — use the monogram">
+                <input defaultChecked={!cleanEmblem(team.emblem)} name="emblem" type="radio" value=""/>
+                <span aria-hidden="true"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 19 19 5"/><circle cx="12" cy="12" r="9"/></svg></span>
+                <small>None</small>
+              </label>
+              {EMBLEMS.map(([key,label,path])=>(
+                <label key={key} title={label}>
+                  <input defaultChecked={cleanEmblem(team.emblem)===key} name="emblem" type="radio" value={key}/>
+                  <span aria-hidden="true" style={{color:teamColor(team)}}><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d={path}/></svg></span>
+                  <small>{label}</small>
+                </label>
+              ))}
+            </div>
             <label className={styles.identityMonogram}>Monogram · up to 3 letters
               <input defaultValue={team.monogram||''} maxLength="3" name="monogram" pattern="[0-9A-Za-z]{0,3}" placeholder={teamMonogram(team)} autoComplete="off"/>
             </label>
             <input type="hidden" name="leagueId" value={leagueId}/>
             <SubmitButton pendingLabel="Saving…">Save team look</SubmitButton>
-            <small className={styles.identityHint}>Shows on standings, matchups, the wire, and the draft board.</small>
+            <small className={styles.identityHint}>Shows on standings, matchups, the wire, and the draft board. An emblem replaces the monogram — pick None to go back to letters.</small>
           </form>
         </section></aside>
       </div>

@@ -5966,3 +5966,63 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     display: none;
   }
 }
+
+
+/* ── EMBLEM PICKER ─────────────────────────────────────────────────────────
+   Same shape as the colour swatches above it: a radio group where the input is
+   hidden and the label is the target, so it is one tap on a phone and still a
+   real radio for a keyboard. The glyphs are drawn in the team's own colour, so
+   the row previews the actual mark rather than a generic icon set. */
+.identityLabel {
+  margin: 16px 0 8px;
+  color: var(--fx-dim);
+  font: 800 8px/1 monospace;
+  letter-spacing: .14em;
+}
+.emblemPicker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(56px,1fr));
+  gap: 6px;
+}
+.emblemPicker label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 3px;
+  border: 1px solid var(--fx-edge-2);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color .14s ease, background .14s ease;
+}
+.emblemPicker label:hover {
+  background: var(--fx-s2);
+}
+.emblemPicker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.emblemPicker span {
+  display: grid;
+  place-items: center;
+  color: var(--fx-muted);
+}
+.emblemPicker small {
+  color: var(--fx-dim);
+  font: 800 7px/1 monospace;
+  letter-spacing: .06em;
+}
+.emblemPicker label:has(input:checked) {
+  border-color: var(--fx-accent);
+  background: linear-gradient(180deg,rgba(246,169,40,.12),transparent);
+}
+.emblemPicker label:has(input:checked) small {
+  color: var(--fx-ink);
+}
+.emblemPicker label:has(input:focus-visible) {
+  outline: 2px solid var(--fx-accent);
+  outline-offset: 2px;
+}
