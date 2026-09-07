@@ -177,15 +177,24 @@ const PREGAME_LEAD_MS = 60 * 60 * 1000
 // clock has rolled to the next calendar date -- see etHoursSinceNoon below.
 // Same DST assumption as PREGAME_HOUR_UTC above (hardcoded for EDT, the
 // offset in effect for the whole regular season); accepted there already.
-const HOTTEST_CONTACT_HOUR = 1     // 1pm ET
-const HR_LEADERS_DOW_HOUR = 2      // 2pm ET
-const DANGER_COMBOS_HOUR = 4       // 4pm ET, same threshold PREGAME_HOUR_UTC uses
-const HOTTEST_CONTACT_MID_HOUR = 7 // 7pm ET
-const DANGER_COMBOS_MID_HOUR = 9   // 9pm ET
+// 2026-09-07, second pass (Donovan: "earlier in the day for all of these").
+// Every slot moved up; negative values are morning ET. The three pregame
+// slots no longer sit behind the posted-lineup gate, so these thresholds are
+// now the only thing holding them (plus board.size).
+const HOTTEST_CONTACT_HOUR = -3    // 9am ET
+const HR_LEADERS_DOW_HOUR = -2     // 10am ET
+const DANGER_COMBOS_HOUR = -1      // 11am ET
+const HOTTEST_CONTACT_MID_HOUR = 4 // 4pm ET
+const DANGER_COMBOS_MID_HOUR = 7   // 7pm ET
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
-  const rel = h < 12 ? h + 24 : h   // fold the early-UTC hours (late ET) forward
+  // Fold the early-UTC hours (late ET the previous day) forward. The cut used
+  // to be h < 12, which made 8am ET the earliest threshold that worked at all
+  // -- 7am ET (11:00 UTC) folded to +19 and would have read as late evening.
+  // Cut at 4 instead: the representable window is now midnight ET (-12)
+  // through 11pm ET (+11), which covers every hour anything posts.
+  const rel = h < 4 ? h + 24 : h
   return rel - 16                  // 16:00 UTC = noon ET (EDT)
 }
 
@@ -431,6 +440,51 @@ export async function GET(request) {
   // never flips true before `!started` already let this block run, because
   // the earliest game cannot go Live before its own first pitch, and the
   // deadline sits a full hour before that.
+  if (board.size) {
+    // ── HOTTEST CONTACT / DANGER COMBOS / MLB HR LEADERS — [DAY] ───────────
+    // 2026-09-07 (Donovan: "earlier in the day for all of these"). Moved OUT
+    // of the `!started || overdue` / `ready` gate these used to sit inside:
+    // that gate waits on a POSTED LINEUP, which on a normal night lands 4-5pm
+    // ET, so an earlier hour threshold alone would have changed nothing. These
+    // three rank the published board (and, for leaders, the graded archive) --
+    // none of them needs a lineup. Gated now on board.size plus the hour only.
+    // Independently claimed per (day, kind), so this cannot double-post.
+    {
+      const hc = hottestContactPicks(pregameRows())
+      await claimAndPostStat(db, day, 'hotcontact', HOTTEST_CONTACT_HOUR,
+        hottestContactText(hc, { day, ...TAIL }),
+        hc.length ? {
+          pill: 'HOT', label: 'HOTTEST CONTACT',
+          headline: "Tonight's hottest recent blast rates",
+          lines: hc.map((p) => `${p.name} (${p.team || '?'}) — ${p.blastPct}% blast vs ${p.pitcher}${p.pitcherTeam ? ` (${p.pitcherTeam})` : ''}`),
+        } : null)
+    }
+    {
+      const dc = dangerComboPicks(pregameRows())
+      await claimAndPostStat(db, day, 'dangercombos', DANGER_COMBOS_HOUR,
+        dangerComboText(dc, { day, ...TAIL }),
+        dc.length ? {
+          pill: 'DANGER', label: 'DANGER COMBOS',
+          headline: 'Hot bats vs pitchers getting hit hard lately',
+          lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
+        } : null)
+    }
+    // The hour is checked BEFORE the fetch here, unlike the two pure
+    // formatters above: fetchWeekdayHrLeaders walks up to 8 graded_results
+    // files off the network, and this block now runs on every tick all day
+    // rather than only inside the old pregame gate.
+    if (etHoursSinceNoon() >= HR_LEADERS_DOW_HOUR) {
+      const { leaders, dow } = await fetchWeekdayHrLeaders(day)
+      await claimAndPostStat(db, day, 'hrleadersdow', HR_LEADERS_DOW_HOUR,
+        hrLeadersByDowText(leaders, dow, { day, ...TAIL }),
+        leaders.length ? {
+          pill: 'LEADERS', label: `MLB HR LEADERS — ${String(dow || '').toUpperCase()}S`,
+          headline: `Most home runs on a ${dow || 'this weekday'} this season`,
+          lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR${p.avgEv != null ? `, ${p.avgEv} mph avg EV` : ''}`),
+        } : null)
+    }
+  }
+
   if (!started || overdue) {
     const ready = board.size && (
       overdue ||
@@ -507,42 +561,6 @@ export async function GET(request) {
         }
       }
 
-      // ── HOTTEST CONTACT / DANGER COMBOS / MLB HR LEADERS — [DAY] ─────────
-      // Three more independently-claimed (day, kind) slots, gated by time of
-      // day rather than by anything found on the board (there's always
-      // SOMETHING to rank once board.size is non-zero, unlike pairswatch/
-      // longshot above which can come up empty some nights).
-      {
-        const hc = hottestContactPicks(pregameRows())
-        await claimAndPostStat(db, day, 'hotcontact', HOTTEST_CONTACT_HOUR,
-          hottestContactText(hc, { day, ...TAIL }),
-          hc.length ? {
-            pill: 'HOT', label: 'HOTTEST CONTACT',
-            headline: "Tonight's hottest recent blast rates",
-            lines: hc.map((p) => `${p.name} (${p.team || '?'}) — ${p.blastPct}% blast vs ${p.pitcher}${p.pitcherTeam ? ` (${p.pitcherTeam})` : ''}`),
-          } : null)
-      }
-      {
-        const dc = dangerComboPicks(pregameRows())
-        await claimAndPostStat(db, day, 'dangercombos', DANGER_COMBOS_HOUR,
-          dangerComboText(dc, { day, ...TAIL }),
-          dc.length ? {
-            pill: 'DANGER', label: 'DANGER COMBOS',
-            headline: 'Hot bats vs pitchers getting hit hard lately',
-            lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
-          } : null)
-      }
-      {
-        const { leaders, dow } = await fetchWeekdayHrLeaders(day)
-        await claimAndPostStat(db, day, 'hrleadersdow', HR_LEADERS_DOW_HOUR,
-          hrLeadersByDowText(leaders, dow, { day, ...TAIL }),
-          leaders.length ? {
-            pill: 'LEADERS', label: `MLB HR LEADERS — ${String(dow || '').toUpperCase()}S`,
-            headline: `Most home runs on a ${dow || 'this weekday'} this season`,
-            lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR${p.avgEv != null ? `, ${p.avgEv} mph avg EV` : ''}`),
-          } : null)
-      }
-
       const picks = pregamePicks(pregameRows(), odds, day)
       if (!picks.length) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
@@ -582,6 +600,13 @@ export async function GET(request) {
   // "still dangerous") for whoever's actually watching a game right now
   // instead of scrolling at 1pm. Independently claimed, so a slow tick or a
   // restart can never double-post either one.
+  //
+  // These two also require the slate to actually be UNDERWAY -- every early
+  // return in the pregame block above is guarded on `!started`, so on a night
+  // where first pitch is 7pm ET this code is unreachable until a game goes
+  // Live. That is deliberate now the thresholds moved up: "still cooking" at
+  // 4pm ET on a slate where nothing has started yet would be a lie. 4pm/7pm ET
+  // are the EARLIEST these can fire, not a guarantee.
   {
     const hc = hottestContactPicks(midRows())
     await claimAndPostStat(db, day, 'hotcontact_mid', HOTTEST_CONTACT_MID_HOUR,
