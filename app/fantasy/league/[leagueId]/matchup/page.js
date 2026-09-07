@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { fantasyPointsFromStats, projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
+import { formatOdds, matchupOdds, oddsSentence } from '../../../../../lib/fantasy/odds'
 import LiveMatchupCenter from '../../../../../components/fantasy/LiveMatchupCenter'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
@@ -44,17 +45,24 @@ export default async function MatchupPage({ params, searchParams }) {
   const featured = myMatchup || matchups[0]
   const home = teams.find((team)=>team.id===featured?.home_team_id)
   const away = teams.find((team)=>team.id===featured?.away_team_id)
+  // EVERY TEAM'S STARTERS, not just the featured pair (2026-09-07). The extra
+  // rows are what price the rest of the league's games: nine teams times nine
+  // starters is 81 rows on one query that was already being made, and without
+  // them "AROUND THE LEAGUE" is a list of names with no idea who is favoured.
   let lineups = []
-  if (featured) {
+  if (featured && teams.length) {
     const { data = [] } = await supabase.from('fantasy_lineup_slots')
       .select('*,player:nfl_players(id,name,position,team,injury_status,source_payload,source_player_id)')
-      .in('team_id',[featured.home_team_id,featured.away_team_id]).eq('season',SEASON).eq('week',week)
+      .in('team_id',teams.map((team)=>team.id)).eq('season',SEASON).eq('week',week)
       .not('slot','in','(BENCH,IR)').order('slot_index')
     lineups = data || []
   }
   const homeLineup = lineups.filter((row)=>row.team_id===home?.id)
   const awayLineup = lineups.filter((row)=>row.team_id===away?.id)
-  const playerIds=lineups.map((row)=>row.player_id).filter(Boolean)
+  // Live stats are only ever rendered for the featured game's two lineups, so
+  // only those player ids go to nfl_player_week_stats. Pricing the other games
+  // needs projections, which come off the player row already in hand.
+  const playerIds=[...homeLineup,...awayLineup].map((row)=>row.player_id).filter(Boolean)
   let weeklyStats=[]
   if(playerIds.length){const {data=[]}=await supabase.from('nfl_player_week_stats').select('player_id,game_id,stats,status,updated_at').in('player_id',playerIds).eq('season',SEASON).eq('week',week);weeklyStats=data||[]}
   const statsByPlayer=new Map(weeklyStats.map((item)=>[item.player_id,item]))
@@ -70,6 +78,10 @@ export default async function MatchupPage({ params, searchParams }) {
   const projectOne = (row) => isOnBye(row.player, byeTeams) ? 0 : projectedFantasyPoints(row.player, league.scoring)
   const homeProjection = homeLineup.reduce((sum,row)=>sum+projectOne(row),0)
   const awayProjection = awayLineup.reduce((sum,row)=>sum+projectOne(row),0)
+  const projectionByTeam = new Map()
+  for (const row of lineups) projectionByTeam.set(row.team_id, (projectionByTeam.get(row.team_id)||0) + projectOne(row))
+  const oddsFor = (game) => matchupOdds(projectionByTeam.get(game.home_team_id)||0, projectionByTeam.get(game.away_team_id)||0)
+  const featuredOdds = featured ? matchupOdds(homeProjection, awayProjection) : null
   const hasLiveGames=nflGames.some((game)=>game.status==='live')
   // 🐛 the margin bar and its legend read homeShare/leader/margin, but nothing
   // in this file ever computed them -- a ReferenceError on every render where
@@ -105,8 +117,24 @@ export default async function MatchupPage({ params, searchParams }) {
             <span>{away?.name}</span>
           </div>
         </section>
+        {/* THE LINE (2026-09-07). Donovan: "add like betting odds moneyline for
+            fun and like a spread type thing." Nothing is staked on these; the
+            note under them says where the number comes from and where it does
+            not, because a price that looks certain is the easiest way to lie
+            with arithmetic. Only shown before kickoff -- once a game is live
+            the real score is the story and a pre-game line beside it is
+            clutter. See lib/fantasy/odds.js. */}
+        {featuredOdds && featured.status==='scheduled' && <section className={styles.oddsCard}>
+          <div className={styles.boardHead}><div><p className={styles.panelLabel}>THE LINE · JUST FOR FUN</p><h2>{featuredOdds.pickEm ? 'Pick em' : `${(featuredOdds.spread>0?home:away)?.name} by ${Math.abs(featuredOdds.spread)}`}</h2></div><span>NO VIG</span></div>
+          <div className={styles.oddsGrid}>
+            <div><small>{home?.name}</small><b>{featuredOdds.homeSpreadLabel}</b><em>{formatOdds(featuredOdds.homeOdds)}</em><i>{Math.round(featuredOdds.homeWinProbability*100)}% to win</i></div>
+            <div><small>{away?.name}</small><b>{featuredOdds.awaySpreadLabel}</b><em>{formatOdds(featuredOdds.awayOdds)}</em><i>{Math.round(featuredOdds.awayWinProbability*100)}% to win</i></div>
+            <div><small>TOTAL</small><b>{featuredOdds.total}</b><em>O/U</em><i>both projections added up</i></div>
+          </div>
+          <p className={styles.oddsNote}>{oddsSentence(featuredOdds, home?.name, away?.name)} The spread is the projected margin. The moneyline also assumes a fantasy team lands within about 25 points of its projection in a week — a stated figure, not one measured off this league, which has not played a game yet.</p>
+        </section>}
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/></div>
-        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</span></b><span>{game.status==='scheduled'?'vs':`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</span><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
+        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</span></b><span>{game.status==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</span><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
       </>}
     </div>
   </main>
