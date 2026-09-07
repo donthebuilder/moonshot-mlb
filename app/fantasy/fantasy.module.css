@@ -5446,6 +5446,11 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   vertical-align: super;
 }
 
+/* A DASH cell with no priced market. It prints an em dash rather than the
+   defaulted 50 -- see hasMarketScore in lib/fantasy/scoring.js -- and is dimmed
+   so a column of dashes reads as "no market here", not as a missing value. */
+.dashUnpriced { color: #6c6862 !important; }
+
 
 /* ── #76 · TINTED SURFACES IN DAYLIGHT (generated 2026-09-03) ──────────────
    The token block above flips every NEUTRAL surface. These are the other

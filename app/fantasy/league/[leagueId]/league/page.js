@@ -76,8 +76,18 @@ export default async function LeaguePage({params,searchParams}) {
         value:draftValue(player,levels,league.scoring),
       }))
       .sort((a,b)=>b.value-a.value||a.player.name.localeCompare(b.player.name))
-      .slice(0,60)
   }
+  // ── THE INDEX STOPPED AT 60 AND NEVER SAID SO (2026-09-07) ────────────────
+  // 135 men are rostered in a nine-team league and the board showed the first
+  // 60, with no count, no cut line and nothing to click. The one question this
+  // page exists to answer -- "who owns him?" -- was unanswerable for the other
+  // 75, which is exactly the half you go looking for when you are hunting a
+  // trade. Same pattern the Wire already uses: a query param, a stated count,
+  // and a link that grows the list. No client JS on this page either.
+  const PLAYER_PAGE=60
+  const playerLimit=Math.min(600,Math.max(PLAYER_PAGE,Math.round(Number(query?.players)||PLAYER_PAGE)))
+  const shownPlayerBoard=playerBoard.slice(0,playerLimit)
+  const morePlayersHref=`/fantasy/league/${leagueId}/league?view=players&week=${week}&players=${playerLimit+PLAYER_PAGE}`
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
@@ -89,7 +99,7 @@ export default async function LeaguePage({params,searchParams}) {
       {membership.role==='commissioner'&&view!=='standings'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>WEEKLY PUBLISHER</p><strong>{weekFinals?`${weekFinals} final games available`:`Week ${week} still needs final scores`}</strong></div><form action={generateWeeklyContent}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="week" value={week}/><SubmitButton disabled={!weekFinals} pendingLabel="Generating…">Generate Week {week}</SubmitButton></form></section>}
       {view==='standings'&&<Standings leagueId={leagueId} finalGames={finalGames} playoffSpots={playoffSpots} table={table} user={user}/>}
       {view==='power'&&<PowerRankings rankings={safeRankings} teamName={teamName} teams={teams}/>}
-      {view==='players'&&<PlayerPower board={playerBoard} leagueId={leagueId} teams={teams}/>}
+      {view==='players'&&<PlayerPower board={shownPlayerBoard} leagueId={leagueId} moreHref={playerBoard.length>shownPlayerBoard.length?morePlayersHref:null} teams={teams} total={playerBoard.length}/>}
       {view==='recap'&&<WeeklyRecap recap={recap} awards={safeAwards} teamName={teamName} week={week}/>}
     </div>
   </main>
@@ -106,7 +116,7 @@ function WeeklyRecap({recap,awards,teamName,week}){return <><section className={
 // `value` is points per game above the replacement player at that position,
 // from this league's own roster settings; `ppg` is the projection people
 // recognise. The two disagree constantly, which is the point of showing both.
-function PlayerPower({board,leagueId,teams}){
+function PlayerPower({board,leagueId,moreHref,teams,total}){
   const owner=(id)=>teams.find((team)=>team.id===id)
   return <section className={styles.powerBoard}>
     <div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH PLAYER INDEX</p><h2>Player power rankings</h2></div><span>Value over replacement</span></div>
@@ -129,5 +139,6 @@ function PlayerPower({board,leagueId,teams}){
         <strong>{row.value >= 0 ? '+' : ''}{row.value.toFixed(1)}<i>VOR</i></strong>
       </div>
     })}
+    {board.length>0&&<p className={styles.wireMore}><span>Showing {board.length} of {total}</span>{moreHref&&<Link href={moreHref}>Show 60 more →</Link>}</p>}
   </section>
 }

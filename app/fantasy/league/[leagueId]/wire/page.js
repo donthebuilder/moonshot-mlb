@@ -10,7 +10,7 @@ import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
-import { dashScore, projectedFantasyPoints, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
+import { dashScore, hasMarketScore, projectedFantasyPoints, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { addFreeAgent, cancelWaiverClaim, dropPlayer, processWaivers, submitWaiverClaim } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
@@ -63,13 +63,23 @@ export default async function WirePage({params,searchParams}) {
   const rosteredIds=new Set(safeRosters.map((row)=>row.player_id))
   const myRosterIds=safeRosters.filter((row)=>row.team_id===myTeam?.id).map((row)=>row.player_id)
   const myRoster=safePlayers.filter((player)=>myRosterIds.includes(player.id)).sort((a,b)=>(a.position||'').localeCompare(b.position||'')||a.name.localeCompare(b.name))
-  const selectedPosition=POSITIONS.includes(query?.position)?query.position:'ALL'
+  // ── ?pos= SILENTLY SHOWED EVERYTHING (2026-09-07) ──────────────────────────
+  // The filter chips write `position`; every hand-built link, and everyone's
+  // first guess, writes `pos`. An unrecognised value fell through to 'ALL'
+  // with no error and no clue -- the page looked like the filter had simply
+  // decided not to work. Both spellings are read, and the value is upper-cased
+  // so `?position=def` means what it obviously means.
+  const requestedPosition=String(query?.position??query?.pos??'').trim().toUpperCase()
+  const selectedPosition=POSITIONS.includes(requestedPosition)?requestedPosition:'ALL'
   const search=String(query?.q||'').trim().toLowerCase().slice(0,40)
-  const availablePlayers=safePlayers.map((player)=>({...player,dash_score:dashScore(player),projection:projectedFantasyPoints(player,league.scoring)||0}))
+  const availablePlayers=safePlayers.map((player)=>({...player,dash_score:dashScore(player),priced:hasMarketScore(player),projection:projectedFantasyPoints(player,league.scoring)||0}))
     .filter((player)=>!rosteredIds.has(player.id))
     .filter((player)=>selectedPosition==='ALL'||player.position===selectedPosition)
     .filter((player)=>!search||player.name.toLowerCase().includes(search)||player.team?.toLowerCase().includes(search))
-    .sort((a,b)=>b.dash_score-a.dash_score||a.name.localeCompare(b.name))
+    // Projection is the tiebreak, not the alphabet. Every unpriced player
+    // shares the same defaulted 50 (see hasMarketScore), so for a whole
+    // position -- D/ST, always -- the second key WAS the ranking.
+    .sort((a,b)=>b.dash_score-a.dash_score||b.projection-a.projection||a.name.localeCompare(b.name))
   // #7: the list cut silently at 80 of 577 and the only count was up in the
   // board header, nowhere near the cut. The cut stays -- 577 rows of headshots
   // is not a page anyone wants on a phone -- but it now says so where it
@@ -101,7 +111,7 @@ export default async function WirePage({params,searchParams}) {
           <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>Free agents &amp; waivers</h2><small className={styles.boardNote}>Ranked by this week&apos;s market score — how likely each man is to clear a prop on Sunday. That is a different question from the draft board, which ranks season value.</small></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q||''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{availablePlayers.length} players</span></div>
           <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}/wire?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`}>{position}</Link>)}</div>
           <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>PROJ</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
-          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><div className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span></div><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong title="This week's market score: how likely this man is to clear a prop on Sunday. Not points.">{player.dash_score}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
+          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><div className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span></div><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong className={player.priced?undefined:styles.dashUnpriced} title={player.priced?"This week's market score: how likely this man is to clear a prop on Sunday. Not points.":'No prop market priced this man this week — defences never have one. Sorted by projection instead.'}>{player.priced?player.dash_score:'—'}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
           {!availablePlayers.length&&<p className={styles.emptyRoom}>No available players match this filter.</p>}
           {availablePlayers.length>0&&<p className={styles.wireMore}><span>Showing {shownPlayers.length} of {availablePlayers.length}</span>{availablePlayers.length>shownPlayers.length&&<Link href={moreHref}>Show {Math.min(PAGE,availablePlayers.length-shownPlayers.length)} more →</Link>}</p>}
         </section>

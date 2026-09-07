@@ -120,6 +120,32 @@ export default async function TeamPage({ params, searchParams }) {
     ? unassigned.find((player)=>player.id===moveKey.slice(7))
     : players.find((player)=>player.id===movingRow?.player_id)
   const moveActive = Boolean(movingPlayer) && !movingRow?.locked_at
+  // ── A BENCH THAT LOOKED HALF EMPTY WHILE MEN SAT BELOW IT (2026-09-07) ────
+  //
+  // Live board, week 1: BENCH1, BENCH2 and BENCH6 occupied, BENCH3-5 reading
+  // "Open slot", and three rostered players in UNASSIGNED underneath. Nothing
+  // was actually wrong -- only starters score, and a bench slot number means
+  // nothing -- but the board said the opposite of the truth twice over: that
+  // there were empty places to fill, and that three of your own players were
+  // somehow outside your team. BENCH6 being taken while 3, 4 and 5 were free
+  // is the tell: the displaced-player rule in ./actions drops a man into the
+  // lowest free bench slot, so the rows are written in whatever order moves
+  // happened, and nobody ever writes a row for a man who was merely drafted.
+  //
+  // The fix is presentational and deliberately so: no page should write lineup
+  // rows on a GET. Unassigned men are SHOWN in the free bench slots, in
+  // projection order, and the UNASSIGNED group keeps only what will not fit.
+  //
+  // Suspended during a move, on purpose. Move mode is the one moment the
+  // distinction is real -- a slot holding a virtual occupant is still an empty
+  // slot to the action, and "Swap here" on a man the server does not have in
+  // that slot would be a lie. So a move drops the board back to its literal
+  // state and every target behaves exactly as it did before.
+  const freeBenchSlots = slotRows.filter(([slot,index])=>slot==='BENCH'&&!lineup.some((row)=>row.slot===slot&&row.slot_index===index&&row.player_id))
+  const benchFill = new Map()
+  if (!moveActive) unassigned.forEach((player,i)=>{ const target=freeBenchSlots[i]; if(target) benchFill.set(`BENCH-${target[1]}`,player) })
+  const strandedUnassigned = moveActive ? unassigned : unassigned.slice(freeBenchSlots.length)
+  const benchOccupied = lineup.filter((row)=>row.slot==='BENCH'&&row.player_id).length + benchFill.size
   const teamHref = (params) => `/fantasy/league/${leagueId}/team?week=${WEEK}${params?`&${params}`:''}`
 
   return <main className={styles.roomApp}>
@@ -127,15 +153,20 @@ export default async function TeamPage({ params, searchParams }) {
     <LeagueNav leagueId={leagueId} active="team" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
-      <section className={styles.teamHero}><div><p className={styles.panelLabel}>WEEK {WEEK} LINEUP</p><h1 style={{display:'flex',alignItems:'center',gap:12}}><TeamMark size={38} team={team}/>{team.name}</h1><p>Set each player before their individual game begins. Locked players cannot be moved.</p></div><div className={styles.roomStats}><span><small>STARTERS</small><b>{lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).length}/{starterCount}</b></span><span><small>BENCH</small><b>{lineup.filter((row)=>row.slot==='BENCH').length}/6</b></span><span><small>IR</small><b>{lineup.filter((row)=>row.slot==='IR').length}/{league.ir_slots}</b></span><span><small>PROJECTED</small><b>{startersProjected.toFixed(1)}</b></span></div></section>
+      <section className={styles.teamHero}><div><p className={styles.panelLabel}>WEEK {WEEK} LINEUP</p><h1 style={{display:'flex',alignItems:'center',gap:12}}><TeamMark size={38} team={team}/>{team.name}</h1><p>Set each player before their individual game begins. Locked players cannot be moved.</p></div><div className={styles.roomStats}><span><small>STARTERS</small><b>{lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).length}/{starterCount}</b></span><span><small>BENCH</small><b>{benchOccupied}/{benchCount}</b></span><span><small>IR</small><b>{lineup.filter((row)=>row.slot==='IR').length}/{league.ir_slots}</b></span><span><small>PROJECTED</small><b>{startersProjected.toFixed(1)}</b></span></div></section>
       {!players.length&&<section className={styles.waitingRoom}><span>◇</span><div><p className={styles.panelLabel}>ROSTER EMPTY</p><strong>Your players arrive here as they are drafted.</strong><small>Return to the draft room once the commissioner starts the board.</small></div></section>}
       <div className={styles.teamLayout}>
         <section className={styles.lineupBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>ACTIVE ROSTER</p><h2>Set your lineup</h2></div><span>Individual game locks</span></div>
           {moveActive&&<p className={styles.moveBanner}><b>Moving {movingPlayer.name}</b><small>Pick any highlighted slot below. Slots that cannot take him stay dim.</small><Link href={teamHref()}>Cancel</Link></p>}
           <div className={styles.slotColumns}><span>SLOT</span><span>PLAYER</span><span>PROJ</span><span>LINEUP</span></div>
-          {GROUPS.map(([title,note,test])=>{const rows=slotRows.filter(([slot])=>test(slot));if(!rows.length)return null;const filled=rows.filter(([slot,index])=>lineup.some((row)=>row.slot===slot&&row.slot_index===index&&row.player_id)).length;return <div className={styles.slotGroup} key={title}>
+          {GROUPS.map(([title,note,test])=>{const rows=slotRows.filter(([slot])=>test(slot));if(!rows.length)return null;const filled=rows.filter(([slot,index])=>lineup.some((row)=>row.slot===slot&&row.slot_index===index&&row.player_id)||benchFill.has(`${slot}-${index}`)).length;return <div className={styles.slotGroup} key={title}>
             <div className={styles.slotGroupHead}><span>{title}</span><small>{note}</small><b>{filled}/{rows.length}</b></div>
-            {rows.map(([slot,index])=>{const assigned=lineup.find((row)=>row.slot===slot&&row.slot_index===index);const assignedPlayer=players.find((player)=>player.id===assigned?.player_id);const locked=Boolean(assigned?.locked_at);const starter=!['BENCH','IR'].includes(slot);const projection=projectionFor(assignedPlayer);
+            {rows.map(([slot,index])=>{const assigned=lineup.find((row)=>row.slot===slot&&row.slot_index===index);const assignedPlayer=players.find((player)=>player.id===assigned?.player_id);const locked=Boolean(assigned?.locked_at);const starter=!['BENCH','IR'].includes(slot);
+            // `shownPlayer` is who the row draws; `assignedPlayer` stays who the
+            // server has in the slot. Every move test below reads the second,
+            // which is why a benched-by-display man cannot be swapped by
+            // accident -- and benchFill is empty during a move anyway.
+            const shownPlayer=assignedPlayer||benchFill.get(`${slot}-${index}`)||null;const projection=projectionFor(shownPlayer);
             // The row is one of five things, and only one of them is a control:
             // locked · the man being moved · a slot that will take him · a slot
             // that will not (during a move) · an ordinary row with a Move link.
@@ -151,14 +182,14 @@ export default async function TeamPage({ params, searchParams }) {
             const isSource=moveActive&&slot===movingSlot&&index===movingIndex;
             const canReceive=moveActive&&!isSource&&!locked&&eligible(movingPlayer,slot,league)&&(!assignedPlayer||fromUnassigned||eligible(assignedPlayer,movingSlot,league));
             const rowKey=`${slot}-${index}`;
-            return <div className={`${styles.slotRow} ${locked?styles.slotLocked:''}`} data-empty={!assignedPlayer?'true':undefined} data-locked={locked?'true':undefined} data-moving={isSource?'true':undefined} data-target={canReceive?'true':undefined} data-starter={starter?'true':undefined} key={rowKey}><span className={styles.slotBadge} style={{ color: colorForPosition(assignedPlayer?.position || slot), borderColor: `${colorForPosition(assignedPlayer?.position || slot)}55` }}>{slot}{index>1?index:''}</span><div className={styles.lineupIdentity}>{assignedPlayer&&<PlayerFace player={assignedPlayer} size={34}/>}<span><b>{assignedPlayer?.name||'Open slot'}{assignedPlayer&&<InjuryTag status={assignedPlayer.injury_status}/>}</b>{assignedPlayer?<PlayerMeta player={assignedPlayer} game={gameForPlayer(schedule,assignedPlayer)} bye={isOnBye(assignedPlayer,byeTeams)}/>:<small>{moveActive?(canReceive?'Open — takes him':'Not eligible'):'Empty'}</small>}</span></div><span className={styles.slotProjection}>{projection===null?'—':isOnBye(assignedPlayer,byeTeams)?'—':projection.toFixed(1)}<i>{isOnBye(assignedPlayer,byeTeams)?'BYE':'PROJ'}</i></span><div className={styles.slotAction}>{locked?<span className={styles.slotLockedTag}>🔒 Locked</span>:isSource?<><form action={saveLineupSlot}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="slot" value={slot}/><input type="hidden" name="slotIndex" value={index}/><SubmitButton className={styles.slotCancel} pendingLabel="…" title="Take him out of the lineup entirely">Remove</SubmitButton></form><Link className={styles.slotCancel} href={teamHref()}>Cancel</Link></>:canReceive?<form action={moveLineupPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="fromSlot" value={movingSlot}/><input type="hidden" name="fromIndex" value={movingIndex}/><input type="hidden" name="fromPlayerId" value={movingPlayer.id}/><input type="hidden" name="benchCount" value={benchCount}/><input type="hidden" name="toSlot" value={slot}/><input type="hidden" name="toIndex" value={index}/><SubmitButton className={styles.slotTargetButton} pendingLabel="Moving…">{assignedPlayer?'Swap here':'Move here'}</SubmitButton></form>:moveActive?null:assignedPlayer?<Link className={styles.slotMove} href={teamHref(`move=${rowKey}`)}>Move</Link>:null}</div></div>})}
+            return <div className={`${styles.slotRow} ${locked?styles.slotLocked:''}`} data-empty={!shownPlayer?'true':undefined} data-locked={locked?'true':undefined} data-moving={isSource?'true':undefined} data-target={canReceive?'true':undefined} data-starter={starter?'true':undefined} key={rowKey}><span className={styles.slotBadge} style={{ color: colorForPosition(shownPlayer?.position || slot), borderColor: `${colorForPosition(shownPlayer?.position || slot)}55` }}>{slot}{index>1?index:''}</span><div className={styles.lineupIdentity}>{shownPlayer&&<PlayerFace player={shownPlayer} size={34}/>}<span><b>{shownPlayer?.name||'Open slot'}{shownPlayer&&<InjuryTag status={shownPlayer.injury_status}/>}</b>{shownPlayer?<PlayerMeta player={shownPlayer} game={gameForPlayer(schedule,shownPlayer)} bye={isOnBye(shownPlayer,byeTeams)}/>:<small>{moveActive?(canReceive?'Open — takes him':'Not eligible'):'Empty'}</small>}</span></div><span className={styles.slotProjection}>{projection===null?'—':isOnBye(shownPlayer,byeTeams)?'—':projection.toFixed(1)}<i>{isOnBye(shownPlayer,byeTeams)?'BYE':'PROJ'}</i></span><div className={styles.slotAction}>{locked?<span className={styles.slotLockedTag}>🔒 Locked</span>:isSource?<><form action={saveLineupSlot}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="slot" value={slot}/><input type="hidden" name="slotIndex" value={index}/><SubmitButton className={styles.slotCancel} pendingLabel="…" title="Take him out of the lineup entirely">Remove</SubmitButton></form><Link className={styles.slotCancel} href={teamHref()}>Cancel</Link></>:canReceive?<form action={moveLineupPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="fromSlot" value={movingSlot}/><input type="hidden" name="fromIndex" value={movingIndex}/><input type="hidden" name="fromPlayerId" value={movingPlayer.id}/><input type="hidden" name="benchCount" value={benchCount}/><input type="hidden" name="toSlot" value={slot}/><input type="hidden" name="toIndex" value={index}/><SubmitButton className={styles.slotTargetButton} pendingLabel="Moving…">{assignedPlayer?'Swap here':'Move here'}</SubmitButton></form>:moveActive?null:assignedPlayer?<Link className={styles.slotMove} href={teamHref(`move=${rowKey}`)}>Move</Link>:shownPlayer?<Link className={styles.slotMove} href={teamHref(`move=player-${shownPlayer.id}`)}>Move</Link>:null}</div></div>})}
           </div>})}
           {/* The men with no slot at all. See `unassigned` above for why this
               is the normal state of a board on draft night rather than a
               corner case. */}
-          {unassigned.length>0&&<div className={styles.slotGroup}>
-            <div className={styles.slotGroupHead}><span>UNASSIGNED</span><small>On your roster, not in this week&apos;s lineup</small><b>{unassigned.length}</b></div>
-            {unassigned.map((player)=>{const carrying=moveActive&&fromUnassigned&&movingPlayer.id===player.id;const projection=projectionFor(player);
+          {strandedUnassigned.length>0&&<div className={styles.slotGroup}>
+            <div className={styles.slotGroupHead}><span>UNASSIGNED</span><small>On your roster, no bench slot left for them</small><b>{strandedUnassigned.length}</b></div>
+            {strandedUnassigned.map((player)=>{const carrying=moveActive&&fromUnassigned&&movingPlayer.id===player.id;const projection=projectionFor(player);
             return <div className={styles.slotRow} data-moving={carrying?'true':undefined} key={player.id}><span className={styles.slotBadge} style={{ color: colorForPosition(player.position), borderColor: `${colorForPosition(player.position)}55` }}>{player.position}</span><div className={styles.lineupIdentity}><PlayerFace player={player} size={34}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)}/></span></div><span className={styles.slotProjection}>{projection===null?'—':isOnBye(player,byeTeams)?'—':projection.toFixed(1)}<i>{isOnBye(player,byeTeams)?'BYE':'PROJ'}</i></span><div className={styles.slotAction}>{carrying?<><Link className={styles.slotCancel} href={teamHref()}>Cancel</Link></>:moveActive?null:<Link className={styles.slotMove} href={teamHref(`move=player-${player.id}`)}>Move</Link>}</div></div>})}
           </div>}
         </section>
