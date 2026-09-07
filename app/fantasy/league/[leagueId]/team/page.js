@@ -190,7 +190,7 @@ export default async function TeamPage({ params, searchParams }) {
               <input defaultValue={team.monogram||''} maxLength="3" name="monogram" pattern="[0-9A-Za-z]{0,3}" placeholder={teamMonogram(team)} autoComplete="off"/>
             </label>
             <input type="hidden" name="leagueId" value={leagueId}/>
-            <SubmitButton pendingLabel="Saving…">Save team look</SubmitButton>
+            <SubmitButton className={styles.identitySave} pendingLabel="Saving…">Save team look</SubmitButton>
             <small className={styles.identityHint}>Shows on standings, matchups, the wire, and the draft board. An emblem replaces the monogram — pick None to go back to letters.</small>
           </form>
         </section></aside>

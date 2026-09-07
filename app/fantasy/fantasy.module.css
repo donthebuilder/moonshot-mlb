@@ -6045,3 +6045,84 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   outline: 2px solid var(--fx-accent);
   outline-offset: 2px;
 }
+
+/* ══ MOBILE FIT · MEASURED, NOT GUESSED (2026-09-07) ═══════════════════════
+   Donovan, after the nav landed: "you see the sizing thing."
+
+   Measured on the live Wire page rendered at 393px (an iPhone's CSS width),
+   by walking every element and comparing its right edge to the viewport:
+   104 elements overflowed. .roomApp has `overflow-x: hidden`, so none of it
+   scrolled — it was CLIPPED, which is worse. The DASH score column and the
+   Add button were off the screen and unreachable.
+
+   ONE CAUSE, TWO SYMPTOMS. .boardHead is a nowrap flex row holding the
+   heading and the player search. On a phone the search got 117px of it —
+   but a bare <input> carries an intrinsic width from its `size` attribute
+   (131px here) and `min-width: auto`, so it refused to shrink into its box.
+   It pushed to 398px and the Search button after it landed at 403: 63px off
+   a 393px screen. That same min-content pressure travelled up and made the
+   whole column 392px wide inside a 377px container, which is the uniform
+   7-8px every panel on the page was clipped by.
+
+   Wrapping the row and letting the input shrink fixes both. Re-measured with
+   these rules applied: zero overflowing elements. */
+@media(max-width:760px) {
+  .boardHead {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .playerSearch {
+    width: 100%;
+  }
+  /* min-width:0 is the half that matters — flex-1 alone will not shrink an
+     input below its intrinsic size. */
+  .playerSearch input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  /* A grid item's default min-width:auto lets one wide child drag the whole
+     column past the viewport. These are the four that can. */
+  .wireLayout>*,
+  .teamLayout>*,
+  .playerBoard,
+  .wireSide {
+    min-width: 0;
+  }
+
+  /* ── THE LINEUP COMES FIRST ─────────────────────────────────────────────
+     Measured on the same probe: on a 393px phone the lineup board started at
+     y=1193. The side rail was ordered ABOVE it, so opening "My Team" to set
+     your lineup meant scrolling past roster counts, a coach note and a colour
+     picker — about three phone screens — before the first player.
+
+     The rail was given order:-1 when it held the week switcher and nothing
+     else. It holds three panels now. The board is why the page exists, so it
+     goes first and the rail follows it. */
+  .teamSide {
+    order: 1;
+  }
+}
+
+/* The one control on Franchise with no class at all: it rendered as the
+   browser's default button — a grey slab here, an iOS blue pill on a phone,
+   the only unstyled thing on the page. Same shape as every other primary
+   action in the product. */
+.identitySave {
+  height: 34px;
+  border: 1px solid #703720;
+  border-radius: 8px;
+  background: #29160f;
+  color: var(--fx-accent);
+  padding: 0 14px;
+  font: 900 9px/1 monospace;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.identitySave:hover {
+  background: #351b12;
+}
+.identitySave[disabled] {
+  opacity: .6;
+  cursor: default;
+}
