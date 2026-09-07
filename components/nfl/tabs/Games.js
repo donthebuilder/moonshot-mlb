@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
+import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
@@ -131,8 +132,11 @@ function SidePicks({ players, team, onPlayerClick }) {
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{p.name}</span>
             <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.position}</span>
-            {p.questionable && (
-              <span style={{ fontSize: 8.5, color: C.yellow, fontWeight: 900 }}>Q</span>
+            {injuryTag(p) && (
+              <span title={injuryTitle(injuryTag(p))}
+                    style={{ fontSize: 8.5, color: injuryColor(injuryTag(p), C), fontWeight: 900 }}>
+                {injuryTag(p)}
+              </span>
             )}
           </button>
         )

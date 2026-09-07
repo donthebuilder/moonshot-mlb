@@ -11,6 +11,7 @@ import {
   getPicks, savePick, setConviction, clearPick,
   gradeSlate, recordSlate, ledgerTotals, exportStore, importStore, clearAll,
 } from '../../../lib/nfl/myPicks'
+import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 
 // 🎫 PICKS — the bot's card, and yours on top of it.
 //
@@ -452,8 +453,12 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                           compact
                         />
                       )}
-                      {rung.questionable && (
-                        <span style={{ fontSize: 9, fontWeight: 900, color: C.yellow }}>Q</span>
+                      {injuryTag(rung) && (
+                        <span title={injuryTitle(injuryTag(rung))}
+                              style={{ fontSize: 9, fontWeight: 900,
+                                       color: injuryColor(injuryTag(rung), C) }}>
+                          {injuryTag(rung)}
+                        </span>
                       )}
                       {rung.low_sample && (
                         <span title="Below the sample the model wants — it backfilled this rung."

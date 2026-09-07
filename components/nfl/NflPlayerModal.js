@@ -11,6 +11,7 @@ import DvpTable, { GROUP } from './DvpTable'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import FollowButton from '../FollowButton'
+import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 
 // Why this player scores what he scores.
 //
@@ -396,7 +397,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <div style={{ fontSize: 17, fontWeight: 900, color: C.text }}>{player.name}</div>
             <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
               {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
-              {player.questionable && <span style={{ color: C.yellow, fontWeight: 900 }}> · Q</span>}
+              {injuryTag(player) && (
+                <span title={injuryTitle(injuryTag(player))}
+                      style={{ color: injuryColor(injuryTag(player), C), fontWeight: 900 }}>
+                  {' · '}{injuryTag(player)}
+                </span>
+              )}
               {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
             </div>
           </div>

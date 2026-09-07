@@ -5,6 +5,7 @@ import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
+import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 
 const LOG_FIELD = {
   TD: 'g_td',
@@ -261,10 +262,11 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
               <span style={{ position: 'relative', minWidth: 88, display: 'flex', justifyContent: 'flex-end' }}>
                 <FormSparkline form={form} bar={spec?.bar} color={g.color} />
               </span>
-              {p.questionable && (
-                <span style={{
-                  position: 'relative', fontSize: 9, fontWeight: 900, color: C.yellow,
-                }}>Q</span>
+              {injuryTag(p) && (
+                <span title={injuryTitle(injuryTag(p))} style={{
+                  position: 'relative', fontSize: 9, fontWeight: 900,
+                  color: injuryColor(injuryTag(p), C),
+                }}>{injuryTag(p)}</span>
               )}
               {p.carryover && (
                 <span
