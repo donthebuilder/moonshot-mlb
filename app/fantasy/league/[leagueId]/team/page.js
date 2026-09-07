@@ -197,7 +197,8 @@ export default async function TeamPage({ params, searchParams }) {
         {/* Team look — owner-picked color + monogram (C4 de-bland, 2026-08-29).
             Plain radios + a 3-char input, no client JS: the server action
             validates and the mark re-renders everywhere on redirect. */}
-        <section><div className={styles.boardHead}><div><p className={styles.panelLabel}>TEAM LOOK</p><h2>Your colors</h2></div><TeamMark size={30} team={team}/></div>
+        <section><details className={styles.identityFold}>
+          <summary>TEAM LOOK · COLORS, EMBLEM, MONOGRAM <TeamMark size={22} team={team}/></summary>
           <form action={saveTeamIdentity} className={styles.identityForm}>
             <div className={styles.identitySwatches} role="radiogroup" aria-label="Team color">
               {TEAM_COLORS.map(([hex,label])=><label key={hex} title={label}><input defaultChecked={teamColor(team)===hex} name="color" type="radio" value={hex} required/><span style={{background:hex}}/></label>)}
@@ -224,7 +225,7 @@ export default async function TeamPage({ params, searchParams }) {
             <SubmitButton className={styles.identitySave} pendingLabel="Saving…">Save team look</SubmitButton>
             <small className={styles.identityHint}>Shows on standings, matchups, the wire, and the draft board. An emblem replaces the monogram — pick None to go back to letters.</small>
           </form>
-        </section></aside>
+        </details></section></aside>
       </div>
     </div>
   </main>

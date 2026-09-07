@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
@@ -236,6 +237,32 @@ function Lineup({ title, rows, scoring, byeTeams, schedule }) {
 // looked for, so an empty panel is a lead rather than a false statement. The
 // sync runs on a cron, so the honest instruction is to wait, not to go
 // looking for a schedule that already exists.
+// ── SIXTEEN COPIES OF THE SAME DATE (2026-09-07, from a phone screenshot) ──
+// Every card carried its own "Sun, Sep 13" under the teams. Thirteen of the
+// sixteen week-1 games are on that Sunday, so the panel spent a third of its
+// height, and a full extra line per card on a 390px screen, restating a fact
+// the card above had just made. The date moves up to a heading per day and the
+// cards keep the one thing that differs: kickoff.
+//
+// Grouped in EASTERN, deliberately. A server has no viewer zone, and grouping
+// in UTC would file a Sunday night kickoff under Monday -- which is the exact
+// bug LocalTime was just fixed for. The heading is plain text rather than a
+// <LocalTime>: a day heading that re-labels itself after hydration would
+// reshuffle nothing and re-render everything.
+const DAY_LABEL = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' })
+
+function gameDays(games) {
+  const days = []
+  for (const game of games) {
+    const at = new Date(game.kickoff)
+    const label = Number.isNaN(at.getTime()) ? 'Scheduled' : DAY_LABEL.format(at)
+    const current = days[days.length - 1]
+    if (current && current.label === label) current.games.push(game)
+    else days.push({ label, games: [game] })
+  }
+  return days
+}
+
 function NflGameCenter({games, week}) {
-  return <section className={styles.nflGameCenter}><div className={styles.boardHead}><div><p className={styles.panelLabel}>NFL GAME STATUS</p><h2>On the field</h2></div><span>{games.filter((game)=>game.status==='live').length} live · {games.length} total</span></div><div className={styles.nflGameGrid}>{games.map((game)=><article className={game.status==='live'?styles.nflGameLive:''} key={game.game_id}><span>{game.status==='live'?'● LIVE':game.status==='final'?'FINAL':<LocalTime value={game.kickoff}/>}</span><div><b>{game.away_team}</b><em>at</em><b>{game.home_team}</b></div><small><LocalTime mode="date" value={game.kickoff}/></small></article>)}</div>{!games.length&&<p className={styles.emptyRoom}>No week {week} games have synced to FRANCHISE yet. TUDDY may already show this week&apos;s slate — the schedule reaches FRANCHISE through the scoring sync, which runs on its own and usually catches up within a few minutes.</p>}</section>
+  return <section className={styles.nflGameCenter}><div className={styles.boardHead}><div><p className={styles.panelLabel}>NFL GAME STATUS</p><h2>On the field</h2></div><span>{games.filter((game)=>game.status==='live').length} live · {games.length} total</span></div><div className={styles.nflGameGrid}>{gameDays(games).map((day)=><Fragment key={day.label}><p className={styles.nflGameDay}>{day.label}</p>{day.games.map((game)=><article className={game.status==='live'?styles.nflGameLive:''} key={game.game_id}><span>{game.status==='live'?'● LIVE':game.status==='final'?'FINAL':<LocalTime value={game.kickoff}/>}</span><div><b>{game.away_team}</b><em>at</em><b>{game.home_team}</b></div></article>)}</Fragment>)}</div>{!games.length&&<p className={styles.emptyRoom}>No week {week} games have synced to FRANCHISE yet. TUDDY may already show this week&apos;s slate — the schedule reaches FRANCHISE through the scoring sync, which runs on its own and usually catches up within a few minutes.</p>}</section>
 }

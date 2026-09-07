@@ -84,10 +84,13 @@ export default async function LeaguePage({params,searchParams}) {
   // 75, which is exactly the half you go looking for when you are hunting a
   // trade. Same pattern the Wire already uses: a query param, a stated count,
   // and a link that grows the list. No client JS on this page either.
-  const PLAYER_PAGE=60
+  // 25, not 60: on a phone the index opens as a 60-row wall before the one
+  // name you came for. The link grows it 60 at a time from there.
+  const PLAYER_PAGE=25
+  const PLAYER_STEP=60
   const playerLimit=Math.min(600,Math.max(PLAYER_PAGE,Math.round(Number(query?.players)||PLAYER_PAGE)))
   const shownPlayerBoard=playerBoard.slice(0,playerLimit)
-  const morePlayersHref=`/fantasy/league/${leagueId}/league?view=players&week=${week}&players=${playerLimit+PLAYER_PAGE}`
+  const morePlayersHref=`/fantasy/league/${leagueId}/league?view=players&week=${week}&players=${playerLimit+PLAYER_STEP}`
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
@@ -105,7 +108,10 @@ export default async function LeaguePage({params,searchParams}) {
   </main>
 }
 
-function Standings({finalGames,leagueId,playoffSpots,table,user}){return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON</p><h2>Standings</h2></div><span>W-L-T · Points</span></div><div className={styles.standingHead}><span>RK</span><span>TEAM</span><span>W</span><span>L</span><span>T</span><span>PF</span><span>PA</span></div>{table.map((team,index)=><div className={styles.standingRow} data-cut={finalGames&&index===playoffSpots-1?'true':undefined} data-mine={team.owner_id===user.id?'true':undefined} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:9}}><TeamMark team={team}/><div><b><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link></b><small>{team.owner_id===user.id?'YOUR TEAM':finalGames?(index<playoffSpots?'IN THE FIELD':'IN THE HUNT'):'NO GAMES YET'}</small></div></div><strong>{team.wins}</strong><strong>{team.losses}</strong><strong>{team.ties}</strong><span>{team.pointsFor.toFixed(1)}</span><span>{team.pointsAgainst.toFixed(1)}</span></div>)}</section>}
+function Standings({finalGames,leagueId,playoffSpots,table,user}){return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON</p><h2>Standings</h2></div><span>W-L-T · Points</span></div><div className={styles.standingHead}><span>RK</span><span>TEAM</span><span>W</span><span>L</span><span>T</span><span>PF</span><span>PA</span></div>{table.map((team,index)=><div className={styles.standingRow} data-cut={finalGames&&index===playoffSpots-1?'true':undefined} data-mine={team.owner_id===user.id?'true':undefined} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:9}}><TeamMark team={team}/><div><b><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link></b>{/* NO GAMES YET, printed under all nine teams, is the same fact the 0-0-0
+        and the 0.0 already carry -- and it cost a line of row height on every
+        one of them. The line is rendered only when it distinguishes a team. */}
+      {(team.owner_id===user.id||finalGames)&&<small>{team.owner_id===user.id?'YOUR TEAM':index<playoffSpots?'IN THE FIELD':'IN THE HUNT'}</small>}</div></div><strong>{team.wins}</strong><strong>{team.losses}</strong><strong>{team.ties}</strong><span>{team.pointsFor.toFixed(1)}</span><span>{team.pointsAgainst.toFixed(1)}</span></div>)}</section>}
 
 function PowerRankings({rankings,teamName,teams=[]}){const teamOf=(id)=>teams.find((team)=>team.id===id);return <section className={styles.powerBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH POWER INDEX</p><h2>Power Rankings</h2></div><span>Results · scoring · momentum</span></div>{rankings.map((item)=><article key={item.team_id}><strong>{item.rank}</strong><div><h3 style={{display:'flex',alignItems:'center',gap:8}}><TeamMark size={22} team={teamOf(item.team_id)}/>{teamName(item.team_id)}</h3><p>{item.explanation}</p></div><span>{item.previous_rank?item.previous_rank-item.rank>0?`▲ ${item.previous_rank-item.rank}`:item.previous_rank-item.rank<0?`▼ ${Math.abs(item.previous_rank-item.rank)}`:'—':'NEW'}</span><b>{Number(item.power_score).toFixed(1)}</b></article>)}{!rankings.length&&<p className={styles.leagueEmpty}>Power rankings publish after the commissioner generates a completed week.</p>}</section>}
 

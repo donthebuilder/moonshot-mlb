@@ -2072,6 +2072,11 @@
     display: none;
   }
   .standingRow {
+    /* Nine teams at 58px, each carrying a status line that said NO GAMES YET
+       nine times, was most of a phone screen of nothing. The line is now only
+       rendered when it says something (see Standings in league/page.js), so
+       the row can close up around the name. */
+    min-height: 46px;
     padding: 0 9px;
   }
   .standingHead {
@@ -3865,6 +3870,19 @@
 .nflGameGrid article small {
   color: #666;
   font: 8px/1 monospace;
+}
+/* One heading per day, and the cards under it stop repeating the date. Week 1
+   is sixteen games; sixteen copies of "Sun, Sep 13" was a third of the scroll
+   on that panel and none of the information. */
+.nflGameDay {
+  grid-column: 1/-1;
+  margin: 6px 0 -1px;
+  color: var(--fx-muted-3);
+  font: 900 8px/1 monospace;
+  letter-spacing: .1em;
+}
+.nflGameDay:first-child {
+  margin-top: 0;
 }
 .nflGameGrid .nflGameLive {
   border-color: #286548;
@@ -6258,6 +6276,24 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font: 900 14px/1 monospace;
   text-align: right;
 }
+/* THE NAME RAN INTO THE PPG COLUMN (2026-09-07, from a phone screenshot).
+   Every other player list -- .wirePlayer, .draftPlayer -- declares
+   `b, small { display: block }` for the identity cell. This board never did,
+   so <b>name</b><small>WR · SEA</small> laid out INLINE, one long line that
+   the shared ellipsis rule could not shorten because the flex item had already
+   won its width. On a 390px screen "Jaxon Smith-NjigbaWR · SEA" printed
+   straight through the 21.3 beside it. Two lines, and each one truncates. */
+.playerRankRow b,
+.playerRankRow small {
+  display: block;
+}
+.playerRankRow b {
+  font-size: 13px;
+}
+.playerRankRow .playerIdentity small {
+  margin-top: 3px;
+  font: 8px/1 monospace;
+}
 .playerRankRow strong i {
   display: block;
   margin-top: 3px;
@@ -6267,9 +6303,15 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 @media(max-width:760px) {
   .playerRankRow {
-    grid-template-columns: 24px minmax(0,1fr) 46px 46px;
+    grid-template-columns: 24px minmax(0,1fr) 44px 44px;
     gap: 6px;
-    padding: 7px 9px;
+    /* 56px x 60 rows was a 3,400px scroll before the first number you came
+       for. The row still holds three lines; it just stops padding them. */
+    min-height: 46px;
+    padding: 5px 9px;
+  }
+  .playerRankRow b {
+    font-size: 12px;
   }
   .playerRankOwner {
     grid-column: 2/3;
@@ -6373,4 +6415,39 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .duelName b {
     font-size: 11px;
   }
+}
+
+
+/* ── TEAM LOOK, FOLDED AWAY (2026-09-07) ──────────────────────────────────
+   Twelve swatches, ten emblems, a monogram field and a save button is a full
+   phone screen, and it sits in the scroll path of the page you open to set a
+   lineup -- a thing you do weekly, under a deadline, past a control you touch
+   once a season. Same <details> treatment the drop panel already uses. */
+.identityFold {
+  border-top: 1px solid var(--fx-line-3);
+}
+.identityFold>summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 13px;
+  color: var(--fx-muted-2);
+  font: 900 9px/1 monospace;
+  letter-spacing: .08em;
+  cursor: pointer;
+  list-style: none;
+}
+.identityFold>summary::-webkit-details-marker {
+  display: none;
+}
+.identityFold>summary::after {
+  content: '+';
+  color: var(--fx-dim);
+  font: 900 12px/1 monospace;
+}
+.identityFold[open]>summary::after {
+  content: '–';
+}
+.identityFold>summary:hover {
+  color: var(--fx-ink);
 }
