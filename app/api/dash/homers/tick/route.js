@@ -37,7 +37,7 @@ import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { boardIndexFrom, captureFrom, fmtOdds, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
-import { dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, hottestContactPicks, hottestContactText, hrLeadersByDowText } from '../../../../../lib/dash/tweetFeed'
+import { dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, playableRows } from '../../../../../lib/dash/tweetFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -77,6 +77,27 @@ const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pre
 // bug documented further down: claiming before validating burns the day's
 // slot on one bad minute with nothing to show for it) -- factored out
 // because five stat-feed posts would otherwise repeat it five times.
+// EVERY SCHEDULED POST GOES TO THE DISCORDS (2026-09-07, Donovan: "those new
+// tweets can go to the discords too" -> then "those last two need to be wider
+// and same with those other tweets"). The homer feed's own webhook plus the
+// general MLB channels lib/dash/discordAlerts.js already posts to, deduped so
+// a URL that appears in both env vars gets one message and not two.
+//
+// Used by every ONCE-A-DAY post: pregame, pairswatch, longshot, the five stat
+// slots, numerology, recap, weekly, monthly. The one call site left on the
+// bare homer webhook is the PER-HOMER alert at the bottom of this file -- 30+
+// messages a night is a firehose people opt into, and dropping it into a
+// general channel would drown everything else posted there. Change that one
+// line if the wide channels should carry it too.
+const FEED_WEBHOOKS = () => {
+  const seen = new Set()
+  return [process.env.DISCORD_HOMER_WEBHOOK, process.env.DISCORD_MLB_WEBHOOKS]
+    .flatMap((v) => String(v || '').split(/[,\n]/))
+    .map((x) => x.trim())
+    .filter((x) => x && !seen.has(x) && seen.add(x))
+    .join(',')
+}
+
 async function claimAndPostStat(db, day, kind, hourGate, text, card) {
   if (!text || etHoursSinceNoon() < hourGate) return false
   const { data: claim, error: claimError } = await db
@@ -90,7 +111,7 @@ async function claimAndPostStat(db, day, kind, hourGate, text, card) {
   if (claimError) { console.error(`[homers] ${kind} claim failed: ${claimError.message}`); return false }
   if (!claim?.length) return false
   const patch = { payload: {} }
-  const d = await postToDiscord(text)
+  const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
   if (hasX()) {
     const png = card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
@@ -265,7 +286,7 @@ async function postRecap(db, day, { force = false } = {}) {
         straight >= 2 ? `🔥 A TOP pick has gone deep ${straight} straight nights` : '',
         [TAIL.site, TAIL.handle].filter(Boolean).join(' · '),
       ].filter(Boolean).join('\n')
-      await postToDiscord(text, { imageUrl: recapUrl(day) })
+      await postToDiscord(text, { imageUrl: recapUrl(day) }, FEED_WEBHOOKS())
       if (xOn) {
         const png = await bytesOf(() => recapCard(day, rows || [], hist || [], { site: SITE_HOST }))
         const mediaId = png ? await uploadImageToX(png) : null
@@ -287,7 +308,7 @@ async function postRecap(db, day, { force = false } = {}) {
           const wtext = weeklyText(week, { from, to: day, ...TAIL })
           const wc = captureFrom(week)
           const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
-          const d = await postToDiscord(wtext)
+          const d = await postToDiscord(wtext, {}, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (xOn) {
             const r = await postToX(wtext)
@@ -314,7 +335,7 @@ async function postRecap(db, day, { force = false } = {}) {
           const mtext = monthlyText(monthRows || [], { month: monthLabel, ...TAIL })
           const mc = captureFrom(monthRows || [])
           const patch = { payload: { from: monthFrom, to: prevLastDay, called: mc.called, total: mc.total } }
-          const d = await postToDiscord(mtext)
+          const d = await postToDiscord(mtext, {}, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (xOn) {
             const png = await bytesOf(() => statCard(day, {
@@ -368,6 +389,14 @@ export async function GET(request) {
   // above, so this always sees the freshest cached rows.
   const firstPitch = firstPitchOf(boardRows())
   const overdue = firstPitch != null && Date.now() >= firstPitch - PREGAME_LEAD_MS
+  // WHO IS STILL PLAYABLE (2026-09-07, Donovan: "it should not be tweeting
+  // things about the slate that's already gone off or players that are not
+  // playing anymore"). One index over tonight's snapshot; every board-derived
+  // post below reads the board THROUGH it instead of raw. Fails open on an
+  // unknown game -- see lib/dash/tweetFeed.js playableRows.
+  const live = liveIndexFrom(snap)
+  const pregameRows = () => playableRows(boardRows(), live, 'pregame')
+  const midRows = () => playableRows(boardRows(), live, 'mid')
 
   // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
   //
@@ -421,7 +450,7 @@ export async function GET(request) {
       // call below and of each other -- a slow news night for one is not a
       // reason to hold back the other, and neither can double-post.
       {
-        const hits = pairsToWatch(boardRows(), pairs)
+        const hits = pairsToWatch(pregameRows(), pairs)
         if (hits.length) {
           const { data: claim } = await db
             .from('homer_feed_posts')
@@ -430,7 +459,7 @@ export async function GET(request) {
           if (claim?.length) {
             const text = pairsToWatchText(hits, { day, ...TAIL })
             const patch = { payload: { hits } }
-            const d = await postToDiscord(text)
+            const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
               const png = await bytesOf(() => statCard(day, {
@@ -448,7 +477,7 @@ export async function GET(request) {
         }
       }
       {
-        const pick = longshotPick(boardRows(), odds, day)
+        const pick = longshotPick(pregameRows(), odds, day)
         if (pick) {
           const { data: claim } = await db
             .from('homer_feed_posts')
@@ -457,7 +486,7 @@ export async function GET(request) {
           if (claim?.length) {
             const text = longshotText(pick, { day, ...TAIL })
             const patch = { payload: { pick } }
-            const d = await postToDiscord(text)
+            const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
               const png = await bytesOf(() => statCard(day, {
@@ -484,7 +513,7 @@ export async function GET(request) {
       // SOMETHING to rank once board.size is non-zero, unlike pairswatch/
       // longshot above which can come up empty some nights).
       {
-        const hc = hottestContactPicks(boardRows())
+        const hc = hottestContactPicks(pregameRows())
         await claimAndPostStat(db, day, 'hotcontact', HOTTEST_CONTACT_HOUR,
           hottestContactText(hc, { day, ...TAIL }),
           hc.length ? {
@@ -494,7 +523,7 @@ export async function GET(request) {
           } : null)
       }
       {
-        const dc = dangerComboPicks(boardRows())
+        const dc = dangerComboPicks(pregameRows())
         await claimAndPostStat(db, day, 'dangercombos', DANGER_COMBOS_HOUR,
           dangerComboText(dc, { day, ...TAIL }),
           dc.length ? {
@@ -514,7 +543,7 @@ export async function GET(request) {
           } : null)
       }
 
-      const picks = pregamePicks(boardRows(), odds, day)
+      const picks = pregamePicks(pregameRows(), odds, day)
       if (!picks.length) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
       } else {
@@ -530,7 +559,7 @@ export async function GET(request) {
           // The payload goes in FIRST so the public card route can render the
           // Discord embed from it; the post ids follow.
           await db.from('homer_feed_posts').update({ payload: { picks } }).match({ day, kind: 'pregame' })
-          const d = await postToDiscord(text, { imageUrl: pregameUrl(day) })
+          const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (hasX()) {
             const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
@@ -554,7 +583,7 @@ export async function GET(request) {
   // instead of scrolling at 1pm. Independently claimed, so a slow tick or a
   // restart can never double-post either one.
   {
-    const hc = hottestContactPicks(boardRows())
+    const hc = hottestContactPicks(midRows())
     await claimAndPostStat(db, day, 'hotcontact_mid', HOTTEST_CONTACT_MID_HOUR,
       hottestContactText(hc, { day, ...TAIL, variant: 'mid' }),
       hc.length ? {
@@ -564,7 +593,7 @@ export async function GET(request) {
       } : null)
   }
   {
-    const dc = dangerComboPicks(boardRows())
+    const dc = dangerComboPicks(midRows())
     await claimAndPostStat(db, day, 'dangercombos_mid', DANGER_COMBOS_MID_HOUR,
       dangerComboText(dc, { day, ...TAIL, variant: 'mid' }),
       dc.length ? {
@@ -641,7 +670,7 @@ export async function GET(request) {
       if (claim?.length) {
         const text = numerologyText(moment, { day, ...TAIL })
         const patch = { payload: { moment } }
-        const d = await postToDiscord(text)
+        const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
         if (hasX()) {
           const cardLabel = moment.tier === 'trifecta' ? 'TRIFECTA' : moment.tier === 'jersey' ? 'JERSEY MATCH' : 'CLUSTER'
