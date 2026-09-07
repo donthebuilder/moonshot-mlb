@@ -75,6 +75,7 @@ export default async function LeagueRoom({ params, searchParams }) {
   for (const entry of roster) if (entry.player_id) takenIds.add(entry.player_id)
   const selectedPosition = POSITIONS.includes(query?.position) ? query.position : 'ALL'
   const search = String(query?.q || '').trim().toLowerCase().slice(0,40)
+  const playerById = new Map(players.map((player) => [player.id, player]))
   const assignOpen = String(query?.assign || '') === '1'
   // Keeps the board's own filters when the assignment panel opens or closes --
   // opening it used to be impossible without a full URL, and any link that
@@ -197,7 +198,7 @@ export default async function LeagueRoom({ params, searchParams }) {
             down to juu team's auto-pick. There is no undo for that --
             commissioner_assign_fantasy_pick refuses any slot that is already
             filled -- so the default has to be nothing, chosen deliberately. */}
-        {membership.role === 'commissioner' && draft && draft.status !== 'paused' && picks.some((pick)=>!pick.player_id) && (
+        {membership.role === 'commissioner' && draft && draft.status !== 'paused' && picks.length > 0 && (
           assignOpen ? (
             <form action={assignDraftPick} className={styles.assignmentBar}>
               <div>
@@ -205,9 +206,20 @@ export default async function LeagueRoom({ params, searchParams }) {
                 <strong>Place a player into any open pick</strong>
                 <small>Check the pick number — it is not filled in for you.</small>
               </div>
+              {/* Two groups: fill an empty pick, or fix one that is already
+                  made. The second did not exist until 2026-09-07 -- an
+                  auto-pick that took the wrong man could only be repaired by
+                  writing rows by hand outside the app. A completed pick posts
+                  as "replace:<n>" and actions.js routes it to
+                  commissioner_replace_fantasy_pick. */}
               <select name="overallPick" required defaultValue="">
                 <option value="" disabled>Choose a pick…</option>
-                {picks.filter((pick)=>!pick.player_id).map((pick)=><option value={pick.overall_pick} key={pick.id}>#{pick.overall_pick} · {teams.find((team)=>team.id===pick.team_id)?.name}</option>)}
+                <optgroup label="Open picks">
+                  {picks.filter((pick)=>!pick.player_id).map((pick)=><option value={pick.overall_pick} key={pick.id}>#{pick.overall_pick} · {teams.find((team)=>team.id===pick.team_id)?.name}</option>)}
+                </optgroup>
+                <optgroup label="Replace a completed pick">
+                  {picks.filter((pick)=>pick.player_id).slice(-40).reverse().map((pick)=><option value={`replace:${pick.overall_pick}`} key={`r-${pick.id}`}>#{pick.overall_pick} · {teams.find((team)=>team.id===pick.team_id)?.name} — {playerById.get(pick.player_id)?.name || 'drafted'}</option>)}
+                </optgroup>
               </select>
               <select name="playerId" required defaultValue="">
                 <option value="" disabled>Choose a player…</option>

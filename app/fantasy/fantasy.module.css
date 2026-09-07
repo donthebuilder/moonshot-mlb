@@ -6303,3 +6303,79 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .dropMore summary:hover {
   color: var(--fx-accent);
 }
+
+/* ══ SLOT BY SLOT · the matchup as a set of duels (2026-09-07) ═════════════
+   Three columns: your man, the slot and the gap, their man. The winning side
+   is the one with colour; the loser stays muted rather than turning red,
+   because half of every row would be red and the eye would stop reading it. */
+.duelBoard {
+  margin: 0 0 12px;
+  border: 1px solid var(--fx-line-3);
+  border-radius: 13px;
+  background: var(--fx-panel-2);
+  overflow: hidden;
+}
+.duelRow {
+  display: grid;
+  grid-template-columns: 1fr 84px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 6px 13px;
+  border-top: 1px solid var(--fx-line-3);
+}
+.duelName {
+  min-width: 0;
+}
+.duelName b {
+  display: block;
+  overflow: hidden;
+  color: var(--fx-muted-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.duelName small {
+  display: block;
+  margin-top: 2px;
+  color: var(--fx-dim);
+  font: 800 9px/1 monospace;
+}
+.duelName[data-win="true"] b {
+  color: #f4f1eb;
+}
+.duelName[data-win="true"] small {
+  color: var(--fx-accent);
+}
+.duelName[data-away="true"] {
+  text-align: right;
+}
+.duelSlot {
+  text-align: center;
+}
+.duelSlot span {
+  display: block;
+  color: var(--fx-muted-3);
+  font: 900 8px/1 monospace;
+  letter-spacing: .1em;
+}
+.duelSlot i {
+  display: block;
+  margin-top: 4px;
+  color: var(--fx-dim);
+  font: 900 11px/1 monospace;
+  font-style: normal;
+}
+.duelRow[data-side] .duelSlot i {
+  color: var(--fx-accent);
+}
+@media(max-width:760px) {
+  .duelRow {
+    grid-template-columns: 1fr 62px 1fr;
+    gap: 5px;
+    padding: 6px 9px;
+  }
+  .duelName b {
+    font-size: 11px;
+  }
+}

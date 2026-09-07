@@ -301,6 +301,27 @@ export async function assignDraftPick(formData) {
   const overallPick = Number(formData.get('overallPick'))
   const playerId = String(formData.get('playerId') || '')
   const { supabase } = await clientAndUser()
+
+  // ── FIXING A PICK THAT IS ALREADY MADE (2026-09-07) ───────────────────────
+  // The select offers open picks and completed ones in two groups; a completed
+  // one arrives here as "replace:<n>". commissioner_assign_fantasy_pick refuses
+  // a filled slot by design, so this routes to the function that can swap one.
+  //
+  // On draft night the auto-pick took James Cook for a team that wanted Drake
+  // Maye, and there was no tool for it at all -- the repair was three rows
+  // written by hand with a service key, outside the app, with nothing in the
+  // transaction log. See migration 202609071000.
+  const raw = String(formData.get('overallPick') || '')
+  if (raw.startsWith('replace:')) {
+    const pick = Number(raw.slice('replace:'.length))
+    const { error } = await supabase.rpc('commissioner_replace_fantasy_pick', {
+      p_league_id: leagueId, p_overall_pick: pick, p_player_id: playerId,
+    })
+    if (error) redirect(routeFor(leagueId, 'error', error.message))
+    revalidatePath(`/fantasy/league/${leagueId}`, 'layout')
+    redirect(routeFor(leagueId, 'message', `Pick ${pick} replaced — the old player is back in the pool`))
+  }
+
   const { error } = await supabase.rpc('commissioner_assign_fantasy_pick', {
     p_league_id: leagueId, p_overall_pick: overallPick, p_player_id: playerId,
   })

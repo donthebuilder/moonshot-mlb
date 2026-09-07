@@ -82,6 +82,52 @@ export default async function MatchupPage({ params, searchParams }) {
   for (const row of lineups) projectionByTeam.set(row.team_id, (projectionByTeam.get(row.team_id)||0) + projectOne(row))
   const oddsFor = (game) => matchupOdds(projectionByTeam.get(game.home_team_id)||0, projectionByTeam.get(game.away_team_id)||0)
   const featuredOdds = featured ? matchupOdds(homeProjection, awayProjection) : null
+
+  // Slot-by-slot pairing for the duel board above. Points come from the same
+  // two rules the lineups use: a live/final game reads the real stat line, a
+  // scheduled one reads the projection, and a man on bye is zero either way.
+  const pointsForRow = (row) => {
+    if (!row?.player) return 0
+    if (isOnBye(row.player, byeTeams)) return 0
+    const hasStats = Boolean(row.weekStats?.stats && Object.keys(row.weekStats.stats).length)
+    const active = Boolean(row.weekStats?.status && row.weekStats.status !== 'scheduled' && hasStats)
+    return active ? fantasyPointsFromStats(row.weekStats?.stats, league.scoring) : projectedFantasyPoints(row.player, league.scoring)
+  }
+  // Paired BY POSITION WITHIN THE SLOT NAME, not by slot_index. Keying on
+  // `${slot}#${slot_index}` looks equivalent and is not: a null or duplicated
+  // index collapses RB1 and RB2 into one key and one of the two men vanishes
+  // from the board with nothing to show it happened. Grouping and then zipping
+  // cannot lose a row -- the longer side decides how many there are, and the
+  // shorter side pairs against Empty.
+  const groupBySlot = (rows) => {
+    const out = new Map()
+    for (const row of rows) {
+      if (!out.has(row.slot)) out.set(row.slot, [])
+      out.get(row.slot).push(row)
+    }
+    for (const list of out.values()) list.sort((a, b) => (a.slot_index || 0) - (b.slot_index || 0))
+    return out
+  }
+  const homeSlots = groupBySlot(scoredHomeLineup)
+  const awaySlots = groupBySlot(scoredAwayLineup)
+  const duels = featured ? [...new Set([...homeSlots.keys(), ...awaySlots.keys()])].flatMap((slot) => {
+    const hs = homeSlots.get(slot) || []
+    const as = awaySlots.get(slot) || []
+    return Array.from({ length: Math.max(hs.length, as.length) }, (_, i) => {
+      const h = hs[i]
+      const a = as[i]
+      const homePoints = pointsForRow(h)
+      const awayPoints = pointsForRow(a)
+      return {
+        key: `${slot}#${i}`,
+        slot: `${slot}${i > 0 ? i + 1 : ''}`,
+        homeName: h?.player?.name || 'Empty',
+        awayName: a?.player?.name || 'Empty',
+        homePoints, awayPoints,
+        edge: Math.round((homePoints - awayPoints) * 10) / 10,
+      }
+    })
+  }).sort((x, y) => Math.abs(y.edge) - Math.abs(x.edge)) : []
   const hasLiveGames=nflGames.some((game)=>game.status==='live')
   // 🐛 the margin bar and its legend read homeShare/leader/margin, but nothing
   // in this file ever computed them -- a ReferenceError on every render where
@@ -132,6 +178,36 @@ export default async function MatchupPage({ params, searchParams }) {
             <div><small>TOTAL</small><b>{featuredOdds.total}</b><em>O/U</em><i>both projections added up</i></div>
           </div>
           <p className={styles.oddsNote}>{oddsSentence(featuredOdds, home?.name, away?.name)} The spread is the projected margin. The moneyline also assumes a fantasy team lands within about 25 points of its projection in a week — a stated figure, not one measured off this league, which has not played a game yet.</p>
+        </section>}
+        {/* ── SLOT BY SLOT (2026-09-07) ───────────────────────────────────
+            Donovan: "let's turn up the matchup page." Two lineups side by side
+            is a pair of lists; a matchup is a set of duels, and nothing on the
+            page said which of them you were winning. This pairs the two teams
+            by slot -- QB against QB, FLEX against FLEX -- and sorts by the size
+            of the gap, so the row that decides the week is the first one you
+            read instead of the one that happens to be QB.
+
+            Live where there are live numbers, projected before kickoff, using
+            exactly the same points the lineups below print. A slot where one
+            side has nobody is still shown: an empty starting slot is the
+            biggest edge on the board and hiding it would be the one thing this
+            section must not do. */}
+        {Boolean(duels.length) && <section className={styles.duelBoard}>
+          <div className={styles.boardHead}><div><p className={styles.panelLabel}>SLOT BY SLOT</p><h2>Where this is won</h2></div><span>{featured.status==='scheduled'?'projected':'live'}</span></div>
+          {duels.map((duel)=>(
+            <div className={styles.duelRow} key={duel.key} data-side={duel.edge > 0 ? 'home' : duel.edge < 0 ? 'away' : undefined}>
+              <div className={styles.duelName} data-win={duel.edge > 0 ? 'true' : undefined}>
+                <b>{duel.homeName}</b><small>{duel.homePoints.toFixed(1)}</small>
+              </div>
+              <div className={styles.duelSlot}>
+                <span>{duel.slot}</span>
+                <i>{duel.edge === 0 ? 'even' : `${duel.edge > 0 ? '+' : ''}${duel.edge.toFixed(1)}`}</i>
+              </div>
+              <div className={styles.duelName} data-win={duel.edge < 0 ? 'true' : undefined} data-away="true">
+                <b>{duel.awayName}</b><small>{duel.awayPoints.toFixed(1)}</small>
+              </div>
+            </div>
+          ))}
         </section>}
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/></div>
         <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><span>{game.status==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>

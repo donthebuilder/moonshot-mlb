@@ -127,3 +127,90 @@ grant execute on function public.sync_nfl_player_catalog(jsonb) to service_role;
 revoke all on function public.sync_nfl_week_feed(jsonb,jsonb) from public;
 revoke execute on function public.sync_nfl_week_feed(jsonb,jsonb) from authenticated;
 grant execute on function public.sync_nfl_week_feed(jsonb,jsonb) to service_role;
+
+
+-- ── 3 · A COMMISSIONER CAN FIX A PICK THAT IS ALREADY MADE ──────────────────
+--
+-- Draft night, 2026-09-07. Goin 4 It's timer expired and the auto-pick took
+-- James Cook. Donovan reached for commissioner_assign_fantasy_pick to put Drake
+-- Maye there instead and could not: that function refuses any slot where
+-- `player_id is not null`, by design. The only tool available fills an EMPTY
+-- slot. There has never been one that fixes a filled one.
+--
+-- So the actual repair was three rows written by hand with a service key,
+-- outside the app, with no transaction log and nothing in the feed. That is
+-- not a workflow, it is an incident.
+--
+-- This is the missing verb. It swaps the player in a completed pick: the man
+-- who was taken goes back to the pool, the new man joins that team, and the
+-- draft's shape -- who picks when -- is untouched. It does NOT move the clock
+-- or re-open the pick, because the pick happened; only its contents were wrong.
+create or replace function public.commissioner_replace_fantasy_pick(
+  p_league_id uuid, p_overall_pick integer, p_player_id uuid
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  v_draft public.fantasy_drafts%rowtype;
+  v_pick public.fantasy_draft_picks%rowtype;
+  v_player public.nfl_players%rowtype;
+  v_league public.fantasy_leagues%rowtype;
+  v_outgoing uuid;
+begin
+  if not public.is_fantasy_commissioner(p_league_id) then raise exception 'Commissioner access required'; end if;
+
+  select * into v_draft from public.fantasy_drafts where league_id = p_league_id for update;
+  if not found then raise exception 'No draft board exists for this league'; end if;
+  -- 'complete' is allowed on purpose: a bad auto-pick is usually noticed after
+  -- the room empties, and that is exactly when it must still be fixable.
+  if v_draft.status not in ('live','paused','complete') then raise exception 'The draft has not run'; end if;
+
+  select * into v_pick from public.fantasy_draft_picks
+    where draft_id = v_draft.id and overall_pick = p_overall_pick for update;
+  if v_pick.id is null then raise exception 'That pick does not exist'; end if;
+  if v_pick.player_id is null then
+    raise exception 'That pick is still open — use the assignment panel for it';
+  end if;
+  v_outgoing := v_pick.player_id;
+  if v_outgoing = p_player_id then raise exception 'That player already holds this pick'; end if;
+
+  select * into v_player from public.nfl_players where id = p_player_id and active;
+  if v_player.id is null then raise exception 'Player unavailable'; end if;
+
+  select * into v_league from public.fantasy_leagues where id = p_league_id;
+  if (v_player.position = 'K' and not v_league.has_kicker) or (v_player.position = 'DEF' and not v_league.has_defense)
+    then raise exception 'That position is disabled in this league'; end if;
+
+  if public.fantasy_player_taken(p_league_id, v_draft.id, p_player_id)
+    then raise exception 'That player is already on a roster'; end if;
+
+  -- A player already locked into a scored lineup cannot be un-drafted: his
+  -- points are in a matchup total that has been read.
+  if exists(select 1 from public.fantasy_lineup_slots
+    where team_id = v_pick.team_id and player_id = v_outgoing and locked_at is not null)
+    then raise exception 'That player is locked into a lineup and cannot be replaced'; end if;
+
+  update public.fantasy_draft_picks
+    set player_id = p_player_id, assignment_type = 'manual', picked_at = coalesce(picked_at, now())
+    where id = v_pick.id;
+
+  update public.fantasy_roster_entries set released_at = now()
+    where team_id = v_pick.team_id and player_id = v_outgoing and released_at is null;
+  delete from public.fantasy_lineup_slots
+    where team_id = v_pick.team_id and player_id = v_outgoing and locked_at is null;
+
+  insert into public.fantasy_roster_entries(league_id, team_id, player_id, acquired_via)
+    values (p_league_id, v_pick.team_id, p_player_id, 'commissioner');
+
+  -- Straight back into the pool, not onto waivers. He was never really this
+  -- team's player; the pick was a mistake being corrected, not a cut.
+  delete from public.fantasy_draft_queue where draft_id = v_draft.id and player_id = p_player_id;
+  delete from public.fantasy_player_availability where league_id = p_league_id and player_id = p_player_id;
+
+  insert into public.fantasy_transactions(league_id, team_id, transaction_type, added_player_id, dropped_player_id)
+    values (p_league_id, v_pick.team_id, 'commissioner', p_player_id, v_outgoing);
+
+  return v_outgoing;
+end;
+$$;
+
+revoke all on function public.commissioner_replace_fantasy_pick(uuid, integer, uuid) from public;
+grant execute on function public.commissioner_replace_fantasy_pick(uuid, integer, uuid) to authenticated;
