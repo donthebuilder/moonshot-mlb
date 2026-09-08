@@ -677,6 +677,25 @@ export async function GET(request) {
   // never flips true before `!started` already let this block run, because
   // the earliest game cannot go Live before its own first pitch, and the
   // deadline sits a full hour before that.
+  // 2026-09-08 INCIDENT: the six new picks below (2287698) took the WHOLE
+  // route down with an uncaught exception the moment the block after
+  // birthday ran -- every post after it, same tick AND every tick since,
+  // silently 500'd, discovered only by manually firing and checking
+  // homer_feed_posts for what never landed. This directly violates this
+  // file's own rule #3 (top of file: "IT NEVER FAILS LOUDLY... A cron that
+  // throws is a cron that stops running") -- these nine new blocks were
+  // added without it. safeStat() is the fix: one block throwing gets
+  // logged and skipped, the tick keeps going, and the failure shows up in
+  // the response instead of taking homer alerts down with it.
+  const statErrors = {}
+  async function safeStat(kind, fn) {
+    try {
+      await fn()
+    } catch (err) {
+      console.error(`[homers] ${kind} block threw`, err)
+      statErrors[kind] = String(err?.message || err)
+    }
+  }
   if (board.size) {
     // ── HOTTEST CONTACT / DANGER COMBOS / MLB HR LEADERS — [DAY] ───────────
     // 2026-09-07 (Donovan: "earlier in the day for all of these"). Moved OUT
@@ -729,16 +748,18 @@ export async function GET(request) {
     // is checked before the network calls for the two that make one
     // (birthday, funFacts), same reasoning as HR LEADERS above.
     if (etHoursSinceNoon() >= BIRTHDAY_HOUR) {
-      const bdays = await birthdaysToday(pregameRows(), day)
-      await claimAndPostStat(db, day, 'birthday', BIRTHDAY_HOUR,
-        birthdayText(bdays, { day, ...TAIL }),
-        bdays.length ? {
-          pill: 'BDAY', label: 'BIRTHDAY WATCH',
-          headline: bdays.length === 1 ? bdays[0].name : `${bdays.length} on the slate celebrating tonight`,
-          lines: bdays.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}${p.age != null ? ` — turns ${p.age}` : ''}`),
-        } : null)
+      await safeStat('birthday', async () => {
+        const bdays = await birthdaysToday(pregameRows(), day)
+        await claimAndPostStat(db, day, 'birthday', BIRTHDAY_HOUR,
+          birthdayText(bdays, { day, ...TAIL }),
+          bdays.length ? {
+            pill: 'BDAY', label: 'BIRTHDAY WATCH',
+            headline: bdays.length === 1 ? bdays[0].name : `${bdays.length} on the slate celebrating tonight`,
+            lines: bdays.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}${p.age != null ? ` — turns ${p.age}` : ''}`),
+          } : null)
+      })
     }
-    {
+    await safeStat('backtoback', async () => {
       const b2b = backToBackPicks(pregameRows(), day)
       await claimAndPostStat(db, day, 'backtoback', BACK_TO_BACK_HOUR,
         backToBackText(b2b, { day, ...TAIL }),
@@ -747,16 +768,18 @@ export async function GET(request) {
           headline: b2b.length === 1 ? b2b[0].name : `${b2b.length} hitters chasing an encore`,
           lines: b2b.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}`),
         } : null)
-    }
+    })
     if (etHoursSinceNoon() >= FUN_FACTS_HOUR) {
-      const facts = await funFactsPicks(pregameRows(), day)
-      await claimAndPostStat(db, day, 'funfacts', FUN_FACTS_HOUR,
-        funFactsText(facts, { day, ...TAIL }),
-        facts.length ? {
-          pill: 'FACTS', label: 'FUN FACTS',
-          headline: facts[0]?.player ? String(facts[0].player.name || facts[0].player) : 'Tonight\'s whimsical stat line',
-          lines: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean),
-        } : null)
+      await safeStat('funfacts', async () => {
+        const facts = await funFactsPicks(pregameRows(), day)
+        await claimAndPostStat(db, day, 'funfacts', FUN_FACTS_HOUR,
+          funFactsText(facts, { day, ...TAIL }),
+          facts.length ? {
+            pill: 'FACTS', label: 'FUN FACTS',
+            headline: facts[0]?.player ? String(facts[0].player.name || facts[0].player) : 'Tonight\'s whimsical stat line',
+            lines: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean),
+          } : null)
+      })
     }
     // ── MATCHUP LINES / THE CALL OF THE NIGHT / STREAKS / STORYLINES /
     //    THE FOUR / BEST AIR TONIGHT (2026-09-08, "build them because I want
@@ -766,68 +789,80 @@ export async function GET(request) {
     // needed for the four posts above. Same claimAndPostStat pipe, same
     // Discord webhook, same X path.
     if (etHoursSinceNoon() >= MATCHUP_LINES_HOUR) {
-      const stories = await matchupLinesPicks(pregameRows())
-      await claimAndPostStat(db, day, 'matchuplines', MATCHUP_LINES_HOUR,
-        matchupLinesText(stories, { day, ...TAIL }),
-        stories.length ? {
-          pill: 'MATCHUP', label: 'MATCHUP LINES',
-          headline: stories[0]?.player ? String(stories[0].player.name || '') : 'Tonight\'s park history',
-          lines: stories.map((s) => s?.text).filter(Boolean),
-        } : null)
+      await safeStat('matchuplines', async () => {
+        const stories = await matchupLinesPicks(pregameRows())
+        await claimAndPostStat(db, day, 'matchuplines', MATCHUP_LINES_HOUR,
+          matchupLinesText(stories, { day, ...TAIL }),
+          stories.length ? {
+            pill: 'MATCHUP', label: 'MATCHUP LINES',
+            headline: stories[0]?.player ? String(stories[0].player.name || '') : 'Tonight\'s park history',
+            lines: stories.map((s) => s?.text).filter(Boolean),
+          } : null)
+      })
     }
     if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR) {
-      const call = callOfTheNightPick(pregameRows(), odds, day)
-      await claimAndPostStat(db, day, 'callofnight', CALL_OF_NIGHT_HOUR,
-        callOfTheNightText(call, { day, ...TAIL }),
-        call ? {
-          pill: 'CALL', label: 'THE CALL OF THE NIGHT',
-          headline: `${call.name}${call.pitcher ? ` vs ${call.pitcher}` : ''}`,
-          lines: [
-            call.edgeSd != null ? `EDGE ${call.edgeSd} SD` : '',
-            call.pct != null ? `PARK+WEATHER ${call.pct >= 50 ? 'top' : 'bottom'} ${call.pct >= 50 ? 100 - call.pct : call.pct}%` : '',
-            call.price ? `PRICE ${call.price.odds} · ${call.price.book}` : '',
-          ].filter(Boolean),
-        } : null)
+      await safeStat('callofnight', async () => {
+        const call = callOfTheNightPick(pregameRows(), odds, day)
+        await claimAndPostStat(db, day, 'callofnight', CALL_OF_NIGHT_HOUR,
+          callOfTheNightText(call, { day, ...TAIL }),
+          call ? {
+            pill: 'CALL', label: 'THE CALL OF THE NIGHT',
+            headline: `${call.name}${call.pitcher ? ` vs ${call.pitcher}` : ''}`,
+            lines: [
+              call.edgeSd != null ? `EDGE ${call.edgeSd} SD` : '',
+              call.pct != null ? `PARK+WEATHER ${call.pct >= 50 ? 'top' : 'bottom'} ${call.pct >= 50 ? 100 - call.pct : call.pct}%` : '',
+              call.price ? `PRICE ${call.price.odds} · ${call.price.book}` : '',
+            ].filter(Boolean),
+          } : null)
+      })
     }
     if (etHoursSinceNoon() >= STREAKS_HOUR) {
-      const streak = await streaksPick(pregameRows(), day)
-      await claimAndPostStat(db, day, 'streaks', STREAKS_HOUR,
-        streaksText(streak, { day, ...TAIL }),
-        streak ? {
-          pill: 'STREAK', label: 'STREAK WATCH',
-          headline: streak.player?.name ? String(streak.player.name) : 'Tonight\'s hit streak',
-          lines: [streak.text].filter(Boolean),
-        } : null)
+      await safeStat('streaks', async () => {
+        const streak = await streaksPick(pregameRows(), day)
+        await claimAndPostStat(db, day, 'streaks', STREAKS_HOUR,
+          streaksText(streak, { day, ...TAIL }),
+          streak ? {
+            pill: 'STREAK', label: 'STREAK WATCH',
+            headline: streak.player?.name ? String(streak.player.name) : 'Tonight\'s hit streak',
+            lines: [streak.text].filter(Boolean),
+          } : null)
+      })
     }
     if (etHoursSinceNoon() >= STORYLINES_HOUR) {
-      const trends = storylinesPicks(pregameRows())
-      await claimAndPostStat(db, day, 'storylines', STORYLINES_HOUR,
-        storylinesText(trends, { day, ...TAIL }),
-        trends.length ? {
-          pill: 'STORY', label: 'STORYLINES',
-          headline: trends[0]?.pitcher || 'Tonight\'s hittable arm',
-          lines: trends.map((t) => `${t.pitcher}${t.team ? ` (${t.team})` : ''} — ${t.l3hr9} HR/9 last 3 starts`),
-        } : null)
+      await safeStat('storylines', async () => {
+        const trends = storylinesPicks(pregameRows())
+        await claimAndPostStat(db, day, 'storylines', STORYLINES_HOUR,
+          storylinesText(trends, { day, ...TAIL }),
+          trends.length ? {
+            pill: 'STORY', label: 'STORYLINES',
+            headline: trends[0]?.pitcher || 'Tonight\'s hittable arm',
+            lines: trends.map((t) => `${t.pitcher}${t.team ? ` (${t.team})` : ''} — ${t.l3hr9} HR/9 last 3 starts`),
+          } : null)
+      })
     }
     if (etHoursSinceNoon() >= THE_FOUR_HOUR) {
-      const four = theFourPicks(pregameRows())
-      await claimAndPostStat(db, day, 'thefour', THE_FOUR_HOUR,
-        theFourText(four, { day, ...TAIL }),
-        four.length === 4 ? {
-          pill: 'FOUR', label: 'THE FOUR',
-          headline: 'Four categories, one bot',
-          lines: four.map((p) => `${p.key}: ${p.name} vs ${p.pitcher} — ${p.score}`),
-        } : null)
+      await safeStat('thefour', async () => {
+        const four = theFourPicks(pregameRows())
+        await claimAndPostStat(db, day, 'thefour', THE_FOUR_HOUR,
+          theFourText(four, { day, ...TAIL }),
+          four.length === 4 ? {
+            pill: 'FOUR', label: 'THE FOUR',
+            headline: 'Four categories, one bot',
+            lines: four.map((p) => `${p.key}: ${p.name} vs ${p.pitcher} — ${p.score}`),
+          } : null)
+      })
     }
     if (etHoursSinceNoon() >= BEST_AIR_HOUR) {
-      const air = bestAirPicks(pregameRows())
-      await claimAndPostStat(db, day, 'bestair', BEST_AIR_HOUR,
-        bestAirText(air, { day, ...TAIL }),
-        air.length ? {
-          pill: 'AIR', label: 'BEST AIR TONIGHT',
-          headline: air[0]?.venue || 'Tonight\'s best park for a homer',
-          lines: air.map((g) => `${g.venue}, ${g.matchup}${g.label ? ` — ${g.label}` : ''}`),
-        } : null)
+      await safeStat('bestair', async () => {
+        const air = bestAirPicks(pregameRows())
+        await claimAndPostStat(db, day, 'bestair', BEST_AIR_HOUR,
+          bestAirText(air, { day, ...TAIL }),
+          air.length ? {
+            pill: 'AIR', label: 'BEST AIR TONIGHT',
+            headline: air[0]?.venue || 'Tonight\'s best park for a homer',
+            lines: air.map((g) => `${g.venue}, ${g.matchup}${g.label ? ` — ${g.label}` : ''}`),
+          } : null)
+      })
     }
   }
 
@@ -843,7 +878,7 @@ export async function GET(request) {
     // but this falls through to homer processing afterward instead of
     // returning -- a late tick must not also skip tonight's live homers.
     if (!ready) {
-      if (!started) return Response.json({ day, skipped: 'nothing-started' })
+      if (!started) return Response.json({ day, skipped: 'nothing-started', statErrors })
     } else {
       // PAIRS TO WATCH + TONIGHT'S LONGEST CALL (2026-09-06, Donovan).
       // Each claims its own (day, kind) row, independent of the pregame
@@ -914,11 +949,11 @@ export async function GET(request) {
       // see pregameCalled() in homerFeed.js. Not used by any post text.
       const called = pregameCalled(pregameRows())
       if (!picks.length) {
-        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks' })
+        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors })
       } else {
         const claim = await claimSlot(db, day, 'pregame')
         if (!claim) {
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already' })
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors })
         } else {
           const text = pregameText(picks, { day, ...TAIL })
           const patch = { payload: { picks, called } }
@@ -935,7 +970,7 @@ export async function GET(request) {
             else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
           }
           await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted' })
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors })
         }
       }
     }
@@ -1227,5 +1262,6 @@ export async function GET(request) {
     }
   }
 
+  totals.statErrors = statErrors
   return Response.json(totals)
 }
