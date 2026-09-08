@@ -32,7 +32,7 @@ import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday } from '../../../../../lib/data'
-import { fetchLiveSlate } from '../../../../../lib/liveSlate'
+import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { boardIndexFrom, captureFrom, fmtOdds, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
@@ -505,7 +505,14 @@ export async function GET(request) {
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
   const backfill = await backfillOneNight(db, day)
-  if (!snap?.games?.length) return Response.json({ day, skipped: 'no-games', backfill })
+  if (!snap?.games?.length) {
+    // 2026-09-08: a missing SCHED_FIELDS entry made every pregame-hour tick
+    // report this exact shape on a night with 15 real games, and nothing in
+    // the response said why. liveSlateStatus().reason now carries whatever
+    // pullLiveSlate logged, so a future regression shows up in the tick's own
+    // JSON instead of needing a manual repro to find.
+    return Response.json({ day, skipped: 'no-games', backfill, liveSlate: liveSlateStatus() })
+  }
 
   const started = snap.games.some((g) => g?.state === 'Live' || g?.state === 'Final')
   const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
