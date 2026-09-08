@@ -19,7 +19,6 @@ import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
 import { fetchLiveSlate, lineupStatus, liveSlateStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
 import Explain from '../Explain'
-import AtThePlate from './AtThePlate'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import GameSimPanel from '../GameSimPanel'
@@ -663,56 +662,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       </button>
     </div>
   )
-
-  /* ── ⚾ LIVE — At the Plate, as a VIEW of this tab (2026-08-16) ────────────
-     Consolidation rule: a tab is a QUESTION you arrive with, a view is an
-     ANSWER. "What does one game look like tonight" and "what does it look
-     like RIGHT NOW" are the same question asked before and during play, so
-     the live room mounts here as a fourth mode instead of holding its own
-     tab. AtThePlate is mounted AS-IS — it keeps its own polling, its own
-     game selection and its charts; this tab just gives it a seat.
-     Above the empty-slate return ON PURPOSE: the live room names its hitters
-     off the league feed, so a blank board (bot not yet published) must not
-     lock the door on games already in progress. gview still wins — the Boxes
-     pill keeps working from any mode. */
-  // 🧾 THE HOMER LEDGER — REMOVED FROM THIS TAB (2026-08-18).
-  //
-  // Donovan: "tka eht hr ledger form the games page tooi doens need to be
-  // there" — take the HR ledger off the Games page too, it doesn't need to
-  // be there. It stays mounted on Home.js and on Combos.js (the Pairs &
-  // Pools view) — see the long placement note at the Home.js mount for why
-  // those two earned the slot. Games is a per-game browsing tool; the
-  // ledger's job (what already happened, running the whole night) doesn't
-  // belong stapled above a card grid that's mid-scroll toward a specific
-  // game.
-
-  if (mode === 'live' && gview !== 'boxes') {
-    return (
-      <div>
-        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
-        <PanelTitle
-          title="Slate"
-          sub="the live batter's room — who is standing in right now, the count, every pitch, tonight's zone and spray"
-          right={modeRow}
-        />
-        <WhatThis maxWidth={700}>
-          what tonight looks like while it is happening — every live game with the man at the plate, the at-bat pitch by pitch, and where his contact is going. It wakes up at first pitch.
-        </WhatThis>
-
-        {/* allPlayers, not players, same reason as Boxes below: the live room
-            is not subject to the header's team filter — filtering it makes
-            live games appear to lose their hitters. players is the fallback
-            only while allPlayers still defaults to []. */}
-        <AtThePlate
-          players={allPlayers.length ? allPlayers : players}
-          watchIds={watchIds}
-          mode={slateMode}
-          slateMode={slateMode}
-          onPlayerClick={onPlayerClick}
-        />
-      </div>
-    )
-  }
 
   if (!games.length) return <Empty text="No games found yet." />
 
