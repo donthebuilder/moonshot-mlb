@@ -37,7 +37,12 @@ import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { boardIndexFrom, captureFrom, fmtOdds, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
-import { backToBackPicks, backToBackText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText, hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, playableRows } from '../../../../../lib/dash/tweetFeed'
+import {
+  backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
+  dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
+  hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
+  playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText,
+} from '../../../../../lib/dash/tweetFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -216,6 +221,16 @@ const DANGER_COMBOS_MID_HOUR = 7   // 7pm ET
 const BIRTHDAY_HOUR = -2      // 10am ET
 const BACK_TO_BACK_HOUR = -1  // 11am ET
 const FUN_FACTS_HOUR = 1      // 1pm ET
+// 2026-09-08 (Donovan: "build them because I want them"). Same board-only
+// shape, spread through the morning/midday window alongside the four above --
+// see claude/ project docs for why each of these six has a real data source
+// behind it (no invented numbers) and why Revenge Game Watch is NOT here yet.
+const MATCHUP_LINES_HOUR = -4   // 8am ET
+const CALL_OF_NIGHT_HOUR = -3   // 9am ET (own slot, separate from hotcontact)
+const STREAKS_HOUR = -3         // 9am ET
+const STORYLINES_HOUR = 0       // noon ET
+const THE_FOUR_HOUR = 0         // noon ET
+const BEST_AIR_HOUR = 2         // 2pm ET
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -304,7 +319,10 @@ async function birthdaysToday(rows, day) {
         if (!row) continue
         const born = Number(bd.slice(0, 4))
         const age = Number.isFinite(born) ? new Date(`${day}T12:00:00Z`).getUTCFullYear() - born : null
-        out.push({ name: String(row.name || '').trim(), team: String(row.team || '').trim() || null, age })
+        out.push({
+          name: String(row.name || '').trim(), team: String(row.team || '').trim() || null, age,
+          last5_avg: row.last5_avg, last5_hr: row.last5_hr, last5_rbi: row.last5_rbi, last5_status: row.last5_status,
+        })
       }
     } catch (err) {
       console.error('[homers] birthday lookup failed', err)
@@ -313,11 +331,32 @@ async function birthdaysToday(rows, day) {
   return out
 }
 
+// 2026-09-08 (Donovan: "add recent stats to help ... anything that doesn't
+// really have any stats with it"). Same last5_avg/hr/rbi already on every
+// board row, no extra pull -- '.297 last 5, 2 HR' turns "turns 25" into
+// something worth reading. Blank on last5_status !== 'ok' (a call-up with no
+// games yet) rather than printing a fabricated .000.
+function l5Line(row) {
+  if (!row || row.last5_status !== 'ok') return ''
+  const avg = Number(row.last5_avg)
+  if (!Number.isFinite(avg)) return ''
+  const avgStr = avg.toFixed(3).replace(/^0\./, '.').replace(/^-0\./, '-.')
+  const hr = Number(row.last5_hr) || 0
+  const rbi = Number(row.last5_rbi) || 0
+  const bits = [`${avgStr} last 5`]
+  if (hr > 0) bits.push(`${hr} HR`)
+  if (rbi > 0) bits.push(`${rbi} RBI`)
+  return bits.join(', ')
+}
+
 function birthdayText(people, { day = '', site = '', handle = '' } = {}) {
   if (!Array.isArray(people) || !people.length) return ''
   const tail = [site, handle].filter(Boolean).join(' · ')
   const head = `🎂 BIRTHDAY WATCH${day ? ` — ${day.slice(5).replace('-', '/')}` : ''}`
-  const lines = people.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}${p.age != null ? ` — turns ${p.age}` : ''}`)
+  const lines = people.map((p) => {
+    const l5 = l5Line(p)
+    return `${p.name}${p.team ? ` (${p.team})` : ''}${p.age != null ? ` — turns ${p.age}` : ''}${l5 ? `, ${l5}` : ''}`
+  })
   const fits = (arr) => arr.filter(Boolean).join('\n').length <= 270
   for (let n = lines.length; n >= 0; n -= 1) {
     const body = [head, ...lines.slice(0, n), tail]
@@ -717,6 +756,77 @@ export async function GET(request) {
           pill: 'FACTS', label: 'FUN FACTS',
           headline: facts[0]?.player ? String(facts[0].player.name || facts[0].player) : 'Tonight\'s whimsical stat line',
           lines: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean),
+        } : null)
+    }
+    // ── MATCHUP LINES / THE CALL OF THE NIGHT / STREAKS / STORYLINES /
+    //    THE FOUR / BEST AIR TONIGHT (2026-09-08, "build them because I want
+    //    them") ─────────────────────────────────────────────────────────────
+    // All six below are still board-only + one existing odds fetch -- no new
+    // network dependency beyond what matchupStories()/funFactsPicks() already
+    // needed for the four posts above. Same claimAndPostStat pipe, same
+    // Discord webhook, same X path.
+    if (etHoursSinceNoon() >= MATCHUP_LINES_HOUR) {
+      const stories = await matchupLinesPicks(pregameRows())
+      await claimAndPostStat(db, day, 'matchuplines', MATCHUP_LINES_HOUR,
+        matchupLinesText(stories, { day, ...TAIL }),
+        stories.length ? {
+          pill: 'MATCHUP', label: 'MATCHUP LINES',
+          headline: stories[0]?.player ? String(stories[0].player.name || '') : 'Tonight\'s park history',
+          lines: stories.map((s) => s?.text).filter(Boolean),
+        } : null)
+    }
+    if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR) {
+      const call = callOfTheNightPick(pregameRows(), odds, day)
+      await claimAndPostStat(db, day, 'callofnight', CALL_OF_NIGHT_HOUR,
+        callOfTheNightText(call, { day, ...TAIL }),
+        call ? {
+          pill: 'CALL', label: 'THE CALL OF THE NIGHT',
+          headline: `${call.name}${call.pitcher ? ` vs ${call.pitcher}` : ''}`,
+          lines: [
+            call.edgeSd != null ? `EDGE ${call.edgeSd} SD` : '',
+            call.pct != null ? `PARK+WEATHER ${call.pct >= 50 ? 'top' : 'bottom'} ${call.pct >= 50 ? 100 - call.pct : call.pct}%` : '',
+            call.price ? `PRICE ${call.price.odds} · ${call.price.book}` : '',
+          ].filter(Boolean),
+        } : null)
+    }
+    if (etHoursSinceNoon() >= STREAKS_HOUR) {
+      const streak = await streaksPick(pregameRows(), day)
+      await claimAndPostStat(db, day, 'streaks', STREAKS_HOUR,
+        streaksText(streak, { day, ...TAIL }),
+        streak ? {
+          pill: 'STREAK', label: 'STREAK WATCH',
+          headline: streak.player?.name ? String(streak.player.name) : 'Tonight\'s hit streak',
+          lines: [streak.text].filter(Boolean),
+        } : null)
+    }
+    if (etHoursSinceNoon() >= STORYLINES_HOUR) {
+      const trends = storylinesPicks(pregameRows())
+      await claimAndPostStat(db, day, 'storylines', STORYLINES_HOUR,
+        storylinesText(trends, { day, ...TAIL }),
+        trends.length ? {
+          pill: 'STORY', label: 'STORYLINES',
+          headline: trends[0]?.pitcher || 'Tonight\'s hittable arm',
+          lines: trends.map((t) => `${t.pitcher}${t.team ? ` (${t.team})` : ''} — ${t.l3hr9} HR/9 last 3 starts`),
+        } : null)
+    }
+    if (etHoursSinceNoon() >= THE_FOUR_HOUR) {
+      const four = theFourPicks(pregameRows())
+      await claimAndPostStat(db, day, 'thefour', THE_FOUR_HOUR,
+        theFourText(four, { day, ...TAIL }),
+        four.length === 4 ? {
+          pill: 'FOUR', label: 'THE FOUR',
+          headline: 'Four categories, one bot',
+          lines: four.map((p) => `${p.key}: ${p.name} vs ${p.pitcher} — ${p.score}`),
+        } : null)
+    }
+    if (etHoursSinceNoon() >= BEST_AIR_HOUR) {
+      const air = bestAirPicks(pregameRows())
+      await claimAndPostStat(db, day, 'bestair', BEST_AIR_HOUR,
+        bestAirText(air, { day, ...TAIL }),
+        air.length ? {
+          pill: 'AIR', label: 'BEST AIR TONIGHT',
+          headline: air[0]?.venue || 'Tonight\'s best park for a homer',
+          lines: air.map((g) => `${g.venue}, ${g.matchup}${g.label ? ` — ${g.label}` : ''}`),
         } : null)
     }
   }
