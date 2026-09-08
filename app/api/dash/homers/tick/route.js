@@ -37,7 +37,7 @@ import { fetchBoardFull } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { boardIndexFrom, captureFrom, fmtOdds, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
-import { dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, playableRows } from '../../../../../lib/dash/tweetFeed'
+import { backToBackPicks, backToBackText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText, hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, playableRows } from '../../../../../lib/dash/tweetFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -210,6 +210,12 @@ const HR_LEADERS_DOW_HOUR = -2     // 10am ET
 const DANGER_COMBOS_HOUR = -1      // 11am ET
 const HOTTEST_CONTACT_MID_HOUR = 4 // 4pm ET
 const DANGER_COMBOS_MID_HOUR = 7   // 7pm ET
+// 2026-09-08 (Donovan: "wire those up for automated tweets"). Same board-only
+// shape as the three above -- gated on the hour, claimed per (day, kind), no
+// live snapshot involved.
+const BIRTHDAY_HOUR = -2      // 10am ET
+const BACK_TO_BACK_HOUR = -1  // 11am ET
+const FUN_FACTS_HOUR = 1      // 1pm ET
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -265,6 +271,59 @@ async function personInfoOf(id) {
   } catch {
     return { jersey: null, birthDate: null }
   }
+}
+
+// BIRTHDAY WATCH (2026-09-08, Donovan: "wire those up for automated tweets").
+// One batched statsapi call for the whole slate (same endpoint and shape as
+// the per-homer lookup above, just many ids at once -- statsapi's own limit
+// is comfortably above what one night's board ever holds, batched at 100 to
+// stay well under it), filtered to whoever's birthday is today. Same source
+// components/Storylines.js already uses live for the site's own Birthdays
+// panel -- this does not invent a new feed, it posts the one that exists.
+async function birthdaysToday(rows, day) {
+  const list = Array.isArray(rows) ? rows : []
+  const byId = new Map()
+  for (const r of list) {
+    const pid = String(r?.player_id || '').trim()
+    if (pid && !byId.has(pid)) byId.set(pid, r)
+  }
+  const ids = [...byId.keys()]
+  if (!ids.length) return []
+  const mmdd = day.slice(5)
+  const out = []
+  for (let i = 0; i < ids.length; i += 100) {
+    const batch = ids.slice(i, i + 100)
+    try {
+      const res = await fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${batch.join(',')}&fields=people,id,birthDate`, { cache: 'no-store' })
+      if (!res.ok) continue
+      const j = await res.json()
+      for (const person of j?.people || []) {
+        const bd = String(person?.birthDate || '')
+        if (bd.length < 10 || bd.slice(5) !== mmdd) continue
+        const row = byId.get(String(person.id))
+        if (!row) continue
+        const born = Number(bd.slice(0, 4))
+        const age = Number.isFinite(born) ? new Date(`${day}T12:00:00Z`).getUTCFullYear() - born : null
+        out.push({ name: String(row.name || '').trim(), team: String(row.team || '').trim() || null, age })
+      }
+    } catch (err) {
+      console.error('[homers] birthday lookup failed', err)
+    }
+  }
+  return out
+}
+
+function birthdayText(people, { day = '', site = '', handle = '' } = {}) {
+  if (!Array.isArray(people) || !people.length) return ''
+  const tail = [site, handle].filter(Boolean).join(' · ')
+  const head = `🎂 BIRTHDAY WATCH${day ? ` — ${day.slice(5).replace('-', '/')}` : ''}`
+  const lines = people.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}${p.age != null ? ` — turns ${p.age}` : ''}`)
+  const fits = (arr) => arr.filter(Boolean).join('\n').length <= 270
+  for (let n = lines.length; n >= 0; n -= 1) {
+    const body = [head, ...lines.slice(0, n), tail]
+    if (fits(body)) return body.filter(Boolean).join('\n')
+  }
+  return [head, tail].filter(Boolean).join('\n')
 }
 
 // PNG bytes, or null. Never throws: the image is the garnish.
@@ -620,6 +679,44 @@ export async function GET(request) {
           pill: 'LEADERS', label: `MLB HR LEADERS — ${String(dow || '').toUpperCase()}S`,
           headline: `Most home runs on a ${dow || 'this weekday'} this season`,
           lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR${p.avgEv != null ? `, ${p.avgEv} mph avg EV` : ''}`),
+        } : null)
+    }
+    // ── BIRTHDAY WATCH / BACK-TO-BACK WATCH / FUN FACTS (2026-09-08) ──────
+    // Donovan: "wire those up for automated tweets ... add them to the
+    // notifications for the discords that is link to called hr or homers".
+    // Same infra as the three posts above -- claimAndPostStat already posts
+    // to X AND to FEED_WEBHOOKS(), the same Discord webhook(s) every other
+    // homer/CalledItHR post goes to, so nothing new to wire there. The hour
+    // is checked before the network calls for the two that make one
+    // (birthday, funFacts), same reasoning as HR LEADERS above.
+    if (etHoursSinceNoon() >= BIRTHDAY_HOUR) {
+      const bdays = await birthdaysToday(pregameRows(), day)
+      await claimAndPostStat(db, day, 'birthday', BIRTHDAY_HOUR,
+        birthdayText(bdays, { day, ...TAIL }),
+        bdays.length ? {
+          pill: 'BDAY', label: 'BIRTHDAY WATCH',
+          headline: bdays.length === 1 ? bdays[0].name : `${bdays.length} on the slate celebrating tonight`,
+          lines: bdays.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}${p.age != null ? ` — turns ${p.age}` : ''}`),
+        } : null)
+    }
+    {
+      const b2b = backToBackPicks(pregameRows(), day)
+      await claimAndPostStat(db, day, 'backtoback', BACK_TO_BACK_HOUR,
+        backToBackText(b2b, { day, ...TAIL }),
+        b2b.length ? {
+          pill: 'B2B', label: 'BACK-TO-BACK WATCH',
+          headline: b2b.length === 1 ? b2b[0].name : `${b2b.length} hitters chasing an encore`,
+          lines: b2b.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}`),
+        } : null)
+    }
+    if (etHoursSinceNoon() >= FUN_FACTS_HOUR) {
+      const facts = await funFactsPicks(pregameRows(), day)
+      await claimAndPostStat(db, day, 'funfacts', FUN_FACTS_HOUR,
+        funFactsText(facts, { day, ...TAIL }),
+        facts.length ? {
+          pill: 'FACTS', label: 'FUN FACTS',
+          headline: facts[0]?.player ? String(facts[0].player.name || facts[0].player) : 'Tonight\'s whimsical stat line',
+          lines: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean),
         } : null)
     }
   }
