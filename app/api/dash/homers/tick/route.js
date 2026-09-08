@@ -505,7 +505,19 @@ export async function GET(request) {
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
   const backfill = await backfillOneNight(db, day)
-  if (!snap?.games?.length) {
+  const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
+  // 2026-09-08 (Donovan: "USE WHATEVER IS ON THE SITE -- nothing should come
+  // back as nothing when the site has already pulled the data, the API is
+  // the cushion"). fetchLiveSlate hits a separate, flakier pipeline than the
+  // board (today_slim.json, via boardIndex() just above) -- today's
+  // SCHED_FIELDS bug made it report zero games on a real 15-game night, and
+  // any future hiccup in it (timeout, rate limit, schema change) looks
+  // identical. The board is the same data the site itself is already
+  // showing, so it -- not the live snapshot -- gets the final say on whether
+  // tonight is a real off day. Skip only when BOTH sources agree there is
+  // nothing.
+  const gamesLive = Array.isArray(snap?.games) ? snap.games : []
+  if (!gamesLive.length && !board.size) {
     // 2026-09-08: a missing SCHED_FIELDS entry made every pregame-hour tick
     // report this exact shape on a night with 15 real games, and nothing in
     // the response said why. liveSlateStatus().reason now carries whatever
@@ -513,9 +525,13 @@ export async function GET(request) {
     // JSON instead of needing a manual repro to find.
     return Response.json({ day, skipped: 'no-games', backfill, liveSlate: liveSlateStatus() })
   }
-
-  const started = snap.games.some((g) => g?.state === 'Live' || g?.state === 'Final')
-  const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
+  // From here down, `snap` may still be null or empty (fetchLiveSlate down,
+  // or genuinely nothing live yet) while `board` carries tonight's games.
+  // Every read of the live snapshot goes through `gamesLive`, never raw
+  // `snap.games` -- and the board-only posts below (hotcontact, dangercombos,
+  // hrleadersdow) never touch the snapshot at all, so a live-API outage no
+  // longer blocks them.
+  const started = gamesLive.some((g) => g?.state === 'Live' || g?.state === 'Final')
   // 2026-09-06 (Donovan: "at least a hour before first pitch"). Computed off
   // whatever the board holds right now -- boardIndex() only just resolved
   // above, so this always sees the freshest cached rows.
@@ -611,7 +627,7 @@ export async function GET(request) {
   if (!started || overdue) {
     const ready = board.size && (
       overdue ||
-      snap.games.some((g) => g?.lineupPosted) ||
+      gamesLive.some((g) => g?.lineupPosted) ||
       (firstPitch == null && new Date().getUTCHours() >= PREGAME_HOUR_UTC)
     )
     // Every early return below is now guarded on `!started`: when overdue is
@@ -960,7 +976,11 @@ export async function GET(request) {
   }
 
   // ── 4. the recap, once, when the night is over ───────────────────────────
-  const allDone = snap.games.every((g) => g?.settled || g?.postponed || g?.suspended || g?.state === 'Final')
+  // 2026-09-08: `.every()` on an empty array is vacuously true -- if the live
+  // snapshot is down or empty (see gamesLive above) this must NOT read as
+  // "every game is done" and fire the recap early. Require at least one
+  // known game before trusting the every().
+  const allDone = gamesLive.length > 0 && gamesLive.every((g) => g?.settled || g?.postponed || g?.suspended || g?.state === 'Final')
   if (allDone) Object.assign(totals, await postRecap(db, day))
 
   // ── 5. THE MONTHLY X BUDGET, COUNTED (2026-09-07) ────────────────────────
