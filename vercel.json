@@ -50,7 +50,7 @@
     },
     {
       "path": "/api/dash/homers/tick",
-      "schedule": "* 0-7 * * *"
+      "schedule": "* 0-12 * * *"
     },
     {
       "path": "/api/dash/homers/tick",
