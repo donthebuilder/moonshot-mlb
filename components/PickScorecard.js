@@ -46,12 +46,14 @@ const JOBS = {
              test: (r) => r.gotHr },
   HIT:     { label: 'Hit',     job: '1+ hit',       color: '#a78bfa',
              test: (r) => r.hits > 0 },
-  CONTACT: { label: 'Contact', job: '2+ total bases', color: '#4ade80',
-             test: (r) => r.tb >= 2 },
   HRR:     { label: 'HRR',     job: '2+ H+R+RBI',   color: '#22d3ee',
              test: (r) => r.hits + r.runs + r.rbi >= 2 },
+  CONTACT: { label: 'Contact', job: '2+ total bases', color: '#4ade80',
+             test: (r) => r.tb >= 2 },
+  ATS:     { label: 'ATS',     job: 'beat spread',  color: '#06b6d4',
+             test: (r) => r.atsHit },
 }
-const ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+const ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT', 'ATS']
 
 const i = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 
@@ -91,6 +93,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
       rbi: i(s?.actual_rbi),
       tb: i(s?.actual_tb),
       hr: i(s?.actual_hr),
+      atsHit: s?.actual_ats_hit === 1 || i(s?.ats_covered) === 1,
     }
     const j = JOBS[role]
     r.job = j ? j.job : '—'
