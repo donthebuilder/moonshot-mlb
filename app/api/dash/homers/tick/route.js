@@ -43,7 +43,7 @@ import {
   hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
   playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText,
 } from '../../../../../lib/dash/tweetFeed'
-import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
+import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
 
@@ -878,7 +878,7 @@ export async function GET(request) {
     // but this falls through to homer processing afterward instead of
     // returning -- a late tick must not also skip tonight's live homers.
     if (!ready) {
-      if (!started) return Response.json({ day, skipped: 'nothing-started', statErrors })
+      if (!started) return Response.json({ day, skipped: 'nothing-started', statErrors, discordErrors: discordFailuresSnapshot() })
     } else {
       // PAIRS TO WATCH + TONIGHT'S LONGEST CALL (2026-09-06, Donovan).
       // Each claims its own (day, kind) row, independent of the pregame
@@ -949,11 +949,11 @@ export async function GET(request) {
       // see pregameCalled() in homerFeed.js. Not used by any post text.
       const called = pregameCalled(pregameRows())
       if (!picks.length) {
-        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors })
+        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
         const claim = await claimSlot(db, day, 'pregame')
         if (!claim) {
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors })
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
         } else {
           const text = pregameText(picks, { day, ...TAIL })
           const patch = { payload: { picks, called } }
@@ -970,7 +970,7 @@ export async function GET(request) {
             else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
           }
           await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors })
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
         }
       }
     }
@@ -1263,5 +1263,6 @@ export async function GET(request) {
   }
 
   totals.statErrors = statErrors
+  totals.discordErrors = discordFailuresSnapshot()
   return Response.json(totals)
 }
