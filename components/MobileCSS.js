@@ -164,16 +164,16 @@ export default function MobileCSS() {
         .dense-scroll table { font-size: 10px !important; }
         .dense-scroll th, .dense-scroll td { padding: 5px 5px !important; }
       }
-      /* -- PORTRAIT ZOOMS OUT (2026-09-06) --------------------------------
-         Donovan: "when in portrait I think the chart should be visually
-         smaller or zoom out more so we can see more." Every dense table
-         gained a category stat set today, so a phone held upright now
-         sees more columns per swipe: 9px type, tighter cells, and the
-         sticky name column narrowed. Landscape keeps the 10px rule above. */
+      /* -- PORTRAIT ZOOM-OUT, REVERTED (2026-09-08) -----------------------
+         2026-09-06 shrank every dense table an extra notch in portrait (9px
+         type, 4px cells) on Donovan's own request. Reversed now — the ask
+         is the opposite: match the size the NFL Research / TD SCORE table
+         reads at (10px type, 5px cells, the plain 860px rule above), site-
+         wide, MLB Watchlist and the board/Rundown specifically named. So
+         portrait no longer shrinks past landscape; only the sticky-name-
+         column cap survives from this block, since that's a layout
+         constraint, not a size one. */
       @media (max-width: 860px) and (orientation: portrait) {
-        .dense-scroll table { font-size: 9px !important; }
-        .dense-scroll th, .dense-scroll td { padding: 4px 4px !important; }
-        .dense-scroll th { letter-spacing: 0 !important; }
         .dense-scroll .dense-sticky { max-width: 108px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 
         /* -- THE BOX SCORE, ON A PHONE (2026-09-01) ------------------------
