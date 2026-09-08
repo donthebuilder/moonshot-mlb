@@ -69,25 +69,39 @@ function TonightLive({ gamePk, batterId }) {
 
 // Exit-velocity log — every tracked batted ball, newest first.
 //
-// TWO THINGS CHANGED HERE AND BOTH ARE ABOUT HONESTY.
+// THREE THINGS CHANGED HERE AND ALL THREE ARE ABOUT HONESTY.
 //
 // 1. The window is GAMES or BATTED BALLS. It is not plate appearances.
 //    The handoff asked for a games / plate-appearances toggle. There is no
 //    plate-appearance data in this payload to build one from: the detail files
-//    carry exactly one list, `spray_chart`, and every row in it is a ball that
-//    was put in play. Walks and strikeouts are never written, so any "PA"
-//    number this page printed would be a batted-ball count wearing a different
-//    label — which is the exact bug that was fixed here once already, when the
-//    range control counted unique dates and called them PA. So the toggle is
+//    carry exactly one list, `spray_chart`, and every row in it was, at first,
+//    a ball that was put in play. Walks are still never written, so any "PA"
+//    number this page printed would still be missing a piece — which is the
+//    exact bug that was fixed here once already, when the range control
+//    counted unique dates and called them PA. So the toggle stays
 //    Games / Batted balls, and the missing denominator is stated on the panel.
-//    A hitter's "last 10 games" here means his batted balls from his last 10
-//    dates with a tracked ball, which is not quite the same as his last 10
-//    games either — a game where he walked three times leaves no trace.
+//    A hitter's "last 10 games" here means his batted balls (+ strikeouts,
+//    see #3) from his last 10 dates with a tracked row, which is not quite
+//    the same as his last 10 games either — a game where he walked three
+//    times leaves no trace.
 //
 // 2. The colour is the site ramp. This page used to run a green/red good-bad
 //    scale of its own, plus a per-pitch rainbow, in a build whose stated rule
 //    is orange only and bright-means-good-for-the-hitter. Two colour languages
 //    on one site means neither one gets learned.
+//
+// 3. (2026-09-08) Strikeouts are rows too. Donovan: "add k rate to the mix
+//    and ... ad the k as bbe like what ever the last picth was the k the
+//    batter['s] out." spray_cache.py (and the live Savant fallback) now write
+//    a strikeout as a row in this same list — is_k true, every batted-ball
+//    field null because there IS no batted ball, pitch/arm/velo/pitcher taken
+//    from the pitch that actually ended the at-bat. That's what makes a real
+//    K RATE possible below and puts AVG/ISO ON CONTACT one step closer to a
+//    true average (strikeouts now count as outs; walks/HBP still don't exist
+//    here). Every batted-ball-only stat — GB/FLY/LD/POP, hard-hit%, barrel%,
+//    pull/oppo — is computed over batted balls only (`bbCount`), never over
+//    `rows.length`, so a strikeout entering the window can never look like
+//    contact quality dropping.
 
 // ── THE FIVE ACCENTS THIS FILE USES, NAMED ONCE (2026-09-07) ──────────────
 // They were repeated as bare hexes at fifteen call sites. check-scales.mjs
@@ -273,7 +287,9 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     hard: h.is_hard_hit ? 1 : 0,
     hr: h.is_hr ? 1 : 0,
     result: String(h.result || h.event || '').replace(/_/g, ' '),
-    traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' '),
+    // K rows carry no bb_type (there's no batted ball to classify) — fall
+    // back to a dash like side/lane already do below, instead of a blank cell.
+    traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' ') || '—',
     // is_pull_air is spray_cache's own flag: pulled AND in the air — the
     // batted-ball shape that actually leaves buildings
     pullAir: h.is_pull_air ? 1 : 0,
@@ -293,6 +309,13 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     d350: h.is_350_plus ? 1 : 0,
     d375: h.is_375_plus ? 1 : 0,
     d400: h.is_400_plus ? 1 : 0,
+    // ── K, RIDING IN THE SAME ROW SHAPE (2026-09-08) ──────────────────────
+    // Donovan: "add k rate to the mix and ... ad the k as bbe like what
+    // ever the last picth was, the K, the batter['s] out." spray_cache.py
+    // (and the live Savant fallback) now write a strikeout as a row with
+    // every batted-ball-only field null and is_k true — this just carries
+    // that flag through so the stat strip and the K column below can use it.
+    k: h.is_k ? 1 : 0,
   })), [windowed, armFilter, batterHand, pitchSel, resFilter])
 
   const pid = player?.player_id || player?.id
@@ -366,6 +389,11 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
 
   const batsLabel = player?.bats && player.bats !== '?' ? player.bats : null
   const gamesShown = new Set(windowed.map((h) => h.date)).size
+  // Split before any of the row/arm/bats/pitch/result filters below — this is
+  // what the top-of-page banner reports, independent of what's currently
+  // filtered out of the table.
+  const windowedK = windowed.filter((h) => h.is_k).length
+  const windowedBbe = windowed.length - windowedK
 
   return (
     <div>
@@ -531,11 +559,14 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
       </div>
 
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-        {windowed.length} batted balls across {gamesShown} date{gamesShown === 1 ? '' : 's'} ·{' '}
+        {windowedBbe} batted ball{windowedBbe === 1 ? '' : 's'}
+        {windowedK > 0 ? <> + <span style={{ color: C.text2 }}>{windowedK} strikeout{windowedK === 1 ? '' : 's'}</span></> : ''}
+        {' '}across {gamesShown} date{gamesShown === 1 ? '' : 's'} ·{' '}
         {log.length} tracked in total.
-        {' '}<span style={{ color: C.text2 }}>Not plate appearances.</span> This payload only records
-        balls put in play, so walks and strikeouts are invisible here and no rate on this page has a
-        true PA denominator.
+        {' '}<span style={{ color: C.text2 }}>Still not plate appearances.</span> Strikeouts are logged
+        here now too — the pitch that ended the at-bat, no EV/angle/distance because there was no batted
+        ball. Walks and hit-by-pitches are still invisible, so no rate on this page has a true PA
+        denominator — K RATE and AVG/ISO ON CONTACT below get as close as batted-balls-plus-strikeouts can.
       </div>
 
       {standVals.size === 0 && batterHand !== 'ALL' && (
@@ -556,36 +587,51 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         const hh = rows.filter((r) => r.hard).length
         const brl = rows.filter((r) => r.barrel).length
         const hr = rows.filter((r) => r.hr).length
+        // ── K RATE (2026-09-08, Donovan: "add k rate to the mix") ──────────
+        // Strikeouts ride in `rows` now (spray_cache.py / the live Savant
+        // fallback tag them is_k), but a K is not a batted ball — every
+        // shape/quality % below MUST stay over batted balls only (bbCount),
+        // never rows.length, or GB/FLY/hard-hit/barrel/pull rates would
+        // quietly shrink every time a strikeout entered the window without
+        // one fewer ball actually being put in play. hh/brl/pullAir/xbh/far/
+        // mid themselves don't need filtering — r.hard/r.barrel/... are
+        // already 0 on every K row, only their % denominators change.
+        const kCount = rows.filter((r) => r.k).length
+        const bbCount = rows.length - kCount
+        const kRate = rows.length ? (100 * kCount) / rows.length : null
         // batted-ball shape over the same rows (2026-08-08, Donovan: "show
         // gb fb ld pull barrel %s") — traj is Statcast's own bb_type label
         const shapePct = (re) => {
           const k = rows.filter((r) => re.test(r.traj)).length
-          return rows.length ? (100 * k) / rows.length : null
+          return bbCount ? (100 * k) / bbCount : null
         }
         const pullAir = rows.filter((r) => r.pullAir).length
         const sidePct = (name) => {
           const k = rows.filter((r) => String(r.side).toLowerCase() === name).length
-          return rows.length ? (100 * k) / rows.length : null
+          return bbCount ? (100 * k) / bbCount : null
         }
         const xbh = rows.filter((r) => r.xbh).length
         const far = rows.filter((r) => r.d400).length
         const mid = rows.filter((r) => r.d375).length
         const pct = (v) => `${v.toFixed(0)}%`
 
-        // ── AVG / ISO OVER THE ROWS SHOWN (2026-09-07) ───────────────────
+        // ── AVG / ISO OVER THE ROWS SHOWN (2026-09-07; K's changed this 09-08) ─
         // Donovan: "show batting avg and iso, hr to the stats when you filter
         // on the ev log". HR was already here; AVG and ISO were not, because
-        // this payload has no plate appearances in it — the banner at the top
-        // of this page says so. Walks and strikeouts never became a batted
-        // ball, so they are not in `rows` and cannot be in any denominator
-        // built from `rows`.
+        // this payload had no plate appearances in it.
         //
-        // So these are NOT season AVG/ISO and are not labelled as if they
-        // were. They are AVG and ISO **on contact**: the denominator is the
-        // balls shown below, minus sacrifices (a sac fly is not an at-bat, and
-        // counting it as a hitless one would push the number down for doing
-        // the thing the coach asked for). A reached-on-error IS left in as a
-        // hitless at-bat, which is what the scorer does too.
+        // 2026-09-08: strikeouts are now rows too (is_k, see above), and a
+        // strikeout IS an at-bat — so `abs` below (built the same way it
+        // always was, off every row that isn't a sac) now counts them as
+        // outs instead of silently excluding them. That's a real
+        // improvement: AVG/ISO ON CONTACT now match true batting average /
+        // ISO wherever the only gap left is walks and hit-by-pitches, which
+        // still never became a row here. Kept the "ON CONTACT" name and the
+        // honesty caveat rather than renaming to "AVG" — it still isn't the
+        // full thing.
+        //
+        // A reached-on-error IS left in as a hitless at-bat, which is what
+        // the scorer does too.
         //
         // Read straight off `result`, which is Statcast's own `events` string
         // with underscores swapped for spaces — matched exactly, never by
@@ -605,7 +651,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         const iso = abs ? (tb - hits) / abs : null
         // .272 not 0.272 — the way a slash line is written everywhere else.
         const slash = (v) => v.toFixed(3).replace(/^0/, '')
-        const contactNote = `${hits} hit${hits === 1 ? '' : 's'} in ${abs} balls in play`
+        const contactNote = `${hits} hit${hits === 1 ? '' : 's'} in ${abs} at-bat${abs === 1 ? '' : 's'}`
         const cells = [
           ['AVG EV', avg('ev'), (v) => v.toFixed(1), AMBER],
           ['AVG ANGLE', avg('la'), (v) => `${v.toFixed(0)}°`, C.text2],
@@ -615,13 +661,18 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           ['FLY', shapePct(/fly/i), pct, CYAN],
           ['LD', shapePct(/line/i), pct, C.text2],
           ['POP', shapePct(/pop/i), pct, C.text3],
-          ['PULL-AIR', pullAir, (v) => `${pct((100 * v) / rows.length)}`, AMBER],
-          ['HARD HIT', hh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, AMBER],
-          ['BARRELS', brl, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, VIOLET],
+          // bbCount guarded to null, not just divided: a window that comes back
+          // all strikeouts (a real possibility once K's are rows too) must
+          // hide these rather than print a 0/0 "NaN%".
+          ['PULL-AIR', bbCount ? pullAir : null, (v) => `${pct((100 * v) / bbCount)}`, AMBER],
+          ['HARD HIT', bbCount ? hh : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, AMBER],
+          ['BARRELS', bbCount ? brl : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, VIOLET],
+          ['K RATE', kRate, pct, RED,
+            `Strikeouts as a share of everything logged in this window — ${kCount} K in ${rows.length} (${bbCount} balls in play + ${kCount} strikeouts). Walks and hit-by-pitches still never become a row here, so this isn't a full-PA K% — it's the closest this page can get without one.`],
           ['AVG ON CONTACT', ba, slash, CYAN,
-            `Batting average over the balls shown below only — ${contactNote}. Sacrifices are left out of the denominator. This is NOT his season average: strikeouts and walks are not in this payload, so there is no plate-appearance denominator here.`],
+            `Batting average over this window — ${contactNote}, sacrifices left out of the denominator. Strikeouts now count as outs (${kCount} of them); walks and hit-by-pitches still don't become a row here, so it's close to his real average but not quite it.`],
           ['ISO ON CONTACT', iso, slash, VIOLET,
-            `Isolated power (slugging minus average) over the same ${abs} balls in play — extra bases per ball put in play. Not his season ISO, for the same reason: no plate appearances in this payload.`],
+            `Isolated power (slugging minus average) over the same ${abs} at-bats, strikeouts included as outs. Not his season ISO, for the same reason as AVG ON CONTACT: no walks/HBP in this payload.`],
           ['HR', hr, (v) => `${v}`, GREEN],
           // Direction and real distance, from the flags spray_cache already
           // writes. PULL / OPPO are the batted-ball direction split; 375+ and
@@ -630,7 +681,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           // rows below, like everything else in this strip.
           ['PULL', sidePct('pull'), pct, AMBER],
           ['OPPO', sidePct('oppo'), pct, C.text2],
-          ['XBH', xbh, (v) => `${v} (${(100 * v / rows.length).toFixed(0)}%)`, CYAN],
+          ['XBH', bbCount ? xbh : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, CYAN],
           ['375+ FT', mid, (v) => `${v}`, AMBER],
           ['400+ FT', far, (v) => `${v}`, RED],
         ]
@@ -647,7 +698,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
               </div>
             ))}
             <div style={{ marginLeft: 'auto', alignSelf: 'end', fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-              over the {rows.length} balls shown below
+              over the {bbCount} ball{bbCount === 1 ? '' : 's'}{kCount > 0 ? ` + ${kCount} K${kCount === 1 ? '' : 's'}` : ''} shown below
             </div>
           </div>
         )
@@ -676,6 +727,8 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           { key: 'hr',      label: 'HR',      flag: true, mark: '★', w: 32 },
           { key: 'xbh',     label: 'XBH',     flag: true, mark: '●', w: 34,
             explain: 'Extra-base hit — the bot\u2019s own flag on this batted ball.' },
+          { key: 'k',       label: 'K',       flag: true, mark: '✕', w: 28,
+            title: 'Strikeout — the pitch that ended the at-bat, not a batted ball. EV/Angle/Dist/Side/Lane are blank because none exists; Pitch/Arm/Velo are still his last pitch faced.' },
           { key: 'side',    label: 'Side',    heat: false, w: 64, dim: true,
             title: 'Pull, centre or opposite field. Direction only — it says where the ball went, not how hard.' },
           { key: 'lane',    label: 'Lane',    heat: false, w: 54, mono: true, dim: true,
@@ -685,7 +738,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         ]}
         initialSort={null}
         maxHeight={460}
-        caption="Every column is shaded against its own range within this window, so changing the window changes the shading — that's the point, it shows what's hot relative to what you asked for. Angle is shaded like any other column but read it carefully: high launch angle is a popup, not a good outcome. BRL / HH / HR are the bot's own flags."
+        caption="Every column is shaded against its own range within this window, so changing the window changes the shading — that's the point, it shows what's hot relative to what you asked for. Angle is shaded like any other column but read it carefully: high launch angle is a popup, not a good outcome. BRL / HH / HR are the bot's own flags. A K row is a strikeout, not a batted ball — EV/Angle/Dist/Side/Lane are blank on purpose; Pitch/Arm/Velo are still his last pitch faced."
       />
     </div>
   )
