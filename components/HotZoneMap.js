@@ -12,19 +12,25 @@
  */
 
 'use client'
-import { detailUrl, zonesUrl } from '../lib/dataSource'
+import { fetchBatterDetail, fetchShared, zonesUrl } from '../lib/dataSource'
 import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
+import { ORANGE_RAMP, RAMP_CHIPS, rampColor, inkFor } from './Heatmap'
 import { hotColdZones } from '../lib/situational'
+import { isLeaky } from '../lib/hr9'
 import ZoneMap from './ZoneMap'
+import { catColor, verdictInk, verdictWash, alpha } from '../lib/scales'
+
+// See #63: the bot flags a low/no pitch-mix sample on its own sheet and the
+// UI never asked. 250 pitches is roughly a full arsenal read on a starter.
+const MIX_MIN_PITCHES = 250
 
 // ── Pitch colors + names ──────────────────────────────────────────────────────
-const PITCH_COLORS = {
-  FF:'#f97316', SI:'#fb923c', FC:'#f59e0b', SL:'#4ade80', CU:'#22d3ee',
-  KC:'#06b6d4', CH:'#60a5fa', FS:'#818cf8', KN:'#a78bfa', ST:'#34d399',
-  SV:'#f87171', OTHER:'#71717a',
-}
+// Pitch-family color now comes from catColor('pitch', code) in lib/scales.js —
+// this file used to keep its own PITCH_COLORS dictionary, one of three on the
+// site that disagreed with each other (the colour-chart-system audit's
+// finding). PITCH_NAMES (the human-readable labels) is unrelated and stays
+// local.
 const PITCH_NAMES = {
   FF:'4-Seam', SI:'Sinker', FC:'Cutter', SL:'Slider', CU:'Curveball',
   KC:'K-Curve', CH:'Changeup', FS:'Splitter', KN:'Knuckleball', ST:'Sweeper',
@@ -146,7 +152,18 @@ function Grid9({ zones, metricKey, metricFmt, killZones=[] }) {
 function Legend() {
   return (
     <div style={{display:'flex', gap:10, flexWrap:'wrap', marginTop:8}}>
-      {[[ORANGE_RAMP[7],'Hot'],[ORANGE_RAMP[5],'Warm'],[ORANGE_RAMP[2],'Neutral'],[ORANGE_RAMP[0],'Cold']].map(([c,l])=>(
+      {/* Relabelled with the traffic-light ramp (2026-08-09). "Hot/Cold" was
+          the old orange scale's language and it now reads backwards to
+          anyone who sees green and thinks "good". The colours mean the same
+          thing they mean everywhere else on this site: green is good FOR THE
+          HITTER, red is not. The words just say so out loud now. */}
+      {/* INDEXED OFF THE END, not off 8 (2026-08-10). These were fixed indices
+          from when every ramp had nine stops; Ember has had eight for a day and
+          Signal now does too, so ORANGE_RAMP[8] was undefined and the top
+          swatch rendered with no background at all. Chips, not fills — a lit
+          ramp's fills are near-black. */}
+      {(() => { const R = RAMP_CHIPS; const n = R.length
+        return [[R[n-1],'He crushes it'],[R[n-3],'Good'],[R[Math.floor(n/2)],'Middling'],[R[1],'Weak']] })().map(([c,l])=>(
         <span key={l} style={{display:'flex',alignItems:'center',gap:3,fontSize:10,color:C.text3}}>
           <span style={{width:8,height:8,borderRadius:2,background:c}}/>
           {l}
@@ -165,7 +182,7 @@ function PitchToggles({ pitches, active, onToggle, onClear }) {
       <TogBtn active={active.size===0} color={C.orange} label="All" onClick={onClear}/>
       {pitches.map(pt => (
         <TogBtn key={pt.code} active={active.has(pt.code)}
-          color={PITCH_COLORS[pt.code]||PITCH_COLORS.OTHER}
+          color={catColor('pitch', pt.code)}
           label={`${pt.code}${pt.usage>0?' '+pt.usage+'%':''}`}
           onClick={()=>onToggle(pt.code)}
         />
@@ -193,6 +210,9 @@ const BATTER_METRICS = [
 // when the answer is nowhere, say "nowhere" instead of going quiet. A match =
 // a zone in the batter's top-3 for the stat that is ALSO in the pitcher's
 // top-3 damage zones for the same stat (both sample-gated by low_sample).
+// Four fixed identity colors, one per stat — NOT a verdict: every chip keeps
+// its own hue regardless of match/no-match (only alpha/border toggle below).
+// Out of scope for verdictInk; would need its own CAT concept, not this task.
 const MATCH_STATS = [
   { key:'hr_rate', label:'HR',  col:'#f87171' },
   { key:'ba',      label:'BA',  col:'#4ade80' },
@@ -267,12 +287,21 @@ function PitchMatrix({ pitches, matchNote }) {
   const bd=`1px solid ${C.border}`
   const TH=({children,style={}})=><th style={{padding:'3px 5px',textAlign:'right',fontSize:9,fontWeight:700,color:C.text3,borderBottom:bd,...style}}>{children}</th>
   const TD=({children,style={}})=><td style={{padding:'3px 5px',textAlign:'right',fontSize:10,fontFamily:NUM_FONT,borderBottom:bd,...style}}>{children}</td>
-  const cG=(v,lo,hi)=>v>=hi?{color:'#f87171',fontWeight:800}:v>=lo?{color:'#f59e0b',fontWeight:700}:{}
-  const cR=(v,lo,hi)=>v<=lo?{color:'#4ade80',fontWeight:700}:v>=hi?{color:'#f87171',fontWeight:800}:{}
+  // High hard-hit/barrel/EV/xwOBA and low whiff both mean "batter is squaring
+  // this pitch up" — good for the batter — so the strong tier reads through
+  // the shared verdict ink. The amber mid-tier is a plain severity step, not
+  // a verdict, and stays literal.
+  const cG=(v,lo,hi)=>v>=hi?{color:verdictInk(true).color,fontWeight:800}:v>=lo?{color:'#f59e0b',fontWeight:700}:{}
+  const cR=(v,lo,hi)=>v<=lo?{color:verdictInk(true).color,fontWeight:700}:v>=hi?{color:verdictInk(false).color,fontWeight:800}:{}
   const pct=v=>v!=null?`${Math.round(v*100)}%`:'—'
   return (
     <div>
-      <div style={{overflowX:'auto'}}>
+      {/* dense-scroll, not bare rail (2026-08-10 player-tab phone pass): this
+          400px-wide pitch table sits inside the player card, so on a 390px
+          phone it is always scrolling sideways. dense-scroll is the treatment
+          every other wide table here already wears — momentum scrolling,
+          tighter cell padding, no stock scrollbar. */}
+      <div className="dense-scroll rail" style={{overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
           <thead>
             <tr>
@@ -282,17 +311,17 @@ function PitchMatrix({ pitches, matchNote }) {
           </thead>
           <tbody>
             {pitches.map((p,i)=>{
-              const dot=PITCH_COLORS[p.code]||PITCH_COLORS.OTHER
+              const dot=catColor('pitch', p.code)
               const b=p.batter
               return (
-                <tr key={i} style={{background:b.hard_hit_rate>=0.50?'rgba(248,113,113,0.06)':'transparent'}}>
+                <tr key={i} style={{background:b.hard_hit_rate>=0.50?verdictWash(true,0.06):'transparent'}}>
                   <td style={{padding:'4px 5px',borderBottom:bd,whiteSpace:'nowrap'}}>
                     <span style={{width:6,height:6,borderRadius:'50%',background:dot,display:'inline-block',marginRight:4,verticalAlign:'middle'}}/>
                     <span style={{fontSize:10,color:C.text2,fontWeight:700}}>{PITCH_NAMES[p.code]||p.code}</span>
                   </td>
                   <TD style={{color:C.text3}}>{p.usage>0?`${p.usage}%`:'—'}</TD>
                   <TD>{b.seen??'—'}</TD>
-                  <TD style={(b.hr||0)>0?{color:'#f87171',fontWeight:800}:{color:C.text3}}>{b.hr??'—'}</TD>
+                  <TD style={(b.hr||0)>0?{color:verdictInk(true).color,fontWeight:800}:{color:C.text3}}>{b.hr??'—'}</TD>
                   <TD style={cG(b.hard_hit_rate,.30,.45)}>{pct(b.hard_hit_rate)}</TD>
                   <TD style={cG(b.barrel_like_rate,.05,.12)}>{pct(b.barrel_like_rate)}</TD>
                   <TD style={cG(b.avg_ev,86,92)}>{b.avg_ev?b.avg_ev.toFixed(1):'—'}</TD>
@@ -441,7 +470,7 @@ function PitcherZones({ pitcherProfile, killZones, pitcherId, pitcherName }) {
           </div>
           <Legend/>
           {killZones.length>0&&(
-            <div style={{marginTop:8,fontSize:11,color:'#f87171',fontWeight:700}}>
+            <div style={{marginTop:8,fontSize:11,color:verdictInk(true).color,fontWeight:700}}>
               🔥 Kill zones: {killZones.map(z=>ZONE_LABELS[z]||'Z'+z).join(', ')}
             </div>
           )}
@@ -457,10 +486,10 @@ function PitcherZones({ pitcherProfile, killZones, pitcherId, pitcherName }) {
               return (
                 <div key={z.zone} style={{
                   display:'flex',alignItems:'center',gap:8,padding:'6px 9px',borderRadius:7,
-                  background:isKill?'rgba(248,113,113,0.06)':C.bg2,
-                  border:`1px solid ${isKill?'rgba(248,113,113,0.25)':C.border}`,
+                  background:isKill?verdictWash(true,0.06):C.bg2,
+                  border:`1px solid ${isKill?alpha(verdictInk(true).color,0.25):C.border}`,
                 }}>
-                  <div style={{width:28,height:28,borderRadius:4,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,color:isKill?'#f87171':C.text3,background:isKill?'rgba(248,113,113,0.15)':C.bg3}}>Z{z.zone}</div>
+                  <div style={{width:28,height:28,borderRadius:4,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,color:isKill?verdictInk(true).color:C.text3,background:isKill?verdictWash(true,0.15):C.bg3}}>Z{z.zone}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:11,fontWeight:700,color:C.text}}>{ZONE_LABELS[z.zone]}{isKill?' 🔥':''}</div>
                     <div style={{fontSize:10,color:C.text3,fontFamily:NUM_FONT,marginTop:1}}>
@@ -469,7 +498,7 @@ function PitcherZones({ pitcherProfile, killZones, pitcherId, pitcherName }) {
                         : `${z.pitches||0} pitches`}
                     </div>
                   </div>
-                  <div style={{fontSize:14,fontWeight:900,fontFamily:NUM_FONT,color:isKill?'#f87171':C.text}}>{mFmt(z[metricKey])}</div>
+                  <div style={{fontSize:14,fontWeight:900,fontFamily:NUM_FONT,color:isKill?verdictInk(true).color:C.text}}>{mFmt(z[metricKey])}</div>
                 </div>
               )
             })}
@@ -510,12 +539,12 @@ function DangerSignals({ p }) {
           return (
             <div key={s.label} title={s.tip} style={{
               padding:'8px 10px',borderRadius:8,
-              background:ok?'rgba(74,222,128,0.07)':C.bg2,
-              border:`1px solid ${ok?'rgba(74,222,128,0.30)':C.border}`,
+              background:ok?verdictWash(true,0.07):C.bg2,
+              border:`1px solid ${ok?alpha(verdictInk(true).color,0.30):C.border}`,
             }}>
               <div style={{fontSize:10,color:C.text3,marginBottom:3}}>{s.label}</div>
-              <div style={{fontSize:18,fontWeight:800,fontFamily:NUM_FONT,color:ok?'#4ade80':C.text2}}>{s.fmt(s.val)}</div>
-              <div style={{fontSize:9,color:ok?'#4ade80':C.text3,marginTop:2}}>{ok?'batter edge':'neutral'}</div>
+              <div style={{fontSize:18,fontWeight:800,fontFamily:NUM_FONT,color:ok?verdictInk(true).color:C.text2}}>{s.fmt(s.val)}</div>
+              <div style={{fontSize:9,color:ok?verdictInk(true).color:C.text3,marginTop:2}}>{ok?'batter edge':'neutral'}</div>
             </div>
           )
         })}
@@ -529,11 +558,11 @@ function DangerSignals({ p }) {
               return (
                 <div key={s.label} style={{
                   flex:1,padding:'8px 10px',borderRadius:8,textAlign:'center',
-                  background:ok?'rgba(248,113,113,0.07)':C.bg2,
-                  border:`1px solid ${ok?'rgba(248,113,113,0.30)':C.border}`,
+                  background:ok?verdictWash(true,0.07):C.bg2,
+                  border:`1px solid ${ok?alpha(verdictInk(true).color,0.30):C.border}`,
                 }}>
                   <div style={{fontSize:10,color:C.text3,marginBottom:3}}>{s.label}</div>
-                  <div style={{fontSize:20,fontWeight:800,fontFamily:NUM_FONT,color:ok?'#f87171':C.text2}}>{s.fmt(s.val)}</div>
+                  <div style={{fontSize:20,fontWeight:800,fontFamily:NUM_FONT,color:ok?verdictInk(true).color:C.text2}}>{s.fmt(s.val)}</div>
                 </div>
               )
             })}
@@ -544,13 +573,13 @@ function DangerSignals({ p }) {
       {/* Extra pitcher stats row */}
       <div style={{marginTop:10,display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
         {[
-          {label:'Pitcher HR/9',  val:p.pitcher_hr9,  fmt:v=>v.toFixed(2), hot:v=>v>=1.0},
+          {label:'Pitcher HR/9',  val:p.pitcher_hr9,  fmt:v=>v.toFixed(2), hot:isLeaky},
           {label:'Pitcher WHIP',  val:p.pitcher_whip, fmt:v=>v.toFixed(2), hot:v=>v>=1.40},
           {label:'K rate',        val:p.pitcher_k_rate,fmt:v=>`${(v*100).toFixed(0)}%`, hot:v=>v<=0.18},
         ].filter(s=>s.val!=null).map(s=>(
           <div key={s.label} style={{padding:'7px 9px',borderRadius:7,background:C.bg2,border:`1px solid ${C.border}`,textAlign:'center'}}>
             <div style={{fontSize:10,color:C.text3,marginBottom:2}}>{s.label}</div>
-            <div style={{fontSize:16,fontWeight:800,fontFamily:NUM_FONT,color:s.hot(s.val)?'#f87171':C.text2}}>{s.fmt(s.val)}</div>
+            <div style={{fontSize:16,fontWeight:800,fontFamily:NUM_FONT,color:s.hot(s.val)?verdictInk(true).color:C.text2}}>{s.fmt(s.val)}</div>
           </div>
         ))}
       </div>
@@ -561,6 +590,10 @@ function DangerSignals({ p }) {
 // ── Kill zone tab ─────────────────────────────────────────────────────────────
 function KillZoneTab({ p, zoneProfile, pitcherProfile }) {
   const bats = p.bats || p.handedness || ''
+  // The bot's own usability threshold for a pitch-mix sample. Named here
+  // rather than inlined so the two rows that depend on it cannot drift.
+  const mixN = Number(p.pitch_mix_sample) || 0
+  const mixThin = mixN < MIX_MIN_PITCHES
   const killZones = pitcherProfile?.kill_zones || []
   const batterHot = zoneProfile
     ? [...(zoneProfile.zones_13||zoneProfile.zones_9||[])].filter(z=>!z.low_sample&&z.hr_rate!=null).sort((a,b)=>b.hr_rate-a.hr_rate).slice(0,4).map(z=>z.zone)
@@ -575,15 +608,15 @@ function KillZoneTab({ p, zoneProfile, pitcherProfile }) {
     (p.pitch_type_match_flag?15:0) +
     (p.pitcher_hardhit_allowed||0)*30
   ))
-  const edgeCol = edgeScore>=70?'#f87171':edgeScore>=50?'#f59e0b':C.text2
+  const edgeCol = edgeScore>=70?verdictInk(true).color:edgeScore>=50?'#f59e0b':C.text2
 
   return (
     <div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
         {[
           {label:'Edge score', val:edgeScore, sub:'/100', col:edgeCol},
-          {label:'Kill zones', val:matchup.length, sub:'of 9', col:matchup.length>0?'#f87171':C.text3},
-          {label:'Pitch match', val:p.pitch_type_match_flag?'YES':'NO', sub:p.pitch_type_match_code||'—', col:p.pitch_type_match_flag?'#f87171':C.text3},
+          {label:'Kill zones', val:matchup.length, sub:'of 9', col:matchup.length>0?verdictInk(true).color:C.text3},
+          {label:'Pitch match', val:p.pitch_type_match_flag?'YES':'NO', sub:p.pitch_type_match_code||'—', col:p.pitch_type_match_flag?verdictInk(true).color:C.text3},
         ].map(c=>(
           <div key={c.label} style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 12px',textAlign:'center'}}>
             <div style={{fontSize:10,color:C.text3,marginBottom:4}}>{c.label}</div>
@@ -593,8 +626,8 @@ function KillZoneTab({ p, zoneProfile, pitcherProfile }) {
         ))}
       </div>
 
-      <div style={{marginBottom:10,padding:'10px 12px',borderRadius:8,border:`1px solid ${hasKill?'rgba(248,113,113,0.30)':C.border}`,background:hasKill?'rgba(248,113,113,0.05)':C.bg2}}>
-        <div style={{fontSize:11,fontWeight:800,color:hasKill?'#f87171':C.text2,marginBottom:3}}>
+      <div style={{marginBottom:10,padding:'10px 12px',borderRadius:8,border:`1px solid ${hasKill?alpha(verdictInk(true).color,0.30):C.border}`,background:hasKill?verdictWash(true,0.05):C.bg2}}>
+        <div style={{fontSize:11,fontWeight:800,color:hasKill?verdictInk(true).color:C.text2,marginBottom:3}}>
           {hasKill?`${matchup.length} kill zone${matchup.length>1?'s':''} — ${matchup.map(z=>ZONE_LABELS[z]||'Z'+z).join(', ')}`:zoneProfile&&pitcherProfile?'No kill zone overlap found':'Zone data needed — run spray_cache.py'}
         </div>
         <div style={{fontSize:11,color:C.text3,lineHeight:1.5}}>
@@ -603,25 +636,45 @@ function KillZoneTab({ p, zoneProfile, pitcherProfile }) {
       </div>
 
       <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        {/* #63: the bot's own Today's Sheet prints a warning that a slice of
+            the board has a low or absent pitch-mix sample -- on the night this
+            was audited, 13 of 266 players. That warning reached no board, no
+            card and no prose, so a mix score built on a handful of pitches
+            rendered at exactly the weight of one built on two thousand. The
+            row below already had the sample count in its subtitle and said
+            nothing about it; now a thin one is named as thin, and the score it
+            feeds is dimmed rather than dressed up. MIX_MIN_PITCHES is the
+            bot's own threshold for calling a mix sample usable. */}
         {[
-          {label:'Pitch mix score',  val:p.pitch_mix_score!=null?`${Math.round(p.pitch_mix_score)}/100`:'—',    note:p.pitch_mix_note||'',           hot:(p.pitch_mix_score||0)>=75},
+          {label:'Pitch mix score',
+            val:p.pitch_mix_score!=null?`${Math.round(p.pitch_mix_score)}/100`:'—',
+            note:p.pitch_mix_note||'',
+            thin:mixThin,
+            hot:!mixThin&&(p.pitch_mix_score||0)>=75},
           {label:'Meatball rate',    val:p.pitcher_meatball_pct!=null?`${(p.pitcher_meatball_pct*100).toFixed(1)}%`:'—', note:'League avg ~18%', hot:(p.pitcher_meatball_pct||0)>=0.20},
           {label:'Pitch type match', val:p.pitch_type_match_flag?'Yes':'No',                                    note:p.pitch_type_match_note||'',    hot:!!p.pitch_type_match_flag},
           {label:'Attack tag',       val:p.pitcher_attack_tag||'—',                                             note:'',                             hot:false},
           {label:`HR/9 vs ${bats==='L'?'LHB':'RHB'}`, val:((bats==='L'?p.pitcher_hr9_vs_lhb:p.pitcher_hr9_vs_rhb)||0).toFixed(2), note:'Season hand splits', hot:(bats==='L'?p.pitcher_hr9_vs_lhb:p.pitcher_hr9_vs_rhb)>=0.75},
-          {label:'Primary mix',      val:p.pitcher_primary_mix||p.pitcher_arsenal_summary||'—',                 note:`${p.pitch_mix_sample||0} pitches sampled`, hot:false},
+          {label:'Primary mix',
+            val:p.pitcher_primary_mix||p.pitcher_arsenal_summary||'—',
+            note:mixThin
+              ? `${mixN} pitches sampled — thin, under the ${MIX_MIN_PITCHES} the bot calls usable`
+              : `${mixN} pitches sampled`,
+            thin:mixThin,
+            hot:false},
         ].map(r=>(
-          <div key={r.label} style={{
+          <div key={r.label} title={r.thin?'Built on a thin pitch-mix sample — the bot flags these on its own sheet. Read it as a hint, not a number.':undefined} style={{
             display:'flex',alignItems:'center',justifyContent:'space-between',
             padding:'7px 10px',borderRadius:7,
-            background:r.hot?'rgba(248,113,113,0.05)':C.bg2,
-            border:`1px solid ${r.hot?'rgba(248,113,113,0.25)':C.border}`,
+            opacity:r.thin?0.62:1,
+            background:r.hot?verdictWash(true,0.05):C.bg2,
+            border:`1px solid ${r.hot?alpha(verdictInk(true).color,0.25):C.border}`,
           }}>
             <div>
               <div style={{fontSize:11,fontWeight:700,color:C.text2}}>{r.label}</div>
               {r.note&&<div style={{fontSize:10,color:C.text3,marginTop:1}}>{r.note}</div>}
             </div>
-            <div style={{fontSize:12,fontWeight:800,fontFamily:NUM_FONT,color:r.hot?'#f87171':C.text,maxWidth:180,textAlign:'right'}}>{r.val}</div>
+            <div style={{fontSize:12,fontWeight:800,fontFamily:NUM_FONT,color:r.hot?verdictInk(true).color:C.text,maxWidth:180,textAlign:'right'}}>{r.val}</div>
           </div>
         ))}
       </div>
@@ -674,13 +727,23 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
     // false since ddaef65 — zones/today/ is live on the data branch (verified
     // against the branch today). A 404 now just means the nightly batch
     // hasn't reached this player yet; the empty state below says so.
+    // The detail half is the same file three other panels are asking for on
+    // this card open; fetchBatterDetail hands them all one request. It also
+    // reports WHY it came back empty, which is the difference between "the
+    // nightly batch hasn't reached him" and "GitHub throttled us" — those had
+    // been rendered with the same sentence. See lib/dataSource.js.
     Promise.all([
-      fetch(detailUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch(zonesUrl(pid, slateMode)).then(r=>r.ok?r.json():null).catch(()=>null),
+      fetchBatterDetail(pid, { mode: slateMode }),
+      fetchShared(zonesUrl(pid, slateMode)),
     ])
-      .then(([detail, zones])=>{
+      .then(([d, z])=>{
         if (!alive) return
-        if (!detail && !zones) { setError('no data published'); setLoading(false); return }
+        const detail = d?.data, zones = z?.data
+        if (!detail && !zones) {
+          const throttled = ![404, 200].includes(d?.status) || ![404, 200].includes(z?.status)
+          setError(throttled ? 'could not load — the data host did not answer' : 'no data published')
+          setLoading(false); return
+        }
         setCacheData({ ...(detail||{}), ...(zones||{}) })
         setLoading(false)
       })
@@ -808,7 +871,7 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
             <div style={{marginBottom:8,padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:C.bg2,fontSize:11,color:C.text2}}>
               {[...activePitches].map(code=>{
                 const p=pitches.find(x=>x.code===code); if(!p||!p.batter.seen) return null
-                const b=p.batter; const col=PITCH_COLORS[code]||PITCH_COLORS.OTHER
+                const b=p.batter; const col=catColor('pitch', code)
                 return (
                   <span key={code} style={{marginRight:12}}>
                     <span style={{width:6,height:6,borderRadius:'50%',background:col,display:'inline-block',marginRight:4,verticalAlign:'middle'}}/>
@@ -820,6 +883,7 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
             </div>
           )}
           {loading&&<div style={s.noData}>Loading zone data…</div>}
+          {/* Fetch error — a system/UI state, not a batter verdict. Left literal on purpose. */}
           {error&&<div style={{...s.noData,color:'#f87171'}}>Error: {error}</div>}
           {!loading&&!error&&(
             <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:'1rem',alignItems:'start'}}>
@@ -849,17 +913,17 @@ export default function HotZoneMap({ player, slateMode, onClose }) {
                       return (
                         <div key={z.zone} style={{
                           display:'flex',alignItems:'center',gap:8,padding:'6px 9px',borderRadius:7,
-                          background:isKill?'rgba(248,113,113,0.06)':C.bg2,
-                          border:`1px solid ${isKill?'rgba(248,113,113,0.25)':C.border}`,
+                          background:isKill?verdictWash(true,0.06):C.bg2,
+                          border:`1px solid ${isKill?alpha(verdictInk(true).color,0.25):C.border}`,
                         }}>
-                          <div style={{width:28,height:28,borderRadius:4,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,color:isKill?'#f87171':C.text3,background:isKill?'rgba(248,113,113,0.15)':C.bg3}}>Z{z.zone}</div>
+                          <div style={{width:28,height:28,borderRadius:4,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,color:isKill?verdictInk(true).color:C.text3,background:isKill?verdictWash(true,0.15):C.bg3}}>Z{z.zone}</div>
                           <div style={{flex:1,minWidth:0}}>
                             <div style={{fontSize:11,fontWeight:700}}>{ZONE_LABELS[z.zone]}{isKill?' 🔥':''}</div>
                             <div style={{fontSize:10,color:C.text3,fontFamily:NUM_FONT,marginTop:1}}>
                               {(z.hr_rate!=null?(z.hr_rate*100).toFixed(0):0)}% HR · .{String(Math.round((z.ba||0)*1000)).padStart(3,'0')} BA · {z.xwoba?.toFixed(3)||'—'} xwOBA · {z.bbe||0} BBE
                             </div>
                           </div>
-                          <div style={{fontSize:14,fontWeight:900,fontFamily:NUM_FONT,color:isKill?'#f87171':C.text}}>{metricFmt(z[metric])}</div>
+                          <div style={{fontSize:14,fontWeight:900,fontFamily:NUM_FONT,color:isKill?verdictInk(true).color:C.text}}>{metricFmt(z[metric])}</div>
                         </div>
                       )
                     })}

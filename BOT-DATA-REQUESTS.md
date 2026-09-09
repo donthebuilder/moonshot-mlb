@@ -4,6 +4,260 @@ Everything the site currently fakes, derives, or can't validate — and the exac
 bot-side change that would fix it. Nothing here is a site bug. These are all
 fields the dashboard wants and the published payload doesn't carry.
 
+## Live audit, 2026-08-12 — status corrections + three new gaps
+
+Triggered by a real matchup question (Miguel Vargas / Nick Lodolo, tonight's
+slate) that turned into a source check of `mlb_dashboard.py` and
+`live_results_tracker.py`, plus a full field-by-field diff of `HitterRecord`
+against `SLOT_FIELDS`. Documentation only — nothing below has been implemented.
+
+**Stale, mark resolved:**
+
+- **Checklist rows 1–3 / section "## 1." below (`actual_k`/`actual_bb`/
+  `actual_doubles`/`actual_triples`)** — already shipped. `live_results_tracker.py`
+  writes all four at grade time ("actual_k rides every graded slot" comment,
+  ~line 1461); `Results.js` line 385 reads `actual_k` directly. Note for anyone
+  chasing the file reference: this doc calls the tracker `grade_results_tracker.py`
+  in the intro and the checklist table, and `live_results_tracker.py` in section
+  "## 1." — the real file on disk is `live_results_tracker.py`; there is no
+  `grade_results_tracker.py` in the repo.
+- **"Getting the HR pick to actually hit" → "Fix the HR ranking," quick path**
+  (swap the HR slot's sort key from `hr_score` to `overall_score`) — superseded,
+  twice over. `game_pick_type_map()` (mlb_dashboard.py ~9585) got that exact
+  swap on 2026-08-05 (Docket #14/#17, comment on the function). Then
+  `build_game_pick_role_map()` (~9191, "MINI-BOT AUDIT," 2026-08-08) — the
+  function that actually writes the archived `game_pick_role`, confirmed via
+  `live_results_tracker.py:11938` — replaced BOTH hr_score and overall_score as
+  the HR/TOP sort key with a dedicated power rank
+  (`100×season_iso + 10×last5_hr + 0.35×hr_score`) after its own backtest beat
+  both (TOP 22.9%, HR 18.4%, combined 20.6% vs 17.9% shipped, per its own
+  comment). Re-measured on the full archive since (59 nights, 5,766 slots):
+  replaying the real algorithm's structure — TOP excludes first, then the
+  ISO-floor/trap cascade — hr_score and overall_score come out statistically
+  tied as the final tiebreaker (17.2% vs 16.3% HR rate, n=790 games). No case
+  to touch this further.
+- **Items #19/#20 below (max distance, xHR/luck)** — code re-confirmed present
+  in `mlb_dashboard.py` (18 matches across `season_xhr`/`season_hr_luck`/
+  `recent_max_distance`/`season_max_distance`). Push-to-`origin/main` status not
+  re-checked this pass.
+
+**Gap 1 — the pick-eligibility gate can't be audited.** `build_game_pick_role_map()`'s
+`_power_slot()` (mlb_dashboard.py ~9210) requires `season_pa >= 15` before a
+hitter can fill the TOP or HR slot. `season_pa` is not in `SLOT_FIELDS`
+(`live_results_tracker.py` ~1283) — so by construction (`trim_row` drops
+anything not in the whitelist) it is 0% present in every graded file. There is
+currently no way to check, after the fact, whether that eligibility gate ever
+excluded the right hitter — or wrongly excluded someone on a thin early-season
+sample. One-line addition to `SLOT_FIELDS`.
+
+**Gap 2 — weak-side calls can't be audited (the Vargas/Lodolo case).** Tonight's
+pitcher card read "WEAK SIDE — none published" for Nick Lodolo, despite a real
+handedness split (HR/9 vs RHB 1.51, vs LHB 0.60). Traced the field:
+`pitcher_weak_side` itself is NOT broken or unused — it's wired into scoring at
+six-plus call sites (mlb_dashboard.py 6230-6235, 7452, 7541, 9092, 9872,
+9963-10233) and it IS already in `SLOT_FIELDS`. What produces it is
+`side_weakness()` (mlb_dashboard.py ~2831): a 7-stat composite (HR/9 27%, SLG
+22%, ISO 16%, OPS 13%, BABIP 7%, WHIP 5%, BA 10%), confidence-scaled by batters
+faced (`min(1, max(0, (bbe-10)/20))`, so it's near-zero under ~10 BBE and full
+trust only at 30+), and gated at assignment: both sides need 15+ batters faced,
+AND the weaker side's composite score must beat the other by 12%+ **and** clear
+an absolute floor of 45 (~line 2855-2866) — otherwise `weak_side` is set to `""`
+on purpose. So a blank weak-side card is very likely this gate correctly
+declining to call a thin or composite-ambiguous split, not a bug — a 2.5×
+raw HR/9 gap can still fail the 12%/45 bar once diluted across the other six
+stats. The real gap: **none of the fields that would let someone check that call
+are archived.** `pitcher_hr9_vs_lhb`, `pitcher_hr9_vs_rhb`, `pitcher_weak_side_score`,
+`pitcher_weak_side_gap` are all computed, all live on `HitterRecord`
+(mlb_dashboard.py 1052-1053, 1101-1102), and none are in `SLOT_FIELDS`. Add
+those four and every weak-side verdict — including the blank ones — becomes
+independently checkable instead of taken on faith.
+
+**Gap 3 — the user's original ask, corrected.** Requested: stamp `final_hr_role`,
+`beginner_label` and `damage_conversion_score` onto every graded slot, "the
+same way hr_score already is," because that tier is what the whole 💎/📈
+system rests on. Checked against `SLOT_FIELDS`: **`final_hr_role` is already
+there** (line ~1305) — it's the literal field that carries the emoji tier
+(⛔ True Avoid HR / 💎 HR Bet / 🔭 Power Watch / 📈 HR Lean / 🧲 HRR-XBH /
+🧭 Contact-Monitor, set at mlb_dashboard.py ~6097-6142). So the premise that
+this tier is ungraded and is "the single biggest hole in the archive" is stale
+— it isn't, and hasn't been since `final_hr_role` was added to the whitelist.
+`beginner_label` and `damage_conversion_score` genuinely are missing, though,
+confirmed via the field diff below — worth adding for exactly the reason
+given: `damage_conversion_score` alone feeds `hr_score`'s blend (mlb_dashboard.py
+~6752) and several board-tag thresholds (~5601, ~5643, ~7415), so it should be
+backtestable the same way any other scoring input is.
+
+**Broader sweep — 290 of 359 `HitterRecord` fields never reach the archive.**
+Ran a full diff of every scalar field declared on `HitterRecord` against
+`SLOT_FIELDS` (regex-based field scan, not a verified AST parse — treat the
+359/79 counts as approximate). Most of the 290 are correctly excluded on
+purpose — legacy/versioned score variants (`hr_score_legacy`, `hr_score_old`,
+`hr_score_v2`, `hr_score_pure`, `*_delta`), and heavy nested payloads
+(`spray_chart`, `contact_log`, `batted_ball_log`, `pitcher_pitch_mix`) that
+`trim_row`'s own docstring says to drop. Beyond gaps 1-3 above, the cluster
+most worth a look is the **explanation-text fields** — the human-readable
+"why" behind a badge, none of them archived: `trap_reason`, `hidden_value_reason`,
+`risk_reason`, `matchup_reason`, `matchup_label`, `top_pick_reason`,
+`damage_conversion_label`, `damage_conversion_reasons`, `hr_reason`,
+`hit_reason`, `hrr_reason`, `contact_reason`, `simple_reason_1/2/3`,
+`advanced_reason`. These are exactly the strings behind the tap-to-reveal
+explanations on PlayerCard (site-side, fixed 2026-08-12) — right now none of
+that reasoning can be checked against what actually happened after the game.
+Not proposing all 290; flagging this specific cluster because it's the same
+"the site displays it, the archive can't grade it" pattern the 2026-08-11
+SIGNAL AUDIT section below already established, just not yet swept for text
+fields.
+
+**Shipped, same day:** all seven fields named in Gap 1-3 above
+(`season_pa`, `pitcher_hr9_vs_lhb`, `pitcher_hr9_vs_rhb`,
+`pitcher_weak_side_score`, `pitcher_weak_side_gap`, `beginner_label`,
+`damage_conversion_score`) were added to `SLOT_FIELDS`
+(`live_results_tracker.py` ~1347) the same day this section was written.
+Commit `1904aac` in bot-ship. Not yet pushed to `origin/main` — run
+`git push` from bot-ship to ship it; grading from tonight's slate onward
+will carry all seven.
+
+## Matchup quality: already in hr_score, just not always named on the card
+
+Follow-up to Gap 2. Checked whether "matchup quality" (pitch-mix fit,
+handedness weakness) is actually missing from *scoring* as opposed to
+missing from the *card*. It is not missing from scoring:
+
+- **Pitch-mix fit** (`pitch_type_match_score`) is one of the two strongest
+  single predictors the bot has ever backtested into `hr_score` — 23.9% HR
+  rate when present vs 9.5% when absent (mlb_dashboard.py ~6672-6678,
+  22-day/241-row backtest) — and the "aligned stack"
+  (weak_spot + pitch_match + ISO≥.200) hits 27.4% vs a 14.3% base
+  (~6638-6648, the 2026-08-08 MINI-BOT AUDIT). Both terms are live in
+  `hr_raw` today.
+- **Weak-side handedness** feeds `hr_score` continuously through
+  `pitcher_weak_side_score` / `pitcher_weak_side_gap`
+  (`_wk_side_norm`/`_wk_gap` → `weak_side_bonus`, ~6230-6244) —
+  this runs regardless of whether the categorical `pitcher_weak_side`
+  label clears its display gate. The ONLY thing the gate withholds is a
+  1.25× confirmation multiplier on top of that base bonus (`_is_weak_side`,
+  ~6242-6243) and the on-card text. So Lodolo's "WEAK SIDE — none
+  published" card tonight still had a nonzero weak-side bonus baked into
+  Vargas's `hr_score` from the raw split — the card just couldn't
+  *say* which side, and missed the extra 25%.
+
+Net: no scoring change is indicated here. The real gap was archival
+(fixed above) — with `pitcher_weak_side_score`/`_gap` now landing in
+`SLOT_FIELDS`, the 45-floor/12%-gap gate itself becomes backtestable
+(does the bonus correlate with `got_hr` even below the gate's threshold?
+That was previously unanswerable and now isn't, once a few weeks of
+grading collects under the new fields).
+
+## Pick-slot overlap: TOP excluding HR's true best candidate, quantified
+
+Donovan's question: is forcing five *distinct* players into TOP/HR/HIT/
+HRR/CONTACT costing real HR-pick accuracy, specifically when the game's
+best `hr_score` candidate gets swept into TOP first and HR falls back to
+a weaker second choice? Not implemented — analysis only, per "I want to
+know what you think before changing that."
+
+**Method.** Two independent checks against `graded_results_*.json`
+(60 files, 2026-04-16 → 2026-08-09):
+
+1. *Naive overlap, no exclusion.* For every game, independently took the
+   top-1 hitter by each of today's five role formulas (TOP's
+   `100×season_iso + 10×last5_hr + 0.35×hr_score`, plus raw `hr_score`,
+   `hit_score`, `hrr_score`, `contact_score`) with no cross-role
+   exclusion, over the PA≥15-eligible pool. n=790 games, full archive.
+   Result: 5 distinct winners in only **2.7%** of games. 1 single player
+   is the naive #1 in *all five* categories at once in **7.0%**. The
+   remaining mass splits 4-distinct 17.6%, 3-distinct 44.1%,
+   2-distinct 28.7%. (This runs today's formulas retroactively across
+   the whole archive as a clean counterfactual — it is not a replay of
+   what actually shipped on each historical night.) TOP's pick and the
+   naive best `hr_score` player are the same person **63.9%** of the
+   time (505/790) — expected, since TOP's formula already weights
+   `hr_score` and ISO tracks it closely.
+2. *Real cost of the substitution.* Restricted to games with an actual
+   archived `game_pick_role` (334 games, 2026-06-09 → 2026-08-09; narrows
+   to 168 games on the 2026-07-27 → 2026-08-09 stretch — the
+   continuously-populated recent window). Of those 168, TOP's exclusion
+   forced an HR substitution in **129** of them — notably the same n
+   Donovan cited independently. Comparing the player who actually wore
+   the HR badge that night against the player who would have worn it
+   with no TOP/HR exclusion, on those 129:
+   - Official HR-pick (the forced substitute): **13.2%** actual HR rate.
+   - Excluded true-best-`hr_score` player: **29.5%** actual HR rate.
+   - Raw split on the 41 games where they disagreed: excluded player
+     homered and the badge-holder didn't 31 times; badge-holder homered
+     and the excluded player didn't 10 times. McNemar's χ²≈10.76
+     (p<0.01) — not noise at this sample size.
+   - Average `hr_score` given up in the swap: 10.2 points (median 7.5;
+     42% of substitutions gave up 10+ points, 13% gave up 20+).
+   - Sanity check: in the 111 recent games where no substitution was
+     needed (naive best already was the archived HR pick), hit rate was
+     11.7% — the "needed a substitute" bucket's excluded player (29.5%)
+     outperforms even that, because by construction it's the subset
+     where the best `hr_score` candidate ALSO happened to be the best
+     TOP candidate, i.e. the strongest overlap cases.
+
+**Reproduction note:** analysis scripts are
+`results/_pickslot_analyzer2.py` and `results/_overlap_sim.py` (left in
+the results folder on disk, not committed — scratch tooling, not
+shipped code). `_sim_batch*.jsonl` / `_ps2_*.jsonl` are the raw
+per-game output if this needs to be re-cut with different filters.
+
+**Read:** the data supports doing exactly what Donovan proposed —
+let TOP be the only role that can double as HR (drop the mutual
+exclusion between just those two slots; leave HIT/HRR/CONTACT excluding
+both), rather than either forcing five distinct names or collapsing the
+role count.
+
+**Shipped, same day.** `build_game_pick_role_map()` (mlb_dashboard.py
+~9191) — HR now ranks by raw `hr_score` over TOP's own PA/ISO-eligible
+pool, no longer excluding TOP's player. `role_map`'s existing
+`"/".join(v)` already supported a combined tag; it just never fired
+before. Commit `d734ba9` in bot-ship. Site side: three spots matched
+`game_pick_role` exactly against one category and would have silently
+dropped a double-up player from the HR-specific view —
+`components/tabs/Bot.js` (board tabs + counts), `BotPicksStrip.js`
+(bucket filter), `TheRead.js` (category pool). All three now check
+every `/`-separated tag instead of just the first. Commit `d6c518e` in
+moonshot-push. Single-badge display spots (GameStrip, PlayerCard,
+RankedBoard, GameCockpit, LiveWire, and the rest that just print ONE
+primary tag) were deliberately left alone — showing "TOP" as the
+primary label for a double-up player is correct there, not a bug.
+
+**Exclusion-cost test run on HIT/HRR/CONTACT, same method as HR.** Naive
+best-by-that-role's-own-score (no exclusion) vs the actual archived
+badge-holder, on the 2026-07-27 → 2026-08-09 window:
+
+| role | substituted games | official hit rate | excluded-true-best rate | gap | χ² |
+|---|---|---|---|---|---|
+| HR | 129 | 13.2% | 29.5% | +16.3pp | 10.76 (p<0.01) |
+| CONTACT | 98 | 28.6% | 52.0% | +23.4pp | 9.98 (p<0.01) |
+| HRR | 106 | 54.7% | 61.3% | +6.6pp | 1.00 (n.s.) |
+| HIT | 64 | 67.2% | 73.4% | +6.2pp | 0.73 (n.s.) |
+
+HR and CONTACT both showed a real, statistically significant cost from
+their exclusion (CONTACT's is actually the larger gap — 23.4 points,
+average 15.3 `contact_score` points given up in the swap). HIT and HRR
+don't clear significance at this sample size — both are easier,
+higher-base-rate outcomes (a single hit or 2+ combined H/R/RBI happens
+far more often than a home run or 2+ total bases), so there's less
+room for the exclusion to matter and the gap that exists could be
+noise. Both left untouched.
+
+**CONTACT shipped, same day.** Unlike HR, CONTACT never had one clean
+partner role stealing its candidate — it sits at the end of the
+TOP→HR→HIT→HRR→CONTACT chain, excluded by whichever of the other four
+got there first. So rather than un-excluding one specific role, it now
+excludes none: `anchor = pick_top(hitters, "contact_score", 1)` — ranks
+by raw `contact_score` over the full game pool, same scoring as
+always, just no `used`-set filter. `role_map`'s `"/".join(v)` carries
+whatever combination results — "TOP/CONTACT", "HR/CONTACT", even a
+3-way, all handled by the same generic site-side fix as TOP/HR (none
+of the three site files needed further changes — they were already
+checking every `/`-separated tag, not hardcoded to two). Bot commit
+`e616eb9`.
+
+---
+
 ## THE CHECKLIST — every missing field, with its exact file point
 
 Verified against the copies of `grade_results_tracker.py` and
@@ -106,7 +360,8 @@ number rather than a noisy split.
 
 ## #20 — Expected home runs from contact (the "luck" layer)
 
-**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit a946f22, awaiting push):
+**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit a946f22 — confirmed
+pushed and on `origin/main` as of the 2026-08-12 verification pass below):
 league (EV, LA) bucket table accumulated from the per-batter season pulls
 (batter side only — no double counting), persisted per run so spray-chart
 `hr_class` uses the prior run's table. Ships season_xhr / season_hr_luck /
@@ -153,10 +408,12 @@ where statcast tracked them (same trap as docket #19).
 
 ## #19 — Publish max/avg tracked distance per hitter (Longest board gap)
 
-**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit 4465106, awaiting push):
+**IMPLEMENTED bot-side 2026-08-06** (bot-ship commit 4465106 — confirmed
+pushed and on `origin/main` as of the 2026-08-12 verification pass below):
 all four fields below plus a cache-key bump (v5→v6) so cached statcast
-profiles recompute instead of serving zeros. Site columns light up on the
-first slate published after the push.
+profiles recompute instead of serving zeros. Site columns should already be
+live; if they're not, the bug is downstream of this commit, not a missing
+push.
 
 Requested 2026-08-06. The Longest HR board ranks WHO hits the farthest ball
 tonight, but the slate rows never carry how far anyone has actually hit one —
@@ -530,4 +787,211 @@ Two structural notes that matter for reading any of this:
   not an estimate. This is the same gap as §1 and it distorts a real category
   today, not just a hypothetical audit.
 
+---
+
+## Verification pass, 2026-08-12 — THE CHECKLIST against actual current code
+
+Prompted by "search previous threads for comments and concerns and fix them."
+Most of this file's own checklist turned out to be stale in the *good*
+direction — items marked open here had already shipped, just never got the
+line struck through. Went through every numbered item plus the standalone
+audits below it against the live bot-ship tree, not against this doc's
+memory of itself. Confirmed-shipped items aren't touched again; the point of
+this pass was to stop them still reading as open.
+
+**#1–10 (actual_k/bb/doubles/triples, season_tb/ab/doubles/triples/babip,
+hrw_score/pitch_mix_score/top_board_score_v2/recent_375_num,
+pitcher_name/id/throws, weather_temp_f/weather_wind_mph/park_factor onto
+graded slots) — all shipped.** Confirmed by reading `live_results_tracker.py`
+(the file this doc still calls `grade_results_tracker.py` — renamed at some
+point) directly: `grade_slot()` line ~1536 carries `actual_k`/`actual_bb`/
+`actual_doubles`/`actual_triples`; `SLOT_FIELDS` carries `hrw_score`,
+`pitch_mix_score`, `top_board_score_v2`, `recent_375_num`, `pitcher_name`,
+`pitcher_id`, `weather_temp_f`, `weather_wind_mph`, `park_factor` under a
+dated "Docket #8-10 (2026-08-05)" comment block already in the file.
+`season_tb/ab/doubles/triples/babip` are declared on `HitterRecord`, read in
+`flatten_season_hitting()` from `stat["totalBases"]` etc., and wired into
+every row at construction time.
+
+**#11 — `pitcher_gb_rate`/`pitcher_ld_rate`/`pitcher_popup_rate` — was
+genuinely open, fixed today (commit `527b2ed`).** This was real: grepped the
+whole bot for those three names and got zero hits before the fix.
+`Pitchers.js` line 764's caption was telling users, in the product, "the bot
+publishes pitcher_gb_rate and pitcher_ld_rate as zero on all 268 rows."
+`build_pitcher_statcast_profile()`'s `_metrics()` helper was already reading
+`bb_type` off the pitcher's own statcast pull to build `statcast_fb_rate` —
+it just never bucketed `ground_ball`/`line_drive`/`popup` out of the same
+column. Added those three buckets, wired them through `PitcherSummary` →
+`HitterRecord.pitcher_gb_rate/pitcher_ld_rate/pitcher_popup_rate` →
+`SLOT_FIELDS`, bumped the statcast cache key (v6→v7) so it doesn't sit on
+placeholder defaults for a day. Pitchers.js caption corrected to stop
+claiming the flat-0 behavior — it does **not** yet add GB/LD/popup as their
+own table columns, since that's a layout change and wasn't part of this pass.
+
+**#12 — `alt_look_tag` — shipped**, already computed and already in
+`SLOT_FIELDS`. The "Is ALT LOOKS worth tracking?" section above (its own
+answer was "unknown and untrackable, one bot line fixes it") is resolved —
+that line landed at some point after it was written.
+
+**#13 — `pitcher_l5_*` block — still open, small, low priority.** Only
+`pitcher_l3_*` exists (era/whip/hr9/starts_found, ~line 1155). Same query
+window as L3, just n=5 instead of n=3 — mechanical to add. Lower urgency
+than it looks: the Pitchers guide caption already tells users to read L3 "as
+a direction rather than a rate" and to check L3 GS before trusting it, so the
+small-sample problem L5 would partially help with is already being managed
+on the display side.
+
+**#14 — ISO folded into `hr_score` — already substantially done, just not
+via the literal mechanism this doc described.** `hr_score_v2` carries
+`iso_power_boost = 0.65 * norm(season_iso, .12, .32) + 0.35 * recent_power`
+as a direct weighted term, and `overall_score` separately carries
+`_iso_component = norm(season_iso, .08, .32) * 100` at weight 0.06, next to
+a comment reading "ISO now a direct component (confirmed strongest stable
+signal across both May and June)." There's a dated reweighting trail in the
+surrounding comments (iso 0.14→0.16 in one pass). Today's TOP/HR double-up
+also added an explicit ISO≥.180 floor ahead of the ranking step. What the
+"Getting the HR pick to actually hit" section below specifically proposed —
+swap the ranking sort key to `overall_score`, or rebuild `hr_score` around
+ISO and re-test — has **not** happened as a discrete, re-verified swap; ISO's
+weight has grown incrementally instead of that one clean before/after test
+being run. If the quartile-spread gap (overall_score +7.3 vs hr_score +4.7
+on HR outcome) still holds on the current archive, that specific test is
+still worth running. Didn't re-run it this pass — flagging, not re-deciding.
+
+**#15 — pair-history hit/HRR counts — can't verify, found something worth a
+second pair of eyes.** `mlb_dashboard.py` imports
+`load_pair_history_cache`/`attach_pair_history_to_payload`/`player_hr_pa`
+from `pair_history_helper` (falling back to `pair_history_helper_v2`, then a
+stub that sets `pair_history_schema: "missing_helper"` if both imports
+fail). **Neither file exists anywhere in the bot-ship tree** — the only
+pair-history file present is `pair_history_cache.py`, which defines a
+completely different set of functions (`build_pair_record`, `pair_score`,
+`apply_boosts`, `copy_to_site` — reads like a standalone cache-builder script,
+not an import target) and does not define any of the three names the import
+is looking for. Two explanations, and only Donovan can tell which: (a) the
+real helper lives outside this git repo (deployment-only, common enough for
+glue code) and the import resolves fine in production, or (b) the import has
+been silently hitting the stub fallback since whenever the helper was last
+touched, meaning `pair_history_cache_loaded` is `False` and every downstream
+consumer of pair history has been running degraded. Could not settle it from
+here — the live slate JSON that would show `pair_history_schema` in practice
+is published to a separate repo this session can't reach. **Worth a direct
+check before anything else touches pair history**, including the original
+same_day_hit_count/same_game_hit_count/same_day_hrr_count ask.
+
+**#16 — park dimensions (Camden/Daikin/Fenway) — shipped.**
+`PARK_DIMENSIONS` now has Camden at `lf:333, lcf:384` (line was wrong before,
+now correct), Fenway at `rcf:420` (the triangle), and Daikin Park as its own
+keyed entry at `lf:315` (Crawford Boxes) rather than falling through to a
+generic default — same dual-key-alias pattern already used for "Camden
+Yards" / "Oriole Park at Camden Yards".
+
+**#17 — trap_flag self-contradiction on the HR pick — resolved, but by a
+different, evidence-based decision, not the fix this doc proposed.** Found
+the actual call already made, dated 2026-08-08, sitting right next to
+`build_game_pick_role_map()`: a full replay found trap_flag graded 15.5% vs
+15.3% as a pick-selection filter (708/1344) — "pure noise as a selector,"
+explicitly removed from the selection chain and **kept only as an
+independent display caution.** So a player can still show `game_pick_role:
+HR` and `trap_flag: true` together, on purpose — the pick uses the signals
+that measurably predict outcomes (ISO, power rank), and the trap pill is a
+separate, independently-true piece of information, not a vote in the same
+election. Did not add a trap_flag filter to today's `_hr_slot()` — doing so
+would contradict this exact tested finding. One loose thread: `pick_type`'s
+own HR tier (`game_pick_type_map`, not `game_pick_role`) *does* still filter
+on `not trap_flag` in its tiering — inconsistent with the finding above,
+unclear if that's deliberate (pick_type is the narrower, less-consumed
+field) or just never got the same update. Left alone this pass.
+
+**#18 — Bullpen module — confirmed not built.** Zero occurrences anywhere in
+`mlb_dashboard.py` of `opp_pen_hr9`, `opp_pen_fresh_hr9`, `opp_pen_lhp_share`,
+or `batter_vs_relief_ops`. This is a large spec (full per-reliever pull, new
+scoring terms) — not attempted in this pass. Needs a scoping decision, not a
+quick fix.
+
+**#19 / #20 — both confirmed pushed.** `git show a946f22 --stat` and
+`git show 4465106 --stat` both resolve locally, and `git branch --contains`
+for each returns `main` / `origin/main`. The "awaiting push" notes on both
+sections above were stale; corrected in place. If the site still isn't
+showing xHR/luck or max/avg distance, the gap is downstream of these commits
+(the site's own repo, or the publish step), not a missing `git push`.
+
+**Situational splits (RISP / ahead-in-count / two-strikes / fatigue /
+tonight's-venue) — confirmed not built, and not the same thing as
+`player_splits.py`.** `bots/player_splits.py` exists and runs, but it pulls
+day/night, home/away, day-of-week and win/loss splits via MLB's `gameLog`
+endpoint, publishing to `public/data/current/splits/<slate>/<player>.json`
+for the site's on-demand modal context (`lib/situational.js`) — it is not
+imported anywhere in `mlb_dashboard.py` and doesn't touch scoring. The seven
+fields this section actually specified (`pitcher_fatigue_hr9_delta`,
+`pitcher_hr9_tonight_venue`, `pitcher_short_rest_flag`,
+`batter_iso_tonight_venue`, `batter_risp_ops`, `batter_ahead_slg`,
+`batter_two_strike_ops`) use a different API mechanism (`statSplits` +
+`sitCodes`) and don't exist anywhere in the bot. Genuinely open, and
+substantial — seven new per-player API calls plus four new scoring-term
+insertions with weights the section itself says need calibrating against
+graded outcomes before they're trusted. Not attempted blind in this pass.
+
+**Weather/park-factor "unverifiable" complaint (Audit, 2026-08-04) —
+shipped.** `weather_temp_f`, `weather_wind_mph`, `park_factor`,
+`park_hr_factor` are all in `SLOT_FIELDS` already, plus a further round
+added 2026-08-11 (`weather_hr_effect_pct`, `wind_boost`, `park_dist_factor`,
+`weather_label`, etc.) under its own dated comment block.
+
+**Net: of the 17-item checklist plus the four standalone audit sections it
+sits under, one item was genuinely open and got fixed today (#11), one is a
+small mechanical add not worth rushing (#13), one resolves to a documented
+decision rather than a bug (#17), one needs eyes rather than code
+(#15, pair-history helper), and two are real, substantial, unbuilt features
+that need a scoping call, not a quick patch (situational splits, bullpen
+module). Everything else on the list had already shipped.**
+
 This is now on the site under Results → Picks → *Did its job*, not buried here.
+
+---
+
+## Pairs/Pools mismatch — found and fixed, 2026-08-12
+
+Donovan: "the pairs on results show up different than the pairs on the pairs
+page and the pools... idk where the pair builder thing came from." Two
+independent, compounding bugs, both fixed same day.
+
+**1. The 6-man retirement's replacement never reached the key the site was
+already reading.** 6-man pools were retired 2026-08-09 (archive: hitting all
+six legs is ~1-in-34,000, zero for 160 tries) and replaced with two 3-man
+pools inside `_build_pair_sections()`. The replacement data was aliased into
+variables still named `pool6_a..d` "so downstream consumers keep working,"
+and shipped in the JSON under the OLD `pools_6man` key. `Pools.js` — updated
+the SAME day — was already reading a `pools_3man` key that never existed
+on the bot side. Real 3-man pools have been arriving under
+`pools_6man` and displaying with a "(retired)" label ever since, on both the
+Pairs tab and Pools tab. Fixed: `pools_3man` now carries the real data;
+`pools_6man` ships genuinely empty. Bot commit `a6945ca`, site commit
+`632c69f` (the site fix also covers two gaps the bot fix would have exposed:
+`Pairs.js` never read `pools_3man` at all, and `Pools.js`'s empty-state check
+didn't either).
+
+**2. Grading fell back to a third, different pair generator more often than
+it needed to.** `load_pair_builder_sections()` (the grader) only checked the
+shared `pair_builder_latest.json`, which the next slate's run overwrites —
+any grading run after a newer slate had already generated found "latest"
+stamped with the wrong date and gave up straight to an internal rebuild
+(`build_pair_pool_sections()`) that uses an entirely different selection
+algorithm, even though a dated archive file (`mlb_pair_builder_{date}.json`)
+sits right next to "latest" the whole time, unused. Fixed: tries the dated
+file before giving up to the internal rebuild. That rebuild's own pools were
+also still sized/labeled 6-man; renamed to 3-man to match, though its
+algorithm still differs from System 2's — it's the emergency fallback, not
+meant to be pixel-identical to what was shown live.
+
+Verified with `bots/smoke_test.py` (full/6-row/empty slate, all clean) plus
+the site's four check scripts.
+
+**`pair_history_helper.py`/`_v2` is unrelated — confirmed dead code, not a
+bug.** Raised in an earlier pass as a concern (imported in `mlb_dashboard.py`
+but the file doesn't exist anywhere in the repo). Turns out the function it
+resolves to, `attach_pair_history_to_payload()`, is imported but **never
+actually called** — so whether the import succeeds or falls back to its stub
+changes nothing. Real pair history is built entirely separately by
+`pair_history_cache.py`. Safe to ignore or delete the dead import whenever
+someone wants to.

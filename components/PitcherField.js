@@ -92,7 +92,7 @@ export default function PitcherField({ pitcher, height = 260 }) {
       }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: 400, height }}>
           {/* outfield grass wedge */}
-          <path d={sector(-45, 45)} fill="#2a1a0c" stroke="#f97316" strokeWidth="1.4" />
+          <path d={sector(-45, 45)} fill="#2a1a0c" stroke={C.orange} strokeWidth="1.4" />
           {/* damage sectors */}
           {sectors.map((s) => (
             <path key={s.label} d={s.d} fill={`rgba(248,113,113,${alpha(s.share)})`} />
@@ -107,7 +107,7 @@ export default function PitcherField({ pitcher, height = 260 }) {
           {sectors.map((s) => (
             <g key={`t${s.label}`}>
               <text x={s.lx} y={s.ly} textAnchor="middle"
-                fill="#f4f4f5" fontSize="13" fontWeight="800" fontFamily="ui-monospace, monospace">
+                fill={C.text} fontSize="13" fontWeight="800" fontFamily="ui-monospace, monospace">
                 {(100 * s.share).toFixed(0)}%
               </text>
               <text x={s.lx} y={s.ly + 13} textAnchor="middle" fill="#a1a1aa" fontSize="8.5"

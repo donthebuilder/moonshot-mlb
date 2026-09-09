@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import FreshnessStamp from './FreshnessStamp'
 import { gradedResultsUrl, dataUrl } from '../lib/dataSource'
 import { clean } from '../lib/player'
+import { dedupeGraded } from '../lib/graded'
 import DenseTable from './DenseTable'
 import { Empty } from './ui'
 
@@ -79,6 +81,12 @@ export function usePickRecords(backtest) {
     return () => { alive = false }
   }, [dates])
 
+  // NOT DEDUPED, DELIBERATELY (see lib/graded.js for the rule and when it
+  // applies). Everything here is per pick CATEGORY — byCat is the whole point
+  // of the table, and `picks` is documented in the column header as "total
+  // picks across every category", so a hitter designated TOP *and* HR on one
+  // night genuinely is two picks with two separate bars to clear. The streak
+  // above IS deduped, because a streak counts nights.
   const byPlayer = useMemo(() => {
     const map = new Map()
     days.forEach(({ json }) => {
@@ -91,6 +99,13 @@ export function usePickRecords(backtest) {
         if (!j) return
         const id = String(s?.player_id ?? '')
         if (!id) return
+        // VOID IS NOT A MISS — see the note in PickScorecard.js. This one is
+        // worse than a single night's table: it accumulates across the WHOLE
+        // archive, so every scratch a player ever had was a permanent loss in
+        // his "As this pick" record and could end a bot streak. SignalAudit
+        // already gates on actual_ab; the track record did not, so the honesty
+        // machine and the record beside it measured on different denominators.
+        if (i(s.actual_ab) === 0 && i(s.actual_bb) === 0) return
         const app = {
           hr: i(s.actual_hr), hits: i(s.actual_hits),
           runs: i(s.actual_runs), rbi: i(s.actual_rbi), tb: i(s.actual_tb),
@@ -114,12 +129,17 @@ export function usePickRecords(backtest) {
 export default function PlayerPickRecord({ players = [], backtest, onPlayerClick }) {
   // BOT STREAK — consecutive most-recent designated picks that delivered,
   // from the live graded branch (the snapshot has totals, not sequence).
-  const { days: liveDays } = usePickRecords(backtest)
+  const { days: liveDays, state: liveState } = usePickRecords(backtest)
+  // ONE ENTRY PER PLAYER PER NIGHT (lib/graded.js). This is a SEQUENCE, so the
+  // duplicate rows the graded file publishes per pick category were the worst
+  // possible bug for it: a hitter picked as TOP *and* HR pushed TWO entries
+  // for ONE night, and since both carry the same line they were always the
+  // same result — so "W3" could mean two nights, and a single miss could end a
+  // streak twice. Deduped per day, a night is a night.
   const botStreak = useMemo(() => {
-    const seq = new Map() // name -> [{date, did}]
+    const seq = new Map() // name -> [did, …] most recent first
     ;[...liveDays].sort((a, b) => (a.date < b.date ? 1 : -1)).forEach(({ json }) => {
-      const slots = json?.graded_slots || json?.results || []
-      slots.forEach((s2) => {
+      dedupeGraded(json).forEach((s2) => {
         const role = String(s2?.game_pick_role || s2?.pick_type || '').split('/')[0].trim().toUpperCase()
         const jb = JOBS[role]
         const nm = String(s2?.name || '').toLowerCase().trim()
@@ -136,6 +156,10 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
     })
     return m
   }, [liveDays])
+  // #46: is there anything to put in the Streak column at all? Any row at all
+  // in the sequence map means the live branch answered; an empty map means it
+  // did not, and a column of dashes would be a lie of omission.
+  const streakReady = liveState === 'done' && botStreak.size > 0
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
   const [minPicks, setMinPicks] = useState(5)
@@ -188,6 +212,15 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
           _key: p.n, _raw: { name: p.n, team: p.t },
           name: p.n, team: p.t, picks: p.p, did: p.d,
           rate: p.p >= MIN_RATE ? (100 * p.d) / p.p : null,
+          // 2026-08-13, Donovan: "hr per pick percentage on the track
+          // record." Distinct from the HR category column further right --
+          // that one only counts picks where HR was specifically the job.
+          // This is every pick, any category, asking one question of all of
+          // them: did this man also go deep that night. Same MIN_RATE rule
+          // as every other rate in this table -- a fraction below 3 picks,
+          // never a percentage a single homer could inflate to 100%.
+          hrPickPct: p.p >= MIN_RATE ? (100 * p.hr) / p.p : null,
+          hrPickPct_t: p.p >= MIN_RATE ? `${((100 * p.hr) / p.p).toFixed(0)}% (${p.hr}/${p.p})` : `${p.hr}/${p.p}`,
           hr: p.hr, h: p.h, tb: p.tb,
           avg: p.ab >= 20 ? p.h / p.ab : null,
           last: String(p.last || '').slice(5),
@@ -215,12 +248,22 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
       <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>
         Player pick record, by category
       </div>
+      {/* #47: this table is served from a static local snapshot, so it can
+          drift from everything else on the site without anything saying so. */}
+      <FreshnessStamp label="Track record" from={m.from} to={m.to} count={m.days} unit="graded days" />
       <div style={{ fontSize: 10, color: C.text3, marginBottom: 9, lineHeight: 1.6 }}>
         <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.picks.toLocaleString()} picks</b> ·{' '}
         <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.players} players</b> ·{' '}
         <span style={{ fontFamily: NUM_FONT }}>{m.days} graded days, {m.from} to {m.to}</span>.
         A snapshot of the full local archive, six times what the live branch carries — nine days
         isn&apos;t enough to say anything about one player.
+        {!streakReady && (
+          <>
+            {' '}<b style={{ color: C.text2 }}>No Streak column right now:</b> a streak is a sequence and
+            this snapshot holds totals, so it is read off the live graded branch — which has no graded
+            nights loaded at the moment.
+          </>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
@@ -251,9 +294,18 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
             fmt: (v) => (v ? v : '·'),
             title: 'He is one of tonight’s designated picks, in this category. The whole point of the archive: check his record in THAT column before trusting tonight’s designation.' },
           { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true },
-          { key: 'streak', label: 'Streak', heat: false, w: 52, mono: true,
+          // #46: this column was "—" on every visible row, which reads as a
+          // broken column rather than as missing data. It cannot be computed
+          // from this page's own payload: pick_matrix.json holds TOTALS, not
+          // sequence, and a streak is a sequence -- so it is built from the
+          // live graded branch's per-night files. When that branch has no
+          // graded days loaded (a fresh season, a failed fetch, or simply no
+          // backtest payload to name the dates from) there is nothing to
+          // compute and the column has nothing to say. It is dropped rather
+          // than rendered as a wall of dashes, and the caption below says why.
+          ...(streakReady ? [{ key: 'streak', label: 'Streak', heat: false, w: 52, mono: true,
             fmt: (v) => (v == null ? '—' : v > 0 ? `W${v}` : `L${-v}`),
-            title: 'Consecutive most-recent PICKS delivered (W) or missed (L), from the live graded branch — the bot-side streak, not his batting streak.' },
+            title: 'Consecutive most-recent PICKS delivered (W) or missed (L), from the live graded branch — the bot-side streak, not his batting streak.' }] : []),
           { key: 'last', label: 'Last', heat: false, w: 44, mono: true, dim: true,
             title: 'Most recent day he was picked' },
           { key: 'picks', label: 'Picks', w: 46,
@@ -261,6 +313,9 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
           { key: 'rate', label: 'All %', w: 48, dp: 0,
             fmt: (v) => (v == null ? '—' : Number(v).toFixed(0)),
             title: 'Did-its-job rate across every category combined. Read the category columns first — a player strong in one and dead in another averages into a middle that describes nobody.' },
+          { key: 'hrPickPct', label: 'HR/pick', w: 66, dp: 0,
+            fmt: (v, row) => row.hrPickPct_t,
+            title: `How often ANY pick for him ended in a home run, regardless of which category he was picked for — different from the HR column further right, which only counts picks where HR was specifically the job he was given. Percent shown at ${MIN_RATE}+ total picks; below that it stays a raw fraction.` },
 
           // One column per category, each sortable on its own.
           ...CAT_ORDER.map((c) => ({
@@ -269,7 +324,8 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
             title: `${JOBS[c].label} picks — needed ${JOBS[c].job}. Percent shown at ${MIN_RATE}+ picks in this category; below that it stays a raw fraction, because 1/1 is not 100%. Sorting this column ranks only the players who cleared the threshold.`,
           })),
 
-          { key: 'hr', label: 'HR', w: 38 },
+          { key: 'hr', label: 'HR ct', w: 44,
+            title: 'Total home runs across every pick, any category — a raw count, not a rate. See the HR/pick column near the front for the percentage.' },
           { key: 'h', label: 'H', w: 38 },
           { key: 'tb', label: 'TB', w: 40 },
           { key: 'avg', label: 'AVG', w: 48, dp: 3,

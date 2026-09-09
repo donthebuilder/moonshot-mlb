@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
+import { dedupeGraded } from '../lib/graded'
 import DenseTable from './DenseTable'
 import { usePickRecords } from './PlayerPickRecord'
 
@@ -45,12 +46,14 @@ const JOBS = {
              test: (r) => r.gotHr },
   HIT:     { label: 'Hit',     job: '1+ hit',       color: '#a78bfa',
              test: (r) => r.hits > 0 },
-  CONTACT: { label: 'Contact', job: '2+ total bases', color: '#4ade80',
-             test: (r) => r.tb >= 2 },
   HRR:     { label: 'HRR',     job: '2+ H+R+RBI',   color: '#22d3ee',
              test: (r) => r.hits + r.runs + r.rbi >= 2 },
+  CONTACT: { label: 'Contact', job: '2+ total bases', color: '#4ade80',
+             test: (r) => r.tb >= 2 },
+  ATS:     { label: 'ATS',     job: 'beat spread',  color: '#06b6d4',
+             test: (r) => r.atsHit },
 }
-const ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+const ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT', 'ATS']
 
 const i = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0 }
 
@@ -90,11 +93,26 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
       rbi: i(s?.actual_rbi),
       tb: i(s?.actual_tb),
       hr: i(s?.actual_hr),
+      atsHit: s?.actual_ats_hit === 1 || i(s?.ats_covered) === 1,
     }
     const j = JOBS[role]
     r.job = j ? j.job : '—'
     r.did = j ? (j.test(r) ? 1 : 0) : 0
+    // VOID IS NOT A MISS, and this is the third surface to have to learn it.
+    // A designated pick who was scratched, or who never came to the plate,
+    // has no outcome — grading him 0 punishes a bet that never existed. The
+    // rule is stated in lib/myPicks.js, lib/watchLedger.js, lib/liveSlate.js
+    // and the bot's own live_results_tracker; the Results Overview on this
+    // very tab already applies it (`actual_ab > 0`) to produce "the picks
+    // cleared X of Y". This table did not, so §1 and §4 of one page printed
+    // two different denominators for the same claim and only one obeyed the
+    // site's stated rule.
+    r.void = i(s?.actual_ab) === 0 && i(s?.actual_bb) === 0
     r.graded = !!j
+    // The row STAYS — a scratched pick is information, and dropping it would
+    // just move the lie from the percentage to the roster. It leaves the
+    // denominator, not the table.
+    if (r.void) { r.did = 0; r.job = 'never batted' }
 
     // His record IN THIS CATEGORY across every graded day, and overall. Shown
     // as a raw fraction, never a percentage — on a nine-day archive most of
@@ -110,7 +128,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
   }).filter((r) => r.graded), [slots, byPlayer])
 
   const byRole = useMemo(() => ORDER.map((role) => {
-    const sub = rows.filter((r) => r.role === role)
+    const sub = rows.filter((r) => r.role === role && !r.void)
     const ok = sub.filter((r) => r.did).length
     return { role, ...JOBS[role], n: sub.length, ok, pct: sub.length ? (100 * ok) / sub.length : 0 }
   }).filter((x) => x.n > 0), [rows])
@@ -130,8 +148,16 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
 
   const totalOk = rows.filter((r) => r.did).length
   // Slate-wide HR rate, the honest yardstick for the HR and TOP buckets.
-  const baseHr = slots.length
-    ? (100 * slots.filter((s) => s?.got_hr === 1 || i(s?.actual_hr) > 0).length) / slots.length
+  //
+  // DEDUPED (lib/graded.js) while the per-category rows above stay raw. The
+  // category rates ARE per pick — a hitter picked twice is two picks, graded
+  // twice — but this is the baseline they're measured AGAINST, and a baseline
+  // is a rate over HITTERS. Counting the multi-category picks twice in it
+  // dragged the yardstick toward the picks it was supposed to be independent
+  // of, which is the one number on this card that has to be clean.
+  const uniq = dedupeGraded(slots)
+  const baseHr = uniq.length
+    ? (100 * uniq.filter((s) => s?.got_hr === 1 || i(s?.actual_hr) > 0).length) / uniq.length
     : 0
 
   return (
@@ -201,16 +227,25 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
         onRowClick={onPlayerClick}
         initialSort="did"
         maxHeight={420}
-        caption="A ✓ means this hitter did the thing his own category was for — a HIT pick that singled counts, even though he didn't homer. Grading every category against home runs is the mistake this table exists to avoid. 'As this pick' is his record the other times the bot has picked him in this same category, across every graded day; it's a fraction rather than a percentage because on a nine-day archive the sample size is half the information. Sort by Pick to compare within a category, or open Track record for the full per-player table."
+        caption="A pick who never came to the plate reads “never batted” and is left out of the counts above — void is not a miss. A ✓ means this hitter did the thing his own category was for — a HIT pick that singled counts, even though he didn't homer. Grading every category against home runs is the mistake this table exists to avoid. 'As this pick' is his record the other times the bot has picked him in this same category, across every graded day; it's a fraction rather than a percentage because on a nine-day archive the sample size is half the information. Sort by Pick to compare within a category, or open Track record for the full per-player table."
       />
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
+        {/* RESTATED ON A BIGGER ARCHIVE (2026-08-15). These were 3,973 picks
+            over 39 graded days; the sweep now runs on 5,184 judgeable
+            designated picks over 62 nights and 811 games, so every figure
+            below moved. Restating rather than bumping matters — the SAMPLE
+            moved too, and a rate quoted against the wrong n is the thing this
+            panel exists to prevent. Two other surfaces quoted the old numbers
+            and now disagree with this one two panels away; they are corrected
+            in the same commit. */}
         The cards above are this day only. Measured across the full local archive —
-        <b style={{ color: C.text2 }}> 3,973 picks over 39 graded days</b>, roughly six times what
-        the published branch carries — the categories land at: HIT 64.5%, HRR 48.0%, CONTACT 38.2%,
-        TOP 19.2%, HR 15.4%.
+        <b style={{ color: C.text2 }}> 5,184 judgeable picks over 62 graded nights</b>, roughly six
+        times what the published branch carries — the categories land at: HIT 69.6% (968/1391),
+        HRR 50.9% (709/1392), CONTACT 39.9% (316/791), TOP 21.3% (172/807), HR 15.9% (128/803).
+        Voids are excluded throughout: a man who never batted is not a loss.
         <br /><br />
-        On home runs specifically, <b style={{ color: C.text2 }}>TOP 19.2% and HR 15.4%</b>, against
+        On home runs specifically, <b style={{ color: C.text2 }}>TOP 21.3% and HR 15.9%</b>, against
         14.6% across every pick in the archive. That gap is <b style={{ color: C.text2 }}>not
         statistically significant</b> — TOP vs HR is p=0.084, and HR against every other pick is
         p=0.556, which is no difference at all. The 95% intervals overlap heavily: TOP [16.2, 22.6],

@@ -1,0 +1,100 @@
+import { timingSafeEqual } from 'node:crypto'
+
+import { createClient } from '@supabase/supabase-js'
+
+import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
+import { createSupabaseServerClient } from '../../../../lib/supabase/server'
+import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
+import {autoFillLineups} from '../../../../lib/fantasy/autoLineup'
+import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edgeConfig'
+
+export const dynamic='force-dynamic'
+export const runtime='nodejs'
+
+function hasCronAuthorization(request) {
+  // Vercel automatically sends CRON_SECRET as a Bearer token. Keep the
+  // Franchise-specific alias for manual/external runners, but production
+  // Vercel Cron must have CRON_SECRET configured as well.
+  const supplied=request.headers.get('authorization')?.replace(/^Bearer\s+/i,'')||''
+  if(!supplied)return false
+  return [process.env.CRON_SECRET,process.env.FRANCHISE_CRON_SECRET].filter(Boolean).some((expected)=>{
+    const a=Buffer.from(expected);const b=Buffer.from(supplied)
+    return a.length===b.length&&timingSafeEqual(a,b)
+  })
+}
+
+async function authorization(request) {
+  if(hasCronAuthorization(request))return {ok:true,mode:'service'}
+  const leagueId=new URL(request.url).searchParams.get('leagueId')
+  if(!leagueId)return {ok:false}
+  const sessionClient=await createSupabaseServerClient()
+  const {data:{user}}=await sessionClient?.auth.getUser()||{data:{user:null}}
+  if(!user)return {ok:false}
+  const {data:membership}=await sessionClient.from('fantasy_league_memberships').select('league_id').eq('league_id',leagueId).eq('user_id',user.id).maybeSingle()
+  return {ok:Boolean(membership),mode:'member'}
+}
+
+async function synchronize(request) {
+  const access=await authorization(request)
+  if(!access.ok)return Response.json({error:'Unauthorized'},{status:401})
+  if(await isMaintenanceMode())return Response.json({ok:true,skipped:'maintenance_mode'})
+  if(!(await isFranchiseSchedulerEnabled()))return Response.json({ok:true,skipped:'franchise_scheduler_disabled'})
+  const url=process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY
+  if(!url||!serviceKey)return Response.json({error:'Scoring service is not configured'},{status:503})
+  const supabase=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}})
+  let runId=null
+  try {
+    if(access.mode==='member'){
+      // Throttle on the LATEST run whatever its status: keying on
+      // status='complete' meant every open tab could start another sync while
+      // one was still in flight.
+      const {data:latest}=await supabase.from('fantasy_scoring_sync_runs').select('started_at,completed_at,status').order('started_at',{ascending:false}).limit(1).maybeSingle()
+      const startedAgo=latest?.started_at?Date.now()-new Date(latest.started_at).getTime():Infinity
+      if(latest&&latest.status!=='failed'&&startedAgo<25000)return Response.json({ok:true,cached:true,status:latest.status,completedAt:latest.completed_at||null})
+    }
+    const feed=await loadFranchiseNflFeed()
+    const weeks=[...new Set(feed.games.map((game)=>game.week))].sort((a,b)=>a-b)
+    const {data:run,error:runError}=await supabase.from('fantasy_scoring_sync_runs').insert({source:feed.source,season:feed.season,weeks}).select('id').single()
+    if(runError)throw runError
+    runId=run.id
+    // Chunked, so one big slate cannot fail the whole sync on a payload cap
+    // and freeze every score silently. See lib/fantasy/sync.js.
+    await syncCatalogChunked(supabase,feed.catalog)
+    const sync=await syncWeekFeedChunked(supabase,feed.games,feed.players)
+    // AUTO-LINEUPS, BEFORE THE SCORES ARE REFRESHED (2026-09-07). Donovan:
+    // "make sure it auto lineups if the time comes." A manager who never
+    // opened the app started nobody and scored nothing, and his opponent got a
+    // free win that says nothing about either team -- five of nine teams in
+    // the DASH league were in that state three days out from Week 1.
+    //
+    // It runs from an hour before the week's first kickoff, fills ONLY empty
+    // starting slots, and never starts a player whose own game has already
+    // begun or who is on bye. Ordered before the refresh below so a slot
+    // filled on this tick is scored on this tick.
+    //
+    // It cannot throw -- autoFillLineups() returns its failure as a `skipped`
+    // string rather than raising, because a lineup helper must not be able to
+    // take scoring down with it. The result is logged and reported, never
+    // awaited on for correctness.
+    const lineupFills=[]
+    for(const week of weeks){
+      const fill=await autoFillLineups(supabase,{season:feed.season,week})
+      if(fill.slotsFilled||fill.skipped&&!['too_early','no_games','no_kickoffs','no_active_leagues'].includes(fill.skipped)){
+        console.log(`[franchise/scoring] auto-lineup week ${week}:`,JSON.stringify(fill))
+      }
+      lineupFills.push({week,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped})
+    }
+    let matchups=0
+    for(const week of weeks){const {data,error}=await supabase.rpc('refresh_all_fantasy_matchup_scores',{p_season:feed.season,p_week:week});if(error)throw error;matchups+=Number(data||0)}
+    await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:new Date().toISOString()}).eq('id',runId)
+    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,builtAt:feed.builtAt})
+  } catch(error) {
+    console.error('[franchise/scoring] sync failed', error)
+    if(runId)await supabase.from('fantasy_scoring_sync_runs').update({status:'failed',error_message:String(error?.message||error).slice(0,500),completed_at:new Date().toISOString()}).eq('id',runId)
+    return Response.json({error:'Scoring synchronization failed'},{status:500})
+  }
+}
+
+export const GET=synchronize
+export const POST=synchronize

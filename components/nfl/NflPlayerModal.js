@@ -1,0 +1,569 @@
+'use client'
+import { useEffect } from 'react'
+
+import useScrollLock from '../../lib/useScrollLock'
+import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
+import PropsGrid from './PropsGrid'
+import PlayerNotes from '../PlayerNotes'
+import { VerdictStamp, PutOnCard } from './CardActions'
+import MatchupMap from './MatchupMap'
+import NflFace from './NflFace'
+import DvpTable, { GROUP } from './DvpTable'
+import { downloadNflPickCard } from './shareCard'
+import { useNflWatchlist } from '../../lib/nfl/watchlist'
+import FollowButton from '../FollowButton'
+import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
+
+// Why this player scores what he scores.
+//
+// The board gives a number; without this the number is an assertion. Every
+// component that went into the score is listed with its own percentile and
+// the weight it carried, so the arithmetic is inspectable rather than trusted.
+// That's the same posture as the MLB ScoreAudit — if the model is wrong you
+// should be able to SEE where it went wrong, not just that it did.
+
+const LABELS = {
+  f_gl_opp: 'Goal-line opportunity',
+  f_rz_opp: 'Red-zone touches',
+  implied_total: 'Implied team total',
+  f_xtd: 'Expected TDs',
+  opp_td_soft: 'Defense TD softness',
+  td_regression: 'TD regression (due)',
+  f_wopr: 'WOPR (opportunity)',
+  f_receiving_yards: 'Receiving yards form',
+  f_receiving_air_yards: 'Air yards (depth)',
+  opp_pass_soft: 'Defense pass softness',
+  f_target_share: 'Target share',
+  f_receptions: 'Receptions form',
+  f_targets: 'Targets',
+  f_carries: 'Carries',
+  f_rushing_yards: 'Rushing yards form',
+  f_rz_car: 'Red-zone carries',
+  f_ngs_rush_yards_over_expected_per_att: 'RYOE per attempt (NGS)',
+  total_line: 'Game total',
+  // 2026-09-07: the only key the bot emits that had no label here, so the
+  // WHY panel on every quarterback read "Game total / f_passing_yards /
+  // Pass attempts / CPOE" — three human labels and a variable name.
+  f_passing_yards: 'Passing yards form',
+  f_attempts: 'Pass attempts',
+  f_passing_cpoe: 'CPOE',
+  f_tm_fg_drive_rate: 'Team FG-drive rate',
+  f_tm_rz_td_rate_inv: 'Team RZ TD rate (inverted)',
+  f_fg_att: 'FG attempts',
+  kick_env: 'Kicking environment',
+  f_tm_drives: 'Team drives',
+}
+
+
+// ── splits ────────────────────────────────────────────────────────────────────
+
+// Which per-game number a split should show depends on what you're looking at.
+// Staring at the TD board, "he averages 3.18 targets when trailing" is trivia;
+// "he scores 0.36 a game when trailing vs 0.20 when leading" is the read.
+const SPLIT_STAT = {
+  TD:       ['td',    'TD/g'],
+  REC_YDS:  ['recyd', 'yds/g'],
+  REC:      ['rec',   'rec/g'],
+  RUSH_YDS: ['ruyd',  'yds/g'],
+  RUSH_ATT: ['car',   'car/g'],
+  PASS_YDS: ['payd',  'yds/g'],
+}
+
+function Splits({ player, market, data }) {
+  const sp = player?.splits
+  if (!sp || !Object.keys(sp).length) return null
+  const entry = SPLIT_STAT[market]
+  // Kickers have no play-level split: nflverse attributes a field goal to the
+  // kicker but the situational buckets here are built off receiver/rusher/
+  // passer roles. Rather than render an empty grid, say nothing.
+  if (!entry) return null
+  const [statKey, unit] = entry
+
+  const pairs = (data?.pairs || []).filter(([a, b]) => sp[a] || sp[b])
+  if (!pairs.length) return null
+
+  // Colour the better side of each pair, but only when the gap is real — a
+  // 4% difference on a 17-game sample is not a split, it's noise wearing one.
+  const MEANINGFUL = 0.15
+
+  return (
+    <>
+      <div style={{
+        fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+        margin: '16px 0 7px',
+      }}>SPLITS — {unit}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {pairs.map(([a, b]) => {
+          const A = sp[a]; const B = sp[b]
+          const va = A?.[statKey]; const vb = B?.[statKey]
+          const both = Number.isFinite(va) && Number.isFinite(vb)
+          const hi = both && Math.max(va, vb) > 0
+            && Math.abs(va - vb) / Math.max(va, vb) >= MEANINGFUL
+            ? (va > vb ? 'a' : 'b') : null
+          const cell = (v, g, side) => (
+            <div style={{
+              flex: 1, textAlign: 'center', padding: '4px 6px', borderRadius: 7,
+              background: hi === side ? `${C.green}14` : 'transparent',
+              border: `1px solid ${hi === side ? C.green + '45' : 'transparent'}`,
+            }}>
+              <div style={{
+                fontFamily: NUM_FONT, fontSize: 12.5, fontWeight: 900,
+                color: hi === side ? C.green : C.text,
+              }}>{Number.isFinite(v) ? v.toFixed(2) : '—'}</div>
+              <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+                {g ? `${g}g` : ''}
+              </div>
+            </div>
+          )
+          return (
+            <div key={`${a}-${b}`} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
+              borderRadius: 8, padding: '5px 8px',
+            }}>
+              <span style={{ fontSize: 10, color: C.text3, minWidth: 62 }}>
+                {data?.labels?.[a] || a}
+              </span>
+              {cell(va, A?.g, 'a')}
+              <span style={{ fontSize: 9, color: C.text3 }}>vs</span>
+              {cell(vb, B?.g, 'b')}
+              <span style={{
+                fontSize: 10, color: C.text3, minWidth: 62, textAlign: 'right',
+              }}>{data?.labels?.[b] || b}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+        Per-game rates, games beside them. Lit at a 15%+ gap.
+      </div>
+    </>
+  )
+}
+
+
+// ── coverage + explosive ──────────────────────────────────────────────────────
+
+function Mini({ label, children, accent }) {
+  return (
+    <div style={{
+      flex: '1 1 210px', background: 'rgba(255,255,255,.03)',
+      border: `1px solid ${C.border}`, borderLeft: `2px solid ${accent}`,
+      borderRadius: 8, padding: '8px 10px',
+    }}>
+      <div style={{
+        fontSize: 8.5, fontWeight: 900, color: C.text3, letterSpacing: '.09em',
+        marginBottom: 5,
+      }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+function KV({ k, v, hi }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
+      <span style={{ fontSize: 10, color: C.text3 }}>{k}</span>
+      <span style={{
+        fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, color: hi ? C.green : C.text,
+      }}>{v}</span>
+    </div>
+  )
+}
+
+function CoverageAndExplosive({ player, matchup }) {
+  const cov = matchup?.coverage_player?.[player?.player_id]
+  const exp = matchup?.player_explosive?.[player?.player_id]
+  const oppCov = matchup?.coverage_team?.[player?.opp]
+  if (!cov && !exp) return null
+
+  // Which side he's better against, and by how much — the reason to show the
+  // split at all rather than two columns of numbers.
+  let edge = null
+  if (cov?.man && cov?.zone) {
+    const d = cov.zone.ypt - cov.man.ypt
+    if (Math.abs(d) >= 1.0) edge = d > 0 ? 'zone' : 'man'
+  }
+
+  return (
+    <>
+      <div style={{
+        fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+        margin: '16px 0 7px',
+      }}>COVERAGE & EXPLOSIVE</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {cov?.man && (
+          <Mini label="VS MAN" accent={edge === 'man' ? C.green : C.border2}>
+            <KV k="Targets" v={cov.man.tgts} />
+            <KV k="Yds / target" v={cov.man.ypt} hi={edge === 'man'} />
+            <KV k="Catch %" v={`${cov.man.catch_pct}%`} />
+            <KV k="TD" v={cov.man.td} />
+          </Mini>
+        )}
+        {cov?.zone && (
+          <Mini label="VS ZONE" accent={edge === 'zone' ? C.green : C.border2}>
+            <KV k="Targets" v={cov.zone.tgts} />
+            <KV k="Yds / target" v={cov.zone.ypt} hi={edge === 'zone'} />
+            <KV k="Catch %" v={`${cov.zone.catch_pct}%`} />
+            <KV k="TD" v={cov.zone.td} />
+          </Mini>
+        )}
+        {exp && (
+          <Mini label="EXPLOSIVE" accent={C.purple}>
+            <KV k="10+ / 20+" v={`${exp.rec_10} / ${exp.rec_20}`} />
+            <KV k="30+ / 40+" v={`${exp.rec_30} / ${exp.rec_40}`} />
+            <KV k="Longest" v={exp.lng} />
+            <KV k="Air yards" v={exp.air} />
+          </Mini>
+        )}
+      </div>
+      {edge && oppCov && (
+        <div style={{ fontSize: 10.5, color: C.text2, marginTop: 7, lineHeight: 1.6 }}>
+          Better vs <b style={{ color: C.green }}>{edge}</b> · {player.opp} plays{' '}
+          <b style={{ color: C.cyan }}>
+            {edge === 'zone' ? `${oppCov.zone_pct}% zone` : `${oppCov.man_pct}% man`}
+          </b>
+        </div>
+      )}
+    </>
+  )
+}
+
+function Head({ children }) {
+  return (
+    <div style={{
+      fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+      margin: '18px 0 8px',
+    }}>{children}</div>
+  )
+}
+
+// The map, scoped to this player and the defence he's actually facing.
+//
+// This is the one thing in the modal that isn't about him in the abstract —
+// every other section would read the same if he were playing a bye week.
+// 2026-09-07 — two things were wrong with which side of the map opened.
+//
+// The old rule flipped to rushing whenever the passing map was missing. But
+// `player_pass` is keyed by the man CATCHING the ball, so a quarterback is
+// absent from it by construction: 77 of 87 quarterbacks have no entry. Open
+// Jared Goff from the PASSING YARDS board and the old rule sent you to his
+// rushing map, which is built on eight carries in his entire log, and then the
+// map asserted underneath it that he "takes 62.5% of his carries up the
+// middle." Five carries out of eight, stated like a tendency.
+//
+// So: the map follows the market's own stat family, and the fallback to the
+// other side has to earn it with a real sample. A thin map still renders — the
+// grid already dims what it can't support — but it says it is thin instead of
+// narrating a spot. Against the live Week 1 payload this suppresses 37
+// market/player maps (23 QB, 12 RB, 2 TE) and notes 340 more.
+const PASS_MARKETS = new Set(['PASS_YDS', 'REC', 'REC_YDS'])
+const RUSH_MARKETS = new Set(['RUSH_YDS', 'RUSH_ATT'])
+const FALLBACK_MIN_ATT = 20
+
+const mapAttempts = (m) =>
+  Object.values(m || {}).reduce((n, z) => n + (Number(z?.att) || 0), 0)
+
+function MatchupSection({ player, matchup, market }) {
+  const field = matchup?.field
+  if (!field || !player?.opp) return null
+  const passMap = field.player_pass?.[player.player_id]
+  const rushMap = field.player_rush?.[player.player_id]
+  if (!passMap && !rushMap) return null
+
+  const passAtt = mapAttempts(passMap)
+  const rushAtt = mapAttempts(rushMap)
+
+  // TD is played from both sides, so it opens on whichever side he does more of.
+  const natural = PASS_MARKETS.has(market) ? 'pass'
+    : RUSH_MARKETS.has(market) ? 'rush'
+      : (passAtt >= rushAtt ? 'pass' : 'rush')
+
+  const have = (v) => (v === 'pass' ? Boolean(passMap) : Boolean(rushMap))
+  const att = (v) => (v === 'pass' ? passAtt : rushAtt)
+
+  let view = natural
+  if (!have(natural)) {
+    const other = natural === 'pass' ? 'rush' : 'pass'
+    // Falling back across the ball is only worth doing on a real sample.
+    if (!have(other) || att(other) < FALLBACK_MIN_ATT) return null
+    view = other
+  }
+
+  const thin = att(view) < FALLBACK_MIN_ATT
+  return (
+    <>
+      <Head>MATCHUP MAP — HIS WORK ON {player.opp}&apos;S HOLES</Head>
+      <MatchupMap field={field} player={player} mode="player" compact
+                  defaultView={view} />
+      {thin && (
+        <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+          Built on {att(view)} {view === 'pass' ? 'targets' : 'carries'} — thin enough
+          that the shape is a hint, not a tendency.
+        </div>
+      )}
+    </>
+  )
+}
+
+// ...and the same defence read the orthodox way. The map says where the field
+// is soft; this says whether it's soft to somebody in HIS chair. A defence can
+// leak deep right all day and still smother the WR3 who runs those routes.
+function DvpSection({ player, matchup }) {
+  const group = GROUP[player?.position]
+  if (!group || !matchup?.dvp?.season?.[player?.opp]) return null
+  const role = matchup?.roles?.[player.player_id]
+  return (
+    <>
+      <Head>{player.opp} DEFENCE VS {player.position} — BY DEPTH ROLE</Head>
+      <div style={{
+        border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden',
+        background: C.bg2,
+      }}>
+        <DvpTable data={matchup} team={player.opp} roles={group}
+                  highlight={role} minWidth={340} />
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+        Rank 1 = allows the most = softest matchup. {matchup.season} season.
+        {!role && ' Depth roles publish with the next bot run, so no row is pinned to him yet.'}
+      </div>
+    </>
+  )
+}
+
+// 📸 SHARE (2026-08-24) — the pregame half of the NFL share-card pair. Builds
+// the compact `pick` shape components/nfl/shareCard.js draws from out of
+// whatever the modal already has in scope: no re-fetch, no season lookup,
+// nothing this screen isn't already showing. `hit`/`actual`/`void` are left
+// unset here on purpose — this modal only ever carries a pregame score, never
+// a graded line, so the card it downloads always reads as a case, never a
+// result. The Accountability tab's own row (which DOES carry a graded line)
+// wires the same shareCard.js function with those fields filled in instead.
+function pickFromPlayer(player, market, spec) {
+  return {
+    name: player.name,
+    team: player.team,
+    opp: player.opp,
+    position: player.position,
+    market,
+    marketLabel: spec?.label || market,
+    bar: spec?.bar,
+    questionable: player.questionable,
+    low_sample: player.low_sample,
+    score: player.scores?.[market],
+    grade: Number.isFinite(player.scores?.[market]) ? gradeFor(player.scores[market]).label : undefined,
+  }
+}
+
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile }) {
+  useScrollLock(Boolean(player))
+  const watchlist = useNflWatchlist(slate)
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape') onClose?.() }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onClose])
+
+  if (!player) return null
+  const spec = (markets || []).find((m) => m.key === market)
+  const comps = player.components?.[market] || {}
+  const weights = spec?.weights || {}
+
+  const ordered = Object.entries(comps)
+    .map(([k, v]) => ({ key: k, pct: v, w: weights[k.replace(/_inv$/, '')] ?? 0 }))
+    .sort((a, b) => b.w - a.w)
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        // #30, same as the MLB modals: the floating nav is z-index 390 and
+        // drew on top of an open card. Above the bar, below the signature rail.
+        position: 'fixed', inset: 0, zIndex: 395, background: 'rgba(0,0,0,.72)',
+        backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 14,
+          padding: 18, maxWidth: 620, width: '100%', maxHeight: '86vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10,
+        }}>
+          {/* 2026-09-07. Donovan, 8/27: "site needs visuals; we don't have
+              player pictures." We did have them — FRANCHISE has rendered faces
+              for weeks — TUDDY just never got one. See NflFace for why this is
+              not the same component. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <NflFace player={player} size={44} />
+            <div>
+            <div style={{ fontSize: 17, fontWeight: 900, color: C.text }}>{player.name}</div>
+            <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
+              {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
+              {injuryTag(player) && (
+                <span title={injuryTitle(injuryTag(player))}
+                      style={{ color: injuryColor(injuryTag(player), C), fontWeight: 900 }}>
+                  {' · '}{injuryTag(player)}
+                </span>
+              )}
+              {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
+            </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <FollowButton sport="nfl" id={player?.player_id} name={player?.name} team={player?.team} position={player?.position} compact />
+            <button onClick={() => watchlist.toggle(player)}
+              aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
+              style={{
+                background: watchlist.isPinned(player.player_id) ? `${C.yellow}16` : 'transparent',
+                border: `1px solid ${watchlist.isPinned(player.player_id) ? C.yellow + '66' : C.border}`,
+                color: watchlist.isPinned(player.player_id) ? C.yellow : C.text3,
+                borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9, fontWeight: 900,
+              }}>{watchlist.isPinned(player.player_id) ? '★ SAVED' : '☆ SAVE'}</button>
+            {onFullProfile && <button onClick={() => onFullProfile(player)}
+              style={{
+                background: `${C.green}12`, border: `1px solid ${C.green}55`, color: C.green,
+                borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9,
+                fontWeight: 900,
+              }}>FULL PROFILE →</button>}
+            {/* 🎴 his card as a PNG — the NFL twin of the MLB player-modal
+                share button (components/PlayerModal.js). Client-side only:
+                draws a canvas, triggers a browser download, nothing else. */}
+            <button onClick={() => downloadNflPickCard(pickFromPlayer(player, market, spec))}
+              title="Download his pick card as a PNG for posting — the bot's call on this market, ready to share manually"
+              aria-label="Download pick card as image"
+              style={{
+                background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
+                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
+              }}>📸</button>
+            <button onClick={onClose} style={{
+              background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
+              borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
+            }}>esc</button>
+          </div>
+        </div>
+
+        {/* every market's score, so you can see the whole player at once */}
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '13px 0 4px' }}>
+          {MARKETS.map(([k, label]) => {
+            const s = player.scores?.[k]
+            if (!Number.isFinite(s)) return null
+            const g = gradeFor(s)
+            const on = k === market
+            return (
+              <div key={k} title={label} style={{
+                padding: '4px 9px', borderRadius: 8,
+                background: on ? `${g.color}1f` : 'rgba(255,255,255,.03)',
+                border: `1px solid ${on ? g.color + '66' : C.border}`,
+              }}>
+                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>{k}</div>
+                <div style={{
+                  fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color: g.color,
+                }}>{Math.round(s)}</div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* graded state and your card, before the matchup: the two things a
+            bettor opens the card to do (2026-09-05, Batch 2). */}
+        <VerdictStamp player={player} results={results} bars={Object.fromEntries((markets || []).map((m) => [m.key, Number(m.bar)]))} />
+        <PutOnCard player={player} market={market} picks={picks} slate={slate} />
+        <MatchupSection player={player} matchup={matchup} market={market} />
+        <DvpSection player={player} matchup={matchup} />
+
+        {ordered.length > 0 && (
+          <>
+            <Head>WHY — {spec?.label || market}</Head>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {ordered.map(({ key, pct, w }) => (
+                <div key={key} style={{
+                  position: 'relative', display: 'flex', alignItems: 'center', gap: 9,
+                  background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
+                  borderRadius: 8, padding: '6px 10px', overflow: 'hidden',
+                }}>
+                  <div style={{
+                    position: 'absolute', left: 0, top: 0, bottom: 0,
+                    width: `${Math.max(0, Math.min(100, pct))}%`,
+                    background: `linear-gradient(90deg, ${C.green}1a, transparent)`,
+                  }} />
+                  <span style={{
+                    position: 'relative', fontSize: 11.5, color: C.text2, flex: 1,
+                  }}>{LABELS[key] || key}</span>
+                  <span style={{
+                    position: 'relative', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT,
+                  }}>{Math.round(w * 100)}% wt</span>
+                  <span style={{
+                    position: 'relative', fontFamily: NUM_FONT, fontSize: 12,
+                    fontWeight: 900, color: C.green, minWidth: 34, textAlign: 'right',
+                  }}>{Math.round(pct)}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 10, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
+              Percentile against the league at his position — not a probability.
+            </div>
+          </>
+        )}
+
+        {Object.keys(player.stats || {}).length > 0 && (
+          <>
+            <div style={{
+              fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+              margin: '16px 0 7px',
+            }}>PER-GAME</div>
+            <div style={{
+              display: 'grid', gap: 5,
+              gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))',
+            }}>
+              {Object.entries(player.stats).map(([k, v]) => (
+                <div key={k} style={{
+                  background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
+                  borderRadius: 8, padding: '5px 8px',
+                }}>
+                  <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>{k}</div>
+                  <div style={{
+                    fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: C.text,
+                  }}>{typeof v === 'number' ? (Math.abs(v) < 1 ? v.toFixed(3) : v.toFixed(1)) : v}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* 🎯 The props grid, football edition (2026-08-15) — the MLB matrix
+            ported. HitRate still draws the bars; it now rides INSIDE the grid
+            and follows whichever row is open, so the modal keeps one chart
+            and gains the every-market glance above it. */}
+        {logs?.logs?.[player.player_id]?.log && (
+          <PropsGrid
+            log={logs.logs[player.player_id].log}
+            market={market}
+            defaultBar={spec?.bar ?? 1}
+            scores={player.scores}
+          />
+        )}
+
+        <CoverageAndExplosive player={player} matchup={matchup} />
+
+        <Splits player={player} market={market} data={splitMeta} />
+        {/* Same per-device note store as MOONSHOT's card; ids can't collide. */}
+        <PlayerNotes playerId={player.player_id} />
+
+        {player.carryover && (
+          <div style={{
+            marginTop: 14, fontSize: 10.5, color: C.text2, lineHeight: 1.6,
+            background: `${C.purple}12`, border: `1px solid ${C.purple}38`,
+            borderRadius: 9, padding: '7px 10px',
+          }}>
+            <b style={{ color: C.purple }}>Carryover</b> — last season&apos;s per-game baseline.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

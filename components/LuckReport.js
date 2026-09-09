@@ -1,5 +1,5 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, nameOf, teamOf, playerId, clean } from '../lib/player'
 
@@ -26,7 +26,14 @@ const pctOf = (xs, v) => {
   return i / xs.length
 }
 
-export default function LuckReport({ players = [], onPlayerClick }) {
+// `defaultOpen` (2026-08-15): the Power page was four stacked sections above
+// the board you came for. Fixing that moved this one BELOW the board, where a
+// permanently-expanded sixteen-row ladder is the last thing between the reader
+// and the bottom of the page. Folded, its header still names the read and the
+// most-robbed hitter, so the summary carries the headline fact rather than
+// being a wall with a door in it. Every row is one tap away; nothing is gone.
+export default function LuckReport({ players = [], onPlayerClick, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen)
   const { unlucky, lucky, calibrated } = useMemo(() => {
     const pool = players.filter((p) => n(p?.season_pa, 0) >= 100 && n(p?.recent_350_den, 0) >= 10)
     if (pool.length < 12) return { unlucky: [], lucky: [], calibrated: false }
@@ -84,16 +91,30 @@ export default function LuckReport({ players = [], onPlayerClick }) {
   ].map((x) => ({ ...x, mag: Math.abs(x.luck != null ? x.luck : x.gap * 10) }))
   const maxMag = Math.max(...ladder.map((x) => x.mag), 1e-9)
 
+  const mostRobbed = ladder.find((x) => x.side === 'u')
+
   return (
     <div style={{ marginTop: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
-        <span style={{ fontSize: 13, fontWeight: 900 }}>⚖ Luck report</span>
+      <div
+        onClick={() => setOpen((v) => !v)}
+        style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, paddingTop: 12, borderTop: `1px solid ${C.border}`, cursor: 'pointer', flexWrap: 'wrap' }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 900 }}>⚖ Luck report {open ? '▾' : '▸'}</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {calibrated
             ? 'actual homers vs expected-from-contact (bot xHR machine, season)'
             : 'how the ball leaves the bat vs what the box score paid — slate percentiles, L10 window'}
         </span>
+        {!open && (
+          <span style={{ fontSize: 10, color: C.text3 }}>
+            <b style={{ color: '#4ade80', fontFamily: NUM_FONT }}>{unlucky.length}</b> crushing without cashing,{' '}
+            <b style={{ color: '#f87171', fontFamily: NUM_FONT }}>{lucky.length}</b> cashing without crushing
+            {mostRobbed && <> — most robbed is <b style={{ color: C.text2 }}>{nameOf(mostRobbed.p)}</b></>}
+          </span>
+        )}
       </div>
+      {!open ? null : (
+      <>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
         {calibrated
           ? 'Calibrated: the number on each card is HRs above or below what his contact quality should have produced, from the league (EV, LA) table the bot builds off its own statcast data. Minimum 50 tracked balls and a ±1.5 HR gap to make a list.'
@@ -151,6 +172,8 @@ export default function LuckReport({ players = [], onPlayerClick }) {
           )
         })}
       </div>
+      </>
+      )}
     </div>
   )
 }

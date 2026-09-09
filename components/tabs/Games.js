@@ -1,34 +1,101 @@
 'use client'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { roleBadge } from '../../lib/roleBadge'
+import PriceBubble from '../PriceBubble'
+import Boxes from './Boxes'
+import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
-import { dateText, playerId, hrScore } from '../../lib/player'
-import { PanelTitle, Empty, btnStyle } from '../ui'
+import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
+import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
+import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
-import ProjectedOutput from '../ProjectedOutput'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
+import { FilterPill } from '../Filters'
+import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
+import { fetchLiveSlate, lineupStatus, liveSlateStatus } from '../../lib/liveSlate'
+import LiveAtBats from '../LiveAtBats'
+import Explain from '../Explain'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
+import GameSimPanel from '../GameSimPanel'
 import LineupSlotMatchup from '../LineupSlotMatchup'
+import PairTray from '../PairTray'
+import MobileFold, { useIsPhone } from '../MobileFold'
+import GameSwitcher from '../GameSwitcher'
+import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
+import { downloadGameCard } from '../shareCard'
+import ProjectedOutput from '../ProjectedOutput'
 
-const ROLE_CONFIG = {
-  TOP:     { label: 'Top Pick',     color: '#FCD34D' },
-  HR:      { label: 'HR Pick',      color: '#FB923C' },
-  HIT:     { label: 'Hit Pick',     color: '#60A5FA' },
-  HRR:     { label: 'HRR Pick',     color: '#34D399' },
-  CONTACT: { label: 'Contact Pick', color: '#A78BFA' },
+// A game card's pick chip, stat-first.
+//
+// Own component rather than inline JSX because it reads the slate scale from
+// context, and a hook cannot live inside a .map() callback.
+function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
+  // `label` (2026-08-14): display text when it differs from the functional
+  // category — a merged "TOP/HR" chip still computes its stat line and score
+  // from ONE real category (the primary), but wears both names.
+  const scale = useSlateScale()
+  const lead = statLineFor(p, cat, 1)[0] || null
+  const tone = lead ? toneFor(scale, lead) : null
+  const statCol = lead ? (tone ? TONE_COLOR[tone] : C.text2) : C.text3
+  return (
+    <button onClick={onClick} title={lead ? toneTitle(tone, scale, lead) : undefined} style={{
+      display: 'flex', flexDirection: 'column', gap: 2, cursor: 'pointer', minWidth: 0,
+      border: `1px solid ${col}55`, background: `${col}10`,
+      borderRadius: 7, padding: '4px 8px 5px', textAlign: 'left',
+    }}>
+      <span style={{ display: 'flex', gap: 5, alignItems: 'baseline', minWidth: 0 }}>
+        <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{label || cat}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          {String(p?.name || '').split(' ').slice(-1)[0]}
+        </span>
+      </span>
+      <span style={{ display: 'flex', gap: 5, alignItems: 'baseline', minWidth: 0 }}>
+        {lead ? (
+          <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+            <b style={{ color: statCol, fontWeight: 800 }}>{lead.text}</b>
+            <span style={{ color: C.text3 }}> {lead.label.toLowerCase()}</span>
+          </span>
+        ) : (
+          // No published stat for him — say nothing rather than print a dash.
+          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>no stat yet</span>
+        )}
+        {/* 💸 THE PRICE, ON THE PICK (2026-08-15, Donovan: "i wanted to see
+            them on the games picks like a little buble or ... glow of the
+            odd"). It sits on the stat line rather than the name line because
+            the name line is the one that truncates, and it glows only when
+            there is a real rate to judge the number against. */}
+        <PriceBubble odds={odds} player={p} cat={cat}
+          rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
+        <span title="The bot's score for this category" style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: `${col}cc`, fontFamily: NUM_FONT, flexShrink: 0 }}>
+          {score.toFixed(0)}
+        </span>
+      </span>
+    </button>
+  )
 }
+
+// Same registry, same reason — and this map is where HRR was GREEN while
+// CAT_COLOR four lines up called it cyan, in one file, for the same concept.
+const ROLE_LABEL = {
+  TOP: 'Top Pick', HR: 'HR Pick', HIT: 'Hit Pick', HRR: 'HRR Pick', CONTACT: 'Contact Pick',
+}
+const ROLE_CONFIG = Object.fromEntries(
+  Object.entries(ROLE_LABEL).map(([k, label]) => [k, { label, get color() { return catColor('role', k) } }])
+)
 function getRoleDisplay(p) {
   const primary = (p?.game_pick_role || '').split('/')[0]
   if (ROLE_CONFIG[primary]) return ROLE_CONFIG[primary]
-  const label = p?.best_bet_type || p?.beginner_label || '—'
-  const color = label.toLowerCase().includes('avoid') ? '#F87171'
-    : label.toLowerCase().includes('strong hr') ? '#FB923C'
-    : label.toLowerCase().includes('power watch') ? '#A78BFA'
-    : '#9CA3AF'
+  // best_bet_type arrives with a pictograph baked in ("🏆 HR Bet"), which used
+  // to be rendered verbatim as the label. roleBadge strips it and resolves the
+  // colour off a semantic token instead of substring-matching the display text.
+  const badge = roleBadge(p?.best_bet_type || p?.beginner_label, C)
+  const label = badge.label
+  const color = badge.color
   return { label, color }
 }
 
@@ -64,9 +131,422 @@ function isPast(gameTime) {
   return new Date(gameTime) < new Date(Date.now() - 3 * 60 * 60 * 1000) // 3hr buffer for late games
 }
 
-export default function Games({ players, slateDate = '', onAdd, onWatch, watchIds, onPlayerClick }) {
-  const [mode, setMode]         = useState('default')
+// The five designated slots for a game — the same ones Results grades.
+// Shared by the rundown cards and the expanded pick row so the two can
+// never disagree about who a game's picks are.
+const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+// OFF THE REGISTRY (2026-08-23). These five hexes were this file's own copy
+// of the pick-role palette — one of the eleven copies scripts/check-scales.mjs
+// was written about, and the reason HRR could be cyan here and green four
+// lines down in ROLE_CONFIG. catColor('role', …) is the single source, so the
+// mono/steel/regal/light chromes reach the Games tab too.
+const catColorOf = (cat) => catColor('role', cat)
+const CAT_SCORE = {
+  TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? p?.hr_score ?? 0,
+  HR: (p) => p?.hr_score ?? 0,
+  HIT: (p) => p?.hit_score ?? 0,
+  HRR: (p) => p?.hrr_score ?? 0,
+  CONTACT: (p) => p?.contact_score ?? 0,
+}
+// A player can carry more than one role (e.g. "TOP/HR") -- match on any
+// tag, not just the first, so a double-up shows up in every slot he holds
+// (mirrors the same fix already shipped in BotPicksStrip.js's pickBuckets).
+// Returns {cat, p} pairs (not bare players): a dual-slotted player can
+// legitimately fill two slots with the SAME underlying player object, so
+// each occurrence needs to carry its own slot forward rather than have the
+// render step re-derive "which category is this" from p.game_pick_role,
+// which would just return his first tag both times (2026-08-13).
+const roleTags = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
+const picksFor = (g) => {
+  const perSlot = CAT_ORDER
+    .map((cat) => {
+      const p = [...(g.players || [])]
+        .filter((pp) => roleTags(pp).includes(cat))
+        .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0]
+      return p ? { cat, p } : null
+    })
+    .filter(Boolean)
+  // ONE ENTRY PER PLAYER (2026-08-14, Donovan: "if the player is the same
+  // pick twice only show the player once for the top pick thing"). The
+  // multi-role fix (5b95364) made a TOP/HR double-up fill BOTH slots, which
+  // rendered him as two chips / two cards. Now his slots merge: one entry,
+  // wearing every slot he holds (cats), with the FIRST slot in CAT_ORDER as
+  // the primary — it drives the color and the score shown, so a "TOP/HR"
+  // chip reads TOP's number, labelled with both names.
+  const byPlayer = new Map()
+  perSlot.forEach(({ cat, p }) => {
+    const k = playerId(p)
+    if (byPlayer.has(k)) byPlayer.get(k).cats.push(cat)
+    else byPlayer.set(k, { cat, cats: [cat], p })
+  })
+  return [...byPlayer.values()]
+}
+
+// The two sides of a game: each team with the ARM ITS BATTERS FACE — every
+// hitter row already carries his opposing pitcher, so side one's pitcher is
+// just the first row's pitcher fields.
+function sidesOf(g) {
+  const byTeam = {}
+  ;(g.players || []).forEach((p) => {
+    const t = p?.team || '?'
+    ;(byTeam[t] = byTeam[t] || []).push(p)
+  })
+  Object.values(byTeam).forEach((l) => l.sort((a, b) => (Number(a?.lineup_spot) || 99) - (Number(b?.lineup_spot) || 99)))
+  const order = [g.away, g.home].filter((t) => byTeam[t])
+  const teams = order.length === 2 ? order : Object.keys(byTeam)
+  return teams.map((t) => {
+    const lineup = byTeam[t]
+    const hr9 = Number(lineup[0]?.pitcher_hr9) || null
+    const l3hr9 = lineup[0]?.pitcher_l3_hr9 != null ? Number(lineup[0].pitcher_l3_hr9) : null
+    const trend = String(lineup[0]?.pitcher_trend_direction || '').toLowerCase()
+    return {
+      team: t,
+      lineup,
+      arm: lineup[0]?.pitcher_name || 'TBD',
+      throws: lineup[0]?.pitcher_throws || '',
+      hr9,
+      l3hr9,
+      trend,
+      era: Number(lineup[0]?.pitcher_era) || null,
+      projected: !!lineup[0]?.pitcher_projected,
+      stars: lineup.filter((p) => p?.weak_spot_flag).length,
+      // Same "trending bad" the Home page attack map already uses
+      // (pitcher_trend_direction === 'worsening', or his last-3-starts
+      // HR/9 has climbed at least 0.4 above his season figure) — reused
+      // here rather than invented fresh, so the two pages agree.
+      trendingBad: trend === 'worsening' || (l3hr9 != null && hr9 > 0 && l3hr9 >= hr9 + 0.4),
+      // ── THE SEASON HOMER FACTS (2026-09-03) ────────────────────────────
+      //
+      // Donovan: "add pitcher HR total on season, LHB/RHB, and a stats bubble
+      // on the game page by the pitchers."
+      //
+      // Every one of these is already in the payload and was already on the
+      // page -- three clicks away, inside the player card's Pitcher tab. The
+      // duel strip printed HR/9 alone, which is a RATE: 1.44 tells you he
+      // leaks, and nothing about whether that is 26 homers over a full season
+      // or 5 over four starts. The count and the rate answer different
+      // questions and the strip was only asking one of them.
+      //
+      // hr_vs_lhb + hr_vs_rhb sums exactly to hr_allowed on every arm on
+      // tonight's board (checked against the live payload before this was
+      // written), so the split is the total broken out, not a second
+      // measurement that can disagree with it.
+      //
+      // INNINGS, AS OF 2026-09-03. This note used to say IP could not be
+      // shown because pitcher_ip published on 0 of 160 rows. That turned out
+      // to be a three-line bot bug -- flatten_pitching parsed innings, used
+      // them to compute K/9, and did not return them -- and it is fixed. The
+      // bubble omits the row while the field is absent, so this reads
+      // correctly before and after the pipeline ships.
+      // Games started stays out: gamesStarted is not among the keys this
+      // codebase has ever read off a pitching stat blob, and this repo's
+      // standing rule is that an API's shape gets verified before it is
+      // used, not assumed. statsapi.mlb.com is outside this session's egress,
+      // so it could not be checked from here and was not guessed at.
+      hrTotal: num(lineup[0]?.pitcher_hr_allowed),
+      ip: num(lineup[0]?.pitcher_ip),
+      hrL: num(lineup[0]?.pitcher_hr_vs_lhb),
+      hrR: num(lineup[0]?.pitcher_hr_vs_rhb),
+      hr9L: num(lineup[0]?.pitcher_hr9_vs_lhb),
+      hr9R: num(lineup[0]?.pitcher_hr9_vs_rhb),
+      whip: num(lineup[0]?.pitcher_whip),
+      xhr: num(lineup[0]?.pitcher_xhr_allowed),
+      hrfb: num(lineup[0]?.pitcher_hr_fb_pct),
+      barrel: num(lineup[0]?.pitcher_barrel_allowed),
+      weakSide: String(lineup[0]?.pitcher_weak_side || '').toUpperCase(),
+    }
+  })
+}
+
+/** Null unless the feed actually published a number. 0 is a real value here
+ *  -- a starter with no homers allowed is exactly the arm you want to know
+ *  about -- so this cannot use the `Number(x) || null` idiom above it. */
+function num(v) {
+  const x = Number(v)
+  return Number.isFinite(x) ? x : null
+}
+
+/**
+ * ── THE STAT BUBBLE (2026-09-03) ────────────────────────────────────────────
+ *
+ * Donovan asked for a "stats bubble" on the arms. This is it: the rest of what
+ * the payload already knows about tonight's starter, one tap from the duel
+ * strip, without leaving the game you were looking at.
+ *
+ * A TAP, NOT A HOVER. Half the people reading this page are on a phone and a
+ * phone has no hover — a title= tooltip there is a fact that exists and cannot
+ * be read, which is the same bug that had the "what am I looking at" line
+ * folded shut everywhere. The ⓘ is a real button with a real hit area.
+ *
+ * stopPropagation on everything: this sits inside a game card whose own click
+ * handler opens the game. Without it, asking about the arm would swallow you
+ * into the deep dive.
+ *
+ * EVERY ROW IS SKIPPED WHEN THE FEED DOES NOT CARRY IT. Verified against the
+ * live slate before writing: hr_allowed, hr9, era, whip, hr_fb_pct and
+ * barrel_allowed are on 160/160 rows; the vs-LHB pair is on 142/160 (some arms
+ * have not faced enough lefties) and xhr_allowed on 151/160. So the bubble is
+ * built from what is there rather than from a fixed template with dashes in
+ * it — an em dash where a number should be reads as a broken panel, and it
+ * would be on one arm in nine.
+ */
+function ArmBubble({ s }) {
+  const [open, setOpen] = useState(false)
+  const rows = [
+    ['HR allowed', s.hrTotal != null ? String(s.hrTotal) : null, 'this season'],
+    ['Innings', s.ip ? s.ip.toFixed(1) : null, 'the sample every rate here is measured over'],
+    ['vs LHB', s.hrL != null || s.hr9L != null
+      ? `${s.hrL != null ? `${s.hrL} HR` : ''}${s.hrL != null && s.hr9L != null ? ' · ' : ''}${s.hr9L != null ? `${s.hr9L.toFixed(2)} HR/9` : ''}`
+      : null, 'left-handed bats'],
+    ['vs RHB', s.hrR != null || s.hr9R != null
+      ? `${s.hrR != null ? `${s.hrR} HR` : ''}${s.hrR != null && s.hr9R != null ? ' · ' : ''}${s.hr9R != null ? `${s.hr9R.toFixed(2)} HR/9` : ''}`
+      : null, 'right-handed bats'],
+    ['HR/9', s.hr9 != null ? s.hr9.toFixed(2) : null, 'season rate'],
+    ['Last 3 HR/9', s.l3hr9 != null ? s.l3hr9.toFixed(2) : null, 'his last three starts'],
+    ['xHR', s.xhr != null ? s.xhr.toFixed(1) : null, 'expected homers off contact quality — under his real count means he has been unlucky, over it means he has got away with some'],
+    ['HR/FB', s.hrfb != null ? `${(s.hrfb <= 1 ? s.hrfb * 100 : s.hrfb).toFixed(1)}%` : null, 'fly balls that left the yard'],
+    ['Barrel%', s.barrel != null ? `${(s.barrel <= 1 ? s.barrel * 100 : s.barrel).toFixed(1)}%` : null, 'the contact that does the damage'],
+    ['ERA', s.era != null ? s.era.toFixed(2) : null, ''],
+    ['WHIP', s.whip != null ? s.whip.toFixed(2) : null, ''],
+  ].filter(([, v]) => v)
+
+  if (!rows.length) return null
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignSelf: 'center' }}>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        aria-expanded={open}
+        aria-label={`Season stats for ${s.arm}`}
+        title={`Season stats for ${s.arm}`}
+        style={{
+          width: 18, height: 18, padding: 0, borderRadius: 999, cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          border: `1px solid ${open ? C.orange : C.border}`,
+          background: open ? 'rgba(249,115,22,.14)' : 'transparent',
+          color: open ? C.orange : C.text3, fontSize: 9, fontWeight: 900,
+          fontFamily: NUM_FONT, lineHeight: 1,
+        }}
+      >i</button>
+      {open && (
+        <>
+          {/* Tap-anywhere-to-close, under the bubble and over the card. A
+              popover you can only shut with the same 18px target you opened it
+              with is a popover people leave open. */}
+          <span
+            onClick={(e) => { e.stopPropagation(); setOpen(false) }}
+            style={{ position: 'fixed', inset: 0, zIndex: 60 }}
+          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute', top: 22, right: 0, zIndex: 61,
+              minWidth: 208, maxWidth: 'min(280px, 78vw)',
+              background: C.scrim, border: `1px solid ${C.border2}`, borderRadius: 10,
+              boxShadow: `0 10px 30px ${C.shadow}`, padding: '8px 10px 9px',
+              textAlign: 'left', whiteSpace: 'normal',
+            }}
+          >
+            <div style={{
+              fontSize: 9, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
+              color: C.text3, fontFamily: NUM_FONT, marginBottom: 6,
+            }}>
+              {s.arm}{s.throws ? ` · ${s.throws}HP` : ''}
+            </div>
+            {rows.map(([label, value, note]) => (
+              <div key={label} title={note || undefined} style={{
+                display: 'flex', alignItems: 'baseline', gap: 8,
+                fontSize: 10, lineHeight: 1.75,
+              }}>
+                <span style={{ color: C.text3 }}>{label}</span>
+                <span style={{
+                  marginLeft: 'auto', fontFamily: NUM_FONT, fontWeight: 700, color: C.text,
+                  whiteSpace: 'nowrap',
+                }}>{value}</span>
+              </div>
+            ))}
+            {s.weakSide === 'L' || s.weakSide === 'R' ? (
+              <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
+                The bot has him weakest to{' '}
+                <b style={{ color: C.orange }}>{s.weakSide === 'L' ? 'left' : 'right'}-handed</b> bats.
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
+    </span>
+  )
+}
+
+// slateMode / initialMode (2026-08-16, tab consolidation): both OPTIONAL with
+// safe defaults because this change lands before Dashboard's rewiring does —
+// the current mount passes neither and must keep rendering identically.
+//   · slateMode — threaded through to the Live view's AtThePlate (which needs
+//     it for Today/Tomorrow awareness); 'today' until the owner wires the real
+//     one in.
+//   · initialMode — lets the old #tab=atplate deep link open this tab already
+//     on the Live view once routing lands. First render only: it seeds the
+//     mode state and is never read again, so the pills stay in charge.
+export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateMode = 'today', initialMode }) {
+  // 2026-08-30, Donovan: "have the games open up full table instead of
+  // cards first, the game chips take up too much screen space." Table is
+  // the SAME sortable/filterable board ProjectedOutput already builds for
+  // Rundown -- reused here as the landing view instead of a second table
+  // implementation. Cards and Boxes are one tap away, unchanged.
+  const [gview, setGview] = useState('table')
+  // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
+  //
+  // Donovan: "make sure the live wire and games can update the lineups — does
+  // that work?" It didn't. Every row on this tab was ordered by the slate's
+  // `lineup_spot`, which is whatever the bot last wrote — so between cron runs
+  // a posted card could move a hitter three slots or scratch him entirely and
+  // this tab would keep showing the old order with a green "✓ confirmed"
+  // badge next to it.
+  //
+  // fetchLiveSlate now reads pre-game boxscores as well as in-game ones (see
+  // lib/liveSlate.js — verified against a Preview game before building this),
+  // so the actual card is available here. Two minutes is the right cadence: a
+  // lineup posts once and then barely moves, and the module-level 15s cache
+  // means a tab with the wire above it shares the same fetch anyway.
+  //
+  // TWO CADENCES, because this snapshot now feeds two different things. A
+  // lineup card posts once and barely moves — two minutes is generous. A SCORE
+  // moves every half inning, and a card showing 3-1 in the 6th when it is
+  // actually 6-1 in the 8th is worse than showing nothing. So the interval
+  // follows the slate: 30s while anything is live, 2 minutes otherwise. The
+  // module-level 15s cache means a tab with the wire above it still shares one
+  // fetch rather than doubling the requests.
+  const [live, setLive] = useState(null)
+  // ── WHEN, AND WHETHER (2026-09-01) ──────────────────────────────────────
+  // Donovan: "live data feels stale or missing." The poll below used to
+  // swallow every failure and skip every hidden-tab tick, which is the right
+  // behaviour and the wrong silence: come back to the phone after four
+  // minutes and the page showed a four-minute-old score with nothing saying
+  // so, and if statsapi had dropped a request it showed nothing at all (see
+  // lib/liveSlate.js for that half). So: the page re-pulls the moment it is
+  // looked at again (visibilitychange / focus), it keeps the last good
+  // snapshot when a pull fails, and it prints the age of what it is showing
+  // with a tap to refresh. `liveTick` only exists to re-render the age.
+  const [liveMeta, setLiveMeta] = useState({ at: 0, failedAt: 0, stale: false, pulling: false })
+  const [, setLiveTick] = useState(0)
+  const pullRef = useRef(null)
+  useEffect(() => {
+    let alive = true
+    let t = null
+    const pull = (force = false) => {
+      setLiveMeta((m) => ({ ...m, pulling: true }))
+      return fetchLiveSlate({ force }).then((s) => {
+        if (!alive) return
+        if (s) setLive(s)
+        setLiveMeta({ ...liveSlateStatus(), pulling: false })
+        const anyLive = s?.games?.some((x) => x.state === 'Live')
+        clearInterval(t)
+        t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 30000 : 120000)
+      }).catch(() => { if (alive) setLiveMeta({ ...liveSlateStatus(), pulling: false }) })
+    }
+    pullRef.current = pull
+    pull()
+    const onShow = () => { if (!document.hidden) pull(true) }
+    document.addEventListener('visibilitychange', onShow)
+    window.addEventListener('focus', onShow)
+    const tick = setInterval(() => { if (!document.hidden) setLiveTick((v) => v + 1) }, 5000)
+    return () => {
+      alive = false; clearInterval(t); clearInterval(tick)
+      document.removeEventListener('visibilitychange', onShow)
+      window.removeEventListener('focus', onShow)
+    }
+  }, [])
+  // 🔗 build a pair straight off the grid (2026-08-09). Two legs max; tapping
+  // a third rolls the oldest off so it always reads as "these two".
+  const [pairLegs, setPairLegs] = useState([])
+  const [pairMarket, setPairMarket] = useState('hr')
+  const pairIds = useMemo(() => new Set(pairLegs.map((p) => Number(p?.player_id ?? p?.id))), [pairLegs])
+  const togglePairLeg = (p) => {
+    const id = Number(p?.player_id ?? p?.id)
+    if (!id) return
+    setPairLegs((cur) => {
+      if (cur.some((x) => Number(x?.player_id ?? x?.id) === id)) {
+        return cur.filter((x) => Number(x?.player_id ?? x?.id) !== id)
+      }
+      return [...cur, p].slice(-2)
+    })
+  }
+  // useState's initializer runs once, which is exactly the contract initialMode
+  // wants: it wins over 'default' on FIRST render only, then the buttons own it.
+  const [mode, setMode]         = useState(initialMode || 'default')
+  // 2026-08-12, Donovan: "maybe be able to order h/9 or whip and score."
+  // Default stays chronological on purpose — GameStrip's own header comment
+  // is explicit about why ("you read a slate chronologically -- re-ranking
+  // by strength makes you hunt for the 7:05 game you're about to bet"), and
+  // that's still true. This adds sorting as something you turn ON, not a
+  // replacement for the default.
+  const [sortBy, setSortBy]     = useState('time')
   const [activeGame, setActive] = useState(null)
+  // ── WHICH SECTION OF THE OPEN GAME YOU ARE LOOKING AT (2026-08-15) ────────
+  //
+  // Donovan, on the lineups: "like the lineups should be just easy accessible
+  // in the same game bubble when you're checking out the game inside, instead
+  // of click off to lineups... just a little shift to see the pitcher weak
+  // spots and what the pitcher is doing to that spot." And, separately, twice:
+  // "i keep having to scroll up to scroll back down."
+  //
+  // Opening a game used to render, in one column: the deep dive (cockpit, air,
+  // both arms, both head-to-head tables, storylines), then the full 30-column
+  // lineup table, then the pick cards. Four screens of a single game, with the
+  // lineup buried in the middle of it — so the lineup was easier to reach from
+  // the Lineups MODE, which is exactly the trip he is asking not to make.
+  //
+  // One state, not one per game: only one card is open at a time. It is also
+  // deliberately NOT reset when you open a different game — if you are reading
+  // spot damage down the slate, the next game should open on spot damage
+  // rather than making you re-pick the pill twelve times.
+  // Phone-only behaviour on this tab is real behaviour, not styling: the game
+  // switcher welds to the bottom edge and the selector strip folds. useIsPhone
+  // is the honest tool (MobileFold's own note explains why a media query is
+  // not). Declared HERE, with the rest of the state, because this component
+  // has three early returns below and a hook may never sit after one.
+  // ── TARGETING AND FILTERING THE SLATE (2026-08-23) ───────────────────────
+  // Donovan: "make it so i can filter games or like target game."
+  //
+  // Fifteen cards is a slate you scan; three is a slate you WORK. Two controls,
+  // both on the games themselves rather than in a menu:
+  //   · ⭐ TARGET — tap the star on any chip. Targets survive a reload and are
+  //     per-browser (localStorage), because "the games I care about tonight"
+  //     is a working set, not a preference worth a round trip.
+  //   · THE RAIL — All · Live · Upcoming · Final · ⭐ Targets, each with its
+  //     own count, so the size of a slice is visible BEFORE you click it (the
+  //     universal filter's own rule).
+  //
+  // The filter is applied HERE, to `games`, so the card grid, the expanded
+  // read and the phone's bottom switcher all move together. Filtering in
+  // GameStrip alone would have left the switcher offering games the grid no
+  // longer showed.
+  const [targets, setTargets] = useState(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem('moonshot_target_games_v1') || '[]') } catch { return [] }
+  })
+  const [gfilter, setGfilter] = useState('all')
+  const toggleTarget = (pk) => setTargets((cur) => {
+    const next = cur.includes(pk) ? cur.filter((x) => x !== pk) : [...cur, pk]
+    try { localStorage.setItem('moonshot_target_games_v1', JSON.stringify(next)) } catch { /* private mode */ }
+    return next
+  })
+
+  const isPhone = useIsPhone(760)
+  const [panel, setPanel] = useState('read')
+  // ── BOT OUTPUT, MERGED INTO DEFAULT (2026-08-18) ──────────────────────────
+  // Donovan: "remove the bot output thing like how it has the bars just merge
+  // that with the default somehow but do it suitable to like just a clickable
+  // [on] the picks to see that look." Bot Output used to be a fourth whole-page
+  // mode — its own button up top, its own copy of the grid — that differed
+  // from Default in exactly one place: the open game's pick cards rendered as
+  // five colour bars instead of the normal PlayerCard. That's a one-card
+  // decision, not a whole-page one, so it's now a toggle that lives where the
+  // picks actually are (the "This game's bot picks" header) instead of a mode
+  // button at the top that reloads the entire grid to change one section of
+  // it. `barsOn` replaces every `mode === 'botview'` check below.
+  const [barsOn, setBarsOn] = useState(false)
   // Lineups mode focus (2026-08-06): clicking a bubble used to scroll the
   // page to a card buried under ten others — "flies all the way to the
   // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
@@ -75,7 +555,63 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
   const [lineupFocus, setLineupFocus] = useState(null)
   const gameRefs                = useRef({})
 
-  const games = useMemo(() => groupGames(players), [players])
+  const allGames = useMemo(() => groupGames(players), [players])
+
+
+
+  // ── LIVE STATE, JOINED ONTO THE CARDS (2026-08-18) ────────────────────────
+  // Donovan: "the box-score and live-game design pass against your MLB/ESPN/
+  // Apple screenshots." The single biggest gap next to those three: every one
+  // of them leads a live game's card with the score and the inning. This site's
+  // GameStrip cards always showed first-pitch TIME, live or not, because the
+  // pregame `players` rows groupGames() builds cards from have no live score
+  // on them at all — the `live` snapshot above already carries it (state,
+  // awayScore/homeScore, inning, half, outs, on1/on2/on3), it just never got
+  // handed to the strip. Keyed by String(pk) since groupGames' game_pk can be
+  // a bot-composed string key on an unpublished game while the live snapshot's
+  // pk is always the league's numeric gamePk — comparing them loosely would
+  // silently match nothing on exactly the slates where "is anyone in mid-game
+  // right now" matters most.
+  const liveByPk = useMemo(() => {
+    const m = new Map()
+    ;(live?.games || []).forEach((g) => { if (g?.pk != null) m.set(String(g.pk), g) })
+    return m
+  }, [live])
+
+  // ── DECLARED AFTER liveByPk, DELIBERATELY (2026-08-23) ────────────────────
+  // These read `liveByPk` to tell a live game from a finished one. Written
+  // above its `const` they threw "Cannot access 'liveByPk' before
+  // initialization" on every render — a temporal dead zone, which `next build`
+  // compiles happily and only a browser ever sees. Caught in the render, not
+  // in review. If either moves, they move together.
+  // The four states a game can be in tonight, counted before they are offered.
+  const gameState = (g) => {
+    const l = liveByPk?.[g.game_pk]
+    if (l?.state === 'Live') return 'live'
+    if (l?.state === 'Final' || isPast(g.game_time)) return 'final'
+    return 'upcoming'
+  }
+  // Donovan: "add like trending bad filter on the games page for pitchers"
+  // (2026-08-28) — either side's starter counted as trending bad, reusing
+  // sidesOf's own trendingBad flag so this reads exactly the same signal
+  // the Home page's attack map already highlights, not a second definition.
+  const hasTrendingBadPitcher = (g) => sidesOf(g).some((s) => s.trendingBad)
+  const gCounts = useMemo(() => {
+    const c = { all: allGames.length, live: 0, upcoming: 0, final: 0, targets: 0, trendingPitcher: 0 }
+    allGames.forEach((g) => {
+      c[gameState(g)] += 1
+      if (targets.includes(g.game_pk)) c.targets += 1
+      if (hasTrendingBadPitcher(g)) c.trendingPitcher += 1
+    })
+    return c
+  }, [allGames, liveByPk, targets])
+
+  const games = useMemo(() => {
+    if (gfilter === 'all') return allGames
+    if (gfilter === 'targets') return allGames.filter((g) => targets.includes(g.game_pk))
+    if (gfilter === 'trendingPitcher') return allGames.filter(hasTrendingBadPitcher)
+    return allGames.filter((g) => gameState(g) === gfilter)
+  }, [allGames, gfilter, targets, liveByPk])
 
   // Group games by time slot
   const slots = useMemo(() => {
@@ -102,48 +638,204 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
     }
   }, [games])
 
+  /* ── THE MODE ROW (2026-08-16: + ⚾ Live) ─────────────────────────────────
+     One const because it now renders from two returns — the grid page and the
+     Live view below — and two hand-maintained copies of a four-button row is
+     how they drift. The dot on the Live pill reuses the wire's green-dot
+     idiom (LiveWire.js, PitcherChips) and costs nothing new: this tab already
+     polls fetchLiveSlate for the lineup card watch, so "is anything actually
+     in progress" is a read off state we were holding anyway — no extra
+     fetch. */
+  const anyLive = !!live?.games?.some((x) => x.state === 'Live')
+  const modeRow = (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
+      <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
+      <button onClick={() => setMode('live')} style={{ ...btnStyle(C.green, mode === 'live'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {anyLive && (
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%', background: C.green,
+            boxShadow: `0 0 6px ${C.green}`, flexShrink: 0,
+          }} />
+        )}
+        ⚾ Live
+      </button>
+    </div>
+  )
+
   if (!games.length) return <Empty text="No games found yet." />
 
   const scrollTo = (pk) => {
-    setActive(pk)
     if (mode === 'lineups') {
+      setActive(pk)
       // focus, don't fly — re-clicking the same bubble releases it
       setLineupFocus((cur) => (cur === pk ? null : pk))
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    const el = gameRefs.current[pk]
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // card grid: clicking a card TOGGLES its in-place deep-dive below the
+    // grid — re-click closes, a new card switches and scrolls to the panel
+    setActive((cur) => {
+      const next = cur === pk ? null : pk
+      if (next != null) setTimeout(() => {
+        const el = gameRefs.current[pk]
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 60)
+      return next
+    })
   }
 
+  // 📋 THE FOLD, DONE RIGHT THIS TIME. Round one injected this branch INSIDE
+  // the live-poll effect — the render audit found the pill turned orange and
+  // showed nothing, which is exactly what Donovan reported. It now sits at
+  // the real return, after every hook, so the hook order never changes.
+  // allPlayers, not players: the box score of a game is not subject to the
+  // header's team filter — filtering a box makes games appear to lose their
+  // roster.
+  if (gview === 'boxes') {
+    return (
+      <div>
+        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <Boxes players={allPlayers.length ? allPlayers : players} watchIds={watchIds} onPlayerClick={onPlayerClick} results={results} />
+      </div>
+    )
+  }
+
+  // 📊 TABLE — the new default (2026-08-30). Same board Rundown uses, so a
+  // filter or sort learned there works here too. allPlayers, not players,
+  // same reasoning as Boxes just above: this view isn't subject to the
+  // header's team filter.
+  if (gview === 'table') {
+    return (
+      <div>
+        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <ProjectedOutput games={games} players={allPlayers.length ? allPlayers : players} watchIds={watchIds} />
+      </div>
+    )
+  }
   return (
     <div>
+      <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+      {/* 🌬 AirBoard used to mount here (2026-08-15, same day it was built).
+          Deleted: components/ParkBoard.js — "Tonight's conditions", the
+          launch-pads board on Power and behind Scoreboard's "Parks ranked" —
+          has done park × weather since 08-08, richer than the duplicate was.
+          Two park boards diverging is the exact two-answers disease this
+          repo keeps finding; Donovan's own screenshots surfaced it within
+          the hour. Park-factor work goes in ParkBoard. */}
       <PanelTitle
-        title="Games"
-        sub={`${games.length} games · ${slots.length} time slots`}
-        right={
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
-            <button onClick={() => setMode('botview')} style={btnStyle(C.cyan,   mode === 'botview')}>Bot Output</button>
-            <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
-          </div>
-        }
+        title="Slate"
+        sub={/* ON A PHONE, THE COUNT AND NOTHING ELSE (2026-08-23). Donovan:
+          "everyhing on the games for moble needs to be fixed." Between the tab
+          bar and the first game card sat this sentence, the mode row, another
+          five-line paragraph and the sort row — three screens of prose
+          describing controls that are right there. The words are not wrong,
+          and they stay on desktop where they cost nothing. */
+          isPhone
+          ? `${games.length} games · first-pitch order`
+          : `${games.length} games · ${slots.length} time slots · ${
+            mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
+            : 'the slate as game cards in first-pitch order — sort them any way below, tap one and switch between its read, its lineups, the head-to-head and the picks in place'
+          }`}
+        right={modeRow}
       />
 
-      {/* Game selector. Was a sticky bar of matchup pills -- it told you a
-          game existed and nothing else, so picking one meant opening several
-          to find the live one. The cards carry the deciding numbers. */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 20, background: '#09090b',
-        paddingTop: 4, paddingBottom: 8, marginBottom: 14,
-        borderBottom: `1px solid ${C.border}`,
-      }}>
-        <GameStrip games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} />
-      </div>
+      {/* ONE PLAIN LINE PER MODE (2026-08-09 spoon-feed pass). The three mode
+          buttons above changed the whole page and the sub-line described them
+          in shorthand ("heat-sized game cards"); this says which decision each
+          mode is for, in words, and it changes when you switch. */}
+      {/* Phone: this paragraph is what TabExplainer's ❓ pill is FOR — one
+          copy of the page's own explanation, on tap, not two on every visit. */}
+      {/* FOLDED EVERYWHERE NOW (2026-08-23) — it was hidden on a phone and
+          three lines tall on a desktop; same words, one tap, both places. */}
+      {!isPhone && <WhatThis maxWidth={700}>
+        {mode === 'lineups'
+          ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
+          : mode === 'live'
+          ? 'what is happening right now — the hitter at the plate, his zone map and spray, and who is coming up behind him. This is the At the Plate room, in place, so you do not leave the slate to watch it.'
+          // 2026-08-16: this used to say "bigger, brighter cards are the
+          // matchups where the board stacks highest". The quiet-style pass
+          // retired heat-sizing and heat-tinting — the cards are one size on
+          // a flat surface now, and the heat is carried by the band glyph and
+          // the #rank. A page describing an affordance it no longer has is
+          // worse than one describing none, so this says what is actually
+          // true of the grid you are looking at.
+          : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
+      </WhatThis>}
+
+      {/* Sort control (2026-08-12) — not shown in Lineups mode, where the strip
+          is a jump bar, not the thing you're reading. Time is the default and
+          matches first pitch; the other options re-order the same cards by a
+          single number instead of leaving you to eyeball the heat-sizing. */}
+      {/* ── ON A PHONE, ONE FOLD FOR ALL OF IT (2026-09-01) ─────────────────
+          Donovan, on the Games page: "too much per game card on mobile."
+          Measured on a 430px screen: between the view pills and the first
+          game card sat the sort row (two lines), the explainer, and the
+          off-the-bot strip — the card itself started a full screen down.
+          These fold into one closed line on a phone; desktop is unchanged
+          (MobileFold renders its children bare there). */}
+      <MobileFold title="Sort & filters" summary={sortBy === 'time' ? 'first-pitch order' : `sorted by ${sortBy}`} accent={C.orange} maxWidth={760}>
+      {mode !== 'lineups' && (
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
+          {[['time', 'Time'], ['gs', 'Score'], ['air', 'Best air'], ['set', 'Lineups in'], ['hr9', 'Worst HR/9'], ['whip', 'Worst WHIP'], ['lowk', 'Lowest K']].map(([k, label]) => (
+            <button key={k} onClick={() => setSortBy(k)} style={{
+              padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+              border: `1px solid ${sortBy === k ? C.orange : C.border}`,
+              background: sortBy === k ? 'rgba(249,115,22,.12)' : 'transparent',
+              color: sortBy === k ? C.orange : C.text3,
+            }}>{label}</button>
+          ))}
+        </div>
+      )}
+
+      {/* Lineups keeps the strip as its sticky jump bar; Default and Bot
+          Output render the card grid as the page itself, below. */}
+      {mode === 'lineups' && (
+        // top: var(--hdr-h) — NOT 0 (2026-08-16). The site header is itself
+        // sticky at top:0 and 85–133px tall depending on width, so a strip
+        // pinned at 0 pins UNDERNEATH it and is never visible; this jump bar
+        // has never actually worked. Header.js measures itself into --hdr-h.
+        // (The same pass fixed body{overflow-x:hidden}, which was breaking
+        // sticky site-wide — see MobileCSS.js. Both verified by screenshot.)
+        <div style={{
+          position: 'sticky', top: 'var(--hdr-h, 86px)', zIndex: 20, background: C.bg,
+          paddingTop: 6, paddingBottom: 8, marginBottom: 14,
+          borderBottom: `1px solid ${C.border}`,
+          // ── THE "PAGE BREAK" FIX (2026-08-18) ────────────────────────────
+          // Donovan: "when scroll down it does the dumb page break thing."
+          // Header.js condenses on scroll and its own height (--hdr-h) drops
+          // by ~110px in a single frame when it does — this strip's `top`
+          // reads that variable, so it used to teleport up by 110px+ in one
+          // frame too, which is the jump he's describing. A `top` transition
+          // glides this strip to its new offset over the same beat instead
+          // of snapping to it. See Header.js's own note on why the animation
+          // lives here and not on the header's height itself (that path was
+          // tried first and had a worse bug: it could disable condensing
+          // entirely on a short page).
+          transition: 'top .18s ease',
+        }}>
+          <GameFilterRail
+            value={gfilter}
+            onChange={(k) => { setGfilter(k); setActive(null) }}
+            counts={gCounts}
+          />
+          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+            <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+          </StripFold>
+        </div>
+      )}
 
       {/* The slate's blind spot: hitters batting tonight the bot never
           scored. Collapsed by default, fetches only on expand. */}
       <OffBot players={players} onPlayerClick={onPlayerClick} />
+      </MobileFold>
+
+      {/* ── HOW OLD IS WHAT YOU ARE LOOKING AT (2026-09-01) ─────────────────
+          One line, always: the age of the live snapshot and a tap to pull
+          again. Red when the last pull failed, because a score that stopped
+          updating and a score that is not moving look identical otherwise. */}
+      <LiveStamp meta={liveMeta} anyLive={(live?.games || []).some((x) => x.state === 'Live')} onRefresh={() => pullRef.current?.(true)} />
 
       {/* LINEUPS — every game's confirmed batting orders at once, 1 through
           9, both teams side by side. The site had lineup data on every row
@@ -154,10 +846,124 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
           orders facing each other around a center spine, each hitter a
           full-size row with an HR-score bar, badges, and his line vs the
           arm he faces. Chips grew — a lineup you squint at isn't a tool. */}
+      {/* 📱 PHONE FOLD (2026-08-09). The lineups wall is one card per game and
+          each card is two nine-man orders plus a header and a pick strip —
+          call it 400px a game, so twelve games is thirty screens. It is the
+          longest single scroll on the site. Folded on a phone unless a game is
+          already focused, in which case there is exactly one card and folding
+          it would just hide what the user asked for. Desktop is untouched. */}
       {mode === 'lineups' && (
+        <MobileFold
+          // remount when the focus changes so tapping a game bubble in the
+          // sticky strip OPENS the fold on that game rather than silently
+          // focusing a card behind a closed door
+          key={lineupFocus || 'all'}
+          title="⚾ Every batting order"
+          summary={lineupFocus ? 'the game you picked' : `${games.length} games · tap a game bubble above for slot-by-slot depth`}
+          count={lineupFocus ? 1 : games.length}
+          accent={C.green}
+          defaultOpen={!!lineupFocus}
+        >
+        {/* Compact and capped at six on this tab, deliberately. Donovan:
+            "make sure it doesn't take up the full page or throw it off for the
+            live at-bats on the games tab." Games is a grid of cards and this is
+            a header for it, not the content — narrower tiles, a shorter cap,
+            and it scrolls sideways rather than wrapping into a second row that
+            would push the first game card below the fold. */}
+        <LiveAtBats players={players} watchIds={watchIds} compact max={6}
+          onGo={(pk) => setLineupFocus(pk)} />
+
+        {/* ── CARD WATCH (2026-08-10) ────────────────────────────────────
+            Donovan: "what would be the best way to incorporate that so we can
+            see the lineups."
+
+            Per-game annotation answers "is THIS order real" once you are
+            already looking at a game. It does not answer the question you
+            actually open the site with at 4pm, which is "has anything changed
+            since the bot ran." That is a slate-wide question and it gets a
+            slate-wide answer: how many cards are up, and the names — yours
+            first — that the card disagrees with the bot about.
+
+            It renders nothing at all when there is nothing to say. A strip
+            that says "0 changes" every night trains you to stop reading it. */}
+        {(() => {
+          if (!live?.games?.length) return null
+          const inPlay = live.games.filter((x) => !x.postponed)
+          const postedN = inPlay.filter((x) => x.lineupPosted).length
+          const moved = []
+          const out = []
+          ;(players || []).forEach((p) => {
+            const st = lineupStatus(live, mlbId(p), p?.game_pk, p?.lineup_spot)
+            if (st.scratched) out.push(p)
+            else if (st.moved) moved.push({ p, slot: st.slot })
+          })
+          if (!postedN) return null
+          // Picks and watchlist first — those are the ones with money or
+          // attention on them; the rest are context.
+          const mine = (p) => (String(p?.game_pick_role || '').trim() ? 0 : watchIds?.has(playerId(p)) ? 1 : 2)
+          out.sort((a, b) => mine(a) - mine(b))
+          moved.sort((a, b) => mine(a.p) - mine(b.p))
+          return (
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
+              padding: '8px 12px', marginBottom: 12, borderRadius: 11,
+              // A scratched player is a bad outcome for a pick riding on him
+              // -- the site-wide verdict pair, not a hand-typed red.
+              border: `1px solid ${out.length ? alpha(verdictInk(false).color, 0.4) : C.border}`,
+              background: out.length ? verdictWash(false, 0.06) : C.bg2,
+            }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: C.text3 }}>
+                Lineup cards
+              </span>
+              {/* "All posted" is a data-completeness state, not a win/loss
+                  verdict -- the false side is neutral (C.text2), not a
+                  losing colour -- so this reads C.green (byte-identical to
+                  the old #4ade80) rather than verdictInk, matching how this
+                  same "lineup confirmed" concept is already coloured a few
+                  hundred lines down in this file. */}
+              <span title="Games where the league has posted all nine on both sides."
+                style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: postedN === inPlay.length ? C.green : C.text2 }}>
+                {postedN}/{inPlay.length} posted
+              </span>
+              {!out.length && !moved.length && (
+                <span style={{ fontSize: 10, color: C.text3 }}>every posted card matches the bot&apos;s order</span>
+              )}
+              {out.slice(0, 6).map(({ ...p }) => (
+                <button key={`o${playerId(p)}`} onClick={() => { setLineupFocus(p?.game_pk || null); onPlayerClick?.(p) }}
+                  title={`Not in tonight's posted lineup — the bot had him at #${p?.lineup_spot ?? '?'}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                    padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    // Scratched = the bad side of the verdict pair, not a
+                    // hand-typed red.
+                    border: `1px solid ${alpha(verdictInk(false).color, 0.5)}`, background: verdictWash(false, 0.12), color: verdictInk(false).color,
+                  }}>
+                  🚫 {String(p?.name || '').split(' ').slice(-1)[0]} out
+                </button>
+              ))}
+              {moved.slice(0, 6).map(({ p, slot }) => (
+                <button key={`m${playerId(p)}`} onClick={() => { setLineupFocus(p?.game_pk || null); onPlayerClick?.(p) }}
+                  title={`Batting ${slot} tonight — the bot had him at #${p?.lineup_spot}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                    padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    border: `1px solid ${C.orange}66`, background: 'rgba(249,115,22,.12)', color: C.orange,
+                  }}>
+                  ↕ {String(p?.name || '').split(' ').slice(-1)[0]} #{p?.lineup_spot}→{slot}
+                </button>
+              ))}
+              {(out.length > 6 || moved.length > 6) && (
+                <span style={{ fontSize: 9.5, color: C.text3 }}>
+                  +{Math.max(0, out.length - 6) + Math.max(0, moved.length - 6)} more
+                </span>
+              )}
+            </div>
+          )
+        })()}
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           {lineupFocus && (
-            <button onClick={() => setLineupFocus(null)} style={{
+            <button onClick={() => { setLineupFocus(null); setActive(null) }} style={{
               flex: '1 1 100%', textAlign: 'left', cursor: 'pointer',
               background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 9,
               padding: '6px 12px', fontSize: 11, fontWeight: 700, color: C.text3,
@@ -170,6 +976,46 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
               ;(byTeam[t] = byTeam[t] || []).push(p)
             })
             Object.values(byTeam).forEach((l) => l.sort((a, b) => (Number(a?.lineup_spot) || 99) - (Number(b?.lineup_spot) || 99)))
+
+            // ── THE POSTED CARD REPLACES THE BOT'S NINE (2026-08-10) ────────
+            //
+            // Once the league posts, this stops being the bot's guess at an
+            // order and becomes the order. Three things change:
+            //
+            //   · rows sort by the REAL slot, not lineup_spot
+            //   · hitters in the card the bot never scored are shown anyway,
+            //     dimmed, with no number — the alternative is a lineup card
+            //     that is missing a man, which is how "the bot didn't have
+            //     them at all" happens
+            //   · slate hitters who are NOT on the card fall to the bottom,
+            //     struck through, instead of quietly vanishing
+            //
+            // Before it posts, nothing here changes: the bot's projection is
+            // still the best available answer and it is labelled as one.
+            const liveG = live?.games?.find((x) => Number(x.pk) === Number(g.game_pk))
+            const cardPosted = !!liveG?.lineupPosted
+            if (cardPosted) {
+              Object.keys(byTeam).forEach((t) => {
+                const side = t === g.away ? 'away' : 'home'
+                const card = liveG.lineup?.[side] || []
+                if (card.length < 9) return
+                // mlbId, NOT Number(playerId) — playerId is the composite row
+                // key "id-gamePk" and Number() of it is NaN, which collapses
+                // every slate row into one Map entry. See lib/player.js.
+                const byId = new Map(byTeam[t].map((p) => [mlbId(p), p]))
+                const ordered = card.map((r) => {
+                  const hit = byId.get(Number(r.id))
+                  if (hit) { byId.delete(Number(r.id)); return hit }
+                  return {
+                    name: r.name, player_id: r.id, team: t,
+                    game_pk: g.game_pk, lineup_spot: r.slot, off_slate: true,
+                  }
+                })
+                // Whoever is left was on the slate and is not on the card.
+                byTeam[t] = [...ordered, ...byId.values()]
+              })
+            }
+
             const any = (g.players || [])[0] || {}
             const temp = Number(any.weather_temp_f) || 0
             const wind = Number(any.weather_wind_mph) || 0
@@ -184,20 +1030,100 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                 border: `1px solid ${isSel ? C.orange : C.border}`, borderRadius: 13, overflow: 'hidden',
                 boxShadow: isSel ? `0 0 24px -8px ${C.orange}` : 'none', scrollMarginTop: 160,
               }}>
-                {/* header: matchup + conditions, PF-style but ours */}
-                <div style={{
+                {/* ── HEADER IS NOW THE FOCUS HANDLE (2026-08-18) ────────────
+                    Donovan: "make the lineup click side more intuitive." Before
+                    this, the ONLY way to zero in on one game's lineup card was
+                    the sticky bubble strip pinned to the top of the page — if
+                    you were already three cards down and wanted this one full
+                    width, you had to scroll all the way back up to click its
+                    bubble. Default mode never had that problem: its card
+                    header is the click target, right where your eyes already
+                    are. Lineups mode now works the same way — click this bar
+                    to bring this card to full width, click it again (or the
+                    "← All lineups" link above) to go back to the grid. The
+                    strip still works too; both paths land on the same state. */}
+                <div
+                  onClick={() => {
+                    // Mirrors scrollTo()'s bubble-click branch (line ~436),
+                    // minus the scroll-to-top — you're already looking at the
+                    // card, so keep it in view. Setting activeGame too keeps
+                    // the sticky strip's highlighted bubble in sync with
+                    // whichever card is actually focused below it.
+                    const next = lineupFocus === g.game_pk ? null : g.game_pk
+                    setLineupFocus(next)
+                    setActive(next)
+                  }}
+                  title={isSel ? 'Back to every lineup' : 'Focus this game — full width, slot by slot'}
+                  style={{
                   display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
                   padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
+                  cursor: 'pointer',
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
-                  <span style={{ fontSize: 10, color: g.lineup_confirmed ? '#4ade80' : C.text3, fontFamily: NUM_FONT, fontWeight: 700 }}>
-                    {g.lineup_confirmed ? '✓ confirmed' : '◻ projected'}
-                  </span>
+                  {/* ── THE SCORE, WHILE IT IS HAPPENING (2026-08-10) ──────
+                      liveSlate has carried homeScore/awayScore/inning/half
+                      since the wire was built; this card just never asked for
+                      them, so a lineup you were reading at 8pm gave no hint
+                      that the game was in the 6th and 5-1. Everything needed
+                      is already in the snapshot the card watch above fetched
+                      — this is display cost only, no extra request. */}
+                  {liveG && (liveG.state === 'Live' || liveG.state === 'Final') && (
+                    <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, fontFamily: NUM_FONT }}>
+                      <span style={{
+                        fontSize: 13, fontWeight: 900,
+                        color: liveG.state === 'Live' ? C.text : C.text2,
+                      }}>{liveG.awayScore ?? 0}–{liveG.homeScore ?? 0}</span>
+                      {liveG.state === 'Live' ? (
+                        <span title={liveG.delayed ? liveG.detail : `${liveG.half} ${liveG.inning}`}
+                          // Delayed/live is a game STATE, not a win/loss
+                          // verdict, so this stays the byte-identical
+                          // C.green rather than routing through verdictInk.
+                          style={{ fontSize: 10, fontWeight: 800, color: liveG.delayed ? C.yellow : C.green }}>
+                          {liveG.delayed ? liveG.statusLabel
+                            : `${/^top/i.test(liveG.half) ? '▲' : /^bot/i.test(liveG.half) ? '▼' : '·'}${liveG.inning ?? ''}`}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 10, fontWeight: 800, color: C.text3 }}>
+                          {liveG.statusLabel || 'F'}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {/* THE BADGE NOW ASKS THE LEAGUE (2026-08-10). It used to
+                      read the bot's own lineup_confirmed flag, which is only
+                      as fresh as the last cron run — so it could say
+                      "✓ confirmed" over an order the card had already
+                      changed. Live posting wins; the bot's flag is the
+                      fallback for before the card is up. */}
+                  {(() => {
+                    const anyPk = (g.players || []).find((x) => x?.game_pk)?.game_pk
+                    const posted = !!live?.games?.find((x) => Number(x.pk) === Number(anyPk))?.lineupPosted
+                    // Three-tier trust ladder (league-posted > bot-confirmed
+                    // > neither), not a verdict pair -- posted reads the
+                    // byte-identical C.green; the middle tier is the site's
+                    // established gold accent with no matching C token (the
+                    // same exception the Results.js/Pairs.js passes
+                    // documented for their own uses of this gold), left
+                    // literal on purpose.
+                    const col = posted ? C.green : g.lineup_confirmed ? '#FCD34D' : C.text3
+                    return (
+                      <span title={posted ? 'The league has posted tonight’s card — these are the real nine.'
+                        : g.lineup_confirmed ? 'The bot saw a confirmed lineup on its last run; the league hasn’t posted an update since.'
+                        : 'No card posted yet — this order is the bot’s projection.'}
+                        style={{ fontSize: 10, color: col, fontFamily: NUM_FONT, fontWeight: 700 }}>
+                        {posted ? '✓ lineup posted' : g.lineup_confirmed ? '✓ confirmed (bot)' : '◻ projected'}
+                      </span>
+                    )
+                  })()}
                   <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
-                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 9, fontSize: 10, fontFamily: NUM_FONT }}>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT }}>
                     {temp > 0 && <span style={{ color: temp >= 82 ? C.orange : C.text2 }}>{Math.round(temp)}°</span>}
                     {wind > 0 && <span style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}mph</span>}
                     {parkF > 0 && <span style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>park ×{parkF.toFixed(2)}</span>}
+                    {/* Same caret language as Default mode's card header —
+                        one visual grammar for "this bar opens/focuses
+                        something," everywhere it's true on the site. */}
+                    <span style={{ color: isSel ? C.orange : C.text3, fontWeight: 800 }}>{isSel ? '▾' : '▸'}</span>
                   </span>
                 </div>
                 <div className="lineup-cols" style={{ display: 'flex', gap: 0 }}>
@@ -214,25 +1140,73 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                           {lineup[0]?.pitcher_hr9 ? ` · ${Number(lineup[0].pitcher_hr9).toFixed(2)} HR/9` : ''}
                         </span>
                       </div>
-                      {lineup.slice(0, 9).map((p) => {
+                      {lineup.slice(0, cardPosted ? 14 : 9).map((p) => {
                         const hs = hrScore(p)
+                        // What the league says about him RIGHT NOW. Silent
+                        // until the card is actually posted — "not in the
+                        // lineup" against a hitter whose team hasn't posted
+                        // yet is the same false alarm in the other direction.
+                        const lu = lineupStatus(live, mlbId(p), p?.game_pk, p?.lineup_spot)
                         return (
-                          <div key={playerId(p)} onClick={() => onPlayerClick?.(p)}
-                            style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2.5px 0', cursor: 'pointer', minWidth: 0 }}>
-                            <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 11, flexShrink: 0 }}>{p?.lineup_spot ?? '·'}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+                          <div key={playerId(p)} onClick={() => { if (!p?.off_slate) onPlayerClick?.(p) }}
+                            title={lu.scratched ? 'Not in tonight’s posted lineup'
+                              : lu.moved ? `Batting ${lu.slot} tonight — the bot had him at ${p?.lineup_spot}`
+                              : undefined}
+                            style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2.5px 0', cursor: 'pointer', minWidth: 0,
+                              opacity: lu.scratched ? 0.45 : 1 }}>
+                            <span style={{ fontFamily: NUM_FONT, fontSize: 10, width: 11, flexShrink: 0,
+                              color: lu.moved ? C.orange : C.text3, fontWeight: lu.moved ? 800 : 400 }}>
+                              {lu.posted && lu.slot ? lu.slot : (p?.lineup_spot ?? '·')}
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1,
+                              textDecoration: lu.scratched ? 'line-through' : 'none' }}>
                               {p?.name}
+                              {/* same scratched-is-bad verdict as the card watch above */}
+                              {lu.scratched && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: verdictInk(false).color, marginLeft: 4 }}>OUT</span>}
+                              {lu.moved && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.orange, marginLeft: 4 }}>was #{p?.lineup_spot}</span>}
                               <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>{p?.bats}</span>
+                              {/* AVG, inline (2026-08-21, on request: "batter
+                                  splits and avgs... I like all those stats to
+                                  sort by"). This card is a per-game lineup
+                                  view, not a table — nothing here sorts by
+                                  header click, so a real sortable AVG column
+                                  lives on the Rundown board and the Watchlist
+                                  (same season_avg field). This is the same
+                                  number, glanceable right on the man's row
+                                  without leaving the game card. */}
+                              {Number(p?.season_avg) > 0 && (
+                                <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>
+                                  {Number(p.season_avg).toFixed(3).replace(/^0/, '')}
+                                </span>
+                              )}
                               {String(p?.game_pick_role || '').trim() && <span style={{ fontSize: 9, marginLeft: 3 }}>🤖</span>}
                               {p?.weak_spot_flag && <span style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
                               {Number(p?.last5_hits) >= 6 && <span style={{ fontSize: 9, marginLeft: 2 }}>🧨</span>}
                             </span>
+                            {/* A man in the card the bot never scored gets a
+                                blank where his number would be, not a zero.
+                                A zero is a verdict; this is an absence. */}
                             <div style={{ flex: '0 0 46px', height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
-                              <div style={{ width: `${Math.min(100, hs)}%`, height: '100%', borderRadius: 3,
-                                background: hs >= 60 ? '#f97316' : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
+                              {/* hs is a 0-100 model score, not a rate --
+                                  fixed bands here (not divTone) to match
+                                  this card's compact bar; the >=60 tier is
+                                  C.orange (byte-identical to the old
+                                  #f97316, and the same token the number
+                                  label two lines down already used). The
+                                  >=45 tier is the site's established gold
+                                  accent with no matching C token (same
+                                  exception noted at the trust-ladder above),
+                                  left literal on purpose -- shared by the
+                                  bar and the number label right below it. */}
+                              {!p?.off_slate && (
+                                <div style={{ width: `${Math.min(100, hs)}%`, height: '100%', borderRadius: 3,
+                                  background: hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
+                              )}
                             </div>
-                            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
-                              color: hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>{hs.toFixed(0)}</span>
+                            <span title={p?.off_slate ? 'In the lineup, but not on the bot’s slate — no model score for him tonight.' : undefined}
+                              style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
+                                color: p?.off_slate ? C.text3 : hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>
+                              {p?.off_slate ? '–' : hs.toFixed(0)}</span>
                           </div>
                         )
                       })}
@@ -245,17 +1219,35 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                     five slots Results grades. */}
                 {(() => {
                   const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
-                  const CAT_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
+                  // was a THIRD local copy of the role palette in this file
+                  const CAT_COLOR = Object.fromEntries(CAT_ORDER.map((k) => [k, catColor('role', k)]))
                   const CAT_SC = {
                     TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? 0,
                     HR: (p) => p?.hr_score ?? 0, HIT: (p) => p?.hit_score ?? 0,
                     HRR: (p) => p?.hrr_score ?? 0, CONTACT: (p) => p?.contact_score ?? 0,
                   }
-                  const prim = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
-                  const picks = CAT_ORDER
-                    .map((cat) => (g.players || []).filter((p) => prim(p) === cat)
-                      .sort((a, b) => (CAT_SC[cat](b) || 0) - (CAT_SC[cat](a) || 0))[0])
+                  // A player can carry more than one role (e.g. "TOP/HR") --
+                  // match on any tag, not just the first, so a double-up
+                  // still holds every slot (2026-08-13; mirrors
+                  // BotPicksStrip.js's pickBuckets) -- but he renders as ONE
+                  // chip wearing both names, not one chip per slot
+                  // (2026-08-14, Donovan: "show the player once"). Primary
+                  // slot (first in CAT_ORDER) drives the colour and score.
+                  const roleTags = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
+                  const perSlot = CAT_ORDER
+                    .map((cat) => {
+                      const p = (g.players || []).filter((pp) => roleTags(pp).includes(cat))
+                        .sort((a, b) => (CAT_SC[cat](b) || 0) - (CAT_SC[cat](a) || 0))[0]
+                      return p ? { cat, p } : null
+                    })
                     .filter(Boolean)
+                  const byPlayer = new Map()
+                  perSlot.forEach(({ cat, p }) => {
+                    const k = playerId(p)
+                    if (byPlayer.has(k)) byPlayer.get(k).cats.push(cat)
+                    else byPlayer.set(k, { cat, cats: [cat], p })
+                  })
+                  const picks = [...byPlayer.values()]
                   if (!picks.length) return null
                   return (
                     <div style={{
@@ -268,17 +1260,21 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                           second row read as clutter. Chips squeeze instead of
                           wrapping; phones get the auto-fit fallback via CSS. */}
                       <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch' }}>
-                        {picks.map((p) => {
-                          const cat = prim(p)
-                          const col = CAT_COLOR[cat] || C.text3
+                        {picks.map(({ cat, cats, p }) => {
+                          const col = catColorOf(cat)
                           return (
-                            <button key={playerId(p)} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
+                            <button key={`${cat}-${playerId(p)}`} onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} style={{
                               display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'pointer', minWidth: 0,
                               border: `1px solid ${col}55`, background: `${col}10`,
                               borderRadius: 7, padding: '3px 8px',
                             }}>
-                              <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{cat}</span>
+                              <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{(cats || [cat]).join('/')}</span>
                               <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
+                              {/* 💸 the price, on the pick. Glows only when
+                                  there is a real rate to judge it against —
+                                  see components/PriceBubble.js. */}
+                              <PriceBubble odds={odds} player={p} cat={cat}
+                                rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
                               <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
                             </button>
                           )
@@ -312,166 +1308,411 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
             )
           })}
         </div>
+        </MobileFold>
       )}
 
-      {/* ── Selected game ── */}
-      {/* Only the selected game renders. The strip above is the selector; an
-          accordion of all fifteen underneath was the same list a second time,
-          and because every row started collapsed the lineup table was never
-          on screen. */}
-      {mode !== 'lineups' && games.filter((g) => g.game_pk === activeGame).map((g) => {
-        // THE GAME'S DESIGNATED PICKS, one per category — the same five slots
-        // the results tracker grades. This grid used to show the top 8 by HR
-        // score, which overlapped the picks but wasn't them: a game could
-        // show eight power bats while its actual HIT and CONTACT picks sat
-        // below the cut, so what you saw here never matched what Results
-        // graded. Now it's exactly the bot's slots, in category order. If a
-        // game somehow carries two hitters with the same primary role, the
-        // higher score on that category's own scale wins — same rule as The
-        // Four — so there is always exactly one per category.
-        const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
-        const CAT_SCORE = {
-          TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? p?.hr_score ?? 0,
-          HR: (p) => p?.hr_score ?? 0,
-          HIT: (p) => p?.hit_score ?? 0,
-          HRR: (p) => p?.hrr_score ?? 0,
-          CONTACT: (p) => p?.contact_score ?? 0,
-        }
-        const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
-        const picks = CAT_ORDER
-          .map((cat) => [...g.players]
-            .filter((p) => primaryRole(p) === cat)
-            .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0])
-          .filter(Boolean)
-        // Fallback for a game with no designated picks published yet (early
-        // slate build): top four by HR score, labelled as such below.
-        const sorted = picks.length
-          ? picks
-          : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4)
-        const isDesignated = picks.length > 0
-        const past = isPast(g.game_time)
-        const isActive = true
+      {/* ── THE CARD GRID (restored 2026-08-08, owner feedback) ──────────
+          The rundown LIST is gone as the top level: Default and Bot Output
+          open on the heat-tinted, heat-SIZED game cards (GameStrip) — the
+          grid Donovan liked — now carrying each game's TOP + HR headline
+          picks and both lineup ✓ marks right on the card. Clicking a card
+          opens the SAME in-place deep-dive the rundown had, directly under
+          the grid; clicking the card (or its header) again closes it. */}
+      {mode !== 'lineups' && (
+        <>
+          <GameFilterRail
+            value={gfilter}
+            onChange={(k) => { setGfilter(k); setActive(null) }}
+            counts={gCounts}
+          />
+          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+            <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+          </StripFold>
+          {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
+              Phone only. It sits here, right under the game grid, and pins
+              itself under the header the moment you scroll past — so every
+              game stays one thumb-tap away however far down the open game's
+              read you have got, without a bar welded to the bottom edge where
+              the phone's own close gesture lives. `scrollTo` is the same
+              handler the grid above uses, so the two selectors can never
+              disagree about what selecting a game does.
+              See components/GameSwitcher.js. */}
+          <GameSwitcher games={games} activeGame={activeGame} onSelect={scrollTo} live={liveByPk} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {games.filter((g) => g.game_pk === activeGame).map((g) => {
+                const picks = picksFor(g)
+                const isDesignated = picks.length > 0
+                const sorted = isDesignated
+                  ? picks
+                  : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4).map((p) => ({ cat: null, cats: null, p }))
+                const past = isPast(g.game_time)
+                const isActive = g.game_pk === activeGame
+                const sides = sidesOf(g)
+                const any = (g.players || [])[0] || {}
+                const temp = Number(any.weather_temp_f) || 0
+                const wind = Number(any.weather_wind_mph) || 0
+                const wLbl = String(any.wind_direction_label || '')
+                const parkF = Number(any.park_hr_factor) || Number(any.park_dist_factor) || 0
 
-        return (
-          <section
-            key={g.game_pk}
-            ref={el => { gameRefs.current[g.game_pk] = el }}
-            style={{ marginBottom: isActive ? 28 : 4, scrollMarginTop: 160 }}
-          >
-            {/* game header — click toggles which game is expanded */}
-            <div
-              onClick={() => {}}
-              style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                marginBottom: isActive ? 10 : 0, padding: isActive ? '0 0 8px' : '8px 4px',
-                borderBottom: `2px solid ${isActive ? C.orange : C.border}`,
-                cursor: 'pointer', transition: 'border-color .15s, padding .15s',
-                background: isActive ? 'transparent' : 'rgba(255,255,255,0.015)',
-                borderRadius: isActive ? 0 : 8,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: isActive ? 15 : 13, fontWeight: 800, color: past ? C.text3 : C.text }}>
-                    {past ? '✓ ' : ''}{g.away || '—'} @ {g.home || '—'}
-                  </div>
-                  {isActive && (
-                    <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
-                      {localTime(g.game_time)} · {g.lineup_confirmed ? 'Lineup confirmed' : 'Projected lineup'}
-                      {past && <span style={{ color: C.border, marginLeft: 6 }}>· Game passed</span>}
+                return (
+                  <section
+                    key={g.game_pk}
+                    ref={(el) => { gameRefs.current[g.game_pk] = el }}
+                    style={{
+                      scrollMarginTop: 160, minWidth: 0,
+                      background: isActive ? `linear-gradient(160deg, rgba(249,115,22,.05), ${C.bg2} 45%)` : C.bg2,
+                      border: `1px solid ${isActive ? 'rgba(249,115,22,.5)' : C.border}`,
+                      // `clip`, NOT `hidden` (2026-08-23). Identical visual
+                      // result — it still clips the children to the rounded
+                      // corners — but `overflow: hidden` makes this box a
+                      // scroll container, and a scroll container kills
+                      // `position: sticky` for everything inside it. That is
+                      // why the in-game panel pills would not stick. Same
+                      // trick, same reason, as the html/body rule at the top
+                      // of MobileCSS.js.
+                      borderRadius: 14, overflow: 'clip',
+                      boxShadow: isActive ? '0 0 26px -10px rgba(249,115,22,.5)' : 'none',
+                      opacity: past && !isActive ? 0.65 : 1,
+                    }}
+                  >
+                    {/* ── card header: matchup + duel + conditions + picks ── */}
+                    <div
+                      onClick={() => setActive(isActive ? null : g.game_pk)}
+                      style={{ cursor: 'pointer', padding: '11px 14px 10px' }}
+                      title={isActive ? 'Collapse this game' : 'Open the full read on this game'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
+                        <span style={{ fontSize: 17, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
+                          {past ? '✓ ' : ''}{g.away || '—'} <span style={{ color: C.text3, fontWeight: 400 }}>@</span> {g.home || '—'}
+                        </span>
+                        {/* GLOSSARY-ON-TAP (2026-09-06). Donovan found this
+                            badge "confusing, not broken" -- it had zero
+                            explanation, and the richer three-tier version of
+                            this same badge further down only explains itself
+                            through a `title=` hover, which Explain.js's own
+                            header comment says plainly is invisible on a
+                            phone. Same fix that component exists for: a tap
+                            target, not a hover. */}
+                        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: NUM_FONT, color: g.lineup_confirmed ? C.green : C.text3 }}>
+                          <Explain
+                            label={g.lineup_confirmed ? '✓ lineups in' : '◻ projected'}
+                            text={g.lineup_confirmed
+                              ? 'The bot saw the real, confirmed starting lineup on its last run \u2014 not a guess.'
+                              : "The real batting order hasn't posted yet, so this is the bot's best projection. It can still change before first pitch."}
+                          />
+                        </span>
+                        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                          {/* Same reason as the duel below: open, the air is a
+                              full sentence in GameDeepDive's AirLine. */}
+                          {!isActive && temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
+                          {!isActive && wind > 0 && <span title={`Wind: ${wLbl || 'direction n/a'}`} style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}</span>}
+                          {!isActive && parkF > 0 && <span title="Park HR factor — above 1.00 the yard helps hitters" style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>×{parkF.toFixed(2)}</span>}
+                          {/* 📸 SHARE (2026-08-23) — this matchup's picks as a
+                              PNG, zero backend. stopPropagation so it doesn't
+                              also toggle the card open/closed. */}
+                          <button onClick={(e) => { e.stopPropagation(); downloadGameCard(g) }}
+                            title="Download this game's picks as a PNG for posting"
+                            aria-label="Download game card as image"
+                            style={{
+                              background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,
+                              borderRadius: 6, padding: '1px 7px', fontSize: 11, lineHeight: 1.4,
+                              cursor: 'pointer',
+                            }}>📸</button>
+                          <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
+                        </span>
+                      </div>
+
+                      {/* ── THE HEADER STEPS BACK WHEN THE GAME IS OPEN ──────
+                          (2026-08-15) This strip is a CARD SUMMARY: closed, the
+                          duel and the five pick chips are the whole reason to
+                          scan the grid. Open, they are said again six pixels
+                          below and at length — GameDeepDive now writes both
+                          arms out as a read and both sides' designated picks as
+                          cards carrying their market, their bar and the book's
+                          price. Two arm lines above two arm paragraphs, and a
+                          cramped chip row above the same picks with more on
+                          them, is the density Donovan screenshotted.
+                          So: closed keeps everything, open keeps identity —
+                          teams, lineup state, first pitch, the air, the caret.
+                          Nothing is lost in either state. */}
+                      {!isActive && (<>
+                      {/* the pitcher duel — each side wears the arm ITS bats face */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 7 }}>
+                        {sides.map((s) => (
+                          <div key={s.team} style={{
+                            // position:relative so the stat bubble can hang off
+                            // this tile rather than off the page.
+                            position: 'relative',
+                            flex: '1 1 200px', minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7,
+                            background: 'rgba(255,255,255,.025)', border: `1px solid ${C.border}`,
+                            borderRadius: 8, padding: '4px 10px',
+                          }}>
+                            <span style={{ fontSize: 10.5, fontWeight: 900, fontFamily: NUM_FONT, flexShrink: 0 }}>{s.team}</span>
+                            <span style={{ fontSize: 9.5, color: C.text3, flexShrink: 0 }}>vs</span>
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {s.arm}{s.throws ? ` (${s.throws})` : ''}{s.projected ? ' ≈' : ''}
+                              {s.trendingBad && (
+                                <span title={`trending bad — ${s.trend === 'worsening' ? 'published trend is worsening' : `last 3 starts ${s.l3hr9.toFixed(2)} HR/9 vs ${s.hr9.toFixed(2)} season`}`}
+                                  style={{ marginLeft: 5, color: C.orange, fontWeight: 900 }}>📉</span>
+                              )}
+                            </span>
+                            <span style={{ marginLeft: 'auto', display: 'flex', gap: 7, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5 }}>
+                              {/* ── THE TEXT AND THE BAR AGREE NOW (2026-09-03) ──
+                                  Flagged twice: this label went warm at 1.30
+                                  saying "higher favors the bats" while the bar
+                                  beside it went RED at the same 1.30 — red
+                                  being this site's losing side. Both read from
+                                  lib/hr9.js, which holds the league line the
+                                  product already prints, so they cannot
+                                  disagree about a number or about which way it
+                                  points. */}
+                              {s.hr9 != null && (
+                                <span title={hr9Title(s.hr9)} style={{ color: hr9Color(s.hr9, C.text3), fontWeight: 700 }}>
+                                  {s.hr9.toFixed(2)} HR/9
+                                </span>
+                              )}
+                              {/* ── THE COUNT, AND WHICH SIDE IT CAME FROM ──
+                                  The rate above says he leaks; this says how
+                                  much and to whom. The hand split is the one
+                                  fact on this strip a hitter's own handedness
+                                  turns into a decision -- 20 of Bibee's 26 are
+                                  to lefties, which is not a thing 1.44 HR/9
+                                  can tell you. Warm when a side is carrying
+                                  two thirds or more of the damage AND there is
+                                  enough of it for that to mean anything. */}
+                              {s.hrTotal != null && (
+                                <span
+                                  title={`${s.hrTotal} home runs allowed this season${
+                                    s.hrL != null && s.hrR != null
+                                      ? ` — ${s.hrL} to left-handed bats, ${s.hrR} to right-handed`
+                                      : ''
+                                  }`}
+                                  style={{ color: C.text3, fontWeight: 700 }}
+                                >
+                                  {s.hrTotal} HR
+                                  {s.hrL != null && s.hrR != null && s.hrTotal > 0 && (
+                                    <>
+                                      {' '}
+                                      <span style={{ color: s.hrL / s.hrTotal >= 0.66 && s.hrTotal >= 6 ? C.orange : C.text3 }}>{s.hrL}L</span>
+                                      <span style={{ color: C.text3, opacity: .6 }}>·</span>
+                                      <span style={{ color: s.hrR / s.hrTotal >= 0.66 && s.hrTotal >= 6 ? C.orange : C.text3 }}>{s.hrR}R</span>
+                                    </>
+                                  )}
+                                </span>
+                              )}
+                              <ArmBubble s={s} />
+                              {/* Bars speak (owner feedback 2026-08-08): the
+                                  duel's HR/9 gets one too, scaled 0–2.00 like
+                                  the pen board reads, when the bar toggle
+                                  (below, on the picks) is on.
+                                  RESOLVED 2026-09-03. The four-hue red/cyan/
+                                  green ladder that used to live here is gone:
+                                  it disagreed with its own text label about
+                                  which direction a high number pointed, and it
+                                  was the "four-hue ladder the verdict pair
+                                  exists to retire" its own comment named. One
+                                  fill, from the same function the label uses.
+                                  The 0–2.00 scale is unchanged. */}
+                              {barsOn && s.hr9 != null && (
+                                <span title={hr9Title(s.hr9)} style={{ width: 44, height: 5, background: 'rgba(255,255,255,.07)', borderRadius: 3, overflow: 'hidden', alignSelf: 'center' }}>
+                                  <span style={{ display: 'block', width: `${hr9Pct(s.hr9)}%`, height: '100%', background: hr9Fill(s.hr9) }} />
+                                </span>
+                              )}
+                              {/* the same established gold accent, no C token match -- left literal */}
+                              {s.stars > 0 && (
+                                <span title={`${s.stars} weak lineup spot${s.stars > 1 ? 's' : ''} this order can reach`} style={{ color: '#FCD34D', fontWeight: 800 }}>★{s.stars}</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* pick chips — the bot's five slots, always visible */}
+                      {picks.length > 0 && (
+                        <div className="pickstrip" style={{ display: 'grid', gap: 5, gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, alignItems: 'stretch', marginTop: 8 }}>
+                          {picks.map(({ cat, cats, p }) => {
+                            const col = catColorOf(cat)
+                            return (
+                              // THE CHIP NOW CARRIES A REASON (2026-08-09).
+                              // It used to read "HR · Alonso · 82" — a name and
+                              // a number with nothing behind it, which is the
+                              // exact complaint about our boards versus theirs.
+                              // Second line is the single stat that most drives
+                              // THIS category for him, in slate-relative colour;
+                              // the bot's score stays beside it, smaller. Both
+                              // numbers, one glance, and the stat leads.
+                              // A dual-slotted player is ONE chip wearing both
+                              // names (2026-08-14) — see picksFor.
+                              <StatChip key={`${cat}-${playerId(p)}`} p={p} cat={cat} col={col}
+                                label={(cats || [cat]).join('/')}
+                                score={CAT_SCORE[cat](p) || 0}
+                                odds={odds}
+                                onClick={(e) => { e.stopPropagation(); onPlayerClick?.(p) }} />
+                            )
+                          })}
+                        </div>
+                      )}
+                      </>)}
                     </div>
-                  )}
-                </div>
-              </div>
-              <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-                {!isActive && `${localTime(g.game_time)} · `}{g.players.length} batters
-              </div>
-            </div>
 
-            {/* The clicked game earns depth (2026-08-06): conditions ribbon +
-                both full pitching matchups + each lineup's threat profile.
-                Only the SELECTED game gets it — the rest stay scannable. */}
-            {isActive && activeGame === g.game_pk && (
-              <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} onPlayerClick={onPlayerClick} />
-            )}
+                    {/* ── expanded: the full read, in place, ONE SECTION AT A
+                        TIME (2026-08-15). The four sections all still exist and
+                        all still render the same components with the same
+                        props — they are simply no longer stacked four screens
+                        deep. See the `panel` state above for why. */}
+                    {/* The arms used to get their own block here — the dial,
+                        a sentence and four tiles per starter, directly above
+                        the panel pills. GameDeepDive's side panels then said
+                        the same thing about the same two arms one screen
+                        lower, and Donovan's read on the result was "this does
+                        not look good … its all uneven". It was ONE block too
+                        many, not a layout problem. The dial, the sentence and
+                        the (now five, now even) tiles all live in the side
+                        panel, once. */}
 
-            {isActive && (
-              <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
-            )}
+                    {isActive && (
+                      <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
+                        <GamePanelPills
+                          panel={panel}
+                          setPanel={setPanel}
+                          isPhone={isPhone}
+                          gamePk={g.game_pk}
+                          weakSpots={(g.players || []).filter((p) => p?.weak_spot_flag).length}
+                          pickCount={sorted.length}
+                          arm={sides.map((s) => s.arm).filter(Boolean).join(' / ')}
+                        />
 
-            {isActive && (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px' }}>
-                <span style={{ fontSize: 11.5, fontWeight: 800 }}>
-                  {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
-                </span>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                  {isDesignated
-                    ? 'one per category, the same five slots Results grades'
-                    : 'no designated picks published for this game yet'}
-                </span>
-              </div>
-            )}
+                        {/* ── EVERYTHING OPENS AT ONCE (2026-08-17) ────────
+                            Donovan: "honestly just have everything open up
+                            when you click on the game instead. it's a lot of
+                            clicking thru to look at the stats." The four
+                            panels were a switcher; now they stack — read,
+                            lineups (table first), head-to-head, picks — and
+                            the pills scroll to their section instead of
+                            swapping content. One click opens the whole game. */}
+                        <div id={`gp-read-${g.game_pk}`} />
+                        <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
 
-            {/* FLEX, NOT GRID, on purpose. Five cards in an auto-fit grid
-                leave an orphan on any width that fits four columns — one card
-                alone with three empty cells, which is the "rows aren't full"
-                problem. Flex with grow lets the last row stretch to fill, so
-                the five picks always occupy the complete width, and each card
-                wears its category as a colored banner so the row reads as the
-                five slots rather than five loose players. */}
-            {isActive && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
-              {sorted.map((p) => {
-                const roleInfo = isDesignated ? getRoleDisplay(p) : null
-                // CONNECTED, not stacked. The first pass put a banner strip
-                // ON TOP of each card — but the card keeps its own border and
-                // corners, so banner and card read as two disconnected boxes.
-                // Now the category is a ring drawn around the card itself
-                // (boxShadow hugs whatever radius the card has) with the
-                // label as a tag punched through the top edge — one object,
-                // clearly labelled, instead of a hat on a box.
-                const wrap = (inner) => (
-                  <div key={playerId(p)} style={{
-                    flex: '1 1 225px', minWidth: 0, position: 'relative',
-                    display: 'flex', flexDirection: 'column',
-                    marginTop: roleInfo ? 9 : 0,
-                    minHeight: 190,
-                  }}>
-                    {roleInfo && (
-                      <span style={{
-                        position: 'absolute', top: -8, left: 13, zIndex: 2,
-                        background: '#09090b',
-                        border: `1px solid ${roleInfo.color}99`,
-                        color: roleInfo.color, borderRadius: 6, padding: '1px 9px',
-                        fontSize: 9, fontWeight: 900, letterSpacing: '.08em',
-                        textTransform: 'uppercase', fontFamily: NUM_FONT,
-                        boxShadow: `0 0 10px ${roleInfo.color}33`,
-                      }}>{roleInfo.label}</span>
-                    )}
-                    <div style={{
-                      flex: 1, display: 'flex', flexDirection: 'column',
-                      borderRadius: 14,
-                      boxShadow: roleInfo
-                        ? `0 0 0 1px ${roleInfo.color}66, 0 0 16px ${roleInfo.color}1c`
-                        : 'none',
-                    }}>{inner}</div>
-                  </div>
-                )
-                if (mode === 'botview') {
+                        {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component
+                            the Lineups mode uses — it now opens on its spot
+                            read (what this arm does to each batting-order slot,
+                            in sentences) with the full dense table one pill
+                            further in. Nothing about it is a Games-tab-only
+                            copy, so the two surfaces cannot drift. */}
+                        <div id={`gp-lineups-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
+                          <GameLineup players={g.players} onPlayerClick={onPlayerClick} />
+                        </div>
+
+                        {/* 🎲 THE SIMULATOR (2026-09-03). Collapsed by
+                            default and it simulates NOTHING until opened —
+                            2,000 games is ~250ms of main thread, which is
+                            fine on demand and rude on every card of a
+                            fifteen-game slate. Mounted here, after the
+                            lineups, because it needs both cards posted to
+                            mean anything. */}
+                        <div id={`gp-sim-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
+                          <GameSimPanel game={g} onPlayerClick={onPlayerClick} />
+                        </div>
+
+                        <div id={`gp-h2h-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }}>
+                          <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="h2h" />
+                        </div>
+
+                        <div id={`gp-picks-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }} />
+                        {(<>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 800 }}>
+                            {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
+                          </span>
+                          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                            {isDesignated
+                              ? 'one per category, the same five slots Results grades'
+                              : 'no designated picks published for this game yet'}
+                          </span>
+                          {/* THE BAR TOGGLE (2026-08-18) — replaces the old
+                              Bot Output mode button. Click it to flip these
+                              cards to the five-category bar view in place;
+                              click again for the normal card back. Lives on
+                              the picks themselves, not a page-wide mode. */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setBarsOn((v) => !v) }}
+                            title={barsOn ? 'Back to the normal pick cards' : "See the bot's five category bars per card"}
+                            style={{
+                              marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, cursor: 'pointer',
+                              fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+                              border: `1px solid ${barsOn ? C.cyan : C.border}`,
+                              background: barsOn ? 'rgba(34,211,238,.14)' : 'transparent',
+                              color: barsOn ? C.cyan : C.text3,
+                            }}
+                          >📊 {barsOn ? 'Bars on' : 'Bars'}</button>
+                        </div>
+
+                        {/* FLEX, NOT GRID, on purpose — the last row stretches to
+                            fill, no orphan card beside empty cells. Each card wears
+                            its category as a ring + tag: one object, labelled. */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
+                          {sorted.map(({ cat: slotCat, cats: slotCats, p }) => {
+                            // A dual-slotted player is ONE card (2026-08-14,
+                            // see picksFor) — the badge wears both names in
+                            // the primary slot's colour.
+                            const roleInfo = slotCat
+                              ? (slotCats && slotCats.length > 1
+                                ? { label: `${slotCats.join('/')} Pick`, color: (ROLE_CONFIG[slotCat] || {}).color || C.text3 }
+                                : ROLE_CONFIG[slotCat])
+                              : null
+                            const wrap = (inner) => (
+                              <div key={slotCat ? `${slotCat}-${playerId(p)}` : playerId(p)} style={{
+                                flex: '1 1 240px', minWidth: 0, position: 'relative',
+                                display: 'flex', flexDirection: 'column',
+                                marginTop: roleInfo ? 9 : 0,
+                                minHeight: 170,
+                              }}>
+                                {roleInfo && (
+                                  <span style={{
+                                    position: 'absolute', top: -8, left: 13, zIndex: 2,
+                                    // Byte-identical to the ember C.bg -- was
+                                    // hardcoded black, which broke the
+                                    // "notch cut into the page" look in
+                                    // light theme (a black badge on a white
+                                    // page). C.bg fixes that for real, not
+                                    // just plumbing.
+                                    background: C.bg,
+                                    border: `1px solid ${roleInfo.color}99`,
+                                    color: roleInfo.color, borderRadius: 6, padding: '1px 9px',
+                                    fontSize: 9, fontWeight: 900, letterSpacing: '.08em',
+                                    textTransform: 'uppercase', fontFamily: NUM_FONT,
+                                    boxShadow: `0 0 10px ${roleInfo.color}33`,
+                                  }}>{roleInfo.label}</span>
+                                )}
+                                <div style={{
+                                  flex: 1, display: 'flex', flexDirection: 'column',
+                                  borderRadius: 14,
+                                  boxShadow: roleInfo
+                                    ? `0 0 0 1px ${roleInfo.color}66, 0 0 16px ${roleInfo.color}1c`
+                                    : 'none',
+                                }}>{inner}</div>
+                              </div>
+                            )
+                            if (barsOn) {
                   const { color: lcolor } = getRoleDisplay(p)
                   const pills = Array.isArray(p?.signal_pills) ? p.signal_pills : []
                   // Each bar in its category's site-wide colour, and the bar
-                  // for the category HE'S PICKED FOR renders at full weight
-                  // while the rest sit dimmed — so the card answers "how
-                  // strong is he at the thing he's here for" at a glance
-                  // instead of five identical orange bars.
-                  const pickedCat = String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+                  // for the category THIS CARD IS HERE FOR renders at full
+                  // weight while the rest sit dimmed — so the card answers
+                  // "why is he here" at a glance instead of five identical
+                  // bars. Uses the slot(s) this card was picked for (slotCat/
+                  // slotCats, carried from picksFor) rather than re-reading
+                  // his first tag off game_pick_role — and since a dual-slot
+                  // player is ONE merged card now (2026-08-14), a TOP/HR
+                  // double-up lights BOTH his bars on that one card.
                   const scores = [
-                    { k: 'hr_score',      l: 'HR',  c: '#FB923C', cat: 'HR' },
-                    { k: 'hrr_score',     l: 'HRR', c: '#22d3ee', cat: 'HRR' },
-                    { k: 'hit_score',     l: 'HIT', c: '#60A5FA', cat: 'HIT' },
-                    { k: 'contact_score', l: 'CTG', c: '#A78BFA', cat: 'CONTACT' },
-                    { k: 'overall_score', l: 'OVR', c: '#FCD34D', cat: 'TOP' },
+                    // …and a FOURTH. Same five concepts, one registry.
+                    { k: 'hr_score',      l: 'HR',  c: catColor('role', 'HR'),      cat: 'HR' },
+                    { k: 'hrr_score',     l: 'HRR', c: catColor('role', 'HRR'),     cat: 'HRR' },
+                    { k: 'hit_score',     l: 'HIT', c: catColor('role', 'HIT'),     cat: 'HIT' },
+                    { k: 'contact_score', l: 'CTG', c: catColor('role', 'CONTACT'), cat: 'CONTACT' },
+                    { k: 'overall_score', l: 'OVR', c: catColor('role', 'TOP'),     cat: 'TOP' },
                   ]
                   return wrap(
                     <div
@@ -482,17 +1723,24 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                         padding: '11px 14px', cursor: 'pointer', flex: 1,
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{p?.name || '—'}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2, minWidth: 0 }}>
+                        {/* same rule as PlayerCard: long names shrink, never clip */}
+                        <span title={p?.name || ''} style={{
+                          fontSize: String(p?.name || '').length > 18 ? 11.5 : 13,
+                          fontWeight: 700, lineHeight: 1.25, minWidth: 0,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>{p?.name || '—'}</span>
                       </div>
                       <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>
                         {p?.team} #{p?.lineup_spot ?? '?'} · vs {p?.pitcher_name || '?'} ({p?.pitcher_throws || '?'})
                       </div>
                       {scores.map(({ k, l, c, cat }) => {
                         const val = Math.min(100, Math.max(0, p?.[k] || 0))
-                        const isHis = cat === pickedCat
+                        // Every slot he holds lights its own bar (2026-08-14)
+                        // — a merged TOP/HR card highlights OVR and HR both.
+                        const isHis = slotCats ? slotCats.includes(cat) : cat === slotCat
                         return (
-                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: isHis || !pickedCat ? 1 : 0.5 }}>
+                          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: isHis || !slotCat ? 1 : 0.5 }}>
                             <span style={{ width: 26, fontSize: 9, color: isHis ? c : C.text3, fontWeight: isHis ? 800 : 400, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{l}</span>
                             <div style={{ flex: 1, height: isHis ? 6 : 4, background: 'rgba(255,255,255,0.07)', borderRadius: 3 }}>
                               <div style={{ width: `${val}%`, height: '100%', background: c, borderRadius: 3, boxShadow: isHis ? `0 0 8px ${c}66` : 'none' }} />
@@ -501,6 +1749,51 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                           </div>
                         )
                       })}
+                      {/* MORE BARS (owner feedback 2026-08-08): Bot Output is
+                          the graph view — the card's remaining numbers join
+                          the bar language instead of sitting as text. Same
+                          row grammar as the five categories, dimmer voice.
+                          ARM is the opposing starter's HR/9 on a 0–2.00 bar
+                          (higher = the arm bleeds homers, good for the bat). */}
+                      {(() => {
+                        // Three fixed per-metric colours, one per bar, so
+                        // HRW/DMG/ARM read as three different rows at a
+                        // glance -- not a verdict on any one value (each bar
+                        // is this same colour whatever the number is). ARM
+                        // was C.red until 2026-09-03, which said "losing side"
+                        // about a row whose own tip reads "higher favors the
+                        // bat" -- the same contradiction the duel strip's bar
+                        // had. It is C.orange now: still ONE fixed colour
+                        // whatever the number is, so the row stays a legend
+                        // rather than becoming a verdict, but the hue no
+                        // longer argues with the sentence beside it. HRW's
+                        // pink and DMG's emerald
+                        // don't match any C token (DMG's #34d399 is a
+                        // distinct shade from C.green's #4ade80, not the
+                        // same colour) and stay literal as a legend-only
+                        // differentiator, same call as the Results.js/
+                        // Pairs.js passes made for their own unmatched
+                        // categorical accents.
+                        const extras = [
+                          { l: 'HRW', v: Number(p?.hrw_score) || 0, max: 100, c2: '#f472b6', txt: (Number(p?.hrw_score) || 0).toFixed(0), tip: 'HR Watch score' },
+                          { l: 'DMG', v: Number(p?.damage_conversion_score) || 0, max: 100, c2: '#34d399', txt: (Number(p?.damage_conversion_score) || 0).toFixed(0), tip: 'Damage conversion score' },
+                          { l: 'ARM', v: Number(p?.pitcher_hr9) || 0, max: 2, c2: C.orange, txt: (Number(p?.pitcher_hr9) || 0).toFixed(2), tip: 'Opposing starter HR/9 — bar runs 0 to 2.00, higher favors the bat' },
+                        ].filter((e) => e.v > 0)
+                        if (!extras.length) return null
+                        return (
+                          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 5 }}>
+                            {extras.map((e) => (
+                              <div key={e.l} title={e.tip} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: 0.85 }}>
+                                <span style={{ width: 26, fontSize: 9, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{e.l}</span>
+                                <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 3 }}>
+                                  <div style={{ width: `${Math.min(100, (e.v / e.max) * 100)}%`, height: '100%', background: e.c2, borderRadius: 3 }} />
+                                </div>
+                                <span style={{ width: 30, fontSize: 10, color: 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{e.txt}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
                       {pills.length > 0 && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
                           {pills.map((pill, i) => (
@@ -517,26 +1810,275 @@ export default function Games({ players, slateDate = '', onAdd, onWatch, watchId
                     </div>
                   )
                 }
-                return wrap(
-                  <PlayerCard
-                    p={p} type="hr"
-                    onAdd={onAdd} onWatch={onWatch}
-                    watched={watchIds.has(playerId(p))}
-                    onClick={() => onPlayerClick?.(p)}
-                  />
+                            return wrap(
+                              <PlayerCard
+                                p={p} type="hr"
+                                onAdd={onAdd} onWatch={onWatch}
+                                watched={watchIds.has(playerId(p))}
+                                onClick={() => onPlayerClick?.(p)}
+                              />
+                            )
+                          })}
+                        </div>
+                        </>)}
+                      </div>
+                    )}
+                  </section>
                 )
               })}
-            </div>
-            )}
-          </section>
-        )
-      })}
+          </div>
+          {/* ── THE NEXT GAME, FROM THE BOTTOM (2026-09-01) ───────────────
+              Donovan: "hard to jump between games." The sticky switcher
+              answers it from the top of the screen; this answers it from
+              where you actually are when you finish a game's read — the
+              bottom of it. Same scrollTo, same order as the grid. */}
+          {activeGame != null && games.length > 1 && (() => {
+            const idx = games.findIndex((g) => g.game_pk === activeGame)
+            const prev = idx > 0 ? games[idx - 1] : null
+            const next = idx >= 0 && idx < games.length - 1 ? games[idx + 1] : null
+            const lbl = (g) => `${g.away || '?'} @ ${g.home || '?'}`
+            return (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', margin: '-8px 0 20px' }}>
+                <button disabled={!prev} onClick={() => prev && scrollTo(prev.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: prev ? 1 : 0.35 }}>
+                  ‹ {prev ? lbl(prev) : 'first game'}
+                </button>
+                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{idx + 1} / {games.length}</span>
+                <button disabled={!next} onClick={() => next && scrollTo(next.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: next ? 1 : 0.35 }}>
+                  {next ? lbl(next) : 'last game'} ›
+                </button>
+              </div>
+            )
+          })()}
+        </>
+      )}
 
-      {/* Bottom of the page on purpose. The strip and the game panel are the
-          task; this is the check you read afterwards to see whether the slate
-          agreed with what you just looked at. */}
-      <ProjectedOutput games={games} players={players} />
+      {/* ProjectedOutput moved to the Scoreboard/Rundown tab 2026-08-18 — see
+          components/tabs/Scoreboard.js for the note. Donovan: "put the
+          projected output on the scoreboard page." */}
 
+      {/* sticky at the bottom while you shop the grid */}
+      <PairTray
+        legs={pairLegs}
+        market={pairMarket}
+        onMarket={setPairMarket}
+        onRemove={togglePairLeg}
+        onClear={() => setPairLegs([])}
+        pairHistorySummary={pairHistorySummary}
+        onPlayerClick={onPlayerClick}
+      />
+
+    </div>
+  )
+}
+
+// ── THE SLATE'S OWN FILTER (2026-08-23) ─────────────────────────────────────
+// Counts on every pill, per the universal filter's rule: knowing the size of a
+// slice before you click it is the difference between a filter and a guess. A
+// slice that would be empty is disabled rather than hidden, so the rail does
+// not change shape as games start and finish under you.
+function GameFilterRail({ value, onChange, counts }) {
+  const opts = [
+    { key: 'all', label: 'All', count: counts.all },
+    { key: 'live', label: '🔴 Live', count: counts.live },
+    { key: 'upcoming', label: 'Upcoming', count: counts.upcoming },
+    { key: 'final', label: 'Final', count: counts.final },
+    { key: 'targets', label: '⭐ Targets', count: counts.targets,
+      title: 'the games you starred — tap the ⭐ on any chip' },
+    { key: 'trendingPitcher', label: '📉 Trending bad', count: counts.trendingPitcher,
+      title: 'either starter is trending worse — his trend is published as "worsening," or his last-3-starts HR/9 has climbed at least 0.4 above his season figure' },
+  ]
+  return (
+    <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
+      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase' }}>Games</span>
+      {opts.map((o) => (
+        <FilterPill key={o.key} active={value === o.key} count={o.count} title={o.title}
+          disabled={o.count === 0 && value !== o.key}
+          onClick={() => onChange(o.key)}>{o.label}</FilterPill>
+      ))}
+    </div>
+  )
+}
+
+// ── THE SELECTOR STRIP, FOLDED ON A PHONE (2026-08-23) ──────────────────────
+// A game is always open (the effect above picks the first one), so on a phone
+// the strip was fifteen cards of wall between the top of the tab and the game
+// you are actually reading — and now that the bottom switcher exists, it is
+// not even the way you change games there. It folds to one line, the site's
+// existing MobileFold, and everything inside it is one tap away exactly as
+// before. Desktop renders it bare: MobileFold returns its children untouched
+// above the breakpoint, so nothing about the wide layout changes.
+// ── THE GRID FOLDS AT EVERY WIDTH NOW (2026-08-23) ──────────────────────────
+// Donovan: "games chip need to be able to be hidden just like on mobile."
+// It was phone-only on the original argument that a dozen cards are a wall on
+// a phone and three tidy rows on a desktop — true for a BOARD, and wrong for
+// this, because the grid is a selector. You use it once, then read one game
+// for several screens, and a row of cards you are done with is just occupying
+// the top of the page. `rememberKey` makes closing it stick: this is a
+// standing preference, not a momentary one, and reopening it on every visit
+// would be the site overruling him nightly.
+function StripFold({ isPhone, games, activeGame, children }) {
+  const open = games.find((g) => g.game_pk === activeGame)
+  return (
+    <MobileFold
+      title="🏟 All games"
+      count={games.length}
+      summary={open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one'}
+      maxWidth={760}
+      always
+      defaultOpen={!isPhone}
+      rememberKey="moonshot_games_fold_v1"
+    >{children}</MobileFold>
+  )
+}
+
+// ── THE OPEN GAME'S SEGMENTED CONTROL (2026-08-15) ──────────────────────────
+//
+// Four sections of one game, four buttons, no scrolling between them. The
+// counts on the pills are the point of putting them here rather than in a
+// dropdown: "Lineups ★2" says there is something in there worth the tap
+// BEFORE you tap it, which a bare label cannot do.
+//
+// The line underneath is the same "what this answers" sentence the mode
+// buttons at the top of the tab already carry — a control that changes the
+// whole panel should say what it just did in words.
+const GAME_PANELS = [
+  ['read',    'The read'],
+  ['lineups', 'Lineups'],
+  ['h2h',     'Head-to-head'],
+  ['picks',   'Picks'],
+]
+const PANEL_SUB = {
+  read: 'tonight’s air, both starters written out, and this game’s storylines.',
+  // Caption updated 2026-08-17 with the default flip: the table leads now, the
+  // spot read is the pill. A caption promising the old order would send people
+  // hunting for a click that no longer exists.
+  lineups: 'both batting orders 1 through 9 as the full stat table — every column sortable, with the spot read (what this arm has done to each slot, in words) one pill over.',
+  h2h: 'what these hitters have done against tonight’s starter across their careers, both sides.',
+  picks: 'the bot’s designated slots for this game as full cards — score bars, pills, add to slip.',
+}
+// JUMP LINKS NOW, NOT A SWITCHER (2026-08-17). All four sections render
+// stacked — "just have everything open up when you click on the game" — so a
+// pill's job is to scroll you there, not to swap content. gamePk scopes the
+// anchor ids so two open cards can't collide.
+function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '', gamePk = '', isPhone = false }) {
+  // STICKY ON A PHONE (2026-08-23). The four sections of an open game all
+  // render at once — Donovan's own call on 2026-08-17, "just have everything
+  // open up when you click on the game instead, it's a lot of clicking thru"
+  // — which is right, and which also makes one game several screens tall. The
+  // pills are the way to move between those screens, and they were pinned to
+  // the top of the game, i.e. off-screen the moment you used them once.
+  //
+  // NO MORE JS MEASUREMENT (2026-09-06). Donovan: opening a game on phone and
+  // trying to scroll through it "keeps refreshing or something." This offset
+  // used to be measured by hand -- a `scroll` listener called
+  // `document.querySelector('header')?.offsetHeight` on every single scroll
+  // tick, forcing the browser to stop and recompute layout each time, right
+  // while the user was mid-scroll on a card that is now several screens tall
+  // (GameDeepDive x2 + GameLineup + GameSimPanel, all mounted at once). That
+  // was written back when the header was itself `position: sticky` and
+  // shrank as you scrolled past the hero, so the offset genuinely changed
+  // and needed live measuring. Header.js dropped that condensing behavior
+  // (see its own "the `condensed` scroll logic went with the tiles" note)
+  // and now just publishes a stable `--hdr-h` CSS variable via a
+  // ResizeObserver -- the same variable the Lineups-mode jump strip already
+  // reads a few hundred lines up. Reading that variable directly in the
+  // style, like GameSwitcher.js's own `--gsw-h`, needs no JS at all: the
+  // browser keeps `position: sticky` in sync with a changed custom property
+  // on its own, with no scroll listener and no forced reflow.
+  const badge = { lineups: weakSpots ? `★${weakSpots}` : '', picks: pickCount ? String(pickCount) : '' }
+  const jump = (k) => {
+    setPanel(k)
+    try {
+      document.getElementById(`gp-${k}-${gamePk}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } catch { /* ignore */ }
+  }
+  return (
+    <div style={isPhone ? {
+      // --gsw-h is the game switcher's live height (0 when it is not on
+      // screen), published by components/GameSwitcher.js. Both bars pin under
+      // the header; without this term they pin to the SAME offset and the
+      // pills sit on top of the rail, which is exactly what happened.
+      marginBottom: 10, position: 'sticky', top: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px))', zIndex: 30,
+      background: C.bg, margin: '0 -14px 10px', padding: '8px 14px 6px',
+      borderBottom: `1px solid ${C.border}`,
+    } : { marginBottom: 10 }}>
+      <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+        {GAME_PANELS.map(([k, label]) => {
+          const on = panel === k
+          return (
+            <button
+              key={k}
+              onClick={(e) => { e.stopPropagation(); jump(k) }}
+              title={PANEL_SUB[k]}
+              style={{
+                padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+                fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+                border: `1px solid ${on ? C.orange : C.border}`,
+                background: on ? 'rgba(249,115,22,.14)' : 'transparent',
+                color: on ? C.orange : C.text3,
+              }}
+            >
+              {label}
+              {badge[k] && (
+                <span style={{ marginLeft: 5, color: on ? C.orange : C.yellow, fontWeight: 900 }}>{badge[k]}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 5, maxWidth: 720, display: isPhone ? 'none' : 'block' }}>
+        {PANEL_SUB[panel]}
+        {panel === 'lineups' && arm && (
+          <span style={{ color: C.text3 }}> Tonight: {arm}.</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// A view pill row — the fold pattern (2026-08-15). The folded page keeps its
+// own tab key alive for deep links; this is just its seat at the host's table.
+function ViewPills({ views, view, setView }) {
+  return (
+    <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
+      {views.map(([k, label]) => (
+        <button key={k} onClick={() => setView(k)} style={{
+          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+          fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+          border: `1px solid ${view === k ? C.orange : C.border}`,
+          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
+          color: view === k ? C.orange : C.text3,
+        }}>{label}</button>
+      ))}
+    </div>
+  )
+}
+
+
+// ── THE LIVE STAMP (2026-09-01) ───────────────────────────────────────────────
+// "updated 12s ago" is the whole component. It is the difference between a
+// score that is not moving and a score that stopped updating.
+function LiveStamp({ meta, anyLive, onRefresh }) {
+  const age = meta.at ? Math.max(0, Math.round((Date.now() - meta.at) / 1000)) : null
+  const ageText = age == null ? 'no snapshot yet'
+    : age < 60 ? `${age}s ago`
+    : age < 3600 ? `${Math.floor(age / 60)}m ${age % 60}s ago`
+    : `${Math.floor(age / 3600)}h ago`
+  const bad = meta.stale || (age != null && age > (anyLive ? 120 : 600))
+  const color = bad ? C.red : anyLive ? C.green : C.text3
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: 10, color: C.text3, margin: '0 0 8px', minWidth: 0 }}>
+      <span style={{ width: 7, height: 7, borderRadius: 999, background: color, boxShadow: anyLive && !bad ? `0 0 6px ${color}` : 'none', flexShrink: 0 }} />
+      <span style={{ color: bad ? C.red : C.text2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {meta.stale
+          ? (meta.at ? `MLB didn’t answer — showing the snapshot from ${ageText}` : 'MLB didn’t answer — no live feed yet, scores are from the slate')
+          : anyLive ? `live · updated ${ageText}` : `no game live · lineups checked ${ageText}`}
+      </span>
+      <button onClick={onRefresh} disabled={meta.pulling} title="Pull the league feed again now" style={{
+        marginLeft: 'auto', flexShrink: 0, cursor: meta.pulling ? 'default' : 'pointer', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
+        padding: '2px 9px', borderRadius: 999, border: `1px solid ${bad ? C.red : C.border}`,
+        background: 'transparent', color: bad ? C.red : C.text2, opacity: meta.pulling ? 0.6 : 1,
+      }}>{meta.pulling ? 'pulling…' : '↻ refresh'}</button>
     </div>
   )
 }

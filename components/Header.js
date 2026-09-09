@@ -1,78 +1,91 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { C, NUM_FONT, TABS } from '../lib/theme'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { C, NUM_FONT } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
-import SlateTiles from './SlateTiles'
+import { setSport } from '../lib/sport'
+import { computeSlateStats } from './SlateTiles'
+import PaletteButton from './PaletteButton'
+import ThemeModeButton from './ThemeModeButton'
+import QuietButton from './QuietButton'
+import { slateProjHr } from './ProjectedOutput'
+import { easternToday } from '../lib/data'
+import { buildHeadlines, useLiveScores, useAutoScroll } from '../lib/headlines'
+import SignUpPill from './SignUpPill'
 
-// ── live capture ticker ───────────────────────────────────────────────────────
+// The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
+// literal copy of ember's C.bg — so even the four EXISTING dark palettes
+// (mono/steel/regal) never actually changed the one bar that's on screen
+// every tab, every scroll position. Not caught before because all four are
+// dark enough that the mismatch reads as "fine." Light mode made it a dark
+// bar sitting above a white page. Fixed generically: derive the translucent
+// background from whichever C.bg is actually active, for every theme, not
+// just this one. (2026-08-18)
+import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
 
-function CaptureStat({ results }) {
-  if (!results?.hr_capture_report) return null
-  const report = results.hr_capture_report
-  const pct = Number(report.hr_capture_pct || 0)
-  const caught = Number(report.caught_hrs_on_sheet || 0)
-  const total = Number(report.total_hrs_on_slate || 0)
-
-  // PREGAME: before the first homer lands anywhere, this pill used to read
-  // "0.0%" in red with "0/0 HR" beside it — a failing grade for a test that
-  // hasn't started. 0-for-0 is not a rate. Until there's a homer to capture,
-  // show a calm neutral "tracking" state instead of a score, and style it to
-  // match the tile family (gradient + border) rather than the old flat chip.
-  if (total === 0) {
-    const col = '#38bdf8'
-    return (
-      <div
-        title="Live HR capture — how many of tonight's home runs were on the sheet. Starts scoring when the first homer lands."
-        style={{
-          display:'flex', alignItems:'center', gap:8,
-          padding:'5px 13px', borderRadius:9,
-          background:`linear-gradient(135deg, ${col}18, ${col}06)`,
-          border:`1px solid ${col}40`,
-        }}
-      >
-        <div style={{ width:6, height:6, borderRadius:'50%', background:col, animation:'pulse 2s infinite' }} />
-        <div style={{ display:'flex', flexDirection:'column', lineHeight:1.15 }}>
-          <span style={{ fontSize:8.5, color:C.text3, textTransform:'uppercase', letterSpacing:'.09em', fontWeight:800 }}>HR capture</span>
-          <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:800, color:col }}>tracking…</span>
-        </div>
-      </div>
-    )
-  }
-
-  // The PILL is blue — its slot in the strip's fixed colour order — while the
-  // percentage inside keeps its performance colour, so "how are we doing" is
-  // still answered by the number without the whole strip changing shape by
-  // score.
-  const col = '#38bdf8'
-  const scoreCol = pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
-  return (
-    <div
-      title={`${caught} of the slate's ${total} home runs were on the sheet tonight.`}
-      style={{
-        display:'flex', alignItems:'center', gap:8,
-        padding:'5px 13px', borderRadius:9,
-        background:`linear-gradient(135deg, ${col}1e, ${col}08)`,
-        border:`1px solid ${col}4d`,
-        boxShadow:`0 0 16px ${col}14`,
-      }}
-    >
-      <div style={{ width:6, height:6, borderRadius:'50%', background:col, animation:'pulse 2s infinite' }} />
-      <div style={{ display:'flex', flexDirection:'column', lineHeight:1.15 }}>
-        <span style={{ fontSize:8.5, color:C.text3, textTransform:'uppercase', letterSpacing:'.09em', fontWeight:800 }}>HR capture</span>
-        <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
-          <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:scoreCol }}>{pct.toFixed(0)}%</span>
-          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>{caught}/{total}</span>
-        </span>
-      </div>
-    </div>
-  )
+const hexToRgba = (hex, a) => {
+  const h = String(hex).replace('#', '')
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
 
-// ── projected HR total ────────────────────────────────────────────────────────
+// Keep the existing Moonshot look, but make the top rail answer only the
+// questions people arrive with most often. The deeper tools stay one tap
+// away in More instead of competing with the picks on every screen.
+//
+// ── LABELS COME FROM lib/routes.js NOW (2026-09-03) ─────────────────────────
+//
+// This file used to carry its own label list, MobileTabBar.js carried a second
+// one, and routes.js a third. They disagreed: `board` was "Boards" here and
+// "Charts" in the route table, `home` was "Home" here and "Tonight" on the
+// phone. One table, three readers -- see the note above MLB_NAV.
+//
+// ── TONIGHT LEFT THE RAIL (2026-09-03) ──────────────────────────────────────
+//
+// Donovan: "Tonight -- but I'm wondering if that even needs a button, since
+// it's the MOONSHOT home page. Maybe we just get a home button working for
+// MOONSHOT specifically. Props needs a lane."
+//
+// He is right, and it frees the slot Props needed. The MOONSHOT WORDMARK is
+// the home button now (see the note where it renders), which is where every
+// site on the internet has put it for twenty-five years, so a whole tab was
+// being spent on a job the header already had a place for.
+//
+// The 2026-08-28 note beside the logo said the wordmark must NOT be a link.
+// That note was about linking it to the DASH front door -- "making the
+// product's own name navigate away from the product". This does the opposite:
+// it navigates to the product's own front page and never leaves MOONSHOT. The
+// square mark still goes to the network. Two marks, two homes, neither
+// pretending to be the other.
+const PRIMARY_KEY_LIST = ['props', 'board', 'scoreboard', 'games', 'bot']
+const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${MLB_NAV[k].icon} ${MLB_NAV[k].label}`])
+const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
+// Same exception as MobileTabBar's: Tonight is reached from the wordmark, so
+// it must not make ••• More read as the active section.
+const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 
-function ProjectedHRStat({ mode }) {
+
+// ── THE ONE BAR (2026-09-06) ─────────────────────────────────────────────────
+//
+// Donovan picked "broadcast bar, with the instrument styling": the moving
+// ticker is gone from the header and its six numbers became ONE LINE OF TEXT
+// under the wordmark -- a scorebug -- so the centre of the bar is free for the
+// tab rail. What used to be two rows (brand + tiles, then tabs) is one bar of
+// ~56px, and the second row is gone on every page. On a phone the rail is
+// hidden as before (the bottom bar owns tabs under 760px) and the scorebug is
+// the slate context, one line, no swipe.
+//
+// The right cluster shrank to three things: the date with Today/Tmrw as a
+// segmented control, the account pill, and one ⚙ that opens palette, theme
+// and quiet in a small sheet. Three view settings did not each need a slot
+// on a bar you look past a hundred times a night.
+//
+// SlateTiles.js still exists and is unchanged -- Home's hero row and anything
+// else that wants the tiles keep them; only the header stopped mounting it.
+// The `condensed` scroll logic went with the tiles: the bar no longer has a
+// tall state to condense from. --hdr-h is still written for the jump strip.
+
+function useProjection(mode) {
   const [projection, setProjection] = useState(null)
-
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -81,28 +94,12 @@ function ProjectedHRStat({ mode }) {
         const response = await fetch(`${logUrl(mode)}?ts=${Date.now()}`, { cache:'no-store' })
         if (!response.ok) return
         const text = await response.text()
-        // THE OLD PATTERNS NEVER MATCHED, so this pill has never once rendered.
-        // They looked for "Model Projected HRs: 36-45" and "Slate Power Grade:
-        // Strong" — colons, capitals, the word "Model". What the bot actually
-        // writes in today.txt is:
-        //
-        //     projected HRs 36–45 · power grade Strong
-        //     top HR profiles 117 · weak pitcher spots 14
-        //
-        // No colons, lower case, en-dash. Matched loosely now, with the old
-        // wording kept as an alternative in case the bot's format moves back.
+        // Matches what the bot writes in today.txt ("projected HRs 36–45 ·
+        // power grade Strong"); the old colon/capital form is kept as an alt.
         const range = text.match(/projected\s+HRs?\s*[:\s]\s*(\d+)\s*[–—-]\s*(\d+)/i)
         const grade = text.match(/power\s+grade\s*[:\s]\s*([A-Za-z ]+)/i)
-        const profiles = text.match(/top\s+HR\s+profiles\s*[:\s]\s*(\d+)/i)
-        const weakSpots = text.match(/weak\s+pitcher\s+spots\s*[:\s]\s*(\d+)/i)
         if (!cancelled && range) {
-          setProjection({
-            low: Number(range[1]),
-            high: Number(range[2]),
-            grade: (grade?.[1] || '').trim(),
-            profiles: profiles ? Number(profiles[1]) : null,
-            weakSpots: weakSpots ? Number(weakSpots[1]) : null,
-          })
+          setProjection({ low: Number(range[1]), high: Number(range[2]), grade: (grade?.[1] || '').trim() })
         }
       } catch {
         if (!cancelled) setProjection(null)
@@ -111,49 +108,111 @@ function ProjectedHRStat({ mode }) {
     load()
     return () => { cancelled = true }
   }, [mode])
+  return projection
+}
 
-  if (!projection) return null
-  // ORANGE, always. The pill used to shift hue with the power grade, but the
-  // strip now has a fixed colour order (blue-orange-blue-orange-gold-green)
-  // and a grade-coloured pill broke it on medium/weak slates. The grade is
-  // still in the tooltip.
-  const col = '#f97316'
-
+// One fact of the scorebug: label in caps, number in the mono face, the one
+// accent for anything live (HR capture once the first homer lands).
+function Bug({ label, value, color, title, live = false }) {
   return (
-    <div
-      title={`Bot's projection for this slate: ${projection.low}–${projection.high} home runs, power grade ${projection.grade || 'n/a'}${projection.profiles != null ? `. ${projection.profiles} hitters clear its top-HR profile` : ''}${projection.weakSpots != null ? `, ${projection.weakSpots} weak pitcher spots` : ''}.`}
-      style={{
-        display:'flex', alignItems:'center', gap:8,
-        padding:'5px 13px', borderRadius:9,
-        background:`linear-gradient(135deg, ${col}22, ${col}0a)`,
-        border:`1px solid ${col}55`,
-        boxShadow:`0 0 18px ${col}14`,
-      }}
-    >
-      <span style={{ fontSize:12 }}>💣</span>
-      <div style={{ display:'flex', flexDirection:'column', lineHeight:1.15 }}>
-        <span style={{
-          fontSize:8.5, color:C.text3, textTransform:'uppercase',
-          letterSpacing:'.09em', fontWeight:800,
-        }}>Projected</span>
-        {/* One figure, the midpoint to a decimal. The bot publishes a range and
-            that range is still in the tooltip — it's off the face because a
-            strip this dense reads better with one number per pill, and the
-            interval is a detail you want on demand rather than always. */}
-        <span style={{ display:'flex', alignItems:'baseline', gap:5 }}>
-          <span style={{ fontFamily:NUM_FONT, fontSize:14, fontWeight:900, color:col }}>
-            {((projection.low + projection.high) / 2).toFixed(1)}
-          </span>
-          <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>HR</span>
-        </span>
+    <span title={title} style={{ display:'inline-flex', alignItems:'baseline', gap:4, whiteSpace:'nowrap', cursor: title ? 'default' : undefined }}>
+      {live && <span aria-hidden="true" style={{ width:5, height:5, borderRadius:'50%', background:color, alignSelf:'center', animation:'pulse 2s infinite' }} />}
+      <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:900, color: color || C.text, letterSpacing:'-.01em' }}>{value}</span>
+      <span style={{ fontSize:8.5, fontWeight:800, letterSpacing:'.08em', textTransform:'uppercase', color:C.text3 }}>{label}</span>
+    </span>
+  )
+}
+
+function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go }) {
+  // ── THE TICKER IS BACK, AND IT SAYS SOMETHING (2026-09-06) ───────────────
+  // Donovan, after the front page got its headlines strip: "I wanted those
+  // aspects on the header ... maybe even the scoring updates across the slate
+  // and NFL." So the scorebug line moves again -- but where the old ticker
+  // rolled six site-telemetry tiles, this one rolls the night: the slate
+  // facts, every live score (MLB from the schedule call the score rail
+  // already makes, NFL from TUDDY's scoreboard call), and the same headline
+  // cards the front page shows, compressed to one pill each. Every pill is a
+  // tap: a hitter opens his modal, a score opens Live, an NFL score switches
+  // to TUDDY. Pauses under the pointer. lib/headlines.js is the one source.
+  const stats = useMemo(() => computeSlateStats(players, results, games), [players, results, games])
+  const modelHr = useMemo(() => slateProjHr(players), [players])
+  const projection = useProjection(mode)
+  const live = useLiveScores()
+  const trackRef = useRef(null)
+  useAutoScroll(trackRef, { speed: 55 })
+  const isLive = live.items.some((i) => i.live) || (stats?.actual ?? 0) > 0
+  const heads = useMemo(() => buildHeadlines({ players, results, isLive, headline: null, airRanked: [] }), [players, results, isLive])
+  if (!stats) return <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>loading the slate…</span>
+
+  const expectedDate = mode === 'tomorrow'
+    ? new Date(new Date(`${easternToday()}T12:00:00Z`).getTime() + 864e5).toISOString().slice(0, 10)
+    : easternToday()
+  const staleSlate = !!slateDate && slateDate < expectedDate
+  const proj = modelHr != null ? modelHr.toFixed(1) : projection ? ((projection.low + projection.high) / 2).toFixed(1) : null
+  const captured = stats.actual != null && stats.actual > 0
+  const pct = captured ? (100 * (stats.onSheet || 0)) / stats.actual : null
+  const capCol = pct == null ? '#38bdf8' : pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
+
+  const items = []
+  items.push({ k: 'games', label: 'games', value: stats.gameCount, nav: 'games', title: 'Games on this slate' })
+  if (proj != null) items.push({ k: 'proj', label: 'HR proj', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
+  items.push({ k: 'cap', label: captured ? 'HR on sheet' : 'HR capture', value: captured ? `${stats.onSheet}/${stats.actual}` : 'tracking', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the sheet tonight (${pct.toFixed(0)}%).` : 'Live HR capture — starts scoring when the first homer lands.' })
+  // live scores ride between the facts and the headlines: live first, finals after
+  for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
+  for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
+  items.push({ k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
+  items.push({ k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
+  for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
+
+  const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.nav === 'nfl') setSport('nfl'); else if (it.nav) go?.(it.nav) }
+  // ONE SHAPE FOR EVERY PILL: same height, same padding, label over value in
+  // a fixed two-line stack, a dot on the left slot whether live or not (so
+  // the pills line up), value truncated at 150px. The strip reads as one
+  // instrument instead of a row of differently-sized chips.
+  const Pill = ({ it, echo }) => (
+    <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} onClick={() => open(it)} title={it.title}
+      style={{ display:'inline-grid', gridTemplateColumns:'8px auto', alignItems:'center', columnGap:6, height:26, whiteSpace:'nowrap',
+        padding:'0 10px 0 8px', marginRight:6, borderRadius:6, flexShrink:0,
+        background:`${it.color || C.text3}10`, border:`1px solid ${it.color || C.border}33`, cursor:'pointer', color:'inherit', font:'inherit',
+        transition:'background .12s' }}>
+      <span aria-hidden="true" style={{ width:5, height:5, borderRadius:'50%', background: it.live ? (it.color || C.green) : 'transparent', border: it.live ? 'none' : `1px solid ${it.color || C.text3}66`, animation: it.live ? 'pulse 2s infinite' : 'none' }} />
+      <span style={{ display:'grid', lineHeight:1.05 }}>
+        <span style={{ fontSize:7.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:C.text3 }}>{it.icon ? `${it.icon} ` : ''}{it.label}</span>
+        <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:900, color: it.color || C.text, letterSpacing:'-.01em', maxWidth:150, overflow:'hidden', textOverflow:'ellipsis' }}>{it.value}</span>
+      </span>
+    </button>
+  )
+  // ── #97: -webkit-overflow-scrolling:touch FREEZES A JS-DRIVEN SCROLLLEFT
+  // ON iOS SAFARI (2026-09-06) ─────────────────────────────────────────────
+  // Donovan, on his phone: "the header and the headliners aren't moving."
+  // Both this strip and Home's headline strip (same useAutoScroll hook,
+  // same symptom) carried this property. It is a long-documented WebKit
+  // quirk: once iOS puts a `touch`-momentum container into its own
+  // compositing layer, it stops repainting for a plain `el.scrollLeft = x`
+  // assignment made from JS while nobody's finger is on the screen -- the
+  // layer only updates from a live touch gesture. Desktop Chrome has no such
+  // layer and never showed this. iOS has applied momentum scrolling to any
+  // plain `overflow-x: auto` container by default since iOS 13 (2019), so
+  // the property is not doing anything a modern phone needs here -- it is
+  // only doing the one thing it should not: silently pinning the auto-scroll
+  // in place until the user manually swipes it once. Dropped from both
+  // JS-driven strips; left alone on the ~16 other purely-manual-scroll
+  // surfaces across the site, where it isn't in the way of anything.
+  return (
+    <div className="hdr-scorebug" ref={trackRef}
+      style={{ overflowX:'auto', overflowY:'hidden', scrollbarWidth:'none', lineHeight:1, marginTop:5, maxWidth:'100%',
+        WebkitMaskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)', maskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)' }}>
+      <div className="hdr-ticker-track" style={{ display:'flex', width:'max-content' }}>
+        {items.map((it) => <Pill key={it.k} it={it} />)}
+        {items.map((it) => <Pill key={`${it.k}-echo`} it={it} echo />)}
       </div>
     </div>
   )
 }
 
-// ── date display ──────────────────────────────────────────────────────────────
+// ── date + mode, as one control ───────────────────────────────────────────────
 
-function DateBadge({ label }) {
+function DateMode({ label, mode, setMode }) {
   const [time, setTime] = useState('')
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }))
@@ -161,160 +220,272 @@ function DateBadge({ label }) {
     const id = setInterval(tick, 30000)
     return () => clearInterval(id)
   }, [])
+  const seg = (key, text, col) => {
+    const on = mode === key
+    return (
+      <button key={key} onClick={() => setMode(key)} aria-pressed={on} style={{
+        padding:'4px 10px', fontSize:10.5, fontWeight:800, cursor:'pointer', border:'none',
+        background: on ? col : 'transparent', color: on ? C.bg : C.text3, transition:'background .12s, color .12s',
+        borderRadius: 999,
+      }}>{text}</button>
+    )
+  }
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
-      <span style={{ fontSize:11, color:C.text3, fontFamily:NUM_FONT, lineHeight:1 }}>{time}</span>
-      <span style={{ fontSize:12, color:C.text2, fontFamily:NUM_FONT, fontWeight:700, lineHeight:1.3 }}>{label}</span>
+    <div className="date-mode-switch" style={{ display:'flex', alignItems:'center', gap:8 }}>
+      <div className="date-badge" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.1 }}>
+        <span style={{ fontSize:11.5, color:C.text2, fontFamily:NUM_FONT, fontWeight:800 }}>{label}</span>
+        <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>{time}</span>
+      </div>
+      <div style={{ display:'flex', padding:2, borderRadius:999, border:`1px solid ${C.border}`, background:C.glass, gap:2 }}>
+        {seg('today', 'Today', '#f97316')}
+        {seg('tomorrow', 'Tmrw', '#22d3ee')}
+      </div>
+    </div>
+  )
+}
+
+// ── ⚙ the view settings, in one sheet ─────────────────────────────────────────
+
+function SettingsSheet() {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const key = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', key)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key) }
+  }, [open])
+  return (
+    <div ref={ref} style={{ position:'relative' }}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-haspopup="dialog"
+        title="View settings — palette, light/dark, quiet mode"
+        style={{
+          width:30, height:30, borderRadius:999, display:'grid', placeItems:'center', cursor:'pointer',
+          border:`1px solid ${open ? '#f9731666' : C.border}`, background: open ? 'rgba(249,115,22,.12)' : C.glass,
+          color: open ? C.orange : C.text2, fontSize:14, transition:'transform .12s, background .12s',
+          transform: open ? 'rotate(30deg)' : 'none',
+        }}>⚙</button>
+      {open && (
+        <div role="dialog" aria-label="View settings" style={{
+          position:'absolute', right:0, top:'calc(100% + 8px)', zIndex:60, minWidth:200,
+          background:hexToRgba(C.bg2, .98), border:`1px solid ${C.border}`, borderRadius:12,
+          boxShadow:'0 12px 32px rgba(0,0,0,.45)', padding:'10px 10px 8px', display:'grid', gap:8,
+        }}>
+          <div style={{ fontSize:8.5, fontWeight:900, letterSpacing:'.14em', color:C.text3, textTransform:'uppercase' }}>View</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+            <PaletteButton />
+            <ThemeModeButton />
+            <QuietButton />
+          </div>
+          <div style={{ fontSize:9.5, color:C.text3, lineHeight:1.5 }}>Palette · light/dark · quiet mode. These stick on this device.</div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-export default function Header({ tab, setTab, mode, setMode, dateLabel, results, players = [], games = [] }) {
-  return (
-    <header style={{
-      position:'sticky', top:0, zIndex:50,
-      background:'rgba(9,9,11,0.92)',
-      backdropFilter:'blur(14px)',
-      borderBottom:'1px solid rgba(255,255,255,0.07)',
+export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDate = '', results, players = [], games = [], onPlayerClick = null }) {
+  // ── THE HEADER PUBLISHES ITS OWN HEIGHT (2026-08-16) ───────────────────
+  // Anything else that wants to stick (the Games lineup jump strip) sits
+  // below this bar via `top: var(--hdr-h)`. Measured, not a constant.
+  const hdrRef = useRef(null)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const go = (next) => { setMoreOpen(false); setTab(next) }
+
+  useEffect(() => {
+    const el = hdrRef.current
+    if (!el) return
+    // --hdr-h is what the Games jump strip sticks under. A header that
+    // scrolls away occupies no fixed space, so the strip pins to the top.
+    const write = () => { document.documentElement.style.setProperty('--hdr-h', '0px') }
+    write()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(write) : null
+    if (ro) ro.observe(el)
+    return () => { if (ro) ro.disconnect() }
+  }, [])
+
+  const tabBtn = (key, label, active, onClick, extra = {}) => (
+    <button key={key} onClick={onClick} {...extra} style={{
+      padding:'0 10px', height:44, fontSize:11.5, fontWeight:active ? 800 : 600, letterSpacing:'.01em',
+      cursor:'pointer', border:'none', borderRadius:0, background:'transparent',
+      color:active ? '#f97316' : C.text3, position:'relative', transition:'color .12s',
+      whiteSpace:'nowrap', flex:'1 1 0', textAlign:'center',
     }}>
-      <div style={{
-        maxWidth:1300, margin:'0 auto',
-        padding:'10px 16px 8px',
-        display:'flex', alignItems:'center', justifyContent:'space-between', gap:12,
-        flexWrap:'wrap',
-      }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{
-            position:'relative', width:38, height:38, borderRadius:10, flexShrink:0,
-            background:'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 0 18px rgba(249,115,22,0.35)',
-          }}>
-            <span style={{ fontSize:14, fontWeight:900, color:'#fff', letterSpacing:'-0.05em', fontFamily:NUM_FONT }}>HR</span>
-            <div style={{
-              position:'absolute', top:-2, right:-2,
-              width:8, height:8, borderRadius:'50%',
-              background:'#4ade80', border:'2px solid #09090b',
-              animation:'pulse 2s infinite',
-            }} />
-          </div>
+      {label}
+      {active && <div style={{
+        position:'absolute', bottom:0, left:8, right:8, height:2,
+        background:'linear-gradient(90deg, #f97316, #ef4444)', borderRadius:'2px 2px 0 0',
+      }} />}
+    </button>
+  )
 
-          <div>
-            <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
-              {/* MOONSHOT · MLB (2026-08-07): the receipts card, the Discord
-                  posts, and the URL all said MOONSHOT while the header still
-                  wore the pre-migration Streamlit name. The sport tag stays
-                  so an NFL sibling can slot in later as MOONSHOT · NFL. */}
-              <span style={{ fontSize:18, fontWeight:900, letterSpacing:'-0.02em', background:'linear-gradient(90deg, #f97316, #ef4444)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>MOONSHOT</span>
-              {/* SPORT SWITCHER (2026-08-08). MLB is home; NFL is a sibling
-                  SITE, one click away once it deploys — set NFL_URL below and
-                  the pill goes live. Until then it wears SEP and explains
-                  itself on hover instead of pretending. */}
-              <span style={{ display:'flex', gap:3, marginLeft:5, alignSelf:'center' }}>
-                <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999, background:'rgba(249,115,22,.15)', border:'1px solid rgba(249,115,22,.45)', color:C.orange }}>MLB</span>
-                {(() => {
-                  const NFL_URL = '' // ← set to the NFL site URL at launch
-                  const pill = {
-                    fontSize:10, fontWeight:800, letterSpacing:'0.06em', padding:'1px 7px', borderRadius:999,
-                    border:`1px solid ${C.border2}`, color:C.text3, textDecoration:'none',
-                    cursor: NFL_URL ? 'pointer' : 'help',
-                  }
-                  return NFL_URL
-                    ? <a href={NFL_URL} style={pill}>NFL</a>
-                    : <span title="MOONSHOT · NFL arrives for Week 1 — its own site, one click from here. TDs, receiving, rushing, passing, kicking. No defensive props." style={pill}>NFL <span style={{ fontSize:7.5, color:'#4ade80' }}>SEP</span></span>
-                })()}
-              </span>
+  return (
+    <header ref={hdrRef} className="hdr-one-bar" style={{
+      // NOT STICKY (2026-09-06). Donovan: "no sticky header. once you scroll
+      // don't add that, ever." The bar scrolls away with the page; the phone
+      // bottom bar owns navigation while you are down the page.
+      position:'relative', zIndex:50,
+      background: hexToRgba(C.bg, 0.92),
+      backdropFilter:'blur(14px)',
+      borderBottom:`1px solid ${C.border}`,
+    }}>
+      {/* THREE ROWS (2026-09-06, third pass). The history: one flex row
+          (brand+scorebug, rail, meta side by side) wrapped funny on desktop;
+          "one row after all" put the rail in the blank space next to Today,
+          capping the scorebug into a 520px box. Then Donovan asked for both
+          things that box was fighting over: "the moving header needs to be
+          above [the tabs], with the stat i want" and "the tabs section need
+          to be equal and precise." Those don't fit in one row together, so
+          it's three now, stacked: brand+meta, then the scorebug at full
+          width, then the rail with every tab splitting it evenly. */}
+      <div className="hdr-bar" style={{
+        maxWidth:1300, margin:'0 auto', padding:'8px 16px 6px',
+        display:'flex', flexDirection:'column', gap:8,
+      }}>
+        {/* ── row 1: brand · date · mode · account · settings ───────────── */}
+        <div className="hdr-row1" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:14, flexWrap:'nowrap' }}>
+          <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+            {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
+                DASH front door; the wordmark is MOONSHOT's own home button. */}
+            <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE" aria-label="DASH Network home"
+              style={{ display:'flex', textDecoration:'none', borderRadius:10, flexShrink:0 }}>
+              <div className="hdr-mark" style={{ position:'relative', width:46, height:46, borderRadius:12, boxShadow:'0 0 20px rgba(249,115,22,0.35)' }}>
+                <img src="/icon-192.png" alt="" width={46} height={46} style={{ display:'block', width:'100%', height:'100%', borderRadius:12 }} />
+                <div style={{ position:'absolute', top:-2, right:-2, width:8, height:8, borderRadius:'50%', background:C.green, border:`2px solid ${C.bg}`, animation:'pulse 2s infinite' }} />
+              </div>
+            </a>
+            <div style={{ minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <button type="button" onClick={() => go('home')} title="MOONSHOT home — tonight in one page" aria-label="MOONSHOT home"
+                  style={{
+                    padding:0, border:'none', background:'transparent', cursor:'pointer',
+                    fontSize:19, fontWeight:900, letterSpacing:'-0.02em', lineHeight:1.1,
+                    backgroundImage:'linear-gradient(90deg, #f97316, #ef4444)',
+                    WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+                  }}>MOONSHOT</button>
+                <span className="sport-switch" style={{ display:'flex', alignItems:'center', gap:3 }}>
+                  {/* MOONSHOT (orange, you are here) and TUDDY (green, the other
+                      product) -- named as products, not leagues, and each in its
+                      own colour so the switch reads as two shows, not a filter. */}
+                  <button onClick={() => setSport('nfl')} aria-pressed={false}
+                    title="Switch to TUDDY · NFL" aria-label="Switch to TUDDY · NFL"
+                    style={{
+                      display:'inline-flex', alignItems:'center', justifyContent:'center',
+                      height:20, minHeight:20, padding:'0 9px', lineHeight:1,
+                      fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
+                      cursor:'pointer',
+                      border:`1px solid ${C.green}55`,
+                      background:`${C.green}10`,
+                      color: C.green,
+                    }}>TUDDY</button>
+                </span>
+              </div>
             </div>
-            <div style={{ height:2, background:'linear-gradient(90deg, #f97316, transparent)', borderRadius:1, marginTop:1, width:80 }} />
+          </div>
+
+          {/* ── date · mode · account · settings ──────────────────────── */}
+          <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+            <DateMode label={dateLabel || 'Loading…'} mode={mode} setMode={setMode} />
+            <SignUpPill onWatchlist={() => go('you')} />
+            <SettingsSheet />
           </div>
         </div>
 
-        {/* The HR tracker plus the merged slate strip. Streamlit carried these
-            tiles twice -- once at the top, once on Games -- overlapping on
-            three of them. One row in the header, visible from every tab.
-            ORDER AND HUES ARE FIXED, left to right:
-              Games blue · Projected orange · HR tracking blue ·
-              Best game orange · Weak gold · Lineups green
-            The two pills that live in this file are threaded into SlateTiles
-            as elements so the whole strip renders as one ordered row instead
-            of two groups that wrap independently on narrow screens. */}
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'center',
-          gap:6, flexWrap:'wrap', flex:'1 1 480px', minWidth:0,
+        {/* ── row 2: THE MOVING HEADER, ABOVE THE TABS (2026-09-06) ─────────
+            Donovan: "the moving header needs to be above [the tabs], with
+            the stat i want." It used to live squeezed inside the 520px
+            brand column, scrolling in its own little box under the
+            wordmark. Now it's a full-width row of its own, above the rail,
+            so the leader pills (top hitter/performer per game) actually
+            have room to be read instead of hiding three pills deep in a
+            narrow strip. */}
+        <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} onPlayerClick={onPlayerClick} go={go} />
+
+        {/* ── row 3: the rail, equal and precise ─────────────────────────
+            Donovan: "the tabs section need to be equal and precise." Was
+            content-sized (flex:'1 0 auto'), so "Bot" sat narrower than
+            "Scoreboard" -- five uneven widths reading as unstyled rather
+            than as a bar. tabBtn's flex is '1 1 0' now: every tab, including
+            More, splits the row evenly, same grid idea the phone bar's five
+            equal columns already use. */}
+        <nav className="rail hdr-rail" aria-label="MOONSHOT sections" style={{
+          display:'flex', alignItems:'stretch', width:'100%',
         }}>
-          <SlateTiles
-            players={players}
-            results={results}
-            games={games}
-            projected={<ProjectedHRStat mode={mode} />}
-            capture={<CaptureStat results={results} />}
-          />
-        </div>
+          {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
+          {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
+        </nav>
+      </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <DateBadge label={dateLabel || 'Loading…'} />
-          <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1px solid ${C.border}` }}>
-            <button
-              onClick={() => setMode('today')}
-              style={{
-                padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
-                background:mode === 'today' ? '#f97316' : 'transparent',
-                color:mode === 'today' ? '#fff' : C.text3,
-                transition:'all .12s',
-              }}
-            >Today</button>
-            <button
-              onClick={() => setMode('tomorrow')}
-              style={{
-                padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
-                borderLeft:`1px solid ${C.border}`,
-                background:mode === 'tomorrow' ? '#22d3ee' : 'transparent',
-                color:mode === 'tomorrow' ? '#09090b' : C.text3,
-                transition:'all .12s',
-              }}
-            >Tmrw</button>
+
+      {moreOpen && (
+        <div style={{ borderTop:`1px solid ${C.border}`, background:hexToRgba(C.bg2, .98) }}>
+          <div className="simple-more-grid" style={{
+            maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
+            display:'grid', gridTemplateColumns:'repeat(6,minmax(0,1fr))', gap:6,
+          }}>
+            <a href="/" style={{
+              gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between',
+              padding:'9px 10px', border:`1px solid ${C.border}`, borderRadius:8,
+              background:C.glass, color:C.text2, fontSize:10, fontWeight:750, textDecoration:'none',
+            }}>
+              <span style={{ color:C.orange }}>⌂ DASH HOME</span>
+              <span style={{ color:C.text3, fontWeight:600 }}>Tonight across MOONSHOT · TUDDY · FRANCHISE →</span>
+            </a>
+            {MLB_MORE_GROUPS.map(([group, keys]) => (
+              <div key={group} style={{ gridColumn:'1/-1' }}>
+                <div style={{ fontSize:8, fontWeight:900, letterSpacing:'.14em', color:C.text3, textTransform:'uppercase', margin:'8px 2px 5px' }}>{group}</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(118px,1fr))', gap:6 }}>
+                  {keys.map((key) => (
+                    <button key={key} onClick={() => go(key)} title={MLB_NAV[key].blurb} style={{
+                      padding:'9px 10px', border:`1px solid ${tab === key ? '#f9731666' : C.border}`,
+                      borderRadius:8, background:tab === key ? 'rgba(249,115,22,.10)' : C.glass,
+                      color:tab === key ? '#f97316' : C.text2, fontSize:10, fontWeight:750,
+                      textAlign:'left', cursor:'pointer',
+                    }}>{MLB_NAV[key].icon} {MLB_NAV[key].label}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      <div style={{
-        maxWidth:1300, margin:'0 auto', padding:'0 16px',
-        overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
-      }}>
-        <div style={{ display:'flex', gap:2, paddingBottom:0, minWidth:'max-content' }}>
-          {TABS.map(([key,label]) => {
-            const active = tab === key
-            return (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                style={{
-                  padding:'8px 13px', fontSize:11, fontWeight:active ? 800 : 500,
-                  cursor:'pointer', border:'none', borderRadius:0,
-                  background:'transparent', color:active ? '#f97316' : C.text3,
-                  position:'relative', transition:'color .12s', whiteSpace:'nowrap',
-                }}
-              >
-                {label}
-                {active && <div style={{
-                  position:'absolute', bottom:0, left:0, right:0, height:2,
-                  background:'linear-gradient(90deg, #f97316, #ef4444)',
-                  borderRadius:'2px 2px 0 0',
-                }} />}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      )}
 
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
+        .hdr-scorebug::-webkit-scrollbar { display: none; }
+        .hdr-ticker-track button:hover { filter: brightness(1.25); }
         header div::-webkit-scrollbar { display: none; }
+        .hdr-scorebug::-webkit-scrollbar { display: none; }
+        @media (max-width: 700px) {
+          .simple-more-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+        }
+        /* Under the bottom bar's breakpoint (760px, components/MobileTabBar.js)
+           the bar owns tab switching, so the in-bar rail goes; the scorebug
+           stays as the one line of slate context; the account pill and ⚙
+           stay; the date badge drops to keep the row on one line. Only
+           hdr-rail is hidden -- .rail is a shared scroll utility. */
+        @media (max-width: 760px) {
+          .hdr-rail { display: none !important; }
+          .hdr-bar { gap: 6px !important; padding-bottom: 6px !important; }
+          .hdr-row1 { flex-wrap: wrap !important; gap: 6px !important; }
+          .hdr-mark { width: 40px !important; height: 40px !important; }
+          .hdr-mark img { width: 40px !important; height: 40px !important; }
+          .hdr-brand { flex-basis: 100% !important; }
+          /* Centred, both rows (Donovan: "the MOONSHOT button should be
+             centre on the page; header and the button under it seem off"). */
+          .hdr-brand { flex: 1 1 100%; justify-content: center; text-align: center; }
+          .hdr-brand > div > div:first-child { justify-content: center; }
+          .hdr-scorebug { width: 100%; }
+          .hdr-meta { padding-bottom: 8px; margin-left: auto !important; margin-right: auto !important; width: auto; justify-content: center; gap: 12px; }
+          .hdr-meta .date-badge { display: none !important; }
+        }
       `}</style>
     </header>
   )

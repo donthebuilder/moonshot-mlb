@@ -1,0 +1,125 @@
+/* /called — same ground as the front door (app/(front)/dash.module.css):
+   renders before a sport is chosen, so it carries its own palette rather than
+   inheriting a board's chrome. MOONSHOT orange is the one accent. */
+
+.page {
+  --ink: #f4f1eb;
+  --dim: #8a8580;
+  --line: #2a2724;
+  --panel: #131211;
+  --mlb: #f97316;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 18px 80px;
+  background: #0b0b0a;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+.bar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; background: #0b0a0a; border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.brand img { border-radius: 8px; }
+.brand small { display: block; font-size: 10px; letter-spacing: 0.18em; color: var(--mlb); }
+.brand strong { display: block; font-size: 15px; letter-spacing: 0.06em; }
+.nav { display: flex; gap: 14px; font-size: 13px; }
+.nav a { color: var(--dim); text-decoration: none; }
+.nav a:hover { color: var(--ink); }
+
+.hero { padding: 34px 0 18px; }
+.kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.headline { margin: 0; font-size: clamp(22px, 4.6vw, 34px); line-height: 1.15; font-weight: 700; }
+.big { color: var(--mlb); font-size: 1.35em; font-variant-numeric: tabular-nums; }
+.sub { margin: 10px 0 0; font-size: 15px; color: var(--dim); }
+.rule { margin: 18px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim); border-left: 2px solid var(--line); padding-left: 10px; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+.h2 { margin: 0 0 12px; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.h3 { margin: 18px 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+.pill { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--mlb); border: 1px solid var(--mlb); border-radius: 999px; padding: 2px 9px; font-variant-numeric: tabular-nums; }
+
+.bars { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; align-items: end; }
+.barCol { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.barTrack { width: 100%; height: 96px; background: #1a1816; border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
+.barFill { width: 100%; background: var(--mlb); border-radius: 6px 6px 0 0; min-height: 2px; transition: height 240ms ease; }
+.barPct { font-size: 11px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.barDay { font-size: 10px; color: var(--dim); }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.row {
+  display: grid; grid-template-columns: 22px 1fr auto; grid-template-areas: "g name call" "g meta call";
+  gap: 2px 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line);
+}
+.row:first-child { border-top: 0; }
+.rowDim { opacity: 0.7; }
+.glyph { grid-area: g; font-size: 15px; }
+.name { grid-area: name; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 15px; }
+.name:hover { color: var(--mlb); }
+.name small { color: var(--dim); font-weight: 400; }
+.meta { grid-area: meta; font-size: 12px; color: var(--dim); }
+.cardLink { color: var(--dim); text-decoration: underline dotted; }
+.cardLink:hover { color: var(--mlb); }
+.call { grid-area: call; font-size: 12px; color: var(--mlb); text-align: right; white-space: nowrap; }
+.rowDim .call { color: var(--dim); }
+
+.foot { display: flex; flex-direction: column; gap: 6px; margin-top: 26px; font-size: 12px; color: var(--dim); }
+.foot a { color: var(--mlb); text-decoration: none; font-size: 14px; }
+
+@media (max-width: 480px) {
+  .bars { grid-template-columns: repeat(5, 1fr); }
+  .row { grid-template-columns: 22px 1fr; grid-template-areas: "g name" "g meta" "g call"; }
+  .call { text-align: left; }
+}
+
+/* tonight's calls — the pregame post, on the page before any homer lands */
+.calls { list-style: none; margin: 0; padding: 0; }
+.calls li { display: grid; grid-template-columns: 22px 1fr auto; grid-template-areas: "n name call" "n meta call"; gap: 2px 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.calls li:first-child { border-top: 0; }
+.callN { grid-area: n; color: var(--mlb); font-weight: 700; font-variant-numeric: tabular-nums; }
+.callHit .name { color: var(--mlb); }
+@media (max-width: 480px) { .calls li { grid-template-columns: 22px 1fr; grid-template-areas: "n name" "n meta" "n call"; } }
+
+/* ── THE ASK (2026-09-05) ──────────────────────────────────────────────────
+   Donovan: "make sure it leads to a sign up." One button shape, used twice:
+   under the headline and at the bottom after the list. */
+.cta { display: flex; flex-direction: column; gap: 3px; margin: 18px 0 0; padding: 14px 18px; background: var(--mlb); color: #0d0c0a; border-radius: 12px; text-decoration: none; max-width: 420px; }
+.cta strong { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.cta span { font-size: 12px; opacity: 0.8; }
+.cta:hover { filter: brightness(1.07); }
+.navCta { color: var(--mlb) !important; border: 1px solid var(--mlb); border-radius: 999px; padding: 6px 12px; }
+.more { margin-top: 8px; }
+.more summary { cursor: pointer; font-size: 13px; color: var(--mlb); padding: 8px 0; list-style: none; }
+.more summary::-webkit-details-marker { display: none; }
+.more summary::before { content: '+ '; }
+.more[open] summary::before { content: '− '; }
+.close { margin-top: 28px; padding: 22px 0 0; border-top: 1px solid var(--line); }
+.closeH { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 800; }
+.close p { margin: 8px 0 0; font-size: 14px; color: var(--dim); max-width: 520px; }
+
+/* ── PAST NIGHTS (2026-09-06) ────────────────────────────────────────────
+   Each bar in "Last N nights" links to one of these, or to #tonight for
+   today's bar. Modern browsers auto-open a <details> that is itself the
+   link target (HTML spec behavior) — no JS. Falls back gracefully to a
+   scroll-and-tap if a browser doesn't. */
+.bars a.barCol { text-decoration: none; color: inherit; cursor: pointer; }
+.bars a.barCol:hover .barFill { filter: brightness(1.15); }
+.bars a.barCol:hover .barPct { color: var(--mlb); }
+
+.nights { margin-top: 14px; }
+.night { border-top: 1px solid var(--line); }
+.night:first-child { border-top: 0; }
+.night summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 11px 0; font-size: 13px;
+}
+.night summary::-webkit-details-marker { display: none; }
+.night summary::before { content: '+ '; color: var(--mlb); }
+.night[open] summary::before { content: '− '; }
+.nightDay { font-weight: 700; color: var(--ink); }
+.nightStat { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
+.night .list { padding-bottom: 10px; }
+#tonight:target, .night:target { scroll-margin-top: 70px; }

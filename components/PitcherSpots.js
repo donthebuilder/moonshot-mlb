@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, nameOf, hrScore, hitScore, prodScore, median } from '../lib/player'
 import Heatmap from './Heatmap'
 import DenseTable from './DenseTable'
+import { seqChip, divChip, sampleDim, DOMAIN } from '../lib/scales'
 
 // Where this pitcher actually gets hurt, spot by spot.
 //
@@ -19,16 +20,40 @@ import DenseTable from './DenseTable'
 // about 15. Getting that order wrong turns a three-PA fluke into "he gets
 // hurt here", which is the single most expensive mistake this panel could make.
 
+// ── ONE DIRECTION FOR THE WHOLE MODAL (2026-08-22) ──────────────────────────
+//
+// This function used to paint "YES — he gets hurt here" in C.red and "NO —
+// pitcher's advantage" in C.green, forty pixels above a heatmap whose bright
+// end ALSO meant "he gets hurt here". Two encodings of one idea, pointing
+// opposite ways, on the same card: red said good-for-the-bat and bright said
+// good-for-the-bat, so the reader had to hold two conventions at once.
+//
+// The whole modal now reads in one direction — WARM IS GOOD FOR THE BAT —
+// which is the direction the ramp already had and the direction someone
+// reading a hitter's page is thinking in. The words are unchanged; only the
+// hue moved, onto the diverging scale's two ends via theme tokens so it
+// follows light/dark.
+//
+// Thresholds are the bot's own and are untouched, including the order they are
+// checked in: sample size FIRST, because three PA is the easiest way to talk
+// yourself into a bad spot.
 function verdictFor({ dmg, pa, label, ownMed }) {
   if (pa < 10) return { text: 'NOT ENOUGH DATA', color: C.text3, rank: 0 }
   if (label === 'HOT' || label === 'WARM' || (dmg >= 50 && dmg > ownMed + 12)) {
-    return { text: 'YES — he gets hurt here', color: C.red, rank: 3 }
+    return { text: 'YES — he gets hurt here', color: C.orange, rank: 3 }
   }
   if (dmg <= 15 || label === 'PITCHER ADV') {
-    return { text: "NO — pitcher's advantage", color: C.green, rank: 1 }
+    return { text: "NO — pitcher's advantage", color: C.blue, rank: 1 }
   }
   return { text: 'NEUTRAL', color: C.text2, rank: 2 }
 }
+
+// League-average anchors for what a starter allows, so SLG/ISO against are
+// drawn as "worse than league" rather than as a magnitude. Stated here rather
+// than inline, because an anchor a reader cannot find is an anchor they cannot
+// argue with.
+const LG_SLG_AGAINST = 0.400
+const LG_ISO_AGAINST = 0.160
 
 // "spot #1: 39 PA, 0.324 SLG, 0.088 ISO, HR rate 2.6%, XBH rate 2.6%, HH 27.3%"
 function parseReason(reason) {
@@ -56,23 +81,97 @@ const COLUMNS = [
     fmt: (v, r) => v,
   },
   { key: 'weak',    label: '★',      flag: true, mark: '★', w: 30 },
-  { key: 'damage',  label: 'Damage', w: 52, dp: 1 },
-  { key: 'vsOwn',   label: 'vs own', w: 52, dp: 1,
-    title: 'Damage in this spot minus the median across his other eight' },
-  { key: 'pa',      label: 'PA',     w: 40 },
-  { key: 'slg',     label: 'SLG ag', w: 50, dp: 3 },
-  { key: 'iso',     label: 'ISO ag', w: 50, dp: 3 },
-  { key: 'hrRate',  label: 'HR%',    w: 44, dp: 1 },
+  // 2026-08-12: "Damage" here was matching the GLOSSARY entry written for a
+  // HITTER's own damage-conversion rate ("when HE hits it hard..."). This is
+  // the opposite side of the ball — how much damage HITTERS have done TO
+  // THIS PITCHER in this lineup spot.
+  // THE ONE SCORE TABLE THAT DOES NOT DIVERGE AGAINST ITS FIELD (2026-08-22).
+  // Every other 0-100 score on the site is now anchored on the middle of the
+  // rows on screen. This table has NINE rows — a pitcher's nine lineup spots —
+  // and nine is not a field: the tenth and ninetieth percentile are the min
+  // and max, so the "ceiling" would be the range and the scale would be a
+  // min/max stretch wearing a diverging coat. lib/scales.js refuses anything
+  // under twelve for exactly that reason. The diverging read this table wants
+  // already exists and is honest: `vs own`, below, against his other eight.
+  { key: 'damage',  label: 'Damage', w: 52, dp: 1, scale: 'seq', domain: [0, 100], primary: true,
+    explain: 'How much damage hitters have done against this pitcher specifically in this lineup spot — his vulnerability here, not a hitter\'s own damage-conversion rate.' },
+  { key: 'vsOwn',   label: 'vs own', w: 52, dp: 1, scale: 'div', anchor: 0, ceiling: 40, anchorLabel: 'his other eight spots',
+    title: 'Damage in this spot minus the median across his other eight. ▲ he is worse here than he is elsewhere; ▼ better.' },
+  { key: 'pa',      label: 'PA',     w: 40, heat: false, mono: true,
+    title: 'The denominator under every rate in this row. A count, so it prints as a count.' },
+  { key: 'slg',     label: 'SLG ag', w: 50, dp: 3, scale: 'div', anchor: 0.400, ceiling: 0.30, anchorLabel: 'league .400',
+    title: 'Slugging allowed in this spot, against what league-average pitching allows' },
+  { key: 'iso',     label: 'ISO ag', w: 50, dp: 3, scale: 'div', anchor: 0.160, ceiling: 0.25, anchorLabel: 'league .160',
+    title: 'Isolated power allowed in this spot, against league' },
+  // Same GLOSSARY['hr'] score-collision fix as MatchupPitcher.js's tables.
+  { key: 'hrRate',  label: 'HR%',    w: 44, dp: 1,
+    explain: 'Home runs as a share of plate appearances against hitters in this lineup spot.' },
   { key: 'xbhRate', label: 'XBH%',   w: 46, dp: 1 },
   { key: 'hh',      label: 'HH%',    w: 44, dp: 1 },
-  { key: 'zone',    label: 'Zone',   w: 44, dp: 1 },
-  { key: 'hr',      label: 'HR scr', w: 48, dp: 1 },
+  { key: 'zone',    label: 'Zone',   w: 44, dp: 1, scale: 'seq', domain: [0, 100] },
+  { key: 'hr',      label: 'HR scr', w: 48, dp: 1, scale: 'seq', domain: [0, 100] },
   { key: 'hit',     label: 'Hit',    w: 44, dp: 1 },
   { key: 'hrr',     label: 'HRR',    w: 44, dp: 1 },
 ]
 
+// ── SPOT CARDS, THE DEFAULT (2026-08-24) ────────────────────────────────────
+// Donovan: the "Lineup slot × damage" heatmap-plus-table pair overflows on
+// the right on desktop and is worse on a phone. The hero callout above (Does
+// he get hurt in the N-hole) already answers the headline question for
+// whichever spot is picked; this panel used to duplicate all nine spots
+// again as a wide heatmap and then AGAIN as a 14-column table. Now it's nine
+// cards, one per lineup spot, each opening (same <details> idiom as the rest
+// of the site) into the identical numbers the table carried — nothing
+// dropped, just not all fourteen columns open at once for all nine rows.
+// The heatmap and the full table both stay, one tap away, for anyone who
+// wants the cross-spot visual scan or a sortable column.
+const SPOT_DETAIL = [
+  ['vsOwn', 'vs own', 1], ['pa', 'PA', 0], ['slg', 'SLG ag', 3], ['iso', 'ISO ag', 3],
+  ['hrRate', 'HR%', 1], ['xbhRate', 'XBH%', 1], ['hh', 'HH%', 1], ['zone', 'Zone', 1],
+  ['hr', 'HR scr', 1], ['hit', 'Hit', 1], ['hrr', 'HRR', 1],
+]
+const fmtN = (v, dp) => (v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(dp))
+
+function SpotCard({ r, onPlayerClick }) {
+  return (
+    <details style={{
+      background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${r.verdictColor}`,
+      borderRadius: 10, padding: '7px 11px', breakInside: 'avoid',
+    }}>
+      <summary
+        onClick={(e) => { if (onPlayerClick && r._raw) { e.preventDefault(); onPlayerClick(r._raw) } }}
+        style={{ cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}
+      >
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 16, flexShrink: 0 }}>{r.spot ?? '?'}</span>
+        <span style={{ fontWeight: 800, fontSize: 12, color: C.text }}>{r.batter}</span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>({r.bats})</span>
+        {r.weak ? <span style={{ color: C.yellow, fontSize: 10 }} title="Weak spot">★</span> : null}
+        <span style={{ fontSize: 10, fontWeight: 700, color: r.verdictColor }}>{r.verdict}</span>
+        <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11 }}>
+          <b style={{ color: r.verdictColor }}>{fmtN(r.damage, 1)}</b><span style={{ color: C.text3 }}> dmg</span>
+        </span>
+      </summary>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+        gap: '4px 10px', marginTop: 8, paddingTop: 7, borderTop: `1px solid ${C.border}`,
+      }}>
+        {SPOT_DETAIL.map(([key, label, dp]) => (
+          <div key={key}>
+            <div style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '.05em', color: C.text3 }}>{label}</div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2 }}>{fmtN(r[key], dp)}</div>
+          </div>
+        ))}
+      </div>
+      {r.weakReason && (
+        <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>{r.weakReason}</div>
+      )}
+    </details>
+  )
+}
+
 export default function PitcherSpots({ pitcher, onPlayerClick }) {
   const lineup = useMemo(() => (pitcher?.lineup || []).filter(Boolean), [pitcher])
+  const [detailOpen, setDetailOpen] = useState(false)
 
   const spots = useMemo(() => {
     const built = lineup.map((b) => {
@@ -168,17 +267,30 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
         display: 'grid', gap: 8, marginBottom: 10,
         gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
       }}>
+        {/* THE TILES CARRIED ONE COLOUR (2026-08-22). All four printed their
+            value in C.orange whatever the value was — the purest decoration
+            case in the audit, four varying numbers wearing one constant hue.
+            Each now wears its own scale: the score on the sequential ramp
+            against 0-100, the two rates against what league pitching allows,
+            and the sample on the confidence treatment rather than a hue,
+            because "I don't trust this" is a statement about the scale rather
+            than a value on it. */}
         {[
-          ['Damage in spot', sel.damage.toFixed(1), `${sel.vsOwn >= 0 ? '+' : ''}${sel.vsOwn.toFixed(1)} vs his other spots`],
-          ['SLG / ISO allowed', sel.slg.toFixed(3), `ISO ${sel.iso.toFixed(3)}`],
-          ['HR / hard-hit', `${sel.hrRate.toFixed(1)}%`, `HH ${sel.hh.toFixed(0)}%`],
-          ['Sample', `${sel.pa} PA`, sel.pa < 10 ? 'too thin to trust' : 'usable'],
-        ].map(([l, v, sub]) => (
+          ['Damage in spot', sel.damage.toFixed(1), `${sel.vsOwn >= 0 ? '+' : ''}${sel.vsOwn.toFixed(1)} vs his other spots`,
+            seqChip(sel.damage, DOMAIN.score) || C.text2, 1],
+          ['SLG / ISO allowed', sel.slg.toFixed(3).replace(/^0/, ''), `ISO ${sel.iso.toFixed(3).replace(/^0/, '')} · league allows ${LG_SLG_AGAINST.toFixed(3).replace(/^0/, '')}`,
+            divChip(sel.slg, { anchor: LG_SLG_AGAINST, ceiling: 0.30, deadband: 0.08 }), 1],
+          ['HR / hard-hit', `${sel.hrRate.toFixed(1)}%`, `HH ${sel.hh.toFixed(0)}% · over ${sel.pa} PA`,
+            divChip(sel.hrRate, { anchor: 3.2, ceiling: 4, deadband: 0.1 }), 1],
+          ['Sample', `${sel.pa} PA`, sel.pa < 10 ? 'too thin to trust — under the bot’s own 10-PA bar' : 'usable',
+            C.text2, sampleDim(sel.pa, 10).opacity],
+        ].map(([l, v, sub, col, op]) => (
           <div key={l} style={{
             background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 11px',
+            opacity: op,
           }}>
             <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.07em', color: C.text3, fontWeight: 700 }}>{l}</div>
-            <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 800, color: C.orange }}>{v}</div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 17, fontWeight: 800, color: col }}>{v}</div>
             <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>
           </div>
         ))}
@@ -201,6 +313,53 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
         {thinCount > 0 && ` · ${thinCount} on under 10 PA`}
       </div>
 
+      {/* ── LINEUP SLOT × DAMAGE, AS CARDS BY DEFAULT (2026-08-24) ──────────
+          Nine cards, one per lineup spot — the same numbers the heatmap and
+          table below carry, opened per-row instead of all fourteen columns
+          crammed into one wide table. Tap a card to expand it; tap the
+          batter's name to open his own card. */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.text2, margin: '2px 0 6px' }}>
+        Lineup slot × damage
+      </div>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6, marginBottom: 8,
+      }}>
+        {spots.map((r) => <SpotCard key={r._key} r={r} onPlayerClick={onPlayerClick} />)}
+      </div>
+      <button
+        onClick={() => setDetailOpen((v) => !v)}
+        style={{
+          fontSize: 10, fontWeight: 700, color: C.orange, background: 'transparent',
+          border: 'none', cursor: 'pointer', padding: '2px 0', marginBottom: 10,
+        }}
+      >
+        {detailOpen ? '▴ hide the heatmap + sortable table' : '▾ show the heatmap + sortable table (cross-spot scan, sort by column)'}
+      </button>
+
+      {detailOpen && (
+      <div style={{ overflowX: 'auto' }}>
+      {/* ── LINEUP × DAMAGE, RESCALED (2026-08-22) ─────────────────────────
+          Donovan: "great info, visually off… the chart overwhelming."
+
+          Ten columns used to sit on one auto-normalised ramp. Reading left to
+          right, that ramp was being asked to mean: a 0-100 model score, then a
+          SIGNED DIFFERENCE that could be negative, then another 0-100 score,
+          then a RAW PA COUNT, then two slugging rates MULTIPLIED BY 1000 to
+          make them fit the same range, then three percentages, then a fourth
+          score. Six different kinds of number, one kind of colour. That is why
+          it read as overwhelming: there was nothing to be overwhelmed BY, just
+          ten columns all shouting at the same volume.
+
+          Now five columns carry colour and each carries a different question:
+            Damage / Zone / HR scr   0-100 scores on a stated 0-100
+            vs own                   a signed difference, against zero
+            SLG ag / ISO ag          rates, against what league allows
+          PA, HR%, XBH% and HH% print as numbers, because a count has no
+          ceiling and a rate on a nine-row grid has no distribution.
+
+          Every column, every value and every tooltip survives. SLG and ISO
+          also stop being ×1000 — they print as .913 / .522, which is how
+          anyone reading a slash line expects to see them. */}
       <Heatmap
         rows={spots.map((r) => ({
           label: `#${r.spot ?? '?'}  ${r.batter}`,
@@ -210,8 +369,8 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
             'vs own': r.vsOwn,
             Zone: r.zone,
             PA: r.pa,
-            'SLG ag': r.slg * 1000,
-            'ISO ag': r.iso * 1000,
+            'SLG ag': r.slg,
+            'ISO ag': r.iso,
             'HR%': r.hrRate,
             'XBH%': r.xbhRate,
             'HH%': r.hh,
@@ -219,20 +378,43 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
           },
         }))}
         columns={['Damage', 'vs own', 'Zone', 'PA', 'SLG ag', 'ISO ag', 'HR%', 'XBH%', 'HH%', 'HR scr']}
-        title="Lineup slot × damage — bright is where this arm bleeds"
+        scales={{
+          Damage: { kind: 'seq', domain: [0, 100] },
+          Zone: { kind: 'seq', domain: [0, 100] },
+          'HR scr': { kind: 'seq', domain: [0, 100] },
+          'vs own': { kind: 'div', anchor: 0, ceiling: 40, anchorLabel: 'his own other spots' },
+          'SLG ag': { kind: 'div', anchor: LG_SLG_AGAINST, ceiling: 0.30, anchorLabel: `league ${LG_SLG_AGAINST.toFixed(3).replace(/^0/, '')}` },
+          'ISO ag': { kind: 'div', anchor: LG_ISO_AGAINST, ceiling: 0.25, anchorLabel: `league ${LG_ISO_AGAINST.toFixed(3).replace(/^0/, '')}` },
+          PA: { kind: 'none' },
+          'HR%': { kind: 'none' },
+          'XBH%': { kind: 'none' },
+          'HH%': { kind: 'none' },
+        }}
+        fmts={{
+          'SLG ag': (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(3).replace(/^0/, '') : '—'),
+          'ISO ag': (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(3).replace(/^0/, '') : '—'),
+          'vs own': (v) => (Number.isFinite(Number(v)) ? `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(0)}` : '—'),
+        }}
+        title="Lineup slot × damage — warm is good for the bat"
         labelWidth={190}
         fmt={(v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(0) : '—')}
-        onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
-        caption="In batting order, not sorted by damage — click Damage to rank. SLG and ISO against are ×1000 to share the scale. PA is here so a bright damage cell on a thin sample is visible as exactly that."
+        // DenseTable already unwraps _raw; the guard now checks the thing it
+        // was actually meant to check.
+        onRowClick={onPlayerClick ? (p) => p && onPlayerClick(p) : null}
+        caption="In batting order, not sorted by damage — click Damage to rank. Damage, Zone and HR scr are 0–100 scores drawn against 0–100, so a quiet arm looks quiet. vs own is a signed difference against his other spots (▲ worse here, ▼ better). SLG and ISO against are drawn versus what league-average pitching allows, not versus each other. PA, HR%, XBH% and HH% print plain — PA is here so a warm damage cell on a thin sample is visible as exactly that."
       />
 
       <DenseTable
         rows={spots}
         columns={COLUMNS}
         onRowClick={onPlayerClick}
+        heatMode="sorted"
+        dimRow={(r) => r.pa < 10}
         maxHeight={380}
         caption="Verdict thresholds are the bot's own: under 10 PA is NOT ENOUGH DATA regardless of how the damage reads, because a three-PA fluke is the easiest way to talk yourself into a bad spot."
       />
+      </div>
+      )}
     </div>
   )
 }

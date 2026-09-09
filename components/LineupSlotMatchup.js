@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { n, clean } from '../lib/player'
+import { n, clean, surname } from '../lib/player'
 import { pitcherSlotDamage } from '../lib/situational'
 
 // SLOT-BY-SLOT MATCHUP (2026-08-06) — what clicking a game bubble earns in
@@ -96,13 +96,28 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
                 🔥 biggest mismatch: <b>#{top.spot} {top.p?.name}</b> · edge {top.edge}
               </div>
             )}
+            {/* CLEANED (2026-08-08): one labeled header per team instead of a
+                long legend sentence — the columns explain themselves */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '0 4px 2px', fontFamily: NUM_FONT, fontSize: 7.5, fontWeight: 900, letterSpacing: '.07em', color: C.text3, borderLeft: '2px solid transparent' }}>
+              <span style={{ width: 11, flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0 }}>BATTER</span>
+              <span style={{ flex: '0 0 52px', textAlign: 'center' }} title="What this arm allows to that batting-order slot, season OPS-against, live">ARM→SLOT</span>
+              <span style={{ width: 30, textAlign: 'right' }}>OPS</span>
+              <span style={{ width: 62, textAlign: 'right' }} title="The batter vs this arm's side">AVG/ISO</span>
+              <span className="l5col" style={{ width: 44, textAlign: 'right' }}>L5</span>
+              <span style={{ width: 26, textAlign: 'right' }}>EDGE</span>
+              <span style={{ width: 20 }} />
+            </div>
             {rows9.map(({ p, spot, sd, sideMatch, slotMatch, both, vsAvg, vsIso, edge }) => (
           <div key={`${spot}-${p?.player_id}`} onClick={() => onPlayerClick?.(p)}
             title={sd ? `Slot ${spot}: he allows ${sd.ops.toFixed(3)} OPS · ${sd.hr} HR in ${sd.ab} AB to this spot` : undefined}
             style={{
+              // subtler mismatch mark (owner 2026-08-08): thin ember spine
+              // instead of a full row tint — highlights without the noise
               display: 'flex', gap: 6, alignItems: 'center', padding: '3px 4px', cursor: 'pointer',
-              minWidth: 0, borderRadius: 6,
-              background: both ? 'rgba(249,115,22,.10)' : sideMatch || slotMatch ? 'rgba(252,211,77,.05)' : 'transparent',
+              minWidth: 0, borderRadius: 6, minHeight: 23,
+              borderLeft: both ? `2px solid ${C.orange}` : sideMatch || slotMatch ? '2px solid rgba(252,211,77,.45)' : '2px solid transparent',
+              background: both ? 'rgba(249,115,22,.05)' : 'transparent',
             }}>
             <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 11, flexShrink: 0 }}>{spot || '·'}</span>
             <span style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>

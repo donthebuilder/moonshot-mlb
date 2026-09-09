@@ -1,20 +1,32 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
-import { fetchJSON, normalizeData, groupGames } from '../lib/data'
-import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, setSlateMode } from '../lib/dataSource'
+import { resolveTab, pageTitle } from '../lib/routes'
+import TabNotFound from './TabNotFound'
+import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
+import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
+import { fetchLiveSlate } from '../lib/liveSlate'
 import { Empty } from './ui'
 import Header from './Header'
 import MiniWire from './MiniWire'
+import { setSport } from '../lib/sport'
 import TabExplainer from './TabExplainer'
 import Controls from './Controls'
 import Slip from './Slip'
 import PlayerModal from './PlayerModal'
 import MobileCSS from './MobileCSS'
+import StaleBanner from './StaleBanner'
+import MobileTabBar from './MobileTabBar'
 
+import Home from './tabs/Home'
+import MyPicks from './tabs/MyPicks'
+import TruePrice from './tabs/TruePrice'
 import Guide from './tabs/Guide'
 import Games from './tabs/Games'
+import Boxes from './tabs/Boxes'
+import Runs from './tabs/Runs'
+import AtThePlate from './tabs/AtThePlate'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
 import SprayBoard from './tabs/SprayBoard'
@@ -24,26 +36,59 @@ import Backtest from './tabs/Backtest'
 import PlayerBoard from './tabs/PlayerBoard'
 import HitsHRR from './tabs/HitsHRR'
 import Scoreboard from './tabs/Scoreboard'
+import Combos from './tabs/Combos'
+import You from './tabs/You'
 import Pools from './tabs/Pools'
 import Leaders from './tabs/Leaders'
 import Results from './tabs/Results'
 import Watchlist from './tabs/Watchlist'
 import Pairs from './tabs/Pairs'
 import Bot from './tabs/Bot'
+import OddsBoard from './tabs/OddsBoard'
 import Pitchers from './tabs/Pitchers'
+import PropsGrid from './tabs/PropsGrid'
 import QuickSearch from './QuickSearch'
+import { SlateScaleProvider } from '../lib/statline'
+import { follow, useFollowing } from '../lib/dash/follow'
+import { liveOdds } from '../lib/oddsFreshness'
+import { markDirty } from '../lib/dash/sync'
+import ErrorBoundary from './ErrorBoundary'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
 
-export default function Dashboard() {
+// Tabs that read no slate data and must render even when tonight's card
+// hasn't been built. See the gate below.
+const SLATE_FREE = new Set(['trueprice', 'boxes'])
+
+// palettePass changes once, after SportRoot has applied a non-default chrome
+// palette (see components/SportRoot.js). Nothing reads it: it exists so the
+// repaint pass is a visible prop change rather than an invisible parent
+// re-render, and so nobody wraps this in React.memo without noticing.
+// eslint-disable-next-line no-unused-vars
+export default function Dashboard({ palettePass = 0 }) {
   const [mode, setMode] = useState('today')
-  const [tab, setTabRaw] = useState('scoreboard')
+  // Home is the front door now (2026-08-08) — deep links below still land
+  // wherever their hash says.
+  const [tab, setTabRaw] = useState('home')
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
+    setModalView({ pid: '', view: '' })
+    // Changing tab closes the player card. #33: `#tab=odds&p=686948` rendered
+    // the card on top of Odds, so the URL said one thing and the screen showed
+    // another; #60 sharpened that to blocking, because the card is modal over
+    // the whole page and swallowed every click on the tab underneath it.
+    setModalPlayer(null)
+    setMissingTab('')
     setTabRaw(next)
   }
   const [data, setData] = useState(null)
   const [results, setResults] = useState(null)
+  const [datedResults, setDatedResults] = useState(null)
+  // Raw payload in state; everything below the gate sees liveOdds(oddsRaw) —
+  // null once the board is older than ODDS_STALE_HOURS — except the Odds tab,
+  // whose EXPIRED panel needs the raw pull date. See lib/oddsFreshness.js.
+  const [oddsRaw, setOddsRaw] = useState(null)
+  const odds = liveOdds(oddsRaw)
   const [pairSummary, setPairSummary] = useState(null)
   const [pairBuilder, setPairBuilder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -59,11 +104,112 @@ export default function Dashboard() {
   // open/close, so any view you're looking at is copy-paste shareable —
   // which is how a Discord pick post becomes a link to its receipt.
   const hashAppliedRef = useRef(false)
+  // Which tab of the player card a deep link asked for (`#p=571448&view=spray`).
+  // Empty means "whatever the card opens on by itself". Set by the hash
+  // readers below, handed to PlayerModal, and never written back into the URL
+  // -- it is an instruction for the moment the card opens, not an address.
+  //
+  // IT CARRIES THE PLAYER IT WAS MEANT FOR. The card can walk to the next man
+  // on the board without closing (onNavigate), which changes `player` under
+  // PlayerModal -- and a bare 'spray' string would then snap every one of them
+  // to the spray chart, forever, because the notification said so about
+  // somebody else twenty minutes ago. Pairing the view with an id makes it
+  // expire on its own the moment you move off the man it was about.
+  const [modalView, setModalView] = useState({ pid: '', view: '' })
+  // `missing` carries the tab someone actually typed when this product has no
+  // such page, so the shell can say so instead of rendering an empty div. See
+  // lib/routes.js -- MOONSHOT used to answer #tab=picks with a blank screen.
+  const [missingTab, setMissingTab] = useState('')
   useEffect(() => {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-    const t = h.get('tab')
-    if (t) setTabRaw(t)
+    const r = resolveTab('mlb', h.get('tab'))
+    if (r.status === 'missing') setMissingTab(r.asked)
+    else if (r.status !== 'default') setTabRaw(r.tab)
   }, [])
+
+  // ── THE URL HAS TO MEAN SOMETHING AFTER THE FIRST PAINT (2026-08-29) ──────
+  //
+  // Donovan asked for "nav smooth". Reproduced on the live site: set the
+  // address to #sport=nfl&tab=boards on an open page and the URL changes
+  // while the page carries on showing MOONSHOT · Home. The effect above reads
+  // the hash EXACTLY ONCE, at mount — and a hash change never remounts a
+  // single-page app.
+  //
+  // What that actually broke, none of which is exotic:
+  //   · the BACK button. Every tab switch writes a new hash, so going back
+  //     rewrites the address and moves nothing. The browser looks broken.
+  //   · any in-page link to another tab or sport.
+  //   · a second visit to a link already open in that tab.
+  //
+  // A hashchange listener is the whole fix. It applies the tab, and hands the
+  // sport to lib/sport.js the same way the header's own toggle does, so the
+  // two paths cannot drift. Guarded against echoing our own writes: the
+  // write-back effect below sets hashWroteRef, and applying a value that is
+  // already current is a no-op in React anyway.
+  useEffect(() => {
+    const apply = () => {
+      const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      const r = resolveTab('mlb', h.get('tab'))
+      if (r.status === 'missing') { setMissingTab(r.asked) }
+      else { setMissingTab(''); if (r.status !== 'default') setTabRaw(r.tab) }
+      const sp = h.get('sport')
+      if (sp === 'mlb' || sp === 'nfl') setSport(sp)
+      // ── #p= ON A LIVE HASH CHANGE (2026-09-03) ──────────────────────────
+      //
+      // The mount-time reader below handles a COLD open. This handles the
+      // warm one, and until now it did not exist -- which is most of why
+      // tapping a homer notification landed on the board. The service worker
+      // prefers to reuse an already-open tab (sw.js focuses a client and
+      // navigates it), so the common case on a phone is: app already running,
+      // hash changes, no remount. The tab moved. The player card did not.
+      //
+      // hashAppliedRef is cleared as well, so the mount reader is not left
+      // holding a spent flag if the payload for this man has not landed yet.
+      const pid = h.get('p')
+      setModalView(pid ? { pid: String(pid), view: String(h.get('view') || '') } : { pid: '', view: '' })
+      if (pid) {
+        const found = playersRef.current.find((x) => String(x?.player_id ?? x?.id) === pid)
+        hashAppliedRef.current = !!found
+        if (found) setModalPlayer(found)
+        else pendingPlayerRef.current = pid
+      } else {
+        pendingPlayerRef.current = ''
+        setModalPlayer(null)
+      }
+    }
+    window.addEventListener('hashchange', apply)
+
+    // ── THE SERVICE WORKER CAN ALSO ASK (2026-09-03) ────────────────────────
+    //
+    // public/sw.js posts the tapped notification's URL here after focusing
+    // this tab, because a fragment-only WindowClient.navigate() is not
+    // dependable and a tap that brings the app forward showing the wrong
+    // screen is the bug being fixed. Writing the hash fires `apply` above
+    // through the normal path -- there is no second routing code path to keep
+    // in sync -- and writing a hash that is already current does nothing, so
+    // the belt and the braces cannot fight.
+    const fromWorker = (ev) => {
+      const d = ev?.data
+      if (!d || d.type !== 'dash-open' || typeof d.url !== 'string') return
+      const i = d.url.indexOf('#')
+      if (i < 0) return
+      const next = d.url.slice(i)
+      if (window.location.hash === next) apply()
+      else window.location.hash = next
+    }
+    navigator.serviceWorker?.addEventListener?.('message', fromWorker)
+
+    return () => {
+      window.removeEventListener('hashchange', apply)
+      navigator.serviceWorker?.removeEventListener?.('message', fromWorker)
+    }
+  }, [])
+
+  // The hashchange listener is registered once and therefore closes over the
+  // first render's values forever. These two refs are how it sees the current
+  // slate, and how it parks an id whose row has not been fetched yet.
+  const playersRef = useRef([])
+  const pendingPlayerRef = useRef('')
 
   const [focusPlayerId, setFocusPlayerId] = useState(null)
 
@@ -76,6 +222,12 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [backtest, setBacktest] = useState(null)
+  const [evalReport, setEvalReport] = useState(null)
+
+  // Which slate the last payload was for. The regression guard below must only
+  // compare like with like: today -> tomorrow legitimately moves the date
+  // forward, and tomorrow -> today legitimately moves it back.
+  const slateModeRef = useRef(mode)
 
   useEffect(() => {
     let alive = true
@@ -88,16 +240,30 @@ export default function Dashboard() {
     // Data is fetched from the Streamlit repo's `data` branch, not from this
     // app's own /public -- moonshot ships no data of its own.
     setSlateMode(mode)
+    const sameMode = slateModeRef.current === mode
+    slateModeRef.current = mode
     const paths = slatePaths(mode)
     // fetchJSON already cache-busts with a ?t=Date.now() query param (see
     // lib/data.js), so re-running this effect always hits the network for
     // fresh data rather than a stale browser/CDN cache.
     Promise.allSettled([
-      fetchJSON(paths).then((j) => { if (alive) setData(j) }),
+      // The slate is the one payload with a validity test: a 200 carrying six
+      // rows from a game two weeks ago must not beat the real slate sitting
+      // behind it in the fallback list. See lib/data.js.
+      // ...and a second test, on ORDER: a payload dated earlier than the board
+      // already on screen is a regression, not an update, and is dropped.
+      // 2026-08-22, when the data branch spent the day alternating between
+      // tonight's slate and last night's. See keepNewerSlate in lib/data.js.
+      fetchJSON(paths, slateLooksReal).then((j) => {
+        if (alive) setData((prev) => (sameMode ? keepNewerSlate(prev, j) : j))
+      }),
       fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
+      // No validator: no odds file is the normal state until a key is set.
+      fetchJSON(oddsPaths()).then((j) => { if (alive) setOddsRaw(j) }),
       fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
       fetchJSON(pairSummaryPaths()).then((j) => { if (alive) setPairSummary(j) }),
       fetchJSON(backtestPaths()).then((j) => { if (alive) setBacktest(j) }),
+      fetchJSON(evalReportPaths()).then((j) => { if (alive) setEvalReport(j) }),
     ]).then(() => {
       if (alive) { setLoading(false); setRefreshing(false) }
     })
@@ -109,13 +275,27 @@ export default function Dashboard() {
   // (checked via results.live_mode, the same flag live_results_tracker.py
   // already writes) and slower otherwise, so it's responsive during games
   // without hammering the JSON files all day when nothing is happening.
+  //
+  // HIDDEN TABS DON'T POLL (2026-08-09 scan). This is the heaviest timer on
+  // the site — each tick refetches FIVE payloads (slate, results, pair
+  // builder, pair summary, backtest) — and it was the only one with no
+  // `document.hidden` guard. Every other poller here has one. On a phone left
+  // on this tab in the background that is five requests every 45 seconds,
+  // forever, for a screen nobody is looking at: pure battery and data.
+  //
+  // Skipping while hidden creates a second problem, so it's handled in the
+  // same effect: come back after twenty minutes away and you'd be staring at
+  // twenty-minute-old scores until the next tick. A visibilitychange listener
+  // refreshes immediately on return, so the tab is fresher than before rather
+  // than staler — you get the update when you actually look.
   useEffect(() => {
     const isLive = results?.live_mode === true
     const intervalMs = isLive ? 45_000 : 5 * 60_000 // 45s live, 5min idle
-    const id = setInterval(() => {
-      setRefreshKey((k) => k + 1) // refreshKey > 0 here, so no loading spinner
-    }, intervalMs)
-    return () => clearInterval(id)
+    const bump = () => setRefreshKey((k) => k + 1)   // >0, so no loading spinner
+    const id = setInterval(() => { if (!document.hidden) bump() }, intervalMs)
+    const onVis = () => { if (!document.hidden) bump() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
   }, [results?.live_mode])
 
   // Re-fetches everything above by bumping refreshKey, which the effect
@@ -129,19 +309,76 @@ export default function Dashboard() {
   const normalized = useMemo(() => normalizeData(data || {}), [data])
   const allPlayers = normalized.players
 
+  // 🔄 LIVE WATCHLIST (2026-08-08, Donovan: "when I save someone at 1pm and
+  // they're projected it stays that way"). toggleWatch stores a SNAPSHOT of
+  // the row at star-time — so a 1pm save wore "projected" all night even
+  // after lineups posted. This re-resolves every saved id to tonight's
+  // CURRENT slate row on each data refresh; the stored snapshot is only the
+  // fallback for a player who's since left the slate. Confirmations, spots,
+  // scores and the graded chips all move through the day now.
+  const watchLive = useMemo(() => {
+    const byId = new Map(allPlayers.map((p) => [String(playerId(p)), p]))
+    return watch.map((s) => byId.get(String(playerId(s))) || s)
+  }, [watch, allPlayers])
+
   // (deep-link effects live below allPlayers — deps arrays evaluate at
   // render time and a hoisted reference would hit the temporal dead zone)
+  useEffect(() => { playersRef.current = allPlayers }, [allPlayers])
+
   useEffect(() => {
     if (hashAppliedRef.current) return
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-    const pid2 = h.get('p')
+    // pendingPlayerRef covers the case the hash has already been rewritten by
+    // the write-back effect: a notification tapped before the slate finished
+    // loading would otherwise lose its man between the two events.
+    const pid2 = h.get('p') || pendingPlayerRef.current
     if (!pid2 || !allPlayers.length) return
     const found = allPlayers.find((x) => String(x?.player_id ?? x?.id) === pid2)
-    if (found) { setModalPlayer(found); hashAppliedRef.current = true }
+    if (found) {
+      // `view` is read here rather than at mount because a cold open reaches
+      // this effect only once the payload lands, and the hash is still intact
+      // until the card actually opens.
+      const v = String(h.get('view') || '')
+      if (v) setModalView({ pid: String(pid2), view: v })
+      setModalPlayer(found)
+      pendingPlayerRef.current = ''
+      hashAppliedRef.current = true
+    }
   }, [allPlayers])
+  // ── EVERY DEEP LINK WAS LOST ON A NON-DEFAULT THEME (fixed 2026-08-22) ────
+  //
+  // Found while checking the colour work in light mode: `?theme=light#tab=due`
+  // landed on HOME. Every #tab= and #p= link did, for anyone not on ember.
+  //
+  // The race. Two effects run in the same commit. The one above READS
+  // #tab=due and calls setTabRaw — but this one, in that same commit, still
+  // closes over the render's `tab`, which is 'home', so `if (tab !== 'home')`
+  // is false and it REBUILDS THE HASH WITHOUT the tab. The hash is gone
+  // before the next render can write it back.
+  //
+  // On ember that is invisible: nothing remounts, the re-render fires
+  // immediately and puts #tab=due straight back. On any other theme
+  // SportRoot's applyTheme flips `pass`, Dashboard REMOUNTS, and the fresh
+  // mount reads a hash that has already been wiped. So the bug only ever
+  // appeared on the themes nobody had deep-linked into.
+  //
+  // The fix is one line: this effect does not write on its FIRST run. There
+  // is nothing to write on mount anyway — the URL is already whatever the
+  // reader asked for — and skipping it lets the read effect land first.
+  const hashWroteRef = useRef(false)
   useEffect(() => {
+    if (!hashWroteRef.current) { hashWroteRef.current = true; return }
     const h = new URLSearchParams()
-    if (tab !== 'scoreboard') h.set('tab', tab)
+    // KEEP THE SPORT KEY. This effect rebuilds the hash from scratch, so it
+    // used to delete #sport= on mount — which broke every NFL deep link before
+    // SportRoot ever got to read it. Anything else in the hash is this
+    // dashboard's own business; sport is not.
+    try {
+      const prev = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      const sp = prev.get('sport')
+      if (sp) h.set('sport', sp)
+    } catch { /* ignore */ }
+    if (tab !== 'home') h.set('tab', tab)
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
     if (pid2) h.set('p', pid2)
     const next = h.toString()
@@ -162,24 +399,137 @@ export default function Dashboard() {
   // disagree about the game count or which game is best.
   const headerGames = useMemo(() => groupGames(allPlayers), [allPlayers])
 
+  // ⭐ LAST NIGHT'S WATCHLIST DOESN'T SURVIVE THE NIGHT (2026-08-11, Donovan:
+  // "the watchlist doesn't clear over at night, it shows the people you had on
+  // there last night").
+  //
+  // WATCH_KEY stores whole player OBJECTS, and playerId is the COMPOSITE
+  // `${player_id}-${game_pk}` (lib/player.js:72) — man PLUS game. So a name
+  // starred last night is stored against last night's game_pk, and that breaks
+  // twice over:
+  //
+  //   1. it renders, carrying last night's opponent, starter and line — which
+  //      is the symptom Donovan saw, a finished game presented as tonight's;
+  //   2. worse and silently, its key can never match tonight's row for the
+  //      same hitter, so re-starring him looks like a no-op and the ★ never
+  //      appears where it should.
+  //
+  // Pruned against the SLATE rather than against a clock: an entry survives
+  // only while its game is still on the published board. That needs no date
+  // stamp, so it also fixes entries already saved by older builds, and it
+  // rolls over correctly at midnight without caring what the local date did —
+  // the same reason liveSlate now spans yesterday..today.
+  //
+  // GUARDED on a non-empty slate. players is [] on first paint and on any
+  // failed fetch, and pruning against an empty board would silently erase the
+  // whole watchlist — a destructive, unrecoverable answer to a network blip.
+  // DELAYED KEEPS ITS STAR, POSTPONED LOSES IT (2026-08-11, Donovan:
+  // "delayed is good, postponed of not going to play remove").
+  //
+  // The two look identical to the slate — a postponed game stays on the
+  // published board all night, because the board was built before the rain —
+  // so "is his game still listed" cannot tell them apart. It has to come off
+  // the league's own status, which liveSlate already separates: `delayed` is
+  // a game that WILL be played (its picks are still live and the star is still
+  // worth having), `postponed`/`suspended` are not finishing tonight.
+  //
+  // fetchLiveSlate is the module-level cached snapshot MiniWire already polls,
+  // so this joins that cache rather than adding a request.
+  useEffect(() => {
+    if (!allPlayers?.length || !watch.length) return
+    let alive = true
+    fetchLiveSlate().then((snap) => {
+      if (!alive) return
+      const onSlate = new Set(allPlayers.map((p) => clean(p?.game_pk, '')).filter(Boolean))
+      if (!onSlate.size) return
+      // Only games the league says are wiped for tonight. A snapshot that
+      // failed to load leaves this empty, which degrades to "prune by slate
+      // only" rather than to a wrongly-emptied list.
+      const dead = new Set((snap?.games || [])
+        .filter((g) => g.postponed || g.suspended)
+        .map((g) => String(g.pk)))
+      const kept = watch.filter((p) => {
+        const pk = clean(p?.game_pk, '')
+        return onSlate.has(pk) && !dead.has(String(pk))
+      })
+      if (kept.length === watch.length) return
+      setWatch(kept)
+      try { localStorage.setItem(WATCH_KEY, JSON.stringify(kept)) } catch { /* ignore */ }
+    }).catch(() => { /* a failed snapshot must never clear the list */ })
+    return () => { alive = false }
+  }, [allPlayers, watch])
+
   const watchIds = useMemo(() => new Set(watch.map(playerId)), [watch])
+
+  // FOLLOWED NAMES COME BACK ON THEIR OWN.
+  //
+  // A followed hitter who is on tonight's board gets his star back without
+  // being re-starred — that is what "keeping track" has to mean for a list
+  // that is pruned nightly by design. Keyed on raw player_id, never on the
+  // composite `${player_id}-${game_pk}`: the composite is exactly what stops
+  // last night's entry from matching tonight's row (see the prune above), so
+  // matching on it here would restore nothing.
+  //
+  // ONE DIRECTION ONLY. This adds; it never removes. Un-starring tonight has
+  // to survive the next render, so a star is only added for a followed player
+  // who is on the board and not already present — and `relitRef` remembers
+  // who has been offered this slate so an un-star can't be undone by the next
+  // data poll.
+  const { rows: followedRows } = useFollowing('mlb')
+  const relitRef = useRef(new Set())
+  useEffect(() => {
+    if (!allPlayers?.length || !followedRows.length) return
+    const wanted = new Set(followedRows.map((row) => String(row.id)))
+    const already = new Set(watch.map((w) => clean(w?.player_id, '')))
+    const add = allPlayers.filter((p) => {
+      const pid = clean(p?.player_id, '')
+      if (!pid || !wanted.has(String(pid))) return false
+      if (already.has(pid) || relitRef.current.has(pid)) return false
+      return true
+    })
+    if (!add.length) return
+    add.forEach((p) => relitRef.current.add(clean(p?.player_id, '')))
+    setWatch((prev) => {
+      const ids = new Set(prev.map(playerId))
+      const next = [...prev, ...add.filter((p) => !ids.has(playerId(p)))]
+      try { localStorage.setItem(WATCH_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }, [allPlayers, followedRows, watch])
 
   const addSlip = (p, bet) => setSlip((s) => [...s, { p, bet }])
 
-  // Bot picks jump straight to the Pairs tab, focused on the clicked player,
-  // instead of opening PlayerModal -- per request, the click itself should
-  // navigate rather than pop up the modal.
-  const handleBotPlayerClick = (p) => {
+  // Jump to Pairs focused on a player. This USED TO BE what every click on
+  // the Bot tab did, including on the Picks board — 2026-08-11, Donovan:
+  // "when i click on a player in there it take me to pairs". On a picks page
+  // the click means "tell me about this hitter", and every other tab on the
+  // site answers that by opening the card. Being the one exception made it
+  // read as a misfire rather than a shortcut. Kept as its own handler so the
+  // Pairs jump stays available where it IS the point.
+  const goToPairsFor = (p) => {
     setFocusPlayerId(playerId(p))
     setTab('pairs')
   }
 
   const clearFocus = () => setFocusPlayerId(null)
 
+  // ⭐ STAR = TONIGHT, FOLLOW = THE MAN (2026-08-28).
+  //
+  // The star stays exactly what it was: game-scoped, pruned against the board
+  // every night, for the reasons in the long comment above the prune effect.
+  // What was missing is the other half — Donovan, 08-28: "watch list data
+  // after as the days arent keeping track." Starring now also files the
+  // player in the durable, account-synced Following list (lib/dash/follow.js),
+  // and the effect below re-lights his star automatically the next time he
+  // turns up on a board. Un-starring is a statement about tonight and does
+  // NOT unfollow; that lives on the Following list itself.
   const toggleWatch = (p) => setWatch((prev) => {
     const id = playerId(p)
-    const next = prev.some((x) => playerId(x) === id) ? prev.filter((x) => playerId(x) !== id) : [...prev, p]
+    const on = prev.some((x) => playerId(x) === id)
+    const next = on ? prev.filter((x) => playerId(x) !== id) : [...prev, p]
     try { localStorage.setItem(WATCH_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+    if (!on) follow('mlb', { id: clean(p?.player_id, ''), name: nameOf(p), team: teamOf(p) })
+    markDirty()
     return next
   })
 
@@ -190,61 +540,241 @@ export default function Dashboard() {
   // under today's header as if it were tonight. Pools and Pairs only get the
   // results object when its date matches the slate being viewed; the Results
   // tab keeps the ungated object because its day picker owns its own dates.
-  const slateDate = clean(obj(data).date || obj(data).slate_date, '')
-  const resultsForSlate =
-    (!slateDate || !clean(results?.date, '') || results.date === slateDate) ? results : null
+  // A payload with no `date` at all is exactly what a broken publish looks
+  // like, and the staleness check was reading only that field — so the one
+  // failure it exists to catch would have slipped past it silently. Falling
+  // back to the newest game_time means the banner can still tell you which
+  // night you're actually looking at.
+  const slateDate = clean(obj(data).date || obj(data).slate_date, '') || slateDateFromRows(data)
+  const slateIsReal = !data || slateLooksReal(data)
+  // FALLBACK TO THE DATED FILE WHEN results_live.json GOES STALE.
+  //
+  // 2026-08-15: the branch was serving results_live.json dated 2026-07-26
+  // while graded_results_2026-08-14.json sat next to it, current. The grader's
+  // FINAL step publishes the dated file and is healthy; its LIVE step writes
+  // results_live.json and had stopped refreshing it. Everything keyed on
+  // `resultsForSlate` — Home's pulse, Pools, Pairs, the watch ledger, My Picks
+  // — date-gates against that stale file and correctly resolves to null, so
+  // the whole site quietly showed no results at all while a perfectly good
+  // graded file was one URL away.
+  //
+  // The site can't fix the publish, but it does not have to depend on it. When
+  // the live file's date doesn't match the slate, fetch the slate's own dated
+  // file. Identical shape (see gradedResultsUrl's comment), so it drops in.
+  const liveMatchesSlate =
+    !slateDate || !clean(results?.date, '') || results.date === slateDate
+  const resultsForSlate = liveMatchesSlate
+    ? results
+    : (clean(datedResults?.date, '') === slateDate ? datedResults : null)
+  // EVERY CONSUMER TAKES THE GATED COPY — the Results tab included, as of
+  // 2026-08-23. It used to be the exception, on the reasoning that its day
+  // picker owns its own dates. That reasoning only holds for the ARCHIVE half
+  // of the picker; its default view is "Tonight — live", and that view was
+  // rendering the raw live file whatever date the file claimed. So on a stale
+  // publish the one page whose whole job is "here is how tonight went" showed
+  // a finished card from a previous night under a heading that said tonight,
+  // while every other surface correctly showed nothing. Donovan, 2026-08-23:
+  // "the results page is not showing todays result its showing yesterdays as
+  // the live result on the page." The tab now takes the gated copy and is told
+  // what the live file actually claims, so it can say so instead. This used to be three exceptions:
+  // Header rendered "HR capture 78% · 14/18 — how many of tonight's home runs
+  // were on the sheet" straight off the raw file, so on a stale-publish day the
+  // sticky bar announced a two-week-old capture rate on every tab while the
+  // rest of the site correctly showed nothing. Scoreboard's Gone Yard did the
+  // same and then ranked those homers against TONIGHT's board. Watchlist wrote
+  // the stale night into a persistent local ledger under today's date.
+  //
+  // Keyed on what we've ALREADY asked for, not on what came back. Gating on
+  // datedResults.date instead would refetch forever the moment the branch
+  // serves a file whose own date doesn't match the name it's published under
+  // — which is exactly the class of failure this fallback exists because of.
+  const datedAsked = useRef(null)
+  useEffect(() => {
+    // Only when the live file is actually stale — a healthy branch never pays
+    // for this request.
+    if (!slateDate || liveMatchesSlate) {
+      datedAsked.current = null
+      setDatedResults(null)
+      return
+    }
+    const want = `${slateDate}#${refreshKey}`
+    if (datedAsked.current === want) return
+    datedAsked.current = want
+    let alive = true
+    fetch(gradedResultsUrl(slateDate), { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) setDatedResults(j || null) })
+      .catch(() => { if (alive) setDatedResults(null) })
+    return () => { alive = false }
+  }, [slateDate, liveMatchesSlate, refreshKey])
+
   // These render from their own payloads, so an empty slate must not blank them.
-  const tabsWithoutPlayers = ['pairs', 'bot', 'results', 'guide', 'watch', 'pairhist']
+  const tabsWithoutPlayers = ['home', 'pairs', 'bot', 'results', 'guide', 'watch', 'pairhist']
   const showEmpty = !loading && !players.length && !tabsWithoutPlayers.includes(tab)
 
   return (
-    <>
+    // Slate-relative stat colour, computed ONCE for the whole slate and read
+    // through context by every card. A board with 300 rows would otherwise
+    // re-rank the slate 300 times; more importantly, every surface shares one
+    // set of cutoffs, so the same barrel rate can't be green on the HR board
+    // and grey in the player's card. See lib/statline.js.
+    <SlateScaleProvider players={allPlayers}>
       <MobileCSS />
-      {/* The ember signature — same bar the night-receipts card wears. */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 400,
+      {/* The ember signature — same bar the night-receipts card wears.
+          NOT FIXED (2026-09-06). Donovan: "I don't like how the yellow line
+          stays on the screen when you scroll." It was `position: fixed` at
+          zIndex 400 -- ABOVE the header's own 50 -- so when the header
+          scrolled away (2026-09-06's "no sticky header, once you scroll
+          don't add that, ever") this bar was the one thing left glued to
+          y=0, sitting on top of the phone's own status bar for the rest of
+          the page. Static now: it renders once at the top of the document
+          and scrolls off with everything else, same as the header. */}
+      <div style={{ height: 3, flexShrink: 0,
         background: 'linear-gradient(90deg, #f97316, #FCD34D 50%, #f97316)' }} />
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} mode={mode} setMode={setMode} results={results} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} />
-      <main className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
+      {/* ── THE DOCUMENT LAYER (2026-09-02, finding 93) ───────────────────
+          The board page carried 79 buttons, a 60-row table, and ZERO headings.
+          Everything that looks like a heading -- "HR Board", "B2B WATCH", the
+          group and market pills -- is a styled div, so a screen-reader user
+          got no outline to move through and no way to skip the nav. These two
+          elements are the minimum that fixes navigation: a skip link as the
+          first focus stop, and one h1 that names the page you are actually on.
+          It is sr-only because the visual design already answers "where am I"
+          through the tab row; the document never did. */}
+      <a className="skip-link" href="#board-main">Skip to the board</a>
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} onPlayerClick={setModalPlayer} />
+      <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
+        <h1 className="sr-only">{pageTitle('mlb', missingTab ? 'home' : tab)}</h1>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
             has the full panel) — live info dies when it needs visiting. */}
-        <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
+        {/* Loudest thing on the page when it fires, and silent otherwise:
+            "you are looking at a slate that already happened". */}
+        <StaleBanner compact slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} />
+        <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} results={resultsForSlate} odds={odds} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice
             but I don't know what I'm looking at." */}
         <TabExplainer tab={tab} />
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
-        {loading ? (
+        {/* SLATE-FREE TABS (2026-08-15). Every tab used to sit behind the
+            slate: no slate, no page. True Price doesn't read the slate at
+            all — it's a season of settled prices — so gating it meant the
+            one surface that still has something to say on a dark day, an
+            off-season morning, or during a slate outage was the one showing
+            "Loading slate data…". Anything else that genuinely doesn't
+            depend on tonight's card belongs in this set too. */}
+        {missingTab ? (
+          <TabNotFound
+            asked={missingTab}
+            sport="mlb"
+            onNavigate={setTab}
+            doors={[['home', '🏠 HOME'], ['board', '📊 CHARTS'], ['bot', '🎯 PICKS'], ['results', '🧾 RESULTS'], ['guide', '📖 GUIDE']]}
+          />
+        ) : loading && !SLATE_FREE.has(tab) ? (
           <Empty text="Loading slate data…" />
-        ) : showEmpty ? (
+        ) : showEmpty && !SLATE_FREE.has(tab) ? (
           <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
         ) : (
           <div key={tab} className="tab-fade">
-            {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
-            {tab === 'games'       && <Games players={players} slateDate={slateDate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'board'       && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {/* Power = Longest + Due merged; 'due' kept as alias route. */}
-            {tab === 'longest'     && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'due'         && <PowerTab players={players} slateDate={slateDate} results={resultsForSlate} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initial="due" />}
-            {tab === 'pairhist'    && <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={setModalPlayer} />}
-            {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} />}
-            {/* 'hitshrr' merged into 'board' — route kept as alias for old links */}
-            {tab === 'hitshrr'     && <HitsHRR players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
-            {tab === 'scoreboard'  && <Scoreboard players={players} mode={mode} slateDate={slateDate} results={results} backtest={backtest} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
-            {tab === 'pools'       && <Pools players={players} results={resultsForSlate} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} onPlayerClick={setModalPlayer} />}
+            {/* Same boundary the NFL side got (2026-09-07, components/
+                ErrorBoundary.js): a throw inside one tab used to unmount the
+                whole app to a white screen. Now it is one panel. */}
+            <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
+            {/* resultsForSlate, NOT results (2026-08-09 audit). Home's pulse line
+                counts "balls already left a yard tonight" straight out of the
+                results payload, and results_live.json holds the LAST graded
+                slate until a new one starts — it was serving July 26 today.
+                Ungated, the front page would announce a fortnight-old homer
+                count as tonight's. Every other consumer already uses the
+                date-gated copy. */}
+            {/* ── THE NINE TABS (2026-08-16 consolidation) ─────────────────────
+                Rule: a TAB is a question you arrive with; a VIEW is an answer.
+                Every pre-consolidation key below the nine is an ALIAS — it
+                still routes, opening the new host on the right view, or the
+                standalone component where that is the safer render. Nothing
+                was deleted; see lib/theme.js for the map. */}
+            {tab === 'home'        && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
+            {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} />}
+            {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
+            {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
+                per Donovan's sequencing call: the grid stays an entry point,
+                the drill-down is the existing player modal on top of it. */}
+            {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />}
+            {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />}
+            {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
+            {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
+            {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+            {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'live'        && <AtThePlate players={allPlayers} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={setModalPlayer} />}
+
+            {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
+            {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}
+            {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
+            {tab === 'atplate'     && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} initialMode="live" />}
+            {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17
+                by an audit that opened each route and looked for the feature's
+                own text, rather than only asking whether the page threw).
+                `longest` and `due` route into the Power group but the group's
+                own name did not, so #tab=power rendered the header and nothing
+                under it — a dead URL that the 0-crashing smoke could not see,
+                because a page rendering nothing does not throw. Both are group
+                names people will type and link to. */}
+            {tab === 'power'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" />}
+            {/* #tab=steals (2026-09-01) — the Steal Board is a group inside the
+                boards page; this lands on it directly, same shape as 'power'.
+                Not a new tab in the nav — Donovan: "unsure about the use of
+                more tabs, we have to get that under control." */}
+            {tab === 'steals'      && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="steals" />}
+            {/* #tab=gap and #tab=triples (2026-09-03) — the Gap Board is a
+                group inside the boards page, same shape as 'steals'. Two
+                names route to it because 'triples' is what he asked for and
+                'gap' is what it turned out to be. */}
+            {(tab === 'gap' || tab === 'triples')      && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="gap" />}
+            {tab === 'shape'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="shape" />}
+            {tab === 'patterns'    && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="patterns" />}
+            {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="longest" />}
+            {tab === 'due'         && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="due" />}
+            {tab === 'hitshrr'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} />}
+            {/* 2026-08-24: the Alignments view gets its own route, so the Home
+                ledger's "research →" can land on it directly. Same component
+                and props as every other Combos alias. */}
+            {tab === 'align'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="align" />}
+            {/* 🧾 #tab=ledger — the Homer Ledger's own page inside Combos
+                (2026-08-24). Same host, own view; the Home panel's
+                "research →" link points here. */}
+            {tab === 'ledger'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="ledger" />}
+            {tab === 'pairs'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pairs" />}
+            {tab === 'pools'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pools" />}
+            {tab === 'builder'     && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="builder" />}
+            {tab === 'pairhist'    && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="history" />}
+            {tab === 'mypicks'     && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="picks" />}
+            {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
+            {tab === 'trueprice'   && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} initialView="trueprice" />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'pairs'      && <Pairs players={allPlayers} pairBuilder={pairBuilder} pairHistorySummary={pairSummary} results={resultsForSlate} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
-            {tab === 'bot'        && <Bot players={allPlayers} onPlayerClick={handleBotPlayerClick} />}
-            {tab === 'pitchers'   && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'results'     && <Results results={results} backtest={backtest} players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'watch'       && <Watchlist items={watch} players={allPlayers} pairSummary={pairSummary} results={results} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
+            {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
+            {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
+            {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
-            {tab === 'guide'       && <Guide />}
+            {tab === 'guide'       && <Guide onNavigate={setTab} />}
+            </ErrorBoundary>
           </div>
         )}
+        {/* THE DISCLAIMER (2026-08-08, Donovan: "make sure we know it's all
+            not financial advice, just stats") — every tab, every visit. */}
+        <div style={{
+          fontSize: 9, color: C.text3, textAlign: 'center', lineHeight: 1.6,
+          padding: '18px 12px 10px', borderTop: `1px solid ${C.border}`, marginTop: 18,
+        }}>
+          MOONSHOT is stats and analysis for entertainment — measured data, graded in public.
+          It is <b style={{ color: C.text2 }}>not financial, betting, or investment advice</b>, and
+          nothing here is a recommendation to wager. If you bet, that&apos;s your decision and your
+          responsibility — play responsibly.
+        </div>
       </main>
       {/* ⌘K / "/" from anywhere → jump to any player's modal. */}
       <QuickSearch players={allPlayers} onPick={setModalPlayer} />
+      <MobileTabBar tab={tab} setTab={setTab} />
       <Slip slip={slip} setSlip={setSlip} />
       {/* slateMode is passed EXPLICITLY, not left to the module-level default
           in dataSource.js. That default is set by an effect, so flipping
@@ -252,14 +782,34 @@ export default function Dashboard() {
           any component's effect deps — the detail fetches never re-ran and you
           kept looking at the other slate's spray chart, splits and arsenal.
           Threaded as a prop it's in the deps array, so a mode flip refetches. */}
+      {/* A crash in the card should close the card, not the site. */}
+      <ErrorBoundary resetKey={modalPlayer && (modalPlayer.player_id ?? modalPlayer.id)} label="the player card">
       <PlayerModal
         player={modalPlayer}
+        initialTab={modalPlayer && String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') === modalView.pid ? modalView.view : ''}
         slateMode={mode}
         onClose={() => setModalPlayer(null)}
         onAdd={addSlip}
         onWatch={toggleWatch}
         watched={modalPlayer ? watchIds.has(playerId(modalPlayer)) : false}
+        // ‹ › inside the modal walk THE LIST ON SCREEN, in its order — the
+        // filtered/searched slate, not the raw payload — so the arrows follow
+        // whatever you were actually reading. The search inside the modal
+        // reaches the same list.
+        peers={players}
+        onNavigate={setModalPlayer}
+        odds={odds}
+        // ⚖ PAIR HISTORY, THREADED IN (2026-08-21, Phase 5). PlayerModal had
+        // no way to reach pair_history_summary at all before this — Compare
+        // (Phase 4) reads it to show co-HR history for whichever two hitters
+        // are on screen, with "Full pair history" routing to the SAME History
+        // destination Combos already owns (tab=pairhist), not a second one —
+        // see Pairs.js's own 2026-08-17 "double pair history" postmortem for
+        // why that rule matters.
+        pairSummary={pairSummary}
+        onOpenPairHistory={() => setTab('pairhist')}
       />
-    </>
+      </ErrorBoundary>
+    </SlateScaleProvider>
   )
 }

@@ -5,6 +5,7 @@ import { arr, obj, n, clean, nameOf } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle, selectStyle } from '../ui'
 import DenseTable from '../DenseTable'
 
+
 // Pair History — which two hitters have gone deep on the same day, all season.
 //
 // This board didn't exist in the Next.js build; it came in on the Streamlit
@@ -65,16 +66,78 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
       />
 
+      {/* 🕘 THE WIRE (2026-08-08, "more alive yet still a library"): the
+          freshest co-HR connections as a scrolling ticker strip — days-ago
+          leading, today's pulse glowing. The archive below is untouched;
+          this is just the library's new-arrivals shelf by the door. */}
+      {(() => {
+        const fresh = pairs
+          .filter((p) => n(p?.days_since_last_hit, null) != null)
+          .sort((a, b) => n(a?.days_since_last_hit, 999) - n(b?.days_since_last_hit, 999)
+            || n(b?.repeat_count, 0) - n(a?.repeat_count, 0))
+          .slice(0, 12)
+        if (!fresh.length) return null
+        return (
+          <div className="rail" style={{
+            display: 'flex', gap: 6, overflowX: 'auto', padding: '7px 2px', marginBottom: 10,
+            borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
+            alignItems: 'center', WebkitOverflowScrolling: 'touch',
+          }}>
+            <span style={{
+              fontSize: 8.5, fontWeight: 900, color: C.orange, letterSpacing: '.09em',
+              textTransform: 'uppercase', flexShrink: 0, fontFamily: NUM_FONT,
+            }}>Latest connections →</span>
+            {fresh.map((pr, i) => {
+              const since = n(pr?.days_since_last_hit, null)
+              const today = since === 0
+              const col = today ? '#4ade80' : since != null && since <= 3 ? C.orange : C.text3
+              return (
+                <span key={i}
+                  title={`${clean(pr?.player_1, '?')} + ${clean(pr?.player_2, '?')} — ${n(pr?.repeat_count, 0)} co-HR days this season, last ${clean(pr?.last_hit_date ?? pr?.last_same_day_hr, '—')}${pr?.same_game_flag ? ' · has same-game history' : ''}`}
+                  style={{
+                    flexShrink: 0, display: 'inline-flex', gap: 6, alignItems: 'baseline',
+                    fontSize: 10, fontWeight: 700, fontFamily: NUM_FONT,
+                    border: `1px solid ${col}44`, borderRadius: 999, padding: '3px 10px',
+                    background: today ? 'rgba(74,222,128,.10)' : 'transparent',
+                    boxShadow: today ? '0 0 10px rgba(74,222,128,.25)' : 'none',
+                    color: C.text2, cursor: 'default', whiteSpace: 'nowrap',
+                  }}>
+                  <b style={{ color: col }}>{today ? 'TODAY' : `${since}d`}</b>
+                  {clean(pr?.player_1, '?').split(' ').slice(-1)[0]} + {clean(pr?.player_2, '?').split(' ').slice(-1)[0]}
+                  <span style={{ color: C.text3 }}>×{n(pr?.repeat_count, 0)}</span>
+                  {pr?.same_game_flag ? <span>🎯</span> : null}
+                </span>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       <div style={{
         fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 720,
       }}>
-        <b style={{ color: C.text2 }}>Read the same-game share before anything else on this page.</b>{' '}
-        Two hitters homering on the same <i>date</i> in different ballparks is two independent
-        events — the board counts it anyway, because that&apos;s how the pair score is built. Only the
-        same-game subset is genuinely correlated, and it&apos;s a small fraction of the total. Use{' '}
-        <b style={{ color: C.text2 }}>Same game only</b> to see just that subset, and{' '}
-        <b style={{ color: C.text2 }}>Playable tonight</b> to drop the pairs where one half isn&apos;t
+        {/* 2026-08-09 — CORRECTION. This paragraph used to say the same-game
+            subset is "genuinely correlated" and everything else is two
+            independent events. Half of that was right. Sampling 186,000
+            same-night pairs across 58 graded nights and dividing what happened
+            by the independence expectation (p1 x p2 on each night's own HR
+            rate) gives a correlation ratio of 1.05 for same game and 1.04 for
+            same team. That is 1.00 to within noise. Same-game pairs are ALSO
+            two independent events.
+
+            The site does not get to keep a confident claim the archive
+            disagrees with, so the paragraph now says what actually predicts a
+            pair landing: two individually good bats, nothing about where they
+            play. */}
+        <b style={{ color: C.text2 }}>A pair is two independent events — including in the same game.</b>{' '}
+        We checked: across 58 graded nights, two picks in the same ballpark cleared together
+        1.05× as often as pure chance, and two on the same team 1.04×. That is no correlation at
+        all. What does move the number is both halves being good bats —
+        two <b style={{ color: C.text2 }}>TOP</b> picks landed together 5.3% of the time
+        and two big-ISO bats 4.8%, against 2.2% for a random pair off the same slate.
+        So build a pair on the two names you like most, not on the ballpark. Use{' '}
+        <b style={{ color: C.text2 }}>Playable tonight</b> to drop pairs where one half isn&apos;t
         even in a lineup.
       </div>
 

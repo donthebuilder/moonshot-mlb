@@ -1,8 +1,34 @@
+/* ── iOS TEXT INFLATION, OFF (2026-08-29) ───────────────────────────────
+   Donovan, with screenshots: "doesnt seem like its a lot of words and its
+   taking up the page on most of the picks ... like the pairs you cant even
+   see the names because the stats are so big."
+
+   It was never a font-size we set. WebKit on iPhone runs its own text
+   autosizing: it decides a block is "wide", and silently scales the text
+   inside it UP, choosing its own multiplier per block. That is why the
+   screenshots show one sentence rendering at two different sizes — the
+   proportional runs got boosted, the monospace spans in the same line did
+   not — and why the Pairs rows had giant stats crushing the names. Nothing
+   on desktop was affected, which is why it never showed up in any pass.
+
+   Pinning this to 100% tells WebKit to render the sizes this site actually
+   asked for. It changes nothing on desktop, and nothing about our own
+   responsive type — MobileCSS's phone sizes still apply. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* The ground is the palette's, not ember's. applyTheme() (lib/theme.js) sets
+   --dash-bg / --dash-text on <html> once the chosen theme is applied; the
+   fallbacks below are ember, which is also what the server renders, so the
+   first paint is unchanged and a non-default theme no longer leaves a dark
+   ground under a pale page. */
 html, body {
   margin: 0;
   padding: 0;
-  background: #09090b;
-  color: #f4f4f5;
+  background: var(--dash-bg, #09090b);
+  color: var(--dash-text, #f4f4f5);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -18,4 +44,120 @@ a {
 
 button {
   font-family: inherit;
+}
+
+/* Franchise's phone-only network dock lived here until 2026-09-07. Removed
+   with the dock itself — a league room on a phone was stacking three
+   navigations, and the room header's switch row already does this job. See
+   app/fantasy/layout.js. */
+
+/* ── NO QUESTION-MARK CURSOR, ANYWHERE (2026-08-29) ────────────────────────
+   Donovan: "site wide, i dont like when i hover over something or a name /
+   player and its a question mark. fix that please."
+
+   Fifty-one elements carried `cursor: help` — stat labels, tiles, chips, and
+   in a few places the player's own name. The help cursor is the browser's
+   standard "there is an explanation here" affordance, which is why it had
+   spread; the trouble is that it fires on hover over content you are reading,
+   not over a control, so the whole page starts asking you a question.
+
+   Every one of them is now `default`. NOTHING WAS TAKEN AWAY: each of those
+   elements keeps its title attribute, so the tooltip still appears on hover
+   exactly as before, and the ⓘ glyphs the site already draws next to
+   explainable stats are doing the discoverability job the cursor was doing
+   badly. Clickable things are unaffected — they were always `pointer`.
+
+   This rule is the belt to that braces: any element that gains a title
+   attribute later, anywhere on the site, cannot bring the question mark back
+   with it. Buttons, links and anything explicitly set to pointer are excluded
+   so a control never loses its own cursor. */
+[title] {
+  /* `inherit`, not `default`: a span with a tooltip INSIDE a button or a link
+     inherits that control's pointer and keeps behaving like part of the
+     control, while a standalone label inherits the page's ordinary arrow.
+     A flat `default` here would have quietly stolen the pointer from every
+     titled span sitting inside a clickable row. */
+  cursor: inherit;
+}
+
+/* ── THE DOCUMENT LAYER (2026-09-02, findings 93-95) ───────────────────────
+   The interactive layer of this app was already in good shape: every button
+   carries an accessible name, every image has alt, lang and viewport are set.
+   What never got built was the semantic skeleton -- the board page counted
+   ZERO headings across 79 buttons and a 60-row table, so a screen-reader user
+   got no outline, no landmark to jump between, and no way past the nav.
+
+   .sr-only lived only inside components/MobileCSS.js, which is a React
+   component: the one class the document layer depends on was mounted by the
+   app rather than by the stylesheet. It belongs here, where it exists whether
+   or not that component renders. (The copy in MobileCSS is harmless and left
+   alone -- identical rule, same cascade.) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Visible only when tabbed to -- the first stop on the page, so a keyboard or
+   screen-reader user can get past a header and a tab row they have already
+   heard once. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 9999;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: var(--dash-scrim, rgba(11, 11, 10, .96));
+  color: var(--dash-text, #f4f4f5);
+  border: 1px solid rgba(249, 115, 22, .6);
+  font: 800 11px/1 monospace;
+  letter-spacing: .06em;
+  transition: top .12s ease-out;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* ── THE PHONE FONT FLOOR (moved here 2026-09-02) ─────────────────────────
+   These four rules lived in components/MobileCSS.js, which is a styled-jsx
+   template, and they have never once applied to a production build.
+
+   Next's CSS minifier unquotes an attribute value that contains no spaces.
+   From styled-jsx that turned [style*="font-size:8"] into
+   [style*=font-size:8] — and an unquoted attribute value has to be a valid
+   identifier, which one containing a colon is not. Chrome drops the
+   selector, and because CSS discards an ENTIRE selector list when any single
+   selector in it is invalid, the broken no-space variants took the perfectly
+   good spaced ones down with them. Measured on the built page: zero rules
+   inside that media block.
+
+   The identical declaration compiled from THIS file comes out as
+   [style*=font-size\:8] — unquoted with the colon escaped, which is valid
+   and matches. Same CSS, different pipeline, correct output.
+
+   BOTH SPACINGS ARE STILL MATCHED ON PURPOSE, and this was re-verified in a
+   real engine rather than assumed: React's server render writes the style
+   attribute as a raw string with no space after the colon
+   (font-size:8.5px), and an element whose style is set through the CSSOM is
+   re-serialized by the browser WITH a space (font-size: 8.5px). Matching one
+   form only would work until the component re-rendered.
+
+   Safe by measurement, not by hope: components/ has no inline font sizes in
+   the 70-79 or 80-89 or 90-99 ranges, so "font-size:7" can only ever match
+   7-7.9px and "font-size:9" only 9-9.5px. SVG charts set font-size as an
+   ATTRIBUTE rather than a style, so no chart label is touched by any of it. */
+@media (max-width: 560px) {
+  [style*="font-size:7"], [style*="font-size: 7"],
+  [style*="font-size:8"], [style*="font-size: 8"],
+  [style*="font-size:9"], [style*="font-size: 9"] {
+    font-size: 10px !important;
+  }
 }

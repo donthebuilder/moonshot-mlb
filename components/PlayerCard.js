@@ -1,11 +1,16 @@
 'use client'
+import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import {
-  nameOf, teamOf, oppOf, n, clean, pct, sc,
-  babipVal, pitcherBabipVal,
-} from '../lib/player'
+import { useSpot } from '../lib/spotlight'
+import { nameOf, teamOf, oppOf, clean } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
-import { Chip, Card } from './ui'
+import { roleBadge } from '../lib/roleBadge'
+import { hrwRead } from '../lib/hrwBand'
+import { hrGateVerdict } from '../lib/hrGate'
+import { hrOverlayRead } from '../lib/hrOverlay'
+import { Chip, Card, RoleTag } from './ui'
+import StatStrip, { SlashLine } from './StatStrip'
+import { InfoDot } from './Explain'
 
 // 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
 // double-booked with the old Power Watch role emoji (now 🔭).
@@ -31,19 +36,22 @@ function lastHrRecency(p) {
   return { label: 'No HR', color: '#52525b' }
 }
 
-const HRW_EMOJI = {
-  volatile_hot:  '🌋',
-  strong_capped: '🚀',
-  sweet_spot:    '⚡',
-  watch:         '🌤️',
-  cold:          '🧊',
-}
+// The five-glyph HRW ladder used to be declared here, keyed on the hrw_zone
+// STRING, while tabs/Bot.js declared the same five glyphs keyed on numeric cuts
+// of hrw_score. One idea, two ladders, and no guarantee they agreed. It now
+// lives in lib/hrwBand.js — score first, zone as the fallback — and it comes
+// with the printed number, because on this card the emoji was the SOLE
+// encoding of a five-state read whose score never appeared anywhere.
 
-function roleEmoji(p) {
-  const raw = (p?.final_hr_role || '').trim()
-  if (!raw) return null
-  const m = raw.match(/^([\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}])/u)
-  return m ? m[1] : null
+
+// WAS: pulled the leading pictograph off final_hr_role and rendered it as the
+// badge — emoji-as-UI in its purest form, and the reason the card's tier was
+// unreadable at a glance for anyone who didn't already know the glyph key.
+// The tier is now a word with a colour, resolved off a semantic token so it
+// survives the bot changing its string format. See lib/roleBadge.js.
+function roleTag(p) {
+  const b = roleBadge(p?.final_hr_role, C)
+  return b.known ? b : null
 }
 
 const ALT_GLOW = {
@@ -68,6 +76,14 @@ function gamePickLabelFor(p) {
 }
 
 export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick }) {
+  // TAP TARGETS (2026-08-12): the emoji stack, weak-spot star and score badge
+  // used to carry their explanations in a bare title= — a hover tooltip,
+  // invisible on phones (see Explain.js's header comment; PlayerCard is the
+  // single most-clicked component on the site). Each now opens the same text
+  // as a small line under the header via the tap-friendly InfoDot pattern.
+  const [openEmoji, setOpenEmoji] = useState(false)
+  const [openWeak, setOpenWeak] = useState(false)
+  const [openScore, setOpenScore] = useState(false)
   const role      = compactRole(p)
   const baseColor = roleColor(role, C)
   const score     = scoreFor(p, type)
@@ -75,8 +91,6 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   const risk      = riskPill(p, C, type)
   const pills     = signalPills(p, C, type)
   const bet       = bestBet(p, type)
-  const b         = babipVal(p)
-  const pb        = pitcherBabipVal(p)
 
   const isHardAvoid = p?.true_avoid_hr === true
   const isSoftCaution = !isHardAvoid && (
@@ -95,12 +109,26 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // "Skip for HR" instead of "Avoid HR" — the old wording read as a verdict
   // on the player when it was only ever a verdict on this market for tonight.
   const isAvoid = isHardAvoid || isSoftCaution || role === 'Skip HR'
-  const avoidLabel = altLook ? altLook.label : (role === 'Skip HR' ? 'Skip for HR' : (bet || 'Skip for HR'))
+  // ⛔ vs 🥇 (2026-08-15). Donovan, twice: "if the top pick is homerun why give
+  // someone a skip hr if that is the bench mark." He is right — the TOP badge
+  // is graded on a home run, so "Skip for HR" beside it is the card issuing two
+  // opposite instructions. It is NOT right that these players should be
+  // filtered out: measured over the archive, TOP picks carrying the flag
+  // homered 18/55 (32.7%) against 124/631 (19.7%) without it. So the flag stops
+  // being phrased as advice on these cards and starts carrying its own record.
+  // See lib/hrGate.js for the full measurement. Every other case — a HIT or
+  // HRR pick with a skip-HR note, which is genuinely useful — is untouched.
+  const gate = hrGateVerdict(p)
+  const avoidLabel = gate ? gate.label
+    : altLook ? altLook.label
+      : (role === 'Skip HR' ? 'Skip for HR' : (bet || 'Skip for HR'))
   const AVOID_COLOR = '#9F3247'
   const color    = altLook ? altLook.color : baseColor
   const aligned  = (p?.top_board_tags || []).some((t) => String(t).includes('🧩'))
   const gamePickLabel = gamePickLabelFor(p)
   const recency = lastHrRecency(p)
+  const hrOverlay = hrOverlayRead(p)
+  const showHrOverlay = type === 'hr' || type === 'top'
   // role/bet chips no longer render literal avoid text directly -- that's
   // now handled entirely by the single isAvoid/avoidLabel chip below, in
   // its own row and color, so it can't stack with the consolidated chip.
@@ -117,41 +145,78 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // truncated the NAME — the one thing a card can't lose. Two emojis max,
   // the full stack lives in the tooltip.
   const emojisAll = []
-  const re = roleEmoji(p)
-  if (re) emojisAll.push([re, 'role'])
-  const hrwE = HRW_EMOJI[(p?.hrw_zone || '').trim()]
-  if (hrwE) emojisAll.push([hrwE, 'HRW zone'])
+  const hrw = hrwRead(p)
+  if (hrw) emojisAll.push([hrw.glyph, hrw.title])
   if (p?.high_confidence_hr_flag === true) emojisAll.push(['🔒', 'high confidence'])
   if (Number(p?.pitch_type_match_score || 0) > 0) emojisAll.push(['🎯', 'pitch match'])
   if (isSoftCaution) emojisAll.push(['⚠️', 'HR caution'])
   const emojis = emojisAll.slice(0, 2).map(([e]) => e)
   const emojiTitle = emojisAll.map(([e, why]) => `${e} ${why}`).join(' · ')
+  const { chipSpot, spotTitle } = useSpot()
+  const spotStyle = chipSpot(p)
+  const spotWhy = spotTitle(p)
+
   const weakSpotReason = p?.weak_spot_flag === true
     ? (p?.weak_spot_reason || 'Weak lineup spot vs this pitcher.')
     : null
 
+  // A HIGHLIGHT REACHES PLAYER CARDS NOW (2026-08-17). PlayerCard is the most
+  // rendered hitter surface on the site — the boards, the Four, the top-tens,
+  // Pitchers, the watchlist all draw it — and the highlight wash used to stop
+  // at DenseTable rows, so a matching hitter looked identical to a
+  // non-matching one everywhere except a table. Card already forwards `style`,
+  // so this is one spread. See lib/spotlight.js's note above chipWashOf.
   return (
-    <Card color={color + '55'} onClick={onClick}>
+    <Card color={color + '55'} onClick={onClick} style={spotStyle} title={spotWhy || undefined}>
 
       {/* name + score */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-            {/* emoji stack — no labels, no border, just emojis */}
+            {/* emoji stack — no labels, no border, just emojis + a tap dot */}
             {emojis.length > 0 && (
-              <span title={emojiTitle} style={{ fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'help' }}>
+              <span
+                onClick={(e) => { e.stopPropagation(); setOpenEmoji((v) => !v) }}
+                style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'pointer' }}
+              >
                 {emojis.join('')}
+                {/* THE GLYPH GETS ITS NUMBER (2026-08-22). The HRW band was
+                    five states carried entirely by a pictograph — hrw_score
+                    appeared nowhere on this card, so the emoji was not
+                    decorating an encoding, it WAS the encoding. Two digits in
+                    the band's own ramp colour, which is as small as it can be
+                    and still be a number. Donovan said commit to the emojis;
+                    committing means holding them to the same rule as a colour
+                    scale, and that rule is that the value is printed. */}
+                {hrw && hrw.score != null && (
+                  <span
+                    title={hrw.title}
+                    style={{
+                      fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800,
+                      color: hrw.color || C.text3, marginLeft: 1, lineHeight: 1,
+                    }}
+                  >{hrw.score.toFixed(0)}</span>
+                )}
+                <InfoDot on={openEmoji} onClick={() => setOpenEmoji((v) => !v)} />
               </span>
             )}
             {weakSpotReason && (
               <span
-                title={weakSpotReason}
-                style={{ fontSize: 14, lineHeight: 1, flexShrink: 0, cursor: 'help' }}
+                onClick={(e) => { e.stopPropagation(); setOpenWeak((v) => !v) }}
+                style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, flexShrink: 0, cursor: 'pointer' }}
               >
                 ⭐
+                <InfoDot on={openWeak} onClick={() => setOpenWeak((v) => !v)} />
               </span>
             )}
-            <span style={{ fontWeight: 900, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {/* NAME FITS (2026-08-08): "Freddie Freem…" is not a name. Long
+                names step the font down instead of losing letters, and the
+                full name always rides in the tooltip as a backstop. */}
+            <span title={nameOf(p)} style={{
+              fontWeight: 900,
+              fontSize: String(nameOf(p) || '').length > 18 ? 11.5 : String(nameOf(p) || '').length > 14 ? 12.5 : 14,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+            }}>
               {nameOf(p)}
             </span>
           </div>
@@ -159,11 +224,53 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {teamOf(p) || '—'} vs {oppOf(p) || '—'} · {clean(p?.lineup_spot, '—')}{p?.lineup_confirmed === false ? <span style={{ color: C.text3 }}> (proj.)</span> : null} · {clean(p?.handedness || p?.bats, '—')}
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1, fontFamily: NUM_FONT }}>{score.toFixed(0)}</div>
-          <div style={{ fontSize: 9, color: C.text3, marginTop: 2 }}>{grade}</div>
+        {/* THE SCORE, DEMOTED (2026-08-09). It used to be 22px and the first
+            thing your eye hit — a 0–100 number the reader has no independent
+            handle on. It is still here, still the bot's verdict, but it now
+            sits as a badge beside the stats that earned it. Nothing was
+            removed; the reading order changed. */}
+        <div
+          onClick={(e) => { e.stopPropagation(); setOpenScore((v) => !v) }}
+          style={{
+            textAlign: 'center', flexShrink: 0, cursor: 'pointer',
+            border: `1px solid ${color}44`, background: `${color}10`,
+            borderRadius: 8, padding: '3px 8px 4px',
+          }}>
+          <div style={{ fontSize: 7.5, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+            BOT<InfoDot on={openScore} onClick={() => setOpenScore((v) => !v)} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 900, color, lineHeight: 1.1, fontFamily: NUM_FONT }}>{score.toFixed(0)}</div>
+          <div style={{ fontSize: 8, color: C.text3 }}>{grade}</div>
         </div>
       </div>
+
+      {/* tap-opened explanations for the header row above — one shared strip
+          so three dots don't mean three different popovers to hunt for. */}
+      {(openEmoji || openWeak || openScore) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 7, marginTop: -3 }}>
+          {openEmoji && (
+            <div style={{
+              fontSize: 10, lineHeight: 1.5, color: C.text2,
+              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
+              borderRadius: 7, padding: '5px 8px',
+            }}>{emojiTitle}</div>
+          )}
+          {openWeak && (
+            <div style={{
+              fontSize: 10, lineHeight: 1.5, color: C.text2,
+              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
+              borderRadius: 7, padding: '5px 8px',
+            }}>⭐ {weakSpotReason}</div>
+          )}
+          {openScore && (
+            <div style={{
+              fontSize: 10, lineHeight: 1.5, color: C.text2,
+              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
+              borderRadius: 7, padding: '5px 8px',
+            }}>The bot&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</div>
+          )}
+        </div>
+      )}
 
       {/* ONE chip row (2026-08-06). Designated pick cards were wearing every
           chip family at once — role + bet + risk + aligned + pick + recency +
@@ -175,6 +282,11 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
           card's own category anyway). Undesignated cards keep the fuller
           read, but in a single row. */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+        {showHrOverlay && (
+          <span title={hrOverlay.title}>
+            <Chip color={hrOverlay.color}>{hrOverlay.validated ? '✓ ' : ''}{hrOverlay.label}</Chip>
+          </span>
+        )}
         {gamePickLabel ? (
           <>
             <Chip color={C.yellow}>★ Bot&apos;s {gamePickLabel}</Chip>
@@ -185,25 +297,43 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
         ) : (
           <>
             {altLook && <Chip color={altLook.color}>{altLook.label}</Chip>}
+            {(() => {
+              const rt = roleTag(p)
+              // GLYPH HERE, TEXT IN TABLES (chosen 2026-08-14). A card has room and a
+              // personality; a 25-column table has neither, and a pictograph's
+              // unpredictable width is exactly what breaks a numeric column's
+              // alignment. One glyph per tier, never stacked — which is the real
+              // fix to the old problem, where a single card could carry a role
+              // emoji, an HRW-zone emoji, a lock AND a target.
+              return rt ? <RoleTag label={rt.label} color={rt.color} glyph={rt.glyph} title={`Bot conviction tier: ${rt.label}`} /> : null
+            })()}
             {showRoleChip && <Chip color={color}>{role}</Chip>}
             {showBetChip && !gamePickLabel && bet !== role && <Chip color={C.text2}>{bet}</Chip>}
             {risk && <Chip color={risk.color}>{risk.label}</Chip>}
             {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
             {recency && <Chip color={recency.color}>{recency.label}</Chip>}
             {clean(p?.alt_look_tag, '') && <Chip color={C.purple}>🔄 {clean(p.alt_look_tag)}</Chip>}
-            {isAvoid && !altLook && <Chip color={AVOID_COLOR}>{avoidLabel}</Chip>}
+            {isAvoid && !altLook && (
+              <span title={gate ? gate.title : undefined}>
+                <Chip color={gate ? C.text3 : AVOID_COLOR}>{avoidLabel}</Chip>
+              </span>
+            )}
             {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
           </>
         )}
       </div>
 
-      {/* stats */}
-      <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8, lineHeight: 1.5 }}>
-        BA {clean(p?.season_avg, '—')} · HR {clean(p?.season_hr, '—')} · K {pct(p?.season_k_rate)}
-        {b > 0 ? ` · BABIP ${b.toFixed(3)}` : ''}
-        {pb >= 0.33 ? ` · P-BABIP ${pb.toFixed(3)}` : ''}
-        {n(p?.pitcher_hr9) ? ` · HR/9 ${sc(p?.pitcher_hr9)}` : ''}
-      </div>
+      {/* STATS FIRST (2026-08-09). This was "BA · HR · K" in 10px grey — the
+          same three season numbers for a 40-homer bat and a leadoff slap
+          hitter, in the colour we use for things that don't matter. It is now
+          the four stats that actually drive THIS market, each coloured
+          against tonight's slate. The old line survives underneath as the
+          fine print it always was. */}
+      <StatStrip p={p} type={type} count={4} style={{ marginBottom: 7 }} />
+      {/* The old row was five unrelated numbers in grey — and two of them
+          (BABIP, the opposing arm's HR/9) weren't even about his season. It's
+          the slash line now, plus the counting stats it never had room for. */}
+      <SlashLine p={p} type={type} style={{ marginBottom: 8 }} />
 
       {/* buttons */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

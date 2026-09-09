@@ -35,3 +35,23 @@ venv/
 # never part of the site build. Tracking it as a gitlink made Vercel try
 # to fetch it as a submodule every deploy (2026-08-08 warning fix).
 bot-ship/
+
+# local render fixture (scripts/dev-fixture.mjs regenerates it)
+public/__devfixture/
+.env*
+
+# local scratch that must never reach the remote (2026-09-03)
+# ARCHIVE/ is 267MB and itself/ is 64MB — a single `git add -A` would try to
+# push both and GitHub would reject the largest files outright.
+ARCHIVE/
+itself/
+Claude outputs/
+_to_delete/
+
+# Called It — X keys, kept out of git (SHIP-CALLEDIT.sh)
+.calledit.env
+
+# Scratch that Claude sessions move aside because `rm` is not permitted
+# through the desktop file bridge (stale .next builds, stale git lock files).
+# Safe to delete by hand at any time; never source.
+_to_delete*

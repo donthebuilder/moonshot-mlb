@@ -1,6 +1,8 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { wilson, ciText } from '../lib/interval'
+import { downloadTrackRecordCard } from './shareCard'
 
 // 🧾 REPORT CARD — the accountability page (2026-08-06).
 //
@@ -23,29 +25,17 @@ import { C, NUM_FONT } from '../lib/theme'
 const LOCK_DATE = '2026-08-06'   // the pick-lock commit went live this slate
 
 const CATS = [
-  { tier: 'TOP_PICKS', label: 'TOP', color: '#FCD34D', bar: 'HR', barLabel: 'homered' },
+  { tier: 'TOP_PICKS', label: 'LEGACY TOP', color: '#FCD34D', bar: 'HR', barLabel: 'homered' },
   { tier: 'HR_PICKS', label: 'HR', color: '#FB923C', bar: 'HR', barLabel: 'homered' },
   { tier: 'HIT_PICKS', label: 'HIT', color: '#60A5FA', bar: '1+ Hit', barLabel: 'got a hit' },
   { tier: 'HRR_PICKS', label: 'HRR', color: '#22d3ee', bar: '2+ HRR', barLabel: '2+ H+R+RBI' },
   { tier: 'CONTACT_PICKS', label: 'CONTACT', color: '#A78BFA', bar: '2+ TB', barLabel: '2+ total bases' },
 ]
 
-// Wilson 95% interval (audit #13, 2026-08-08). The season record is a small-n
-// binomial and a bare "48.1%" overstates how settled it is. Wilson over normal
-// approximation because our n's are exactly where the normal one lies (small
-// samples, rates far from 50%). Returns [lo, hi] in percent.
-const wilson = (ok, n) => {
-  if (!n) return null
-  const z = 1.96, p = ok / n, z2 = z * z
-  const den = 1 + z2 / n
-  const mid = (p + z2 / (2 * n)) / den
-  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / den
-  return [Math.max(0, (mid - half) * 100), Math.min(100, (mid + half) * 100)]
-}
-const ciText = (ok, n) => {
-  const ci = wilson(ok, n)
-  return ci ? `${ci[0].toFixed(0)}–${ci[1].toFixed(0)}%` : null
-}
+// Wilson 95% interval (audit #13, 2026-08-08) MOVED TO lib/interval.js on
+// 2026-08-16, when the blank board needed the same maths to rank on. Identical
+// implementation, one home — two copies of a calculation are two answers
+// waiting to diverge. Numbers here are unchanged.
 
 // Rolling form (audit #14): pooled own-bar rate over the trailing 7 and 30
 // graded days, held against the season base. Pooled counts, not an average of
@@ -85,7 +75,7 @@ function Spark({ days, cat, lockX }) {
   const lockIdx = days.findIndex((d) => d.date >= LOCK_DATE)
   const lx = lockIdx >= 0 ? pts[lockIdx]?.x : null
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+    <svg className="rc-spark" width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
       <line x1={PAD} x2={W - PAD} y1={H - PAD - (H - 2 * PAD) * 0.5} y2={H - PAD - (H - 2 * PAD) * 0.5}
         stroke="rgba(255,255,255,.07)" strokeWidth="1" />
       {lx != null && (
@@ -155,50 +145,120 @@ export default function ReportCard({ backtest }) {
   const seasonN = model.rows.reduce((a, r) => a + r.n, 0)
   const lockOk = model.rows.reduce((a, r) => a + r.lockOk, 0)
   const lockN = model.rows.reduce((a, r) => a + r.lockN, 0)
+  const seasonPct = seasonN ? (100 * seasonOk) / seasonN : null
+  const lockPct = lockN ? (100 * lockOk) / lockN : null
+  const lockNights = model.dates.filter((d) => d >= LOCK_DATE).length
+
+  // TURNED UP 2026-08-09 (owner likes this block — "make the two headline
+  // records more prominent"). Same two numbers, same CIs, same honesty; they
+  // just stop looking like a caption. Each record is now its own card with the
+  // count at display size, and the since-lock card carries the ember/green
+  // accent because it's the one being built in public.
+  const Record = ({ kicker, kickerCol, value, pctVal, ci, ciTitle, foot, accent }) => (
+    <div style={{
+      flex: '1 1 220px', minWidth: 0,
+      background: accent
+        ? `linear-gradient(150deg, rgba(74,222,128,.10), rgba(74,222,128,.02))`
+        : `linear-gradient(150deg, rgba(255,255,255,.05), rgba(255,255,255,.012))`,
+      border: `1px solid ${accent ? 'rgba(74,222,128,.34)' : C.border}`,
+      boxShadow: accent ? '0 0 22px rgba(74,222,128,.07) inset' : 'none',
+      borderRadius: 13, padding: '12px 16px',
+    }}>
+      <div style={{
+        fontSize: 9, color: kickerCol, textTransform: 'uppercase',
+        letterSpacing: '.11em', fontWeight: 900, marginBottom: 3,
+      }}>{kicker}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+        <span style={{
+          fontFamily: NUM_FONT, fontSize: 34, fontWeight: 900,
+          lineHeight: 1.05, letterSpacing: '-.03em',
+          color: value === 'building…' ? C.text3 : C.text,
+        }}>{value}</span>
+        {pctVal != null && (
+          <span style={{
+            fontFamily: NUM_FONT, fontSize: 19, fontWeight: 900,
+            color: pctVal >= 45 ? '#4ade80' : C.orange,
+          }}>{pctVal.toFixed(1)}%</span>
+        )}
+      </div>
+      {ci && (
+        <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 4 }} title={ciTitle}>
+          95% CI {ci}
+        </div>
+      )}
+      {foot && <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>{foot}</div>}
+    </div>
+  )
 
   return (
     <div>
       {/* THE HEADLINE RECORD — season, and the part that can't be flattered */}
       <div style={{
-        display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline',
         background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.05))`,
-        border: `1px solid ${C.border}`, borderRadius: 11, padding: '10px 15px', marginBottom: 14,
+        border: `1px solid ${C.border}`, borderRadius: 14, padding: '12px 13px', marginBottom: 14,
       }}>
-        <div>
-          <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Season, every pick</div>
-          <div style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900 }}>
-            {seasonOk}/{seasonN} <span style={{ fontSize: 14, color: seasonN && (100 * seasonOk) / seasonN >= 45 ? '#4ade80' : C.orange }}>{seasonN ? ((100 * seasonOk) / seasonN).toFixed(1) : '—'}%</span>
-          </div>
-          {seasonN > 0 && (
-            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }} title="95% Wilson interval — where the true rate plausibly lives given this sample size">
-              95% CI {ciText(seasonOk, seasonN)}
-            </div>
-          )}
+        {/* ── #38: THE LAYOUT CONTRADICTED THE PARAGRAPH UNDER IT ─────────
+            Season, every pick sat in the big LEFT card and Since the lock on
+            the right, while the copy directly beneath said the since-lock
+            number "is the one that matters going forward". The eye takes the
+            left-hand card as the headline, so the page was leading with the
+            number it then tells you to discount -- and the season figure is
+            the flattering one (43.0% vs 41.1% when this was caught), which
+            makes reading order a claim.
+
+            Since the lock leads now. Season keeps its full card, its own
+            interval and its own day count immediately beside it; nothing is
+            hidden or shrunk. Only the order changed, so that the first number
+            read is the one the page itself says to trust. */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Record
+            kicker="✅ Since the lock"
+            kickerCol={C.green}
+            value={lockN ? `${lockOk}/${lockN}` : 'building…'}
+            pctVal={lockPct}
+            ci={lockN > 0 ? ciText(lockOk, lockN) : null}
+            ciTitle="95% Wilson interval — wide while the locked sample is young, and it should be"
+            foot={lockN ? `${lockNights} locked night${lockNights === 1 ? '' : 's'} since ${LOCK_DATE}` : `locking since ${LOCK_DATE}`}
+            accent
+          />
+          <Record
+            kicker="Season, every pick"
+            kickerCol={C.text3}
+            value={seasonN ? `${seasonOk}/${seasonN}` : '—'}
+            pctVal={seasonPct}
+            ci={seasonN > 0 ? ciText(seasonOk, seasonN) : null}
+            ciTitle="95% Wilson interval — where the true rate plausibly lives given this sample size"
+            foot={`every graded night on file · ${model.dates.length} days`}
+          />
         </div>
-        <div>
-          <div style={{ fontSize: 8.5, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Since the lock</div>
-          <div style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900, color: lockN ? C.text : C.text3 }}>
-            {lockN ? `${lockOk}/${lockN}` : 'building…'}
-            {lockN > 0 && <span style={{ fontSize: 14, marginLeft: 6, color: (100 * lockOk) / lockN >= 45 ? '#4ade80' : C.orange }}>{((100 * lockOk) / lockN).toFixed(1)}%</span>}
-          </div>
-          {lockN > 0 && (
-            <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }} title="95% Wilson interval — wide while the locked sample is young, and it should be">
-              95% CI {ciText(lockOk, lockN)}
-            </div>
-          )}
-        </div>
-        <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, flex: '1 1 260px', minWidth: 0 }}>
-          The since-lock number is the one that matters going forward: every pick in it froze at first
-          pitch and could never be revised. It starts small and grows nightly — that&apos;s the record
-          being built in public.
+        <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
+          The <b style={{ color: '#4ade80' }}>since-lock</b> number is the one that matters going forward:
+          every pick in it froze at first pitch and could never be revised. It starts small and grows
+          nightly — that&apos;s the record being built in public. The intervals are there because a
+          headline rate on a young sample is a guess wearing a decimal point.
         </div>
       </div>
       {/* ── 1. last night ── */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>🧾 Report card</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {model.lastDate ? `last complete night: ${model.lastDate}` : 'no complete night graded yet'}
         </span>
+        {/* 📸 SHARE (2026-08-23) — the season record as a PNG, zero backend.
+            Passes the exact numbers already computed above it, nothing
+            recomputed from `backtest` a second time. */}
+        <button
+          onClick={() => downloadTrackRecordCard({
+            rows: model.rows, seasonOk, seasonN, seasonPct, lockOk, lockN, lockPct, lockNights,
+            days: model.dates.length,
+          })}
+          title="Download the track record as a PNG for posting"
+          aria-label="Download track record as image"
+          style={{
+            marginLeft: 'auto', background: 'rgba(249,115,22,.10)', border: `1px solid ${C.border}`,
+            color: C.orange, borderRadius: 7, padding: '3px 10px', fontSize: 10.5, fontWeight: 700,
+            cursor: 'pointer',
+          }}>📸 Share</button>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
         Each category graded against its OWN bar and its OWN season baseline — a 20% HR night can be an A

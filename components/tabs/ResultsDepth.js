@@ -1,9 +1,12 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
-import { arr, obj, n, clean } from '../../lib/player'
-import Heatmap, { ORANGE_RAMP, rampColor, inkFor } from '../Heatmap'
+import { arr, obj, n, clean, hitScore, prodScore, tbScore } from '../../lib/player'
+import { dedupeGraded } from '../../lib/graded'
+import { rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
+import { WhatThis } from '../ui'
+import { SCORE } from '../../lib/scales'
 
 // Results depth — the grading half of the Streamlit Results tab.
 //
@@ -16,9 +19,45 @@ import DenseTable from '../DenseTable'
 // Confirmed present on all 90 graded slots: pick_type, designed_outcome,
 // designed_hit, got_hr, got_base_hit, got_xbh, actual_*, hrr_total, rank.
 
+// ── WHAT THE ARCHIVE SAYS EACH LANE IS WORTH ────────────────────────────────
+//
+// Measured over this project's own archive (2026-08-16): 62 graded nights,
+// 811 games, 5,184 judgeable designated picks. Every lane is scored on ITS OWN
+// bar — the same bar this page grades tonight against — and VOIDS ARE EXCLUDED
+// throughout, because a man who never batted is not a loss; he is a third
+// outcome, not half of a bad one.
+//
+// It lives here rather than in Results.js because Results already imports this
+// file, so this direction of the dependency is the one that doesn't loop.
+//
+// k AND n, ALWAYS. A bare percentage from somebody else's sample is exactly
+// what this site refuses to print, and the older copy elsewhere in the repo
+// (fit on 9 days and ~648 slots) reads several points off these — anywhere a
+// rate is restated on this page it is restated from this block, with the
+// sample said out loud.
+export const ARCHIVE = {
+  nights: 62,
+  games: 811,
+  picks: 5184,
+  lanes: {
+    HIT:     { k: 968, n: 1391, bar: '1+ hit' },
+    HRR:     { k: 709, n: 1392, bar: '2+ H+R+RBI' },
+    CONTACT: { k: 316, n: 791,  bar: '2+ total bases' },
+    TOP:     { k: 172, n: 807,  bar: '1+ HR' },
+    HR:      { k: 128, n: 803,  bar: '1+ HR' },
+  },
+  // The finding that dominates every other one on the page: the SAME TOP pick,
+  // the same night, judged on the easier bar instead of the HR bar.
+  topOnHits:  { k: 571, n: 807 },
+  // One pick per game, always the top-scored HIT pick.
+  onePerGame: { k: 586, n: 809, voidsAsLossesPct: 69.8 },
+}
+export const archPct = (o) => (100 * o.k) / o.n
+export const archText = (o) => `${o.k.toLocaleString()}/${o.n.toLocaleString()} · ${archPct(o).toFixed(1)}%`
+
 const PICK_META = {
   TOP15:    ['🏆', 'Top 15 Board'],
-  TOP:      ['🔥', 'Top Picks'],
+  TOP:      ['🔥', 'Legacy TOP · per game'],
   HR:       ['🚀', 'HR Picks'],
   HRR:      ['🎲', 'HRR Picks'],
   HIT:      ['🔷', 'Hit Picks'],
@@ -26,26 +65,21 @@ const PICK_META = {
 }
 const meta = (k) => PICK_META[String(k).toUpperCase()] || ['•', clean(k, '—')]
 
-function Tile({ label, value, sub, tone = 'flat' }) {
-  const col = tone === 'up' ? '#4ade80' : tone === 'accent' ? C.orange : C.text3
-  return (
-    <div style={{
-      background: `${col}12`, border: `1px solid ${col}30`, borderRadius: 10,
-      padding: '8px 12px', minWidth: 0,
-    }}>
-      <div style={{
-        fontSize: 8.5, textTransform: 'uppercase', letterSpacing: '.08em',
-        color: C.text3, fontWeight: 700, whiteSpace: 'nowrap',
-        overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>{label}</div>
-      <div style={{
-        fontFamily: NUM_FONT, fontSize: 19, fontWeight: 800,
-        color: tone === 'flat' ? C.text : col, letterSpacing: '-.02em',
-      }}>{value}</div>
-      {sub && <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}
-    </div>
-  )
+// The lib/player score getters all fall back to 0 when every alias is missing,
+// which is exactly the failure this page has been burned by before: a field the
+// bot never wrote printing as a confident 0.0. Anything that isn't a positive
+// score comes back null instead, and DenseTable renders null as an em dash.
+// A dash means "not published on this row", not "the model scored him zero".
+const optScore = (row, getter) => {
+  if (!row) return null
+  const v = getter(row)
+  return Number.isFinite(v) && v > 0 ? v : null
 }
+
+// The `Tile` component came out 2026-08-16 with its last four callers — the
+// "Homers tonight / Were our picks / Inside our top 15 / Median rank" block in
+// "Home runs vs the model", now the sentence that opens that section. Nothing
+// on this page renders a stat tile any more.
 
 // Horizontal bars. Same ramp as everything else, so length AND brightness both
 // carry the value -- readable even when two bars are nearly the same length.
@@ -87,10 +121,13 @@ function Bars({ rows, unit = '', max: forcedMax, min: forcedMin = 0, limit }) {
   )
 }
 
-function Section({ title, sub, children }) {
+// Every section leads with the question it answers, in one plain sentence.
+// `sub` is the caveat under it, and is optional — the purpose line is not.
+function Section({ title, answers, sub, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, marginBottom: sub ? 2 : 7 }}>{title}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>{title}</div>
+      {answers && <WhatThis maxWidth={700}>{answers}</WhatThis>}
       {sub && <div style={{ fontSize: 10, color: C.text3, marginBottom: 7, lineHeight: 1.5 }}>{sub}</div>}
       {children}
     </div>
@@ -125,10 +162,16 @@ export default function ResultsDepth({ results, onPlayerClick }) {
       const hr = list.filter((s) => s?.got_hr).length
       const hit = list.filter((s) => s?.got_base_hit).length
       const xbh = list.filter((s) => s?.got_xbh).length
+      // TONIGHT NEXT TO 62 NIGHTS. A tier that went 2-for-3 means nothing on
+      // its own; against the lane's own archive rate it means something. TOP15
+      // is the night's top-15 board rather than a per-game designation, so it
+      // has no archive row and prints a dash rather than borrowing one.
+      const base = ARCHIVE.lanes[k] || null
       return {
         _key: k,
         icon, label, n: list.length,
         needs: clean(list[0]?.designed_outcome, '—'),
+        base: base ? archText(base) : '—',
         did, didPct: (100 * did) / list.length,
         hr, hrPct: (100 * hr) / list.length,
         hit, hitPct: (100 * hit) / list.length,
@@ -139,10 +182,18 @@ export default function ResultsDepth({ results, onPlayerClick }) {
 
   // Hit rate by model score band — the single chart that says whether the
   // score means anything. If it isn't monotonic, the score isn't ranking.
+  //
+  // DEDUPED (lib/graded.js): hr_score is a slate-row field, identical on both
+  // graded rows of a hitter designated in two categories, so the raw slots put
+  // that hitter in the same band twice with the same outcome. Multi-category
+  // picks skew high, so the double-counting landed almost entirely in the top
+  // band — the exact place this chart is being read. The tiers above stay on
+  // the raw slots on purpose: those ARE per-category, by definition.
+  const uniq = useMemo(() => dedupeGraded(slots), [slots])
   const bands = useMemo(() => {
     const edges = [[0, 40], [40, 55], [55, 70], [70, 101]]
     return edges.map(([lo, hi]) => {
-      const inBand = slots.filter((s) => {
+      const inBand = uniq.filter((s) => {
         const v = n(s?.hr_score, 0)
         return v >= lo && v < hi
       })
@@ -153,7 +204,7 @@ export default function ResultsDepth({ results, onPlayerClick }) {
         value: inBand.length ? (100 * hr) / inBand.length : 0,
       }
     }).filter((b) => b.nSlots > 0)
-  }, [slots])
+  }, [uniq])
 
   const everyPick = useMemo(() => {
     return slots
@@ -190,100 +241,32 @@ export default function ResultsDepth({ results, onPlayerClick }) {
     return <div style={{ fontSize: 11.5, color: C.text3 }}>No graded picks published yet.</div>
   }
 
-  const didTotal = slots.filter((s) => s?.designed_hit).length
-  const hrTotal = slots.filter((s) => s?.got_hr).length
-  const longest = [...homers]
-    .map((h) => ({ label: clean(h?.name, '—'), value: n(h?.longest_ft, 0) }))
-    .filter((h) => h.value > 0)
-    .sort((a, b) => b.value - a.value)
-  const topLongest = longest[0]
-  const maxEV = Math.max(...homers.map((h) => n(h?.max_ev_mph, 0)), 0)
+  // CUT 2026-08-09, owner: "everything from Bettable results down is too much,
+  // even for me." Two whole sections came off the top of this file, and both
+  // were the page above it repeated in tiles:
+  //
+  //   · "Bettable results" — five tiles. "Designed outcome hit" and "If graded
+  //     on HR only" are, number for number, the Overview's "Did its job" and
+  //     "If graded HR-only" tiles; the three tier tiles are the first three
+  //     rows of the tier table twenty pixels further down.
+  //   · "HR capture" — six tiles plus a longest-HR bar chart. The capture
+  //     numbers are the Overview tile, the takeaway sentence AND the folded
+  //     CaptureBanner; the longest bars are the Distance column of the
+  //     "Home runs vs the model" table, which is sorted by distance already.
+  //
+  // Nothing here was unique to this file. `report` is still read, above, to
+  // find the homer list the "Home runs vs the model" table is built from.
 
   return (
     <div>
-      <Section title="Bettable results">
-        <div style={{
-          display: 'grid', gap: 8,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        }}>
-          {tiers.slice(0, 3).map((t) => (
-            <Tile
-              key={t._key}
-              label={`${t.icon} ${t.label}`}
-              value={`${t.did}/${t.n}`}
-              sub={`${t.didPct.toFixed(1)}% did its job`}
-              tone="accent"
-            />
-          ))}
-          <Tile
-            label="Designed outcome hit"
-            value={`${didTotal}/${slots.length}`}
-            sub={`${((100 * didTotal) / slots.length).toFixed(1)}%`}
-            tone="up"
-          />
-          <Tile
-            label="If graded on HR only"
-            value={`${hrTotal}/${slots.length}`}
-            sub={`${((100 * hrTotal) / slots.length).toFixed(1)}%`}
-          />
-        </div>
-      </Section>
-
-      {homers.length > 0 && (
-        <Section title="HR capture">
-          <div style={{
-            display: 'grid', gap: 8, marginBottom: 14,
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          }}>
-            <Tile label="Slate HRs" value={n(report.total_hrs_on_slate, homers.length)} />
-            <Tile label="On the sheet" value={n(report.caught_hrs_on_sheet, 0)} tone="up" />
-            <Tile
-              label="Capture rate"
-              value={`${n(report.hr_capture_pct, 0).toFixed(1)}%`}
-              tone="up"
-            />
-            <Tile label="Missed entirely" value={n(report.missed_hrs_not_on_sheet, 0)} />
-            {topLongest && (
-              <Tile label="Longest" value={`${topLongest.value.toFixed(0)} ft`} sub={topLongest.label} tone="accent" />
-            )}
-            {maxEV > 0 && <Tile label="Max EV" value={`${maxEV.toFixed(1)} mph`} />}
-          </div>
-
-          {longest.length > 0 && (
-            <>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 6 }}>
-                Longest HRs tonight (ft)
-                {longest.length > 5 && (
-                  <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT }}>
-                    {' '}· top 5 of {longest.length}
-                  </span>
-                )}
-              </div>
-              <Bars
-                rows={longest.slice(0, 5)}
-                limit={5}
-                min={Math.max(0, Math.min(...longest.slice(0, 5).map((x) => x.value)) - 15)}
-                max={Math.max(...longest.slice(0, 5).map((x) => x.value)) + 5}
-              />
-              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-                Top 5 only — a full list of thirty homers pushed everything else on this page off
-                screen, and past the top handful the distances stop being interesting.
-                {' '}The axis starts near the shortest of the five rather than at zero: every ball
-                here cleared a fence, so a zero-based scale would draw five identical full-width
-                bars. That makes the spread readable but also exaggerates it — the gap across these
-                five is usually 30 to 60 feet, not the full width of the chart.
-              </div>
-            </>
-          )}
-        </Section>
-      )}
-
       <Section
         title="Did each pick do its job?"
-        sub="Each tier is graded on the outcome it was picked FOR, not on home runs. A Hit pick that produced a single did its job; grading it on HR would call that a failure."
+        answers="which kind of pick is actually working tonight — each tier scored against the outcome it was picked for."
+        sub="A Hit pick that produced a single did its job; grading it on HR would call that a failure."
       >
         <DenseTable
-          rows={tiers}
+          heatMode="sorted"
+rows={tiers}
           columns={[
             { key: 'icon',   label: '',        heat: false, w: 26 },
             { key: 'label',  label: 'Pick type', heat: false, w: 118, bold: true, sticky: true },
@@ -291,6 +274,12 @@ export default function ResultsDepth({ results, onPlayerClick }) {
             { key: 'n',      label: 'N',       heat: false, w: 34, mono: true, dim: true },
             { key: 'did',    label: 'Did job', w: 50 },
             { key: 'didPct', label: 'Rate %',  w: 52, dp: 1 },
+            { key: 'base',   label: `${ARCHIVE.nights} nights`, heat: false, w: 108, mono: true, dim: true,
+              title: `What this lane has done on its own bar across the whole archive — ${ARCHIVE.nights} graded nights, ${ARCHIVE.games.toLocaleString()} games, ${ARCHIVE.picks.toLocaleString()} judgeable picks, voids excluded. Tonight is one night against that.` },
+            // HR count lives here now. It used to be its own "HRs by pick type"
+            // bar chart at the bottom of the page, which drew the same six
+            // numbers a second time; one column is the whole chart.
+            { key: 'hr',     label: 'HR',      w: 36 },
             { key: 'hrPct',  label: 'HR %',    w: 48, dp: 1 },
             { key: 'hitPct', label: '1+ Hit %', w: 54, dp: 1 },
             { key: 'xbhPct', label: 'XBH %',   w: 50, dp: 1 },
@@ -299,23 +288,48 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           maxHeight={280}
           caption=""
         />
-        <div style={{ marginTop: 12 }}>
-          <Bars
-            rows={tiers.map((t) => ({ label: `${t.icon} ${t.label}`, value: t.didPct, display: `${t.didPct.toFixed(0)}%` }))}
-            max={100}
-          />
-        </div>
+        {/* DEDUPED 2026-08-09 (owner: "too many charts, some are repeats").
+            A bar row per tier used to sit here drawing didPct — the exact
+            values already in the Rate % column one line above — and a second
+            "HRs by pick type" chart at the bottom of the page drew the HR
+            counts. Both were the table again in a different shape. One
+            representation of each fact: the table. */}
         <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
-          Top Picks are relative — picked as the best play in their game, so one only counts if it
-          out-produced our other picks from that same game. We only see our own picks, so that means
-          best <i>of the ones we tracked</i>, not best in the game.
+          Legacy TOP is the archived per-game designation — the best play among the picks tracked in
+          that game. It is not The Four, which are today&apos;s four market headline calls. A legacy TOP
+          only counts here if it out-produced the other tracked picks from its game; it never means
+          best player in the game.
+        </div>
+        {/* THE ARCHIVE, IN SENTENCES, UNDER THE ONE TABLE IT GRADES. Restated
+            from the 62-night backtest rather than the older nine-day copy that
+            still sits in the pick scorecard — same lanes, several points apart,
+            mostly because voids used to be counted as losses. */}
+        <div style={{ fontSize: 10.5, color: C.text2, marginTop: 9, lineHeight: 1.65 }}>
+          <b style={{ color: C.text }}>The bar dominates the pick.</b> Over{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.nights}</b> graded nights —{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.games.toLocaleString()}</b> games,{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.picks.toLocaleString()}</b> judgeable
+          designated picks, voids left out — the legacy per-game TOP pick cleared its own HR bar{' '}
+          <b style={{ fontFamily: NUM_FONT }}>{archText(ARCHIVE.lanes.TOP)}</b>. The identical man on
+          the identical night got a base hit{' '}
+          <b style={{ fontFamily: NUM_FONT, color: C.text }}>{archText(ARCHIVE.topOnHits)}</b> of the
+          time. Choosing what you ask him to do is worth more than choosing who.
+          <div style={{ marginTop: 5, color: C.text3 }}>
+            Lane by lane on their own bars: HIT {archText(ARCHIVE.lanes.HIT)} · HRR{' '}
+            {archText(ARCHIVE.lanes.HRR)} · CONTACT {archText(ARCHIVE.lanes.CONTACT)} · TOP{' '}
+            {archText(ARCHIVE.lanes.TOP)} · HR {archText(ARCHIVE.lanes.HR)}. Taking one pick per game
+            and always the top-scored HIT pick: {archText(ARCHIVE.onePerGame)} — and counting the
+            voids as losses instead of setting them aside drops that to{' '}
+            {ARCHIVE.onePerGame.voidsAsLossesPct}%, which is the floor to quote if anyone asks.
+          </div>
         </div>
       </Section>
 
       {bands.length > 1 && (
         <Section
           title="HR hit rate by model score band"
-          sub="The one chart that says whether the score means anything. If the model is working, these climb left to right."
+          answers="does a higher HR score actually mean a higher chance of a homer? If the model is working, these bars climb left to right."
+          sub="The one chart on this page that grades the score itself rather than the picks."
         >
           <Bars
             rows={bands.map((b) => ({
@@ -337,7 +351,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
           alone can be flattered by a wide board -- rank is what makes it real. */}
       <Section
         title="Home runs vs the model"
-        sub="Every homer tonight, matched to whether it was one of our picks and where the board had it ranked."
+        answers="when someone went deep tonight, did we have him — and how high did the board have him?"
+        sub="Every homer, matched to whether it was one of our picks, where the board ranked it, and what the board thought of him in every lane, not just HR. A homer off a man the model rated 41 for HR but 68 for hit shape is a different story than one it liked nowhere."
       >
         {(() => {
           const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z]/g, '')
@@ -363,6 +378,15 @@ export default function ResultsDepth({ results, onPlayerClick }) {
               pick: sl ? `${icon} ${label}` : 'not picked',
               rank: sl ? n(sl.rank, null) : null,
               score: sl ? n(sl.hr_score, 0) : 0,
+              // The other three lanes the board scores every hitter in. Null,
+              // not 0, when the graded row doesn't carry them.
+              hitSc: optScore(sl, hitScore),
+              hrrSc: optScore(sl, prodScore),
+              tbSc: optScore(sl, tbScore),
+              // Did the homer-hitter also get on base with a plain hit? A homer
+              // IS a hit, so this is always >= 1 for a picked homer — the
+              // interesting number is 2+, the guy who did it twice.
+              hits: sl ? n(sl.actual_hits, null) : null,
               ft: n(h?.longest_ft, 0),
               ev: n(h?.max_ev_mph, 0),
               la: n(h?.launch_angle, 0),
@@ -376,29 +400,53 @@ export default function ResultsDepth({ results, onPlayerClick }) {
             ? [...ranked].sort((a, b) => a.rank - b.rank)[Math.floor(ranked.length / 2)].rank
             : null
 
+          // How many of the OTHER lanes had something to say about tonight's
+          // homer-hitters. If this is 0 the three new columns will be all
+          // dashes, and the note below says so rather than leaving you to
+          // wonder whether the model scored everyone zero.
+          const laneCovered = onSheet.filter((r) => r.hitSc != null || r.hrrSc != null || r.tbSc != null).length
+
+          // The "Base hits by our picks" tile block came off here 2026-08-09.
+          // Four tiles: total hits, picks with 1+ hit, multi-hit picks, hits
+          // per pick. The Overview's "Base hit" tile and its multi-hit tile
+          // already carry the first three off the same slots array, and this
+          // section is about HOMERS versus the board — the base-hit rate was
+          // sitting inside it for no reason other than that it fitted.
+
           return (
             <>
-              <div style={{
-                display: 'grid', gap: 8, marginBottom: 12,
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              }}>
-                <Tile label="Homers tonight" value={rows.length} />
-                <Tile
-                  label="Were our picks"
-                  value={`${onSheet.length}/${rows.length}`}
-                  sub={rows.length ? `${((100 * onSheet.length) / rows.length).toFixed(0)}%` : null}
-                  tone="up"
-                />
-                <Tile label="Inside our top 15" value={top15} tone="accent" />
-                <Tile
-                  label="Median rank of hits"
-                  value={medRank == null ? '—' : `#${medRank}`}
-                  sub="lower is the model being right"
-                />
+              {/* FOUR TILES BECAME ONE SENTENCE (2026-08-16). Homers tonight /
+                  Were our picks / Inside our top 15 / Median rank all said the
+                  same thing the sentence says, minus the clauses that make the
+                  median rank readable at all. Every number and every sub-line
+                  is still here; tiles lose to sentences. */}
+              <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.65, marginBottom: 12 }}>
+                {rows.length === 0 ? (
+                  'Nobody on the slate has gone deep yet, so there is nothing to check the board against.'
+                ) : (
+                  <>
+                    <b style={{ fontFamily: NUM_FONT, color: C.text }}>{rows.length}</b> homer
+                    {rows.length === 1 ? '' : 's'} tonight, and the sheet had{' '}
+                    <b style={{ fontFamily: NUM_FONT, color: '#4ade80' }}>{onSheet.length} of {rows.length}</b>{' '}
+                    ({((100 * onSheet.length) / rows.length).toFixed(0)}%) of them somewhere.{' '}
+                    <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{top15}</b> came from inside the
+                    ranked top 15
+                    {medRank == null ? (
+                      <>, and none of the ones we had carried a board rank, so there is no median to quote.</>
+                    ) : (
+                      <>, and the median board rank of a homer we did have was{' '}
+                        <b style={{ fontFamily: NUM_FONT, color: C.text }}
+                          title="Lower is the model being right — it means the men who went deep were near the top of the board, not buried at the bottom of a wide net.">
+                          #{medRank}
+                        </b> — lower is the model being right.</>
+                    )}
+                  </>
+                )}
               </div>
 
               <DenseTable
-                rows={rows}
+                heatMode="sorted"
+rows={rows}
                 columns={[
                   { key: 'name',    label: 'Player', heat: false, w: 150, bold: true, sticky: true },
                   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
@@ -406,7 +454,16 @@ export default function ResultsDepth({ results, onPlayerClick }) {
                   { key: 'pick',    label: 'Pick type', heat: false, w: 124, dim: true },
                   { key: 'rank',    label: 'Board rank', heat: false, w: 62, mono: true, dim: true,
                     fmt: (v) => (v == null ? '—' : `#${v}`) },
-                  { key: 'score',   label: 'HR score', w: 56, dp: 1 },
+                  { key: 'score',   label: 'HR score', w: 56, dp: 1, ...SCORE,
+                    title: 'The home-run lane — what the board thought of his chance to go deep.' },
+                  { key: 'hitSc',   label: 'Hit', w: 46, dp: 1, ...SCORE,
+                    title: 'Hit-shape score — the board’s read on him getting a base hit, independent of power. A dash means the graded row doesn’t carry it.' },
+                  { key: 'hrrSc',   label: 'HRR', w: 46, dp: 1, ...SCORE,
+                    title: 'Production score — hits + runs + RBI. A dash means the graded row doesn’t carry it.' },
+                  { key: 'tbSc',    label: 'TB', w: 44, dp: 1, ...SCORE,
+                    title: 'Contact / total-base score — extra-base shape. A dash means the graded row doesn’t carry it.' },
+                  { key: 'hits',    label: 'H', w: 34, dp: 0,
+                    title: 'Actual hits tonight. A homer is a hit, so a picked homer is always at least 1 — the number worth seeing is 2+.' },
                   { key: 'ft',      label: 'Distance', w: 56, dp: 0 },
                   { key: 'ev',      label: 'EV',     w: 48, dp: 1 },
                   { key: 'la',      label: 'LA',     w: 42, dp: 1 },
@@ -414,22 +471,23 @@ export default function ResultsDepth({ results, onPlayerClick }) {
                 onRowClick={onPlayerClick}
                 initialSort="ft"
                 maxHeight={360}
-                caption="Sorted with our picks first, then by board rank. A homer with no rank was on the sheet in some tier but outside the ranked board; 'not picked' means we missed him entirely."
+                caption={
+                  `Sorted with our picks first, then by board rank. A homer with no rank was on the sheet in some tier but outside the ranked board; 'not picked' means we missed him entirely. `
+                  + `Hit / HRR / TB are the board's other three lanes for the same man — ${laneCovered} of ${onSheet.length} picked homer-hitters carry at least one of them in the graded file`
+                  + (laneCovered === 0
+                    ? '; tonight none do, so those three columns are all dashes rather than zeros.'
+                    : '. A dash is a field the grader did not write, not a score of zero.')
+                }
               />
             </>
           )
         })()}
       </Section>
 
-      <Section title="HRs by pick type">
-        <Bars
-          rows={tiers.filter((t) => t.hr > 0).map((t) => ({
-            label: `${t.icon} ${t.label}`, value: t.hr, display: String(t.hr),
-          }))}
-        />
-      </Section>
-
-      <Section title="Every pick">
+      <Section
+        title="Every pick"
+        answers="what happened to one specific player you were watching — the searchable, sortable list of all of them."
+      >
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           {[['all', 'All'], ['hr', 'Hit a HR'], ['did', 'Did its job'], ['miss', 'Missed']].map(([k, label]) => (
             <button
@@ -457,7 +515,8 @@ export default function ResultsDepth({ results, onPlayerClick }) {
         </div>
 
         <DenseTable
-          rows={everyPick}
+          heatMode="sorted"
+rows={everyPick}
           columns={[
             { key: 'icon',  label: '',       heat: false, w: 24 },
             { key: 'name',  label: 'Player', heat: false, w: 142, bold: true, sticky: true },
@@ -468,7 +527,7 @@ export default function ResultsDepth({ results, onPlayerClick }) {
             { key: 'weak',  label: '★',      flag: true, mark: '★', w: 30 },
             { key: 'rank',  label: 'Rank',   heat: false, w: 44, mono: true, dim: true,
               fmt: (v) => (v == null ? '—' : `#${v}`) },
-            { key: 'score', label: 'HR score', w: 54, dp: 1 },
+            { key: 'score', label: 'HR score', w: 54, dp: 1, ...SCORE },
             { key: 'hr',    label: 'HR',     w: 34 },
             { key: 'h',     label: 'H',      w: 32 },
             { key: 'tb',    label: 'TB',     w: 34 },

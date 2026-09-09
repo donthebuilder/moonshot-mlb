@@ -1,7 +1,13 @@
 'use client'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
+import { tierTone } from '../../lib/roleBadge'
+import { hrwRead } from '../../lib/hrwBand'
 import { PanelTitle, Empty, btnStyle } from '../ui'
+import { PillRow } from '../Filters'
+import { catColor } from '../../lib/scales'
+import TheRead from '../TheRead'
+import Shortlist from '../Shortlist'
 import { logUrl } from '../../lib/dataSource'
 import { pillMeta } from '../../lib/pills'
 
@@ -21,51 +27,59 @@ import { pillMeta } from '../../lib/pills'
 //     like the document it is.
 //   THE BOARD — the slate ranked by the bot's own top_board_score_v2 with
 //     its native flags (⭐ weak spot, 🎯 pitch match, 👻 hidden value,
-//     ⚠️ trap). This stays because it's the one board on the site showing
-//     the bot's raw opinion with no site-side adjustment — the HR Board is
-//     ISO-adjusted, this is not, and comparing the two is informative.
+//     ⚠️ trap). It ranks on top_board_score_v2, the bot's own overall number,
+//     which is a DIFFERENT question from the HR Board's — overall value
+//     against tonight versus going deep specifically. (Until 2026-08-09 this
+//     was also the only board free of a site-side ISO adjustment; that
+//     adjustment is gone and every board now ranks on the bot's own numbers.)
 //
 // The old "Picks" view is gone: The Four (Scoreboard) and the per-game pick
 // cards (Games) show the same designations with more context.
 
-function hrwEmoji(s) {
-  const v = Number(s || 0)
-  if (v > 80) return '🌋'
-  if (v > 70) return '🚀'
-  if (v >= 55) return '⚡'
-  if (v >= 45) return '🌤️'
-  return '🧊'
+// The HRW ladder used to live here as a local function with its own cuts
+// (80 / 70 / 55 / 45) while components/PlayerCard.js keyed the SAME five
+// glyphs off the hrw_zone STRING. Two ladders for one thing, and nothing
+// guaranteed they agreed. Donovan said commit to the emojis, so they are part
+// of the system now and get one definition: lib/hrwBand.js. See the note there.
+
+
+// Colour by TOKEN, not by glyph. This used to sniff the pictograph out of the
+// role string, which quietly made the emoji load-bearing: strip it for the
+// redesign and every row goes grey. tierTone matches the glyph OR the text,
+// so it works before and after the bot's format ever changes.
+function roleColor(role) {
+  return tierTone(role, C) || C.text2
 }
 
-function roleColor(role) {
-  const s = String(role || '')
-  if (s.includes('🏆') || s.includes('🧨')) return '#FB923C'
-  if (s.includes('🔥')) return '#f97316'
-  if (s.includes('🏁')) return '#22d3ee'
-  if (s.includes('💠')) return '#38bdf8'
-  if (s.includes('🔭')) return '#a78bfa'
-  if (s.includes('⛔')) return '#ef4444'
-  return C.text2
-}
+// game_pick_role can now carry more than one tag on the same player
+// (2026-08-12: TOP is allowed to also hold HR, joined "TOP/HR") — read as
+// a list, not a single value, wherever a category match matters.
+const rolesOf = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
 
 // ── The Board — the bot's raw ranking, unadjusted ────────────────────────────
 
+// Text, not emoji. These are the bot's own game_pick_role categories and the
+// label should read as a filter, not as decoration.
 const PICK_TABS = [
-  { key: 'top',     label: '🏆 Top',     roles: ['TOP'] },
-  { key: 'hr',      label: '🧨 HR',      roles: ['HR'] },
-  { key: 'hrr',     label: '🏁 HRR',     roles: ['HRR'] },
-  { key: 'hit',     label: '💠 Hit',     roles: ['HIT'] },
-  { key: 'contact', label: '⚾ Contact', roles: ['CONTACT'] },
-  { key: 'all',     label: 'All',        roles: null },
+  { key: 'top',     label: 'Top',     roles: ['TOP'] },
+  { key: 'hr',      label: 'HR',      roles: ['HR'] },
+  { key: 'hrr',     label: 'HRR',     roles: ['HRR'] },
+  { key: 'hit',     label: 'Hit',     roles: ['HIT'] },
+  { key: 'contact', label: 'Contact', roles: ['CONTACT'] },
+  { key: 'all',     label: 'All',     roles: null },
 ]
 
 function BoardRow({ p, i, onPlayerClick }) {
   const role = p.final_hr_role || ''
   const col = roleColor(role)
-  const pick = p.game_pick_role || ''
+  // Primary (first) role only, for the single-badge display — a TOP/HR
+  // double-up shows as TOP here; it still surfaces in the HR tab/count below.
+  const pick = String(p.game_pick_role || '').split('/')[0].trim()
   const pills = Array.isArray(p.signal_pills) ? p.signal_pills.slice(0, 3) : []
-  const pickColors = { TOP: '#FCD34D', HR: '#FB923C', HRR: '#22d3ee', HIT: '#38bdf8', CONTACT: '#a78bfa' }
-  const pickCol = pickColors[pick] || C.text3
+  // catColor('role', ...) is the registry these five hexes were duplicating —
+  // the exact hex-budget giveback the universal-filter pass called out
+  // (2026-08-23).
+  const pickCol = catColor('role', pick) || C.text3
   const isTrap = p.trap_flag && !p.got_hr
 
   // DE-TACKIFIED (2026-08-07, "the raw board looks tacky"): the full-height
@@ -108,7 +122,7 @@ function BoardRow({ p, i, onPlayerClick }) {
           <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.team}</span>
           {flagsAll.length > 0 && (
-            <span title={flagTitle} style={{ fontSize: 10.5, cursor: 'help', flexShrink: 0, letterSpacing: 1 }}>
+            <span title={flagTitle} style={{ fontSize: 10.5, cursor: 'default', flexShrink: 0, letterSpacing: 1 }}>
               {flagsAll.slice(0, 2).map(([e]) => e).join('')}
             </span>
           )}
@@ -131,7 +145,24 @@ function BoardRow({ p, i, onPlayerClick }) {
             L5 {p.last5_hr}HR
           </span>
         )}
-        <span title={`HRW ${Math.round(p.hrw_score || 0)}`} style={{ fontSize: 11 }}>{hrwEmoji(p.hrw_score || 0)}</span>
+        {(() => {
+          // THE GLYPH NOW SITS BESIDE ITS NUMBER, wears the ramp stop for its
+          // own band, and simply does not render when there is no HRW read —
+          // "cold" and "not measured" are different claims and only one of
+          // them is about the hitter.
+          const hw = hrwRead(p)
+          if (!hw) return null
+          return (
+            <span title={hw.title} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
+              <span style={{ fontSize: 11 }}>{hw.glyph}</span>
+              {hw.score != null && (
+                <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: hw.color || C.text3 }}>
+                  {hw.score.toFixed(0)}
+                </span>
+              )}
+            </span>
+          )
+        })()}
         <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 16, color: scoreCol, width: 34, textAlign: 'right' }}>
           {Math.round(p.hr_score || 0)}
         </span>
@@ -149,7 +180,7 @@ function Board({ players, onPlayerClick }) {
 
   const tab = PICK_TABS.find((t) => t.key === pickTab) || PICK_TABS[0]
   const rows = tab.roles
-    ? sorted.filter((p) => tab.roles.includes(p.game_pick_role || ''))
+    ? sorted.filter((p) => tab.roles.some((r) => rolesOf(p).includes(r)))
     : sorted.slice(0, 40)
 
   if (!players.length) return <Empty text="No player data loaded." />
@@ -168,7 +199,7 @@ function Board({ players, onPlayerClick }) {
         {PICK_TABS.map((t) => (
           <button key={t.key} onClick={() => setPickTab(t.key)} style={btnStyle(C.orange, pickTab === t.key)}>
             {t.label}
-            {t.roles ? ` (${sorted.filter((p) => t.roles.includes(p.game_pick_role || '')).length})` : ` (${Math.min(sorted.length, 40)})`}
+            {t.roles ? ` (${sorted.filter((p) => t.roles.some((r) => rolesOf(p).includes(r))).length})` : ` (${Math.min(sorted.length, 40)})`}
           </button>
         ))}
       </div>
@@ -178,23 +209,40 @@ function Board({ players, onPlayerClick }) {
         <span>👻 hidden value</span>
         <span>⚠️ trap flag</span>
       </div>
-      {/* 🥇 podium — the bot's own three favorites tonight, unadjusted */}
+      {/* 🥇 THE PODIUM (2026-08-08 redesign) — an actual podium, not three
+          chips in a row. Silver-gold-bronze steps, the champion elevated in
+          the middle, each with the score on its own scale and the arm he
+          faces — the briefing's cold open. */}
       {sorted.length >= 3 && pickTab === 'all' && (
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 10 }}>
-          {sorted.slice(0, 3).map((p, i) => (
-            <button key={p.player_id || i} onClick={() => onPlayerClick?.(p)} style={{
-              display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
-              background: i === 0 ? 'linear-gradient(155deg, rgba(252,211,77,.14), rgba(252,211,77,.03))' : C.bg2,
-              border: `1px solid ${i === 0 ? 'rgba(252,211,77,.5)' : C.border}`,
-              borderRadius: 9, padding: '5px 12px',
-            }}>
-              <span style={{ fontSize: 13 }}>{['🥇', '🥈', '🥉'][i]}</span>
-              <span style={{ fontSize: 11.5, fontWeight: 800 }}>{p.name}</span>
-              <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange }}>
-                {(p.top_board_score_v2 || 0).toFixed(1)}
-              </span>
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, maxWidth: 640 }}>
+          {[1, 0, 2].map((idx) => {
+            const p = sorted[idx]
+            const first = idx === 0
+            const col = first ? '#FCD34D' : idx === 1 ? '#d4d4d8' : '#d97706'
+            return (
+              <button key={p.player_id || idx} onClick={() => onPlayerClick?.(p)} style={{
+                flex: first ? '1.25 1 0' : '1 1 0', minWidth: 0, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                background: `linear-gradient(175deg, ${col}${first ? '22' : '12'}, ${C.bg2} 75%)`,
+                border: `1px solid ${col}${first ? '77' : '40'}`,
+                borderRadius: '11px 11px 6px 6px',
+                padding: first ? '14px 10px 10px' : '9px 8px 8px',
+                boxShadow: first ? `0 0 20px ${col}1f` : 'none',
+              }}>
+                <span style={{ fontSize: first ? 19 : 15 }}>{['🥇', '🥈', '🥉'][idx]}</span>
+                <span style={{
+                  fontSize: first ? 13 : 11.5, fontWeight: 900, maxWidth: '100%',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>{p.name}</span>
+                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {p.team} · vs {String(p.pitcher_name || 'TBD').split(' ').slice(-1)[0]}
+                </span>
+                <span style={{ fontSize: first ? 18 : 14, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>
+                  {(p.top_board_score_v2 || 0).toFixed(1)}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
       {rows.length === 0
@@ -253,6 +301,24 @@ function SheetViewer({ url, label }) {
 
   const sections = useMemo(() => (text ? parseSections(text) : []), [text])
 
+  // The masthead numbers — parsed from the bot's own sheet, same loose
+  // patterns the header pill uses. Anything that doesn't parse just doesn't
+  // print; the sheet below is always the source of truth.
+  const brief = useMemo(() => {
+    if (!text) return null
+    const range = text.match(/projected\s+HRs?\s*[:\s]\s*(\d+)\s*[–—-]\s*(\d+)/i)
+    const grade = text.match(/power\s+grade\s*[:\s]\s*([A-Za-z ]+)/i)
+    const profiles = text.match(/top\s+HR\s+profiles\s*[:\s]\s*(\d+)/i)
+    const weak = text.match(/weak\s+pitcher\s+spots\s*[:\s]\s*(\d+)/i)
+    return {
+      lo: range ? Number(range[1]) : null,
+      hi: range ? Number(range[2]) : null,
+      grade: grade ? grade[1].trim() : '',
+      profiles: profiles ? Number(profiles[1]) : null,
+      weak: weak ? Number(weak[1]) : null,
+    }
+  }, [text])
+
   // Search: which sections contain the filter, and force them open.
   const f = filter.trim().toLowerCase()
   const matching = useMemo(() => {
@@ -278,6 +344,49 @@ function SheetViewer({ url, label }) {
 
   return (
     <div>
+      {/* ── THE MASTHEAD (2026-08-08) — the sheet arrives as a briefing, not
+          a text dump: dateline, the bot's own headline numbers, then its
+          sections in its own words below. */}
+      <div style={{
+        background: `linear-gradient(150deg, ${C.bg2}, rgba(249,115,22,.07))`,
+        border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`,
+        borderRadius: 13, padding: '13px 16px', marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 14 }}>🤖</span>
+          <span style={{ fontSize: 12.5, fontWeight: 900, letterSpacing: '.12em', fontFamily: NUM_FONT }}>THE BOT&apos;S DAILY BRIEFING</span>
+          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{label}</span>
+        </div>
+        {(brief?.lo != null || brief?.grade || brief?.profiles != null || brief?.weak != null) && (
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 8 }}>
+            {brief.lo != null && (
+              <span style={{ border: '1px solid rgba(249,115,22,.5)', background: 'rgba(249,115,22,.1)', color: C.orange, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                💣 {brief.lo}–{brief.hi} HR projected
+              </span>
+            )}
+            {brief.grade && (
+              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                power grade {brief.grade}
+              </span>
+            )}
+            {brief.profiles != null && (
+              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                {brief.profiles} top HR profiles
+              </span>
+            )}
+            {brief.weak != null && (
+              <span style={{ border: '1px solid rgba(252,211,77,.45)', color: '#FCD34D', borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+                ★ {brief.weak} weak pitcher spots
+              </span>
+            )}
+          </div>
+        )}
+        <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
+          The numbers above are parsed from the sheet itself; everything below is the bot&apos;s own
+          words, split into its own sections. Search opens whatever it finds.
+        </div>
+      </div>
+
       {/* toolbar: search + section chips */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         <input
@@ -326,7 +435,9 @@ function SheetViewer({ url, label }) {
               key={i}
               ref={(el) => { refs.current[i] = el }}
               style={{
-                background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
+                background: C.bg2, border: `1px solid ${C.border}`,
+                borderLeft: `3px solid ${open ? 'rgba(249,115,22,.55)' : C.border}`,
+                borderRadius: 11,
                 overflow: 'hidden', scrollMarginTop: 130,
               }}
             >
@@ -373,34 +484,65 @@ function SheetViewer({ url, label }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
+// ORDER IS THE FIX (2026-08-10). Donovan: "there's no dedicated page to just
+// showing the bot picks... the bot page is kinda just unusable — it does
+// nothing." It wasn't missing a feature, it was landing on the wrong thing:
+// `view` defaulted to 'sheet', a raw dump of mlb_breakdown_today.txt, and the
+// picks sat behind a second click under a 40-row table. A tab called The Bot
+// that opens on a wall of monospace does nothing, exactly as described.
+//
+// THE READ first and by default (2026-08-11). Tonight's Picks and the Raw
+// Board both came out: the picks view was four short columns and then half a
+// screen of nothing, and the Raw Board's only real idea — "where the two
+// boards disagree, the gap IS the site's adjustment" — was a caption it never
+// actually showed you, since it rendered one of the two rankings and not the
+// difference. Section 3 of The Read shows that gap directly, so nothing was
+// lost by dropping it. The sheets stay, unedited, because they are the
+// receipt.
+// ── THE READ NO LONGER LEADS THIS TAB (2026-08-17) ──────────────────────────
+// Donovan: "honestly remove the read from the bot page its dumb", alongside
+// "the read on the home page is good".
+//
+// So the read itself is fine — landing on a page of prose when you opened the
+// bot's tab to see its PICKS is what is wrong. Shortlist leads now and The Read
+// sits last in the row.
+//
+// Not deleted outright, for one concrete reason: Home's ReadTeaser links here
+// for the full version, and that link is the thing he says he likes. Removing
+// the view would break it. If he wants it gone entirely, the teaser moves to an
+// inline expand on Home first — one change, not a dangling link.
+// 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
-  { key: 'sheet',    label: '📄 Today’s Sheet' },
-  { key: 'tomorrow', label: '📄 Tomorrow' },
-  { key: 'board',    label: '🏆 Raw Board' },
+  { key: 'short',    label: 'Shortlist' },
+  { key: 'sheet',    label: 'Today’s Sheet' },
+  { key: 'tomorrow', label: 'Tomorrow' },
+  { key: 'read',     label: 'The Read' },
 ]
 
-export default function Bot({ players = [], onPlayerClick }) {
-  const [view, setView] = useState('sheet')
+export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = null, onWatch, watchIds = null }) {
+  const [view, setView] = useState('short')
 
   return (
     <div>
       <PanelTitle
         title="The Bot"
-        sub="Its sheet, in its own sections · its board, unadjusted"
+        sub="Tonight read back in sentences · its sheet, in its own sections"
         right={
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {VIEWS.map((v) => (
-              <button key={v.key} onClick={() => setView(v.key)} style={btnStyle(C.orange, view === v.key)}>
-                {v.label}
-              </button>
-            ))}
-          </div>
+          // UNIVERSAL FILTER (2026-08-23): the VIEWS row rode on btnStyle
+          // with ember passed by hand — a view switch is STATE and draws in
+          // the theme accent like every other filter row now.
+          <PillRow
+            value={view}
+            options={VIEWS.map((v) => ({ key: v.key, label: v.label }))}
+            onChange={setView}
+          />
         }
       />
 
+      {view === 'read'     && <TheRead players={players} onPlayerClick={onPlayerClick} odds={odds} />}
+      {view === 'short'    && <Shortlist players={players} odds={odds} onPlayerClick={onPlayerClick} onWatch={onWatch} watchIds={watchIds} />}
       {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
       {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
-      {view === 'board'    && <Board players={players} onPlayerClick={onPlayerClick} />}
     </div>
   )
 }

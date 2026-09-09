@@ -2,6 +2,12 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { pitcherSlotDamage } from '../lib/situational'
+import { divChip, divTone, sampleDim } from '../lib/scales'
+
+// LEAGUE OPS-AGAINST, the anchor this chart was missing. An OPS bar with no
+// zero on it is a magnitude; an OPS bar with league on it is a verdict, and a
+// verdict is what "does he bleed to the 4-hole" is asking for.
+const LG_OPS_AGAINST = 0.715
 
 // SLOT DAMAGE, OCCUPIED — PropFinder shows a pitcher's line against each
 // batting-order slot as a generic table. This shows the same season damage
@@ -37,19 +43,39 @@ export default function SlotDamage({ pitcher }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {rows.map((r) => {
           const occ = bySlot.get(r.slot)
-          const hot = r.ops >= 0.800
+          // ── ONE SCALE, WITH A ZERO ON IT (2026-08-22) ──────────────────
+          // The bar used to be a three-step ladder — #f97316 at .800,
+          // #FCD34D at .700, rgba(255,255,255,.16) below — which is three
+          // hard cuts standing in for a continuous number, and the bottom
+          // step was white-alpha, so on a light theme the COLD half of the
+          // chart disappeared entirely. It now runs on the diverging scale
+          // against league OPS-against, so the bar says which side of
+          // average this slot is on and by how much, and the arrow carries
+          // the sign for anyone who cannot separate the hues.
+          const d = divTone(r.ops, { anchor: LG_OPS_AGAINST, ceiling: 0.30, deadband: 0.08 })
+          const col = divChip(r.ops, { anchor: LG_OPS_AGAINST, ceiling: 0.30, deadband: 0.08 })
+          const hot = r.ops >= LG_OPS_AGAINST
+          // The sample is the AB count the API returned. A .950 OPS over 12
+          // at-bats and one over 180 are not the same claim, and this chart
+          // used to draw them identically.
+          const samp = sampleDim(r.ab, 40)
           return (
-            <div key={r.slot} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+            <div key={r.slot} title={`Slot ${r.slot}: ${r.ops.toFixed(3)} OPS allowed over ${r.ab} at-bats, ${r.hr} HR. League-average pitching allows about ${LG_OPS_AGAINST.toFixed(3)}.`}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, opacity: samp.opacity }}>
               <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 12, textAlign: 'right' }}>{r.slot}</span>
-              <div style={{ flex: '0 0 42%', height: 11, background: 'rgba(255,255,255,.05)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', flex: '0 0 42%', height: 11, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}>
                 <div style={{
                   width: `${(100 * r.ops) / max}%`, height: '100%', borderRadius: 4,
-                  background: hot ? '#f97316' : r.ops >= 0.700 ? '#FCD34D' : 'rgba(255,255,255,.16)',
-                  boxShadow: hot ? '0 0 8px rgba(249,115,22,.5)' : 'none',
+                  background: col,
+                }} />
+                {/* League, drawn on the axis rather than described under it. */}
+                <span style={{
+                  position: 'absolute', left: `${Math.min(100, (100 * LG_OPS_AGAINST) / max)}%`,
+                  top: 0, bottom: 0, width: 1, background: C.text2, opacity: 0.75,
                 }} />
               </div>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, color: hot ? C.orange : C.text2, width: 44 }}>
-                {r.ops.toFixed(3)}
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, color: hot ? col : C.text2, width: 52 }}>
+                {r.ops.toFixed(3)}<span style={{ fontSize: 7.5, marginLeft: 1 }}>{d.glyph}</span>
               </span>
               <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 56 }}>{r.hr} HR · {r.ab}AB</span>
               {occ && (
@@ -62,8 +88,11 @@ export default function SlotDamage({ pitcher }) {
         })}
       </div>
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
-        Live from the MLB StatsAPI. Orange = .800+ OPS allowed to that slot — and the name beside it
-        is who bats there tonight. A bright bar with a ⭐ name is the same claim from two directions.
+        Live from the MLB StatsAPI. Bars run against league OPS-against ({LG_OPS_AGAINST.toFixed(3)}), marked on the axis —
+        warm ▲ means this slot has hurt him more than league, cool ▼ less, and a bar close to the
+        line means neither. Slots on under 40 at-bats are dimmed rather than hidden: the number is
+        real, the sample is thin. The name beside each bar is who bats there tonight, so a warm bar
+        with a ⭐ name is the same claim from two directions.
       </div>
     </div>
   )

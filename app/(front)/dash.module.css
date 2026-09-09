@@ -1,0 +1,353 @@
+/* The front door's own styling.
+ *
+ * A CSS module rather than the ember palette in lib/theme.js on purpose: this
+ * page renders before a person has chosen a sport, so it cannot inherit either
+ * dashboard's chrome, and it must render identically on a cold first visit
+ * with nothing in localStorage. The product accents are the three colours the
+ * network already uses (DashNetworkNav.js): MOONSHOT orange, TUDDY green,
+ * FRANCHISE red-orange.
+ */
+
+.page {
+  --ink: #f4f1eb;
+  --dim: #8a8580;
+  --line: #2a2724;
+  --panel: #131211;
+  --mlb: #f97316;
+  --nfl: #22c55e;
+  --fantasy: #ff633e;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 18px 90px;
+  background: #0b0b0a;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* ── bar ── */
+/* ── THE HEADER STAYS (2026-08-31) ───────────────────────────────────────────
+   Donovan, on the same 45+ user who could not finish sign-up: "it was hard for
+   them to find a home button on the sign up."
+
+   There wasn't one. This bar was static, and the auth card sits at the BOTTOM
+   of a 275-line page — measured, you reach the form at scrollY ~1,940 on a
+   phone, by which point the brand, the nav and every route on the site are a
+   page and a half off the top. You are in a dark box at the end of a long page
+   with no visible way anywhere. Not hard to find: absent.
+
+   Sticky costs nothing on a page this long and gives the way out back at every
+   scroll position. The solid background matters — at 92% opacity the card read
+   straight through the bar, tab row and heading both legible under the logo. A
+   sticky bar has to be a surface, not a tint. Caught in render. */
+.bar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; margin-bottom: 4px;
+  background: #0b0a0a;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+/* scroll-anchor.css: html { scroll-padding-top: 84px } moved here (css-loader pure-selector fix, 2026-09-06) */
+/* The brand is a link on every other surface of the network as of 2026-08-31
+   (components/Header.js, components/nfl/NflHeader.js). It was a bare <div>
+   here — on the one page where a lost person is most likely to reach for it. */
+a.brand { text-decoration: none; color: inherit; }
+/* On a phone the nav would wrap into two rows under a sticky bar and eat a
+   third of the viewport. The section anchors are the ones worth dropping: they
+   are shortcuts to places you also reach by scrolling. The auth controls are
+   not — see the note where the old rule used to be. */
+@media (max-width: 620px) {
+  .barNav .barNavSection { display: none; }
+  .barNav { gap: 10px; }
+}
+.brand { display: flex; align-items: center; min-height: 44px; gap: 9px; }
+.brand img { border-radius: 10px; }
+.brand small { display: block; color: var(--mlb); font: 900 7px/1 monospace; letter-spacing: .16em; }
+.brand strong { display: block; margin-top: 4px; font: 900 12px/1 monospace; letter-spacing: .08em; }
+.barNav { display: flex; align-items: center; gap: 14px; }
+.barNav a { display: inline-flex; align-items: center; min-height: 40px; color: var(--dim); font-size: 12px; text-decoration: none; }
+.barNav a:hover { color: var(--ink); }
+.barCta, .barNav form button {
+  display: inline-flex; align-items: center; min-height: 40px;
+  padding: 8px 14px; border: 1px solid var(--line); border-radius: 9px;
+  background: #191817; color: var(--ink); font: 800 11px/1 monospace; letter-spacing: .06em; cursor: pointer;
+}
+.ghost { background: transparent; }
+
+/* ── hero ── */
+.hero { padding: 46px 0 34px; border-bottom: 1px solid var(--line); }
+.eyebrow { margin: 0; color: var(--mlb); font: 900 8px/1 monospace; letter-spacing: .18em; }
+.eyebrow span { margin-right: 6px; }
+.hero h1 { margin: 14px 0 12px; font-size: clamp(34px, 6vw, 62px); line-height: 1.02; letter-spacing: -.035em; }
+.hero h1 em { color: var(--mlb); font-style: normal; }
+.heroCopy { max-width: 620px; margin: 0; color: var(--dim); font-size: 13px; line-height: 1.6; }
+.heroActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.heroActions a {
+  padding: 12px 18px; border: 1px solid var(--line); border-radius: 11px;
+  background: #191817; color: var(--ink); font-size: 12px; font-weight: 700; text-decoration: none;
+}
+.heroActions a:first-child { border-color: var(--mlb); background: color-mix(in srgb, var(--mlb) 14%, #191817); }
+.heroActions b { margin-left: 5px; color: var(--mlb); }
+
+/* ── tonight ── */
+.slate { padding: 30px 0; }
+.slateHead h2 { margin: 6px 0 16px; font-size: 21px; letter-spacing: -.02em; }
+.kicker { margin: 0; color: var(--dim); font: 900 8px/1 monospace; letter-spacing: .16em; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.tile { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.tile small { display: block; color: var(--dim); font: 800 7.5px/1 monospace; letter-spacing: .1em; }
+.tile strong { display: block; margin: 9px 0 5px; font: 900 30px/1 monospace; }
+.tile span { display: block; min-height: 12px; color: var(--dim); font-size: 10px; }
+.tile.mlb strong { color: var(--mlb); }
+.tile.nfl strong { color: var(--nfl); }
+.stamp { margin: 12px 0 0; color: #6d6864; font-size: 10px; }
+
+/* ── products ── */
+.products { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 12px 0 34px; }
+.product { display: flex; flex-direction: column; padding: 18px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel); }
+.product header { display: flex; align-items: center; gap: 10px; }
+.product header i {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, #333);
+  background: color-mix(in srgb, var(--accent) 13%, #111);
+  color: var(--accent); font: 900 13px/1 monospace; font-style: normal;
+}
+.product header strong { display: block; font: 900 12px/1 monospace; letter-spacing: .07em; }
+.product header small { display: block; margin-top: 4px; color: var(--dim); font: 800 7.5px/1 monospace; letter-spacing: .12em; }
+.product h3 { margin: 16px 0 8px; font-size: 17px; letter-spacing: -.02em; }
+.product > p { margin: 0; color: var(--dim); font-size: 11.5px; line-height: 1.6; }
+.mlb { --accent: var(--mlb); }
+.nfl { --accent: var(--nfl); }
+.fantasy { --accent: var(--fantasy); }
+
+.product dl { display: grid; gap: 1px; margin: 16px 0 0; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.product dl div { display: flex; justify-content: space-between; padding: 9px 11px; background: #171615; }
+.product dt { margin: 0; color: var(--dim); font-size: 10.5px; }
+.product dd { margin: 0; font: 900 12px/1 monospace; color: var(--accent); }
+
+.six { list-style: none; display: grid; gap: 1px; margin: 16px 0 0; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.six li { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 8px; padding: 8px 11px; background: #171615; }
+.six small { color: var(--dim); font: 800 7.5px/1 monospace; letter-spacing: .06em; }
+.six b { font-size: 11.5px; }
+.six span { color: var(--accent); font: 900 10px/1 monospace; }
+
+.leagues { list-style: none; display: grid; gap: 6px; margin: 16px 0 0; padding: 0; }
+.leagues a { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #171615; color: var(--ink); text-decoration: none; }
+.leagues b { display: block; font-size: 12px; }
+.leagues span { display: block; margin-top: 4px; color: var(--dim); font-size: 10px; }
+
+.product footer { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 18px; }
+.product footer a { color: var(--dim); font-size: 11px; text-decoration: none; border-bottom: 1px solid transparent; }
+.product footer a:first-child { color: var(--accent); font-weight: 800; }
+.product footer a:hover { border-bottom-color: currentColor; }
+
+/* ── account ── */
+.auth { padding: 30px 0; border-top: 1px solid var(--line); }
+.authIntro h2 { margin: 8px 0 10px; font-size: 24px; letter-spacing: -.025em; }
+.authIntro span { display: block; max-width: 640px; color: var(--dim); font-size: 12px; line-height: 1.65; }
+/* The way out of the form for somebody who does not want an account. The
+   section copy has always SAID the site is readable without one; this is the
+   first time it has been reachable from here. */
+.authEscape { margin-top: 14px; font-size: 12px; color: var(--dim); }
+.authEscape a { color: var(--ink); }
+.authGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin-top: 20px; }
+.card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.card h3 { margin: 8px 0 14px; font-size: 17px; }
+/* ── SIZED FOR SOMEBODY WHO IS NOT TWENTY-FIVE (2026-08-31) ──────────────────
+   Donovan, on a 45+ user who could not complete sign-up. Two numbers here were
+   doing real damage.
+
+   The LABEL was 10.5px — the word telling you what the box is for, smaller
+   than almost anything else on the page.
+
+   The INPUT was 13px, and that one is not merely small, it is a mobile trap:
+   iOS Safari AUTOMATICALLY ZOOMS THE PAGE when you focus a field whose text is
+   under 16px, and it does not zoom back out. Tap the email box, the whole page
+   lurches in, and now you are filling in a form you can only see a third of,
+   with no obvious way back. On a phone that alone can end the attempt.
+   16px is the threshold, so 16px is the size. */
+.card label { display: block; margin-bottom: 14px; color: var(--ink); font-size: 12.5px; font-weight: 650; }
+.card input {
+  display: block; width: 100%; margin-top: 7px; padding: 12px 12px; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: 9px; background: #0e0d0d; color: var(--ink); font-size: 16px;
+}
+/* The quiet line under a field that says what is expected BEFORE you get it
+   wrong. Normal weight, so the label above it stays the loud one. */
+.card .hint {
+  display: block; margin-top: 6px; color: var(--dim);
+  font-size: 11px; font-weight: 400; line-height: 1.5;
+}
+.confirmLead { margin: 0 0 12px; color: var(--ink); font-size: 13px; line-height: 1.65; }
+.confirmMail { color: var(--mlb); word-break: break-all; }
+.confirmList { margin: 0 0 14px; padding-left: 18px; color: var(--dim); font-size: 12px; line-height: 1.7; }
+.confirmList b { color: var(--ink); }
+/* First-run panel after a successful sign-up — see the `welcome` param. */
+.welcome { border: 1px solid var(--mlb); border-radius: 14px; padding: 18px 20px;
+  background: color-mix(in srgb, var(--mlb) 9%, #191817); margin-bottom: 20px; }
+.welcome h2 { margin: 6px 0 8px; font-size: 22px; letter-spacing: -.02em; }
+.welcome p { margin: 0 0 14px; color: var(--dim); font-size: 12.5px; line-height: 1.65; max-width: 620px; }
+.welcomeSteps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.welcomeSteps a {
+  display: block; padding: 12px 14px; border: 1px solid var(--line); border-radius: 11px;
+  background: #131211; color: var(--ink); text-decoration: none; font-size: 12.5px; font-weight: 700;
+}
+.welcomeSteps a span { display: block; margin-top: 5px; color: var(--dim); font-size: 11px; font-weight: 400; line-height: 1.5; }
+.welcomeSteps a:hover { border-color: var(--mlb); }
+.card input:focus { outline: none; border-color: var(--mlb); }
+.card button {
+  width: 100%; padding: 12px; border: 1px solid var(--mlb); border-radius: 10px;
+  background: color-mix(in srgb, var(--mlb) 16%, #191817); color: var(--ink);
+  font: 800 12px/1 inherit; cursor: pointer;
+}
+.card button[disabled] { opacity: .6; cursor: progress; }
+.card small { display: block; margin-top: 10px; color: #6d6864; font-size: 10px; }
+.signedIn h2 { margin: 8px 0 10px; font-size: 22px; letter-spacing: -.02em; }
+.signedIn form { margin-top: 16px; }
+.signedIn button {
+  padding: 11px 16px; border: 1px solid var(--line); border-radius: 10px;
+  background: #191817; color: var(--ink); font: 800 11px/1 inherit; cursor: pointer;
+}
+.muted { max-width: 640px; margin: 0; color: var(--dim); font-size: 12px; line-height: 1.6; }
+
+.error, .message { margin: 0 0 12px; padding: 11px 13px; border-radius: 10px; font-size: 12px; }
+.error { border: 1px solid #7f2d2d; background: rgba(127, 45, 45, .16); color: #ffb4b4; }
+.message { border: 1px solid #2d5f7f; background: rgba(45, 95, 127, .16); color: #b4dcff; }
+
+/* ── foot ── */
+.foot { display: flex; flex-wrap: wrap; gap: 14px; padding: 26px 0 0; border-top: 1px solid var(--line); }
+.foot span { color: var(--dim); font: 900 8px/1 monospace; letter-spacing: .14em; }
+.foot a { color: var(--dim); font: 800 8px/1 monospace; letter-spacing: .1em; text-decoration: none; }
+.foot a:hover { color: var(--ink); }
+
+@media (max-width: 620px) {
+  .page { padding: 0 13px 110px; }
+  .hero { padding: 30px 0 24px; }
+  /* Was `.barNav a:not(.barCta) { display: none }` — which hid EVERY nav link
+     on a phone except the single CTA. That is why the mobile front door had
+     exactly one auth control: whichever one happened to be the button. It is
+     also half of why sign-up could not be found, since that button said
+     "Sign in". The section anchors are the ones worth dropping; Sign in,
+     Create account, Account and Sign out are not. See .barNavSection above. */
+}
+
+/* ── alerts ── */
+.alertsSection { padding: 30px 0; border-top: 1px solid var(--line); }
+.alerts { display: block; }
+.alertsHead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.alertsHead h2 { margin: 8px 0 0; font-size: 24px; letter-spacing: -.025em; }
+.armBtn {
+  padding: 11px 16px; border: 1px solid var(--mlb); border-radius: 10px;
+  background: color-mix(in srgb, var(--mlb) 16%, #191817); color: var(--ink);
+  font: 800 11px/1 inherit; cursor: pointer;
+}
+.armBtn[disabled] { border-color: var(--line); background: #191817; color: var(--dim); cursor: not-allowed; }
+/* #52: every row of this grid was ragged, because a grid ITEM is only as tall
+   as its content and nothing stretched the buttons to a common height. `li`
+   stretches by default; the button inside it did not. */
+.alertList { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin: 0 0 14px; padding: 0; align-items: stretch; }
+.alertList li { display: flex; }
+.alertList button {
+  /* minmax(0, 1fr), not 1fr: a plain 1fr track refuses to shrink below its
+     content's min-content width, so a long switch name squeezed the
+     DESCRIPTION column down to a few characters and wrapped it four words
+     deep ("Your man's / team has the / ball inside the / twenty") while its
+     neighbours ran full width. That was #52's second half. */
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px;
+  width: 100%; height: 100%; padding: 12px 13px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: #191817;
+  color: var(--ink); font: inherit; cursor: pointer;
+}
+.alertList button[disabled] { opacity: .45; cursor: not-allowed; }
+.alertList b { font-size: 12px; }
+.alertList small { grid-column: 1; color: var(--dim); font-size: 10.5px; line-height: 1.4; }
+.alertList em { grid-row: 1 / span 2; align-self: center; color: var(--dim); font: 900 8px/1 monospace; font-style: normal; letter-spacing: .1em; }
+
+/* #51: with 27 of 32 switched on, finding the five that are OFF meant reading
+   every card -- the only difference was a tiny OFF label and a slightly
+   dimmer edge. An off switch is now visibly off at a glance: no accent, a
+   recessed ground, and the whole card at reduced weight. */
+.alertOff { opacity: .68; }
+.alertOff b { color: var(--dim); font-weight: 700; }
+.alertOn {
+  border-color: color-mix(in srgb, var(--mlb) 60%, var(--line)) !important;
+  background: color-mix(in srgb, var(--mlb) 11%, var(--panel)) !important;
+  box-shadow: inset 3px 0 0 var(--mlb);
+}
+.alertOn em { color: var(--mlb); }
+.alertNote { display: block; margin: 5px 2px 0; color: #6d6864; font-size: 9.5px; }
+
+/* #53: this note used to be a SIBLING of the card, so it hung in the gap
+   underneath and pushed the whole grid's rhythm off. It belongs to the switch,
+   so it lives in the switch. */
+.alertNoteIn { grid-column: 1 / -1; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); color: #8d8884; font-size: 9.5px; line-height: 1.45; }
+
+/* #50: the presets were rendered with .armBtn, which is filled with the accent
+   and outlined in it -- so all three read as selected at once, including when
+   the state beside them said "your own mix", i.e. none of them was. */
+.presetBtn {
+  padding: 11px 16px; border: 1px solid var(--line); border-radius: 10px;
+  background: #191817; color: var(--dim);
+  font: 800 11px/1 inherit; cursor: pointer;
+}
+.presetBtnOn {
+  border-color: var(--mlb); color: var(--ink);
+  background: color-mix(in srgb, var(--mlb) 16%, #191817);
+}
+.presetBtn[disabled] { opacity: .45; cursor: not-allowed; }
+.alertGroup { margin: 16px 0 8px; color: var(--dim); font: 900 8px/1 monospace; letter-spacing: .16em; }
+.alertGroup:first-of-type { margin-top: 0; }
+.closedSite { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: 4px 0 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.closedSite b { display: block; font-size: 12px; }
+.closedSite small { display: block; max-width: 520px; margin-top: 5px; color: var(--dim); font-size: 10.5px; line-height: 1.5; }
+.closedSite button { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: #191817; color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .06em; cursor: pointer; }
+.closedSite button[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* ── account ── */
+.signOutRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.signOutRow button {
+  padding: 11px 16px; border: 1px solid var(--line); border-radius: 10px;
+  background: #191817; color: var(--ink); font: 800 11px/1 inherit; cursor: pointer;
+}
+.danger { border-color: #7f2d2d !important; background: rgba(127, 45, 45, .16) !important; color: #ffb4b4 !important; }
+.deviceData { margin-top: 16px; }
+.deviceData ul { list-style: none; display: grid; gap: 1px; margin: 0 0 12px; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.deviceData li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 13px; background: var(--panel); }
+.deviceData li span { font-size: 11.5px; }
+.deviceData li b { color: var(--dim); font: 900 10px/1 monospace; }
+.deviceData button { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: #191817; color: var(--ink); font: 800 10px/1 monospace; letter-spacing: .06em; cursor: pointer; }
+
+/* ── Auth card tabs (2026-08-29): one card, Create/Sign-in toggle ── */
+.authTabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
+/* 9px uppercase monospace was the size of the control that IS the sign-up
+   entry point once you have found the section. 11px and a 44px target. */
+.authTabs button {
+  width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 9px;
+  background: #0e0d0d; color: var(--dim); font: 800 11px/1 monospace; letter-spacing: .08em;
+  text-transform: uppercase; cursor: pointer;
+}
+.authTabs .authTabActive {
+  border-color: var(--mlb); background: color-mix(in srgb, var(--mlb) 13%, #191817); color: var(--ink);
+}
+
+/* ── THE RECORD (2026-08-31) ────────────────────────────────────────────────
+   Four rows, each on its own bar, each carrying its Wilson interval drawn at
+   the same scale as the rate. The band sits BEHIND the fill rather than beside
+   it so the eye reads one quantity with an uncertainty, not two numbers. */
+.record { padding: 30px 0 6px; border-top: 1px solid var(--line); }
+.recordRows { display: grid; gap: 12px; margin-top: 18px; }
+@media (min-width: 760px) { .recordRows { grid-template-columns: 1fr 1fr; gap: 14px 26px; } }
+.recordRow { min-width: 0; }
+.recordHead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.recordHead strong { font-size: 13px; }
+.recordHead span { color: var(--dim); font-size: 10.5px; }
+.recordNum { display: flex; align-items: baseline; gap: 8px; margin: 3px 0 5px; }
+.recordNum b { font-size: 21px; letter-spacing: -.02em; color: var(--mlb); font-variant-numeric: tabular-nums; }
+.recordNum span { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.recordBar {
+  position: relative; height: 9px; border-radius: 5px; overflow: hidden;
+  background: #131211; border: 1px solid var(--line);
+}
+.recordCi { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--mlb) 22%, transparent); }
+.recordFill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--mlb); border-radius: 5px 0 0 5px; }
+.recordCiText { margin-top: 4px; color: var(--dim); font-size: 10px; font-variant-numeric: tabular-nums; }
