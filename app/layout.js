@@ -1,5 +1,4 @@
 import './globals.css'
-import { Analytics } from '@vercel/analytics/next'
 import DashSync from '../components/DashSync'
 
 // C1 rebrand sweep (dash-network-master-plan-2026-08-28.md): title, footer,
@@ -76,10 +75,6 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>
-        {children}
-        <Analytics />
-      </body>
       <body>{children}<DashSync /></body>
     </html>
   )
