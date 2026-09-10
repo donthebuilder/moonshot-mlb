@@ -36,7 +36,7 @@ import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
-import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom } from '../../../../../lib/dash/franchise'
+import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
 import { audienceFrom, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
@@ -397,6 +397,11 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   const events = [
     ...(await mlbEvents(db, audience)),
     ...(await nflEvents(audience)),
+    // Every sweep, not gated behind `full` -- see starterScoreEventsFrom's own
+    // comment for why a Franchise touchdown needs the same speed as TUDDY's.
+    // It reads the in-process snapshot nflEvents() just warmed above, so this
+    // costs a small roster query and no second trip to ESPN.
+    ...(await starterScoreEventsFrom(db)),
     ...(full ? await pregameEvents(db, audience) : []),
     // FRANCHISE needs no audience: these are addressed to the owner of a team,
     // not to whoever follows a player. It also runs on every tick rather than
