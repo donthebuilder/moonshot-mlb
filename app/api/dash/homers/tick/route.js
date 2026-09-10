@@ -189,23 +189,23 @@ async function boardIndex(day) {
 }
 const boardRows = () => _cache.board.rows || []
 
-// The pregame post goes out once the lineups start posting, or once the
-// earliest first pitch on tonight's board is under an hour away, whichever
-// comes first -- and only while nothing has started, unless that one-hour
-// deadline has already passed (see `overdue` below), because a slate that
-// blows past its own deadline needs the post late more than it needs the
-// "before anything started" rule kept perfectly. PREGAME_HOUR_UTC is now
-// only the last-resort fallback for the one night the board has no
-// game_time data at all to compute a real deadline from.
-const PREGAME_HOUR_UTC = 20
+// 2026-09-10 (Donovan: "this should be posted first thing when the new
+// slate is posted"). Used to wait for a lineup to post, or for the
+// one-hour-before-first-pitch deadline, or a fallback hour with no
+// game-time data at all -- three different ways of guessing "is it close
+// enough to game time yet." None of that is the question anymore: the
+// board being published IS the slate existing, and that's the only gate
+// now (`ready`, below). PREGAME_LEAD_MS survives for one job only --
+// `overdue`, the catch-up path that lets a late cron tick still post once
+// something has already started, rather than losing the night entirely.
 const PREGAME_LEAD_MS = 60 * 60 * 1000
 
 // STAT-FEED POST TIMES (2026-09-07, Donovan: "3-5 posts minimum a day...
 // mostly pregame, then a couple mid-slate"). Expressed as hours after noon
 // ET so a late-evening threshold (9pm) compares correctly even once the UTC
 // clock has rolled to the next calendar date -- see etHoursSinceNoon below.
-// Same DST assumption as PREGAME_HOUR_UTC above (hardcoded for EDT, the
-// offset in effect for the whole regular season); accepted there already.
+// Hardcoded for EDT (the offset in effect for the whole regular season) --
+// same assumption the old pregame-hour fallback made, accepted there too.
 // 2026-09-07, second pass (Donovan: "earlier in the day for all of these").
 // Every slot moved up; negative values are morning ET. The three pregame
 // slots no longer sit behind the posted-lineup gate, so these thresholds are
@@ -867,11 +867,12 @@ export async function GET(request) {
   }
 
   if (!started || overdue) {
-    const ready = board.size && (
-      overdue ||
-      gamesLive.some((g) => g?.lineupPosted) ||
-      (firstPitch == null && new Date().getUTCHours() >= PREGAME_HOUR_UTC)
-    )
+    // 2026-09-10: the only gate left is the board existing -- see the note
+    // above PREGAME_LEAD_MS. `overdue` is still real, just no longer part
+    // of this decision: it already got the tick INTO this block (the `if`
+    // just above), so by the time `ready` is checked, a non-empty board is
+    // ready regardless of why this tick is the one running.
+    const ready = Boolean(board.size)
     // Every early return below is now guarded on `!started`: when overdue is
     // the ONLY reason this block ran (a cron gap let an early game go Live
     // before the deadline post went out), the pregame attempt still happens
