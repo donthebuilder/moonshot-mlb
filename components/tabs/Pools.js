@@ -10,6 +10,7 @@ import PairBuilder from '../PairBuilder'
 // group's measured rate is. Pairs does not import Pools, so there is no cycle.
 import { GroupTicketBuilder } from './Pairs'
 import { downloadPoolsCard } from '../shareCard'
+import { usePreview, ShowMoreButton } from '../ListPreview'
 
 // Pools — the bot's group tickets, plus the pair builder.
 //
@@ -70,7 +71,18 @@ function PoolLadder({ hit = 0, total = 4, estimated2 = null, live = false }) {
 function LivePools({ results, players = [], onPlayerClick }) {
   const pools = (results?.pair_pool_results?.graded_pools) || []
   const resolve = makeResolver(players)
+  // Phase 1 simplify pass, 2026-09-11: same site-wide long-list rule as
+  // RankedBoard's Cards view, but graded pools are LIVE state someone may be
+  // actively tracking -- collapsing strictly by position could bury the one
+  // pool that just started moving. So the fold never hides a pool with any
+  // hits on it: the first 5 (original order) plus every pool with hr_count
+  // > 0 stay visible always; only untouched (0-hit) pools past the first 5
+  // fold behind "Show N more".
+  const [open, setOpen] = useState(false)
   if (!pools.length) return null
+
+  const shownPools = open ? pools : pools.filter((pl, i) => i < 5 || n(pl.hr_count, 0) > 0)
+  const restN = pools.length - shownPools.length
 
   return (
     <div style={{ marginBottom: 18 }}>
@@ -97,7 +109,7 @@ function LivePools({ results, players = [], onPlayerClick }) {
         display: 'grid', gap: 8,
         gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
       }}>
-        {pools.map((pl, i) => {
+        {shownPools.map((pl, i) => {
           const hit = n(pl.hr_count, 0)
           // Show the published roster denominator. `total_count` is the
           // number of active/finished legs and made a four-name pool display
@@ -170,6 +182,7 @@ function LivePools({ results, players = [], onPlayerClick }) {
           )
         })}
       </div>
+      <ShowMoreButton open={open} restN={restN} toggle={() => setOpen((v) => !v)} itemWord="pools" />
     </div>
   )
 }
@@ -248,6 +261,10 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }
     ...arr(pairBuilder?.pools_6man).map((p) => ({ ...p, kind: '6-man (retired)' })),
   ]
   const prevByKey = usePoolSnapshots(all, slateDate || 'unknown')
+  // Phase 1 simplify pass, 2026-09-11: pregame recommendations, not yet
+  // live (hit is always 0 here -- games haven't started) -- safe to use the
+  // plain site-wide preview, unlike LivePools above.
+  const preview = usePreview(all, 5)
   if (!all.length) return null
 
   return (
@@ -275,7 +292,7 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }
         display: 'grid', gap: 8,
         gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
       }}>
-        {all.map((pl, i) => {
+        {preview.shown.map((pl, i) => {
           const k = String(pl.pool_key || `${pl.kind}-${i}`)
           const p2 = Number(pl?.estimated_grade_probability?.['2plus'])
           const prevSnap = prevByKey?.[k]
@@ -330,6 +347,7 @@ function SlatePools({ pairBuilder, players = [], onPlayerClick, slateDate = '' }
           )
         })}
       </div>
+      <ShowMoreButton {...preview} itemWord="pools" />
     </div>
   )
 }
