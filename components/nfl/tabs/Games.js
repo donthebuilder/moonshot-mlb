@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
+import { softRole, softLine, ordinal, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
@@ -157,35 +158,10 @@ function DesignatedCalls({ game, picks, playersById, onPlayerClick }) {
   })}</div>
 }
 
-// (Phase 2 depth pass, 2026-09-11.) Was TD-rank only, so a bettor looking at
-// a receiving- or rushing-yards prop got no matchup signal from this card at
-// all -- the six markets on the Picks card are TD, REC_YDS, RUSH_YDS, REC,
-// PASS_YDS, KICK_PTS, and this only ever spoke to the first. Widened to the
-// three stats the DVP payload actually carries a real signal for (confirmed
-// against nfl_matchup.json directly, not guessed: 'td', 'recyd_g',
-// 'rshyd_g' -- REC has no reception-count column published, PASS_YDS and
-// KICK_PTS have no per-role DVP equivalent at all, so those three stay
-// uncovered rather than faked). Picks the single softest cell across every
-// role AND all three stats, so a defence that's mediocre against the pass
-// but bleeds rushing yards to RB2s still surfaces its real weak point.
-const DVP_SIGNAL_STATS = [
-  ['td', 'touchdowns'],
-  ['recyd_g', 'receiving yards'],
-  ['rshyd_g', 'rushing yards'],
-]
-
-function softRole(matchup, defense) {
-  const roles = matchup?.dvp?.season?.[defense] || {}
-  let best = null
-  for (const [role, row] of Object.entries(roles)) {
-    for (const [stat, label] of DVP_SIGNAL_STATS) {
-      const rank = Number(row?.[`${stat}_rank`])
-      if (!Number.isFinite(rank)) continue
-      if (!best || rank < best.rank) best = { role, stat, label, rank, value: row[stat] }
-    }
-  }
-  return best
-}
+// softRole/softLine/ordinal/SOFT_TITLE moved to lib/nfl/dvpSignal.js
+// (2026-09-11) so the Matchups page can give the same one-sentence answer
+// instead of leaving a reader to scan the full DVP table for it. See that
+// file for the "why these three stats" reasoning.
 
 // REST (2026-08-28, B7). A blunt but real fatigue proxy -- days since each
 // team's last game, computed purely from schedule dates
@@ -204,22 +180,7 @@ function restLabel(days, shortWeek) {
 // sentence. The rank is already in the tile above it; what the sub-line owes
 // the reader is what that rank MEANS for this defence, which is different for
 // every team. The legend moves into the tooltip, where a legend belongs.
-const ordinal = (n) => {
-  const x = Number(n)
-  if (!Number.isFinite(x) || x < 1) return null
-  // 11th/12th/13th are the exceptions the one-line version of this always
-  // gets wrong, and rank 11-13 of 32 is squarely in range here.
-  const tens = x % 100
-  if (tens >= 11 && tens <= 13) return `${x}th`
-  return `${x}${['th', 'st', 'nd', 'rd'][x % 10] || 'th'}`
-}
-const softLine = (d) => {
-  if (!d) return 'matchup table pending'
-  const o = ordinal(d.rank)
-  if (!o) return 'softest matchup for this defence'
-  return `${o} softest of 32 in ${d.label} against the ${String(d.role).toLowerCase()} role`
-}
-const SOFT_TITLE = 'The single biggest opening this defence gives up -- role, market (touchdowns / receiving yards / rushing yards), and where it ranks league-wide against that role and market. Rank 1 leaks the most.'
+
 
 function GameIntel({ game, matchup }) {
   const awayDefense = softRole(matchup, game.away)

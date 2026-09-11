@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import MatchupMap from '../MatchupMap'
 import DvpTable from '../DvpTable'
+import { softRole, ordinal } from '../../../lib/nfl/dvpSignal'
 
 // Matchups — pick a defence, then read it two ways.
 //
@@ -154,6 +155,12 @@ export default function Matchups({ matchup, data }) {
   const picked = facing.find((p) => p.player_id === pid) || null
   const role = picked ? matchup?.roles?.[picked.player_id] : null
 
+  // Same "single softest cell" signal Games.js leads its defense-intel tiles
+  // with (lib/nfl/dvpSignal.js) — THE MAP already ends on a one-sentence
+  // takeaway, the table below it didn't, so a reader had to scan 11 rows x
+  // 6 columns themselves to find the one number that mattered.
+  const soft = useMemo(() => softRole(matchup, active, win), [matchup, active, win])
+
   if (!matchup?.dvp) {
     return (
       <div style={{
@@ -232,6 +239,14 @@ export default function Matchups({ matchup, data }) {
             <button key={k} onClick={() => setWin(k)} style={btnStyle(C.cyan, k === win)}>{label}</button>
           ))}
         </div>
+        {soft && (
+          <div style={{ padding: '10px 14px 0', fontSize: 12.5, lineHeight: 1.6, color: C.text2 }}>
+            <b style={{ color: C.text }}>{active}</b>&apos;s softest spot is the{' '}
+            <b style={{ color: C.cyan }}>{String(soft.role).toLowerCase()}</b> role in{' '}
+            <b style={{ color: C.cyan }}>{soft.label}</b> — {ordinal(soft.rank)} of 32 league-wide,
+            rank 1 leaks the most. That&apos;s the opening.
+          </div>
+        )}
         <div style={{ paddingTop: 10 }}>
           <DvpTable data={matchup} team={active} win={win} highlight={role} />
         </div>
