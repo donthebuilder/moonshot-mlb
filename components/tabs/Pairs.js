@@ -5,6 +5,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { catColor, verdictInk, verdictWash, alpha } from '../../lib/scales'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
+import { usePreview, ShowMoreButton } from '../ListPreview'
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
@@ -768,6 +769,16 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
     })
   }, [scopedPairs, focusedPairs, focusKey, effectiveType, q])
 
+  // Phase 1 simplify pass, 2026-09-11 ("a lot of informational that can be
+  // hidden or shown in a different way" — Donovan): each PairRow below is a
+  // full multi-line card (type/tags/score/names/reason, then a detail line
+  // PER PLAYER), and this list ran up to 12 of them with nothing collapsed —
+  // a real wall on mobile even though 12 is smaller than the board/pools
+  // walls fixed earlier today. Pregame recommendations, not live-tracked
+  // state (unlike LiveHRPairs' bot-pair-hits below), so the plain site-wide
+  // preview applies here same as SlatePools did.
+  const preview = usePreview(filtered, 5)
+
   return (
     <div>
       {focusKey && (
@@ -853,7 +864,10 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
           {!filtered.length
             ? <Empty text="No pairs available for this view." />
             : <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden', marginTop:8 }}>
-                {filtered.map((pair,i) => <PairRow key={pair.pair_key || i} pair={pair} i={i} />)}
+                {preview.shown.map((pair,i) => <PairRow key={pair.pair_key || i} pair={pair} i={i} />)}
+                <div style={{ padding: preview.restN > 0 || preview.open ? '0 14px 10px' : 0 }}>
+                  <ShowMoreButton {...preview} itemWord="pairs" />
+                </div>
               </div>
           }
         </>
