@@ -90,10 +90,11 @@ function Card({ col, rows, open, onToggle, onPlayerClick }) {
                 {/* the bar IS the ranking — chart-based, as asked for */}
                 <span aria-hidden style={{
                   position: 'absolute', left: 0, top: 0, bottom: 0,
-                  width: `${Math.max(2, (Math.abs(r.v) / max) * 100)}%`,
+                  width: `${Math.max(3, (Math.abs(r.v) / max) * 100)}%`,
+                  borderRadius: '0 5px 5px 0',
                   background: i === 0
-                    ? `linear-gradient(90deg, ${C.green}2e, transparent)`
-                    : `linear-gradient(90deg, ${C.green}14, transparent)`,
+                    ? `linear-gradient(90deg, ${C.green}59, ${C.green}22)`
+                    : `linear-gradient(90deg, ${C.green}30, ${C.green}0d)`,
                 }} />
                 <span style={{
                   position: 'relative', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,

@@ -89,8 +89,8 @@ function RungRow({ rung, player, game, line, market, bar, onPlayerClick }) {
     <button type="button" className={`tl-rung is-${st.state}`} onClick={() => player && onPlayerClick?.(player, market)} disabled={!player}>
       <span className="tl-rung-rank">{rung.rank}</span>
       <span className="tl-rung-who"><b>{rung.name}</b><small>{rung.team} · {rung.position}{game ? ` · ${game.away} @ ${game.home}` : ''}</small></span>
-      <span className="tl-rung-num" style={{ color: col }}>{v === null ? '—' : v}<small>/ {Number.isFinite(bar) ? bar : '?'}</small></span>
-      <span className="tl-rung-bar"><i style={{ width: `${pct * 100}%`, background: col }} /></span>
+      <span className="tl-rung-num" style={{ color: col }}>{v === null ? '—' : <>{v}<small>/ {Number.isFinite(bar) ? bar : '?'}</small></>}</span>
+      <span className={`tl-rung-bar${v === null ? ' is-idle' : ''}`}>{v !== null && <i style={{ width: `${pct * 100}%`, background: col }} />}</span>
       <span className="tl-rung-word" style={{ color: col }}>{st.word}</span>
       <span className="tl-rung-score" style={{ color: grade.color }}>{Math.round(rung.score)}</span>
     </button>
@@ -250,7 +250,7 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
       .tl-rung-rank{color:${C.text3};font:900 10px/1 ${NUM_FONT}}
       .tl-rung-who b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tl-rung-who small{display:block;margin-top:2px;color:${C.text3};font:700 8px/1 ${NUM_FONT}}
       .tl-rung-num{font:900 15px/1 ${NUM_FONT};text-align:right}.tl-rung-num small{margin-left:3px;font-size:9px;color:${C.text3};font-weight:700}
-      .tl-rung-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}.tl-rung-bar i{display:block;height:100%;border-radius:99px;transition:width .4s ease}
+      .tl-rung-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}.tl-rung-bar.is-idle{background:rgba(255,255,255,.02)}.tl-rung-bar i{display:block;height:100%;border-radius:99px;transition:width .4s ease}
       .tl-rung-word{font:800 8px/1.2 ${NUM_FONT};letter-spacing:.04em;text-transform:uppercase;text-align:right}
       .tl-rung-score{font:900 11px/1 ${NUM_FONT};text-align:right}
       .tl-yours{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
