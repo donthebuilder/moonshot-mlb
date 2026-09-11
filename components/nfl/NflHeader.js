@@ -385,10 +385,14 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                   }}>MOONSHOT</button>
               </span>
             </div>
-            <div style={{
-              height: 2, background: `linear-gradient(90deg, ${C.green}, transparent)`,
-              borderRadius: 1, marginTop: 1, width: 80,
-            }} />
+            {/* SIGNAL TRACE (2026-09-11, "more futuristic, innovate and
+                original"). Was a static two-pixel bar. A product whose whole
+                job is finding the live soft spot in a defense shouldn't sit
+                under a motionless underline -- this sweeps the same two
+                accents across the track on a loop, like a trace on a live
+                readout rather than decoration. Respects reduced-motion
+                (falls back to the old static bar) via the CSS below. */}
+            <div className="tuddy-signal-trace" aria-hidden="true" />
           </div>
         </div>
 
@@ -397,8 +401,19 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           <span
             className="nfl-header-built"
             title="When the NFL pipeline last published. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run."
-            style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}
+            style={{
+              fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+            }}
           >
+            {/* Same pulsing-dot language the ticker's `live` tiles already
+                use -- the freshness readout IS a live signal, item 22 built
+                it so a reader never has to do the subtraction themselves,
+                so it should look like one instead of sitting as flat text. */}
+            <span aria-hidden="true" style={{
+              width: 5, height: 5, borderRadius: '50%', background: freshCol,
+              animation: 'pulse 2s infinite', flex: 'none',
+            }} />
             {meta?.built_at_human || data?.built_at_human || '—'}
             {freshLabel && <b style={{ color: freshCol, fontWeight: 800 }}>{` · ${freshLabel}`}</b>}
           </span>
@@ -558,6 +573,20 @@ export default function NflHeader({ tab, setTab, data, meta }) {
 
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes tuddySweep { 0% { background-position: 200% 0; } 100% { background-position: -100% 0; } }
+        .tuddy-signal-trace {
+          height: 2px; width: 80px; margin-top: 1px; border-radius: 1px;
+          background: linear-gradient(90deg, transparent, ${C.green}, ${C.cyan}, transparent);
+          background-size: 200% 100%;
+          animation: tuddySweep 2.6s ease-in-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .tuddy-signal-trace {
+            animation: none;
+            background: linear-gradient(90deg, ${C.green}, transparent);
+            background-size: 100% 100%;
+          }
+        }
         header div::-webkit-scrollbar { display: none; }
         @media (max-width: 700px) {
           .nfl-simple-more { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
