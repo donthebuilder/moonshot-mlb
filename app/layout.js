@@ -79,8 +79,8 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <Analytics />
+        <DashSync />
       </body>
-      <body>{children}<DashSync /></body>
     </html>
   )
 }
