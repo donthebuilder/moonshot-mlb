@@ -157,12 +157,34 @@ function DesignatedCalls({ game, picks, playersById, onPlayerClick }) {
   })}</div>
 }
 
+// (Phase 2 depth pass, 2026-09-11.) Was TD-rank only, so a bettor looking at
+// a receiving- or rushing-yards prop got no matchup signal from this card at
+// all -- the six markets on the Picks card are TD, REC_YDS, RUSH_YDS, REC,
+// PASS_YDS, KICK_PTS, and this only ever spoke to the first. Widened to the
+// three stats the DVP payload actually carries a real signal for (confirmed
+// against nfl_matchup.json directly, not guessed: 'td', 'recyd_g',
+// 'rshyd_g' -- REC has no reception-count column published, PASS_YDS and
+// KICK_PTS have no per-role DVP equivalent at all, so those three stay
+// uncovered rather than faked). Picks the single softest cell across every
+// role AND all three stats, so a defence that's mediocre against the pass
+// but bleeds rushing yards to RB2s still surfaces its real weak point.
+const DVP_SIGNAL_STATS = [
+  ['td', 'touchdowns'],
+  ['recyd_g', 'receiving yards'],
+  ['rshyd_g', 'rushing yards'],
+]
+
 function softRole(matchup, defense) {
   const roles = matchup?.dvp?.season?.[defense] || {}
-  const ranked = Object.entries(roles).filter(([, row]) => Number.isFinite(Number(row?.td_rank)))
-    .sort((a, b) => Number(a[1].td_rank) - Number(b[1].td_rank))
-  if (!ranked.length) return null
-  return { role: ranked[0][0], ...ranked[0][1] }
+  let best = null
+  for (const [role, row] of Object.entries(roles)) {
+    for (const [stat, label] of DVP_SIGNAL_STATS) {
+      const rank = Number(row?.[`${stat}_rank`])
+      if (!Number.isFinite(rank)) continue
+      if (!best || rank < best.rank) best = { role, stat, label, rank, value: row[stat] }
+    }
+  }
+  return best
 }
 
 // REST (2026-08-28, B7). A blunt but real fatigue proxy -- days since each
@@ -193,11 +215,11 @@ const ordinal = (n) => {
 }
 const softLine = (d) => {
   if (!d) return 'matchup table pending'
-  const o = ordinal(d.td_rank)
-  if (!o) return 'softest TD role for this defence'
-  return `${o} softest of 32 against the ${String(d.role).toLowerCase()} role`
+  const o = ordinal(d.rank)
+  if (!o) return 'softest matchup for this defence'
+  return `${o} softest of 32 in ${d.label} against the ${String(d.role).toLowerCase()} role`
 }
-const SOFT_TITLE = 'The role this defence gives up touchdowns to most easily, and where it ranks league-wide against that role. Rank 1 leaks most.'
+const SOFT_TITLE = 'The single biggest opening this defence gives up -- role, market (touchdowns / receiving yards / rushing yards), and where it ranks league-wide against that role and market. Rank 1 leaks the most.'
 
 function GameIntel({ game, matchup }) {
   const awayDefense = softRole(matchup, game.away)
@@ -206,8 +228,8 @@ function GameIntel({ game, matchup }) {
   return <div className="nfl-game-intel">
     <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b><span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>
     <div><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b><span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
-    <div title={SOFT_TITLE}><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.td_rank}` : '—'}</b><span>{softLine(awayDefense)}</span></div>
-    <div title={SOFT_TITLE}><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.td_rank}` : '—'}</b><span>{softLine(homeDefense)}</span></div>
+    <div title={SOFT_TITLE}><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.rank}` : '—'}</b><span>{softLine(awayDefense)}</span></div>
+    <div title={SOFT_TITLE}><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.rank}` : '—'}</b><span>{softLine(homeDefense)}</span></div>
   </div>
 }
 
