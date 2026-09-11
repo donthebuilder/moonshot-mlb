@@ -220,7 +220,7 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
                 // every bar look half-empty and flattened the difference
                 // between a 67 and a 30.
                 width: `${Math.max(2, Math.min(100, ((s - 20) / 60) * 100))}%`,
-                background: `linear-gradient(90deg, ${g.color}1f, transparent)`,
+                background: `linear-gradient(90deg, ${g.color}38, transparent)`,
                 pointerEvents: 'none',
               }} />
               <span style={{
