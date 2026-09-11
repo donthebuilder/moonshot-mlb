@@ -95,7 +95,7 @@ function Zone({ cell, hot, h, compact }) {
     >
       <span style={{
         position: 'absolute', top: 6, left: 7, fontFamily: NUM_FONT, fontSize: 9,
-        fontWeight: 900, color: fg,
+        fontWeight: 900, color: fg, zIndex: 2,
       }}>
         {Number.isFinite(cell.leak)
           ? `${cell.leak > 0 ? '+' : ''}${Math.round(cell.leak)}%`
@@ -103,10 +103,10 @@ function Zone({ cell, hot, h, compact }) {
       </span>
       {hot && (
         <span style={{
-          position: 'absolute', top: 5, right: 6, fontFamily: NUM_FONT, fontSize: 7,
+          position: 'absolute', top: 19, right: 6, fontFamily: NUM_FONT, fontSize: 7,
           fontWeight: 900, letterSpacing: '.16em', color: C.cyan,
-          border: `1px solid ${C.cyan}80`, background: `${C.cyan}24`,
-          padding: '2px 4px', borderRadius: 4,
+          border: `1px solid ${C.cyan}80`, background: `${C.bg2}f2`,
+          padding: '2px 4px', borderRadius: 4, zIndex: 2,
         }}>THE SPOT</span>
       )}
       {/* ── #17: THE ONE CELL THE PAGE POINTS AT BROKE ITS OWN KEY ──────
@@ -122,6 +122,7 @@ function Zone({ cell, hot, h, compact }) {
         position: 'absolute', width: cell.d, height: cell.d, borderRadius: '50%',
         background: 'rgba(255,255,255,.10)',
         border: `1.5px solid ${hot ? `${C.cyan}b0` : 'rgba(255,255,255,.30)'}`,
+        zIndex: 1,
       }} />
       <div style={{
         position: 'relative', fontFamily: NUM_FONT, fontWeight: 900,
