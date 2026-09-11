@@ -10,6 +10,7 @@ import GapBoard from './GapBoard'
 import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
+import { usePreview, ShowMoreButton } from '../ListPreview'
 // HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
 // "I don't like those ones." The cards below carry the same names.
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
@@ -238,6 +239,13 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
     .filter(p => p?.weak_spot_flag === true)
     .sort((a, b) => (b?.hr_score || 0) - (a?.hr_score || 0))
 
+  // Phase 1 simplify pass, 2026-09-11: this rendered a full PlayerCard grid
+  // for every qualifying hitter with nothing collapsed -- the same
+  // uncapped-card-wall pattern fixed on RankedBoard's Cards view earlier
+  // today, just filtered by a signal instead of by rank. Hook called
+  // unconditionally, before the early return below (Rules of Hooks).
+  const wsPreview = usePreview(ws, 5)
+
   if (!ws.length) return null
 
   return (
@@ -249,7 +257,7 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
         count={ws.length}
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-        {ws.map(p => (
+        {wsPreview.shown.map(p => (
           <PlayerCard
             key={playerId(p)}
             p={p}
@@ -261,6 +269,7 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
           />
         ))}
       </div>
+      <ShowMoreButton {...wsPreview} itemWord="players" />
     </div>
   )
 }
@@ -269,6 +278,9 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
   const aligned = players
     .filter(p => (p?.top_board_tags || []).some(t => String(t).includes('🧩')))
     .sort((a, b) => (b?.hr_score || 0) - (a?.hr_score || 0))
+
+  // Same fix as WeakSpotSection above -- see its comment.
+  const alignedPreview = usePreview(aligned, 5)
 
   if (!aligned.length) return null
 
@@ -287,7 +299,7 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
         the strongest validated signal combo found in backtesting.
       </SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-        {aligned.map(p => (
+        {alignedPreview.shown.map(p => (
           <PlayerCard
             key={playerId(p)}
             p={p}
@@ -299,6 +311,7 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
           />
         ))}
       </div>
+      <ShowMoreButton {...alignedPreview} itemWord="players" />
     </div>
   )
 }
@@ -307,6 +320,9 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
   const edge = players
     .filter(p => Number(p?.pitch_type_match_score || 0) > 0)
     .sort((a, b) => (b?.hr_score || 0) - (a?.hr_score || 0))
+
+  // Same fix as WeakSpotSection above -- see its comment.
+  const edgePreview = usePreview(edge, 5)
 
   if (!edge.length) return null
 
@@ -325,7 +341,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
         23.9% vs 9.5% without it.
       </SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-        {edge.map(p => (
+        {edgePreview.shown.map(p => (
           <PlayerCard
             key={playerId(p)}
             p={p}
@@ -337,6 +353,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
           />
         ))}
       </div>
+      <ShowMoreButton {...edgePreview} itemWord="players" />
     </div>
   )
 }
