@@ -240,7 +240,12 @@ export default function Matchups({ matchup, data }) {
           ))}
         </div>
         {soft && (
-          <div style={{ padding: '10px 14px 0', fontSize: 12.5, lineHeight: 1.6, color: C.text2 }}>
+          <div style={{
+            margin: '10px 14px 0', padding: '9px 12px', borderLeft: `2px solid ${C.cyan}`,
+            background: 'rgba(45,200,255,.06)', borderRadius: '0 8px 8px 0',
+            fontSize: 12.5, lineHeight: 1.6, color: C.text2,
+          }}>
+            <span className="tuddy-live-dot-sm" aria-hidden="true" />
             <b style={{ color: C.text }}>{active}</b>&apos;s softest spot is the{' '}
             <b style={{ color: C.cyan }}>{String(soft.role).toLowerCase()}</b> role in{' '}
             <b style={{ color: C.cyan }}>{soft.label}</b> — {ordinal(soft.rank)} of 32 league-wide,
@@ -258,6 +263,11 @@ export default function Matchups({ matchup, data }) {
       </Section>
 
       <Profile data={matchup} team={active} />
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        .tuddy-live-dot-sm{display:inline-block;width:5px;height:5px;margin-right:6px;border-radius:50%;background:${C.cyan};box-shadow:0 0 6px ${C.cyan};vertical-align:middle;animation:pulse 2s infinite}
+        @media(prefers-reduced-motion:reduce){.tuddy-live-dot-sm{animation:none}}
+      `}</style>
     </div>
   )
 }

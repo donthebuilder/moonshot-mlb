@@ -28,7 +28,7 @@ function StateBadge({ g }) {
   if (g.state === 'in') {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <span style={{
+        <span className="tuddy-live-dot" style={{
           width: 7, height: 7, borderRadius: 999, background: C.cyan,
           boxShadow: `0 0 6px ${C.cyan}`, flexShrink: 0,
         }} />
@@ -296,7 +296,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
           until the next slate does.
         </div>
       )}
-      <section className="nfl-games-hero"><div><small>TUDDY GAME CENTER</small><h1>The slate, with the reasons attached.</h1><p>Scoreboard, The Six calls, each side&apos;s top TD board, matchup pressure, and honest feed limits in one card.</p></div><div><strong>{games.length}</strong><span>GAMES</span><strong>{liveCount}</strong><span>LIVE</span><strong>{finalCount}</strong><span>FINAL</span></div></section>
+      <section className="nfl-games-hero"><div><small>TUDDY GAME CENTER</small><h1>The slate, with the reasons attached.</h1><p>Scoreboard, The Six calls, each side&apos;s top TD board, matchup pressure, and honest feed limits in one card.</p></div><div><strong>{games.length}</strong><span>GAMES</span><strong>{liveCount}</strong><span>{liveCount > 0 && <span className="tuddy-live-dot-sm" aria-hidden="true" />}LIVE</span><strong>{finalCount}</strong><span>FINAL</span></div></section>
 
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
@@ -336,7 +336,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
           const hasScore = live || g.completed
           const open = !isMobile || openCards.has(g.game_id)
           return (
-            <div key={g.game_id} style={{
+            <div key={g.game_id} className={live ? 'tuddy-live-pulse' : undefined} style={{
               background: live ? `linear-gradient(155deg, rgba(45,200,255,.08), ${C.bg2} 55%)` : C.bg2,
               border: `1px solid ${live ? 'rgba(45,200,255,.4)' : C.border}`,
               borderRadius: 12, padding: '11px 13px',
@@ -441,6 +441,12 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
       </div>
       <style>{`
         .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(45,200,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(45,200,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,224,164,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,224,164,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:61px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.tuddy-live-dot{animation:pulse 2s infinite}
+.tuddy-live-dot-sm{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:${C.cyan};box-shadow:0 0 6px ${C.cyan};vertical-align:middle;animation:pulse 2s infinite}
+@keyframes tuddyLiveGlow{0%,100%{box-shadow:0 0 0 1px rgba(45,200,255,.4),0 0 18px rgba(45,200,255,.10)}50%{box-shadow:0 0 0 1px rgba(45,200,255,.75),0 0 28px rgba(45,200,255,.24)}}
+.tuddy-live-pulse{animation:tuddyLiveGlow 2.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.tuddy-live-dot,.tuddy-live-dot-sm,.tuddy-live-pulse{animation:none}}
       `}</style>
     </div>
   )
