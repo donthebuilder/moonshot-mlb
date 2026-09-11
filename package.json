@@ -10,6 +10,8 @@
     "test:franchise": "FRANCHISE_STRESS_TEST=1 node scripts/franchise-draft-smoke.mjs"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "next": "14.2.35",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "@vercel/edge-config": "^1.4.0",
