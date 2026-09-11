@@ -2069,9 +2069,12 @@ function LiveStamp({ meta, anyLive, onRefresh }) {
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: 10, color: C.text3, margin: '0 0 8px', minWidth: 0 }}>
       <span style={{ width: 7, height: 7, borderRadius: 999, background: color, boxShadow: anyLive && !bad ? `0 0 6px ${color}` : 'none', flexShrink: 0 }} />
-      <span style={{ color: bad ? C.red : C.text2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span
+        title={meta.stale && meta.reason ? `Live feed status: ${meta.reason}` : undefined}
+        style={{ color: bad ? C.red : C.text2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
         {meta.stale
-          ? (meta.at ? `MLB didn’t answer — showing the snapshot from ${ageText}` : 'MLB didn’t answer — no live feed yet, scores are from the slate')
+          ? (meta.at ? `Can’t reach MLB’s live feed — showing the snapshot from ${ageText}` : 'Can’t reach MLB’s live feed right now — scores below are from the published board')
           : anyLive ? `live · updated ${ageText}` : `no game live · lineups checked ${ageText}`}
       </span>
       <button onClick={onRefresh} disabled={meta.pulling} title="Pull the league feed again now" style={{
