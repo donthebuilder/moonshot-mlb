@@ -16,6 +16,7 @@ import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../
 import { SCORE } from '../../lib/scales'
 import { categoryColumns, categoryValues } from '../../lib/categoryColumns'
 import { downloadBoardCard } from '../shareCard'
+import { usePreview, ShowMoreButton } from '../ListPreview'
 
 // The nine inputs the old profile grid drew as columns. They are not drawn
 // now — they are tested against the slate and surface only where a hitter is
@@ -139,6 +140,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
     () => [...filtered].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, limit),
     [filtered, type, limit],
   )
+
+  // Cards view is opt-in (list is the default, see above) but still a real
+  // wall once chosen -- up to `limit` (60) player cards with nothing
+  // collapsed. Phase 1 simplify pass, 2026-09-11: same site-wide long-list
+  // rule as the watchlist -- preview 5, "Show N more" the rest.
+  const cardsPreview = usePreview(ranked, 5)
 
   // 🔒 SLATE-WIDE RANK for the HR board (2026-08-11, Donovan: "give me the
   // ranking on the hr board that will show me the order the players are in on
@@ -446,8 +453,9 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       />}
 
       {viewMode === 'cards' && (
+      <>
       <Grid>
-        {ranked.map((p) => (
+        {cardsPreview.shown.map((p) => (
           <PlayerCard
             key={playerId(p)}
             p={p}
@@ -459,6 +467,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           />
         ))}
       </Grid>
+      <ShowMoreButton {...cardsPreview} itemWord="players" />
+      </>
       )}
 
       {/* ALT LOOKS — HR board only, mirroring where the bot prints it (under
