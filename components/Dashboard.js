@@ -4,7 +4,7 @@ import { C } from '../lib/theme'
 import { resolveTab, pageTitle } from '../lib/routes'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
-import { slatePaths, resultsPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
+import { slatePaths, resultsPaths, runMetaPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { Empty } from './ui'
@@ -223,6 +223,9 @@ export default function Dashboard({ palettePass = 0 }) {
   const [refreshing, setRefreshing] = useState(false)
   const [backtest, setBacktest] = useState(null)
   const [evalReport, setEvalReport] = useState(null)
+  // ITEM 21 (2026-09-11): the bot's own run_meta, so the site can finally
+  // show "last built Xm ago" the way TUDDY already does -- see dataSource.js.
+  const [runMeta, setRunMeta] = useState(null)
 
   // Which slate the last payload was for. The regression guard below must only
   // compare like with like: today -> tomorrow legitimately moves the date
@@ -258,6 +261,10 @@ export default function Dashboard({ palettePass = 0 }) {
         if (alive) setData((prev) => (sameMode ? keepNewerSlate(prev, j) : j))
       }),
       fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
+      // No validator -- an absent run_meta file (an old bot build, or a slate
+      // this file predates) just leaves the header's freshness readout blank,
+      // same graceful-absence pattern as odds above.
+      fetchJSON(runMetaPaths(mode)).then((j) => { if (alive) setRunMeta(j) }),
       // No validator: no odds file is the normal state until a key is set.
       fetchJSON(oddsPaths()).then((j) => { if (alive) setOddsRaw(j) }),
       fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
@@ -641,7 +648,7 @@ export default function Dashboard({ palettePass = 0 }) {
           It is sr-only because the visual design already answers "where am I"
           through the tab row; the document never did. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} onRefresh={handleRefresh} refreshing={refreshing} onPlayerClick={setModalPlayer} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} runMeta={runMeta} onRefresh={handleRefresh} refreshing={refreshing} onPlayerClick={setModalPlayer} />
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         <h1 className="sr-only">{pageTitle('mlb', missingTab ? 'home' : tab)}</h1>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which

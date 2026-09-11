@@ -123,7 +123,7 @@ function Bug({ label, value, color, title, live = false }) {
   )
 }
 
-function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go }) {
+function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerClick, go }) {
   // ── THE TICKER IS BACK, AND IT SAYS SOMETHING (2026-09-06) ───────────────
   // Donovan, after the front page got its headlines strip: "I wanted those
   // aspects on the header ... maybe even the scoring updates across the slate
@@ -161,6 +161,24 @@ function Scorebug({ players, results, games, mode, slateDate, onPlayerClick, go 
   for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
   for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
   items.push({ k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
+  // FRESHNESS PILL (2026-09-11, item 21). "MLB has no lineup freshness
+  // indicator anywhere" -- unlike TUDDY's built_at_human clock. The bot has
+  // published current/{mode}_run_meta.json with a generated_at timestamp
+  // since 2026-08-21; this was the first time the site fetched it. Stale
+  // threshold is 3h, not TUDDY's 24h -- TUDDY's cron is deliberately sparse
+  // (~12 runs/week), MLB's runs many times an hour whenever the slate is
+  // live, so a board that hasn't rebuilt in 3h during an active day is a
+  // real signal something stalled (see item 26 -- a stale lineup silently
+  // reading "confirmed" is exactly the failure mode this exists to catch).
+  if (runMeta?.generated_at) {
+    const builtMs = Date.parse(runMeta.generated_at)
+    if (Number.isFinite(builtMs)) {
+      const ageMin = Math.max(0, Math.round((Date.now() - builtMs) / 60000))
+      const ageText = ageMin < 1 ? 'just now' : ageMin < 60 ? `${ageMin}m ago` : `${Math.floor(ageMin / 60)}h ${ageMin % 60}m ago`
+      const builtStale = ageMin > 180
+      items.push({ k: 'built', label: 'built', value: ageText, color: builtStale ? '#f87171' : C.text3, title: `Board last built ${new Date(builtMs).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}${builtStale ? ' -- over 3h old' : ''}` })
+    }
+  }
   items.push({ k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
   for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
 
@@ -288,7 +306,7 @@ function SettingsSheet() {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDate = '', results, players = [], games = [], onPlayerClick = null }) {
+export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDate = '', results, players = [], games = [], runMeta = null, onPlayerClick = null }) {
   // ── THE HEADER PUBLISHES ITS OWN HEIGHT (2026-08-16) ───────────────────
   // Anything else that wants to stick (the Games lineup jump strip) sits
   // below this bar via `top: var(--hdr-h)`. Measured, not a constant.
@@ -403,7 +421,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             so the leader pills (top hitter/performer per game) actually
             have room to be read instead of hiding three pills deep in a
             narrow strip. */}
-        <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} onPlayerClick={onPlayerClick} go={go} />
+        <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} runMeta={runMeta} onPlayerClick={onPlayerClick} go={go} />
 
         {/* ── row 3: the rail, equal and precise ─────────────────────────
             Donovan: "the tabs section need to be equal and precise." Was
