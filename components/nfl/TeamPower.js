@@ -102,7 +102,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
         <button className="tp-more" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Top 12 only' : `All ${rows.length} teams`}</button>
       )}
       <style>{`
-        .tuddy-team-power{border:1px solid rgba(34,197,94,.22);border-radius:16px;padding:14px 14px 10px;background:linear-gradient(160deg,rgba(34,197,94,.06),transparent 60%)}
+        .tuddy-team-power{border:1px solid rgba(0,224,164,.22);border-radius:16px;padding:14px 14px 10px;background:linear-gradient(160deg,rgba(0,224,164,.06),transparent 60%)}
         .tp-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
         .tp-head small{display:block;font:900 9px/1 var(--num-font,ui-monospace,monospace);letter-spacing:.1em;opacity:.65}
         .tp-head h2{margin:4px 0 0;font-size:17px}
@@ -112,7 +112,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
         .tp-rank{width:20px;text-align:right;font:900 11px/1 var(--num-font,ui-monospace,monospace);opacity:.55}
         .tp-row b{width:36px;font-size:12px}
         .tp-bar{flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;min-width:40px}
-        .tp-bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#22c55e,#06b6d4)}
+        .tp-bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#00e0a4,#06b6d4)}
         .tp-row em{font:900 12px/1 var(--num-font,ui-monospace,monospace);font-style:normal;min-width:40px;text-align:right}
         .tp-row i{font-style:normal;font-size:9px;opacity:.5;width:14px;text-align:right}
         .tp-starters{padding:2px 0 9px 30px;display:flex;flex-direction:column;gap:2px}
@@ -122,7 +122,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
         .tp-starters>button>small{font-size:9px;opacity:.55}
         .tp-starters>button>em{margin-left:auto;font:900 11px/1 var(--num-font,ui-monospace,monospace);font-style:normal}
         .tp-starters>p{margin:4px 0 0;font-size:10px;opacity:.6}
-        .tp-more{margin-top:8px;padding:5px 12px;border-radius:999px;border:1px solid rgba(34,197,94,.4);background:transparent;color:inherit;font:800 10px/1 var(--num-font,ui-monospace,monospace);cursor:pointer}
+        .tp-more{margin-top:8px;padding:5px 12px;border-radius:999px;border:1px solid rgba(0,224,164,.4);background:transparent;color:inherit;font:800 10px/1 var(--num-font,ui-monospace,monospace);cursor:pointer}
         @media(max-width:520px){.tp-starters{padding-left:12px}}
       `}</style>
     </section>

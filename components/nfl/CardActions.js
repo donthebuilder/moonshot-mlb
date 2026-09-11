@@ -27,14 +27,14 @@ export function VerdictStamp({ player, results, bars }) {
   if (!rows.length) return null
   const hits = rows.filter((r) => r.hit).length
   return (
-    <div style={{ margin: '10px 0 2px', padding: '9px 11px', borderRadius: 10, border: `1px solid ${hits ? 'rgba(34,197,94,.4)' : 'rgba(248,113,113,.35)'}`, background: hits ? 'rgba(34,197,94,.06)' : 'rgba(248,113,113,.05)' }}>
+    <div style={{ margin: '10px 0 2px', padding: '9px 11px', borderRadius: 10, border: `1px solid ${hits ? 'rgba(0,224,164,.4)' : 'rgba(248,113,113,.35)'}`, background: hits ? 'rgba(0,224,164,.06)' : 'rgba(248,113,113,.05)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
         <span style={{ font: `900 8.5px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: hits ? C.green : C.red }}>GRADED · {results.mode === 'week' ? `WEEK ${results.week}` : 'PRESEASON'}</span>
         <span style={{ font: `800 9px/1 ${NUM_FONT}`, color: C.text3 }}>{hits}/{rows.length} bars cleared{results.graded_at_human ? ` · ${results.graded_at_human}` : ''}</span>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
         {rows.map((r) => (
-          <span key={r.m} title={`${short(r.m)}: ${r.v} against a bar of ${r.bar}`} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, padding: '4px 8px', borderRadius: 7, border: `1px solid ${r.hit ? 'rgba(34,197,94,.45)' : C.border}`, background: r.hit ? 'rgba(34,197,94,.08)' : 'transparent', fontFamily: NUM_FONT }}>
+          <span key={r.m} title={`${short(r.m)}: ${r.v} against a bar of ${r.bar}`} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, padding: '4px 8px', borderRadius: 7, border: `1px solid ${r.hit ? 'rgba(0,224,164,.45)' : C.border}`, background: r.hit ? 'rgba(0,224,164,.08)' : 'transparent', fontFamily: NUM_FONT }}>
             <small style={{ fontSize: 7.5, fontWeight: 800, color: C.text3 }}>{short(r.m)}</small>
             <b style={{ fontSize: 12, color: r.hit ? C.green : C.red }}>{r.v}</b>
             <i style={{ fontStyle: 'normal', fontSize: 8, color: C.text3 }}>/{r.bar}</i>
@@ -88,7 +88,7 @@ export function PutOnCard({ player, market, picks, slate }) {
               title={isBot ? `${player.name} is the bot's own call here` : over ? `Your override: ${over.name} over ${rung.name}` : `Bot: ${rung.name} (${Math.round(rung.score)})`}
               style={{ padding: '6px 4px', borderRadius: 8, cursor: locked || isBot ? 'default' : 'pointer', textAlign: 'center', color: 'inherit',
                 border: `1px solid ${isMe ? C.cyan : isBot ? C.green + '88' : over ? C.yellow + '66' : C.border}`,
-                background: isMe ? 'rgba(34,211,238,.1)' : isBot ? 'rgba(34,197,94,.08)' : 'transparent', opacity: locked ? .6 : 1 }}>
+                background: isMe ? 'rgba(45,200,255,.1)' : isBot ? 'rgba(0,224,164,.08)' : 'transparent', opacity: locked ? .6 : 1 }}>
               <div style={{ font: `900 12px/1 ${NUM_FONT}`, color: isMe ? C.cyan : isBot ? C.green : C.text2 }}>{rung.rank}</div>
               <div style={{ marginTop: 4, fontSize: 8, color: isMe || isBot ? C.text : C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isMe ? 'YOU' : isBot ? 'BOT' : holder.split(' ').slice(-1)[0]}</div>
             </button>

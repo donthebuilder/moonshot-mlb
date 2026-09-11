@@ -487,7 +487,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
         </div>
       )}
       <style>{`
-      .acc-season{margin-bottom:14px;padding:16px 18px;border:1px solid ${C.border};border-radius:14px;background:linear-gradient(160deg,rgba(34,197,94,.07),${C.bg2} 55%)}
+      .acc-season{margin-bottom:14px;padding:16px 18px;border:1px solid ${C.border};border-radius:14px;background:linear-gradient(160deg,rgba(0,224,164,.07),${C.bg2} 55%)}
       .acc-season-head small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
       .acc-season-head h2{margin:6px 0 4px;font:900 clamp(22px,4vw,34px)/1 ${NUM_FONT};letter-spacing:-.03em}
       .acc-season-head p{margin:0;color:${C.text3};font-size:10px;line-height:1.5;max-width:620px}
@@ -500,7 +500,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
       .acc-season-picker{display:flex;gap:5px;overflow-x:auto;margin-top:12px;padding-bottom:2px}
       .acc-season-picker button{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:7px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg};color:${C.text3};cursor:pointer;font-family:${NUM_FONT}}
       .acc-season-picker button b{font-size:9px;color:${C.text2}}.acc-season-picker button span{font-size:8px}
-      .acc-season-picker button.on{border-color:${C.green};background:rgba(34,197,94,.08)}.acc-season-picker button.on b{color:${C.green}}
+      .acc-season-picker button.on{border-color:${C.green};background:rgba(0,224,164,.08)}.acc-season-picker button.on b{color:${C.green}}
       @media(max-width:560px){.acc-season-row{grid-template-columns:repeat(2,1fr)}}
       `}</style>
     </section>

@@ -65,10 +65,10 @@ function ellipsize(g, text, max) {
 function posterField(g, W, H) {
   g.fillStyle = C.bg; g.fillRect(0, 0, W, H)
   let rg = g.createRadialGradient(90, 0, 0, 90, 0, Math.max(W, H) * 0.85)
-  rg.addColorStop(0, 'rgba(34,197,94,0.16)'); rg.addColorStop(1, 'rgba(34,197,94,0)')
+  rg.addColorStop(0, 'rgba(0,224,164,0.16)'); rg.addColorStop(1, 'rgba(0,224,164,0)')
   g.fillStyle = rg; g.fillRect(0, 0, W, H)
   rg = g.createRadialGradient(W, H, 0, W, H, Math.max(W, H) * 0.9)
-  rg.addColorStop(0, 'rgba(34,211,238,0.12)'); rg.addColorStop(1, 'rgba(34,211,238,0)')
+  rg.addColorStop(0, 'rgba(45,200,255,0.12)'); rg.addColorStop(1, 'rgba(45,200,255,0)')
   g.fillStyle = rg; g.fillRect(0, 0, W, H)
 }
 
@@ -186,8 +186,8 @@ export function downloadNflPickCard(pick = {}) {
   const y0 = HEAD_H
   // ghost watermark — the pregame score, or a check/cross once it's graded
   g.fillStyle = graded
-    ? (pick.hit === true ? 'rgba(34,197,94,0.10)' : pick.hit === false ? 'rgba(248,113,113,0.10)' : 'rgba(139,139,149,0.10)')
-    : 'rgba(34,197,94,0.09)'
+    ? (pick.hit === true ? 'rgba(0,224,164,0.10)' : pick.hit === false ? 'rgba(248,113,113,0.10)' : 'rgba(139,139,149,0.10)')
+    : 'rgba(0,224,164,0.09)'
   g.font = `900 108px ${MONO}`
   const ghost = graded ? (pick.hit === true ? '✓' : pick.hit === false ? '✗' : '–') : (Number.isFinite(pick.score) ? Math.round(pick.score).toString() : '—')
   g.textAlign = 'right'; g.fillText(ghost, W - 16, y0 + idH / 2 + 6); g.textAlign = 'left'

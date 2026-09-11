@@ -40,7 +40,7 @@ export default function AlertBell({ onHint }) {
         title={on ? 'Alerts on — touchdowns, kickoffs and bar clears for your names. Click to turn off.' : 'Turn on alerts for your pinned and followed players'}
         aria-pressed={on} aria-label={on ? 'Turn alerts off' : 'Turn alerts on'}
         style={{ display: 'flex', alignItems: 'center', gap: 5, height: 28, padding: '0 8px', borderRadius: 8, cursor: 'pointer',
-          background: on ? 'rgba(34,197,94,.08)' : 'transparent', border: `1px solid ${on ? 'rgba(34,197,94,.4)' : C.border}`,
+          background: on ? 'rgba(0,224,164,.08)' : 'transparent', border: `1px solid ${on ? 'rgba(0,224,164,.4)' : C.border}`,
           color: on ? C.green : C.text3, font: `800 9px/1 ${NUM_FONT}` }}>
         <span style={{ fontSize: 12 }}>{on ? '🔔' : '🔕'}</span>
         <span className="nfl-bell-word">{on ? 'alerts on' : 'alerts'}</span>

@@ -218,7 +218,7 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
 
       <style>{`
       .tl{display:flex;flex-direction:column;gap:14px}
-      .tl-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;border:1px solid rgba(34,211,238,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(34,211,238,.16),transparent 36%),radial-gradient(circle at 6% 100%,rgba(34,197,94,.12),transparent 40%),${C.bg2}}
+      .tl-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;border:1px solid rgba(45,200,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(45,200,255,.16),transparent 36%),radial-gradient(circle at 6% 100%,rgba(0,224,164,.12),transparent 40%),${C.bg2}}
       .tl-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
       .tl-hero h1{margin:7px 0 5px;font-size:clamp(26px,4.5vw,44px);letter-spacing:-.04em}
       .tl-hero p{max-width:620px;margin:0;color:${C.text3};font-size:10.5px;line-height:1.5}
@@ -227,7 +227,7 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
       .tl-tally b{font-size:30px;margin-bottom:5px}
       .tl-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
       .tl-game{padding:10px 12px;border:1px solid ${C.border};border-radius:12px;background:${C.bg2}}
-      .tl-game.is-live{border-color:rgba(34,211,238,.45);background:linear-gradient(155deg,rgba(34,211,238,.09),${C.bg2} 60%)}
+      .tl-game.is-live{border-color:rgba(45,200,255,.45);background:linear-gradient(155deg,rgba(45,200,255,.09),${C.bg2} 60%)}
       .tl-game.is-rz{border-color:${C.yellow};box-shadow:0 0 0 1px rgba(250,204,21,.25)}
       .tl-game-top{display:flex;justify-content:space-between;gap:6px;margin-bottom:6px;font:800 9px/1 ${NUM_FONT};color:${C.text3}}
       .tl-state{display:inline-flex;align-items:center;gap:5px}.tl-game.is-live .tl-state{color:${C.cyan}}
@@ -246,7 +246,7 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
       .tl-block header b{font-size:12px}.tl-block header small{color:${C.text3};font:800 9px/1 ${NUM_FONT}}
       .tl-rung{display:grid;grid-template-columns:18px 1fr 64px 60px 78px 30px;align-items:center;gap:8px;width:100%;padding:7px 11px;border:0;border-bottom:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}
       .tl-rung:last-child{border-bottom:0}.tl-rung:disabled{cursor:default;opacity:.7}
-      .tl-rung.is-hit{background:rgba(34,197,94,.06)}.tl-rung.is-miss{background:rgba(248,113,113,.05)}
+      .tl-rung.is-hit{background:rgba(0,224,164,.06)}.tl-rung.is-miss{background:rgba(248,113,113,.05)}
       .tl-rung-rank{color:${C.text3};font:900 10px/1 ${NUM_FONT}}
       .tl-rung-who b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tl-rung-who small{display:block;margin-top:2px;color:${C.text3};font:700 8px/1 ${NUM_FONT}}
       .tl-rung-num{font:900 15px/1 ${NUM_FONT};text-align:right}.tl-rung-num small{margin-left:3px;font-size:9px;color:${C.text3};font-weight:700}
@@ -260,7 +260,7 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
       .tl-you-mk small{font-size:7px;font-weight:800;color:${C.text3}}.tl-you-mk b{font-size:12px}.tl-you-mk i{font-style:normal;font-size:8px;color:${C.text3}}
       .tl-plays{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
       .tl-plays li{display:grid;grid-template-columns:38px 62px 70px 1fr;gap:8px;align-items:baseline;padding:8px 11px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};font-family:${NUM_FONT}}
-      .tl-plays li.is-mine{border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.06)}
+      .tl-plays li.is-mine{border-color:rgba(0,224,164,.45);background:rgba(0,224,164,.06)}
       .tl-plays span{font-weight:900;font-size:10px;color:${C.green}}.tl-plays em{font-style:normal;font-size:9px;color:${C.text3}}.tl-plays b{font-size:9px;color:${C.cyan}}.tl-plays p{margin:0;font-family:inherit;font-size:11px;color:${C.text2};line-height:1.35}
       .tl-empty{padding:22px;border:1px dashed ${C.border2};border-radius:12px;text-align:center;color:${C.text3};font-size:10.5px}
       @media(max-width:640px){.tl-hero{flex-direction:column;align-items:flex-start}.tl-tally b{font-size:22px}.tl-rung{grid-template-columns:16px 1fr 56px 44px 30px;}.tl-rung-word{display:none}.tl-plays li{grid-template-columns:34px 54px 1fr;}.tl-plays b{display:none}}

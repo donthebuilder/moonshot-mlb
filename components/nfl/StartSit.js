@@ -113,7 +113,7 @@ export default function StartSit({ players = [], onPlayerClick }) {
         .ss-r{display:grid;grid-template-columns:1fr 64px 64px;gap:8px;padding:4px 0;border-top:1px solid rgba(255,255,255,.06);font-size:11px;align-items:baseline}
         .ss-r span{opacity:.65}
         .ss-r em{font:800 12px/1 var(--num-font,ui-monospace,monospace);font-style:normal;text-align:right;opacity:.7}
-        .ss-r em.win{opacity:1;color:#22c55e}
+        .ss-r em.win{opacity:1;color:#00e0a4}
         .ss-h em{font-size:15px;cursor:pointer}
         @media(max-width:520px){.ss-grid{grid-template-columns:1fr;gap:6px}.ss-vs{justify-self:center}}
       `}</style>
