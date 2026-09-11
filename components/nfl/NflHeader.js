@@ -576,7 +576,6 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         }
         @media (max-width: 760px) {
           .nfl-header-rail { display: none !important; }
-          .nfl-header-built { display: none !important; }
           /* THE TICKER COMES BACK, EXCEPT ON HOME (2026-08-31). It went
              with the rest of the diet on the grounds that "Home's hero
              repeats the slate context" -- true of Home and of no other tab,
@@ -588,6 +587,20 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           header:not(.hdr-slate-on) .nfl-header-tiles > *:not(.nfl-header-preseason) { display: none !important; }
           header:not(.hdr-slate-on) .nfl-header-tiles { flex: 0 1 auto !important; }
           .hdr-slate-on .nfl-header-tiles { flex: 1 1 100% !important; }
+          /* #24 FIX (2026-09-11): the ticker got the Home-only exception
+             above on 2026-08-31; the freshness clock right next to it
+             (.nfl-header-built -- built_at_human + the "Xh ago" readout
+             item 22 added specifically so a reader never has to subtract a
+             timestamp themselves) never did, and sat unconditionally
+             display:none on every tab at this width ever since -- found via
+             a live offsetParent:null check on the Phase 0 scan. Home has no
+             freshness readout of its own (checked: Home.js has nothing that
+             reads built_at), so unlike the ticker there was never a reason
+             for it to disappear anywhere -- it was just caught in the same
+             blanket rule the ticker got carved out of. Same Home-only scope
+             now applies to both; the yellow 24h+ stale banner below is a
+             separate, rarer alert and was never affected by this. */
+          header:not(.hdr-slate-on) .nfl-header-built { display: none !important; }
         }
       `}</style>
     </header>
