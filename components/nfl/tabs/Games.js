@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
-import { softRole, softLine, ordinal, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, ordinal, SOFT_TITLE, matchupTag, TAG_TITLE } from '../../../lib/nfl/dvpSignal'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
@@ -100,7 +100,7 @@ function ScoreLine({ g }) {
   )
 }
 
-function SidePicks({ players, team, onPlayerClick }) {
+function SidePicks({ players, team, onPlayerClick, matchup }) {
   const rows = players
     .filter((p) => p.team === team && !p.low_sample)
     .sort((a, b) => (b.scores?.TD ?? 0) - (a.scores?.TD ?? 0))
@@ -133,6 +133,7 @@ function SidePicks({ players, team, onPlayerClick }) {
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{p.name}</span>
             <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.position}</span>
+            <MatchupBadge matchup={matchup} player={p} market="TD" />
             {injuryTag(p) && (
               <span title={injuryTitle(injuryTag(p))}
                     style={{ fontSize: 8.5, color: injuryColor(injuryTag(p), C), fontWeight: 900 }}>
@@ -146,7 +147,7 @@ function SidePicks({ players, team, onPlayerClick }) {
   )
 }
 
-function DesignatedCalls({ game, picks, playersById, onPlayerClick }) {
+function DesignatedCalls({ game, picks, playersById, onPlayerClick, matchup }) {
   const calls = Object.entries(picks?.card || {}).filter(([market]) => HEADLINE_MARKETS.has(market))
     .map(([market, block]) => ({ market, block, call: block?.rungs?.[0] }))
     .filter(({ call }) => call && (call.team === game.away || call.team === game.home))
@@ -154,8 +155,33 @@ function DesignatedCalls({ game, picks, playersById, onPlayerClick }) {
   return <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>{calls.map(({ market, block, call }) => {
     const player = playersById[String(call.player_id)]
     const grade = gradeFor(call.score)
-    return <button key={market} onClick={() => player && onPlayerClick?.(player, market)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', border: `1px solid ${grade.color}45`, borderRadius: 8, background: `${grade.color}0d`, color: C.text, cursor: player ? 'pointer' : 'default', textAlign: 'left' }}><span style={{ color: grade.color, fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900 }}>{market}</span><b style={{ fontSize: 9.5 }}>{call.name}</b><em style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 8, fontStyle: 'normal' }}>bar {block.bar}</em></button>
+    return <button key={market} onClick={() => player && onPlayerClick?.(player, market)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', border: `1px solid ${grade.color}45`, borderRadius: 8, background: `${grade.color}0d`, color: C.text, cursor: player ? 'pointer' : 'default', textAlign: 'left' }}><span style={{ color: grade.color, fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900 }}>{market}</span><b style={{ fontSize: 9.5 }}>{call.name}</b><em style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 8, fontStyle: 'normal' }}>bar {block.bar}</em>{player && <MatchupBadge matchup={matchup} player={player} market={market} />}</button>
   })}</div>
+}
+
+// THE TAG (2026-09-11, Phase 2 depth pass, Competitive Reference #3): turns
+// one designated call, or one of a side's top plays, into a plain verdict
+// against the specific defense it's facing this week -- TARGET when that
+// defense ranks in the softest third of the league against this role/market,
+// AVOID in the stingiest third. Silent for EVEN and for anything the DVP
+// payload can't cover (REC/PASS_YDS/KICK_PTS, or a role that hasn't
+// published yet) -- a badge that says nothing you couldn't already guess
+// isn't worth the pixels, same "renders nothing when there's nothing to
+// say" rule the Card Watch strip already follows a page over.
+function MatchupBadge({ matchup, player, market }) {
+  const t = matchupTag(matchup, player, market)
+  if (!t || t.tag === 'EVEN') return null
+  const color = t.tag === 'TARGET' ? C.green : C.red
+  return (
+    <span
+      title={`${TAG_TITLE[t.tag]} (${t.role} vs ${t.opp} \u2014 #${t.rank} of 32 in ${t.label} allowed)`}
+      style={{
+        fontSize: 8, fontWeight: 900, color, fontFamily: NUM_FONT, letterSpacing: '.04em',
+        border: `1px solid ${color}55`, background: `${color}18`, borderRadius: 4,
+        padding: '1px 4px', flexShrink: 0,
+      }}
+    >{t.tag}</span>
+  )
 }
 
 // softRole/softLine/ordinal/SOFT_TITLE moved to lib/nfl/dvpSignal.js
@@ -383,7 +409,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
 
                   <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
                     <div style={{ marginBottom: 6, color: C.green, fontSize: 8, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.09em' }}>THE SIX · DESIGNATED CALLS IN THIS GAME</div>
-                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} />
+                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} matchup={matchup} />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
@@ -393,7 +419,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
                           fontSize: 9.5, fontWeight: 900, color: C.text3,
                           letterSpacing: '.08em', textTransform: 'uppercase',
                         }}>{t}</div>
-                        <SidePicks players={players} team={t} onPlayerClick={onPlayerClick} />
+                        <SidePicks players={players} team={t} onPlayerClick={onPlayerClick} matchup={matchup} />
                       </div>
                     ))}
                   </div>
@@ -401,7 +427,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
               ) : (
                 <>
                   <div style={{ marginTop: 7, paddingTop: 7, borderTop: `1px solid ${C.border}` }}>
-                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} />
+                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} matchup={matchup} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 7 }}>
                     {[g.away, g.home].map((t) => {
