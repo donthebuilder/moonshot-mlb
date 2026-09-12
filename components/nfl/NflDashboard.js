@@ -245,7 +245,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'streaks' && <Streaks data={data} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'leaders' && <Leaders data={data} onPlayerClick={openPlayer} />}
-            {tab === 'storylines' && <Storylines data={data} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
+            {tab === 'storylines' && <Storylines data={data} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
           </ErrorBoundary>
         )}
       </main>
