@@ -33,7 +33,7 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
-import { fetchBoardFull } from '../../../../../lib/dash/board'
+import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { boardIndexFrom, captureFrom, fmtOdds, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
@@ -867,19 +867,35 @@ export async function GET(request) {
   }
 
   if (!started || overdue) {
-    // 2026-09-10: the only gate left is the board existing -- see the note
-    // above PREGAME_LEAD_MS. `overdue` is still real, just no longer part
-    // of this decision: it already got the tick INTO this block (the `if`
-    // just above), so by the time `ready` is checked, a non-empty board is
-    // ready regardless of why this tick is the one running.
-    const ready = Boolean(board.size)
+    // 2026-09-10: the board existing used to be the only gate -- see the
+    // note above PREGAME_LEAD_MS. 2026-09-12 (bug, found from real
+    // homer_feed_posts timestamps -- Pregame Call/Pairs/Longshot posting
+    // between midnight and ~1:30am ET, four nights running): "existing"
+    // turned out to mean "non-empty," which a stale leftover board from
+    // LAST NIGHT always is. easternToday() above rolls the site's day at
+    // midnight ET; the bot's own board doesn't get a new-day publish until
+    // its ~6:30am ET rollover run (today.yml). In that gap board.size is
+    // non-empty but still describing yesterday, so all three fired 12+
+    // hours before any real slate existed for tonight.
+    //
+    // Fix: also require the board's own run_meta.slate_date to equal `day`.
+    // run_meta is written by the SAME bot run that writes the board file
+    // (see fetchRunMeta's docstring), so it's an honest answer to "is this
+    // ACTUALLY today's slate" -- unlike board.size, which only ever asked
+    // "is there a file." This does not reintroduce the lineup-wait Donovan
+    // removed on 2026-09-10 ("post first thing when the new slate is
+    // posted"): the moment the bot's real rollover run publishes TODAY's
+    // board, slate_date flips and this still fires immediately.
+    const runMeta = await fetchRunMeta('today')
+    const boardIsToday = runMeta?.slate_date === day
+    const ready = Boolean(board.size) && boardIsToday
     // Every early return below is now guarded on `!started`: when overdue is
     // the ONLY reason this block ran (a cron gap let an early game go Live
     // before the deadline post went out), the pregame attempt still happens
     // but this falls through to homer processing afterward instead of
     // returning -- a late tick must not also skip tonight's live homers.
     if (!ready) {
-      if (!started) return Response.json({ day, skipped: 'nothing-started', statErrors, discordErrors: discordFailuresSnapshot() })
+      if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: boardIsToday ? 'no-board' : 'stale-board', statErrors, discordErrors: discordFailuresSnapshot() })
     } else {
       // PAIRS TO WATCH + TONIGHT'S LONGEST CALL (2026-09-06, Donovan).
       // Each claims its own (day, kind) row, independent of the pregame
