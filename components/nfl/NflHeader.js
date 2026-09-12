@@ -135,7 +135,7 @@ function TickerStrip({ children }) {
 // phone bar carry the same four stops now -- the phone used to drop Research
 // to make room, so the two navigations of one product disagreed about what
 // mattered.
-const PRIMARY_KEY_LIST = ['boards', 'games', 'picks', 'research']
+const PRIMARY_KEY_LIST = ['boards', 'games', 'picks', 'research', 'storylines']
 const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${NFL_NAV[k].icon} ${NFL_NAV[k].label}`])
 const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
 // Same exception as MOONSHOT's: This week is reached from the wordmark, so it

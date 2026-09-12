@@ -31,6 +31,7 @@ import Guide from './tabs/Guide'
 import Live from './tabs/Live'
 import Streaks from './tabs/Streaks'
 import Leaders from './tabs/Leaders'
+import Storylines from './tabs/Storylines'
 import { liveOdds } from '../../lib/oddsFreshness'
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -244,6 +245,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'streaks' && <Streaks data={data} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'leaders' && <Leaders data={data} onPlayerClick={openPlayer} />}
+            {tab === 'storylines' && <Storylines data={data} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
           </ErrorBoundary>
         )}
       </main>

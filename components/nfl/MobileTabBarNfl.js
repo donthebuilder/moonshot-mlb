@@ -25,12 +25,12 @@ import { worthPolling } from '../../lib/nfl/liveMerge'
 // (🌙 home, 📊 boards, 🏈 games, 📡 live, 🎯 picks -- colour emoji since 2026-09-06; the old
 // ◎ ▥ ◉ ✦ text glyphs vanished on the bar next to real emoji) -- same glyph, same
 // meaning, cross-sport, one design language rather than two.
-const MAIN_KEYS = ['boards', 'games', 'picks', 'research']
+const MAIN_KEYS = ['boards', 'games', 'picks', 'research', 'storylines']
 // GAME DAY (2026-09-05): while football is on -- or twenty minutes out --
 // Live takes Research's slot on the phone bar. Research is a Tuesday page;
 // the Live page is the one you open with the game on, and burying it under
 // More on a Sunday defeats it. Research stays one tap away in the sheet.
-const GAMEDAY_KEYS = ['boards', 'live', 'picks', 'games']
+const GAMEDAY_KEYS = ['boards', 'live', 'picks', 'games', 'storylines']
 const mainFor = (keys) => keys.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
 const MAIN = mainFor(MAIN_KEYS)
 
