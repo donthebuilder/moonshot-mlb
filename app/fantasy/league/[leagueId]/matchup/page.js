@@ -43,7 +43,12 @@ export default async function MatchupPage({ params, searchParams }) {
   const nflGames = nflGameRows || []
   const myTeam = teams.find((team)=>team.owner_id===user.id)
   const myMatchup = matchups.find((game)=>game.home_team_id===myTeam?.id||game.away_team_id===myTeam?.id)
-  const featured = myMatchup || matchups[0]
+  // Any game in "Around the League" opens here now (2026-09-12, Donovan: "the
+  // ability to look at the different matchups") -- ?matchup=<id> picks which
+  // one is featured; the default with no param is still your own matchup, or
+  // the first one if you don't have a team yet.
+  const requestedMatchup = query?.matchup ? matchups.find((game)=>String(game.id)===String(query.matchup)) : null
+  const featured = requestedMatchup || myMatchup || matchups[0]
   const home = teams.find((team)=>team.id===featured?.home_team_id)
   const away = teams.find((team)=>team.id===featured?.away_team_id)
   // EVERY TEAM'S STARTERS, not just the featured pair (2026-09-07). The extra
@@ -211,7 +216,7 @@ export default async function MatchupPage({ params, searchParams }) {
           ))}
         </section>}
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/></div>
-        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><span>{game.status==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</span><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
+        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{game.status==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
       </>}
     </div>
   </main>

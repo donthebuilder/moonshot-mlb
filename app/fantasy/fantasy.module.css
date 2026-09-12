@@ -1942,9 +1942,9 @@
 }
 .weekGame {
   display: grid;
-  grid-template-columns: 1fr 110px 1fr;
+  grid-template-columns: 1fr 128px 1fr;
   align-items: center;
-  min-height: 46px;
+  min-height: 52px;
   padding: 0 15px;
   border-top: 1px solid var(--fx-line-3);
 }
@@ -1954,10 +1954,33 @@
 .weekGame b:last-child {
   text-align: right;
 }
-.weekGame span {
-  text-align: center;
+/* Every row in AROUND THE LEAGUE opens that matchup now (2026-09-12,
+   Donovan: "the ability to look at the different matchups"). This cell was
+   a plain <span> reporting the line; it is the click target now, so it
+   needs to read as one -- a real hit area (the row's full height, not just
+   the text), a hover/focus state matching .teamLink's, and a highlight for
+   whichever game is currently featured above. */
+.gameCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  border-radius: 8px;
   color: var(--fx-dim);
+  text-align: center;
+  text-decoration: none;
   font: 9px/1 monospace;
+}
+.gameCell:hover,
+.gameCell:focus-visible {
+  background: var(--fx-s2);
+  color: var(--fx-accent);
+}
+.gameCellActive {
+  background: color-mix(in srgb, var(--fx-accent) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-accent) 30%, transparent);
 }
 
 /* == LEAGUE HQ · standings, power, recap ================================= */
@@ -6198,17 +6221,19 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font-size: 10px;
   line-height: 1.5;
 }
-/* The one-line version on each AROUND THE LEAGUE row. */
+/* The one-line version on each AROUND THE LEAGUE row -- sized to actually
+   read at a glance (2026-09-12, Donovan: "bet sized better"), not a
+   caption's size next to a stat line nobody could see. */
 .gameLine {
   display: block;
   color: var(--fx-accent);
-  font: 900 9px/1.3 monospace;
+  font: 900 13px/1.3 monospace;
   font-style: normal;
 }
 .gameTotal {
   display: block;
   color: var(--fx-muted-3);
-  font: 8px/1.3 monospace;
+  font: 10px/1.3 monospace;
   font-style: normal;
 }
 @media(max-width:760px) {
