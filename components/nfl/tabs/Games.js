@@ -4,6 +4,8 @@ import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { softRole, softLine, ordinal, SOFT_TITLE, matchupTag, TAG_TITLE } from '../../../lib/nfl/dvpSignal'
+import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
+import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
@@ -235,13 +237,35 @@ const STATE_OPTIONS = [
   { key: 'final', label: 'Final' },
 ]
 
-export default function Games({ data, picks, matchup, onPlayerClick }) {
+export default function Games({ data, picks, matchup, logs, results, onPlayerClick }) {
   const games = data?.games || []
   const players = data?.players || []
   const [selectedGame, setSelectedGame] = useState('all')
   const [stateFilter, setStateFilter] = useState('all')
   const [query, setQuery] = useState('')
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
+
+  // WHY THIS MATTERS (2026-09-12) -- Storylines' second surface, per Phase
+  // 3's original two-surface spec (tab + inline blurb). Same two real
+  // angles the Storylines tab renders, from the same shared source
+  // (lib/nfl/storylines.js) -- surfaced as one line on whichever game
+  // actually has one. Most games won't; this renders nothing rather than
+  // force a line that isn't there, same "say nothing when there's nothing
+  // to say" rule MatchupBadge above already follows.
+  const { archive: resultsArchive, keys: resultsKeys } = useResultsArchive(results, data?.season)
+  const milestones = useMemo(() => milestoneStreaks(logs, data), [logs, data])
+  const modelStories = useMemo(
+    () => modelNarrativeStories(resultsArchive, resultsKeys, playersById),
+    [resultsArchive, resultsKeys, playersById],
+  )
+  const storyForGame = (game) => {
+    const inGame = (p) => p?.team === game.away || p?.team === game.home
+    const model = modelStories.find((c) => inGame(c.player))
+    if (model) return { kind: 'model', text: modelHeadline(model), player: model.player, market: model.hitMarket }
+    const mile = milestones.find((r) => inGame(r.player))
+    if (mile) return { kind: 'milestone', text: milestoneHeadline(mile), player: mile.player, market: mile.marketKey }
+    return null
+  }
 
   // ── MOBILE PROGRESSIVE DISCLOSURE (2026-08-29) ─────────────────────────
   // Fifteen fully-expanded cards made the phone page enormous (both reviews
@@ -397,6 +421,21 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
                 : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Waiting on the drive feed · {g.detail || 'live'}</div>
               )}
 
+              {(() => {
+                const story = storyForGame(g)
+                if (!story) return null
+                return (
+                  <button
+                    type="button"
+                    className={`nfl-game-why${story.kind === 'model' ? ' model' : ''}`}
+                    onClick={() => onPlayerClick?.(story.player, story.market)}
+                  >
+                    <span className="tag">{story.kind === 'model' ? 'MODEL NARRATIVE' : 'MILESTONE'}</span>
+                    <span className="text">{story.text}</span>
+                  </button>
+                )
+              })()}
+
               {open ? (
                 <>
                   {g.venue && (
@@ -466,7 +505,7 @@ export default function Games({ data, picks, matchup, onPlayerClick }) {
         })}
       </div>
       <style>{`
-        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(45,200,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(45,200,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,224,164,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,224,164,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:61px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}}
+        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(45,200,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(45,200,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,224,164,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,224,164,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:61px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}.nfl-game-why{display:flex;align-items:baseline;gap:7px;width:100%;text-align:left;margin:2px 0 8px;padding:7px 9px;border:1px solid rgba(0,224,164,.3);border-radius:8px;background:rgba(0,224,164,.06);color:inherit;cursor:pointer}.nfl-game-why:hover{border-color:rgba(0,224,164,.5)}.nfl-game-why .tag{flex:0 0 auto;font:900 7.5px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.green};text-transform:uppercase}.nfl-game-why .text{font-size:10px;line-height:1.35;color:${C.text2}}.nfl-game-why.model{border-color:rgba(251,146,60,.32);background:rgba(251,146,60,.07)}.nfl-game-why.model:hover{border-color:rgba(251,146,60,.5)}.nfl-game-why.model .tag{color:${C.orange}}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .tuddy-live-dot{animation:pulse 2s infinite}
 .tuddy-live-dot-sm{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:${C.cyan};box-shadow:0 0 6px ${C.cyan};vertical-align:middle;animation:pulse 2s infinite}

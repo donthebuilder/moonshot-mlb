@@ -14,10 +14,10 @@
 // and caches that whole payload for the season-to-date record — `lines`,
 // `bars` and `names` were just sitting there unused. This reads them.
 //
-// The test, run per player per graded week: did the card price him
-// somewhere and miss (a real hit:false, not a void)? Did his line clear a
-// DIFFERENT market's bar, one the card never opened for him? If both are
-// true, that is a real, graded, published fact — not a guess about why.
+// Both angles' actual math now live in lib/nfl/storylines.js, shared with
+// the inline "why this matters" blurb on Games cards (Phase 3's original
+// second surface, shipped same day) — one source of truth for "is this
+// worth a sentence," not two copies that can quietly disagree.
 //
 // Game narrative (revenge games, injury-driven role changes) is the one
 // angle still not live. Real ESPN injury data exists on the site today
@@ -29,25 +29,9 @@
 // See the note at the bottom, which still says so in plain words.
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
-import { streakMarkets, streakBoard } from '../../../lib/nfl/streaks'
+import { streakMarkets } from '../../../lib/nfl/streaks'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
-
-// Plain-English verb per market, bar folded in at render time. Anytime TD is
-// the one binary market (bar is always 0.5) — every other market gets a
-// real threshold in the sentence, because "over 0.5" reads like a bug.
-const VERB = {
-  TD: () => 'scored a touchdown',
-  REC_YDS: (bar) => `gone for ${bar}+ receiving yards`,
-  REC: (bar) => `caught ${bar}+ passes`,
-  RUSH_YDS: (bar) => `gone for ${bar}+ rushing yards`,
-  RUSH_ATT: (bar) => `carried it ${bar}+ times`,
-  PASS_YDS: (bar) => `thrown for ${bar}+ yards`,
-  KICK_PTS: (bar) => `scored ${bar}+ kicking points`,
-}
-const NOUN = { TD: 'a touchdown', REC_YDS: 'receiving yards', REC: 'receptions', RUSH_YDS: 'rushing yards', RUSH_ATT: 'carries', PASS_YDS: 'passing yards', KICK_PTS: 'kicking points' }
-const fmtBar = (b) => (Number(b) % 1 ? Number(b).toFixed(1) : Math.round(Number(b)))
-const ordinal = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]) }
-const weekLabel = (p) => p?.mode === 'preseason' ? `Preseason Week ${p.week}` : `Week ${p?.week}`
+import { VERB, NOUN, fmtBar, ordinal, weekLabel, milestoneStreaks, modelNarrativeStories } from '../../../lib/nfl/storylines'
 
 export default function Storylines({ data, logs, results, onPlayerClick, setTab }) {
   const markets = useMemo(() => streakMarkets(logs), [logs])
@@ -58,62 +42,12 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
     [data],
   )
 
-  const cards = useMemo(() => {
-    if (!markets.length) return []
-    const all = []
-    for (const m of markets) {
-      const eligible = new Set((data?.markets || []).find((x) => x.key === m.key)?.positions || [])
-      const players = (data?.players || []).filter((p) => !p.on_bye && (!eligible.size || eligible.has(p.position)))
-      const board = streakBoard(logs, players, m.field, m.bar, 'over', 30, m.key).filter((r) => r.streak > 0)
-      board.forEach((r, i) => {
-        if (r.streak >= 3) all.push({ ...r, marketKey: m.key, marketBar: m.bar, rank: i + 1, boardSize: board.length })
-      })
-    }
-    all.sort((a, b) => b.streak - a.streak)
-    return all.slice(0, 6)
-  }, [markets, data, logs])
+  const cards = useMemo(() => milestoneStreaks(logs, data).slice(0, 6), [logs, data])
 
-  // MODEL NARRATIVE. Scan the most recent graded weeks in the archive (the
-  // same two the hook always keeps fresh) — no need to fetch anything new,
-  // the payloads are already sitting in `archive`.
-  const modelCards = useMemo(() => {
-    const recentKeys = keys.slice(-2)
-    const out = []
-    for (const wk of recentKeys) {
-      const p = archive[wk]
-      if (!p?.lines || !p?.card || !p?.bars) continue
-      const bars = p.bars
-      for (const [pid, lineVals] of Object.entries(p.lines)) {
-        const priced = new Set(
-          Object.entries(p.card).filter(([, blk]) => (blk.rungs || []).some((r) => String(r.player_id) === pid)).map(([k]) => k),
-        )
-        if (!priced.size) continue
-        const missed = [...priced].filter((mk) => {
-          const rung = (p.card[mk].rungs || []).find((r) => String(r.player_id) === pid)
-          return rung?.hit === false
-        })
-        if (!missed.length) continue
-        const elsewhere = Object.entries(lineVals)
-          .filter(([mk, v]) => !priced.has(mk) && bars[mk] != null && Number(v) >= Number(bars[mk]))
-          .sort((a, b) => (Number(b[1]) - Number(bars[b[0]])) - (Number(a[1]) - Number(bars[a[0]])))
-        if (!elsewhere.length) continue
-        const player = playersById[pid]
-        if (!player) continue
-        const missMarket = missed.sort((a, b) => Number(bars[b]) - Number(bars[a]))[0]
-        const missRung = (p.card[missMarket].rungs || []).find((r) => String(r.player_id) === pid)
-        const [hitMarket, hitValRaw] = elsewhere[0]
-        out.push({
-          player, pid, week: p, weekKey: wk,
-          missMarket, missBar: Number(bars[missMarket]), missActual: Number(missRung?.actual ?? 0),
-          hitMarket, hitVal: Number(hitValRaw), hitBar: Number(bars[hitMarket]),
-        })
-      }
-    }
-    out.sort((a, b) => (b.hitVal - b.hitBar) - (a.hitVal - a.hitBar))
-    // one story per player, best margin only
-    const seen = new Set()
-    return out.filter((c) => (seen.has(c.pid) ? false : (seen.add(c.pid), true))).slice(0, 4)
-  }, [archive, keys, playersById])
+  const modelCards = useMemo(
+    () => modelNarrativeStories(archive, keys, playersById).slice(0, 4),
+    [archive, keys, playersById],
+  )
 
   if (!markets.length && !modelCards.length) {
     return <div className="sl-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season, and storylines read the same file Streaks does.</div>
@@ -206,7 +140,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
       <style>{`
       .sl{display:flex;flex-direction:column;gap:14px}
       .sl-hero{position:relative;padding:22px 24px;border:1px solid rgba(0,224,164,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(0,224,164,.14),transparent 36%),radial-gradient(circle at 6% 100%,rgba(45,200,255,.1),transparent 40%),${C.bg2}}
-      .sl-dot{position:absolute;top:24px;left:24px;width:6px;height:6px;border-radios:50%;background:${C.green};animation:slPulse 1.8s ease-in-out infinite}
+      .sl-dot{position:absolute;top:24px;left:24px;width:6px;height:6px;border-radius:50%;background:${C.green};animation:slPulse 1.8s ease-in-out infinite}
       .sl-hero small{display:block;margin-left:16px;color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
       .sl-hero h1{margin:7px 0 5px;font-size:clamp(24px,4.2vw,40px);letter-spacing:-.03em}
       .sl-hero p{max-width:600px;margin:0;color:${C.text3};font-size:11px;line-height:1.55}
