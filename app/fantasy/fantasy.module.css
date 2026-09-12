@@ -3013,7 +3013,26 @@
   color: var(--fx-info);
   font: 900 14px/1 monospace;
 }
+/* GAME PLAN (2026-09-12) -- the two lineups side by side under the same
+   coachRecommendations shell the RECOMMENDATIONS panel uses, so it needed no
+   new border/background rule of its own, just the two-column grid and a
+   border on each card since neither is a direct child of .coachSide. */
+.gamePlanCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid var(--fx-line-3);
+}
+.gamePlanCard {
+  overflow: hidden;
+  border: 1px solid var(--fx-line-3);
+  border-radius: 11px;
+}
 @media(max-width:760px) {
+  .gamePlanCols {
+    grid-template-columns: 1fr;
+  }
   .coachHero {
     display: block;
     min-height: 0;
