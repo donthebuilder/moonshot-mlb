@@ -27,9 +27,10 @@ import { FRANCHISE_NAV, FRANCHISE_RAIL } from '../../lib/fantasy/nav'
 
 const ITEMS = FRANCHISE_RAIL.map((key) => [key, FRANCHISE_NAV[key].path, FRANCHISE_NAV[key].label])
 
-export default function LeagueNav({ leagueId, active, role, className, activeClassName }) {
+// isCommissioner comes from fantasy_leagues.commissioner_id, not
+// membership.role (2026-09-12, OPEN-ITEMS #2) -- see LeagueLayout for why.
+export default function LeagueNav({ leagueId, active, isCommissioner, className, activeClassName }) {
   const base = `/fantasy/league/${leagueId}`
-  const isCommissioner = role === 'commissioner'
   return (
     <nav aria-label="League sections" className={className}>
       {ITEMS.map(([key, path, label]) => (

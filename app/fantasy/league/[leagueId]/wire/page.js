@@ -96,11 +96,11 @@ export default async function WirePage({params,searchParams}) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>PLAYER MARKET</small><strong>{league.name}</strong></div><span>{myTeam?`Priority #${safeTeams.findIndex((team)=>team.id===myTeam.id)+1}`:'No team yet'}</span></header>
-    <LeagueNav leagueId={leagueId} active="wire" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
+    <LeagueNav leagueId={leagueId} active="wire" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.wireHero}><div><p className={styles.panelLabel}>THE WIRE</p><h1>Find the next difference-maker.</h1><p>Free agents join immediately. Dropped players spend 24 hours on rolling-priority waivers.</p></div><div className={styles.roomStats}><span><small>PRIORITY</small><b>{myTeam?`#${safeTeams.findIndex((team)=>team.id===myTeam.id)+1}`:'—'}</b></span><span><small>CLAIMS</small><b>{myClaims.length}</b></span><span><small>ROSTER</small><b>{myRoster.length}/15</b></span></div></section>
-      {membership.role==='commissioner'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>COMMISSIONER</p><strong>{nextProcessing?`Next claims ${remaining(nextProcessing.process_after)}`:'No pending waiver run'}</strong></div><form action={processWaivers}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton disabled={!nextProcessing} pendingLabel="Processing…">Process cleared claims</SubmitButton></form></section>}
+      {league.commissioner_id===user.id&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>COMMISSIONER</p><strong>{nextProcessing?`Next claims ${remaining(nextProcessing.process_after)}`:'No pending waiver run'}</strong></div><form action={processWaivers}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton disabled={!nextProcessing} pendingLabel="Processing…">Process cleared claims</SubmitButton></form></section>}
       <div className={styles.wireLayout}>
         <section className={styles.playerBoard}>{/* #71 / #77: the draft board and this page printed the same unlabelled
               number and it meant two different things -- which is also why the same

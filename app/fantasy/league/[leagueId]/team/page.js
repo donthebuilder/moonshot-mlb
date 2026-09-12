@@ -150,7 +150,7 @@ export default async function TeamPage({ params, searchParams }) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>WEEK {WEEK}</small><strong>{team.name}</strong></div><span className={styles.weekSwitch}>{WEEK>1&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK-1}`}>‹</Link>}<b>{roster.length} rostered</b>{WEEK<FANTASY_LAST_WEEK&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK+1}`}>›</Link>}</span></header>
-    <LeagueNav leagueId={leagueId} active="team" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
+    <LeagueNav leagueId={leagueId} active="team" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.teamHero}><div><p className={styles.panelLabel}>WEEK {WEEK} LINEUP</p><h1 style={{display:'flex',alignItems:'center',gap:12}}><TeamMark size={38} team={team}/>{team.name}</h1><p>Set each player before their individual game begins. Locked players cannot be moved.</p></div><div className={styles.roomStats}><span><small>STARTERS</small><b>{lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).length}/{starterCount}</b></span><span><small>BENCH</small><b>{benchOccupied}/{benchCount}</b></span><span><small>IR</small><b>{lineup.filter((row)=>row.slot==='IR').length}/{league.ir_slots}</b></span><span><small>PROJECTED</small><b>{startersProjected.toFixed(1)}</b></span></div></section>

@@ -117,7 +117,7 @@ export default async function LeagueRoom({ params, searchParams }) {
   const currentPick = picks.find((pick) => pick.overall_pick === draft?.current_overall_pick)
   const currentTeam = teams.find((team) => team.id === currentPick?.team_id)
   const isMyPick = draft?.status === 'live' && currentTeam?.owner_id === user.id
-  const canPick = draft?.status === 'live' && (currentTeam?.owner_id === user.id || membership.role === 'commissioner')
+  const canPick = draft?.status === 'live' && (currentTeam?.owner_id === user.id || league.commissioner_id === user.id)
   const myRoster = roster.filter((entry) => entry.team_id === myTeam?.id)
   // #70: an order snaked over an incomplete league is a placeholder, not a
   // ranking. Only true before the draft is live -- once it starts, the order
@@ -145,7 +145,7 @@ export default async function LeagueRoom({ params, searchParams }) {
   return (
     <main className={styles.roomApp}>
       <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
-      <LeagueNav leagueId={leagueId} active="draft" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
+      <LeagueNav leagueId={leagueId} active="draft" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
       <div className={styles.roomBody}>
         <DraftBanner error={query?.error} message={query?.message}/>
         <section className={styles.draftHero}>
@@ -179,7 +179,7 @@ export default async function LeagueRoom({ params, searchParams }) {
             the guard already greys out. After the last pick the setup controls
             are gone entirely; the catalog refresh stays, because syncing
             players is a weekly in-season job, not a draft-night one. */}
-        {membership.role === 'commissioner' && (
+        {league.commissioner_id === user.id && (
           <section className={styles.commishBar}>
             <div><p className={styles.panelLabel}>COMMISSIONER CONTROLS</p><strong>{draftComplete ? 'Draft complete · roster tools only' : 'Catalog → order → live draft'}</strong></div>
             <form action={syncPlayerCatalog}><input type="hidden" name="leagueId" value={leagueId}/><button>Refresh NFL players</button></form>
@@ -210,7 +210,7 @@ export default async function LeagueRoom({ params, searchParams }) {
             down to juu team's auto-pick. There is no undo for that --
             commissioner_assign_fantasy_pick refuses any slot that is already
             filled -- so the default has to be nothing, chosen deliberately. */}
-        {membership.role === 'commissioner' && draft && draft.status !== 'paused' && picks.length > 0 && (
+        {league.commissioner_id === user.id && draft && draft.status !== 'paused' && picks.length > 0 && (
           assignOpen ? (
             <form action={assignDraftPick} className={styles.assignmentBar}>
               <div>
@@ -281,7 +281,7 @@ export default async function LeagueRoom({ params, searchParams }) {
               </ol>
               {orderProvisional && <small className={styles.boardNote} style={{ display: 'block', marginTop: 9 }}>{teams.length} of {league.team_count} teams have joined, so this order still changes when the rest do.</small>}
             </section>
-          ) : membership.role !== 'commissioner' ? (
+          ) : league.commissioner_id !== user.id ? (
             <section className={styles.waitingRoom}><span>◷</span><div><p className={styles.panelLabel}>DRAFT LOBBY</p><strong>The commissioner is setting the draft order.</strong><small>{orderStale ? 'An order exists but it was built before everyone joined, so it will be rebuilt. You can study the DASH board now.' : 'You can study the DASH board now. Draft controls unlock when the room goes live.'}</small></div></section>
           ) : orderStale ? (
             <section className={styles.waitingRoom}><span>⚠</span><div><p className={styles.panelLabel}>DRAFT ORDER</p><strong>The stored order is out of date.</strong><small>It was built when {orderTeamsRaw.length} of the current {teams.length} teams existed. Press Prepare snake draft again to rebuild it over everyone who has joined.</small></div></section>

@@ -28,7 +28,7 @@ import { FRANCHISE_BAR, FRANCHISE_MORE, FRANCHISE_NAV, franchiseHref } from '../
 // Labels and order come from lib/fantasy/nav.js, which the desktop rail reads
 // too -- the two navs cannot drift apart again.
 
-export default function LeagueMobileNav({ leagueId, role }) {
+export default function LeagueMobileNav({ leagueId, isCommissioner }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [pendingHref, setPendingHref] = useState(null)
@@ -48,7 +48,7 @@ export default function LeagueMobileNav({ leagueId, role }) {
     else el.setAttribute('inert', '')
   }, [open])
 
-  const moreKeys = [...FRANCHISE_MORE, ...(role === 'commissioner' ? ['settings'] : [])]
+  const moreKeys = [...FRANCHISE_MORE, ...(isCommissioner ? ['settings'] : [])]
   const barHrefs = new Set(FRANCHISE_BAR.map((k) => franchiseHref(leagueId, k)))
   const moreActive = !barHrefs.has(pathname)
 

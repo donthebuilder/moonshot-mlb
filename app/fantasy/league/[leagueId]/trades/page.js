@@ -36,20 +36,20 @@ export default async function TradesPage({params,searchParams}) {
   const rosterFor=(teamId)=>rosters.filter((row)=>row.team_id===teamId).map((row)=>row.player).filter(Boolean).sort((a,b)=>(a.position||'').localeCompare(b.position||'')||a.name.localeCompare(b.name))
   const myRoster=rosterFor(myTeam?.id)
   const targetRoster=rosterFor(target?.id)
-  const relevant=trades.filter((trade)=>trade.proposer_team_id===myTeam?.id||trade.recipient_team_id===myTeam?.id||membership.role==='commissioner')
+  const relevant=trades.filter((trade)=>trade.proposer_team_id===myTeam?.id||trade.recipient_team_id===myTeam?.id||league.commissioner_id===user.id)
   // A member cannot review anything, so "3 awaiting review" in their header was
   // a number about somebody else's job. Commissioners still see it.
-  const reviewCount=membership.role==='commissioner'?trades.filter((trade)=>trade.status==='accepted').length:0
+  const reviewCount=league.commissioner_id===user.id?trades.filter((trade)=>trade.status==='accepted').length:0
 
   return <main className={styles.roomApp}>
-    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{membership.role==='commissioner'?`${reviewCount} awaiting review`:`${relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length} open`}</span></header>
-    <LeagueNav leagueId={leagueId} active="trades" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
+    <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>TRADE DESK</small><strong>{league.name}</strong></div><span>{league.commissioner_id===user.id?`${reviewCount} awaiting review`:`${relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length} open`}</span></header>
+    <LeagueNav leagueId={leagueId} active="trades" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.tradeHero}><div><p className={styles.panelLabel}>TRADE DESK</p><h1>Build a deal. Make both teams better.</h1><p>Owners agree first. The commissioner reviews the final deal before any roster changes occur.</p></div><div className={styles.roomStats}><span><small>ACTIVE</small><b>{relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length}</b></span><span><small>REVIEW</small><b>{reviewCount}</b></span><span><small>DONE</small><b>{relevant.filter((trade)=>trade.status==='completed').length}</b></span></div></section>
       {!otherTeams.length&&<section className={styles.waitingRoom}><span>⇄</span><div><p className={styles.panelLabel}>TRADE PARTNERS</p><strong>Another owner needs to join first.</strong><small>Trade offers unlock as soon as the league has at least two teams with players.</small></div></section>}
       {otherTeams.length>0&&<section className={styles.tradeBuilder}><div className={styles.tradeBuilderHead}><div><p className={styles.panelLabel}>NEW OFFER</p><h2>Propose a trade</h2></div><form><label>Trade partner<select name="team" defaultValue={target?.id}>{otherTeams.map((team)=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><SubmitButton pendingLabel="Loading…">Load roster</SubmitButton></form></div><form action={proposeTrade}><div className={styles.tradeSides}><PlayerSelect title={`${myTeam?.name} sends`} name="offeredPlayerIds" players={myRoster}/><span className={styles.tradeArrow}>⇄</span><PlayerSelect title={`${target?.name} sends`} name="requestedPlayerIds" players={targetRoster}/></div><div className={styles.tradeNote}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="recipientTeamId" value={target?.id}/><input name="note" maxLength="280" placeholder="Optional note to the other owner"/><SubmitButton disabled={!myRoster.length||!targetRoster.length} pendingLabel="Sending…">Send offer</SubmitButton></div></form></section>}
-      <section className={styles.tradeHistory}><div className={styles.boardHead}><div><p className={styles.panelLabel}>LEAGUE OFFERS</p><h2>Trade activity</h2></div><span>{relevant.length} deals</span></div>{relevant.map((trade)=><TradeCard trade={trade} teams={teams} myTeam={myTeam} commissioner={membership.role==='commissioner'} leagueId={leagueId} key={trade.id}/>)}{!relevant.length&&<p className={styles.emptyRoom}>No trade offers yet.</p>}</section>
+      <section className={styles.tradeHistory}><div className={styles.boardHead}><div><p className={styles.panelLabel}>LEAGUE OFFERS</p><h2>Trade activity</h2></div><span>{relevant.length} deals</span></div>{relevant.map((trade)=><TradeCard trade={trade} teams={teams} myTeam={myTeam} commissioner={league.commissioner_id===user.id} leagueId={leagueId} key={trade.id}/>)}{!relevant.length&&<p className={styles.emptyRoom}>No trade offers yet.</p>}</section>
     </div>
   </main>
 }

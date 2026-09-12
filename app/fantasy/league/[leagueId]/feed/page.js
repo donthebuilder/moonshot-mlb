@@ -61,7 +61,7 @@ export default async function FeedPage({params,searchParams}) {
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>LEAGUE FEED</small><strong>{league.name}</strong></div><span>{teams.length} owners</span></header>
-    <LeagueNav leagueId={leagueId} active="feed" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
+    <LeagueNav leagueId={leagueId} active="feed" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.feedHero}><div><p className={styles.panelLabel}>THE LOCKER ROOM</p><h1>Talk ball. Track every move.</h1><p>Posts, reactions, roster moves, and league conversation all live here.</p></div><div className={styles.roomStats}><span><small>POSTS</small><b>{posts.length}</b></span><span><small>MOVES</small><b>{transactions.length}</b></span><span><small>OWNERS</small><b>{teams.length}</b></span></div></section>

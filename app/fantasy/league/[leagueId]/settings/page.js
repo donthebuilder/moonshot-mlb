@@ -20,7 +20,7 @@ export default async function SettingsPage({params,searchParams}) {
     supabase.from('fantasy_teams').select('id,name,color,monogram,emblem').eq('league_id',leagueId),
   ])
   if(!league||!membership)notFound()
-  if(membership.role!=='commissioner')return <main className={styles.roomApp}><div className={styles.roomBody}><section className={styles.waitingRoom}><span>⚙</span><div><p className={styles.panelLabel}>COMMISSIONER ONLY</p><strong>Only the commissioner can open the control room.</strong><small>Ask them to change a league rule for you.</small></div></section><p><Link href={`/fantasy/league/${leagueId}/league`}>← Back to League HQ</Link></p></div></main>
+  if(league.commissioner_id!==user.id)return <main className={styles.roomApp}><div className={styles.roomBody}><section className={styles.waitingRoom}><span>⚙</span><div><p className={styles.panelLabel}>COMMISSIONER ONLY</p><strong>Only the commissioner can open the control room.</strong><small>Ask them to change a league rule for you.</small></div></section><p><Link href={`/fantasy/league/${leagueId}/league`}>← Back to League HQ</Link></p></div></main>
   const teams=teamRows||[]
   const locked=league.status!=='setup'
   return <main className={styles.roomApp}>

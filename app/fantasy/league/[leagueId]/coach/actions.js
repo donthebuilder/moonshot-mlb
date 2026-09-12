@@ -36,9 +36,11 @@ export async function syncNflWeekFeed(formData) {
   // Same fix, mirrored here.
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
-  const {data:membership}=await supabase.from('fantasy_league_memberships')
-    .select('role').eq('league_id',leagueId).eq('user_id',user.id).maybeSingle()
-  if(membership?.role!=='commissioner'){
+  // Checks fantasy_leagues.commissioner_id directly, not membership.role
+  // (2026-09-12, OPEN-ITEMS #2) -- same fix as actions.js's syncPlayerCatalog.
+  const {data:league}=await supabase.from('fantasy_leagues')
+    .select('commissioner_id').eq('id',leagueId).maybeSingle()
+  if(league?.commissioner_id!==user.id){
     redirect(routeFor(leagueId,'error','Only this league\u2019s commissioner can refresh the NFL feed'))
   }
   const serviceUrl=process.env.NEXT_PUBLIC_SUPABASE_URL

@@ -55,9 +55,14 @@ export async function syncPlayerCatalog(formData) {
   // entirely. The button keeps working because the check now happens HERE --
   // commissioner of THIS league, by id -- and the write goes through the
   // service role, the same path the scoring cron uses.
-  const { data: membership } = await supabase.from('fantasy_league_memberships')
-    .select('role').eq('league_id', leagueId).eq('user_id', user.id).maybeSingle()
-  if (membership?.role !== 'commissioner') {
+  // Checks fantasy_leagues.commissioner_id directly, not membership.role
+  // (2026-09-12, OPEN-ITEMS #2) -- role is a one-time snapshot set when a
+  // membership row is created and never updated again anywhere in this
+  // codebase; commissioner_id is the live column every RPC here actually
+  // trusts, so this gate can no longer disagree with the RPCs it protects.
+  const { data: league } = await supabase.from('fantasy_leagues')
+    .select('commissioner_id').eq('id', leagueId).maybeSingle()
+  if (league?.commissioner_id !== user.id) {
     redirect(routeFor(leagueId, 'error', 'Only this league\u2019s commissioner can refresh the NFL catalog'))
   }
   const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL

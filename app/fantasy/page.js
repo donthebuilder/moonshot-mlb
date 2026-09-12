@@ -304,7 +304,7 @@ export default async function FantasyPage({ searchParams }) {
               const membership = memberships.find((row) => row.league_id === league.id)
               return (
                 <article className={styles.leagueCard} key={league.id}>
-                  <div className={styles.leagueHead}><span>{membership?.role === 'commissioner' ? 'COMMISSIONER' : 'MEMBER'}</span><em className={styles.leagueStatus} data-status={league.status}>{statusLabel[league.status] || String(league.status || '').toUpperCase()}</em><b>{memberTeams.length}/{league.team_count} teams</b></div>
+                  <div className={styles.leagueHead}><span>{league.commissioner_id === user.id ? 'COMMISSIONER' : 'MEMBER'}</span><em className={styles.leagueStatus} data-status={league.status}>{statusLabel[league.status] || String(league.status || '').toUpperCase()}</em><b>{memberTeams.length}/{league.team_count} teams</b></div>
                   <h3>{league.name}</h3>
                   <p className={styles.teamName} style={{display:'flex',alignItems:'center',gap:8}}>{myTeam&&<TeamMark size={20} team={myTeam}/>}{myTeam?.name}</p>
                   <div className={styles.chips}><span>{scoringLabel[league.scoring]}</span><span>{league.draft_timer_seconds}s draft</span><span>{league.draft_order_method} order</span></div>

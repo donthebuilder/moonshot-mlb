@@ -107,7 +107,7 @@ export default async function TeamRoster({ params, searchParams }) {
       <div><small>WEEK {week} · ANOTHER TEAM</small><strong>{league.name}</strong></div>
       <span>{roster.length}/15</span>
     </header>
-    <LeagueNav leagueId={leagueId} active="league" role={membership?.role} className={styles.roomNav} activeClassName={styles.roomActive} />
+    <LeagueNav leagueId={leagueId} active="league" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       <section className={styles.teamHero}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
