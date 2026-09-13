@@ -1025,7 +1025,7 @@ export default function Home({
                           onClick={() => onNavigate?.('longest')}
                           title={`${g.matchup}${airTitle(g) ? `\n${airTitle(g)}` : ''}\nPark factor plus the published weather effect, as a percentage swing on home-run rate — tap for the full park ladder.`}
                           style={{
-                            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                            background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                             fontSize: 12, fontWeight: 800, color: i === 0 ? '#FB923C' : C.text,
                             textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
                           }}
@@ -1050,17 +1050,15 @@ export default function Home({
             </div>
           )}
 
+          {/* Trimmed 2026-09-13 (Donovan: "the litte helper text ... does not
+              [h]elp"). Was a 5-line run-on explaining why each of 3 checks
+              came back empty. Same meaning, one line — the full detail is
+              still available in each check's own tooltip once it fires. */}
           {!b2b.length && !fenceRider && !pens.length && !nearMiss && (
             <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, padding: '2px 0' }}>
-              Beyond the air, none of the angles fired tonight:{' '}
-              {b2bVerified
-                ? 'nobody on the slate homered in his last game'
-                : 'the graded file that proves who went deep last night hasn’t published yet, so the back-to-back watch is being withheld rather than guessed'}
-              , {fence?.slate_date && String(fence.slate_date) !== String(b2bDateKey)
-                ? `the fence board on the branch is for ${fence.slate_date}, not this slate, so it's being ignored rather than shown`
-                : 'the fence board hasn’t published for this date'}, and no bullpen crossed a workload
-              threshold yesterday. Empty because the checks came back empty, not because the panel is
-              broken — the full storyline ledger is right below.
+              Beyond the air, nothing else fired tonight — no back-to-back bat, fence rider, or
+              bullpen alert cleared the bar. Empty because the checks came back empty, not
+              because anything's broken.
             </div>
           )}
 
@@ -1080,7 +1078,7 @@ export default function Home({
               <span key={i}>
                 {i > 0 && ', '}
                 <button onClick={() => onPlayerClick?.(p)} style={{
-                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: 12, fontWeight: 800, color: '#f87171', textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
                 }}>{nameOf(p)}</button>
                 <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}</span>
@@ -1126,7 +1124,7 @@ export default function Home({
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Tonight&apos;s fence rider</b> —{' '}
                 <button onClick={() => onPlayerClick?.(fenceRider.p)} style={{
-                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: 12, fontWeight: 800, color: C.orange, textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
                 }}>{fenceRider.r.name}</button>
                 <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {fenceRider.r.team}</span>
@@ -1146,7 +1144,7 @@ export default function Home({
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Near-miss watch</b> —{' '}
                 <button onClick={() => onPlayerClick?.(nearMiss.p)} style={{
-                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: 12, fontWeight: 800, color: '#FCD34D', textDecoration: 'underline', textDecorationColor: 'rgba(252,211,77,.35)',
                 }}>{nameOf(nearMiss.p)}</button>
                 <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(nearMiss.p)}</span>
@@ -1231,7 +1229,7 @@ export default function Home({
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
                   <span style={{ fontSize: 12, fontWeight: 900 }}>{title}</span>
-                  <button type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
+                  <button type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', padding: '5px 3px', fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {rows.map((p, i) => {
@@ -1242,7 +1240,7 @@ export default function Home({
                       <button type="button" key={i} onClick={() => onPlayerClick?.(p)} className="tap-row" style={{
                         ...BARE_BUTTON, width: '100%', textAlign: 'left',
                         display: 'flex', gap: 7, alignItems: 'center', cursor: 'pointer',
-                        padding: '2px 5px', borderRadius: 6, minWidth: 0,
+                        padding: '6px 5px', borderRadius: 6, minWidth: 0,
                         background: i === 0 ? `${col}12` : 'transparent',
                       }}>
                         <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: i < 3 ? col : C.text3, fontWeight: 900, width: 16, flexShrink: 0 }}>
@@ -1333,7 +1331,7 @@ export default function Home({
           <button type="button" onClick={() => onNavigate?.('pitchers')} className="tap-row" style={{
             ...BARE_BUTTON, width: '100%', textAlign: 'left',
             display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
-            padding: '2px 5px', borderRadius: 6, minWidth: 0,
+            padding: '6px 5px', borderRadius: 6, minWidth: 0,
           }} title={`${a.nm} vs ${a.vs}: ${a.hr9.toFixed(2)} HR/9 season${a.l3hr9 != null ? `, ${a.l3hr9.toFixed(2)} over his last 3 starts` : ''}${a.weak ? ` · ${a.weak} weak lineup spots against him` : ''} — tap for the Pitchers workbench`}>
             <span style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, color: i === 0 ? '#f87171' : C.text3, width: 14, flexShrink: 0 }}>{i + 1}</span>
             <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
@@ -1515,7 +1513,7 @@ export default function Home({
               {headline.bats.map((p, i) => (
                 <button key={i} onClick={() => onPlayerClick?.(p)} style={{
                   display: 'inline-flex', alignItems: 'baseline', gap: 6, cursor: 'pointer',
-                  background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 9, padding: '4px 10px',
+                  background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 9, padding: '7px 12px',
                 }}>
                   <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text }}>{nameOf(p)}</span>
                   <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(p)}</span>
@@ -1524,7 +1522,7 @@ export default function Home({
               ))}
               <button onClick={() => onNavigate?.('games')} style={{
                 fontSize: 10, fontWeight: 800, color: C.orange, cursor: 'pointer',
-                background: 'transparent', border: '1px dashed rgba(249,115,22,.4)', borderRadius: 9, padding: '4px 10px',
+                background: 'transparent', border: '1px dashed rgba(249,115,22,.4)', borderRadius: 9, padding: '7px 12px',
               }}>full matchup →</button>
             </div>
           </div>
@@ -1643,7 +1641,7 @@ export default function Home({
               ))}
               {mine.length > 3 && <span style={{ color: C.text3 }}> and {mine.length - 3} more</span>}
               .{' '}
-              <button type="button" onClick={() => onNavigate?.('mypicks')} style={{ ...BARE_BUTTON, color: '#60a5fa', cursor: 'pointer', fontWeight: 800 }}>
+              <button type="button" onClick={() => onNavigate?.('mypicks')} style={{ ...BARE_BUTTON, padding: '3px 1px', color: '#60a5fa', cursor: 'pointer', fontWeight: 800 }}>
                 Grade them on My Picks →
               </button>
             </span>
@@ -1662,11 +1660,9 @@ export default function Home({
         }}>
           <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 5 }}>Nothing on the board yet</div>
           <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 620 }}>
-            The bot builds the slate on its morning run: every hitter scored, every starter graded,
-            the parks and the air read. Once it publishes, this page fills in with tonight&apos;s
-            headline game, the angles worth saying out loud, the leakiest arms and the top ten HR and
-            hit plays — all of it from that file. Until then the doors below still work, and
-            The record still has every graded night behind it.
+            The bot builds tonight&apos;s slate on its morning run. Once it publishes, this page fills
+            in with the headline game, the top angles, and the HR and hit leaderboards. Until then,
+            the doors below still work, and the record has every graded night behind it.
           </div>
         </div>
       )}
@@ -1696,7 +1692,7 @@ export default function Home({
               title="Hide this. The full five-step version lives on How this works."
               style={{
                 marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`,
-                borderRadius: 999, padding: '2px 10px', cursor: 'pointer',
+                borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
                 fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT,
               }}
             >Got it, hide this</button>
@@ -1729,14 +1725,13 @@ export default function Home({
             ))}
           </div>
           <div style={{ fontSize: 10, color: C.text3, marginTop: 9, lineHeight: 1.5 }}>
-            Want the longer version?{' '}
+            Want more?{' '}
             <button
               type="button"
               onClick={() => onNavigate?.('guide')}
-              style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}
+              style={{ ...BARE_BUTTON, padding: '3px 1px', color: C.orange, cursor: 'pointer', fontWeight: 700 }}
             >Open “How this works” →</button>{' '}
-            — five steps, a colour key and a plain-language glossary. Everywhere else on this site,
-            hovering a number tells you what it is.
+            — five steps, a colour key, a glossary.
           </div>
         </div>
       )}
@@ -1765,21 +1760,20 @@ export default function Home({
       {!startOpen && (
         <div style={{ fontSize: 10, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
           New here?{' '}
-          <button type="button" onClick={reopenStart} style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
+          <button type="button" onClick={reopenStart} style={{ ...BARE_BUTTON, padding: '3px 1px', color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
             Start with these 3 things →
           </button>{' '}
-          — two minutes, in order. The longer version, with a colour key and a plain-language
-          glossary, is on{' '}
-          <button type="button" onClick={() => onNavigate?.('guide')} style={{ ...BARE_BUTTON, color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
+          — two minutes. Or open{' '}
+          <button type="button" onClick={() => onNavigate?.('guide')} style={{ ...BARE_BUTTON, padding: '3px 1px', color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
             How this works
-          </button>.
+          </button>{' '}
+          for the full version.
         </div>
       )}
 
       <div style={{ fontSize: 9, color: C.text3, marginTop: 12, lineHeight: 1.5 }}>
-        Everything on this page comes from tonight&apos;s slate file, the live results feed, or the bot&apos;s
-        own published sheet — when a number isn&apos;t built yet, the sentence says so instead of guessing.
-        Hover any number for what it is and where it came from.
+        Everything here comes from tonight&apos;s slate file, the live feed, or the bot&apos;s own sheet,
+        and never a guess. Hover any number for what it is and where it&apos;s from.
       </div>
       </>}
     </div>
