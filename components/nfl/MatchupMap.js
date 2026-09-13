@@ -102,10 +102,14 @@ function Zone({ cell, hot, h, compact }) {
           ? `${cell.leak > 0 ? '+' : ''}${Math.round(cell.leak)}%`
           : 'thin'}
       </span>
+      {/* Was top-right at 19px down, which on a phone-width cell wrapped to
+            two lines and landed on top of the centred share number. Bottom
+            edge, one line, never wraps: the circle is centred, so the bottom
+            corner is the one piece of the cell nothing else competes for. */}
       {hot && (
         <span style={{
-          position: 'absolute', top: 19, right: 6, fontFamily: NUM_FONT, fontSize: 7,
-          fontWeight: 900, letterSpacing: '.16em', color: C.cyan,
+          position: 'absolute', bottom: 5, right: 6, fontFamily: NUM_FONT, fontSize: 7,
+          fontWeight: 900, letterSpacing: '.14em', color: C.cyan, whiteSpace: 'nowrap',
           border: `1px solid ${C.cyan}80`, background: `${C.bg2}f2`,
           padding: '2px 4px', borderRadius: 4, zIndex: 2,
         }}>THE SPOT</span>
@@ -125,13 +129,95 @@ function Zone({ cell, hot, h, compact }) {
         border: `1.5px solid ${hot ? `${C.cyan}b0` : 'rgba(255,255,255,.30)'}`,
         zIndex: 1,
       }} />
-      <div style={{
+      <div className="map-share" style={{
         position: 'relative', fontFamily: NUM_FONT, fontWeight: 900,
         fontSize: compact ? 16 : 19, letterSpacing: '-.02em', color: C.text,
         textShadow: '0 1px 7px rgba(0,0,0,.9)',
       }}>
         {cell.share.toFixed(1)}<span style={{ fontSize: 10, color: C.text3, marginLeft: 1 }}>%</span>
       </div>
+    </div>
+  )
+}
+
+// ── THE FIELD (2026-09-13) ────────────────────────────────────────────────
+//
+// TUDDY is for people who do not follow football. The grid was already a
+// picture of a real place — the vertical axis IS distance downfield and the
+// horizontal IS left/middle/right of the field — but nothing on screen said
+// so, so it read as an abstract 3x4 matrix and you had to already know what
+// "intermediate" meant to place it.
+//
+// This draws the place the axes were always describing: turf, the yard line
+// at the bottom of each band with its number on both sidelines, hash marks
+// down the middle, the sidelines themselves, and the end zone past the deep
+// band. Nothing here is a data mark and nothing here is invented — it is the
+// coordinate system made visible. Every colour stays a leak reading, every
+// circle stays a share.
+//
+// CSS rather than SVG on purpose: the bands are laid out by flexbox and the
+// field has to stay glued to them at any width. A per-row layer inherits the
+// row's own height instead of recomputing the grid's geometry in a viewBox,
+// so it cannot drift out of alignment when a height constant changes.
+const TURF = 'rgba(0,224,164,.030)'
+const CHALK = 'rgba(255,255,255,.15)'
+const CHALK_SOFT = 'rgba(255,255,255,.07)'
+
+function FieldBand({ mark, compact }) {
+  return (
+    <i aria-hidden="true" style={{
+      position: 'absolute', inset: 0, zIndex: 0, borderRadius: 11,
+      pointerEvents: 'none', overflow: 'hidden',
+      background: `linear-gradient(180deg, ${TURF}, rgba(0,224,164,.012))`,
+      borderLeft: `1px solid ${CHALK_SOFT}`, borderRight: `1px solid ${CHALK_SOFT}`,
+    }}>
+      {/* HASH MARKS — the two broken lines an actual field carries down its
+          middle. Also the cheapest possible cue that the vertical axis is a
+          distance, not a category. */}
+      {[38, 62].map((x) => (
+        <i key={x} style={{
+          position: 'absolute', top: 0, bottom: 0, left: `${x}%`, width: 1,
+          background: `repeating-linear-gradient(180deg, ${CHALK_SOFT} 0 5px, transparent 5px 13px)`,
+        }} />
+      ))}
+      {mark != null && (
+        <>
+          <i style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 1, background: CHALK }} />
+          {['left', 'right'].map((side) => (
+            <span key={side} style={{
+              position: 'absolute', bottom: 3, [side]: 5, fontFamily: NUM_FONT,
+              fontSize: compact ? 8 : 9, fontWeight: 900, color: 'rgba(255,255,255,.22)',
+              letterSpacing: '.04em',
+            }}>{mark}</span>
+          ))}
+        </>
+      )}
+    </i>
+  )
+}
+
+// The rushing view is one row of gaps, and the gaps are named for the men
+// they sit between — which is unreadable unless the men are on screen. Five
+// blocks for the line, seven gaps underneath: the label "L Guard" stops
+// being jargon the moment you can see it is the space next to a lineman.
+function LineUp({ compact }) {
+  return (
+    <div aria-hidden="true" style={{
+      display: 'flex', gap: 5, margin: '0 0 6px', alignItems: 'flex-end',
+    }}>
+      {/* Lanes 1-5 are the five men (LT, LG, C, RG, RT); lanes 0 and 6 are
+          outside them, which is exactly what "off left end" means. */}
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
+          {i === 0 || i === 6 ? null : (
+            <i style={{
+              display: 'block', width: compact ? 13 : 16, height: compact ? 7 : 8,
+              borderRadius: 3, background: 'rgba(255,255,255,.13)',
+              border: `1px solid ${CHALK_SOFT}`,
+            }} />
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -251,7 +337,31 @@ export default function MatchupMap({
   const AX = compact ? 68 : 92
 
   return (
-    <div>
+    <div className="tuddy-map">
+      {/* ── PHONE (2026-09-13) ────────────────────────────────────────────
+          Rendered at 390px before shipping, which is the only way any of
+          this shows up. Three real defects, all pre-existing, none visible
+          in the code:
+          · the 92px depth-label column ate a quarter of the screen and
+            squeezed three zones into what was left
+          · the seven rushing lanes put a 19px number in a ~45px cell, so
+            every share ran into its neighbour and the row read as one
+            smeared string of digits
+          · the share number itself was sized for a desktop cell
+          Inline styles can't carry a media query, so the three things that
+          have to change on a phone get class hooks and change here. The
+          lanes row gets its own overflow-x rather than shrinking further:
+          a chart may scroll sideways inside its own container, the page
+          may not. */}
+      <style>{`
+        @media(max-width:620px){
+          .tuddy-map .map-ax{width:58px!important;flex:0 0 58px!important}
+          .tuddy-map .map-ax b{font-size:7px!important;letter-spacing:.03em!important;white-space:normal!important;line-height:1.2}
+          .tuddy-map .map-share{font-size:14px!important}
+          .tuddy-map .map-lanes{overflow-x:auto;padding-bottom:4px}
+          .tuddy-map .map-lanes>div{flex:0 0 74px!important}
+        }
+      `}</style>
       {rushable && (
         <div style={{ display: 'flex', gap: 5, marginBottom: 9 }}>
           {[['pass', 'Passing'], ['rush', 'Rushing']].map(([k, l]) => (
@@ -277,10 +387,40 @@ export default function MatchupMap({
         style={{ maxWidth: compact ? 'none' : 820, borderRadius: 15 }}>
         {pass ? (
           <>
+      <div aria-hidden="true" style={{
+        marginLeft: AX + 7, height: compact ? 12 : 15, borderRadius: '6px 6px 0 0',
+        background: 'repeating-linear-gradient(135deg, rgba(0,224,164,.11) 0 4px, transparent 4px 9px)',
+        borderLeft: `1px solid ${CHALK_SOFT}`, borderRight: `1px solid ${CHALK_SOFT}`,
+        borderTop: `1px solid ${CHALK_SOFT}`, borderBottom: `1px solid ${CHALK}`,
+        position: 'relative', marginBottom: 7,
+      }}>
+        <span style={{
+          position: 'absolute', top: compact ? 1.5 : 2.5, left: '50%', transform: 'translateX(-50%)',
+          fontFamily: NUM_FONT, fontSize: 7, fontWeight: 900, letterSpacing: '.2em',
+          color: 'rgba(255,255,255,.30)', whiteSpace: 'nowrap',
+        }}>END ZONE</span>
+      </div>
             {DEPTHS.map((d) => (
               <div key={d}>
-                <div style={{ display: 'flex', gap: 7, marginBottom: 7 }}>
-                  <div style={{
+                <div style={{ display: 'flex', gap: 7, marginBottom: 7, position: 'relative' }}>
+                  {/* The field sits BEHIND the zones and starts where they do,
+                      past the depth-label column. Zones are position:relative
+                      already and come later in the DOM, so they paint on top
+                      of it without a z-index fight. YARD_MARK: the line at the
+                      bottom of each band is the real boundary that band ends
+                      at — 20 under DEEP, 10 under INTERMEDIATE. Under SHORT is
+                      the line of scrimmage, which already has its own rule. */}
+                  <i aria-hidden="true" style={{
+                    position: 'absolute', top: 0, left: AX + 7, right: 0, zIndex: 0,
+                    // Bleed over the 7px row gap so the turf is continuous and
+                    // the yard line lands IN the gap, where a boundary belongs.
+                    // Not on the last band — nothing below it to join to.
+                    bottom: d === 'behind' ? 0 : -7,
+                  }}>
+                    <FieldBand compact={compact}
+                               mark={d === 'deep' ? 20 : d === 'mid' ? 10 : null} />
+                  </i>
+                  <div className="map-ax" style={{
                     width: AX, flex: `0 0 ${AX}px`, display: 'flex', flexDirection: 'column',
                     justifyContent: 'center', alignItems: 'flex-end', textAlign: 'right',
                   }}>
@@ -306,7 +446,10 @@ export default function MatchupMap({
             ))}
           </>
         ) : (
-          <div style={{ display: 'flex', gap: 5 }}>
+          <div>
+            <LineUp compact={compact} />
+            <Los inset={0} />
+            <div className="map-lanes" style={{ display: 'flex', gap: 5 }}>
             {LANES.map((z) => (
               <div key={z} style={{ flex: 1, minWidth: 0 }}>
                 <Zone cell={model.by[z]} h={H} compact={compact} hot={model.spot?.z === z} />
@@ -323,6 +466,7 @@ export default function MatchupMap({
                 </div>
               </div>
             ))}
+            </div>
           </div>
         )}
 
@@ -338,6 +482,7 @@ export default function MatchupMap({
           {/* #17: THE SPOT is an outline, so the key says outline. */}
           <Key ring>THE SPOT — outlined, keeps its own leak colour</Key>
           <Key>corner % = their {model.metric} vs league</Key>
+          {pass && <Key>the turf, yard lines and hash marks are the axes, not data</Key>}
         </div>
       </ChartFrame>
 
