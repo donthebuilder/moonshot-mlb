@@ -20,7 +20,7 @@ import FollowingStrip from '../../FollowingStrip'
 //     reasonsFor) — usage rising, or the bot rating him this week.
 // Both were built for other tabs and read straight off data already fetched
 // at the dashboard level (matchup, logs) — no new fetch, just new props.
-const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him' }
+const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him', finisher: 'finishes in the red zone' }
 
 export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
   const { pins, toggle } = useNflWatchlist(data)
@@ -49,7 +49,7 @@ export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
       const [best, raw] = markets[0] || []
       const score = Number.isFinite(raw) ? raw : undefined
       const tag = matchup && best ? matchupTag(matchup, row.player, best) : null
-      const reasons = logs && best ? reasonsFor(logs, row.player, best)?.reasons : null
+      const reasons = logs && best ? reasonsFor(logs, row.player, best, matchup)?.reasons : null
       return { ...row, markets, best, score, sortScore: Number.isFinite(raw) ? raw : -Infinity, tag, why: reasons?.length ? reasons : null }
     })
     .sort((a, b) => b.sortScore - a.sortScore)
