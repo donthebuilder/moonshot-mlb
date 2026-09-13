@@ -14,6 +14,7 @@ import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
 import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
 import OffBoardStrip from '../OffBoardStrip'
+import HomerLedger from '../HomerLedger'
 import WeakSpotCards from '../WeakSpotCards'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
@@ -753,27 +754,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // Fold now lives at module scope, above this function — see the long
   // comment there for why that fixes the "closes when it refreshes" bug.
 
-  // ── SEVEN SECTIONS, SEVEN COLOURS (2026-09-13) ──────────────────────────
-  // Donovan, after this page's fourth "flow better" complaint in a row:
-  // "make them look ... different, since you['ve] done [reordered] them so
-  // many times." He's right that reordering never actually showed up as a
-  // visible change — every section here rendered in the identical
-  // C.bg2/C.border box (or, for the standalone ones like StartHere and
-  // LiveWire, their own plain grey border), so swapping two boxes' order
-  // still reads as the same box twice. Colour is the fix reordering never
-  // was: one accent per section, as a left bar, using the same colour
-  // language the stat strip below the header already speaks (★ Weak is
-  // yellow there too). Wire and Pulse already carry a faint green/amber
-  // tint in their own files (LiveWire.js, SlatePulse.js) — greeen and
-  // orange here don't fight those, they just make the bar bold instead of
-  // a 22%-alpha hint you have to squint for.
-  const accent = (color, node) => node && (
-    <div key={node.key} style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10 }}>{node}</div>
-  )
-
-  const secStart = accent(C.blue, <StartHere key="start" onNavigate={onNavigate} />)
-  const secWire = accent(C.green, <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />)
-  const secPulse = accent(C.orange, <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />)
+  // ── SEVEN SECTIONS, SEVEN COLOURS — TRIED AND REVERTED (2026-09-13) ─────
+  // Donovan asked for a left-bar colour accent per section, then, same day
+  // after seeing it live: "the side color rail thing remove i dont like
+  // those." Reverted to plain sections, no wrapper needed.
+  const secStart = <StartHere key="start" onNavigate={onNavigate} />
+  const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />
+  const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
   // ── THE FOUR CAME OFF THIS PAGE (2026-09-03) ─────────────────────────────
   // Donovan: "remove the four from the live page." It is the entire contents
   // of the Picks tab, rendered here a second time — the same duplication the
@@ -783,7 +770,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // all built from the ~105 tagged bats; the other ~160 men playing tonight
   // appeared nowhere but row 140 of the table. See OffBoardStrip.js — the
   // categories are capped, so being untagged is arithmetic, not a verdict.
-  const secOff = accent(C.purple, <OffBoardStrip key="off" players={players} onPlayerClick={onPlayerClick} />)
+  const secOff = <OffBoardStrip key="off" players={players} onPlayerClick={onPlayerClick} />
   // 🧱 NEAR MISSES replaced Storylines AND the slate-strength fold here
   // (2026-08-15, Donovan, this page only: "take storylines off and put near
   // misses from players who haven't gone yard in 2+ games, and statcast
@@ -819,21 +806,20 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // Scoreboard already receives the flat `players` list this page is built
   // from and grouping it is a one-line memo, not new data.
   const projGames = useMemo(() => groupGames(players), [players])
-  const secProjected = accent(C.cyan,
+  const secProjected = (
     <Fold key="projected" label="📈 Projected output">
       <ProjectedOutput games={projGames} players={players} watchIds={watchIds} />
     </Fold>
   )
-  // 🧾 the ledger was pulled off this page (2026-08-30, Donovan: "the
-  // rundown page needs to actually show the projected output, it gets
-  // lost" + confirmed cutting the duplicate). It's the SAME card that
-  // already lives on Home — this page was rendering it a second time,
-  // which is real weight that had nothing to do with this page's own job
-  // (the sortable board + projected output). Home is the front door and
-  // keeps it; Rundown no longer does. secLedger stays defined as null so
-  // the `order` arrays below don't need a second edit if this needs to
-  // come back.
-  const secLedger = null
+  // 🧾 THE LEDGER IS BACK (2026-09-13, Donovan: "move the home run ledger
+  // fro[m] the home page tot[o] the live page"). It was pulled off this
+  // page on 2026-08-30 because Home already carried the same card — see
+  // the (now stale) history that used to sit here. That argument runs the
+  // other way now: Donovan wants it on the page where he's actually
+  // watching the game, not the front door, so it came off Home (see
+  // Home.js) and landed here instead, beside Gone yard — same subject,
+  // per the flow-pass note above ("gone yard beside the ledger").
+  const secLedger = <HomerLedger key="ledger" players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
   // Does the slate carry an HR-luck reading at all tonight? See the note on
   // the column below — the field ships zero-filled and a zero-filled column
   // reads as a finding.
@@ -913,12 +899,12 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   )
   // Live: who's gone yard is the news — it renders open, right under the
   // wire. Pre-live (or an empty list) it stays out of the way.
-  const secGone = goneYard.length > 0 && accent(C.red,
+  const secGone = goneYard.length > 0 && (
     liveNow
       ? <div key="gone" style={{ marginBottom: 14 }}>{goneTable}</div>
       : <Fold key="gone" label={`💥 Gone yard (${goneYard.length}) — tonight's homers vs where the board had them`}>{goneTable}</Fold>
   )
-  const secWeak = weakSpots.length > 0 && accent(C.yellow,
+  const secWeak = weakSpots.length > 0 && (
     <Fold key="weak" label="★ Weak spots">
       <Tracker
         title="★ Weak spots"
@@ -994,12 +980,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // pass moves exactly those two and leaves the rest of the running order
   // (and the reasoning above it) alone.
   const order = liveNow
-    // Live — the lead is what just happened.
-    ? [secPulse, secWire, secGone, secOff, secStart, secWeak, secProjected]
+    // Live — the lead is what just happened. Ledger sits right beside gone
+    // yard — same subject, per the two-rules note above.
+    ? [secPulse, secWire, secGone, secLedger, secOff, secStart, secWeak, secProjected]
     // Pre-game — the lead is the plan. With The Four gone, StartHere leads
     // again (it is the orientation panel and it self-dismisses), then what the
     // bot changed its mind about, then the men it never named.
-    : [secPulse, secStart, secOff, secWire, secGone, secWeak, secProjected]
+    : [secPulse, secStart, secOff, secWire, secGone, secLedger, secWeak, secProjected]
 
   return (
     <div>

@@ -13,7 +13,6 @@ import YourPlayers from '../YourPlayers'
 import Fold from '../Fold'
 import BotPicksStrip from '../BotPicksStrip'
 import StealLooksStrip from '../StealLooksStrip'
-import HomerLedger from '../HomerLedger'
 import ReadTeaser from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
@@ -1476,10 +1475,10 @@ export default function Home({
         @media(max-width:800px){.home-snapshot{grid-template-columns:1fr 1fr}}
       `}</style>
 
-      {/* 🧾 THE LEDGER — directly under the welcome, per his ordering: the
-          greeting owns the top of the page, the ledger is the first thing
-          after it. Foldable, and it remembers being closed. */}
-      <HomerLedger players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
+      {/* 🧾 THE LEDGER MOVED OFF HOME (2026-09-13, Donovan: "move the home
+          run ledger fro[m] the home page tot[o] the live page"). It lived
+          here since 2026-08-17; it now renders on the Live/Scores page
+          instead — see components/tabs/Scoreboard.js. */}
 
       {/* ── THE HEADLINE GAME — lifted here 2026-08-16 ───────────────
              The hero's last clause names this game; it used to be three
