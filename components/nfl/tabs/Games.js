@@ -139,7 +139,7 @@ function SidePicks({ players, team, onPlayerClick, matchup }) {
                 the board actually occupies — so a short bar here and a long
                 one two cards down mean what they look like. */}
             <span style={{
-              position: 'relative', flex: '0 0 34px', height: 3, borderRadius: 99,
+              position: 'relative', flex: '0 1 34px', minWidth: 16, height: 3, borderRadius: 99,
               background: 'rgba(255,255,255,.08)',
             }}>
               <span style={{
@@ -148,11 +148,16 @@ function SidePicks({ players, team, onPlayerClick, matchup }) {
                 background: g.color, boxShadow: `0 0 6px -1px ${g.color}`,
               }} />
             </span>
+            {/* minWidth:0 is load-bearing: a flex child defaults to
+                min-width:auto, so without it this span refuses to shrink below
+                the full name and the ROW overflows its card instead of the name
+                ellipsing. That was invisible until the bar above took 34px —
+                names clipped at the card edge with no ellipsis, both columns. */}
             <span style={{
-              fontSize: 11, color: C.text, fontWeight: 600, flex: 1,
+              fontSize: 11, color: C.text, fontWeight: 600, flex: 1, minWidth: 0,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{p.name}</span>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.position}</span>
+            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.position}</span>
             <MatchupBadge matchup={matchup} player={p} market="TD" />
             {injuryTag(p) && (
               <span title={injuryTitle(injuryTag(p))}
