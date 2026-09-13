@@ -818,10 +818,23 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
         </div>
       )}
 
-      {/* The slate's blind spot: hitters batting tonight the bot never
-          scored. Collapsed by default, fetches only on expand. */}
-      <OffBot players={players} onPlayerClick={onPlayerClick} />
       </MobileFold>
+
+      {/* ── OFF THE BOT, OUT OF "SORT & FILTERS" (2026-09-13) ───────────────
+          Donovan, on the Slate page: the collapsible sections "need to be
+          positioned right, in order." Root cause: this panel used to sit
+          INSIDE the MobileFold above, titled "Sort & filters" — so on a
+          phone it was two accordions deep (open "Sort & filters", a header
+          about sorting, to even find the button for a completely unrelated
+          panel about lineup blind spots), and in Lineups mode that same
+          "Sort & filters" fold held the jump bar plus this with zero actual
+          sort content, which is its own kind of confusing. OffBot already
+          manages its own open/closed state (see OffBot.js), so it never
+          needed MobileFold's wrapper — it's its own one-line fold now,
+          right after Sort & filters instead of buried inside it, in every
+          mode. The slate's blind spot: hitters batting tonight the bot
+          never scored. Collapsed by default, fetches only on expand. */}
+      <OffBot players={players} onPlayerClick={onPlayerClick} />
 
       {/* ── HOW OLD IS WHAT YOU ARE LOOKING AT (2026-09-01) ─────────────────
           One line, always: the age of the live snapshot and a tap to pull
