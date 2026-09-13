@@ -319,7 +319,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             style={{ display: 'flex', textDecoration: 'none', borderRadius: 10 }}>
           <div style={{
             position: 'relative', width: 34, height: 34, borderRadius: 10,
-            boxShadow: `0 0 18px ${C.green}59`, cursor: 'pointer',
+            boxShadow: `0 0 18px ${C.green}75`, cursor: 'pointer',
           }}>
             {/* The DASH Network monogram, identical on MOONSHOT. One mark, one
                 destination; the green TUDDY wordmark beside it says where you are. */}
@@ -379,7 +379,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                     height: 20, minHeight: 20, padding: '0 9px', lineHeight: 1,
                     fontSize: 9.5, fontWeight: 900, letterSpacing: '0.08em', borderRadius: 999,
                     cursor: 'pointer',
-                    border: `1px solid ${C.orange}55`,
+                    border: `1px solid ${C.orange}70`,
                     background: `${C.orange}10`,
                     color: C.orange,
                   }}>MOONSHOT</button>
@@ -492,7 +492,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
               title="Preseason: starters play two series, so weekly form does not exist yet. Every board here is built from last season's per-game baselines and says so on each row."
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
-                borderRadius: 9, background: `${C.yellow}14`, border: `1px solid ${C.yellow}45`,
+                borderRadius: 9, background: `${C.yellow}24`, border: `1px solid ${C.yellow}5c`,
               }}
             >
               <span style={{
@@ -509,7 +509,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           style={{
             maxWidth: 1300, margin: '0 auto 6px', padding: '7px 16px',
             borderTop: `1px solid ${C.yellow}35`, borderBottom: `1px solid ${C.yellow}35`,
-            background: `${C.yellow}12`, color: C.yellow, fontSize: 10.5,
+            background: `${C.yellow}20`, color: C.yellow, fontSize: 10.5,
             fontWeight: 800, lineHeight: 1.45,
           }}
         >
@@ -559,7 +559,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                   {keys.map((key) => (
                     <button key={key} onClick={() => go(key)} title={NFL_NAV[key].blurb} style={{
                       padding:'9px 10px', border:`1px solid ${tab === key ? C.green + '66' : C.border}`,
-                      borderRadius:8, background:tab === key ? `${C.green}12` : C.glass,
+                      borderRadius:8, background:tab === key ? `${C.green}20` : C.glass,
                       color:tab === key ? C.green : C.text2, fontSize:10, fontWeight:750,
                       textAlign:'left', cursor:'pointer',
                     }}>{NFL_NAV[key].icon} {NFL_NAV[key].label}</button>

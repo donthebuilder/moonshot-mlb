@@ -35,9 +35,9 @@ const MARKETS = [
 ]
 const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['All', 9999]]
 
-const rateCol = (pct) => (pct >= 60 ? C.green : pct >= 45 ? C.yellow : pct >= 25 ? C.orange || '#f97316' : C.red)
+const rateCol = (pct) => (pct >= 60 ? C.green : pct >= 45 ? C.yellow : pct >= 25 ? C.orange : C.red)
 const cellBg = (pct) => (pct == null ? 'transparent'
-  : pct >= 60 ? `${C.green}21` : pct >= 45 ? `${C.yellow}1a` : pct >= 25 ? 'rgba(249,115,22,.12)' : `${C.red}12`)
+  : pct >= 60 ? `${C.green}36` : pct >= 45 ? `${C.yellow}2c` : pct >= 25 ? 'rgba(249,115,22,.12)' : `${C.red}20`)
 
 export default function PropsGrid({ log, market: initialMarket, defaultBar, scores }) {
   const [mkt, setMkt] = useState(initialMarket || 'REC')
@@ -167,7 +167,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
                         color: c ? rateCol(c.pct) : C.text3,
                         // A window with under 4 games asserts less.
                         opacity: c && c.n < 4 ? 0.55 : 1,
-                        outline: on ? `1px solid ${C.green}40` : 'none',
+                        outline: on ? `1px solid ${C.green}56` : 'none',
                       }}>
                       {c ? c.pct.toFixed(0) : '—'}
                     </td>
@@ -196,7 +196,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
               fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, cursor: 'pointer',
               padding: '2px 8px', borderRadius: 6,
               border: `1px solid ${lineFor(active) === l ? C.green : C.border}`,
-              background: lineFor(active) === l ? `${C.green}1c` : 'transparent',
+              background: lineFor(active) === l ? `${C.green}30` : 'transparent',
               color: lineFor(active) === l ? C.green : C.text3,
             }}>{l + 0.5}+</button>
           ))}

@@ -104,7 +104,7 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
             return (
               <tr key={role} style={{
                 borderTop: `1px solid ${C.border}`,
-                background: on ? `${C.cyan}0f` : 'transparent',
+                background: on ? `${C.cyan}1a` : 'transparent',
                 boxShadow: on ? `inset 3px 0 0 ${C.cyan}` : 'none',
               }}>
                 <td style={{

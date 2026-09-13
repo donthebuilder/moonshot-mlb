@@ -13,6 +13,7 @@ import {
 } from '../../../lib/nfl/myPicks'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { AnatomyStrip } from '../ScoreAnatomy'
+import SlateGaps from '../SlateGaps'
 
 // 🎫 PICKS — the bot's card, and yours on top of it.
 //
@@ -378,8 +379,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
           const e = blk.edge
           const t = TRUST()[e?.trust] || TRUST().thin
           return (
-            <div key={market} style={{
-              background: C.bg2, border: `1px solid ${C.border}`,
+            <ChartFrame key={market} pad="0" style={{
               borderRadius: 12, overflow: 'hidden',
             }}>
               <div style={{ padding: '10px 13px', borderBottom: `1px solid ${C.border}` }}>
@@ -415,6 +415,19 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                     this season&apos;s live grading, which is a different measurement.
                   </div>
                 )}
+                {/* The five rungs below are a ladder, and a ladder cannot
+                    say whether rung 5 is meaningfully different from the name
+                    at rung 12. This can: every eligible player on the slate as
+                    a dot, the card's five lit. A blob means don't bet much
+                    today, which is a thing the board could never tell you. */}
+                <div style={{ marginTop: 9 }}>
+                  <SlateGaps
+                    players={eligible[market] || []}
+                    market={market}
+                    rungIds={(blk.rungs || []).map((r) => r.player_id)}
+                    onPick={(pid) => open(pid, market)}
+                  />
+                </div>
               </div>
 
               {(blk.rungs || []).map((rung) => {
@@ -557,7 +570,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                   </div>
                 )
               })}
-            </div>
+            </ChartFrame>
           )
         })}
       </div>

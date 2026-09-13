@@ -1,6 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import ChartFrame from './ChartFrame'
 
 // AGAINST THE BAR — every published game as a dot on one axis, with the bar
 // drawn through them.
@@ -28,6 +29,7 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 // scatter with a meaning it doesn't have.
 
 const DOT = 9
+const H_CAP = 1   // marker id for the lower cap tick
 
 // A half-point line (39.5) is cleared by going OVER it; a whole-number bar
 // (1 TD, 12 carries) is cleared by REACHING it. HitRate always hands down a
@@ -105,11 +107,8 @@ export default function AgainstTheBar({
   if (binary) {
     return (
       <div>
-        <div style={{
-          display: 'flex', gap: 3, alignItems: 'stretch', height: 34, padding: 7,
-          borderRadius: 9, border: `1px solid ${C.border}`,
-          background: 'rgba(255,255,255,.02)', overflow: 'hidden',
-        }}>
+        <ChartFrame accent={C.green} live={read.hits > 0} pad="7px">
+        <div style={{ display: 'flex', gap: 3, alignItems: 'stretch', height: 24 }}>
           {games.map((g, i) => {
             const v = Number(g[statKey])
             const hitv = clears(v, bar)
@@ -124,11 +123,12 @@ export default function AgainstTheBar({
                   opacity: hitv ? 1 - age * 0.55 : 0.5,
                   display: 'grid', placeItems: 'center',
                   fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900,
-                  color: hitv ? '#04120d' : 'transparent',
+                  color: hitv ? C.bg : 'transparent',
                 }}>{v > 1 ? v : ''}</div>
             )
           })}
         </div>
+        </ChartFrame>
         <div style={{
           fontSize: 10, color: C.text2, marginTop: 6, lineHeight: 1.6, fontFamily: NUM_FONT,
         }}>
@@ -142,16 +142,23 @@ export default function AgainstTheBar({
 
   return (
     <div>
-      <div style={{
-        position: 'relative', height, borderRadius: 9,
-        border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
-        overflow: 'hidden',
-      }}>
+      <ChartFrame accent={C.green} live={read.hits / read.n >= 0.5} pad="0">
+      <div style={{ position: 'relative', height }}>
         {/* the bar. the only cyan thing in the chart. */}
         <div style={{
           position: 'absolute', left: at(bar), top: 0, bottom: 0, width: 0,
           borderLeft: `1px dashed ${C.cyan}`, zIndex: 2,
+          filter: `drop-shadow(0 0 4px ${C.cyan}70)`,
         }} />
+        {/* cap ticks, so the rule reads as an instrument mark and not a stray
+            border on whatever is behind it */}
+        {[2, H_CAP].map((t) => (
+          <div key={t} style={{
+            position: 'absolute', left: at(bar), top: t === 2 ? 2 : undefined,
+            bottom: t === 2 ? undefined : 2, width: 5, height: 1, zIndex: 3,
+            transform: 'translateX(-50%)', background: C.cyan,
+          }} />
+        ))}
         <div style={{
           position: 'absolute', left: `calc(${at(bar)} + 5px)`, top: 4, zIndex: 3,
           fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, color: C.cyan,
@@ -193,6 +200,7 @@ export default function AgainstTheBar({
           }}>{t >= 100 ? Math.round(t) : t.toFixed(t < 10 ? 1 : 0)}</span>
         ))}
       </div>
+      </ChartFrame>
 
       {/* the verdict. every chart on this site says what it means. */}
       <div style={{

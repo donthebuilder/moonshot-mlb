@@ -39,6 +39,7 @@
 // answerable" — nobody can say what question it answers.
 
 import { readFileSync, readdirSync, statSync } from 'fs'
+import { execSync } from 'child_process'
 import { join } from 'path'
 
 const ROOT = new URL('..', import.meta.url).pathname
@@ -123,13 +124,34 @@ const EXEMPT = new Set([
 //         adding two cells to its stat strip — the budget is a ratchet, so
 //         two new literals had to be paid for, and paying tidied a file that
 //         had been spelling the same amber six times.
+//    801  2026-09-13: the budget is a ratchet on THE CODEBASE, and it was
+//         counting files the codebase does not contain. A clean checkout of
+//         2cd1e43 counts 804; the same tree on disk counted 848, and 42 of
+//         that 44-literal gap was three untracked files — components/tabs/
+//         Results-1.js (22) and components/PickScorecard-1.js (7), stray "-1"
+//         duplicates nobody committed, plus lib/nfl/tdCard.js (13), another
+//         session's work in progress. A ratchet that fails on scratch files
+//         is a ratchet everybody learns to ignore, which is worse than not
+//         having one. TRACKED now filters the walk to what git actually
+//         holds; anything untracked starts counting the moment it is
+//         committed, which is the right moment.
 const HEX_BUDGET = 801
+
+const TRACKED = (() => {
+  try {
+    return new Set(execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' })
+      .split('\n').filter(Boolean))
+  } catch {
+    return null   // not a git checkout (CI tarball): count everything, as before
+  }
+})()
 
 let hexTotal = 0
 const perFile = []
 for (const f of files) {
   const rel = f.slice(ROOT.length).replace(/^\/+/, '')
   if (EXEMPT.has(rel)) continue
+  if (TRACKED && !TRACKED.has(rel)) continue
   const src = readFileSync(f, 'utf8')
   const n = (src.match(/#[0-9a-fA-F]{6}\b/g) || []).length
   if (n) { hexTotal += n; perFile.push([rel, n]) }

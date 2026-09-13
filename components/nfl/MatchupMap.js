@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import ChartFrame from './ChartFrame'
 
 // MatchupMap — his routes on their holes.
 //
@@ -57,10 +58,10 @@ const LANE_WORD = {
 // nothing at all.
 const BANDS = [
   [20, `${C.red}33`, `${C.red}6b`, C.red],
-  [8, `${C.orange}2b`, `${C.orange}57`, C.orange],
+  [8, `${C.orange}2b`, `${C.orange}72`, C.orange],
   [-8, 'rgba(255,255,255,.035)', C.border, C.text3],
-  [-20, `${C.lime}1c`, `${C.lime}42`, C.lime],
-  [-999, `${C.green}26`, `${C.green}57`, C.green],
+  [-20, `${C.lime}30`, `${C.lime}42`, C.lime],
+  [-999, `${C.green}3d`, `${C.green}72`, C.green],
 ]
 function band(leak) {
   if (!Number.isFinite(leak)) return ['rgba(255,255,255,.02)', C.border, C.text3]
@@ -88,7 +89,7 @@ function Zone({ cell, hot, h, compact }) {
         flex: 1, minWidth: 0, height: h, position: 'relative', overflow: 'hidden',
         borderRadius: 11, background: bg,
         border: `${hot ? 1.5 : 1}px solid ${hot ? C.cyan : bd}`,
-        boxShadow: hot ? `0 0 0 3px ${C.cyan}1f` : 'none',
+        boxShadow: hot ? `0 0 0 3px ${C.cyan}33` : 'none',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         opacity: dead ? 0.32 : 1,
       }}
@@ -258,7 +259,7 @@ export default function MatchupMap({
               fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, cursor: 'pointer',
               padding: '4px 10px', borderRadius: 7,
               border: `1px solid ${view === k ? C.green : C.border}`,
-              background: view === k ? `${C.green}18` : 'transparent',
+              background: view === k ? `${C.green}2a` : 'transparent',
               color: view === k ? C.green : C.text3,
             }}>{l}</button>
           ))}
@@ -267,11 +268,13 @@ export default function MatchupMap({
 
       {/* Capped. Let the zones stretch to a 1400px window and a 64px circle
           sits marooned in a 400px cell — the sizing stops reading as sizing. */}
-      <div style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 15,
-        padding: compact ? '13px 13px 11px' : '16px 18px 14px',
-        maxWidth: compact ? 'none' : 820,
-      }}>
+      {/* The map is the oldest real chart on the site and the one the rest
+          were measured against — it wears the shared frame too, so the whole
+          NFL side reads as one instrument panel rather than one good chart
+          and five newcomers. */}
+      <ChartFrame accent={C.green} live={Boolean(model?.spot)}
+        pad={compact ? '13px 13px 11px' : '16px 18px 14px'}
+        style={{ maxWidth: compact ? 'none' : 820, borderRadius: 15 }}>
         {pass ? (
           <>
             {DEPTHS.map((d) => (
@@ -331,12 +334,12 @@ export default function MatchupMap({
             ? `his ${pass ? 'target' : 'carry'} share`
             : 'share of yards they allow'}</Key>
           <Key swatch={`${C.red}4d`}>they leak</Key>
-          <Key swatch={`${C.green}47`}>they lock it down</Key>
+          <Key swatch={`${C.green}5e`}>they lock it down</Key>
           {/* #17: THE SPOT is an outline, so the key says outline. */}
           <Key ring>THE SPOT — outlined, keeps its own leak colour</Key>
           <Key>corner % = their {model.metric} vs league</Key>
         </div>
-      </div>
+      </ChartFrame>
 
       <div style={{
         marginTop: 12, fontSize: compact ? 12.5 : 14, lineHeight: 1.6, color: C.text2,
@@ -385,7 +388,7 @@ function Key({ dot, swatch, ring, children }) {
       }} />}
       {ring && <span style={{
         width: 14, height: 9, borderRadius: 3, background: 'transparent',
-        border: `1.5px solid ${C.cyan}`, boxShadow: `0 0 0 2px ${C.cyan}1f`,
+        border: `1.5px solid ${C.cyan}`, boxShadow: `0 0 0 2px ${C.cyan}33`,
       }} />}
       {children}
     </span>

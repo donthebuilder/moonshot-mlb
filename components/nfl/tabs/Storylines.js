@@ -139,7 +139,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
 
       <style>{`
       .sl{display:flex;flex-direction:column;gap:14px}
-      .sl-hero{position:relative;padding:22px 24px;border:1px solid rgba(0,224,164,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(0,224,164,.14),transparent 36%),radial-gradient(circle at 6% 100%,rgba(45,200,255,.1),transparent 40%),${C.bg2}}
+      .sl-hero{position:relative;padding:22px 24px;border:1px solid rgba(0,245,173,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(0,245,173,.14),transparent 36%),radial-gradient(circle at 6% 100%,rgba(53,205,255,.1),transparent 40%),${C.bg2}}
       .sl-dot{position:absolute;top:24px;left:24px;width:6px;height:6px;border-radius:50%;background:${C.green};animation:slPulse 1.8s ease-in-out infinite}
       .sl-hero small{display:block;margin-left:16px;color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
       .sl-hero h1{margin:7px 0 5px;font-size:clamp(24px,4.2vw,40px);letter-spacing:-.03em}
@@ -150,11 +150,11 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
       .sl-feed{display:flex;flex-direction:column;gap:10px}
       .sl-card{display:block;width:100%;text-align:left;padding:16px 18px 17px;border:1px solid ${C.border};border-left:3px solid ${C.green};border-radius:12px;background:${C.bg2};color:inherit;cursor:pointer}
       .sl-card:hover{border-color:${C.border2};border-left-color:${C.green}}
-      .sl-card.hot{box-shadow:0 0 0 1px ${C.border},0 0 22px -6px rgba(0,224,164,.4)}
+      .sl-card.hot{box-shadow:0 0 0 1px ${C.border},0 0 22px -6px rgba(0,245,173,.4)}
       .sl-card.model{border-left-color:${C.orange}}
       .sl-card.model:hover{border-left-color:${C.orange}}
       .sl-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
-      .sl-kicker{font:900 9.5px/1 ${NUM_FONT};letter-spacing:.08em;text-transform:uppercase;color:${C.green};background:rgba(0,224,164,.12);border:1px solid rgba(0,224,164,.3);border-radius:5px;padding:4px 8px}
+      .sl-kicker{font:900 9.5px/1 ${NUM_FONT};letter-spacing:.08em;text-transform:uppercase;color:${C.green};background:rgba(0,245,173,.12);border:1px solid rgba(0,245,173,.3);border-radius:5px;padding:4px 8px}
       .sl-kicker.model{color:${C.orange};background:rgba(251,146,60,.12);border-color:rgba(251,146,60,.32)}
       .sl-src{font:700 8px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.text3};text-transform:uppercase}
       .sl-headline{font-size:16.5px;line-height:1.4;font-weight:600;margin-bottom:5px}

@@ -129,19 +129,24 @@ export default function ScoreAnatomy({ components, weights, score, marketLabel, 
         </span>
       </div>
 
-      {/* the bar: full width is 100 composite points, the ghost is the rest */}
+      {/* the bar: full width is 100 composite points, the ghost is the rest.
+          Segments carry a top highlight and a hairline divider so the blocks
+          read as stacked material rather than a flat painted strip. */}
       <div style={{
-        display: 'flex', width: '100%', height: 22, borderRadius: 7,
+        display: 'flex', width: '100%', height: 24, borderRadius: 7,
         overflow: 'hidden', background: 'rgba(255,255,255,.05)',
-        border: `1px solid ${C.border}`,
+        border: `1px solid rgba(255,255,255,.12)`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 4px rgba(0,0,0,.45), 0 0 16px -8px ${RAMP[0]}`,
       }}>
         {parts.map((p, i) => (
           <div
             key={p.key}
             title={`${p.label} — ${Math.round(p.pct)}th percentile of his position pool, weighted ${Math.round(p.w * 100)}%, worth ${p.points.toFixed(1)} of ${composite.toFixed(1)}`}
             style={{
-              width: `${p.points}%`, background: tone(i),
-              opacity: 0.93, minWidth: p.points > 0 ? 2 : 0,
+              width: `${p.points}%`, minWidth: p.points > 0 ? 2 : 0,
+              background: `linear-gradient(180deg, ${tone(i)}, ${tone(i)}c4)`,
+              borderRight: i < parts.length - 1 ? '1px solid rgba(0,0,0,.45)' : 'none',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18)',
             }}
           />
         ))}

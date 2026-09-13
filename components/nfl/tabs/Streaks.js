@@ -95,18 +95,18 @@ export default function Streaks({ data, logs, onPlayerClick }) {
 
       <style>{`
       .ts{display:flex;flex-direction:column;gap:12px}
-      .ts-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;border:1px solid rgba(0,224,164,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(0,224,164,.14),transparent 36%),radial-gradient(circle at 6% 100%,rgba(45,200,255,.1),transparent 40%),${C.bg2}}
+      .ts-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;border:1px solid rgba(0,245,173,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(0,245,173,.14),transparent 36%),radial-gradient(circle at 6% 100%,rgba(53,205,255,.1),transparent 40%),${C.bg2}}
       .ts-hero small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
       .ts-hero h1{margin:7px 0 5px;font-size:clamp(26px,4.5vw,44px);letter-spacing:-.04em}
       .ts-hero p{max-width:600px;margin:0;color:${C.text3};font-size:10.5px;line-height:1.5}.ts-hero p b{color:${C.text2}}
       .ts-side{display:flex;gap:6px;flex-shrink:0}
       .ts-side button{padding:10px 14px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2};font:800 10px/1 ${NUM_FONT};cursor:pointer}
-      .ts-side button.on{border-color:${C.green};color:${C.green};background:rgba(0,224,164,.08)}
+      .ts-side button.on{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}
       .ts-controls{display:flex;flex-direction:column;gap:6px}
       .ts-row{display:flex;align-items:center;gap:5px;overflow-x:auto;padding-bottom:2px}
       .ts-row small{color:${C.text3};font:900 8px/1 ${NUM_FONT};letter-spacing:.1em;margin-right:4px;flex-shrink:0}
       .ts-row button{flex:0 0 auto;padding:7px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8.5px/1 ${NUM_FONT};cursor:pointer;white-space:nowrap}
-      .ts-row button.on{border-color:${C.cyan};color:${C.cyan};background:rgba(45,200,255,.08)}
+      .ts-row button.on{border-color:${C.cyan};color:${C.cyan};background:rgba(53,205,255,.08)}
       .ts-list{display:flex;flex-direction:column;gap:5px}
       .ts-item{display:grid;grid-template-columns:22px 1fr 96px 110px 76px 44px 40px;align-items:center;gap:10px;padding:8px 12px;border:1px solid ${C.border};border-radius:11px;background:${C.bg2};color:inherit;text-align:left;cursor:pointer}
       .ts-item:hover{border-color:${C.border2}}

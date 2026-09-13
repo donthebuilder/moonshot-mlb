@@ -9,6 +9,8 @@ import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
 import NflFace from './NflFace'
 import DvpTable, { GROUP } from './DvpTable'
+import DvpDrift from './DvpDrift'
+import ChartFrame from './ChartFrame'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import FollowButton from '../FollowButton'
@@ -253,12 +255,17 @@ function DvpSection({ player, matchup }) {
   return (
     <>
       <Head>{player.opp} DEFENCE VS {player.position} — BY DEPTH ROLE</Head>
-      <div style={{
-        border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden',
-        background: C.bg2,
-      }}>
+      {/* The grid is a measurement too, so it wears the same chrome — the
+          frame means "this is an instrument", and a table of league ranks is
+          exactly that. Game cards are deliberately NOT framed yet: that grid
+          is the next thing being rebuilt and decorating it first would be
+          decorating something about to change. */}
+      <ChartFrame accent={C.cyan} pad="0" style={{ overflow: 'hidden' }}>
         <DvpTable data={matchup} team={player.opp} roles={group}
                   highlight={role} minWidth={340} />
+      </ChartFrame>
+      <div style={{ marginTop: 14 }}>
+        <DvpDrift data={matchup} team={player.opp} roles={group} highlight={role} />
       </div>
       <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
         Rank 1 = allows the most = softest matchup. {matchup.season} season.
@@ -353,14 +360,14 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <button onClick={() => watchlist.toggle(player)}
               aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
               style={{
-                background: watchlist.isPinned(player.player_id) ? `${C.yellow}16` : 'transparent',
+                background: watchlist.isPinned(player.player_id) ? `${C.yellow}26` : 'transparent',
                 border: `1px solid ${watchlist.isPinned(player.player_id) ? C.yellow + '66' : C.border}`,
                 color: watchlist.isPinned(player.player_id) ? C.yellow : C.text3,
                 borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9, fontWeight: 900,
               }}>{watchlist.isPinned(player.player_id) ? '★ SAVED' : '☆ SAVE'}</button>
             {onFullProfile && <button onClick={() => onFullProfile(player)}
               style={{
-                background: `${C.green}12`, border: `1px solid ${C.green}55`, color: C.green,
+                background: `${C.green}20`, border: `1px solid ${C.green}70`, color: C.green,
                 borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9,
                 fontWeight: 900,
               }}>FULL PROFILE →</button>}
@@ -469,7 +476,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {player.carryover && (
           <div style={{
             marginTop: 14, fontSize: 10.5, color: C.text2, lineHeight: 1.6,
-            background: `${C.purple}12`, border: `1px solid ${C.purple}38`,
+            background: `${C.purple}20`, border: `1px solid ${C.purple}4d`,
             borderRadius: 9, padding: '7px 10px',
           }}>
             <b style={{ color: C.purple }}>Carryover</b> — last season&apos;s per-game baseline.

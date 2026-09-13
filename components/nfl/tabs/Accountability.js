@@ -4,6 +4,7 @@ import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { downloadNflPickCard } from '../shareCard'
+import ChartFrame from '../ChartFrame'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -376,10 +377,8 @@ function ScoreBands({ data, results }) {
       </div>
 
       {rows.map((r) => (
-        <div key={r.key} style={{
-          background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11,
-          padding: '9px 12px', marginBottom: 7,
-        }}>
+        <ChartFrame key={r.key} pad="9px 12px"
+          style={{ borderRadius: 11, marginBottom: 7 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11.5, fontWeight: 800, color: r.color }}>{r.label}</span>
             <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>bar {r.bar}</span>
@@ -428,7 +427,7 @@ function ScoreBands({ data, results }) {
               ))}
             </div>
           )}
-        </div>
+        </ChartFrame>
       ))}
     </div>
   )
@@ -487,7 +486,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
         </div>
       )}
       <style>{`
-      .acc-season{margin-bottom:14px;padding:16px 18px;border:1px solid ${C.border};border-radius:14px;background:linear-gradient(160deg,rgba(0,224,164,.07),${C.bg2} 55%)}
+      .acc-season{margin-bottom:14px;padding:16px 18px;border:1px solid ${C.border};border-radius:14px;background:linear-gradient(160deg,rgba(0,245,173,.07),${C.bg2} 55%)}
       .acc-season-head small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
       .acc-season-head h2{margin:6px 0 4px;font:900 clamp(22px,4vw,34px)/1 ${NUM_FONT};letter-spacing:-.03em}
       .acc-season-head p{margin:0;color:${C.text3};font-size:10px;line-height:1.5;max-width:620px}
@@ -500,7 +499,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
       .acc-season-picker{display:flex;gap:5px;overflow-x:auto;margin-top:12px;padding-bottom:2px}
       .acc-season-picker button{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:7px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg};color:${C.text3};cursor:pointer;font-family:${NUM_FONT}}
       .acc-season-picker button b{font-size:9px;color:${C.text2}}.acc-season-picker button span{font-size:8px}
-      .acc-season-picker button.on{border-color:${C.green};background:rgba(0,224,164,.08)}.acc-season-picker button.on b{color:${C.green}}
+      .acc-season-picker button.on{border-color:${C.green};background:rgba(0,245,173,.08)}.acc-season-picker button.on b{color:${C.green}}
       @media(max-width:560px){.acc-season-row{grid-template-columns:repeat(2,1fr)}}
       `}</style>
     </section>
@@ -625,8 +624,8 @@ export default function Accountability({ data, results: latest, onPlayerClick })
           every paragraph on the site the moment they went global -- so they
           are qualified to the hero they were always meant for. */}
       <style jsx global>{`
-        .receiptHero{position:relative;overflow:hidden;margin-bottom:12px;padding:20px;border:1px solid ${C.green}45;border-radius:17px;background:linear-gradient(135deg,#071b17 0%,${C.bg2} 46%,#07121c 100%)}
-        .receiptGlow{position:absolute;right:-80px;top:-130px;width:330px;height:330px;border-radius:50%;background:${C.green}16;filter:blur(12px);pointer-events:none}
+        .receiptHero{position:relative;overflow:hidden;margin-bottom:12px;padding:20px;border:1px solid ${C.green}5c;border-radius:17px;background:linear-gradient(135deg,#071b17 0%,${C.bg2} 46%,#07121c 100%)}
+        .receiptGlow{position:absolute;right:-80px;top:-130px;width:330px;height:330px;border-radius:50%;background:${C.green}26;filter:blur(12px);pointer-events:none}
         .receiptTop{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
         .receiptEyebrow{font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.16em;color:${C.green};margin-bottom:7px}
         .receiptHero h1{font-size:clamp(24px,4vw,40px);line-height:.98;letter-spacing:-.045em;margin:0;color:${C.text};max-width:620px}
@@ -634,7 +633,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         .receiptStamp{min-width:142px;text-align:right;border-right:3px solid ${C.green};padding-right:10px}
         .receiptStamp span,.receiptKpis span{display:block;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.1em;color:${C.text3}}
         .receiptStamp strong{display:block;font-size:11px;color:${C.text2};margin-top:4px}
-        .receiptStamp em{display:inline-block;margin-top:5px;padding:2px 6px;border-radius:4px;background:${C.yellow}1f;color:${C.yellow};font-family:${NUM_FONT};font-size:8px;font-style:normal;font-weight:900}
+        .receiptStamp em{display:inline-block;margin-top:5px;padding:2px 6px;border-radius:4px;background:${C.yellow}33;color:${C.yellow};font-family:${NUM_FONT};font-size:8px;font-style:normal;font-weight:900}
         .receiptKpis{position:relative;display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:8px;margin-top:18px}
         .receiptKpis>div{min-width:0;padding:10px 11px;border:1px solid ${C.border};border-radius:10px;background:#050b0ee0}
         .receiptKpis strong{display:block;margin-top:4px;font-family:${NUM_FONT};font-size:22px;line-height:1;color:${C.text}}

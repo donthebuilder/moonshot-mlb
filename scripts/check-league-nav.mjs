@@ -17,8 +17,16 @@
 //   · each passes an `active` key the component actually knows about, since a
 //     typo there silently makes the current page a link to itself and leaves
 //     no tab marked current;
-//   · each passes `role`, without which the commissioner gate is always shut
+//   · each feeds the commissioner gate, without which Settings is always shut
 //     and the control room becomes unreachable from that page.
+//
+// 2026-09-13: this last one was checking for a prop that no longer exists. The
+// gate moved off membership.role onto fantasy_leagues.commissioner_id on 09-12
+// (OPEN-ITEMS #2), so LeagueNav takes `isCommissioner` and not one page passes
+// `role` any more -- all eight were correct and all eight failed, which had
+// SHIP.sh red for every change in the repo regardless of what it touched. A
+// guard that fails on correct code teaches people to skip the guard. It now
+// looks for whichever prop actually feeds the gate.
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -54,7 +62,7 @@ for (const [dir, key] of Object.entries(pages)) {
   if (!active) { console.log(`MISS ${key}: <LeagueNav> has no active=`); bad++; continue }
   if (!KEYS.has(active)) { console.log(`MISS ${key}: active="${active}" is not a destination LeagueNav knows`); bad++; continue }
   if (active !== key) { console.log(`MISS ${key}: marks "${active}" as the current tab`); bad++; continue }
-  if (!/role=\{/.test(tag[0])) { console.log(`MISS ${key}: <LeagueNav> gets no role -- Settings can never show`); bad++ }
+  if (!/isCommissioner=\{/.test(tag[0])) { console.log(`MISS ${key}: <LeagueNav> gets no isCommissioner -- Settings can never show`); bad++ }
 }
 console.log(bad
   ? `\n${bad} league nav(s) out of step - a tab is unreachable from somewhere`

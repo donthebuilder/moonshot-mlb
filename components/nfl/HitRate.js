@@ -84,7 +84,7 @@ export default function HitRate({ log, market, defaultBar }) {
               fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, cursor: 'pointer',
               padding: '2px 7px', borderRadius: 6,
               border: `1px solid ${l === line ? C.green : C.border}`,
-              background: l === line ? `${C.green}1c` : 'transparent',
+              background: l === line ? `${C.green}30` : 'transparent',
               color: l === line ? C.green : C.text3,
             }}>{l}</button>
           ))}
@@ -94,7 +94,7 @@ export default function HitRate({ log, market, defaultBar }) {
               fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, cursor: 'pointer',
               padding: '2px 7px', borderRadius: 6,
               border: `1px solid ${n === span ? C.cyan : C.border}`,
-              background: n === span ? `${C.cyan}1c` : 'transparent',
+              background: n === span ? `${C.cyan}30` : 'transparent',
               color: n === span ? C.cyan : C.text3,
             }}>L{n}</button>
           ))}

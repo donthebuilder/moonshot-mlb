@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
+import ChartFrame from '../ChartFrame'
 
 // Report Card — what the models actually did, before a single 2026 pick.
 //
@@ -123,7 +124,7 @@ export default function Report({ report }) {
 
       {tuned && (
         <div style={{
-          background: `${C.yellow}12`, border: `1px solid ${C.yellow}3d`, borderRadius: 9,
+          background: `${C.yellow}20`, border: `1px solid ${C.yellow}3d`, borderRadius: 9,
           padding: '8px 12px', marginBottom: 10, fontSize: 11, color: C.text2, lineHeight: 1.6,
         }}>
           <b style={{ color: C.yellow }}>This is the season the weights were fit on.</b>{' '}
@@ -132,9 +133,7 @@ export default function Report({ report }) {
         </div>
       )}
 
-      <div style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, overflow: 'hidden',
-      }}>
+      <ChartFrame pad="0" style={{ borderRadius: 11, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,.03)' }}>
@@ -150,11 +149,11 @@ export default function Report({ report }) {
             {Object.entries(blk).map(([k, m]) => <Row key={k} k={k} m={m} tuned={tuned} />)}
           </tbody>
         </table>
-      </div>
+      </ChartFrame>
 
       {failing.length > 0 && (
         <div style={{
-          background: `${C.red}10`, border: `1px solid ${C.red}38`, borderRadius: 9,
+          background: `${C.red}10`, border: `1px solid ${C.red}4d`, borderRadius: 9,
           padding: '9px 12px', marginTop: 10, fontSize: 11, color: C.text2, lineHeight: 1.6,
         }}>
           <b style={{ color: C.red }}>Not beating the dumb model in {season}:</b>{' '}
@@ -174,16 +173,14 @@ export default function Report({ report }) {
           </button>
         ))}
       </div>
-      <div style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '12px 14px',
-      }}>
+      <ChartFrame pad="12px 14px" style={{ borderRadius: 11 }}>
         <div style={{ fontSize: 11, color: C.text3, marginBottom: 6, lineHeight: 1.6 }}>
           D10 is the highest-scoring tenth of the pool, D1 the lowest. A model can rank
           well and still not beat naive form on a top-15 slice — this is the chart that
           shows whether the <i>ordering</i> is real.
         </div>
         <Deciles m={blk[decMarket] || {}} />
-      </div>
+      </ChartFrame>
     </div>
   )
 }

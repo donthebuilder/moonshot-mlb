@@ -64,11 +64,11 @@ export default function GamelogFilterBar({ rows, fields, children }) {
         .glf-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
         .glf-build select,.glf-build input{height:28px;padding:0 7px;border:1px solid ${C.border};border-radius:7px;background:#0b0b0d;color:${C.text2};font-size:9.5px;font-family:${NUM_FONT}}
         .glf-build input{width:64px}
-        .glf-build button{height:28px;padding:0 10px;border:1px solid ${C.green}66;border-radius:7px;background:${C.green}14;color:${C.green};font:900 9px/1 ${NUM_FONT};letter-spacing:.03em;cursor:pointer;white-space:nowrap}
+        .glf-build button{height:28px;padding:0 10px;border:1px solid ${C.green}66;border-radius:7px;background:${C.green}24;color:${C.green};font:900 9px/1 ${NUM_FONT};letter-spacing:.03em;cursor:pointer;white-space:nowrap}
         .glf-build button:disabled{opacity:.35;cursor:default}
         .glf-active{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
         .glf-chips{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-        .glf-chip{padding:3px 8px;border:1px solid ${C.cyan}55;border-radius:999px;background:${C.cyan}16;color:${C.cyan};font:800 9px/1 ${NUM_FONT};cursor:pointer}
+        .glf-chip{padding:3px 8px;border:1px solid ${C.cyan}70;border-radius:999px;background:${C.cyan}26;color:${C.cyan};font:800 9px/1 ${NUM_FONT};cursor:pointer}
         .glf-clear{background:transparent;border:none;padding:0;color:${C.text3};font:800 9px/1 ${NUM_FONT};text-decoration:underline;cursor:pointer}
         .glf-rate{color:${C.text3};font:800 8.5px/1 ${NUM_FONT};white-space:nowrap}
         @media(max-width:560px){.glf-build select,.glf-build input,.glf-build button{height:30px;font-size:10.5px}}

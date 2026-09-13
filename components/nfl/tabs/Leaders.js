@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
+import ChartFrame from '../ChartFrame'
 
 // 🏆 LEADERS — who is actually first, per category.
 //
@@ -59,9 +60,8 @@ function Card({ col, rows, open, onToggle, onPlayerClick }) {
   const shown = open ? rows.slice(0, TOP_N) : rows.slice(0, PREVIEW_N)
   const max = Math.max(...rows.slice(0, TOP_N).map((r) => Math.abs(r.v)), 0) || 1
   return (
-    <section style={{
-      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
-      padding: '11px 12px 9px', display: 'flex', flexDirection: 'column',
+    <ChartFrame pad="11px 12px 9px" style={{
+      borderRadius: 12, display: 'flex', flexDirection: 'column',
     }}>
       <header style={{ marginBottom: 8 }}>
         <div style={{
@@ -93,8 +93,8 @@ function Card({ col, rows, open, onToggle, onPlayerClick }) {
                   width: `${Math.max(3, (Math.abs(r.v) / max) * 100)}%`,
                   borderRadius: '0 5px 5px 0',
                   background: i === 0
-                    ? `linear-gradient(90deg, ${C.green}59, ${C.green}22)`
-                    : `linear-gradient(90deg, ${C.green}30, ${C.green}0d)`,
+                    ? `linear-gradient(90deg, ${C.green}75, ${C.green}38)`
+                    : `linear-gradient(90deg, ${C.green}30, ${C.green}18)`,
                 }} />
                 <span style={{
                   position: 'relative', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,
@@ -134,7 +134,7 @@ function Card({ col, rows, open, onToggle, onPlayerClick }) {
           {open ? 'show less' : `show top ${Math.min(TOP_N, rows.length)}`}
         </button>
       )}
-    </section>
+    </ChartFrame>
   )
 }
 
@@ -192,7 +192,7 @@ export default function Leaders({ data, onPlayerClick }) {
             fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, cursor: 'pointer',
             padding: '4px 11px', borderRadius: 8,
             border: `1px solid ${pos === k ? C.green : C.border}`,
-            background: pos === k ? `${C.green}18` : 'transparent',
+            background: pos === k ? `${C.green}2a` : 'transparent',
             color: pos === k ? C.green : C.text3,
           }}>{k}</button>
         ))}

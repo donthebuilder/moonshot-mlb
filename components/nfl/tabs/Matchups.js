@@ -4,6 +4,8 @@ import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import MatchupMap from '../MatchupMap'
 import DvpTable from '../DvpTable'
+import DvpDrift from '../DvpDrift'
+import ChartFrame from '../ChartFrame'
 import { softRole, ordinal, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 
@@ -91,11 +93,17 @@ function Profile({ data, team }) {
   )
 }
 
+// 2026-09-13: the panel chrome is the shared one now
+// (components/nfl/ChartFrame.js). It started as a frame for the five new
+// charts, and Donovan's call was to take it to the site — so the measurement
+// grid, the edge ticks and the recessed rails are what a TUDDY panel looks
+// like, not what a chart looks like. The bloom stays off on plain panels: it
+// means "this one is saying something", and a section header is not saying
+// anything.
 function Section({ title, sub, children, style }) {
   return (
-    <div style={{
-      background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
-      overflow: 'hidden', marginTop: 12, ...style,
+    <ChartFrame pad="0" style={{
+      borderRadius: 12, overflow: 'hidden', marginTop: 12, ...style,
     }}>
       <div style={{
         padding: '10px 14px', borderBottom: `1px solid ${C.border}`,
@@ -108,7 +116,7 @@ function Section({ title, sub, children, style }) {
         {sub && <span style={{ fontSize: 10.5, color: C.text3 }}>{sub}</span>}
       </div>
       {children}
-    </div>
+    </ChartFrame>
   )
 }
 
@@ -118,7 +126,7 @@ function teamStyle(active) {
     fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.06em',
     padding: '6px 10px', borderRadius: 7, cursor: 'pointer', whiteSpace: 'nowrap',
     border: `1px solid ${active ? C.green : C.border}`,
-    background: active ? `${C.green}1f` : 'rgba(255,255,255,.03)',
+    background: active ? `${C.green}33` : 'rgba(255,255,255,.03)',
     color: active ? C.green : C.text2,
   }
 }
@@ -256,7 +264,7 @@ export default function Matchups({ matchup, data }) {
         {soft && (
           <div style={{
             margin: '10px 14px 0', padding: '9px 12px', borderLeft: `2px solid ${C.cyan}`,
-            background: 'rgba(45,200,255,.06)', borderRadius: '0 8px 8px 0',
+            background: 'rgba(53,205,255,.06)', borderRadius: '0 8px 8px 0',
             fontSize: 12.5, lineHeight: 1.6, color: C.text2,
           }}>
             <span className="tuddy-live-dot-sm" aria-hidden="true" />
@@ -278,8 +286,16 @@ export default function Matchups({ matchup, data }) {
             sack-per-pressure rate — a real finisher, not just a name on the roster.
           </div>
         )}
-        <div style={{ paddingTop: 10 }}>
-          <DvpTable data={matchup} team={active} win={win} highlight={role} />
+        <div style={{ padding: '10px 14px 0' }}>
+          <ChartFrame accent={C.cyan} pad="0" style={{ overflow: 'hidden' }}>
+            <DvpTable data={matchup} team={active} win={win} highlight={role} />
+          </ChartFrame>
+        </div>
+        {/* The grid says where the defence is soft; this says where it is
+            GETTING soft. Season averages cannot tell those apart, and the
+            second one is the reason to bet a Week 12 tight end. */}
+        <div style={{ padding: '14px 14px 4px' }}>
+          <DvpDrift data={matchup} team={active} highlight={role} />
         </div>
         {picked && !role && (
           <div style={{ fontSize: 10, color: C.text3, padding: '8px 14px 12px' }}>
