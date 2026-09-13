@@ -21,7 +21,7 @@ import LiveWire from '../LiveWire'
 // NearMisses is no longer mounted here (2026-09-03) — the component still
 // exists and is still imported by the pages that use it; only this page's
 // mount was removed.
-import ProjectedOutput, { slateProjHr } from '../ProjectedOutput'
+import ProjectedOutput from '../ProjectedOutput'
 import { groupPitchers, groupGames } from '../../lib/data'
 import { airVerdict } from '../../lib/conditions'
 import { DIV_FIELD } from '../../lib/scales'
@@ -712,7 +712,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   if (!players.length) return <Empty text="No players yet." />
 
-  const lit = (k) => rows.filter((r) => r[k]).length
+  // lit(k) — counted ★weak/◆aligned/▲edge for the stat-tile row — retired
+  // 2026-09-13 along with that row (see PanelTitle below). Weak and
+  // Aligned still print their own counts on their own fold labels.
 
   // ── SECTION ORDER (2026-08-08 rearrange): live first when live ──────────
   // Pre-game the page reads top-down as a plan: how to read it → the picks →
@@ -792,9 +794,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // Scoreboard already receives the flat `players` list this page is built
   // from and grouping it is a one-line memo, not new data.
   const projGames = useMemo(() => groupGames(players), [players])
-  const projHr = useMemo(() => slateProjHr(players), [players])
   const secProjected = accent(C.cyan,
-    <Fold key="projected" label={`📈 Projected output — ${projHr != null ? `${projHr.toFixed(1)} HR projected slate-wide` : "the slate's expected count"}`}>
+    <Fold key="projected" label="📈 Projected output">
       <ProjectedOutput games={projGames} players={players} watchIds={watchIds} />
     </Fold>
   )
@@ -889,7 +890,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       : <Fold key="gone" label={`💥 Gone yard (${goneYard.length}) — tonight's homers vs where the board had them`}>{goneTable}</Fold>
   )
   const secWeak = weakSpots.length > 0 && accent(C.yellow,
-    <Fold key="weak" label={`★ Weak spots (${weakSpots.length}) — the arms with reachable soft spots tonight`}>
+    <Fold key="weak" label="★ Weak spots">
       <Tracker
         title="★ Weak spots"
         count={weakSpots.length}
@@ -957,13 +958,19 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // centerpiece shows up before Near Misses' chart rather than after it —
   // that ordering, not the ledger removal above, is what was actually
   // burying it.
+  // ── PULSE LEADS, PROJECTED TRAILS (2026-09-13, fourth flow pass) ─────────
+  // Donovan, pointing right at "Since 09-11": "move to top rail." And at
+  // "Projected output": "put this at bottom of page." Two explicit,
+  // specific placements this time, not a general "flow better" — so this
+  // pass moves exactly those two and leaves the rest of the running order
+  // (and the reasoning above it) alone.
   const order = liveNow
     // Live — the lead is what just happened.
-    ? [secWire, secGone, secOff, secProjected, secStart, secPulse, secWeak]
+    ? [secPulse, secWire, secGone, secOff, secStart, secWeak, secProjected]
     // Pre-game — the lead is the plan. With The Four gone, StartHere leads
     // again (it is the orientation panel and it self-dismisses), then what the
     // bot changed its mind about, then the men it never named.
-    : [secStart, secPulse, secOff, secProjected, secWire, secGone, secWeak]
+    : [secPulse, secStart, secOff, secWire, secGone, secWeak, secProjected]
 
   return (
     <div>
@@ -981,45 +988,21 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
                 ◆ Aligned only ({alignedCount})
               </button>
             )}
-            {/* The Park column below gives you the raw factor per hitter; the
-                ranked board with weather, wind, rain and first pitch lives on
-                Power. A link, not a second copy of the board — this page
-                already carries seven panels. */}
-            {onNavigate && (
-              <button
-                onClick={() => onNavigate('longest')}
-                title="Tonight's parks ranked — park factor plus weather, wind, rain risk and first pitch, on the Power tab"
-                style={btnStyle(C.orange, false)}
-              >
-                🏟 Parks ranked →
-              </button>
-            )}
+            {/* 🏟 PARKS RANKED BUTTON, REMOVED (2026-09-13). Donovan marked it
+                for removal directly on a screenshot. Parks ranked is still
+                one tap away on the Power tab; this page just no longer
+                links to it from here. */}
           </div>
         }
       />
 
-      {/* A scan, not a paragraph. These are the five denominated facts people
-          use to orient themselves; context remains one disclosure below. */}
-      <div className="rundown-facts" style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(82px, 1fr))',
-        gap: 6, margin: '0 0 6px', maxWidth: 760,
-      }}>
-        {[
-          ['Games', airRead.games, C.blue, 'Games represented on tonight’s board'],
-          ['★ Weak', lit('weak'), C.yellow, 'Hitters in a weak lineup spot against tonight’s arm'],
-          ['◆ Aligned', lit('aligned'), C.purple, 'Weak spot, pitch match and recent contact quality agree'],
-          ['▲ Edge', lit('edge'), C.cyan, 'Hitters batting from the side this pitcher is weakest against'],
-          ['HR tonight', goneYard.length, C.green, 'Home runs already hit by hitters on this board'],
-        ].map(([label, value, color, title]) => (
-          <div key={label} title={title} style={{
-            padding: '6px 8px', borderRadius: 8, minWidth: 0,
-            background: `${color}0d`, border: `1px solid ${color}30`,
-          }}>
-            <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{label}</div>
-            <div style={{ marginTop: 1, fontSize: 14, color, fontFamily: NUM_FONT, fontWeight: 900 }}>{value}</div>
-          </div>
-        ))}
-      </div>
+      {/* ── THE FIVE STAT TILES, REMOVED (2026-09-13) ─────────────────────
+          Donovan marked this row for removal directly on a screenshot —
+          Games / ★ Weak / ◆ Aligned / ▲ Edge / HR tonight. Same pass also
+          dropped the count/subtitle off Weak spots' and Projected output's
+          own fold labels below, so those numbers aren't printed a second
+          time anywhere on this page either now — Aligned's count still
+          shows on its own button, up in PanelTitle. */}
       <WhatThis label="slate context" maxWidth={760}>
         {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
         {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
