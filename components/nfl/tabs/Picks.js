@@ -10,6 +10,7 @@ import {
   CONVICTION, slateKey, slotKey, isLocked,
   getPicks, savePick, setConviction, clearPick,
   gradeSlate, recordSlate, ledgerTotals, exportStore, importStore, clearAll,
+  wilson95, separated,
 } from '../../../lib/nfl/myPicks'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { AnatomyStrip } from '../ScoreAnatomy'
@@ -206,6 +207,13 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
   }
 
   const edge = totals.n ? totals.minePct - totals.botPct : null
+  // A gap between two rates measured on the same handful of rungs is not an
+  // edge until the two intervals stop overlapping.
+  const edgeReal = totals.n ? separated(totals.mineWon, totals.botWon, totals.n) : false
+  const range = (w, n) => {
+    const ci = wilson95(w, n)
+    return ci ? `${Math.round(ci.lo)}–${Math.round(ci.hi)}%` : ''
+  }
   const allRungs = Object.entries(card).flatMap(([market, blk]) => (
     (blk.rungs || []).map((rung) => ({ ...rung, market }))
   ))
@@ -260,13 +268,27 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                       sub={`${totals.n} rung${totals.n === 1 ? '' : 's'} contested`}
                       color={totals.w > totals.l ? C.green : totals.w < totals.l ? C.red : C.text} />
                 <Stat label="You" value={pctTxt(totals.minePct)}
-                      sub={`${totals.mineWon}/${totals.n}`} color={C.green} />
+                      sub={`${totals.mineWon}/${totals.n} · could be ${range(totals.mineWon, totals.n)}`}
+                      color={C.green} />
                 <Stat label="Bot, same rungs" value={pctTxt(totals.botPct)}
-                      sub={`${totals.botWon}/${totals.n}`} color={C.purple} />
+                      sub={`${totals.botWon}/${totals.n} · could be ${range(totals.botWon, totals.n)}`}
+                      color={C.purple} />
                 {edge != null && (
-                  <Stat label="Your edge" value={`${edge > 0 ? '+' : ''}${edge.toFixed(1)}pp`}
-                        color={edge > 0 ? C.green : edge < 0 ? C.red : C.text3} />
+                  <Stat label="Your edge"
+                        value={`${edge > 0 ? '+' : ''}${edge.toFixed(1)}pp`}
+                        sub={edgeReal ? 'the two ranges do not overlap' : 'inside the noise so far'}
+                        color={!edgeReal ? C.text3 : edge > 0 ? C.green : C.red} />
                 )}
+              </div>
+            )}
+
+            {/* Said once, in words, under the row that could otherwise be read
+                as a verdict. */}
+            {totals.n > 0 && !edgeReal && (
+              <div style={{ fontSize: 10.5, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+                {totals.n} contested rung{totals.n === 1 ? '' : 's'} is not a record yet —
+                both ranges above still overlap, so neither of you has out-picked the other.
+                They come apart somewhere around a hundred rungs, not ten.
               </div>
             )}
 

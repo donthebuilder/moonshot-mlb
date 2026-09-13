@@ -24,6 +24,7 @@ import { lineFor, marketValue } from '../../../lib/nfl/liveSlate'
 import { nextKickoff } from '../../../lib/nfl/liveMerge'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useFollowing } from '../../../lib/dash/follow'
+import SlateRibbon from '../SlateRibbon'
 
 const MARKET_SHORT = { TD: 'TD', REC_YDS: 'REC YDS', REC: 'REC', RUSH_YDS: 'RUSH YDS', RUSH_ATT: 'CARRIES', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK PTS' }
 const short = (m) => MARKET_SHORT[m] || String(m || '').replace('_', ' ')
@@ -161,6 +162,9 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
         </div>
       </section>
 
+      {/* The clock first, then the tiles. The ribbon answers when and how
+          exposed; the tiles answer what the score is. */}
+      {games.length > 0 && <SlateRibbon games={games} picks={picks} onGame={undefined} />}
       {games.length ? <Scoreboard games={games} /> : <div className="tl-empty">No games on the slate yet.</div>}
 
       <section>
