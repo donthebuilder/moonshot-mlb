@@ -22,8 +22,10 @@ import { slateProjHr } from '../ProjectedOutput'
 import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown, useAutoScroll } from '../../lib/headlines'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
 import { btnStyle } from '../ui'
+import { PillRow } from '../Filters'
 import Scoreboard from './Scoreboard'
 import Boxes from './Boxes'
+import AtThePlate from './AtThePlate'
 import MoneyAnswer from '../MoneyAnswer'
 import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'
@@ -186,8 +188,24 @@ function Stat({ label, value, sub, col = C.text, title }) {
 // #tab=boxes) can open Home on the right view once routing maps them here,
 // and it beats the remembered view because a link the user just clicked is a
 // stronger signal than what he looked at last time.
+//
+// ── A FOURTH VIEW: AT THE PLATE (2026-09-13) ────────────────────────────────
+// Donovan: "the whole live tab needs to be fixed its missing the at the
+// plate ... I want to move it from the slate section to the live section
+// considering it's the live updates." AtThePlate (the pitcher-toggle, the
+// live timeline, the zone map) was fully built but mounted on a Dashboard
+// tab key ('live') that lib/routes.js always aliases away from before it
+// can render — it was permanently dead code. It belongs here, not on Slate
+// (Games.js): Slate answers "what's the matchup," this answers "what's
+// happening right now," which is exactly this tab's job. Dashboard now opens
+// this view by default for the "Live" nav button (see the `scoreboard` alias
+// there), so The board — the old default — is still one pill away, not gone.
+// Games.js's own "🔴 Live" mode is retired in the same change: it rendered
+// the same grid as Default in every way but its button state, so nothing of
+// value was sitting behind it.
 const HOME_VIEWS = [
   { key: 'tonight', label: 'Tonight' },
+  { key: 'live', label: 'At the plate' },
   { key: 'board', label: 'The board' },
   { key: 'boxes', label: 'Box scores' },
 ]
@@ -672,19 +690,34 @@ export default function Home({
           still land on the right view. The pills are reached from the Boards
           group's existing row instead, so nothing became unreachable and no new
           row was created to replace this one. Only when a deep link put us on a
-          sub-view does a single way back appear, below. */}
+          sub-view does a single way back appear, below.
+          2026-09-13: now that a sub-view has a sibling worth reaching directly
+          — At the plate, The board, Box scores are all "what's happening
+          right now" answers — the lone "← Home" button grew into a pill row
+          so you can jump straight from one to another instead of bouncing
+          through Tonight. Still only shows once you've left Tonight, so the
+          front page stays exactly as bare as Donovan asked for. */}
       {view !== 'tonight' && (
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={() => pickView('tonight')} style={btnStyle(C.orange, false)}>
             ← Home
           </button>
+          <PillRow
+            value={view}
+            options={HOME_VIEWS.filter((v) => v.key !== 'tonight')}
+            onChange={pickView}
+          />
         </div>
       )}
 
       {/* The board runs on the globally-filtered list when Dashboard provides
           it; Boxes takes the full slate (allPlayers), same as its old mount.
-          Both are mounted unmodified — they carry their own headers, fetches
-          and empty states. */}
+          At the plate takes the full slate too — it does its own watching for
+          who's actually due up. All three are mounted unmodified — they carry
+          their own headers, fetches and empty states. */}
+      {view === 'live' && (
+        <AtThePlate players={players} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={onPlayerClick} />
+      )}
       {view === 'board' && (
         <Scoreboard
           players={filteredPlayers ?? players} mode={mode} slateDate={slateDate}

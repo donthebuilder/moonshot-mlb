@@ -137,20 +137,57 @@ function gamesOf(players) {
     .sort((a, b) => (a.time && b.time ? new Date(a.time) - new Date(b.time) : 0))
 }
 
+// ── STARTING PITCHER (2026-09-13) ───────────────────────────────────────────
+// Donovan: "add pitchers as a toggle or a filter... just like you can filter
+// by game, [let me] filter by pitcher too." `pitcher_name` is the arm the
+// hitter on that row actually faces — carried on every batter row already
+// (verified: lib/gameSim.js's own comment on the field, and it's what the
+// search box here already matches against). One row per starter, same
+// FULL-pool-not-filtered-pool rule as gamesOf.
+//
+// A DROPDOWN, not chips: a full slate runs 20-30 starters, well past what a
+// wrapping chip row reads well at, and Donovan said exactly this about the
+// Pitchers tab's own game/arm selects — "i like how they have drop down
+// menus, it saves space in some situations." Single-select, matching those.
+function pitchersOf(players) {
+  const by = new Map()
+  for (const p of players) {
+    const name = clean(p?.pitcher_name, '')
+    if (!name) continue
+    if (!by.has(name)) by.set(name, { name, team: clean(p?.pitcher_team, ''), time: p?.game_time || null })
+  }
+  return [...by.values()]
+    .sort((a, b) => (a.time && b.time ? new Date(a.time) - new Date(b.time) : 0) || a.name.localeCompare(b.name))
+}
+
 // scoreType: one of SCORE_FOR_TYPE's keys, or null/undefined when the board
 // open isn't a single-score ranking (the weak-spot / aligned / matchup-edge
 // signal sections) — the Score slider simply doesn't render in that case
 // rather than guessing which of several scores it should mean.
 export function useBoardFilter(players, scoreType = null) {
-  const [bandStat, setBandStatRaw] = useState('hrw')
-  const [hrwMin, setHrwMin] = useState(0)
-  const [hrwMax, setHrwMax] = useState(100)
-  // Switching the lens resets the thumbs to that stat's full range — a 60–100
-  // HRW band means nothing in Brl% units.
-  const setBandStat = (k) => {
-    const s = BAND_STATS.find((x) => x.key === k) || BAND_STATS[0]
-    setBandStatRaw(s.key); setHrwMin(s.min); setHrwMax(s.max)
+  // ── MULTI-BAND (2026-09-13) ───────────────────────────────────────────────
+  // Donovan: "being able to band different filters." One band-stat at a time
+  // (HRW *or* ISO *or* HH%, never together) meant picking a lens instead of
+  // stacking a real requirement. Bands are now a list: each active stat gets
+  // its own pair of thumbs, and a player clears the filter only if he's
+  // inside EVERY active band's range at once (ISO >= .220 AND HH% >= 45%,
+  // not either/or) — an AND across bands, same as the existing "match ALL"
+  // mode already does for the quick-filter chips below. Nothing outside this
+  // file reads the old bandStat/hrwMin/hrwMax fields (checked: BoardFilters
+  // is always handed the opaque `state` object, never destructured for these
+  // by RankedBoard.js/MyPicks.js/Shortlist.js), so this is a contained
+  // change — no other file needed touching for this half of item 11-A.
+  const [bands, setBands] = useState([]) // [{ key, min, max }]
+  const toggleBand = (key) => {
+    const s = BAND_STATS.find((x) => x.key === key)
+    if (!s) return
+    setBands((bs) => (bs.some((b) => b.key === key)
+      ? bs.filter((b) => b.key !== key)
+      : [...bs, { key, min: s.min, max: s.max }]))
   }
+  const removeBand = (key) => setBands((bs) => bs.filter((b) => b.key !== key))
+  const setBandRange = (key, min, max) =>
+    setBands((bs) => bs.map((b) => (b.key === key ? { ...b, min, max } : b)))
   const [scoreMin, setScoreMin] = useState(0)
   const [scoreMax, setScoreMax] = useState(100)
   const [cats, setCats] = useState([])
@@ -161,16 +198,21 @@ export function useBoardFilter(players, scoreType = null) {
   const [query, setQuery] = useState('')
   const [gameSel, setGameSel] = useState([])       // selected game_pks, [] = all
   const [timeWindow, setTimeWindow] = useState('all')
+  const [pitcherSel, setPitcherSel] = useState('all') // 'all' or a pitcher_name
 
   const games = useMemo(() => gamesOf(players), [players])
+  const pitchers = useMemo(() => pitchersOf(players), [players])
   const scoreDef = scoreType ? SCORE_FOR_TYPE[scoreType] : null
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
-    const stat = BAND_STATS.find((x) => x.key === bandStat) || BAND_STATS[0]
     return players.filter((p) => {
-      const v = stat.get(p)
-      if (v < hrwMin || v > hrwMax) return false
+      for (const b of bands) {
+        const s = BAND_STATS.find((x) => x.key === b.key)
+        if (!s) continue
+        const v = s.get(p)
+        if (v < b.min || v > b.max) return false
+      }
       if (scoreDef && (scoreMin > 0 || scoreMax < 100)) {
         const sv = scoreDef.get(p)
         if (sv < scoreMin || sv > scoreMax) return false
@@ -179,6 +221,7 @@ export function useBoardFilter(players, scoreType = null) {
       if (minEV > 0 && n(p?.recent_ev, 0) < minEV) return false
       if (minPA > 0 && n(p?.season_pa, 0) < minPA) return false
       if (gameSel.length && !gameSel.includes(clean(p?.game_pk, ''))) return false
+      if (pitcherSel !== 'all' && clean(p?.pitcher_name, '') !== pitcherSel) return false
       if (timeWindow !== 'all' && !inWindow(gameHour(p), timeWindow)) return false
       if (cats.length) {
         const tests = CATEGORIES.filter((c) => cats.includes(c.key))
@@ -190,20 +233,18 @@ export function useBoardFilter(players, scoreType = null) {
       if (q && !`${nameOf(p)} ${teamOf(p)} ${oppOf(p)} ${clean(p?.pitcher_name, '')}`.toLowerCase().includes(q)) return false
       return true
     })
-  }, [players, bandStat, hrwMin, hrwMax, scoreDef, scoreMin, scoreMax, cats, catMode, hand, minEV, minPA, query, gameSel, timeWindow])
+  }, [players, bands, scoreDef, scoreMin, scoreMax, cats, catMode, hand, minEV, minPA, query, gameSel, pitcherSel, timeWindow])
 
-  const statDef = BAND_STATS.find((x) => x.key === bandStat) || BAND_STATS[0]
-  const bandActive = bandStat !== 'hrw' || hrwMin > statDef.min || hrwMax < statDef.max
   const scoreActive = !!scoreDef && (scoreMin > 0 || scoreMax < 100)
-  const active = bandActive || scoreActive
+  const active = bands.length > 0 || scoreActive
     || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || query
-    || gameSel.length > 0 || timeWindow !== 'all'
+    || gameSel.length > 0 || pitcherSel !== 'all' || timeWindow !== 'all'
   const reset = () => {
-    setBandStatRaw('hrw'); setHrwMin(0); setHrwMax(100)
+    setBands([])
     setScoreMin(0); setScoreMax(100)
     setCats([]); setCatMode('any')
     setHand('all'); setMinEV(0); setMinPA(0); setQuery('')
-    setGameSel([]); setTimeWindow('all')
+    setGameSel([]); setPitcherSel('all'); setTimeWindow('all')
   }
 
   // One entry per active dimension, each independently removable — this is
@@ -213,7 +254,11 @@ export function useBoardFilter(players, scoreType = null) {
   const activeFilters = useMemo(() => {
     const out = []
     if (scoreActive) out.push({ key: 'score', label: `${scoreDef.label} ${scoreMin}–${scoreMax}`, onRemove: () => { setScoreMin(0); setScoreMax(100) } })
-    if (bandActive) out.push({ key: 'band', label: `${statDef.label} ${statDef.fmt ? statDef.fmt(hrwMin) : hrwMin}–${statDef.fmt ? statDef.fmt(hrwMax) : hrwMax}`, onRemove: () => { setHrwMin(statDef.min); setHrwMax(statDef.max) } })
+    bands.forEach((b) => {
+      const s = BAND_STATS.find((x) => x.key === b.key)
+      if (!s) return
+      out.push({ key: `band-${b.key}`, label: `${s.label} ${s.fmt ? s.fmt(b.min) : b.min}–${s.fmt ? s.fmt(b.max) : b.max}`, onRemove: () => removeBand(b.key) })
+    })
     if (hand !== 'all') out.push({ key: 'hand', label: HAND.find((h) => h.key === hand)?.label || hand, onRemove: () => setHand('all') })
     if (minEV > 0) out.push({ key: 'ev', label: `EV ≥ ${minEV}`, onRemove: () => setMinEV(0) })
     if (minPA > 0) out.push({ key: 'pa', label: `PA ≥ ${minPA}`, onRemove: () => setMinPA(0) })
@@ -225,17 +270,21 @@ export function useBoardFilter(players, scoreType = null) {
       const g = chipOf(gpk)
       out.push({ key: `game-${gpk}`, label: g ? g.label : `Game ${gpk}`, onRemove: () => setGameSel((gs) => gs.filter((x) => x !== gpk)) })
     })
+    if (pitcherSel !== 'all') {
+      const pi = pitchers.find((x) => x.name === pitcherSel)
+      out.push({ key: 'pitcher', label: pi?.team ? `${pitcherSel} (${pi.team})` : pitcherSel, onRemove: () => setPitcherSel('all') })
+    }
     if (timeWindow !== 'all') out.push({ key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label, onRemove: () => setTimeWindow('all') })
     if (query) out.push({ key: 'q', label: `“${query}”`, onRemove: () => setQuery('') })
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoreActive, scoreDef, scoreMin, scoreMax, bandActive, statDef, hrwMin, hrwMax, hand, minEV, minPA, cats, gameSel, timeWindow, query, games])
+  }, [scoreActive, scoreDef, scoreMin, scoreMax, bands, hand, minEV, minPA, cats, gameSel, pitcherSel, pitchers, timeWindow, query, games])
 
   const state = {
-    bandStat, setBandStat, hrwMin, setHrwMin, hrwMax, setHrwMax, cats, setCats, catMode, setCatMode,
+    bands, toggleBand, setBandRange, removeBand, cats, setCats, catMode, setCatMode,
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
-    games, gameSel, setGameSel, timeWindow, setTimeWindow,
+    games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
     activeFilters, activeCount: activeFilters.length,
   }
   return { filtered, state }
@@ -285,14 +334,12 @@ function useOutsideClose(open, setOpen) {
 
 export default function BoardFilters({ state, total, shown }) {
   const {
-    bandStat, setBandStat, hrwMin, setHrwMin, hrwMax, setHrwMax, cats, setCats, catMode, setCatMode,
+    bands, toggleBand, setBandRange, removeBand, cats, setCats, catMode, setCatMode,
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
-    games, gameSel, setGameSel, timeWindow, setTimeWindow,
+    games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
     activeFilters, activeCount,
   } = state
-  const stat = BAND_STATS.find((x) => x.key === bandStat) || BAND_STATS[0]
-  const showV = (v) => (stat.fmt ? stat.fmt(v) : v)
   const [open, setOpen] = useState(false)
   const wrap = useOutsideClose(open, setOpen)
 
@@ -360,23 +407,46 @@ export default function BoardFilters({ state, total, shown }) {
               )}
 
               <div style={{ marginBottom: 12 }}>
+                {/* MULTI-BAND (2026-09-13): a chip toggles a stat's band on/off
+                    rather than switching which one is "current" — several can
+                    be active together, each with its own thumbs below,
+                    narrowing on an AND (a player has to clear all of them). */}
                 <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={lbl()}>Band</span>
                   {BAND_STATS.map((s) => (
-                    <button key={s.key} onClick={() => setBandStat(s.key)}
-                      style={{ ...chip(bandStat === s.key), padding: '2px 6px', fontSize: 9 }}>{s.label}</button>
+                    <button key={s.key} onClick={() => toggleBand(s.key)}
+                      style={{ ...chip(bands.some((b) => b.key === s.key)), padding: '2px 6px', fontSize: 9 }}>{s.label}</button>
                   ))}
                 </div>
-                <div style={{ ...lbl(), marginTop: 4, fontSize: 12, color: C.orange, fontFamily: NUM_FONT }}>
-                  {stat.label} {showV(hrwMin)}–{showV(hrwMax)}
-                  {bandStat !== 'hrw' && <span style={{ textTransform: 'none', letterSpacing: 0 }}> · {bandStat === 'iso' ? 'season' : 'recent window'}</span>}
-                </div>
-                <RangeDual
-                  min={stat.min} max={stat.max} step={1}
-                  low={hrwMin} high={hrwMax}
-                  onLow={setHrwMin} onHigh={setHrwMax}
-                  label={stat.label}
-                />
+                {bands.length > 1 && (
+                  <div style={{ fontSize: 9, color: C.text3, marginTop: 3 }}>
+                    All active bands must clear — this is an AND, not a choice of lens.
+                  </div>
+                )}
+                {bands.map((b) => {
+                  const s = BAND_STATS.find((x) => x.key === b.key)
+                  if (!s) return null
+                  const showBV = (v) => (s.fmt ? s.fmt(v) : v)
+                  return (
+                    <div key={b.key} style={{ marginTop: 9 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 12, color: C.orange, fontWeight: 800, fontFamily: NUM_FONT }}>
+                          {s.label} {showBV(b.min)}–{showBV(b.max)}
+                          {b.key !== 'hrw' && <span style={{ color: C.text3, fontWeight: 400 }}> · {b.key === 'iso' ? 'season' : 'recent window'}</span>}
+                        </span>
+                        <button onClick={() => removeBand(b.key)} title="Remove this band"
+                          style={{ marginLeft: 'auto', ...chip(false), padding: '1px 7px', fontSize: 9 }}>✕</button>
+                      </div>
+                      <RangeDual
+                        min={s.min} max={s.max} step={1}
+                        low={b.min} high={b.max}
+                        onLow={(v) => setBandRange(b.key, v, b.max)}
+                        onHigh={(v) => setBandRange(b.key, b.min, v)}
+                        label={s.label}
+                      />
+                    </div>
+                  )
+                })}
               </div>
 
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -424,6 +494,30 @@ export default function BoardFilters({ state, total, shown }) {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+              {/* STARTING PITCHER (2026-09-13) — Donovan: "just like you can
+                  filter by game, filter by pitcher too." A select, not chips
+                  — a full slate runs 20-30 starters, past where a chip row
+                  reads well, and it matches the dropdowns already on the
+                  Pitchers tab's own game/arm filters. */}
+              {pitchers.length > 1 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={lbl()}>Starting pitcher</div>
+                  <select
+                    value={pitcherSel}
+                    onChange={(e) => setPitcherSel(e.target.value)}
+                    style={{
+                      marginTop: 3, width: '100%', padding: '6px 10px', fontSize: 12,
+                      borderRadius: 7, border: `1px solid ${pitcherSel !== 'all' ? C.orange : C.border}`,
+                      background: C.bg3, color: C.text, fontFamily: NUM_FONT, outline: 'none',
+                    }}
+                  >
+                    <option value="all">Whoever&apos;s starting</option>
+                    {pitchers.map((p) => (
+                      <option key={p.name} value={p.name}>{p.name}{p.team ? ` (${p.team})` : ''}</option>
+                    ))}
+                  </select>
                 </div>
               )}
               <div style={{ marginBottom: 12 }}>

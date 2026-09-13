@@ -12,6 +12,7 @@ import { categoryColumns, categoryValues } from '../lib/categoryColumns'
 import { Empty } from './ui'
 import { DIV_FIELD } from '../lib/scales'
 import { rolesOf } from '../lib/hrGate'
+import BoardFilters, { useBoardFilter } from './BoardFilters'
 
 // 🎯 THE SHORTLIST — who stands out tonight, and whether the number is right.
 //
@@ -105,8 +106,22 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
   // one tap shows the rest.
   const [limit, setLimit] = useState(40)
 
+  // ── FILTERS (2026-09-13) ─────────────────────────────────────────────────
+  // Donovan: "the bots short list sections need filters, including on the
+  // live tab." This page is entirely an HR-market read ("who stands out for
+  // a homer"), so it gets the same board filter every ranked HR board
+  // already has (RankedBoard.js) rather than a bespoke one — scoreType
+  // 'hr' lights up the Score slider on hrScore, same number this page
+  // already ranks by. Filters narrow the pool BEFORE the ranking, same
+  // house rule as everywhere else: `ranked` below runs on `filtered`, not
+  // the raw `players` prop. `designated` (the "bot designated N of M
+  // tonight" line) deliberately keeps reading the raw, unfiltered slate —
+  // that count is a slate-wide fact, not something a hand or band filter
+  // should shrink.
+  const { filtered, state } = useBoardFilter(players, 'hr')
+
   const ranked = useMemo(() => {
-    return (players || [])
+    return (filtered || [])
       .map((p) => {
         const score = hrScore(p)
         if (!Number.isFinite(score) || score <= 0) return null
@@ -246,7 +261,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
       .sort((a, b) => (view === 'profile'
         ? b.score - a.score
         : (b.room ?? -1e9) - (a.room ?? -1e9) || b.score - a.score))
-  }, [players, odds, view, watchIds])
+  }, [filtered, odds, view, watchIds])
 
   // The full ranked field is what the count is OF; `rows` is what is drawn.
   const rows = useMemo(() => ranked.slice(0, limit), [ranked, limit])
@@ -299,12 +314,19 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
     return xs.length % 2 ? xs[m] : (xs[m - 1] + xs[m]) / 2
   }, [rows])
 
-  if (!rows.length) return <Empty text="No slate loaded, so there is nothing to rank yet." />
-
   const anyPriced = rows.some((r) => r.price != null)
 
+  // BoardFilters renders even when the filtered pool comes up empty — same
+  // rule as RankedBoard.js — so a filter that clears the whole shortlist
+  // still leaves you looking at the panel that can undo it, instead of a
+  // dead end with no way back but Reset-by-memory.
   return (
     <div>
+      <BoardFilters state={state} total={players.length} shown={filtered.length} />
+      {!rows.length ? (
+        <Empty text={state.active ? 'No hitters clear this filter.' : 'No slate loaded, so there is nothing to rank yet.'} />
+      ) : (
+      <>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 4 }}>
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>🎯 Who stands out for a homer</span>
         <span style={{ fontSize: 9.5, color: C.text3 }}>
@@ -566,6 +588,8 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         ]}
         caption="The profile view is the bot's ranking; Best odds fits re-sorts by ROOM, which is their whole second table in one click. His rate is a real per-game probability (hr_per_pa × his lineup spot's trips), so the comparison against the price is honest — the HR score never touches the odds math. Rows with no price stay ranked by profile; on most slates that's most rows, and saying so beats pretending."
       />
+      </>
+      )}
     </div>
   )
 }

@@ -379,15 +379,16 @@ function ArmBubble({ s }) {
   )
 }
 
-// slateMode / initialMode (2026-08-16, tab consolidation): both OPTIONAL with
-// safe defaults because this change lands before Dashboard's rewiring does —
-// the current mount passes neither and must keep rendering identically.
-//   · slateMode — threaded through to the Live view's AtThePlate (which needs
-//     it for Today/Tomorrow awareness); 'today' until the owner wires the real
-//     one in.
-//   · initialMode — lets the old #tab=atplate deep link open this tab already
-//     on the Live view once routing lands. First render only: it seeds the
-//     mode state and is never read again, so the pills stay in charge.
+// slateMode / initialMode (2026-08-16, tab consolidation; live mode retired
+// 2026-09-13): both OPTIONAL with safe defaults.
+//   · slateMode — left in place for whatever next needs Today/Tomorrow
+//     awareness here; nothing in this file reads it today.
+//   · initialMode — seeds the mode state on first render only, for any
+//     future deep link that wants this tab open on 'lineups'. Nothing passes
+//     'live' anymore: that mode rendered the same grid as Default in every
+//     way but its own button state, and the real live experience —
+//     AtThePlate — now lives on Home's own view system instead (see
+//     components/tabs/Home.js). #tab=atplate opens that directly.
 export default function Games({ players, allPlayers = [], slateDate = '', pairHistorySummary, results, odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateMode = 'today', initialMode }) {
   // 2026-08-30, Donovan: "have the games open up full table instead of
   // cards first, the game chips take up too much screen space." Table is
@@ -638,28 +639,25 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     }
   }, [games])
 
-  /* ── THE MODE ROW (2026-08-16: + ⚾ Live) ─────────────────────────────────
-     One const because it now renders from two returns — the grid page and the
-     Live view below — and two hand-maintained copies of a four-button row is
-     how they drift. The dot on the Live pill reuses the wire's green-dot
-     idiom (LiveWire.js, PitcherChips) and costs nothing new: this tab already
-     polls fetchLiveSlate for the lineup card watch, so "is anything actually
-     in progress" is a read off state we were holding anyway — no extra
-     fetch. */
-  const anyLive = !!live?.games?.some((x) => x.state === 'Live')
+  /* ── THE MODE ROW (2026-08-16: + ⚾ Live; Live retired 2026-09-13) ────────
+     One const because it renders from two returns — the grid page and the
+     Lineups view below — and two hand-maintained copies of a row is how they
+     drift.
+     The ⚾ Live button used to sit here as a third mode. An audit for this
+     change (grepping every `mode === 'live'` check in this file and in
+     GameStrip.js) found it drew nothing of its own — same grid as Default,
+     differing only in which button lit up and one WhatThis sentence. The
+     real live experience — AtThePlate, the hitter at the plate, his zone
+     map, who's coming up — was built but mounted on a Dashboard tab key
+     ('live') that routing always aliased away from, so it never rendered
+     anywhere. Donovan: "retire it." AtThePlate now lives on Home's own view
+     system (components/tabs/Home.js) instead, reached from the Live nav tab
+     directly, so nothing that worked is gone — this button just stops
+     claiming to be something it wasn't. */
   const modeRow = (
     <div style={{ display: 'flex', gap: 6 }}>
       <button onClick={() => setMode('default')} style={btnStyle(C.orange, mode === 'default')}>Default</button>
       <button onClick={() => setMode('lineups')} style={btnStyle(C.green,  mode === 'lineups')}>Lineups</button>
-      <button onClick={() => setMode('live')} style={{ ...btnStyle(C.green, mode === 'live'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-        {anyLive && (
-          <span style={{
-            width: 6, height: 6, borderRadius: '50%', background: C.green,
-            boxShadow: `0 0 6px ${C.green}`, flexShrink: 0,
-          }} />
-        )}
-        ⚾ Live
-      </button>
     </div>
   )
 
@@ -751,8 +749,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       {!isPhone && <WhatThis maxWidth={700}>
         {mode === 'lineups'
           ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
-          : mode === 'live'
-          ? 'what is happening right now — the hitter at the plate, his zone map and spray, and who is coming up behind him. This is the At the Plate room, in place, so you do not leave the slate to watch it.'
           // 2026-08-16: this used to say "bigger, brighter cards are the
           // matchups where the board stacks highest". The quiet-style pass
           // retired heat-sizing and heat-tinting — the cards are one size on

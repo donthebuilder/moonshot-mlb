@@ -5,6 +5,7 @@ import { nameOf, teamOf, txt } from '../../lib/player'
 import { groupGames } from '../../lib/data'
 import { alpha } from '../../lib/scales'
 import { CATEGORIES } from '../BotPicksStrip'
+import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import OddsLine from '../OddsLine'
 import { WhatThis } from '../ui'
 import VerdictHero from '../VerdictHero'
@@ -528,6 +529,111 @@ function Versus({
           </span>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── ITS BOARD, OPENED — WITH A FILTER (2026-09-13) ───────────────────────────
+//
+// Donovan, voice note: a way to filter the picks out how you'd want them,
+// while it still shows you the best people to look at. The chooser was a
+// flat top-8-by-score list with nothing to narrow it — every ranked board
+// elsewhere on the site already has real filters (weak spot, pitch edge,
+// hand, HH%, ISO, barrel, min PA, and more — `useBoardFilter`/`BoardFilters`
+// in ../BoardFilters), just never wired into this one. Reused as-is rather
+// than reinvented, for the same reason CATEGORIES is imported once and not
+// redeclared: one filter mechanism, everywhere it applies.
+//
+// RANKING IS UNTOUCHED. A filter narrows WHICH names are eligible; it never
+// re-sorts them — that's BoardFilters' own house rule ("narrows the pool
+// BEFORE the ranking") and it's the right one here too. The number beside
+// each name is still that player's real rank on the FULL board (`rankOf`),
+// not his position in the filtered list — filtering to "just lefties" and
+// seeing #2, #9, #14 tells you something a re-numbered 1, 2, 3 would hide.
+//
+// choose() (below) already re-derives rank/pool_n from `slot.ranked` — the
+// full board — independent of whatever this panel has filtered down to, so
+// nothing about what gets SAVED changes here; only what's easy to find does.
+function SwapBoard({ cat, s, mine, odds, full, onToggleFull, onChoose, onClose }) {
+  const { filtered, state } = useBoardFilter(s.ranked, cat.role.toLowerCase())
+  const list = full ? filtered : filtered.slice(0, 8)
+  const rankOf = useMemo(() => {
+    const m = new Map()
+    s.ranked.forEach((p, i) => m.set(String(p.player_id), i + 1))
+    return m
+  }, [s.ranked])
+
+  return (
+    <div style={{
+      marginTop: 8, border: `1px solid ${C.border}`, borderRadius: 14,
+      background: C.bg, overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+        padding: '9px 13px', borderBottom: `1px solid ${C.border}`,
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: C.text2 }}>
+          Its board for {cat.label}
+        </span>
+        <span style={{ fontSize: 10.5, color: C.text3 }}>
+          needs {BAR[cat.role]} · ranked by the same score the site ranks on
+        </span>
+        <button onClick={onClose}
+                style={{ ...btn(), marginLeft: 'auto', padding: '3px 9px' }}>Close</button>
+      </div>
+
+      <div style={{ padding: '9px 13px 0' }}>
+        <BoardFilters state={state} total={s.ranked.length} shown={filtered.length} />
+      </div>
+
+      <div style={{ maxHeight: 268, overflowY: 'auto' }}>
+        {list.length === 0 ? (
+          <div style={{ padding: '14px 13px', fontSize: 11.5, color: C.text3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            Nobody in this game clears those filters.
+            <button onClick={state.reset} style={btn()}>Clear filters</button>
+          </div>
+        ) : list.map((p, i) => {
+          const isBot = s.bot && String(p.player_id) === String(s.bot.player_id)
+          const isMine = mine && String(p.player_id) === String(mine.pid)
+          return (
+            <button
+              key={p.player_id}
+              onClick={() => onChoose(p.player_id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '7px 13px', textAlign: 'left', cursor: 'pointer',
+                background: isMine ? `${cat.color}1a` : 'transparent',
+                border: 'none', borderTop: i ? `1px solid ${C.bg2}` : 'none',
+                color: C.text, fontSize: 12,
+              }}
+            >
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 10, color: C.text3,
+                minWidth: 22, textAlign: 'right',
+              }}>{rankOf.get(String(p.player_id)) || i + 1}</span>
+              <span style={{ fontWeight: 700 }}>{nameOf(p)}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
+                {teamOf(p)}
+              </span>
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 10.5, color: cat.color, fontWeight: 800,
+              }}>{Math.round(cat.score(p) || 0)}</span>
+              <OddsLine quote={quoteFor(odds, p, cat.role)} compact />
+              <span style={{ marginLeft: 'auto', fontSize: 10, color: C.text3 }}>
+                {isBot ? 'its pick — tap to give the slot back'
+                  : isMine ? 'yours' : ''}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      {filtered.length > 8 && (
+        <div style={{ padding: '8px 13px', borderTop: `1px solid ${C.border}` }}>
+          <button onClick={onToggleFull} style={btn()}>
+            {full ? 'Show its top 8' : `Show all ${filtered.length}${filtered.length !== s.ranked.length ? ' that match' : ' in this game'}`}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1419,7 +1525,6 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
             const pending = !reporting.has(active.game_pk)
             const boardOpen = openSlot === key && !locked
             const full = Boolean(showAll[key])
-            const list = full ? s.ranked : s.ranked.slice(0, 8)
 
             // The man who currently HOLDS the slot, as a slate row — so the
             // dial, the matchup line and the price all describe one person.
@@ -1542,72 +1647,22 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                 )}
 
                 {/* ── ITS BOARD, OPENED ──────────────────────────────────
-                    The chooser, unchanged in substance: ranked by that
-                    category's own score, the market price beside each name,
-                    its designated pick marked — so taking someone is an
-                    argument with a board rather than a line in a dropdown. */}
+                    The chooser: ranked by that category's own score, the
+                    market price beside each name, its designated pick
+                    marked, and now a real filter panel on top of it (see
+                    SwapBoard, above) — so taking someone is an argument with
+                    a board you can narrow, not a flat top-8 or a dropdown. */}
                 {boardOpen && (
-                  <div style={{
-                    marginTop: 8, border: `1px solid ${C.border}`, borderRadius: 14,
-                    background: C.bg, overflow: 'hidden',
-                  }}>
-                    <div style={{
-                      display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
-                      padding: '9px 13px', borderBottom: `1px solid ${C.border}`,
-                    }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: C.text2 }}>
-                        Its board for {cat.label}
-                      </span>
-                      <span style={{ fontSize: 10.5, color: C.text3 }}>
-                        needs {BAR[cat.role]} · ranked by the same score the site ranks on
-                      </span>
-                      <button onClick={() => setOpenSlot(null)}
-                              style={{ ...btn(), marginLeft: 'auto', padding: '3px 9px' }}>Close</button>
-                    </div>
-                    <div style={{ maxHeight: 268, overflowY: 'auto' }}>
-                      {list.map((p, i) => {
-                        const isBot = s.bot && String(p.player_id) === String(s.bot.player_id)
-                        const isMine = mine && String(p.player_id) === String(mine.pid)
-                        return (
-                          <button
-                            key={p.player_id}
-                            onClick={() => { choose(s, p.player_id); setOpenSlot(null) }}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                              padding: '7px 13px', textAlign: 'left', cursor: 'pointer',
-                              background: isMine ? `${cat.color}1a` : 'transparent',
-                              border: 'none', borderTop: i ? `1px solid ${C.bg2}` : 'none',
-                              color: C.text, fontSize: 12,
-                            }}
-                          >
-                            <span style={{
-                              fontFamily: NUM_FONT, fontSize: 10, color: C.text3,
-                              minWidth: 22, textAlign: 'right',
-                            }}>{i + 1}</span>
-                            <span style={{ fontWeight: 700 }}>{nameOf(p)}</span>
-                            <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
-                              {teamOf(p)}
-                            </span>
-                            <span style={{
-                              fontFamily: NUM_FONT, fontSize: 10.5, color: cat.color, fontWeight: 800,
-                            }}>{Math.round(cat.score(p) || 0)}</span>
-                            <OddsLine quote={quoteFor(odds, p, cat.role)} compact />
-                            <span style={{ marginLeft: 'auto', fontSize: 10, color: C.text3 }}>
-                              {isBot ? 'its pick — tap to give the slot back'
-                                : isMine ? 'yours' : ''}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {s.ranked.length > 8 && (
-                      <div style={{ padding: '8px 13px', borderTop: `1px solid ${C.border}` }}>
-                        <button onClick={() => setShowAll({ ...showAll, [key]: !full })} style={btn()}>
-                          {full ? 'Show its top 8' : `Show all ${s.ranked.length} in this game`}
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <SwapBoard
+                    cat={cat}
+                    s={s}
+                    mine={mine}
+                    odds={odds}
+                    full={full}
+                    onToggleFull={() => setShowAll({ ...showAll, [key]: !full })}
+                    onChoose={(pid) => { choose(s, pid); setOpenSlot(null) }}
+                    onClose={() => setOpenSlot(null)}
+                  />
                 )}
               </div>
             )
