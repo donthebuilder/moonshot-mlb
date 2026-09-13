@@ -1,0 +1,45 @@
+-- CLOSE THE GRANT TABLE'S LOOSE END ON THE TWO NFL SYNC FUNCTIONS.
+--
+-- OPEN-ITEMS #1, re-verified live 2026-09-13. 202609071000 and 202609121500
+-- both revoked EXECUTE on sync_nfl_player_catalog / sync_nfl_week_feed from
+-- `authenticated` and narrowed each function's own check to
+-- `auth.role() = 'service_role'` only. Neither migration revoked from
+-- `anon`. A live query against this project's own
+-- information_schema.routine_privileges confirmed the gap: `anon` still
+-- holds EXECUTE on both functions today, alongside `service_role` and the
+-- table owner.
+--
+-- WHY: Supabase's own project template runs, at provisioning time,
+--   alter default privileges in schema public grant execute on functions
+--   to anon, authenticated, service_role;
+-- which means every `create or replace function` in this schema re-grants
+-- EXECUTE to all three roles individually the instant it runs, before any
+-- explicit revoke in the same file takes effect. 202609071000/202609121500
+-- each remembered to claw `authenticated` back out afterward; neither
+-- remembered `anon`, because the bug they were chasing (a signed-up user
+-- exploiting the commissioner-of-any-league branch) only involved
+-- `authenticated` callers in the first place. `anon` was never the subject
+-- of either fix, so it was never revoked.
+--
+-- NOT an active hole, checked before writing this: both functions' bodies
+-- gate on `auth.role() = 'service_role'`, and `auth.role()` reads the JWT
+-- `role` claim PostgREST verifies against this project's JWT secret before
+-- the request ever reaches Postgres. An anon-key caller's claim genuinely
+-- is `anon` -- there is no client-side way to make it read `service_role`
+-- without holding the actual service key, which already grants full access
+-- regardless of any function's grant table. So the stray `anon` EXECUTE
+-- grant sat there unused: reachable, but every call through it dies on the
+-- function's own `raise exception 'Scoring service access required'`
+-- before doing anything.
+--
+-- Revoked anyway, for two reasons neither migration's author had in view:
+-- it doesn't match what their own comments say they intended
+-- ("service_role only", stated plainly in both files), and it is a
+-- landmine for later -- if that internal check is ever loosened again
+-- (an added branch, a swapped condition) without separately re-checking
+-- the grant table, `anon` would not need to be re-opened, only the check
+-- would need to be weaker. Closing the grant now means a future change to
+-- the check is the ONLY thing that could reopen this, not a change to the
+-- check PLUS a forgotten grant.
+revoke execute on function public.sync_nfl_player_catalog(jsonb) from anon;
+revoke execute on function public.sync_nfl_week_feed(jsonb,jsonb) from anon;
