@@ -1,5 +1,5 @@
 'use client'
-import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
 
 // Defence vs position, BY DEPTH ROLE.
 //
@@ -16,6 +16,24 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 // Lifted out of tabs/Matchups.js on 2026-08-14 because the player modal needs
 // the same rows scoped to one position group. Two copies of a heat scale is
 // two places for the colours to drift apart.
+//
+// ── 2026-09-13: STRIPS, NOT A TABLE ─────────────────────────────────────────
+// Donovan wanted a different shape for this entirely, and the grid deserved
+// it: every cell carried the value AND a rank chip underneath, so eleven roles
+// times seven stats was 154 things to read, each one asking to be read twice,
+// and none of them saying which of the 77 cells mattered.
+//
+// Rank is the only thing worth encoding here — 66 receiving yards allowed
+// means nothing until you know it is 4th-most in the league, which this file's
+// own header has said since August. So the value moves to the tooltip and each
+// cell keeps one number and one colour. Whole rows now read at a glance: TE2
+// lights up across four stats, RB2 is dark across seven, and that comparison
+// was invisible when every cell was a two-line block.
+//
+// Three other forms were rendered against the live payload first — a ranked
+// list of the softest role/stat pairs, and roles drawn as nodes in a formation
+// (dropped: where a tight end lines up has nothing to do with the number being
+// encoded, so the field was decoration).
 
 export const GROUP = {
   WR: ['WR1', 'WR2', 'WR3', 'Other WR'],
@@ -34,32 +52,37 @@ export function rankColor(rank) {
   return C.red
 }
 
-function Cell({ cell, stat }) {
+
+// A cell is a rank and nothing else. Brighter = softer = better for you.
+function Cell({ cell, stat, dim }) {
   const v = cell?.[stat]
   const r = cell?.[`${stat}_rank`]
-  if (v === undefined || v === null) {
+  if (!Number.isFinite(r)) {
     // N/A rather than 0 — a receiver has no rushing line and a quarterback has
     // no receiving line, and printing a zero reads as a measurement.
-    return <td style={{ padding: '7px 6px', textAlign: 'center', color: C.text3, fontSize: 10 }}>N/A</td>
+    return <div style={{
+      flex: 1, minWidth: 30, height: 22, borderRadius: 4,
+      background: 'rgba(255,255,255,.02)',
+    }} />
   }
-  const col = rankColor(r)
+  const soft = (32 - r) / 31              // 1 = softest in the league
+  const col = RAMP[Math.min(RAMP.length - 1, Math.floor(soft * RAMP.length))]
   return (
-    <td style={{
-      padding: '6px 6px', textAlign: 'center',
-      background: col ? `${col}14` : 'transparent',
-      borderRight: `1px solid ${C.bg}`,
-    }}>
-      <div style={{ fontFamily: NUM_FONT, fontSize: 12.5, fontWeight: 900, color: C.text }}>
-        {Number.isInteger(v) ? v : v.toFixed(1)}
-      </div>
-      {Number.isFinite(r) && (
-        <div style={{
-          display: 'inline-block', marginTop: 2, fontFamily: NUM_FONT, fontSize: 8.5,
-          fontWeight: 900, color: col, border: `1px solid ${col}55`,
-          background: `${col}18`, borderRadius: 4, padding: '0 4px',
-        }}>#{r}</div>
-      )}
-    </td>
+    <div
+      title={`${stat}: ${Number.isInteger(v) ? v : Number(v).toFixed(1)} — ${r} of 32, rank 1 allows the most`}
+      style={{
+        flex: 1, minWidth: 30, height: 22, borderRadius: 4, position: 'relative',
+        background: 'rgba(255,255,255,.04)', overflow: 'hidden',
+        opacity: dim ? 0.45 : 1,
+      }}
+    >
+      <div style={{ position: 'absolute', inset: 0, background: col, opacity: 0.14 + soft * 0.78 }} />
+      <span style={{
+        position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+        fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
+        color: soft > 0.55 ? '#04120d' : C.text2,
+      }}>{r}</span>
+    </div>
   )
 }
 
@@ -80,46 +103,63 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
     </div>
   }
 
+  // The softest cell on the board, so the panel opens on an answer instead of
+  // making you find one.
+  let best = null
+  for (const r of rows) for (const s of stats) {
+    const rk = blob[r]?.[`${s}_rank`]
+    if (Number.isFinite(rk) && (!best || rk < best.rank)) best = { role: r, stat: s, rank: rk }
+  }
+
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth }}>
-        <thead>
-          <tr style={{ background: 'rgba(255,255,255,.03)' }}>
-            <th style={{
-              padding: '7px 10px', fontSize: 9.5, fontWeight: 900, color: C.text3,
-              textAlign: 'left', letterSpacing: '.08em', position: 'sticky', left: 0,
-              background: C.bg2,
-            }}>POSITION</th>
+    <div style={{ padding: '10px 12px 12px' }}>
+      <div className="dense-scroll" style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth }}>
+          <div style={{ display: 'flex', gap: 3, marginBottom: 5, paddingLeft: 86 }}>
             {stats.map((s) => (
-              <th key={s} style={{
-                padding: '7px 6px', fontSize: 9.5, fontWeight: 900, color: C.text3,
-                letterSpacing: '.06em',
-              }}>{labels[s] || s}</th>
+              <span key={s} style={{
+                flex: 1, minWidth: 30, textAlign: 'center', fontFamily: NUM_FONT,
+                fontSize: 8, fontWeight: 800, color: C.text3, letterSpacing: '.04em',
+              }}>{labels[s] || s}</span>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </div>
           {rows.map((role) => {
             const on = role === highlight
             return (
-              <tr key={role} style={{
-                borderTop: `1px solid ${C.border}`,
-                background: on ? `${C.cyan}1a` : 'transparent',
-                boxShadow: on ? `inset 3px 0 0 ${C.cyan}` : 'none',
+              <div key={role} style={{
+                display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3,
+                paddingLeft: on ? 3 : 0,
+                borderLeft: on ? `3px solid ${C.cyan}` : '3px solid transparent',
               }}>
-                <td style={{
-                  padding: '6px 10px', fontSize: 11.5, fontWeight: 800,
-                  color: on ? C.cyan : C.text,
-                  position: 'sticky', left: 0, background: on ? C.bg3 : C.bg2,
-                }}>{role}{on && <span style={{
-                  fontFamily: NUM_FONT, fontSize: 8, marginLeft: 6, letterSpacing: '.12em',
-                }}>HIM</span>}</td>
-                {stats.map((s) => <Cell key={s} cell={blob[role]} stat={s} />)}
-              </tr>
+                <span style={{
+                  width: 83, flex: '0 0 83px', fontSize: 10.5, fontWeight: on ? 900 : 700,
+                  color: on ? C.cyan : C.text, whiteSpace: 'nowrap', overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {role}{on && <span style={{
+                    fontFamily: NUM_FONT, fontSize: 7.5, marginLeft: 5, letterSpacing: '.12em',
+                  }}>HIM</span>}
+                </span>
+                {stats.map((s) => (
+                  <Cell key={s} cell={blob[role]} stat={s} dim={Boolean(highlight) && !on} />
+                ))}
+              </div>
             )
           })}
-        </tbody>
-      </table>
+        </div>
+      </div>
+
+      {best && (
+        <div style={{ fontSize: 10.5, color: C.text2, marginTop: 9, lineHeight: 1.55 }}>
+          Softest cell on this board: <b style={{ color: C.green }}>{best.role}</b> in
+          {' '}<b style={{ color: C.green }}>{labels[best.stat] || best.stat}</b>, {best.rank} of 32.
+        </div>
+      )}
+      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
+        One number per cell: where this defence ranks against that role, 1 to 32.
+        Rank 1 allows the most, so brighter is a better matchup. The raw figure is
+        on hover.
+      </div>
     </div>
   )
 }
