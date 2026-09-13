@@ -175,8 +175,11 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
         // `#fff` was hard-coded here, which is invisible on a light theme.
         color: ink || (glow ? C.text : C.text2),
       }}>{mark ? `${mark} ` : ''}{main}</span>
+      {/* 7.5px → 8.5px (2026-09-13). Donovan: "little text in ... the
+          strike map" — this is the sub-label inside every zone-grid cell,
+          the smallest text on the whole chart. */}
       {sub != null && (
-        <span style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3 }}>{sub}</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>{sub}</span>
       )}
     </div>
   )
@@ -1100,7 +1103,9 @@ export default function ZoneMap({
                 border: `1px solid ${C.border}`, background: C.glass,
                 borderRadius: 7, padding: '2px 8px',
               }}>
-                <b style={{ fontSize: 7.5, letterSpacing: '.09em', color: C.text3 }}>{k}</b>
+                {/* 7.5px → 8.5px (2026-09-13), same "little text" note as
+                    the zone-cell sub-label above. */}
+                <b style={{ fontSize: 8.5, letterSpacing: '.09em', color: C.text3 }}>{k}</b>
                 <b style={{ fontSize: 11, color: col }}>{v}</b>
               </span>
             ))}

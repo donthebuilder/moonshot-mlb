@@ -693,7 +693,11 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           }}>
             {cells.map(([l, v, fmt, col, tip]) => v == null ? null : (
               <div key={l} title={tip || undefined} style={{ minWidth: 0, cursor: tip ? 'help' : undefined }}>
-                <div style={{ fontSize: 7.5, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT }}>{l}</div>
+                {/* 7.5px → 8.5px (2026-09-13). Donovan named this exact
+                    stat-strip label — "little text in the ev log" — as too
+                    small to read. Matches the "over the N balls" caption
+                    two lines down, which was already 8.5. */}
+                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT }}>{l}</div>
                 <div style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{fmt(v)}</div>
               </div>
             ))}
