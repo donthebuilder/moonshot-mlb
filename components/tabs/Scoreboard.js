@@ -6,7 +6,7 @@ import {
   recent375, ihrVal,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore, playerId, mlbId,
 } from '../../lib/player'
-import { tierRole, isAligned, hrRank } from '../../lib/scoring'
+import { isAligned, hrRank } from '../../lib/scoring'
 import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneRanker } from '../../lib/verdict'
 import { hrOverlayRead } from '../../lib/hrOverlay'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
@@ -632,7 +632,28 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         // A missing count is unknown, and reads as one.
         hr: Number.isFinite(Number(h?.hr)) ? Number(h.hr) : null,
         score: p ? hrScore(p) : 0,
-        role: p ? tierRole(p) : '—',
+        // L5 HR / L10 HR (2026-09-13) — Donovan: "add more stats like L5.
+        // L10." Was this coming? Same fields and same column shape as the
+        // board below (last5_hr / last10_hr) — was he trending into it.
+        l5hr: p ? n(p.last5_hr, null) : null,
+        l10hr: p ? n(p.last10_hr, null) : null,
+        // ── THE NEW ROLES, HERE TOO (2026-09-13) ─────────────────────────
+        // Donovan: "show the new roles not the old contact monitor shit."
+        // This table was still on tierRole(p) — final_hr_role, the model's
+        // raw conviction tier (Power Watch / Contact-Monitor / etc.) — the
+        // exact thing 2026-08-23 already replaced on the big board below
+        // (see designationOf() in lib/verdict.js: "the dense tables' Role
+        // column shows the MODEL's tier out of final_hr_role. That is a
+        // different fact from the bot's DESIGNATION (game_pick_role), and
+        // the designation is the actionable one"). Sorted-low rows in a
+        // 45-deep gone-yard list skew toward the model's least-confident
+        // tier, which is why so many of them read "Contact / Monitor" —
+        // not a bug, just the wrong field. Same designation-or-lane
+        // fallback the board uses, same laneOf ranking (defined above).
+        role: p ? (designationOf(p) || hitterLaneLabel(p, laneOf(p))) : '—',
+        roleTitle: p
+          ? (designationOf(p) ? hitterRoleTitle(p) : hitterLaneTitle(p, laneOf(p), players.length))
+          : 'No market scored for this hitter tonight.',
         // ── THE PITCHER LINE (2026-08-22) ────────────────────────────────
         // Donovan: "'GONE YARD' on the Rundown carries the pitcher line:
         // HR/9, H9, L3 H/9, WHIP weakness, HH, K/9, L3 K/9, HR luck ± —
@@ -665,6 +686,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         pLuck: p ? n(p.pitcher_hr_luck, null) : null,
       }
     })
+    // laneOf omitted from deps deliberately — it's itself a [players]-keyed
+    // useMemo defined above, so it's already current whenever players is;
+    // adding it would just be the same dependency stated twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results, players])
 
   // Every starter with at least one weak lineup slot the opposing order fills.
@@ -832,6 +857,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           { key: 'hr',   label: 'HR',     w: 34,
             explain: 'How many home runs he has already hit tonight.' },
           { key: 'score', label: 'HR score', w: 58, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true },
+          { key: 'l5hr',  label: 'L5 HR',  w: 46,
+            title: 'Home runs in his last five games.' },
+          { key: 'l10hr', label: 'L10 HR', w: 50,
+            title: 'Home runs in his last ten games.' },
           { key: 'role', label: 'Role',   heat: false, w: 158, dim: true, titleKey: 'roleTitle',
             title: 'The hitter archetype comes first; the grading market stays in parentheses. Official picks settle on that market. Other rows show their strongest profile lane, not an official pick.' },
           // ── the arm he did it against ──────────────────────────────────
