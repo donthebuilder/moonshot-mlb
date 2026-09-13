@@ -62,11 +62,27 @@
     },
     {
       "path": "/api/dash/nfl/tick",
-      "schedule": "* 0-3 * * 5"
+      "schedule": "* 0-5 * * 5"
     },
     {
       "path": "/api/dash/nfl/tick",
-      "schedule": "* 13-16 * * 0"
+      "schedule": "* 13-23 * * 6"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 0-5 * * 0"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 13-23 * * 0"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 0-5 * * 1"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 0-5 * * 2"
     }
   ]
 }

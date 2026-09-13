@@ -53,6 +53,11 @@ export function rankColor(rank) {
 }
 
 
+// Cells stop growing past this. Without it the modal's three-role tight-end
+// view stretched four cells across the full width and read as an airy table
+// rather than a strip.
+const CELL_MAX = 56
+
 // A cell is a rank and nothing else. Brighter = softer = better for you.
 function Cell({ cell, stat, dim }) {
   const v = cell?.[stat]
@@ -60,9 +65,14 @@ function Cell({ cell, stat, dim }) {
   if (!Number.isFinite(r)) {
     // N/A rather than 0 — a receiver has no rushing line and a quarterback has
     // no receiving line, and printing a zero reads as a measurement.
-    return <div style={{
-      flex: 1, minWidth: 30, height: 22, borderRadius: 4,
-      background: 'rgba(255,255,255,.02)',
+    //
+    // The full board keeps the column anyway, because comparing roles needs
+    // every row on the same grid — but an empty cell then looks like missing
+    // data rather than an inapplicable one. A faint hatch says "this does not
+    // apply to this role", which is a different statement from "we don't know".
+    return <div title="not a stat this role records" style={{
+      flex: 1, minWidth: 30, maxWidth: CELL_MAX, height: 22, borderRadius: 4,
+      background: `repeating-linear-gradient(-45deg, rgba(255,255,255,.045) 0 1px, transparent 1px 5px)`,
     }} />
   }
   const soft = (32 - r) / 31              // 1 = softest in the league
@@ -71,7 +81,7 @@ function Cell({ cell, stat, dim }) {
     <div
       title={`${stat}: ${Number.isInteger(v) ? v : Number(v).toFixed(1)} — ${r} of 32, rank 1 allows the most`}
       style={{
-        flex: 1, minWidth: 30, height: 22, borderRadius: 4, position: 'relative',
+        flex: 1, minWidth: 30, maxWidth: CELL_MAX, height: 22, borderRadius: 4, position: 'relative',
         background: 'rgba(255,255,255,.04)', overflow: 'hidden',
         opacity: dim ? 0.45 : 1,
       }}
@@ -118,7 +128,7 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
           <div style={{ display: 'flex', gap: 3, marginBottom: 5, paddingLeft: 86 }}>
             {stats.map((s) => (
               <span key={s} style={{
-                flex: 1, minWidth: 30, textAlign: 'center', fontFamily: NUM_FONT,
+                flex: 1, minWidth: 30, maxWidth: CELL_MAX, textAlign: 'center', fontFamily: NUM_FONT,
                 fontSize: 8, fontWeight: 800, color: C.text3, letterSpacing: '.04em',
               }}>{labels[s] || s}</span>
             ))}
