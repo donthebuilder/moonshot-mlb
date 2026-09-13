@@ -12,13 +12,24 @@ import ChartFrame from './ChartFrame'
 // sat at #21 all year and a rank that was #21 in September and is #4 over the
 // last three games print the same cell.
 //
-// A true week-by-week bump chart is not possible from what the bot publishes —
-// matchup.json carries four WINDOWS (season, L10, L5, L3), not a weekly
-// series. But those four are ordered, from the whole season to the last three
-// games, and each point is already a multi-game average rather than one noisy
-// Sunday. Read left to right and the line is the drift. If we later want real
-// weeks, bots/nfl/nfl_dvp.py has to snapshot per week; nothing on this side
-// changes when it does.
+// IT DRAWS REAL WEEKS NOW (2026-09-13). It used to plot the four WINDOWS the
+// bot published — season, L10, L5, L3 — left to right as if they were a
+// timeline, and this comment used to say a weekly series was not available.
+// It is now: bots/nfl/nfl_dvp.py's trend() publishes a rolling four-game rank
+// per week under `dvp_trend`.
+//
+// That matters more than it sounds. The four windows are NESTED — L3 sits
+// inside L5 sits inside L10 sits inside the season — so a defence that got
+// soft late is monotone across them BY CONSTRUCTION. The old chart drew a
+// falling line whether or not anything had changed, and its own corroboration
+// test ("the middle windows agree") was really asking whether arithmetic had
+// happened. A rolling window can fall AND rise: measured on 2025, the weekly
+// series moves up 1,996 times and down 1,911, which is what a real series
+// looks like.
+//
+// The window shape is kept as the fallback, for early weeks (the series needs
+// four games before its first point) and for any payload published before
+// trend() shipped.
 //
 // Eleven lines at once is spaghetti, so the chart picks: the role your player
 // occupies, plus whichever roles have moved most. Everything else stays as a
@@ -48,13 +59,32 @@ export default function DvpDrift({ data, team, roles, highlight }) {
 
   const [stat, setStat] = useState(() => (available.includes('td') ? 'td' : available[0]))
 
+  // Real weeks when the bot has them for this team and stat, the old nested
+  // windows when it does not. Both shapes end up as the same {i, rank} points,
+  // so everything below this is untouched.
+  const weekly = useMemo(() => {
+    const lanes = data?.dvp_trend?.[stat]?.[team]
+    const weeks = data?.dvp_trend?.weeks
+    if (!lanes || !Array.isArray(weeks) || weeks.length < 3) return null
+    // `window` rides along or the caption renders "a rolling undefined-game
+    // window" — which is exactly what the first render said.
+    return { lanes, weeks, window: Number(data?.dvp_trend?.window) || 4 }
+  }, [data, team, stat])
+
+  const axis = useMemo(() => (
+    weekly ? weekly.weeks.map((w) => [`w${w}`, `W${w}`]) : WINDOWS
+  ), [weekly])
+
   const series = useMemo(() => order.map((role) => ({
     role,
-    pts: WINDOWS.map(([w], i) => {
-      const r = data?.dvp?.[w]?.[team]?.[role]?.[`${stat}_rank`]
-      return Number.isFinite(r) ? { i, rank: r } : null
-    }).filter(Boolean),
-  })).filter((s) => s.pts.length >= 2), [data, team, order, stat])
+    pts: weekly
+      ? (weekly.lanes[role] || []).map((rank, i) => (
+          Number.isFinite(rank) ? { i, rank } : null)).filter(Boolean)
+      : WINDOWS.map(([w], i) => {
+          const r = data?.dvp?.[w]?.[team]?.[role]?.[`${stat}_rank`]
+          return Number.isFinite(r) ? { i, rank: r } : null
+        }).filter(Boolean),
+  })).filter((s) => s.pts.length >= 2), [data, team, order, stat, weekly])
 
   // ── IS THE MOVE REAL, OR IS IT THREE GAMES? ─────────────────────────────
   // In a 32-team rank over a three-game window, somebody is top-three in every
@@ -71,12 +101,27 @@ export default function DvpDrift({ data, team, roles, highlight }) {
   const moves = useMemo(() => series.map((s) => {
     const first = s.pts[0]; const last = s.pts[s.pts.length - 1]
     const mid = s.pts.slice(1, -1)
-    const corroborated = mid.length > 0 && mid.every((p) => p.rank < first.rank)
+    // On a REAL series "every middle point is below the first" is far too
+    // strict — one bounce in eleven weeks would disqualify a genuine trend —
+    // and on the nested windows it was far too loose, since nesting makes it
+    // nearly automatic. So: on weeks, ask whether the recent half actually
+    // sits softer than the early half. On windows, keep the old test, which
+    // is the most those four points can support.
+    let corroborated
+    if (weekly) {
+      const half = Math.floor(s.pts.length / 2)
+      const early = s.pts.slice(0, half)
+      const late = s.pts.slice(-half)
+      const mean = (a) => a.reduce((t, p) => t + p.rank, 0) / (a.length || 1)
+      corroborated = half >= 2 && mean(late) < mean(early) - 2
+    } else {
+      corroborated = mid.length > 0 && mid.every((p) => p.rank < first.rank)
+    }
     return {
       role: s.role, delta: last.rank - first.rank, from: first.rank, to: last.rank,
       corroborated,
     }
-  }).sort((a, b) => a.delta - b.delta), [series])
+  }).sort((a, b) => a.delta - b.delta), [series, weekly])
 
   if (!series.length || !stat) return null
 
@@ -87,7 +132,7 @@ export default function DvpDrift({ data, team, roles, highlight }) {
     ...(softening.length ? [] : [moves[0]?.role]),
   ].filter(Boolean))
 
-  const x = (i) => PAD.l + (i / (WINDOWS.length - 1)) * (W - PAD.l - PAD.r)
+  const x = (i) => PAD.l + (i / Math.max(1, axis.length - 1)) * (W - PAD.l - PAD.r)
   const y = (rank) => PAD.t + ((rank - 1) / (TEAMS - 1)) * (H - PAD.t - PAD.b)
 
   // End labels are placed at their line's last rank, then pushed apart just
@@ -176,9 +221,16 @@ export default function DvpDrift({ data, team, roles, highlight }) {
             )
           })}
 
-          {WINDOWS.map(([w, label], i) => (
-            <text key={w} x={x(i)} y={H - 4} textAnchor={i === 0 ? 'start' : i === WINDOWS.length - 1 ? 'end' : 'middle'}
+          {/* Fifteen week labels in a 330-unit box is a grey smear. Print at
+              most six, always including the first and the last, and let the
+              line carry the rest — the exact positions matter less than the
+              span, which the two ends state. */}
+          {axis.map(([w, label], i) => (
+            (axis.length <= 6 || i === 0 || i === axis.length - 1
+              || i % Math.ceil(axis.length / 5) === 0) ? (
+            <text key={w} x={x(i)} y={H - 4} textAnchor={i === 0 ? 'start' : i === axis.length - 1 ? 'end' : 'middle'}
                   fill={C.text3} fontSize="9" fontFamily={NUM_FONT}>{label}</text>
+            ) : null
           ))}
           <style>{`
             /* On a phone the eight unhighlighted roles are eight faint lines
@@ -192,14 +244,24 @@ export default function DvpDrift({ data, team, roles, highlight }) {
       <div style={{ fontSize: 10.5, color: C.text2, marginTop: 7, lineHeight: 1.6 }}>
         {lead && lead.delta <= -4 && lead.corroborated ? (
           <><b style={{ color: C.green }}>{team}</b> has been getting softer against
-            {' '}<b style={{ color: C.green }}>{lead.role}</b> in {labels[stat] || stat} all the
-            way down: #{lead.from} on the season, <b style={{ color: C.green }}>#{lead.to}</b>
-            {' '}over the last three. Every window agrees, so it is a trend and not a hot week.</>
+            {' '}<b style={{ color: C.green }}>{lead.role}</b> in {labels[stat] || stat}
+            {weekly
+              ? <>: #{lead.from} back in week {weekly.weeks[0]}, <b style={{ color: C.green }}>#{lead.to}</b> now.
+                  The recent half of the season sits softer than the early half, so it is a
+                  drift and not one loud Sunday.</>
+              : <> all the way down: #{lead.from} on the season, <b style={{ color: C.green }}>#{lead.to}</b>
+                  {' '}over the last three. Every window agrees, so it is a trend and not a hot week.</>}
+          </>
         ) : lead && lead.delta <= -4 ? (
           <><b style={{ color: C.text }}>{team}</b> sits #{lead.to} against
-            {' '}<b style={{ color: C.text }}>{lead.role}</b> in {labels[stat] || stat} over the
-            last three games, against #{lead.from} on the season — but the L10 and L5 windows
-            do not back it up, so that is three games talking, not a soft spot.</>
+            {' '}<b style={{ color: C.text }}>{lead.role}</b> in {labels[stat] || stat}
+            {weekly
+              ? <>, against #{lead.from} in week {weekly.weeks[0]} — but the weeks in between
+                  bounce around it, so that is a couple of games talking, not a soft spot.</>
+              : <> over the last three games, against #{lead.from} on the season — but the L10
+                  and L5 windows do not back it up, so that is three games talking, not a soft
+                  spot.</>}
+          </>
         ) : hardening && hardening.delta >= 4 ? (
           <>Nothing has softened. The move is the other way: <b style={{ color: C.text }}>{hardening.role}</b>
             {' '}has gone from #{hardening.from} to <b style={{ color: C.text }}>#{hardening.to}</b>
@@ -210,9 +272,9 @@ export default function DvpDrift({ data, team, roles, highlight }) {
         )}
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4, lineHeight: 1.55 }}>
-        Rank 1 at the top = allows the most = softest. Four windows, not four
-        weeks: each point is that whole span, so the last one is the last three
-        games and not one Sunday. Dim lines are the other roles.
+        Rank 1 at the top = allows the most = softest. {weekly
+          ? `Each point is a rolling ${weekly.window}-game window ending that week, so the line can fall AND rise.`
+          : 'Four windows, not four weeks: each point is that whole span, so the last one is the last three games and not one Sunday.'} Dim lines are the other roles.
       </div>
     </div>
   )
