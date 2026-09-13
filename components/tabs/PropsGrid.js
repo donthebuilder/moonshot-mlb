@@ -171,7 +171,9 @@ function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
               flexShrink: 0, background: watched ? 'rgba(249,115,22,.14)' : 'transparent',
               border: `1px solid ${watched ? C.orange : C.border}`,
               color: watched ? C.orange : C.text3,
-              borderRadius: 7, padding: '3px 7px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
+              // 2026-09-13: 3px 7px was tight for the one button on every card
+              // that adds/removes a watchlist name.
+              borderRadius: 7, padding: '6px 10px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
             }}
           >{watched ? '★' : '☆'}</button>
         )}

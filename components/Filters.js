@@ -41,7 +41,10 @@ export function FilterPill({ active, onClick, children, count, title, disabled }
       onClick={disabled ? undefined : onClick}
       title={title}
       style={{
-        padding: '4px 11px', fontSize: 10, borderRadius: 999, cursor: disabled ? 'default' : 'pointer',
+        // 2026-09-13: 4px vertical was tight for the pill used on every filter
+        // row site-wide — this is the shared recipe, so the bump benefits
+        // every board, not just this one.
+        padding: '6px 12px', fontSize: 10, borderRadius: 999, cursor: disabled ? 'default' : 'pointer',
         border: `1px solid ${s.borderColor}`,
         background: active ? alpha(s.color, 0.14) : 'transparent',
         color: s.color, fontWeight: s.fontWeight,
@@ -95,7 +98,7 @@ export function Segmented({ value, options, onChange, label }) {
           const s = active ? STATE.on() : STATE.off()
           return (
             <button key={o.key} onClick={() => onChange(o.key)} title={o.title} style={{
-              padding: '4px 10px', fontSize: 10, cursor: 'pointer', border: 'none',
+              padding: '6px 11px', fontSize: 10, cursor: 'pointer', border: 'none',
               borderLeft: i ? `1px solid ${C.border}` : 'none',
               background: active ? alpha(s.color, 0.14) : 'transparent',
               color: s.color, fontWeight: s.fontWeight,
@@ -183,7 +186,8 @@ export function ActiveFilters({ filters, shown, total, variant = 'chips', onClea
         {shown != null && total != null && <> — <b style={{ fontFamily: NUM_FONT }}>{shown}</b> of <span style={{ fontFamily: NUM_FONT }}>{total}</span></>}
         {' · '}
         <button onClick={f.onClear} style={{
-          background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+          // 2026-09-13: was padding:0 — a text-only link with zero hit area.
+          background: 'transparent', border: 'none', padding: '5px 0', cursor: 'pointer',
           color: C.orange, fontSize: 10, fontWeight: 700, textDecoration: 'underline',
         }}>show everyone</button>
       </span>
@@ -193,7 +197,7 @@ export function ActiveFilters({ filters, shown, total, variant = 'chips', onClea
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
       {live.map((f) => (
         <button key={f.key} onClick={f.onClear} title="remove this filter" style={{
-          padding: '2px 8px', fontSize: 9.5, borderRadius: 999, cursor: 'pointer',
+          padding: '5px 10px', fontSize: 9.5, borderRadius: 999, cursor: 'pointer',
           border: `1px solid ${STATE.on().borderColor}`,
           background: alpha(STATE.on().color, 0.14), color: STATE.on().color, fontWeight: 700,
           display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -201,7 +205,8 @@ export function ActiveFilters({ filters, shown, total, variant = 'chips', onClea
       ))}
       {live.length > 1 && onClearAll && (
         <button onClick={onClearAll} style={{
-          background: 'transparent', border: 'none', cursor: 'pointer',
+          // 2026-09-13: no padding at all — added a real hit area.
+          background: 'transparent', border: 'none', padding: '5px 4px', cursor: 'pointer',
           color: C.text3, fontSize: 9.5, fontWeight: 700, textDecoration: 'underline',
         }}>clear all</button>
       )}

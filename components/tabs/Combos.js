@@ -148,7 +148,7 @@ export default function Combos({
             type="button"
             onClick={() => setView('ledger')}
             style={{
-              display: 'block', margin: '-4px 0 12px', padding: 0, border: 0,
+              display: 'block', margin: '-4px 0 12px', padding: '5px 0', border: 0,
               background: 'transparent', cursor: 'pointer',
               font: `800 10px/1.5 ${NUM_FONT}`, color: C.orange, letterSpacing: '.04em',
             }}
