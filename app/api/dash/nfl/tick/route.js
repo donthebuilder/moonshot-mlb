@@ -183,12 +183,19 @@ async function runTouchdownTick(db, day) {
     // own note that nfl_roster.json has no committed-snapshot fallback yet)
     // and buildTdEvent() already treats a missing input as "skip that
     // enrichment," never as a reason to fail the whole event.
-    const [roster, logs, picksData, matchup] = await Promise.all([
+    const [roster0, slate, logs, picksData, matchup] = await Promise.all([
       fetchNfl(nflRosterPaths()).catch(() => null),
+      fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
       fetchNfl(nflLogPaths()).catch(() => null),
       fetchNfl(nflPicksPaths(), nflPicksLooksReal).catch(() => null),
       fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).catch(() => null),
     ])
+    // 2026-09-13: nfl_roster.json is not published (404), so every live card
+    // was name-only -- gsis_id null meant no season line, no on-the-bot rank,
+    // no defense tag. The slate (nfl_week.json) carries every player with the
+    // same id under `player_id`, so it IS the roster; use it when the roster
+    // file is absent. matchRoster() normalises player_id -> gsis_id.
+    const roster = (roster0?.players?.length ? roster0 : slate) || null
     const picksCard = picksData?.card || null
     const season = Number(matchup?.season) || new Date(`${day}T12:00:00Z`).getUTCFullYear()
 
