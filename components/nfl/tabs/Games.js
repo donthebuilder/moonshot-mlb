@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
-import { softRole, softLine, ordinal, SOFT_TITLE, matchupTag, TAG_TITLE } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, ordinal, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
+import MatchupBadge from '../MatchupBadge'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
 
@@ -161,30 +162,9 @@ function DesignatedCalls({ game, picks, playersById, onPlayerClick, matchup }) {
   })}</div>
 }
 
-// THE TAG (2026-09-11, Phase 2 depth pass, Competitive Reference #3): turns
-// one designated call, or one of a side's top plays, into a plain verdict
-// against the specific defense it's facing this week -- TARGET when that
-// defense ranks in the softest third of the league against this role/market,
-// AVOID in the stingiest third. Silent for EVEN and for anything the DVP
-// payload can't cover (REC/PASS_YDS/KICK_PTS, or a role that hasn't
-// published yet) -- a badge that says nothing you couldn't already guess
-// isn't worth the pixels, same "renders nothing when there's nothing to
-// say" rule the Card Watch strip already follows a page over.
-function MatchupBadge({ matchup, player, market }) {
-  const t = matchupTag(matchup, player, market)
-  if (!t || t.tag === 'EVEN') return null
-  const color = t.tag === 'TARGET' ? C.green : C.red
-  return (
-    <span
-      title={`${TAG_TITLE[t.tag]} (${t.role} vs ${t.opp} \u2014 #${t.rank} of 32 in ${t.label} allowed)`}
-      style={{
-        fontSize: 8, fontWeight: 900, color, fontFamily: NUM_FONT, letterSpacing: '.04em',
-        border: `1px solid ${color}55`, background: `${color}18`, borderRadius: 4,
-        padding: '1px 4px', flexShrink: 0,
-      }}
-    >{t.tag}</span>
-  )
-}
+// MatchupBadge (THE TAG) moved to components/nfl/MatchupBadge.js
+// (2026-09-13) so Matchups.js's player picker can show the same tag
+// instead of growing a second copy of it -- item 40's own "queued next".
 
 // softRole/softLine/ordinal/SOFT_TITLE moved to lib/nfl/dvpSignal.js
 // (2026-09-11) so the Matchups page can give the same one-sentence answer

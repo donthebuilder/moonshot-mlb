@@ -5,6 +5,7 @@ import { btnStyle } from '../../ui'
 import MatchupMap from '../MatchupMap'
 import DvpTable from '../DvpTable'
 import { softRole, ordinal } from '../../../lib/nfl/dvpSignal'
+import MatchupBadge from '../MatchupBadge'
 
 // Matchups — pick a defence, then read it two ways.
 //
@@ -146,7 +147,13 @@ export default function Matchups({ matchup, data }) {
   // score so the picker leads with the names worth checking.
   const facing = useMemo(() => (data?.players || [])
     .filter((p) => p.opp === active && matchup?.field?.player_pass?.[p.player_id])
-    .map((p) => ({ ...p, best: Math.max(...Object.values(p.scores || { x: 0 })) }))
+    .map((p) => {
+      // Same max-of-scores ranking as before, plus which market produced it
+      // -- MatchupBadge needs one specific market, not just "his best number".
+      const [bestMarket, best] = Object.entries(p.scores || { x: 0 })
+        .reduce((top, e) => (e[1] > top[1] ? e : top), ['', 0])
+      return { ...p, best, bestMarket }
+    })
     .sort((a, b) => b.best - a.best)
     // 14 covered ~6 players facing a preseason defense. A real team's
     // pass-catchers and backs alone are more than that.
@@ -213,8 +220,9 @@ export default function Matchups({ matchup, data }) {
             <button onClick={() => setPid(null)} style={btnStyle(C.cyan, !pid)}>Defence only</button>
             {facing.map((p) => (
               <button key={p.player_id} onClick={() => setPid(p.player_id)}
-                      style={btnStyle(C.cyan, pid === p.player_id)}>
+                      style={{ ...btnStyle(C.cyan, pid === p.player_id), display: 'flex', alignItems: 'center', gap: 5 }}>
                 {surname(p.name)} <span style={{ opacity: .6 }}>{p.position}</span>
+                <MatchupBadge matchup={matchup} player={p} market={p.bestMarket} />
               </button>
             ))}
           </div>
