@@ -144,8 +144,16 @@ function Storylines({ player, market, rows, matchup }) {
   // just has to say which way it points.
   const dvpRank = Number(defense?.td_rank)
   const dvpTone = !Number.isFinite(dvpRank) ? 'note' : dvpRank <= 12 ? 'for' : dvpRank >= 21 ? 'against' : 'note'
+  // route_value (2026-09-13, nfl_offense_value.py): a career/season profile
+  // fact about THIS player, not this week's matchup -- so it sits with the
+  // other player-profile bullets (bestMarket), not the opponent-facing ones
+  // below. 'note' tone, not 'for'/'against': a route he wins on doesn't
+  // argue for or against THIS market's specific call, it's context for
+  // reading the rest of the card.
+  const rv = matchup?.route_value?.[player.player_id]
   const bullets = [
     bestMarket && { tone: 'for', text: `${bestMarket} is his strongest DASH lane at ${Math.round(bestScore)} (${gradeFor(bestScore).label}).` },
+    rv && { tone: 'note', text: `Wins most on ${rv.best_route.toLowerCase()} routes when targeted -- ${rv.best_yds_per_tgt} yards per target, his best of any route type with enough sample this season.` },
     player.questionable && { tone: 'against', text: 'Injury status is questionable; the slate row should be rechecked before kickoff.' },
     player.carryover && { tone: 'note', text: 'The current score leans on last season’s per-game baseline until current-season form has depth.' },
     role && defense && {

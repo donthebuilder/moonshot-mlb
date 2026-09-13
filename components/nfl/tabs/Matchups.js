@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import MatchupMap from '../MatchupMap'
 import DvpTable from '../DvpTable'
-import { softRole, ordinal } from '../../../lib/nfl/dvpSignal'
+import { softRole, ordinal, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 
 // Matchups — pick a defence, then read it two ways.
@@ -168,6 +168,12 @@ export default function Matchups({ matchup, data }) {
   // 6 columns themselves to find the one number that mattered.
   const soft = useMemo(() => softRole(matchup, active, win), [matchup, active, win])
 
+  // Same pass_rush data the PASS_YDS badge reads (lib/nfl/dvpSignal.js,
+  // 2026-09-13) -- surfaced here too as its own callout, since a DEFENCE VS
+  // POSITION table has nothing to say about one individual pass rusher
+  // being the real story regardless of the team's overall DVP profile.
+  const rushThreat = useMemo(() => passRushThreat(matchup, active), [matchup, active])
+
   if (!matchup?.dvp) {
     return (
       <div style={{
@@ -258,6 +264,18 @@ export default function Matchups({ matchup, data }) {
             <b style={{ color: C.cyan }}>{String(soft.role).toLowerCase()}</b> role in{' '}
             <b style={{ color: C.cyan }}>{soft.label}</b> — {ordinal(soft.rank)} of 32 league-wide,
             rank 1 leaks the most. That&apos;s the opening.
+          </div>
+        )}
+        {rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID && (
+          <div style={{
+            margin: '8px 14px 0', padding: '9px 12px', borderLeft: `2px solid ${C.red}`,
+            background: 'rgba(255,60,60,.06)', borderRadius: '0 8px 8px 0',
+            fontSize: 12.5, lineHeight: 1.6, color: C.text2,
+          }}>
+            <b style={{ color: C.text }}>{active}</b>&apos;s real individual threat up front:{' '}
+            <b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) grades{' '}
+            <b style={{ color: C.red }}>{Math.round(rushThreat.percentile)}th percentile</b> on
+            sack-per-pressure rate — a real finisher, not just a name on the roster.
           </div>
         )}
         <div style={{ paddingTop: 10 }}>
