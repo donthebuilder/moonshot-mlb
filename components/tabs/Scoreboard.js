@@ -1019,23 +1019,28 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           own fold labels below, so those numbers aren't printed a second
           time anywhere on this page either now — Aligned's count still
           shows on its own button, up in PanelTitle. */}
+      {/* "The Four leads" was stale — The Four came off this page entirely
+          on 2026-09-03 (see the note further down), and this sentence never
+          got updated to match. Fixed 2026-09-13 while trimming this page's
+          helper text: Pulse is what actually leads both orders now. */}
       <WhatThis label="slate context" maxWidth={760}>
         {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
         {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
         {goneYard.length > 0 && <>{goneYard.filter((r) => r.rank && r.rank <= 15).length} of {goneYard.length} homers came from the board&apos;s top 15. </>}
-        {liveNow ? 'Live action leads below.' : 'The Four leads; the sortable full board follows.'}
+        {liveNow ? 'Live action leads below.' : 'Pulse leads; the sortable full board follows.'}
       </WhatThis>
 
       {order}
 
+      {/* Trimmed 2026-09-13 (Donovan: "the litte helper text ... does not
+          [h]elp"). Also fixed a dangling fragment — this paragraph used to
+          open on "who to look at first tonight," a leftover clause with
+          nothing before it. */}
       <WhatThis>
-        who to look at first tonight. It&apos;s
-        every hitter on the slate, sorted by home-run score — <b style={{ color: C.text2 }}>you can
-        use the order without reading a single column</b>. Sort by any other header to ask a
-        different question (Hit for contact plays, Park for launch pads, K risk for the ones likely
-        to strike out), and click any row to open that hitter.{' '}
-        <b style={{ color: C.text2 }}>Don&apos;t know what a column means? Tap the ⓘ next to its
-        name</b> — it says so in plain English, no baseball background needed.
+        Every hitter on the slate, sorted by home-run score — <b style={{ color: C.text2 }}>you
+        can use the order without reading a single column</b>. Sort any other header for a
+        different question — Hit for contact plays, Park for launch pads, K risk for
+        strikeouts. Tap the ⓘ next to a column name for what it means.
       </WhatThis>
 
       {/* Why a name is on this board twice, answered before it is asked.

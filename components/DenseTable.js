@@ -85,7 +85,10 @@ const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
 // module-level literal keeps the palette it was imported with. See #23.
 const moreBtn = () => ({
   border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
-  borderRadius: 999, padding: '1px 8px', cursor: 'pointer',
+  // Padding widened 2026-09-13 (Donovan: "buttons/tap targets too small or
+  // cramped" on mobile) — this pill is every "show N more"/"show all" button
+  // on every table site-wide, so the fix here is a one-edit, every-table fix.
+  borderRadius: 999, padding: '5px 10px', cursor: 'pointer',
   font: `800 9px/1.4 ${NUM_FONT}`, letterSpacing: '.04em',
 })
 
@@ -731,7 +734,7 @@ export default function DenseTable({
           style={{
             float: 'right', fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer',
             border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
-            borderRadius: 999, padding: '2px 9px', marginLeft: 8,
+            borderRadius: 999, padding: '5px 12px', marginLeft: 8,
           }}>⬇ CSV</button>
         {truncated > 0 && (
           <span style={{ color: C.orange }}>
@@ -771,7 +774,7 @@ export default function DenseTable({
             <>
               {head}{' '}
               <button onClick={() => setCapOpen((v) => !v)} style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                 color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted rgba(255,255,255,.25)',
                 textUnderlineOffset: 3, fontFamily: 'inherit',
               }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
