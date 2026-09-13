@@ -137,7 +137,7 @@ function gamesOf(players) {
     .sort((a, b) => (a.time && b.time ? new Date(a.time) - new Date(b.time) : 0))
 }
 
-// ── STARTING PITCHER (2026-09-13) ───────────────────────────────────────────
+// ── STARTING PITCHER (2026-09-13, revised same day) ─────────────────────────
 // Donovan: "add pitchers as a toggle or a filter... just like you can filter
 // by game, [let me] filter by pitcher too." `pitcher_name` is the arm the
 // hitter on that row actually faces — carried on every batter row already
@@ -145,10 +145,12 @@ function gamesOf(players) {
 // search box here already matches against). One row per starter, same
 // FULL-pool-not-filtered-pool rule as gamesOf.
 //
-// A DROPDOWN, not chips: a full slate runs 20-30 starters, well past what a
-// wrapping chip row reads well at, and Donovan said exactly this about the
-// Pitchers tab's own game/arm selects — "i like how they have drop down
-// menus, it saves space in some situations." Single-select, matching those.
+// First cut was a single-select dropdown (cardinality: 20-30 starters a
+// night). Donovan corrected that directly: "we should be able to click
+// multiple pitchers to start just like the games" — he wants the exact
+// Game-filter interaction (click chips, multi-select, OR across picks), not
+// a narrower single-select control, chip-row length be damned. Rebuilt to
+// match gameSel's shape exactly: an array of selected names, toggled on/off.
 function pitchersOf(players) {
   const by = new Map()
   for (const p of players) {
@@ -198,7 +200,7 @@ export function useBoardFilter(players, scoreType = null) {
   const [query, setQuery] = useState('')
   const [gameSel, setGameSel] = useState([])       // selected game_pks, [] = all
   const [timeWindow, setTimeWindow] = useState('all')
-  const [pitcherSel, setPitcherSel] = useState('all') // 'all' or a pitcher_name
+  const [pitcherSel, setPitcherSel] = useState([])  // selected pitcher_names, [] = all
 
   const games = useMemo(() => gamesOf(players), [players])
   const pitchers = useMemo(() => pitchersOf(players), [players])
@@ -221,7 +223,7 @@ export function useBoardFilter(players, scoreType = null) {
       if (minEV > 0 && n(p?.recent_ev, 0) < minEV) return false
       if (minPA > 0 && n(p?.season_pa, 0) < minPA) return false
       if (gameSel.length && !gameSel.includes(clean(p?.game_pk, ''))) return false
-      if (pitcherSel !== 'all' && clean(p?.pitcher_name, '') !== pitcherSel) return false
+      if (pitcherSel.length && !pitcherSel.includes(clean(p?.pitcher_name, ''))) return false
       if (timeWindow !== 'all' && !inWindow(gameHour(p), timeWindow)) return false
       if (cats.length) {
         const tests = CATEGORIES.filter((c) => cats.includes(c.key))
@@ -238,13 +240,13 @@ export function useBoardFilter(players, scoreType = null) {
   const scoreActive = !!scoreDef && (scoreMin > 0 || scoreMax < 100)
   const active = bands.length > 0 || scoreActive
     || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || query
-    || gameSel.length > 0 || pitcherSel !== 'all' || timeWindow !== 'all'
+    || gameSel.length > 0 || pitcherSel.length > 0 || timeWindow !== 'all'
   const reset = () => {
     setBands([])
     setScoreMin(0); setScoreMax(100)
     setCats([]); setCatMode('any')
     setHand('all'); setMinEV(0); setMinPA(0); setQuery('')
-    setGameSel([]); setPitcherSel('all'); setTimeWindow('all')
+    setGameSel([]); setPitcherSel([]); setTimeWindow('all')
   }
 
   // One entry per active dimension, each independently removable — this is
@@ -270,10 +272,10 @@ export function useBoardFilter(players, scoreType = null) {
       const g = chipOf(gpk)
       out.push({ key: `game-${gpk}`, label: g ? g.label : `Game ${gpk}`, onRemove: () => setGameSel((gs) => gs.filter((x) => x !== gpk)) })
     })
-    if (pitcherSel !== 'all') {
-      const pi = pitchers.find((x) => x.name === pitcherSel)
-      out.push({ key: 'pitcher', label: pi?.team ? `${pitcherSel} (${pi.team})` : pitcherSel, onRemove: () => setPitcherSel('all') })
-    }
+    pitcherSel.forEach((name) => {
+      const pi = pitchers.find((x) => x.name === name)
+      out.push({ key: `pitcher-${name}`, label: pi?.team ? `${name} (${pi.team})` : name, onRemove: () => setPitcherSel((ps) => ps.filter((x) => x !== name)) })
+    })
     if (timeWindow !== 'all') out.push({ key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label, onRemove: () => setTimeWindow('all') })
     if (query) out.push({ key: 'q', label: `“${query}”`, onRemove: () => setQuery('') })
     return out
@@ -345,6 +347,7 @@ export default function BoardFilters({ state, total, shown }) {
 
   const toggleCat = (k) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))
   const toggleGame = (pk) => setGameSel((g) => (g.includes(pk) ? g.filter((x) => x !== pk) : [...g, pk]))
+  const togglePitcher = (name) => setPitcherSel((ps) => (ps.includes(name) ? ps.filter((x) => x !== name) : [...ps, name]))
 
   return (
     <div className="board-filters" style={{ marginBottom: 14 }}>
@@ -496,28 +499,20 @@ export default function BoardFilters({ state, total, shown }) {
                   </div>
                 </div>
               )}
-              {/* STARTING PITCHER (2026-09-13) — Donovan: "just like you can
-                  filter by game, filter by pitcher too." A select, not chips
-                  — a full slate runs 20-30 starters, past where a chip row
-                  reads well, and it matches the dropdowns already on the
-                  Pitchers tab's own game/arm filters. */}
+              {/* STARTING PITCHER (2026-09-13, revised same day) — Donovan:
+                  "we should be able to click multiple pitchers to start just
+                  like the games." Same chip row, same toggle-array pattern
+                  as Game right above it — no second interaction idiom. */}
               {pitchers.length > 1 && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={lbl()}>Starting pitcher</div>
-                  <select
-                    value={pitcherSel}
-                    onChange={(e) => setPitcherSel(e.target.value)}
-                    style={{
-                      marginTop: 3, width: '100%', padding: '6px 10px', fontSize: 12,
-                      borderRadius: 7, border: `1px solid ${pitcherSel !== 'all' ? C.orange : C.border}`,
-                      background: C.bg3, color: C.text, fontFamily: NUM_FONT, outline: 'none',
-                    }}
-                  >
-                    <option value="all">Whoever&apos;s starting</option>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
                     {pitchers.map((p) => (
-                      <option key={p.name} value={p.name}>{p.name}{p.team ? ` (${p.team})` : ''}</option>
+                      <button key={p.name} onClick={() => togglePitcher(p.name)} style={chip(pitcherSel.includes(p.name), C.cyan)}>
+                        {p.name}{p.team ? ` (${p.team})` : ''}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
               <div style={{ marginBottom: 12 }}>
