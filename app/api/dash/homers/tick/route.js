@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { accountabilityText, boardIndexFrom, botPollText, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
@@ -46,6 +46,7 @@ import {
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
+import { logXBudget } from '../../../../../lib/dash/xBudget'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -231,6 +232,9 @@ const STREAKS_HOUR = -3         // 9am ET
 const STORYLINES_HOUR = 0       // noon ET
 const THE_FOUR_HOUR = 0         // noon ET
 const BEST_AIR_HOUR = 2         // 2pm ET
+const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
+const COMMUNITY_PICK_HOUR = -4  // 8am ET
+const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -456,16 +460,24 @@ async function postRecap(db, day, { force = false } = {}) {
     const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank').eq('day', day)
     const c = captureFrom(rows)
     if (c.total) {
-      const roles = Object.entries(c.byRole).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(' · ')
+      // Rewritten 2026-09-13 (Donovan's stacked-format pass): scoreboard feel,
+      // categories vertically stacked in a fixed order with their own emoji,
+      // streak last.
+      const ROLE_EMOJI = { HR: '🤖', TOP: '🌙', TOP15: '🌙', HRR: '📊', CONTACT: '📊', HIT: '📊', WATCH: '👀' }
+      const ROLE_ORDER = ['HR', 'TOP', 'TOP15', 'HRR', 'CONTACT', 'HIT', 'WATCH']
+      const roleLines = ROLE_ORDER.filter((r) => c.byRole[r]).map((r) => `${ROLE_EMOJI[r] || '🤖'} ${r}: ${c.byRole[r]}`)
       const { data: hist } = await db.from('homer_feed').select('day,role,name,odds_over,odds_book').gte('day', shiftDay(day, -12)).lte('day', day)
       const straight = topStreakFrom(hist || [], day, false)
-      const text = [
-        `📋 ${day} — the bot called ${c.called} of ${c.total} home runs (${c.pct}%)`,
-        roles ? `🤖 ${roles}` : '',
-        c.rated ? `⚪ ${c.rated} more were on the board, no call` : '',
-        straight >= 2 ? `🔥 A TOP pick has gone deep ${straight} straight nights` : '',
-        [TAIL.site, TAIL.handle].filter(Boolean).join(' · '),
-      ].filter(Boolean).join('\n')
+      const tailLine = [TAIL.site, TAIL.handle].filter(Boolean).join(' · ')
+      const blocks = [
+        ['📋 NIGHTLY MOONSHOT'],
+        [`${c.called} / ${c.total} HR called`, `${c.pct}% of tonight's homers`],
+      ]
+      if (roleLines.length) blocks.push(roleLines)
+      if (c.rated) blocks.push([`${c.rated} more were on the board.`])
+      if (straight >= 2) blocks.push([`🔥 TOP pick streak: ${straight} nights`])
+      if (tailLine) blocks.push([tailLine])
+      const text = blocks.map((b) => b.join('\n')).join('\n\n')
       await postToDiscord(text, { imageUrl: recapUrl(day) }, FEED_WEBHOOKS())
       if (xOn) {
         const png = await bytesOf(() => recapCard(day, rows || [], hist || [], { site: SITE_HOST }))
@@ -599,6 +611,36 @@ export async function GET(request) {
   // next tick after the day rolls, well before 9am ET.
   const snap = await fetchLiveSlate({ force: true }).catch(() => null)
   const day = slateDayOf(snap) || easternToday()
+
+  // RESULTS / ACCOUNTABILITY (2026-09-13, Donovan's engagement-tweet pass).
+  // Grades YESTERDAY's ten pregame picks against what actually went deep.
+  // The pregame post already persists those ten names on its own row
+  // (homer_feed_posts.payload.picks) -- no new table, just a read-back one
+  // day later. Deliberately placed before the no-games early return below:
+  // an off day for TODAY is not a reason to skip grading YESTERDAY.
+  if (etHoursSinceNoon() >= ACCOUNTABILITY_HOUR) {
+    const yday = shiftDay(day, -1)
+    const acctClaim = await claimSlot(db, yday, 'accountability')
+    if (acctClaim) {
+      const { data: pre } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: 'pregame' }).maybeSingle()
+      const yPicks = pre?.payload?.picks || []
+      if (yPicks.length) {
+        const { data: yHits } = await db.from('homer_feed').select('player_id').eq('day', yday)
+        const hitIds = new Set((yHits || []).map((r) => String(r.player_id)))
+        const text = accountabilityText(yPicks, hitIds, { day: yday, ...TAIL })
+        const patch = { payload: { picks: yPicks, hit: [...hitIds] } }
+        const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+        if (d.ok) patch.discord_sent = true
+        if (hasX()) {
+          const r = await postToX(text)
+          if (r.ok && r.id) patch.x_post_id = r.id
+          else console.error(`[homers] accountability refused: ${r.status} ${r.error}`)
+        }
+        await db.from('homer_feed_posts').update(patch).match({ day: yday, kind: 'accountability' })
+      }
+    }
+  }
+
   // The nights before the feed existed, one per tick until the /called window
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
@@ -979,6 +1021,35 @@ export async function GET(request) {
           if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
         }
       }
+
+      // COMMUNITY PICK (2026-09-13). Static invite, no data dependency --
+      // gated on `ready` purely so it reads naturally next to tonight's real
+      // picks above, not because it needs any of that data itself.
+      await claimAndPostStat(db, day, 'community_pick', COMMUNITY_PICK_HOUR, communityPickText(TAIL), null)
+
+      // BOT VS THE PEOPLE (2026-09-13). A native X poll -- see postToX's
+      // `poll` option. Discord has no equivalent native-poll webhook field
+      // here, so it gets the question plus the options spelled out as text;
+      // X gets the real tappable poll.
+      {
+        const pollNames = picks.slice(0, 4).map((p) => p.name)
+        if (pollNames.length >= 2) {
+          const pollClaim = await claimSlot(db, day, 'botpoll')
+          if (pollClaim) {
+            const text = botPollText(TAIL)
+            const lettered = pollNames.map((n, i) => `${String.fromCharCode(65 + i)}) ${n}`).join('\n')
+            const patch = { payload: { options: pollNames } }
+            const d = await postToDiscord(`${text}\n\n${lettered}`, {}, FEED_WEBHOOKS())
+            if (d.ok) patch.discord_sent = true
+            if (hasX()) {
+              const r = await postToX(text, { poll: { options: pollNames, durationMinutes: BOTPOLL_DURATION_MIN } })
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] botpoll refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'botpoll' })
+          }
+        }
+      }
     }
   }
 
@@ -1232,29 +1303,11 @@ export async function GET(request) {
   // on a miscount is a worse outcome than the overage it prevents, so this
   // logs and reports and that is all. Counted only on ticks that actually
   // posted (~30-40 a day, not 1,440) to keep it off the database's neck.
+  // Shared with app/api/dash/nfl/tick/route.js (lib/dash/xBudget.js) so the
+  // NFL tick can log against the same running total on nights this route
+  // never fires at all -- see that file's own header note.
   if (totals.x > 0) {
-    try {
-      const monthStart = `${day.slice(0, 7)}-01`
-      const [alerts, posts] = await Promise.all([
-        db.from('homer_feed').select('*', { count: 'exact', head: true })
-          .gte('day', monthStart).lte('day', day)
-          .not('x_post_id', 'is', null)
-          .not('x_post_id', 'in', '("posting","skipped")'),
-        db.from('homer_feed_posts').select('*', { count: 'exact', head: true })
-          .gte('day', monthStart).lte('day', day)
-          .not('x_post_id', 'is', null),
-      ])
-      const used = (alerts.count || 0) + (posts.count || 0)
-      totals.xMonth = { used, cap: X_MONTHLY_CAP, mode: MODE }
-      if (used >= X_MONTHLY_CAP) {
-        console.error(`[homers] X MONTHLY CAP REACHED: ${used}/${X_MONTHLY_CAP} this month (mode=${MODE}). Expect 429s until the cycle resets; X_POST_MODE=flagged is the switch.`)
-      } else if (used >= X_MONTHLY_CAP * 0.8) {
-        console.warn(`[homers] X monthly budget at ${used}/${X_MONTHLY_CAP} (mode=${MODE}).`)
-      }
-    } catch (e) {
-      // A failed count must never take the tick down with it.
-      console.error(`[homers] X budget count failed: ${e.message}`)
-    }
+    totals.xMonth = await logXBudget(db, day, { mode: MODE, cap: X_MONTHLY_CAP })
   }
 
   totals.statErrors = statErrors
