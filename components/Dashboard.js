@@ -718,13 +718,15 @@ export default function Dashboard({ palettePass = 0 }) {
                 (see components/tabs/Home.js) instead of a dead 'live' tab key
                 here — 'live' was never in MLB_TABS, lib/routes.js always
                 aliased it to 'scoreboard' before Dashboard saw it, so this
-                branch could never fire. The "Live" nav button sets tab to
-                'scoreboard' directly, so that's opened on the At the plate
-                view now, not The board — The board is one pill away inside
-                it. #tab=atplate lands on the same view for the same reason,
-                replacing Games.js's "🔴 Live" mode, which rendered the same
-                grid as Default in every way but its button state. */}
-            {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="live" />}
+                branch could never fire.
+                SAME DAY, REVERTED: the "Live" nav button was changed to open
+                on the At the plate view instead of Scores (the old 'board').
+                Donovan, after using it: "live should open up to scores page"
+                — he still wants At the plate reachable (it's the first pill),
+                just not the landing view. Scores leads again; #tab=atplate
+                still opens straight to At the plate for that specific deep
+                link, unchanged. */}
+            {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}
             {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
             {tab === 'atplate'     && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="live" />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17

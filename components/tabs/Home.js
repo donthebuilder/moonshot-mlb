@@ -197,9 +197,11 @@ function Stat({ label, value, sub, col = C.text, title }) {
 // tab key ('live') that lib/routes.js always aliases away from before it
 // can render — it was permanently dead code. It belongs here, not on Slate
 // (Games.js): Slate answers "what's the matchup," this answers "what's
-// happening right now," which is exactly this tab's job. Dashboard now opens
-// this view by default for the "Live" nav button (see the `scoreboard` alias
-// there), so Scores — the old default — is still one pill away, not gone.
+// happening right now," which is exactly this tab's job. It's reachable as a
+// pill the moment you tap "Live" — Scores stays the landing view there (see
+// the `scoreboard` alias in Dashboard.js; briefly swapped to open on At the
+// plate instead the same day, then reverted — Donovan: "live should open up
+// to scores page"), so At the plate is one tap away rather than gone.
 // Games.js's own "🔴 Live" mode is retired in the same change: it rendered
 // the same grid as Default in every way but its button state, so nothing of
 // value was sitting behind it.
