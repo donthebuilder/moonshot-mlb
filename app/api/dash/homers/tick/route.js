@@ -35,8 +35,8 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { boardIndexFrom, captureFrom, fmtOdds, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
-import { homerCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
+import { boardIndexFrom, captureFrom, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { homerCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
   dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
@@ -902,7 +902,7 @@ export async function GET(request) {
       // call below and of each other -- a slow news night for one is not a
       // reason to hold back the other, and neither can double-post.
       {
-        const hits = pairsToWatch(pregameRows(), pairs)
+        const hits = pairsToWatch(pregameRows(), pairs, odds, day)
         if (hits.length) {
           const claim = await claimSlot(db, day, 'pairswatch')
           if (claim) {
@@ -912,11 +912,7 @@ export async function GET(request) {
             // same one render -- see claimAndPostStat. It used to be built
             // inside the X branch, which left Discord with bare text and, on
             // a night with X off, built no card at all.
-            const png = await bytesOf(() => statCard(day, {
-              pill: 'PAIRS', label: 'THE PAIR TRAP',
-              headline: hits.map((h) => `${h.a.name} & ${h.b.name}`).join('  ·  '),
-              lines: hits.map((h) => `${h.count}x same-day this season${h.rate != null ? ` (${h.rate}%)` : ''} · ${h.a.team || '?'} vs ${h.a.opponent || '?'}, ${h.b.team || '?'} vs ${h.b.opponent || '?'}`),
-            }, { site: SITE_HOST }))
+            const png = await bytesOf(() => pairsCard(day, hits, { site: SITE_HOST }))
             const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
@@ -940,14 +936,7 @@ export async function GET(request) {
             // same one render -- see claimAndPostStat. It used to be built
             // inside the X branch, which left Discord with bare text and, on
             // a night with X off, built no card at all.
-            const png = await bytesOf(() => statCard(day, {
-              pill: 'LONGSHOT', label: 'THE MOONSHOT',
-              headline: `${pick.name}${pick.team ? ` (${pick.team})` : ''}`,
-              lines: [
-                `${fmtOdds(pick.over)} · ${pick.book}${pick.opponent ? ` to go deep vs ${pick.opponent}` : ''}`,
-                pick.hr_score != null ? `MOONSHOT Score ${Math.round(pick.hr_score)}` : '',
-              ],
-            }, { site: SITE_HOST }))
+            const png = await bytesOf(() => longshotCard(day, pick, { site: SITE_HOST }))
             const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
@@ -1085,7 +1074,7 @@ export async function GET(request) {
   // re-checks as the night's homer count grows. Same one-claim-per-day
   // pattern as every other kind on homer_feed_posts.
   {
-    const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,hr_n,stats').eq('day', day)
+    const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,opponent,role,hr_n,stats').eq('day', day)
     const moment = numerologyMoment(dayRows || [])
     if (moment) {
       const claim = await claimSlot(db, day, 'numerology')
@@ -1095,18 +1084,7 @@ export async function GET(request) {
         // Rendered above the Discord post so both services take one render --
         // see claimAndPostStat. Sat inside the X branch, which left Discord
         // with bare text and built nothing at all on a night with X off.
-        const cardLabel = moment.tier === 'trifecta' ? 'TRIFECTA' : moment.tier === 'jersey' ? 'JERSEY MATCH' : 'CLUSTER'
-        const cardHeadline = moment.tier === 'jersey'
-          ? moment.players.map((p) => p.name).join(' & ')
-          : moment.players.slice(0, 4).map((p) => p.name).join(', ')
-        const cardLines = moment.tier === 'trifecta'
-          ? [`#${moment.players[0].jersey} · HR #${moment.players[0].nth} · born on the digit root ${moment.root}`]
-          : moment.tier === 'jersey'
-            ? [`Both wearing #${moment.jersey}, both deep tonight`]
-            : [`${moment.players.length} homers, jersey digit root ${moment.root}`]
-        const png = await bytesOf(() => statCard(day, {
-          pill: 'NUMEROLOGY', label: cardLabel, headline: cardHeadline, lines: cardLines,
-        }, { site: SITE_HOST }))
+        const png = await bytesOf(() => numerologyCard(day, moment, { site: SITE_HOST }))
         const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
         if (hasX()) {
