@@ -6,7 +6,7 @@ import MatchupMap from '../MatchupMap'
 import DvpTable from '../DvpTable'
 import DvpDrift from '../DvpDrift'
 import ChartFrame from '../ChartFrame'
-import { softRole, ordinal, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, ordinal, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 
 // Matchups — pick a defence, then read it two ways.
@@ -268,10 +268,21 @@ export default function Matchups({ matchup, data }) {
             fontSize: 12.5, lineHeight: 1.6, color: C.text2,
           }}>
             <span className="tuddy-live-dot-sm" aria-hidden="true" />
-            <b style={{ color: C.text }}>{active}</b>&apos;s softest spot is the{' '}
-            <b style={{ color: C.cyan }}>{String(soft.role).toLowerCase()}</b> role in{' '}
-            <b style={{ color: C.cyan }}>{soft.label}</b> — {ordinal(soft.rank)} of 32 league-wide,
-            rank 1 leaks the most. That&apos;s the opening.
+            {/* Was "Nth softest of 32" — which, measured, read 1st or 2nd for
+                29 of 32 defences. Now the actual number against the league's
+                own average for that same cell. See lib/nfl/dvpSignal.js. */}
+            {soft.standout ? (
+              <>
+                <b style={{ color: C.text }}>{active}</b>{' '}
+                <b style={{ color: C.cyan }}>{softLine(soft)}</b>. That&apos;s the opening.
+              </>
+            ) : (
+              <>
+                <b style={{ color: C.text }}>{active}</b> has no standout weakness — nothing they
+                give up is far enough above the league&apos;s own average for that role to call an
+                opening.
+              </>
+            )}
           </div>
         )}
         {rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID && (

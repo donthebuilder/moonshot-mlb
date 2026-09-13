@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
-import { softRole, softLine, ordinal, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, softStrength, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
 import { rankColor } from '../DvpTable'
 import MatchupBadge from '../MatchupBadge'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
@@ -249,24 +249,39 @@ function GameIntel({ game, matchup }) {
   const awayDefense = softRole(matchup, game.away)
   const homeDefense = softRole(matchup, game.home)
   const hasWeather = Number.isFinite(game.weather_temp_f)
-  // Rank 1 allows the most, so a LOW rank is a fat bar: the meter reads in the
-  // direction a bettor does, same as the board's own colour scale.
-  const softTone = (d) => (d ? rankColor(d.rank) || C.text3 : C.text3)
-  return <div className="nfl-game-intel">
-    <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b>
+  // Colour still keys off the cell's league rank (so it agrees with the DVP
+  // table), but LENGTH is now how far above league average the cell actually
+  // sits — see dvpSignal.js. By rank alone 29 of 32 defences were 1st or 2nd
+  // softest at something and every bar pinned full.
+  const softTone = (d) => (d?.standout ? rankColor(d.rank) || C.text3 : C.text3)
+  // REST IS DROPPED, NOT DRAWN EMPTY (2026-09-13). A Week 1 opener has no
+  // previous game, so both rest values are genuinely null and restLabel()
+  // correctly prints "—". That was a quarter of the row reading "TB – · CIN –"
+  // above an empty meter on all sixteen cards. A tile with nothing in it is
+  // worse than one fewer tile, so the row closes up to three.
+  const hasRest = Number.isFinite(game.away_rest_days) || Number.isFinite(game.home_rest_days)
+  const tiles = [
+    <div key="env"><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b>
       <Meter value={game.indoors ? 1 : hasWeather ? game.weather_temp_f : null} lo={20} hi={85} tone={game.indoors ? C.cyan : C.amber} />
-      <span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>
-    <div><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b>
-      <Meter value={Math.min(game.away_rest_days ?? NaN, game.home_rest_days ?? NaN)} lo={3} hi={14}
-             tone={(game.away_short_week || game.home_short_week) ? C.amber : C.green} />
-      <span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
-    <div title={SOFT_TITLE}><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.rank}` : '—'}</b>
-      <Meter value={awayDefense?.rank} lo={1} hi={32} invert tone={softTone(awayDefense)} />
-      <span>{softLine(awayDefense)}</span></div>
-    <div title={SOFT_TITLE}><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.rank}` : '—'}</b>
-      <Meter value={homeDefense?.rank} lo={1} hi={32} invert tone={softTone(homeDefense)} />
-      <span>{softLine(homeDefense)}</span></div>
-  </div>
+      <span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>,
+    hasRest && (
+      <div key="rest"><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b>
+        <Meter value={Math.min(game.away_rest_days ?? NaN, game.home_rest_days ?? NaN)} lo={3} hi={14}
+               tone={(game.away_short_week || game.home_short_week) ? C.amber : C.green} />
+        <span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
+    ),
+    <div key="awayd" title={SOFT_TITLE}><small>{game.away} GIVES UP</small><b>{awayDefense?.standout ? awayDefense.plain.toUpperCase() : '—'}</b>
+      <Meter value={softStrength(awayDefense)} lo={0} hi={1} tone={softTone(awayDefense)} />
+      <span>{softLine(awayDefense)}</span></div>,
+    <div key="homed" title={SOFT_TITLE}><small>{game.home} GIVES UP</small><b>{homeDefense?.standout ? homeDefense.plain.toUpperCase() : '—'}</b>
+      <Meter value={softStrength(homeDefense)} lo={0} hi={1} tone={softTone(homeDefense)} />
+      <span>{softLine(homeDefense)}</span></div>,
+  ].filter(Boolean)
+  // A CSS VARIABLE, not an inline grid-template-columns: an inline template
+  // would beat the <=620px media query below and put three tiles across a
+  // phone. The variable is read by the rule, so the mobile override still
+  // wins where it should.
+  return <div className="nfl-game-intel" style={{ '--intel-cols': tiles.length }}>{tiles}</div>
 }
 
 // C5 (dash-network-master-plan-2026-08-28.md): "the ratchet continues: NFL
@@ -305,14 +320,42 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
     () => modelNarrativeStories(resultsArchive, resultsKeys, playersById),
     [resultsArchive, resultsKeys, playersById],
   )
-  const storyForGame = (game) => {
-    const inGame = (p) => p?.team === game.away || p?.team === game.home
-    const model = modelStories.find((c) => inGame(c.player))
-    if (model) return { kind: 'model', text: modelHeadline(model), player: model.player, market: model.hitMarket }
-    const mile = milestones.find((r) => inGame(r.player))
-    if (mile) return { kind: 'milestone', text: milestoneHeadline(mile), player: mile.player, market: mile.marketKey }
-    return null
-  }
+  // ── ONE STORY PER CARD, AND NOT THE SAME STORY SIXTEEN TIMES ────────────
+  // Picking each card's story independently meant each one took the longest
+  // streak available, and the longest streaks all live in the same market —
+  // every visible card read "has carried it 12+ times in N straight games."
+  // Six identical sentence shapes in a column stop reading as storylines and
+  // start reading as a template, which is the opposite of the point.
+  //
+  // So stories are assigned across the whole page in one pass: a market that
+  // has already been used gets passed over while any card still has an
+  // unused market available. Nothing is invented and nothing is suppressed —
+  // the same stories, spread instead of stacked. Model narratives are exempt
+  // (they are rare, and two on a page is already unusual).
+  const storyByGame = useMemo(() => {
+    const out = {}
+    const usedMarkets = new Set()
+    // `games` rather than the display-sorted list: `sorted` is declared
+    // further down and this memo runs during the same render. Assignment
+    // order only decides which card gets first pick of an unused market.
+    for (const game of games) {
+      const inGame = (p) => p?.team === game.away || p?.team === game.home
+      const model = modelStories.find((c) => inGame(c.player))
+      if (model) {
+        out[game.game_id ?? `${game.away}@${game.home}`] =
+          { kind: 'model', text: modelHeadline(model), player: model.player, market: model.hitMarket }
+        continue
+      }
+      const candidates = milestones.filter((r) => inGame(r.player))
+      if (!candidates.length) continue
+      const mile = candidates.find((r) => !usedMarkets.has(r.marketKey)) || candidates[0]
+      usedMarkets.add(mile.marketKey)
+      out[game.game_id ?? `${game.away}@${game.home}`] =
+        { kind: 'milestone', text: milestoneHeadline(mile), player: mile.player, market: mile.marketKey }
+    }
+    return out
+  }, [games, milestones, modelStories])
+  const storyForGame = (game) => storyByGame[game.game_id ?? `${game.away}@${game.home}`] || null
 
   // ── MOBILE PROGRESSIVE DISCLOSURE (2026-08-29) ─────────────────────────
   // Fifteen fully-expanded cards made the phone page enormous (both reviews
@@ -552,7 +595,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         })}
       </div>
       <style>{`
-        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(53,205,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(53,205,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:72px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}.nfl-game-why{display:flex;align-items:baseline;gap:7px;width:100%;text-align:left;margin:2px 0 8px;padding:7px 9px;border:1px solid rgba(0,245,173,.3);border-radius:8px;background:rgba(0,245,173,.06);color:inherit;cursor:pointer}.nfl-game-why:hover{border-color:rgba(0,245,173,.5)}.nfl-game-why .tag{flex:0 0 auto;font:900 7.5px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.green};text-transform:uppercase}.nfl-game-why .text{font-size:10px;line-height:1.35;color:${C.text2}}.nfl-game-why.model{border-color:rgba(251,146,60,.32);background:rgba(251,146,60,.07)}.nfl-game-why.model:hover{border-color:rgba(251,146,60,.5)}.nfl-game-why.model .tag{color:${C.orange}}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}}
+        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(53,205,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(53,205,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(var(--intel-cols,4),minmax(0,1fr));gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:72px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}.nfl-game-why{display:flex;align-items:baseline;gap:7px;width:100%;text-align:left;margin:2px 0 8px;padding:7px 9px;border:1px solid rgba(0,245,173,.3);border-radius:8px;background:rgba(0,245,173,.06);color:inherit;cursor:pointer}.nfl-game-why:hover{border-color:rgba(0,245,173,.5)}.nfl-game-why .tag{flex:0 0 auto;font:900 7.5px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.green};text-transform:uppercase}.nfl-game-why .text{font-size:10px;line-height:1.35;color:${C.text2}}.nfl-game-why.model{border-color:rgba(251,146,60,.32);background:rgba(251,146,60,.07)}.nfl-game-why.model:hover{border-color:rgba(251,146,60,.5)}.nfl-game-why.model .tag{color:${C.orange}}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .tuddy-live-dot{animation:pulse 2s infinite}
 .tuddy-live-dot-sm{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:${C.cyan};box-shadow:0 0 6px ${C.cyan};vertical-align:middle;animation:pulse 2s infinite}
