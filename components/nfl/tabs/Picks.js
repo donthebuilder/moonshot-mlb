@@ -12,6 +12,7 @@ import {
   gradeSlate, recordSlate, ledgerTotals, exportStore, importStore, clearAll,
 } from '../../../lib/nfl/myPicks'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
+import { AnatomyStrip } from '../ScoreAnatomy'
 
 // 🎫 PICKS — the bot's card, and yours on top of it.
 //
@@ -133,6 +134,15 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
     () => Object.fromEntries((data?.players || []).map((p) => [String(p.player_id), p])),
     [data],
   )
+  // 2026-09-13: the rung shows a bare number, so it also shows the shape that
+  // built it — a 5px stacked strip of weight x percentile, same segment order
+  // as the full ANATOMY panel in the modal. Two 74s that are not the same 74
+  // now look different on the board itself, and it costs no row height.
+  const weightsFor = useMemo(
+    () => Object.fromEntries((data?.markets || []).map((m) => [m.key, m.weights || {}])),
+    [data],
+  )
+
   const open = (pid, market) => {
     const row = byPid[String(pid)]
     if (row) onPlayerClick?.(row, market)
@@ -429,6 +439,11 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                         fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900,
                         color: g.color, minWidth: 30,
                       }}>{Math.round(rung.score)}</span>
+                      <AnatomyStrip
+                        components={byPid[String(rung.player_id)]?.components?.[market]}
+                        weights={weightsFor[market]}
+                        width={54}
+                      />
                       <button
                         onClick={() => open(rung.player_id, market)}
                         style={{

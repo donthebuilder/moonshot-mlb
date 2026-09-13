@@ -1,8 +1,15 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import AgainstTheBar from './AgainstTheBar'
 
-// HitRate — every game against the line, as bars.
+// HitRate — every game against the line.
+//
+// 2026-09-13: the bars became dots (components/nfl/AgainstTheBar.js). The
+// column chart could only ever say over/under; the strip says over/under AND
+// by how much, in half the vertical space. The line chips, the window chips
+// and the season/L5/L10/L20 rates below are unchanged — they were the good
+// half of this component and they still are.
 //
 // The reason this beats an average: two 12-catch games and eight 2-catch games
 // average the same as ten 4-catch games and are not remotely the same bet. The
@@ -48,7 +55,6 @@ export default function HitRate({ log, market, defaultBar }) {
   const [span, setSpan] = useState(10)
 
   const key = STAT_KEY[market]
-  const games = useMemo(() => (log || []).slice(-span), [log, span])
 
   const stats = useMemo(() => {
     const all = log || []
@@ -62,9 +68,6 @@ export default function HitRate({ log, market, defaultBar }) {
   }, [log, line, key])
 
   if (!log?.length) return null
-  const vals = games.map((g) => Number(g[key]) || 0)
-  const max = Math.max(...vals, line * 1.35, 1)
-  const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
 
   return (
     <>
@@ -98,46 +101,7 @@ export default function HitRate({ log, market, defaultBar }) {
         </div>
       </div>
 
-      {/* the bars, with the line drawn across them */}
-      <div style={{
-        position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 3,
-        height: 104, background: 'rgba(255,255,255,.02)',
-        border: `1px solid ${C.border}`, borderRadius: 9, padding: '8px 8px 20px',
-      }}>
-        <div style={{
-          position: 'absolute', left: 8, right: 8, bottom: `calc(20px + ${(line / max) * 84}px)`,
-          height: 1, background: C.text2, zIndex: 2,
-        }} />
-        <div style={{
-          position: 'absolute', right: 10,
-          bottom: `calc(22px + ${(line / max) * 84}px)`, zIndex: 3,
-          fontFamily: NUM_FONT, fontSize: 8.5, color: C.text2,
-        }}>avg {avg.toFixed(1)}</div>
-        {games.map((g, i) => {
-          const v = Number(g[key]) || 0
-          const hit = v > line
-          return (
-            <div key={`${g.s}-${g.w}-${i}`} style={{
-              flex: 1, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'flex-end', height: '100%',
-            }} title={`${g.s} wk ${g.w} vs ${g.opp}: ${v}`}>
-              <span style={{
-                fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900,
-                color: hit ? C.green : C.text3, marginBottom: 2,
-              }}>{Number.isInteger(v) ? v : v.toFixed(0)}</span>
-              <div style={{
-                width: '100%', borderRadius: '3px 3px 0 0',
-                height: `${Math.max(2, (v / max) * 84)}px`,
-                background: hit ? `${C.green}cc` : `${C.red}66`,
-              }} />
-              <span style={{
-                position: 'absolute', bottom: 5, fontSize: 7.5, color: C.text3,
-                fontFamily: NUM_FONT,
-              }}>{g.opp}</span>
-            </div>
-          )
-        })}
-      </div>
+      <AgainstTheBar log={log} statKey={key} bar={line} span={span} height={54} />
 
       <div style={{ display: 'flex', gap: 5, marginTop: 7, flexWrap: 'wrap' }}>
         {stats.seasons.map(([s, [h, n]]) => <Pct key={s} label={s} hits={h} n={n} />)}

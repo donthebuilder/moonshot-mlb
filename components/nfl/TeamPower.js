@@ -112,7 +112,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
         .tp-rank{width:20px;text-align:right;font:900 11px/1 var(--num-font,ui-monospace,monospace);opacity:.55}
         .tp-row b{width:36px;font-size:12px}
         .tp-bar{flex:1;height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;min-width:40px}
-        .tp-bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#00e0a4,#06b6d4)}
+        .tp-bar>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#fbbf24,#8fd14f,#00e0a4)}
         .tp-row em{font:900 12px/1 var(--num-font,ui-monospace,monospace);font-style:normal;min-width:40px;text-align:right}
         .tp-row i{font-style:normal;font-size:9px;opacity:.5;width:14px;text-align:right}
         .tp-starters{padding:2px 0 9px 30px;display:flex;flex-direction:column;gap:2px}

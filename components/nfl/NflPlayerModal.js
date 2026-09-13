@@ -13,46 +13,14 @@ import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import FollowButton from '../FollowButton'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
+import ScoreAnatomy from './ScoreAnatomy'
+import SplitDumbbell from './SplitDumbbell'
 
-// Why this player scores what he scores.
-//
-// The board gives a number; without this the number is an assertion. Every
-// component that went into the score is listed with its own percentile and
-// the weight it carried, so the arithmetic is inspectable rather than trusted.
-// That's the same posture as the MLB ScoreAudit — if the model is wrong you
-// should be able to SEE where it went wrong, not just that it did.
-
-const LABELS = {
-  f_gl_opp: 'Goal-line opportunity',
-  f_rz_opp: 'Red-zone touches',
-  implied_total: 'Implied team total',
-  f_xtd: 'Expected TDs',
-  opp_td_soft: 'Defense TD softness',
-  td_regression: 'TD regression (due)',
-  f_wopr: 'WOPR (opportunity)',
-  f_receiving_yards: 'Receiving yards form',
-  f_receiving_air_yards: 'Air yards (depth)',
-  opp_pass_soft: 'Defense pass softness',
-  f_target_share: 'Target share',
-  f_receptions: 'Receptions form',
-  f_targets: 'Targets',
-  f_carries: 'Carries',
-  f_rushing_yards: 'Rushing yards form',
-  f_rz_car: 'Red-zone carries',
-  f_ngs_rush_yards_over_expected_per_att: 'RYOE per attempt (NGS)',
-  total_line: 'Game total',
-  // 2026-09-07: the only key the bot emits that had no label here, so the
-  // WHY panel on every quarterback read "Game total / f_passing_yards /
-  // Pass attempts / CPOE" — three human labels and a variable name.
-  f_passing_yards: 'Passing yards form',
-  f_attempts: 'Pass attempts',
-  f_passing_cpoe: 'CPOE',
-  f_tm_fg_drive_rate: 'Team FG-drive rate',
-  f_tm_rz_td_rate_inv: 'Team RZ TD rate (inverted)',
-  f_fg_att: 'FG attempts',
-  kick_env: 'Kicking environment',
-  f_tm_drives: 'Team drives',
-}
+// Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
+// The list of components that used to live here (label map included) moved
+// there on 2026-09-13 when the WHY panel became a stacked bar; the panel is
+// mounted below and the labels are exported from that file so the board rungs
+// and this modal cannot drift apart.
 
 
 // ── splits ────────────────────────────────────────────────────────────────────
@@ -82,9 +50,19 @@ function Splits({ player, market, data }) {
   const pairs = (data?.pairs || []).filter(([a, b]) => sp[a] || sp[b])
   if (!pairs.length) return null
 
-  // Colour the better side of each pair, but only when the gap is real — a
-  // 4% difference on a 17-game sample is not a split, it's noise wearing one.
-  const MEANINGFUL = 0.15
+  // 2026-09-13: six two-column rows became six dumbbells. Same numbers, but
+  // the GAP is now a length instead of a subtraction the reader has to do.
+  // One dumbbell per situational pair, each on its own scale — a TD rate and
+  // a yardage rate never shared an axis and drawing them as if they did would
+  // flatten every rate row to nothing.
+  const rows = pairs.map(([a, b]) => ({
+    key: `${a}-${b}`,
+    label: `${data?.labels?.[a] || a} / ${data?.labels?.[b] || b}`,
+    a: Number.isFinite(sp[a]?.[statKey]) ? Number(sp[a][statKey]) : null,
+    b: Number.isFinite(sp[b]?.[statKey]) ? Number(sp[b][statKey]) : null,
+    ga: sp[a]?.g,
+    gb: sp[b]?.g,
+  }))
 
   return (
     <>
@@ -92,51 +70,10 @@ function Splits({ player, market, data }) {
         fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
         margin: '16px 0 7px',
       }}>SPLITS — {unit}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {pairs.map(([a, b]) => {
-          const A = sp[a]; const B = sp[b]
-          const va = A?.[statKey]; const vb = B?.[statKey]
-          const both = Number.isFinite(va) && Number.isFinite(vb)
-          const hi = both && Math.max(va, vb) > 0
-            && Math.abs(va - vb) / Math.max(va, vb) >= MEANINGFUL
-            ? (va > vb ? 'a' : 'b') : null
-          const cell = (v, g, side) => (
-            <div style={{
-              flex: 1, textAlign: 'center', padding: '4px 6px', borderRadius: 7,
-              background: hi === side ? `${C.green}14` : 'transparent',
-              border: `1px solid ${hi === side ? C.green + '45' : 'transparent'}`,
-            }}>
-              <div style={{
-                fontFamily: NUM_FONT, fontSize: 12.5, fontWeight: 900,
-                color: hi === side ? C.green : C.text,
-              }}>{Number.isFinite(v) ? v.toFixed(2) : '—'}</div>
-              <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-                {g ? `${g}g` : ''}
-              </div>
-            </div>
-          )
-          return (
-            <div key={`${a}-${b}`} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-              borderRadius: 8, padding: '5px 8px',
-            }}>
-              <span style={{ fontSize: 10, color: C.text3, minWidth: 62 }}>
-                {data?.labels?.[a] || a}
-              </span>
-              {cell(va, A?.g, 'a')}
-              <span style={{ fontSize: 9, color: C.text3 }}>vs</span>
-              {cell(vb, B?.g, 'b')}
-              <span style={{
-                fontSize: 10, color: C.text3, minWidth: 62, textAlign: 'right',
-              }}>{data?.labels?.[b] || b}</span>
-            </div>
-          )
-        })}
-      </div>
-      <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-        Per-game rates, games beside them. Lit at a 15%+ gap.
-      </div>
+      <SplitDumbbell
+        rows={rows}
+        note={`Per-game ${unit}. Filled is the first side of each label, hollow the second, each pair on its own scale. The number on the right is the gap — it lights past 15%, because a smaller one on this sample is noise.`}
+      />
     </>
   )
 }
@@ -369,9 +306,6 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   const comps = player.components?.[market] || {}
   const weights = spec?.weights || {}
 
-  const ordered = Object.entries(comps)
-    .map(([k, v]) => ({ key: k, pct: v, w: weights[k.replace(/_inv$/, '')] ?? 0 }))
-    .sort((a, b) => b.w - a.w)
 
   return (
     <div
@@ -476,38 +410,16 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         <MatchupSection player={player} matchup={matchup} market={market} />
         <DvpSection player={player} matchup={matchup} />
 
-        {ordered.length > 0 && (
-          <>
-            <Head>WHY — {spec?.label || market}</Head>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {ordered.map(({ key, pct, w }) => (
-                <div key={key} style={{
-                  position: 'relative', display: 'flex', alignItems: 'center', gap: 9,
-                  background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-                  borderRadius: 8, padding: '6px 10px', overflow: 'hidden',
-                }}>
-                  <div style={{
-                    position: 'absolute', left: 0, top: 0, bottom: 0,
-                    width: `${Math.max(0, Math.min(100, pct))}%`,
-                    background: `linear-gradient(90deg, ${C.green}1a, transparent)`,
-                  }} />
-                  <span style={{
-                    position: 'relative', fontSize: 11.5, color: C.text2, flex: 1,
-                  }}>{LABELS[key] || key}</span>
-                  <span style={{
-                    position: 'relative', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT,
-                  }}>{Math.round(w * 100)}% wt</span>
-                  <span style={{
-                    position: 'relative', fontFamily: NUM_FONT, fontSize: 12,
-                    fontWeight: 900, color: C.green, minWidth: 34, textAlign: 'right',
-                  }}>{Math.round(pct)}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 10, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
-              Percentile against the league at his position — not a probability.
-            </div>
-          </>
+        {Object.keys(comps).length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <ScoreAnatomy
+              components={comps}
+              weights={weights}
+              score={player.scores?.[market]}
+              marketLabel={spec?.label || market}
+              dropped={spec?.dropped}
+            />
+          </div>
         )}
 
         {Object.keys(player.stats || {}).length > 0 && (
