@@ -34,6 +34,8 @@ export const LABELS = {
   f_rz_opp: 'Red-zone touches',
   implied_total: 'Implied team total',
   f_xtd: 'Expected TDs',
+  f_touches: 'Touches (carries + targets)',
+  f_snap_pct: 'Snap share',
   opp_td_soft: 'Defense TD softness',
   td_regression: 'TD regression (due)',
   f_wopr: 'WOPR (opportunity)',

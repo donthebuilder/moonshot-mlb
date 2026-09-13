@@ -21,6 +21,7 @@ import StatPortal from './tabs/StatPortal'
 import Watchlist from './tabs/Watchlist'
 import Games from './tabs/Games'
 import Boards from './tabs/Boards'
+import Touchdowns from './tabs/Touchdowns'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
 import Picks from './tabs/Picks'
@@ -234,6 +235,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} />}
+            {tab === 'touchdowns' && <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={openPlayer} />}
             {tab === 'boards' && <Boards data={data} logs={logs} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
