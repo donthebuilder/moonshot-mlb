@@ -58,6 +58,13 @@ function angle(p) {
 
 export default function OffBoardStrip({ players = [], onPlayerClick }) {
   const [open, setOpen] = useState(false)
+  // ── A FILTER FOR THE OVERFLOW (2026-09-13) ────────────────────────────────
+  // Donovan, screenshotting this exact panel: "this page needs a filter too."
+  // 66+ untagged bats is a lot to scan even 40-deep expanded, with nothing to
+  // jump straight to one name. Same idea as OffBot.js's search box on the
+  // Slate tab (a different component — this one only lives on the Live tab's
+  // Scores page): one box, matching name, team or opponent.
+  const [query, setQuery] = useState('')
 
   const rows = useMemo(() => (
     (players || [])
@@ -70,7 +77,12 @@ export default function OffBoardStrip({ players = [], onPlayerClick }) {
   ), [players])
 
   if (!rows.length) return null
-  const shown = open ? rows.slice(0, 40) : rows.slice(0, SHOWN)
+
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? rows.filter(({ p }) => `${nameOf(p)} ${teamOf(p)} ${oppOf(p)}`.toLowerCase().includes(q))
+    : rows
+  const shown = open ? filtered.slice(0, 40) : filtered.slice(0, SHOWN)
 
   return (
     <div style={{
@@ -83,6 +95,23 @@ export default function OffBoardStrip({ players = [], onPlayerClick }) {
           {rows.length} untagged bats in tonight&apos;s lineups score {MIN_SCORE}+ · the categories are capped, so this is overflow, not a verdict
         </span>
       </div>
+
+      {rows.length > SHOWN && (
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`Search ${rows.length} names, team, or opponent…`}
+          style={{
+            width: '100%', background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`, borderRadius: 7,
+            padding: '6px 10px', fontSize: 12, color: C.text, outline: 'none', fontFamily: NUM_FONT,
+            marginTop: 7, boxSizing: 'border-box',
+          }}
+        />
+      )}
+
+      {q && !filtered.length && (
+        <div style={{ fontSize: 10.5, color: C.text3, marginTop: 8 }}>Nothing matches &ldquo;{query}&rdquo;.</div>
+      )}
 
       <div style={{ display: 'grid', gap: 2, marginTop: 7, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
         {shown.map(({ p, score }) => (
@@ -114,12 +143,12 @@ export default function OffBoardStrip({ players = [], onPlayerClick }) {
         ))}
       </div>
 
-      {rows.length > SHOWN && (
+      {filtered.length > SHOWN && (
         <button onClick={() => setOpen((v) => !v)} style={{
           marginTop: 6, background: 'transparent', border: 'none', padding: 0,
           fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT, color: C.text3, cursor: 'pointer',
         }}>
-          {open ? 'show fewer' : `+${Math.min(rows.length, 40) - SHOWN} more`}
+          {open ? 'show fewer' : `+${Math.min(filtered.length, 40) - SHOWN} more`}
         </button>
       )}
     </div>

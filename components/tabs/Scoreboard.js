@@ -726,9 +726,27 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // Fold now lives at module scope, above this function — see the long
   // comment there for why that fixes the "closes when it refreshes" bug.
 
-  const secStart = <StartHere key="start" onNavigate={onNavigate} />
-  const secWire = <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />
-  const secPulse = <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />
+  // ── SEVEN SECTIONS, SEVEN COLOURS (2026-09-13) ──────────────────────────
+  // Donovan, after this page's fourth "flow better" complaint in a row:
+  // "make them look ... different, since you['ve] done [reordered] them so
+  // many times." He's right that reordering never actually showed up as a
+  // visible change — every section here rendered in the identical
+  // C.bg2/C.border box (or, for the standalone ones like StartHere and
+  // LiveWire, their own plain grey border), so swapping two boxes' order
+  // still reads as the same box twice. Colour is the fix reordering never
+  // was: one accent per section, as a left bar, using the same colour
+  // language the stat strip below the header already speaks (★ Weak is
+  // yellow there too). Wire and Pulse already carry a faint green/amber
+  // tint in their own files (LiveWire.js, SlatePulse.js) — greeen and
+  // orange here don't fight those, they just make the bar bold instead of
+  // a 22%-alpha hint you have to squint for.
+  const accent = (color, node) => node && (
+    <div key={node.key} style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10 }}>{node}</div>
+  )
+
+  const secStart = accent(C.blue, <StartHere key="start" onNavigate={onNavigate} />)
+  const secWire = accent(C.green, <LiveWire key="wire" players={players} mode={mode} results={results} watchIds={watchIds} odds={odds} onPlayerClick={onPlayerClick} />)
+  const secPulse = accent(C.orange, <SlatePulse key="pulse" players={players} slateDate={slateDate} backtest={backtest} onPlayerClick={onPlayerClick} />)
   // ── THE FOUR CAME OFF THIS PAGE (2026-09-03) ─────────────────────────────
   // Donovan: "remove the four from the live page." It is the entire contents
   // of the Picks tab, rendered here a second time — the same duplication the
@@ -738,7 +756,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // all built from the ~105 tagged bats; the other ~160 men playing tonight
   // appeared nowhere but row 140 of the table. See OffBoardStrip.js — the
   // categories are capped, so being untagged is arithmetic, not a verdict.
-  const secOff = <OffBoardStrip key="off" players={players} onPlayerClick={onPlayerClick} />
+  const secOff = accent(C.purple, <OffBoardStrip key="off" players={players} onPlayerClick={onPlayerClick} />)
   // 🧱 NEAR MISSES replaced Storylines AND the slate-strength fold here
   // (2026-08-15, Donovan, this page only: "take storylines off and put near
   // misses from players who haven't gone yard in 2+ games, and statcast
@@ -775,7 +793,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // from and grouping it is a one-line memo, not new data.
   const projGames = useMemo(() => groupGames(players), [players])
   const projHr = useMemo(() => slateProjHr(players), [players])
-  const secProjected = (
+  const secProjected = accent(C.cyan,
     <Fold key="projected" label={`📈 Projected output — ${projHr != null ? `${projHr.toFixed(1)} HR projected slate-wide` : "the slate's expected count"}`}>
       <ProjectedOutput games={projGames} players={players} watchIds={watchIds} />
     </Fold>
@@ -865,12 +883,12 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   )
   // Live: who's gone yard is the news — it renders open, right under the
   // wire. Pre-live (or an empty list) it stays out of the way.
-  const secGone = goneYard.length > 0 && (
+  const secGone = goneYard.length > 0 && accent(C.red,
     liveNow
       ? <div key="gone" style={{ marginBottom: 14 }}>{goneTable}</div>
       : <Fold key="gone" label={`💥 Gone yard (${goneYard.length}) — tonight's homers vs where the board had them`}>{goneTable}</Fold>
   )
-  const secWeak = weakSpots.length > 0 && (
+  const secWeak = weakSpots.length > 0 && accent(C.yellow,
     <Fold key="weak" label={`★ Weak spots (${weakSpots.length}) — the arms with reachable soft spots tonight`}>
       <Tracker
         title="★ Weak spots"
