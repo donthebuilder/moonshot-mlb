@@ -4,6 +4,7 @@ import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { softRole, softLine, ordinal, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
+import { rankColor } from '../DvpTable'
 import MatchupBadge from '../MatchupBadge'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
@@ -131,6 +132,22 @@ function SidePicks({ players, team, onPlayerClick, matchup }) {
               fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: g.color,
               minWidth: 30,
             }}>{Math.round(p.scores?.TD ?? 0)}</span>
+            {/* ONE AXIS FOR THE WHOLE PAGE. The lists used to be sixteen
+                separate top-threes, each a column of bare numbers, so nothing
+                said whether this card's best name was the slate's best name or
+                its worst. The bar is scored on a fixed 30-80 scale — the range
+                the board actually occupies — so a short bar here and a long
+                one two cards down mean what they look like. */}
+            <span style={{
+              position: 'relative', flex: '0 0 34px', height: 3, borderRadius: 99,
+              background: 'rgba(255,255,255,.08)',
+            }}>
+              <span style={{
+                position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 99,
+                width: `${Math.max(4, Math.min(100, (((p.scores?.TD ?? 0) - 30) / 50) * 100))}%`,
+                background: g.color, boxShadow: `0 0 6px -1px ${g.color}`,
+              }} />
+            </span>
             <span style={{
               fontSize: 11, color: C.text, fontWeight: 600, flex: 1,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -190,15 +207,60 @@ function restLabel(days, shortWeek) {
 // every team. The legend moves into the tooltip, where a legend belongs.
 
 
+// ── 2026-09-13: FOUR SENTENCES BECAME FOUR MEASUREMENTS ─────────────────────
+// The intel row was four tiles of prose — "days since each team's last game",
+// "2nd softest of 32 in touchdowns against the te2 role" — text pretending to
+// be data, in a grid that looked like a dashboard. None of it could be
+// compared at a glance, which is the only thing a four-up row is for.
+//
+// Each tile now carries a MARK: rest as a bar against the 3-to-14-day range
+// every team lives in, defensive softness as a bar against the 32-team scale
+// it is already ranked on, environment as a state rather than a scale because
+// indoors is not a quantity. The words that survive say what the mark means;
+// the legend moved to the tooltip in September and stays there.
+function Meter({ value, lo, hi, invert, tone }) {
+  if (!Number.isFinite(value)) {
+    return <i style={{
+      display: 'block', height: 4, borderRadius: 99, marginTop: 6,
+      background: 'repeating-linear-gradient(-45deg, rgba(255,255,255,.06) 0 1px, transparent 1px 5px)',
+    }} />
+  }
+  const t = Math.max(0, Math.min(1, (value - lo) / ((hi - lo) || 1)))
+  const pct = (invert ? 1 - t : t) * 100
+  return (
+    <i style={{
+      display: 'block', position: 'relative', height: 4, borderRadius: 99,
+      marginTop: 6, background: 'rgba(255,255,255,.07)',
+    }}>
+      <i style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`,
+        borderRadius: 99, background: tone, boxShadow: `0 0 7px -1px ${tone}`,
+      }} />
+    </i>
+  )
+}
+
 function GameIntel({ game, matchup }) {
   const awayDefense = softRole(matchup, game.away)
   const homeDefense = softRole(matchup, game.home)
   const hasWeather = Number.isFinite(game.weather_temp_f)
+  // Rank 1 allows the most, so a LOW rank is a fat bar: the meter reads in the
+  // direction a bettor does, same as the board's own colour scale.
+  const softTone = (d) => (d ? rankColor(d.rank) || C.text3 : C.text3)
   return <div className="nfl-game-intel">
-    <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b><span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>
-    <div><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b><span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
-    <div title={SOFT_TITLE}><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.rank}` : '—'}</b><span>{softLine(awayDefense)}</span></div>
-    <div title={SOFT_TITLE}><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.rank}` : '—'}</b><span>{softLine(homeDefense)}</span></div>
+    <div><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b>
+      <Meter value={game.indoors ? 1 : hasWeather ? game.weather_temp_f : null} lo={20} hi={85} tone={game.indoors ? C.cyan : C.amber} />
+      <span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>
+    <div><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b>
+      <Meter value={Math.min(game.away_rest_days ?? NaN, game.home_rest_days ?? NaN)} lo={3} hi={14}
+             tone={(game.away_short_week || game.home_short_week) ? C.amber : C.green} />
+      <span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
+    <div title={SOFT_TITLE}><small>{game.away} DEFENSE</small><b>{awayDefense ? `${awayDefense.role} · #${awayDefense.rank}` : '—'}</b>
+      <Meter value={awayDefense?.rank} lo={1} hi={32} invert tone={softTone(awayDefense)} />
+      <span>{softLine(awayDefense)}</span></div>
+    <div title={SOFT_TITLE}><small>{game.home} DEFENSE</small><b>{homeDefense ? `${homeDefense.role} · #${homeDefense.rank}` : '—'}</b>
+      <Meter value={homeDefense?.rank} lo={1} hi={32} invert tone={softTone(homeDefense)} />
+      <span>{softLine(homeDefense)}</span></div>
   </div>
 }
 
@@ -485,7 +547,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         })}
       </div>
       <style>{`
-        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(53,205,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(53,205,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:61px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}.nfl-game-why{display:flex;align-items:baseline;gap:7px;width:100%;text-align:left;margin:2px 0 8px;padding:7px 9px;border:1px solid rgba(0,245,173,.3);border-radius:8px;background:rgba(0,245,173,.06);color:inherit;cursor:pointer}.nfl-game-why:hover{border-color:rgba(0,245,173,.5)}.nfl-game-why .tag{flex:0 0 auto;font:900 7.5px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.green};text-transform:uppercase}.nfl-game-why .text{font-size:10px;line-height:1.35;color:${C.text2}}.nfl-game-why.model{border-color:rgba(251,146,60,.32);background:rgba(251,146,60,.07)}.nfl-game-why.model:hover{border-color:rgba(251,146,60,.5)}.nfl-game-why.model .tag{color:${C.orange}}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}}
+        .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(53,205,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(53,205,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:72px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}.nfl-game-why{display:flex;align-items:baseline;gap:7px;width:100%;text-align:left;margin:2px 0 8px;padding:7px 9px;border:1px solid rgba(0,245,173,.3);border-radius:8px;background:rgba(0,245,173,.06);color:inherit;cursor:pointer}.nfl-game-why:hover{border-color:rgba(0,245,173,.5)}.nfl-game-why .tag{flex:0 0 auto;font:900 7.5px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.green};text-transform:uppercase}.nfl-game-why .text{font-size:10px;line-height:1.35;color:${C.text2}}.nfl-game-why.model{border-color:rgba(251,146,60,.32);background:rgba(251,146,60,.07)}.nfl-game-why.model:hover{border-color:rgba(251,146,60,.5)}.nfl-game-why.model .tag{color:${C.orange}}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:1fr 1fr}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .tuddy-live-dot{animation:pulse 2s infinite}
 .tuddy-live-dot-sm{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:${C.cyan};box-shadow:0 0 6px ${C.cyan};vertical-align:middle;animation:pulse 2s infinite}

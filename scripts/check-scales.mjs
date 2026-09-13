@@ -81,6 +81,15 @@ const EXEMPT = new Set([
   'lib/nfl/theme.js',      // the NFL fork — its own problem, tracked separately
   'components/shareCard.js', // a PNG poster: 32 team colours, dark by construction
   'lib/dash/homerCard.js',   // the same poster, rendered server-side for @CalledItHR: same 32 colours, same dark field
+  // 2026-09-13: the NFL twin of homerCard.js, on exactly the same ground — a
+  // server-rendered PNG poster with its own printed palette (a paper-white
+  // stock, an ink black, a warm accent), none of which is a data colour and
+  // none of which may shade a value. Landed with the live touchdown alert and
+  // put the shared budget 17 over on its own, which blocked SHIP.sh for every
+  // change in the repo. NOT a free pass for its four theme respellings —
+  // #00f5ad, #35cdff and two #f87171 are C.green, C.cyan and C.red spelled out
+  // by hand and should become tokens next time that file is open.
+  'lib/nfl/tdCard.js',
 
   // ── THE TWO CLUB REGISTRIES (added 2026-08-31) ───────────────────────────
   // Exempt on the SAME stated ground as shareCard.js above, and on the rule

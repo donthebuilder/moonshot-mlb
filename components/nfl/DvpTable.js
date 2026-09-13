@@ -121,11 +121,18 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
     if (Number.isFinite(rk) && (!best || rk < best.rank)) best = { role: r, stat: s, rank: rk }
   }
 
+  // The caller's minWidth was written for the old two-line cells and is now a
+  // CEILING, not a floor: a strip needs 32px a column and 88 for the label, so
+  // the full seven-stat board comes to ~312px and fits a phone without the
+  // sideways scroll it used to force. Sideways scroll on a matrix is fair when
+  // the matrix genuinely needs the room; it was not needed here.
+  const width = Math.min(minWidth, stats.length * 32 + 88)
+
   return (
     <div style={{ padding: '10px 12px 12px' }}>
       <div className="dense-scroll" style={{ overflowX: 'auto' }}>
-        <div style={{ minWidth }}>
-          <div style={{ display: 'flex', gap: 3, marginBottom: 5, paddingLeft: 86 }}>
+        <div style={{ minWidth: width }}>
+          <div style={{ display: 'flex', gap: 3, marginBottom: 5, paddingLeft: 89 }}>
             {stats.map((s) => (
               <span key={s} style={{
                 flex: 1, minWidth: 30, maxWidth: CELL_MAX, textAlign: 'center', fontFamily: NUM_FONT,

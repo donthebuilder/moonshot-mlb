@@ -28,7 +28,9 @@ import { BattingBox, PitchingBox, LineScore } from '../BoxTable'
 // doesn't ride the sitewide live poll.
 
 const chip = (on) => ({
-  padding: '3px 11px', borderRadius: 999, cursor: 'pointer', fontSize: 10,
+  // Padding widened 2026-09-13 (Donovan: mobile tap targets too small) —
+  // this chip is Today/Last night/Yours first/Start time, all four.
+  padding: '6px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 10,
   fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
   border: `1px solid ${on ? C.orange : C.border}`,
   background: on ? 'rgba(249,115,22,.14)' : 'transparent',
@@ -201,10 +203,10 @@ function GameCard({ g, open, onToggle, watchIds, onPlayerClick, stake }) {
                 ))}
               </div>
               <div style={{ fontSize: 9, color: C.text3, marginTop: 9, lineHeight: 1.5 }}>
-                Straight off the league&apos;s own boxscore. Indented names came in for the man above
-                them. {g.live ? 'Refreshing every 30s while this card is open. ' : ''}
-                {watchIds?.size ? 'Orange rows are hitters on your watchlist. ' : ''}
-                Click a batter to open his card.
+                Straight off the league&apos;s boxscore — indented names are substitutes.
+                {g.live ? ' Refreshing every 30s.' : ''}
+                {watchIds?.size ? ' Orange rows are your watchlist.' : ''}
+                {' '}Tap a batter for his card.
               </div>
             </div>
           )}
@@ -412,11 +414,11 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
           </span>
         )}
       </div>
+      {/* Trimmed 2026-09-13 (Donovan: "the litte helper text ... does not
+          [h]elp"). Same info, a third the length. */}
       <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, maxWidth: 760, marginBottom: 10 }}>
-        Every game on the date, and the full box under any of them — both lineups, both staffs,
-        live or final. Click a game to open it; open as many as you like. Each card says what
-        the bot has designated in that game and which of your watchlist names are in it, so the
-        games you care about sort to the top instead of sitting in schedule order.
+        Every game on the date — tap to open the full box, live or final. Games with your
+        picks or watchlist names sort to the top.
       </div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
@@ -451,13 +453,14 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
         {q && (
           <button onClick={() => setQ('')} style={{
             background: 'transparent', border: 0, cursor: 'pointer', color: C.text3, fontSize: 11,
+            padding: '5px 8px',
           }}>clear</button>
         )}
         {games && games.length > 1 && (
           <button
             onClick={() => setOpen(open.size ? new Set() : new Set(shown.filter((g) => g.live || g.final).map((g) => g.pk)))}
             style={{
-              marginLeft: 'auto', padding: '3px 11px', borderRadius: 999, cursor: 'pointer',
+              marginLeft: 'auto', padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
               fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
               border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
             }}
