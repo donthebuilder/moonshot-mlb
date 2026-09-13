@@ -320,7 +320,10 @@ function ArmBubble({ s }) {
         aria-label={`Season stats for ${s.arm}`}
         title={`Season stats for ${s.arm}`}
         style={{
-          width: 18, height: 18, padding: 0, borderRadius: 999, cursor: 'pointer',
+          // 18→22px (2026-09-13, mobile tap-target pass) — this badge's own
+          // comment already says "a real button with a real hit area" for
+          // phone users; 18px was still under a comfortable thumb target.
+          width: 22, height: 22, padding: 0, borderRadius: 999, cursor: 'pointer',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           border: `1px solid ${open ? C.orange : C.border}`,
           background: open ? 'rgba(249,115,22,.14)' : 'transparent',
@@ -938,7 +941,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   title={`Not in tonight's posted lineup — the bot had him at #${p?.lineup_spot ?? '?'}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                    padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    padding: '5px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
                     // Scratched = the bad side of the verdict pair, not a
                     // hand-typed red.
                     border: `1px solid ${alpha(verdictInk(false).color, 0.5)}`, background: verdictWash(false, 0.12), color: verdictInk(false).color,
@@ -951,7 +954,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   title={`Batting ${slot} tonight — the bot had him at #${p?.lineup_spot}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                    padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    padding: '5px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
                     border: `1px solid ${C.orange}66`, background: 'rgba(249,115,22,.12)', color: C.orange,
                   }}>
                   ↕ {String(p?.name || '').split(' ').slice(-1)[0]} #{p?.lineup_spot}→{slot}
@@ -1297,9 +1300,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: '9px 12px', background: 'rgba(249,115,22,.02)' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, fontWeight: 900 }}>⚔ Slot-by-slot</span>
-                      <span style={{ fontSize: 9, color: C.text3 }}>
-                        bar = what the arm allows THAT spot (season OPS-against, live) · right numbers = the batter&apos;s AVG/ISO vs this arm&apos;s side
-                        {' '}· 💥 slot bleeds · ⭐ side match · <b style={{ color: C.orange }}>🔥 both — the built-in mismatch</b>
+                      {/* Trimmed 2026-09-13 (Donovan: "the litte helper text
+                          ... does not [h]elp" + mobile pass) — same glyph
+                          legend, fewer words, bumped 9→9.5px so it doesn't
+                          disappear on a phone. */}
+                      <span style={{ fontSize: 9.5, color: C.text3 }}>
+                        bar = arm&apos;s OPS-against that spot · numbers = batter&apos;s AVG/ISO vs this arm&apos;s side
+                        {' '}· 💥 bleeds · ⭐ side match · <b style={{ color: C.orange }}>🔥 both (the mismatch)</b>
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -1421,7 +1428,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             aria-label="Download game card as image"
                             style={{
                               background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,
-                              borderRadius: 6, padding: '1px 7px', fontSize: 11, lineHeight: 1.4,
+                              borderRadius: 6, padding: '4px 9px', fontSize: 11, lineHeight: 1.4,
                               cursor: 'pointer',
                             }}>📸</button>
                           <span style={{ color: isActive ? C.orange : C.text3, fontWeight: 800 }}>{isActive ? '▾' : '▸'}</span>
@@ -2084,7 +2091,7 @@ function LiveStamp({ meta, anyLive, onRefresh }) {
       </span>
       <button onClick={onRefresh} disabled={meta.pulling} title="Pull the league feed again now" style={{
         marginLeft: 'auto', flexShrink: 0, cursor: meta.pulling ? 'default' : 'pointer', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
-        padding: '2px 9px', borderRadius: 999, border: `1px solid ${bad ? C.red : C.border}`,
+        padding: '5px 12px', borderRadius: 999, border: `1px solid ${bad ? C.red : C.border}`,
         background: 'transparent', color: bad ? C.red : C.text2, opacity: meta.pulling ? 0.6 : 1,
       }}>{meta.pulling ? 'pulling…' : '↻ refresh'}</button>
     </div>
