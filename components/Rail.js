@@ -66,6 +66,23 @@ export default function Rail({
     setEdges({ left: el.scrollLeft > 2, right: el.scrollLeft < max - 2 })
   }
 
+  // ── LISTENERS, ONCE (2026-09-13 fix) ──────────────────────────────────────
+  // Donovan: a game rail "refreshes too fast... hard to choose different
+  // games." Root cause: this whole listener block used to live in a
+  // useEffect keyed on `[children]` — and `children` here is whatever JSX
+  // array the caller's own .map() built, which is a BRAND NEW array on every
+  // single render of the caller, whether or not the actual list of items
+  // changed. GameStrip re-renders every 5s on the Games tab (a separate
+  // "how stale is the live data" ticker one level up) and passes a fresh
+  // `children` array each time — so this effect was tearing down and
+  // rebuilding the wheel/drag/scroll/resize listeners and the
+  // ResizeObserver every 5 seconds, all day, including mid-scroll or
+  // mid-drag. None of that setup actually depends on the item list; it only
+  // needs to happen once per mount. `measure()` is the one thing that
+  // legitimately needs to rerun when items are added/removed (scrollWidth
+  // changes without the container's own box size changing, so the
+  // ResizeObserver on `el` alone won't catch it) — split out below, cheap
+  // and listener-free.
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -134,6 +151,16 @@ export default function Rail({
       window.removeEventListener('resize', measure)
       ro?.disconnect()
     }
+    // Mount/unmount only — see the note above. Re-measuring for a changed
+    // item list is the separate, cheap effect right below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Cheap re-check when the item list itself changes (count, or which items)
+  // — no listeners touched, just "is there more to scroll to now."
+  useEffect(() => {
+    measure()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [children])
 
   // ── 2. nubs ────────────────────────────────────────────────────────────

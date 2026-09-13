@@ -3,7 +3,6 @@ import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { roleBadge } from '../../lib/roleBadge'
 import PriceBubble from '../PriceBubble'
-import Boxes from './Boxes'
 import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
@@ -394,7 +393,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // cards first, the game chips take up too much screen space." Table is
   // the SAME sortable/filterable board ProjectedOutput already builds for
   // Rundown -- reused here as the landing view instead of a second table
-  // implementation. Cards and Boxes are one tap away, unchanged.
+  // implementation. Cards are one tap away, unchanged (Boxes retired from
+  // this tab 2026-09-13 — it's a Live-tab pill now, see the note above).
   const [gview, setGview] = useState('table')
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
@@ -451,7 +451,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     const onShow = () => { if (!document.hidden) pull(true) }
     document.addEventListener('visibilitychange', onShow)
     window.addEventListener('focus', onShow)
-    const tick = setInterval(() => { if (!document.hidden) setLiveTick((v) => v + 1) }, 5000)
+    // 5s → 20s (2026-09-13). This tick exists only to keep the "X ago" age
+    // label current -- it forces this whole tab to re-render on every fire,
+    // which is the real cost. A staleness label doesn't need 5-second
+    // granularity, and cutting the cadence to 20s removes most of the
+    // re-render pressure this was putting on everything below it (the game
+    // rail's listener churn, fixed separately in Rail.js, was the sharpest
+    // symptom of that pressure).
+    const tick = setInterval(() => { if (!document.hidden) setLiveTick((v) => v + 1) }, 20000)
     return () => {
       alive = false; clearInterval(t); clearInterval(tick)
       document.removeEventListener('visibilitychange', onShow)
@@ -683,37 +690,26 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     })
   }
 
-  // 📋 THE FOLD, DONE RIGHT THIS TIME. Round one injected this branch INSIDE
-  // the live-poll effect — the render audit found the pill turned orange and
-  // showed nothing, which is exactly what Donovan reported. It now sits at
-  // the real return, after every hook, so the hook order never changes.
-  // allPlayers, not players: the box score of a game is not subject to the
-  // header's team filter — filtering a box makes games appear to lose their
-  // roster.
-  if (gview === 'boxes') {
-    return (
-      <div>
-        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
-        <Boxes players={allPlayers.length ? allPlayers : players} watchIds={watchIds} onPlayerClick={onPlayerClick} results={results} />
-      </div>
-    )
-  }
+  // 📋 BOXES, RETIRED FROM SLATE (2026-09-13). Donovan: "remove boxes from
+  // slate since its in live now" — Box scores is one of the pills on the
+  // Live tab's own view switcher (Home.js's HOME_VIEWS) since the At The
+  // Plate work earlier today, so this was the same page reachable two ways.
+  // Table and Games (the card grid) are the two views left here.
 
   // 📊 TABLE — the new default (2026-08-30). Same board Rundown uses, so a
-  // filter or sort learned there works here too. allPlayers, not players,
-  // same reasoning as Boxes just above: this view isn't subject to the
-  // header's team filter.
+  // filter or sort learned there works here too. allPlayers, not players:
+  // this view isn't subject to the header's team filter.
   if (gview === 'table') {
     return (
       <div>
-        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+        <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={gview} setView={setGview} />
         <ProjectedOutput games={games} players={allPlayers.length ? allPlayers : players} watchIds={watchIds} />
       </div>
     )
   }
   return (
     <div>
-      <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games'], ['boxes', '📋 Boxes']]} view={gview} setView={setGview} />
+      <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={gview} setView={setGview} />
       {/* 🌬 AirBoard used to mount here (2026-08-15, same day it was built).
           Deleted: components/ParkBoard.js — "Tonight's conditions", the
           launch-pads board on Power and behind Scoreboard's "Parks ranked" —

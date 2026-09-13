@@ -199,14 +199,22 @@ function Stat({ label, value, sub, col = C.text, title }) {
 // (Games.js): Slate answers "what's the matchup," this answers "what's
 // happening right now," which is exactly this tab's job. Dashboard now opens
 // this view by default for the "Live" nav button (see the `scoreboard` alias
-// there), so The board — the old default — is still one pill away, not gone.
+// there), so Scores — the old default — is still one pill away, not gone.
 // Games.js's own "🔴 Live" mode is retired in the same change: it rendered
 // the same grid as Default in every way but its button state, so nothing of
 // value was sitting behind it.
+// "The board" renamed to "Scores" (2026-09-13). Donovan flagged it read as
+// the same thing as the top-level "Boards" nav tab (the nine ranked HR/hit/
+// HRR/contact boards) — different content, confusingly similar name. This
+// view is the scores/wire read (Dashboard.js's own description of the Live
+// nav tab it sits under: "scores, the wire, and what is happening right
+// now"), so "Scores" says what it actually is. The `key` stays `board` —
+// only the label changed — since Dashboard.js's routing reads the key, not
+// the label, and there's no reason to touch working routing for a rename.
 const HOME_VIEWS = [
   { key: 'tonight', label: 'Tonight' },
   { key: 'live', label: 'At the plate' },
-  { key: 'board', label: 'The board' },
+  { key: 'board', label: 'Scores' },
   { key: 'boxes', label: 'Box scores' },
 ]
 const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))

@@ -20,6 +20,13 @@ export default function OffBot({ players = [], onPlayerClick }) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState('idle') // idle | loading | done | none | early
   const [rows, setRows] = useState([])
+  // ── A FILTER FOR THE WALL (2026-09-13) ──────────────────────────────────
+  // Donovan: "this page needa filter too" — a full slate can post 70-80
+  // names here (every hitter in a posted lineup the bot never scored), with
+  // nothing to narrow it beyond scrolling. One search box, matching name,
+  // team or opponent — the same three fields already printed on each chip,
+  // so there's nothing to search that isn't already visible.
+  const [query, setQuery] = useState('')
 
   const load = async () => {
     setState('loading')
@@ -111,8 +118,27 @@ export default function OffBot({ players = [], onPlayerClick }) {
           )}
           {state === 'done' && (
             <>
+              {rows.length > 12 && (
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={`Search ${rows.length} names, team, or opponent…`}
+                  style={{
+                    width: '100%', background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 7,
+                    padding: '6px 10px', fontSize: 12, color: C.text, outline: 'none', fontFamily: NUM_FONT,
+                    marginBottom: 8, boxSizing: 'border-box',
+                  }}
+                />
+              )}
+              {(() => {
+                const q = query.trim().toLowerCase()
+                const shown = q ? rows.filter((r) => `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(q)) : rows
+                if (q && !shown.length) {
+                  return <span style={{ fontSize: 10.5, color: C.text3 }}>Nothing matches &ldquo;{query}&rdquo;.</span>
+                }
+                return (
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {rows.map((r) => (
+                {shown.map((r) => (
                   <button key={r.id}
                     onClick={() => onPlayerClick?.({ api_only: true, player_id: r.id, name: r.name, team: r.team, bats: '?' })}
                     title={`#${r.spot} for ${r.team} vs ${r.opp} — open live API profile`}
@@ -126,6 +152,8 @@ export default function OffBot({ players = [], onPlayerClick }) {
                   </button>
                 ))}
               </div>
+                )
+              })()}
               <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
                 In a posted lineup tonight, not in the bot&apos;s run — no model scores exist for these
                 hitters, so what opens is the live-API profile: props record, situational splits, zone map.
