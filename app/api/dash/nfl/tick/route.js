@@ -167,6 +167,12 @@ async function runTouchdownTick(db, day) {
   const totals = { seen: 0, fresh: 0, discord: 0, x: 0, xFailed: 0 }
   try {
     const snap = await fetchNflLive({})
+    // 2026-09-13: report what the snapshot actually saw, so "seen: 0" can
+    // never again hide a failed ESPN fetch behind a quiet slate.
+    totals.games = snap?.games?.length ?? null
+    totals.live = snap?.liveCount ?? null
+    totals.plays = snap?.plays?.length ?? null
+    if (snap?.error) totals.error = snap.error
     const liveTds = touchdownsInSnap(snap)
     totals.seen = liveTds.length
     if (!liveTds.length) return totals
