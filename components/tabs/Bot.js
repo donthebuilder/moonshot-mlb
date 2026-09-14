@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { tierTone } from '../../lib/roleBadge'
 import { hrwRead } from '../../lib/hrwBand'
 import { PanelTitle, Empty, btnStyle } from '../ui'
@@ -114,23 +114,23 @@ function BoardRow({ p, i, onPlayerClick }) {
         background: `linear-gradient(90deg, ${scoreCol}, transparent)`,
         opacity: 0.55, pointerEvents: 'none',
       }} />
-      <div style={{ fontFamily: NUM_FONT, fontSize: medal ? 15 : 12, fontWeight: 800, textAlign: 'center', color: C.text3 }}>
+      <div style={{ fontFamily: NUM_FONT, fontSize: medal ? TYPE.body : TYPE.label, fontWeight: 800, textAlign: 'center', color: C.text3 }}>
         {medal || i + 1}
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
-          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.team}</span>
+          <span style={{ fontSize: TYPE.name, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.team}</span>
           {flagsAll.length > 0 && (
             <span title={flagTitle} style={{ fontSize: 10.5, cursor: 'default', flexShrink: 0, letterSpacing: 1 }}>
               {flagsAll.slice(0, 2).map(([e]) => e).join('')}
             </span>
           )}
           {pick && (
-            <span style={{ fontSize: 8.5, padding: '1px 6px', borderRadius: 999, border: `1px solid ${pickCol}55`, background: `${pickCol}14`, color: pickCol, fontWeight: 800, fontFamily: NUM_FONT, flexShrink: 0 }}>🤖 {pick}</span>
+            <span style={{ fontSize: TYPE.label, padding: '1px 6px', borderRadius: 999, border: `1px solid ${pickCol}55`, background: `${pickCol}14`, color: pickCol, fontWeight: 800, fontFamily: NUM_FONT, flexShrink: 0 }}>🤖 {pick}</span>
           )}
         </div>
-        <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           <span style={{ color: col }}>{role}</span>
           {' · '}vs {p.pitcher_name} ({p.pitcher_throws}) · #{p.lineup_spot}
           {pills.length > 0 && <> · {pills.map((pl, pi) => (
@@ -141,7 +141,7 @@ function BoardRow({ p, i, onPlayerClick }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
         {(p.last5_hr || 0) > 0 && (
-          <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: (p.last5_hr || 0) >= 2 ? C.orange : C.text3 }}>
+          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: (p.last5_hr || 0) >= 2 ? C.orange : C.text3 }}>
             L5 {p.last5_hr}HR
           </span>
         )}
@@ -156,14 +156,14 @@ function BoardRow({ p, i, onPlayerClick }) {
             <span title={hw.title} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2 }}>
               <span style={{ fontSize: 11 }}>{hw.glyph}</span>
               {hw.score != null && (
-                <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: hw.color || C.text3 }}>
+                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 800, color: hw.color || C.text3 }}>
                   {hw.score.toFixed(0)}
                 </span>
               )}
             </span>
           )
         })()}
-        <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 16, color: scoreCol, width: 34, textAlign: 'right' }}>
+        <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: TYPE.title, color: scoreCol, width: 34, textAlign: 'right' }}>
           {Math.round(p.hr_score || 0)}
         </span>
       </div>
@@ -188,7 +188,7 @@ function Board({ players, onPlayerClick }) {
   return (
     <div>
       <div style={{
-        fontSize: 10, color: C.text3, lineHeight: 1.55, margin: '2px 0 10px',
+        fontSize: TYPE.micro, color: C.text3, lineHeight: 1.55, margin: '2px 0 10px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 640,
       }}>
         The bot&apos;s own ranking (top_board_score_v2), <b style={{ color: C.text2 }}>unadjusted</b> —
@@ -203,7 +203,7 @@ function Board({ players, onPlayerClick }) {
           </button>
         ))}
       </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10, fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
         <span>⭐ weak pitcher spot</span>
         <span>🎯 pitch type match</span>
         <span>👻 hidden value</span>
@@ -231,13 +231,13 @@ function Board({ players, onPlayerClick }) {
               }}>
                 <span style={{ fontSize: first ? 19 : 15 }}>{['🥇', '🥈', '🥉'][idx]}</span>
                 <span style={{
-                  fontSize: first ? 13 : 11.5, fontWeight: 900, maxWidth: '100%',
+                  fontSize: first ? TYPE.name : TYPE.body, fontWeight: 900, maxWidth: '100%',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>{p.name}</span>
-                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {p.team} · vs {String(p.pitcher_name || 'TBD').split(' ').slice(-1)[0]}
                 </span>
-                <span style={{ fontSize: first ? 18 : 14, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>
+                <span style={{ fontSize: first ? TYPE.title : TYPE.name, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>
                   {(p.top_board_score_v2 || 0).toFixed(1)}
                 </span>
               </button>
@@ -339,7 +339,7 @@ function SheetViewer({ url, label }) {
     setTimeout(() => refs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40)
   }
 
-  if (loading) return <div style={{ padding: '20px 4px', fontSize: 12, color: C.text3 }}>Loading the sheet…</div>
+  if (loading) return <div style={{ padding: '20px 4px', fontSize: TYPE.body, color: C.text3 }}>Loading the sheet…</div>
   if (!text) return <Empty text={`No ${label.toLowerCase()} published yet.`} />
 
   return (
@@ -354,34 +354,34 @@ function SheetViewer({ url, label }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14 }}>🤖</span>
-          <span style={{ fontSize: 12.5, fontWeight: 900, letterSpacing: '.12em', fontFamily: NUM_FONT }}>THE BOT&apos;S DAILY BRIEFING</span>
-          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{label}</span>
+          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.12em', fontFamily: NUM_FONT }}>THE BOT&apos;S DAILY BRIEFING</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{label}</span>
         </div>
         {(brief?.lo != null || brief?.grade || brief?.profiles != null || brief?.weak != null) && (
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 8 }}>
             {brief.lo != null && (
-              <span style={{ border: '1px solid rgba(249,115,22,.5)', background: 'rgba(249,115,22,.1)', color: C.orange, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+              <span style={{ border: '1px solid rgba(249,115,22,.5)', background: 'rgba(249,115,22,.1)', color: C.orange, borderRadius: 999, padding: '3px 11px', fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT }}>
                 💣 {brief.lo}–{brief.hi} HR projected
               </span>
             )}
             {brief.grade && (
-              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT }}>
                 power grade {brief.grade}
               </span>
             )}
             {brief.profiles != null && (
-              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+              <span style={{ border: `1px solid ${C.border2}`, color: C.text2, borderRadius: 999, padding: '3px 11px', fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT }}>
                 {brief.profiles} top HR profiles
               </span>
             )}
             {brief.weak != null && (
-              <span style={{ border: '1px solid rgba(252,211,77,.45)', color: '#FCD34D', borderRadius: 999, padding: '3px 11px', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT }}>
+              <span style={{ border: '1px solid rgba(252,211,77,.45)', color: '#FCD34D', borderRadius: 999, padding: '3px 11px', fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT }}>
                 ★ {brief.weak} weak pitcher spots
               </span>
             )}
           </div>
         )}
-        <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
           The numbers above are parsed from the sheet itself; everything below is the bot&apos;s own
           words, split into its own sections. Search opens whatever it finds.
         </div>
@@ -396,12 +396,12 @@ function SheetViewer({ url, label }) {
           onChange={(e) => setFilter(e.target.value)}
           style={{
             background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 7,
-            padding: '6px 11px', fontSize: 12, color: C.text, outline: 'none',
+            padding: '6px 11px', fontSize: TYPE.body, color: C.text, outline: 'none',
             width: 220, fontFamily: NUM_FONT,
           }}
         />
         {f && (
-          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
             {matching?.size || 0} section{(matching?.size || 0) === 1 ? '' : 's'} match
           </span>
         )}
@@ -413,7 +413,7 @@ function SheetViewer({ url, label }) {
             onClick={() => jump(i)}
             style={{
               padding: '3px 10px', borderRadius: 7, cursor: 'pointer',
-              fontSize: 10, fontWeight: 700,
+              fontSize: TYPE.label, fontWeight: 700,
               border: `1px solid ${matching?.has(i) ? C.orange : C.border}`,
               background: matching?.has(i) ? 'rgba(249,115,22,.12)' : 'transparent',
               color: matching?.has(i) ? C.orange : C.text2,
@@ -449,8 +449,8 @@ function SheetViewer({ url, label }) {
                   borderBottom: open ? `1px solid ${C.border}` : 'none',
                 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 800 }}>{s.title}</span>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>{s.title}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                   {f ? `${shown.length} matching` : `${s.lines.filter((l) => l.trim()).length} lines`}
                 </span>
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: C.text3 }}>{open ? '▾' : '▸'}</span>
@@ -458,7 +458,7 @@ function SheetViewer({ url, label }) {
               {open && (
                 <pre style={{
                   margin: 0, padding: '12px 16px',
-                  fontSize: 11.5, lineHeight: 1.65,
+                  fontSize: TYPE.body, lineHeight: 1.65,
                   color: C.text2, fontFamily: NUM_FONT,
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   maxHeight: 480, overflowY: 'auto',
