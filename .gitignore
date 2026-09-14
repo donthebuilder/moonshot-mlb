@@ -55,3 +55,11 @@ _to_delete/
 # through the desktop file bridge (stale .next builds, stale git lock files).
 # Safe to delete by hand at any time; never source.
 _to_delete*
+
+# supabase CLI local state (regenerated on every `supabase` command)
+supabase/.temp/
+
+# Donovan's local archive of already-run/folded-in one-time SHIP scripts --
+# real reference material, not source; keeps `git status` from listing 70+
+# historical deploy scripts as untracked noise (2026-09-14)
+SHIP-SCRIPTS-ARCHIVE/
