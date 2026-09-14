@@ -378,13 +378,18 @@ export default function MobileCSS() {
            Full width and two lines here: the label keeps its own line and the
            value gets the whole screen, so nothing truncates and nothing is
            dropped. Five short rows on a phone, one even strip on a monitor. */
-        .hero-stats { flex-direction: column !important; gap: 5px !important; }
+        /* 2026-09-14 (the audit): five stacked rows became a two-column grid --
+           three rows, ~60px back above the fold, and each chip still gets a
+           full line for its value because label and value stack inside it. */
+        .hero-stats { display: grid !important; grid-template-columns: 1fr 1fr; gap: 5px !important; }
         .hero-stats > * {
-          flex: 0 0 auto !important;
+          flex-direction: column !important;
+          align-items: flex-start !important;
+          gap: 2px !important;
           width: 100% !important;
-          align-items: baseline !important;
-          flex-wrap: wrap !important;
+          min-width: 0 !important;
         }
+        .hero-stats > *:nth-child(5):last-child { grid-column: 1 / -1; }
         .hero-stats > * > b,
         .hero-stats > * > span:last-child {
           white-space: normal !important;

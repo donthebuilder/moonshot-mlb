@@ -659,7 +659,10 @@ export default function Dashboard({ palettePass = 0 }) {
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice
             but I don't know what I'm looking at." */}
-        <TabExplainer tab={tab} />
+        {/* Home only since 2026-09-14 (the audit): a permanent "what am I
+            looking at" pill on every tab was a row of chrome above the content
+            on a phone. The first-visit explainer still runs, on the front door. */}
+        {tab === 'home' && <TabExplainer tab={tab} />}
         <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
 
         {/* SLATE-FREE TABS (2026-08-15). Every tab used to sit behind the

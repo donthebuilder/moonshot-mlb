@@ -814,11 +814,7 @@ export default function Home({
         // size of a section for itself.
         padding: '18px 18px 16px', marginBottom: 12,
       }}>
-        {/* the ember glow — decoration, kept behind the text */}
-        <div style={{
-          position: 'absolute', right: -60, top: -60, width: 240, height: 240, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(249,115,22,.16), transparent 70%)', pointerEvents: 'none',
-        }} />
+        {/* the ember glow lived here until 2026-09-14 — removed on the audit: the type carries the hero. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 16 }}>{icon}</span>
           <span style={{ fontSize: 11, color: C.text3, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT }}>
@@ -984,6 +980,60 @@ export default function Home({
         onPlayerClick={onPlayerClick}
       />
 
+      {/* ── THE FOUR, ON THE PAGE INSTEAD OF ONE TAB AWAY (2026-08-29) ──────
+          TUDDY puts The Six on its Home. MOONSHOT's own headline cut sat on
+          the Scoreboard, and this page's rotating pulse line literally read
+          "The Four on the Scoreboard is the headline cut" — the front door
+          telling you the headline is somewhere else.
+
+          Mounted, not forked: components/BotPicksStrip.js is the same
+          component the Scoreboard renders, so there is one source for what
+          The Four is and no chance of the two disagreeing. It carries its own
+          empty state, so a slate with no designations renders nothing rather
+          than an empty frame. */}
+      <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
+
+      {/* ── 💵 #34: THE MONEY ANSWER, WHERE THE CLAIM IS MADE ────────────────
+          The hero above says "every pick is graded in public." True, and the
+          receipts are real — but the measurement that says whether any of it
+          MAKES MONEY sat behind a mode pill inside a drawer tab, which is a
+          strange place to keep the answer to the question the claim invites.
+          One line here, and it goes through to the full table rather than
+          repeating it. Not folded: a site that hides this line has not really
+          made the claim above it. */}
+      <div style={{ marginBottom: 12 }}>
+        <MoneyAnswer compact onNavigate={onNavigate} />
+      </div>
+      {/* ── THREE DOORS ──────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {DOORS.map((d) => (
+          <button type="button" key={d.tab} onClick={() => onNavigate?.(d.tab)} style={{
+            ...BARE_BUTTON, textAlign: 'left',
+            flex: '1 1 240px', minWidth: 0, cursor: 'pointer',
+            // Flat since 2026-09-14 (the audit): the tint gradients were the one
+            // "glowing card" on the page. The door keeps its colour in the title.
+            background: C.bg2,
+            border: `1px solid ${C.border}`, borderRadius: 13, padding: '13px 15px',
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
+              <span style={{ fontSize: 15 }}>{d.icon}</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: d.color }}>{d.title}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: d.color }}>→</span>
+            </span>
+            <span style={{ display: 'block', fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── MORE ON TONIGHT (2026-09-14) ──────────────────────────────────
+          Donovan, on the audit: Home had twenty-two sections stacked and the
+          first real content sat ~300px down on a phone. Home is now LIVE (the
+          hero + the rundown + tonight's tally) → SIGNAL (The Four) → HISTORY
+          (the money answer + the three doors). Every other panel that used to
+          sit on the page is still here, one drawer down, closed by default —
+          the Fold renders nothing until it is opened, so a closed drawer costs
+          the phone nothing. Same panels, same code, one level deeper. */}
+      <Fold id="more-tonight" title="••• More on tonight" meta="angles · storylines · top 10s · weakest arms · the snapshot · steal looks · the game to circle · the read · October · comebacks · moneyline · your night">
       {/* ── TONIGHT'S ANGLES — hero lines, not tables ─────────────────
           Renamed from "storylines" in the 2026-08-09 polish pass: the full
           Storylines engine renders directly below, and two adjacent panels
@@ -1453,19 +1503,6 @@ export default function Home({
         </div>
       )}
 
-      {/* ── THE FOUR, ON THE PAGE INSTEAD OF ONE TAB AWAY (2026-08-29) ──────
-          TUDDY puts The Six on its Home. MOONSHOT's own headline cut sat on
-          the Scoreboard, and this page's rotating pulse line literally read
-          "The Four on the Scoreboard is the headline cut" — the front door
-          telling you the headline is somewhere else.
-
-          Mounted, not forked: components/BotPicksStrip.js is the same
-          component the Scoreboard renders, so there is one source for what
-          The Four is and no chance of the two disagreeing. It carries its own
-          empty state, so a slate with no designations renders nothing rather
-          than an empty frame. */}
-      <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
-
       {/* 🏃 STEAL LOOKS (2026-09-01) — the Steal Board's front door, no new
           tab. See components/StealLooksStrip.js. Empty slate → nothing. */}
       <Fold id="steal" title="🏃 Steal looks" meta="the steal board's front door">
@@ -1583,18 +1620,6 @@ export default function Home({
         <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
       </Fold>
 
-      {/* ── 💵 #34: THE MONEY ANSWER, WHERE THE CLAIM IS MADE ────────────────
-          The hero above says "every pick is graded in public." True, and the
-          receipts are real — but the measurement that says whether any of it
-          MAKES MONEY sat behind a mode pill inside a drawer tab, which is a
-          strange place to keep the answer to the question the claim invites.
-          One line here, and it goes through to the full table rather than
-          repeating it. Not folded: a site that hides this line has not really
-          made the claim above it. */}
-      <div style={{ marginBottom: 12 }}>
-        <MoneyAnswer compact onNavigate={onNavigate} />
-      </div>
-
       {/* ── 🏆 OCTOBER — the playoff predictor and the World Series pick ──────
           Two of the four bots Donovan asked for, and they are one machine: you
           cannot answer who wins the World Series without first answering who is
@@ -1656,6 +1681,7 @@ export default function Home({
         </div>
         </Fold>
       )}
+      </Fold>
 
       {/* ── NOTHING BUILT YET. One honest card instead of eight strips each
              quietly rendering nothing — an empty page that says why is a
@@ -1671,110 +1697,6 @@ export default function Home({
             in with the headline game, the top angles, and the HR and hit leaderboards. Until then,
             the doors below still work, and the record has every graded night behind it.
           </div>
-        </div>
-      )}
-
-      {/* ── WHERE TO GO NEXT — the doors, and the onboarding that used to
-             sit between you and your own data ───────────────────────────────
-             "New here?" rendered directly under the hero on every visit until
-             it was manually dismissed, so the front page opened on a tutorial
-             for the one person who least needs one. It is the same three
-             steps, the same links, the same Guide line and the same "Got it,
-             hide this" button — moved to the foot of the page, next to the
-             three doors, because "where do I go next" is one question and it
-             gets answered in one place. It opens by itself only on a device
-             that has never loaded this page. ── */}
-      {/* ── NEW HERE? ────────────────────────────────────────────────── */}
-      {startOpen && (
-        <div style={{
-          background: `linear-gradient(155deg, rgba(249,115,22,.1), ${C.bg2} 60%)`,
-          border: `1px solid ${C.orange}4d`, borderRadius: 14,
-          padding: '13px 16px', marginBottom: 14,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 9 }}>
-            <span style={{ fontSize: 13, fontWeight: 900 }}>New here? Start with these 3 things</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>in this order — it takes about two minutes</span>
-            <button
-              onClick={dismissStart}
-              title="Hide this. The full five-step version lives on How this works."
-              style={{
-                marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`,
-                borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
-                fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT,
-              }}
-            >Got it, hide this</button>
-          </div>
-          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-            {START.map((s) => (
-              <button
-                type="button"
-                key={s.tab}
-                onClick={() => onNavigate?.(s.tab)}
-                style={{
-                  ...BARE_BUTTON, textAlign: 'left',
-                  flex: '1 1 210px', minWidth: 0, cursor: 'pointer',
-                  background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 11,
-                  padding: '10px 13px',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                  <span style={{
-                    width: 19, height: 19, borderRadius: '50%', flexShrink: 0,
-                    border: `1px solid ${C.orange}77`, background: `${C.orange}18`, color: C.orange,
-                    fontFamily: NUM_FONT, fontWeight: 900, fontSize: 10.5,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{s.n}</span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{s.title}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 11, color: C.orange }}>→</span>
-                </span>
-                <span style={{ display: 'block', fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{s.body}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 10, color: C.text3, marginTop: 9, lineHeight: 1.5 }}>
-            Want more?{' '}
-            <button
-              type="button"
-              onClick={() => onNavigate?.('guide')}
-              style={{ ...BARE_BUTTON, padding: '3px 1px', color: C.orange, cursor: 'pointer', fontWeight: 700 }}
-            >Open “How this works” →</button>{' '}
-            — five steps, a colour key, a glossary.
-          </div>
-        </div>
-      )}
-
-      {/* ── THREE DOORS ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {DOORS.map((d) => (
-          <button type="button" key={d.tab} onClick={() => onNavigate?.(d.tab)} style={{
-            ...BARE_BUTTON, textAlign: 'left',
-            flex: '1 1 240px', minWidth: 0, cursor: 'pointer',
-            background: `linear-gradient(155deg, ${d.color}12, ${d.color}04)`,
-            border: `1px solid ${d.color}3d`, borderRadius: 13, padding: '13px 15px',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-              <span style={{ fontSize: 15 }}>{d.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: d.color }}>{d.title}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: d.color }}>→</span>
-            </span>
-            <span style={{ display: 'block', fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* The reopen. A dismissal you can't undo is a deletion, and the whole
-          point of defaulting the card shut is that it stays reachable. */}
-      {!startOpen && (
-        <div style={{ fontSize: 10, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
-          New here?{' '}
-          <button type="button" onClick={reopenStart} style={{ ...BARE_BUTTON, padding: '3px 1px', color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
-            Start with these 3 things →
-          </button>{' '}
-          — two minutes. Or open{' '}
-          <button type="button" onClick={() => onNavigate?.('guide')} style={{ ...BARE_BUTTON, padding: '3px 1px', color: C.orange, cursor: 'pointer', fontWeight: 700 }}>
-            How this works
-          </button>{' '}
-          for the full version.
         </div>
       )}
 
