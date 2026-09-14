@@ -15,6 +15,8 @@ import DenseTable from '../DenseTable'
 import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
 import OffBoardStrip from '../OffBoardStrip'
 import HomerLedger from '../HomerLedger'
+import LaneRecord from '../LaneRecord'
+import { laneRecord, laneOf as homerLaneOf, LANES as HOMER_LANES } from '../../lib/lanes'
 import WeakSpotCards from '../WeakSpotCards'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
@@ -620,11 +622,19 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
     // sources spell differently (accents, a suffix) silently rendered no rank
     // at all. tabs/Derby.js joins the identical array by player_id already.
     const byId = new Map(players.map((p) => [mlbId(p), p]).filter(([k2]) => k2))
+    // THE LANE (A1, 2026-09-14). PICKS / BOARD / RATED — which of the three
+    // lanes this homer lands in, per lib/lanes.js. Per-game rank decides
+    // BOARD; the slate-wide rank in the column beside it is a different
+    // number and stays.
+    const lanes = laneRecord(players, homers)
     return homers.map((h, i) => {
       const p = byId.get(Number(h?.player_id)) || null
+      const lane = p ? homerLaneOf(p, lanes.ranks) : null
       return {
         _key: `${h?.player_id ?? h?.name}-${i}`,
         _raw: p,
+        lane: lane ? HOMER_LANES[lane].label : 'MISS',
+        laneKey: lane || 'miss',
         rank: p ? rankOf.get(mlbId(p)) ?? null : null,
         name: clean(h?.name, '—'),
         team: clean(h?.team, ''),
@@ -824,16 +834,27 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // the column below — the field ships zero-filled and a zero-filled column
   // reads as a finding.
   const hasLuck = goneYard.some((r) => Number.isFinite(r.pLuck) && r.pLuck !== 0)
+  // THREE LANES, NEVER MIXED (A1, 2026-09-14). "X of N came from the top 15"
+  // was one lane pretending to be the record. PICKS is the bet slip, BOARD
+  // is each game's top 8, RATED is everyone the slate scored — and a homer
+  // is reported in the innermost lane it landed in, no further in.
+  const laneRec = useMemo(() => laneRecord(players, results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []), [players, results])
   const goneTable = goneYard.length > 0 && (
     <Tracker
       title="💥 Gone yard"
       count={goneYard.length}
-      answers="is the model seeing tonight coming? Every homer already hit, next to where this board had that hitter ranked."
-      note={`${goneYard.filter((r) => r.rank && r.rank <= 15).length} of ${goneYard.length} came from the top 15 of the board.`}
+      answers="is the model seeing tonight coming? Every homer already hit, in the lane it landed in — PICKS is the bet slip, BOARD is each game's top 8, RATED is everyone the slate scored. A RATED hit is a RATED hit; it is never written up as a pick."
+      note={<LaneRecord record={laneRec} />}
     >
       <DenseTable
         rows={goneYard}
         columns={[
+          { key: 'lane', label: 'Lane', heat: false, w: 50, mono: true,
+            explain: 'PICKS: he carried the TOP or HR designation. BOARD: he was in his game\'s top 8 by HR score. RATED: the slate scored him. MISS: he was not on the slate at all.',
+            fmt: (v, r) => (
+              <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, letterSpacing: '.06em',
+                          color: r?.laneKey === 'picks' ? C.orange : r?.laneKey === 'board' ? C.green : r?.laneKey === 'rated' ? C.text2 : C.red }}>{v}</b>
+            ) },
           { key: 'rank', label: 'Board', heat: false, w: 46, mono: true, dim: true,
             fmt: (v) => (v == null ? '—' : `#${v}`) },
           { key: 'name', label: 'Player', heat: false, w: 132, bold: true, sticky: true },
@@ -1026,7 +1047,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       <WhatThis label="slate context" maxWidth={760}>
         {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
         {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
-        {goneYard.length > 0 && <>{goneYard.filter((r) => r.rank && r.rank <= 15).length} of {goneYard.length} homers came from the board&apos;s top 15. </>}
+        {laneRec.total > 0 && <>Homers so far — picks {laneRec.hit.picks} of {laneRec.total}, board {laneRec.hit.board} of {laneRec.total}, rated {laneRec.hit.rated} of {laneRec.total}. </>}
         {liveNow ? 'Live action leads below.' : 'Pulse leads; the sortable full board follows.'}
       </WhatThis>
 

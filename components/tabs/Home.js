@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { logUrl, dataUrl } from '../../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
+import { laneRecord } from '../../lib/lanes'
 import { groupGames } from '../../lib/data'
 import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
@@ -560,6 +561,9 @@ export default function Home({
   const weakStars = useMemo(() => players.filter((p) => p?.weak_spot_flag === true).length, [players])
   const picks = useMemo(() => players.filter((p) => String(p?.game_pick_role || '').trim()).length, [players])
   const homersSoFar = (results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []).length
+  // THREE LANES (A1, 2026-09-14) — the record is said in lanes, never as one
+  // blended number. lib/lanes.js.
+  const laneRec = useMemo(() => laneRecord(players, results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []), [players, results])
   // ── THE ROTATING LINE STOPPED COUNTING AND STARTED TELLING (2026-09-03) ──
   //
   // Donovan: "I'd like some storyline in those rotating messages — make sure
@@ -594,6 +598,10 @@ export default function Home({
 
     // WHAT — the only thing that outranks a name is a ball already gone.
     if (isLive && homersSoFar > 0) out.push(`⚡ ${homersSoFar} ball${homersSoFar > 1 ? 's have' : ' has'} already left a yard tonight — every pick on this page is grading live.`)
+    // THE RECORD, IN LANES. Picks is the slip; board is each game's top 8;
+    // rated is everyone scored. Three numbers, so none of them can borrow
+    // the others' credit.
+    if (laneRec.total > 0) out.push(`🎯 Tonight in lanes — picks ${laneRec.hit.picks} of ${laneRec.total} homers, board ${laneRec.hit.board} of ${laneRec.total}, rated ${laneRec.hit.rated} of ${laneRec.total}.`)
 
     // WHO — the board's leader, the arm he draws, and what that arm gives up.
     if (top) {
@@ -634,7 +642,7 @@ export default function Home({
     const scores = live.items.filter((i) => i.live).concat(live.items.filter((i) => !i.live && !i.pregame))
     scores.forEach((i, idx) => { out.splice(Math.min(out.length, 1 + idx * 2), 0, `${i.icon} ${i.text}${i.sub ? ` · ${i.sub}` : ''}`) })
     return out
-  }, [isLive, homersSoFar, picks, weakStars, confirmed, players, proj, record, airRanked, firstPitch, headline, games, live.items])
+  }, [isLive, homersSoFar, laneRec, picks, weakStars, confirmed, players, proj, record, airRanked, firstPitch, headline, games, live.items])
   const pulse = useRotating(lines, 4200)
 
   const empty = !players.length
