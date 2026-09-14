@@ -125,7 +125,7 @@ function SidePicks({ players, team, onPlayerClick, matchup }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
               background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-              borderRadius: 8, padding: '5px 8px', cursor: 'pointer', textAlign: 'left',
+              borderRadius: 8, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
             }}
           >
             <span style={{
@@ -429,11 +429,8 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
             color: C.text2, fontSize: 11.5, lineHeight: 1.5,
           }}
         >
-          <b style={{ color: C.yellow }}>This wave is over.</b> The last kickoff on this
-          slate was {waveEnded} — every card below is the final published state of a game
-          that has already been played, kept here for reference rather than removed. The
-          bot builds one wave at a time and only looks ahead, so nothing new lands here
-          until the next slate does.
+          <b style={{ color: C.yellow }}>This wave is over.</b> Last kickoff was {waveEnded}
+          — everything below is kept for reference, not live, until the next slate replaces it.
         </div>
       )}
       <section className="nfl-games-hero"><div><small>TUDDY GAME CENTER</small><h1>The slate, with the reasons attached.</h1><p>Scoreboard, The Six calls, each side&apos;s top TD board, matchup pressure, and honest feed limits in one card.</p></div><div><strong>{games.length}</strong><span>GAMES</span><strong>{liveCount}</strong><span>{liveCount > 0 && <span className="tuddy-live-dot-sm" aria-hidden="true" />}LIVE</span><strong>{finalCount}</strong><span>FINAL</span></div></section>
@@ -569,7 +566,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
                         <button key={t} onClick={() => onPlayerClick?.(best)} style={{
                           display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                           background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-                          borderRadius: 8, padding: '5px 8px', cursor: 'pointer', textAlign: 'left',
+                          borderRadius: 8, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
                         }}>
                           <span style={{ fontSize: 8.5, fontWeight: 900, color: C.text3, fontFamily: NUM_FONT, minWidth: 28 }}>{t}</span>
                           <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: bg.color, minWidth: 26 }}>{Math.round(best.scores?.TD ?? 0)}</span>
