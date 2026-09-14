@@ -1,4 +1,3 @@
-import { Fragment } from 'react'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
@@ -179,7 +178,6 @@ export default async function MatchupPage({ params, searchParams }) {
       {iAmIdle&&!requestedMatchup&&<p className={styles.message}>{myTeam.name} is idle in Week {week} — nine teams, four games, one sits. Showing {home?.name} vs {away?.name}; your record doesn&apos;t move this week.</p>}
       <LiveMatchupCenter leagueId={leagueId} live={hasLiveGames} lastUpdated={latestSync?.completed_at}/>
       <div className={styles.weekStrip}>{Array.from({length:14},(_,i)=>i+1).map((number)=><Link className={number===week?styles.weekActive:''} href={`/fantasy/league/${leagueId}/matchup?week=${number}`} key={number}>W{number}</Link>)}</div>
-      <NflGameCenter games={nflGames} week={week}/>
       {!featured && <section className={styles.scheduleEmpty}><span>VS</span><div><p className={styles.panelLabel}>SEASON SCHEDULE</p><h1>Your matchups are ready to be built.</h1><p>Franchise creates a balanced 14-week round-robin schedule from the teams currently in this league.</p></div>{league.commissioner_id===user.id?<form action={generateSchedule}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Building…">Create schedule</SubmitButton></form>:<small>Waiting for the commissioner</small>}</section>}
       {featured && <>
         <section className={styles.matchupHero}><div><small>HOME</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={home}/>{home?.name}</h1><strong>{featuredState==='scheduled'?'—':Number(featured.home_score).toFixed(2)}</strong><em>{homeProjection.toFixed(1)} projected</em></div><span><b>WEEK {week}</b><i>{featuredState==='live'&&!hasLiveGames?'IN PROGRESS':featuredState.toUpperCase()}</i></span><div><small>AWAY</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={away}/>{away?.name}</h1><strong>{featuredState==='scheduled'?'—':Number(featured.away_score).toFixed(2)}</strong><em>{awayProjection.toFixed(1)} projected</em></div></section>
@@ -191,6 +189,7 @@ export default async function MatchupPage({ params, searchParams }) {
             <span>{away?.name}</span>
           </div>
         </section>
+        <NflGameStrip games={nflGames} week={week}/>
         {/* THE LINE (2026-09-07). Donovan: "add like betting odds moneyline for
             fun and like a spread type thing." Nothing is staked on these; the
             note under them says where the number comes from and where it does
@@ -280,20 +279,17 @@ function Lineup({ title, rows, scoring, byeTeams, schedule }) {
 // bug LocalTime was just fixed for. The heading is plain text rather than a
 // <LocalTime>: a day heading that re-labels itself after hydration would
 // reshuffle nothing and re-render everything.
-const DAY_LABEL = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' })
-
-function gameDays(games) {
-  const days = []
-  for (const game of games) {
-    const at = new Date(game.kickoff)
-    const label = Number.isNaN(at.getTime()) ? 'Scheduled' : DAY_LABEL.format(at)
-    const current = days[days.length - 1]
-    if (current && current.label === label) current.games.push(game)
-    else days.push({ label, games: [game] })
-  }
-  return days
-}
-
-function NflGameCenter({games, week}) {
-  return <section className={styles.nflGameCenter}><div className={styles.boardHead}><div><p className={styles.panelLabel}>NFL GAME STATUS</p><h2>On the field</h2></div><span>{games.filter((game)=>game.status==='live').length} live · {games.length} total</span></div><div className={styles.nflGameGrid}>{gameDays(games).map((day)=><Fragment key={day.label}><p className={styles.nflGameDay}>{day.label}</p>{day.games.map((game)=><article className={game.status==='live'?styles.nflGameLive:''} key={game.game_id}><span>{game.status==='live'?'● LIVE':game.status==='final'?'FINAL':<LocalTime value={game.kickoff}/>}</span><div><b>{game.away_team}</b><em>at</em><b>{game.home_team}</b></div></article>)}</Fragment>)}</div>{!games.length&&<p className={styles.emptyRoom}>No week {week} games have synced to FRANCHISE yet. TUDDY may already show this week&apos;s slate — the schedule reaches FRANCHISE through the scoring sync, which runs on its own and usually catches up within a few minutes.</p>}</section>
+function NflGameStrip({games, week}) {
+  const finals=games.filter((game)=>game.status==='final').length
+  const live=games.filter((game)=>game.status==='live')
+  const upcoming=games.filter((game)=>game.status==='scheduled')
+  if(!games.length)return <p className={styles.gameStrip}><b>NFL WEEK {week}</b><span>No week {week} games have synced to FRANCHISE yet — the schedule arrives with the scoring sync, usually within a few minutes.</span></p>
+  return <p className={styles.gameStrip}>
+    <b>NFL WEEK {week}</b>
+    <span>{finals} of {games.length} final</span>
+    {live.map((game)=><em className={styles.gameStripLive} key={game.game_id}>● {game.away_team} at {game.home_team}</em>)}
+    {upcoming.slice(0,4).map((game)=><em key={game.game_id}>{game.away_team} at {game.home_team} · <LocalTime value={game.kickoff}/></em>)}
+    {upcoming.length>4&&<em>+{upcoming.length-4} more</em>}
+    {!live.length&&!upcoming.length&&<em>Week complete</em>}
+  </p>
 }
