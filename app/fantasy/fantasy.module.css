@@ -5143,6 +5143,9 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font: 900 13px/1 monospace;
   font-variant-numeric: tabular-nums;
 }
+.slotProjection[data-live='true'] {
+  color: var(--fx-good);
+}
 .slotProjection i {
   display: block;
   margin-top: 4px;
