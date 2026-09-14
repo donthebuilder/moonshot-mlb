@@ -92,12 +92,18 @@ export default async function MatchupPage({ params, searchParams }) {
   // Slot-by-slot pairing for the duel board above. Points come from the same
   // two rules the lineups use: a live/final game reads the real stat line, a
   // scheduled one reads the projection, and a man on bye is zero either way.
+  //
+  // ACTIVE MEANS THE GAME HAS STARTED, NOT THAT HE HAS A STAT LINE (2026-09-14).
+  // This used to require both, so a starter who did not play in a FINAL game
+  // -- inactive, a healthy scratch, a kicker who never kicked -- had an empty
+  // line, failed the check, and fell through to his PROJECTION: the duel board
+  // credited him 14 points the hero score (summed in SQL off the real line, so
+  // 0) did not, and the two disagreed by exactly his projection. Once kickoff
+  // has happened the real number is the number, and for him it is 0.0.
   const pointsForRow = (row) => {
     if (!row?.player) return 0
     if (isOnBye(row.player, byeTeams)) return 0
-    const hasStats = Boolean(row.weekStats?.stats && Object.keys(row.weekStats.stats).length)
-    const active = Boolean(row.weekStats?.status && row.weekStats.status !== 'scheduled' && hasStats)
-    return active ? fantasyPointsFromStats(row.weekStats?.stats, league.scoring) : projectedFantasyPoints(row.player, league.scoring)
+    return rowIsActive(row) ? fantasyPointsFromStats(row.weekStats?.stats || {}, league.scoring) : projectedFantasyPoints(row.player, league.scoring)
   }
   // Paired BY POSITION WITHIN THE SLOT NAME, not by slot_index. Keying on
   // `${slot}#${slot_index}` looks equivalent and is not: a null or duplicated
@@ -222,8 +228,12 @@ export default async function MatchupPage({ params, searchParams }) {
   </main>
 }
 
+// A row is scoring for real once its game has kicked off. An empty stat line
+// in a live or final game is a real 0.0, not "pending" -- see pointsForRow.
+const rowIsActive = (row) => Boolean(row?.weekStats?.status && row.weekStats.status !== 'scheduled')
+
 function Lineup({ title, rows, scoring, byeTeams, schedule }) {
-  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const hasStats=Boolean(row.weekStats?.stats&&Object.keys(row.weekStats.stats).length);const active=Boolean(row.weekStats?.status&&row.weekStats.status!=='scheduled'&&hasStats);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats,scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
+  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const active=rowIsActive(row);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats||{},scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
 // ── #81: TWO PRODUCTS IN ONE NETWORK, DISAGREEING ABOUT THE SCHEDULE ────────
