@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState, useRef, useEffect } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { roleBadge } from '../../lib/roleBadge'
 import PriceBubble from '../PriceBubble'
 import { hrPerGame } from '../../lib/odds'
@@ -48,20 +48,20 @@ function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
       borderRadius: 7, padding: '4px 8px 5px', textAlign: 'left',
     }}>
       <span style={{ display: 'flex', gap: 5, alignItems: 'baseline', minWidth: 0 }}>
-        <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{label || cat}</span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{label || cat}</span>
+        <span style={{ fontSize: TYPE.body, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {String(p?.name || '').split(' ').slice(-1)[0]}
         </span>
       </span>
       <span style={{ display: 'flex', gap: 5, alignItems: 'baseline', minWidth: 0 }}>
         {lead ? (
-          <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             <b style={{ color: statCol, fontWeight: 800 }}>{lead.text}</b>
             <span style={{ color: C.text3 }}> {lead.label.toLowerCase()}</span>
           </span>
         ) : (
           // No published stat for him — say nothing rather than print a dash.
-          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>no stat yet</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>no stat yet</span>
         )}
         {/* 💸 THE PRICE, ON THE PICK (2026-08-15, Donovan: "i wanted to see
             them on the games picks like a little buble or ... glow of the
@@ -70,7 +70,7 @@ function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
             there is a real rate to judge the number against. */}
         <PriceBubble odds={odds} player={p} cat={cat}
           rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
-        <span title="The bot's score for this category" style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: `${col}cc`, fontFamily: NUM_FONT, flexShrink: 0 }}>
+        <span title="The bot's score for this category" style={{ marginLeft: 'auto', fontSize: TYPE.micro, fontWeight: 700, color: `${col}cc`, fontFamily: NUM_FONT, flexShrink: 0 }}>
           {score.toFixed(0)}
         </span>
       </span>
@@ -327,7 +327,7 @@ function ArmBubble({ s }) {
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           border: `1px solid ${open ? C.orange : C.border}`,
           background: open ? 'rgba(249,115,22,.14)' : 'transparent',
-          color: open ? C.orange : C.text3, fontSize: 9, fontWeight: 900,
+          color: open ? C.orange : C.text3, fontSize: TYPE.micro, fontWeight: 900,
           fontFamily: NUM_FONT, lineHeight: 1,
         }}
       >i</button>
@@ -351,7 +351,7 @@ function ArmBubble({ s }) {
             }}
           >
             <div style={{
-              fontSize: 9, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
+              fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
               color: C.text3, fontFamily: NUM_FONT, marginBottom: 6,
             }}>
               {s.arm}{s.throws ? ` · ${s.throws}HP` : ''}
@@ -359,7 +359,7 @@ function ArmBubble({ s }) {
             {rows.map(([label, value, note]) => (
               <div key={label} title={note || undefined} style={{
                 display: 'flex', alignItems: 'baseline', gap: 8,
-                fontSize: 10, lineHeight: 1.75,
+                fontSize: TYPE.micro, lineHeight: 1.75,
               }}>
                 <span style={{ color: C.text3 }}>{label}</span>
                 <span style={{
@@ -369,7 +369,7 @@ function ArmBubble({ s }) {
               </div>
             ))}
             {s.weakSide === 'L' || s.weakSide === 'R' ? (
-              <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
+              <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
                 The bot has him weakest to{' '}
                 <b style={{ color: C.orange }}>{s.weakSide === 'L' ? 'left' : 'right'}-handed</b> bats.
               </div>
@@ -772,10 +772,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       <MobileFold title="Sort & filters" summary={sortBy === 'time' ? 'first-pitch order' : `sorted by ${sortBy}`} accent={C.orange} maxWidth={760}>
       {mode !== 'lineups' && (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-          <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
+          <span style={{ fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Sort</span>
           {[['time', 'Time'], ['gs', 'Score'], ['air', 'Best air'], ['set', 'Lineups in'], ['hr9', 'Worst HR/9'], ['whip', 'Worst WHIP'], ['lowk', 'Lowest K']].map(([k, label]) => (
             <button key={k} onClick={() => setSortBy(k)} style={{
-              padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 700,
               border: `1px solid ${sortBy === k ? C.orange : C.border}`,
               background: sortBy === k ? 'rgba(249,115,22,.12)' : 'transparent',
               color: sortBy === k ? C.orange : C.text3,
@@ -920,7 +920,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
               border: `1px solid ${out.length ? alpha(verdictInk(false).color, 0.4) : C.border}`,
               background: out.length ? verdictWash(false, 0.06) : C.bg2,
             }}>
-              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: C.text3 }}>
+              <span style={{ fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: C.text3 }}>
                 Lineup cards
               </span>
               {/* "All posted" is a data-completeness state, not a win/loss
@@ -930,18 +930,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   same "lineup confirmed" concept is already coloured a few
                   hundred lines down in this file. */}
               <span title="Games where the league has posted all nine on both sides."
-                style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: postedN === inPlay.length ? C.green : C.text2 }}>
+                style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800, color: postedN === inPlay.length ? C.green : C.text2 }}>
                 {postedN}/{inPlay.length} posted
               </span>
               {!out.length && !moved.length && (
-                <span style={{ fontSize: 10, color: C.text3 }}>every posted card matches the bot&apos;s order</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>every posted card matches the bot&apos;s order</span>
               )}
               {out.slice(0, 6).map(({ ...p }) => (
                 <button key={`o${playerId(p)}`} onClick={() => { setLineupFocus(p?.game_pk || null); onPlayerClick?.(p) }}
                   title={`Not in tonight's posted lineup — the bot had him at #${p?.lineup_spot ?? '?'}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                    padding: '5px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    padding: '5px 10px', borderRadius: 999, fontSize: TYPE.micro, fontWeight: 700,
                     // Scratched = the bad side of the verdict pair, not a
                     // hand-typed red.
                     border: `1px solid ${alpha(verdictInk(false).color, 0.5)}`, background: verdictWash(false, 0.12), color: verdictInk(false).color,
@@ -954,14 +954,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   title={`Batting ${slot} tonight — the bot had him at #${p?.lineup_spot}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                    padding: '5px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700,
+                    padding: '5px 10px', borderRadius: 999, fontSize: TYPE.micro, fontWeight: 700,
                     border: `1px solid ${C.orange}66`, background: 'rgba(249,115,22,.12)', color: C.orange,
                   }}>
                   ↕ {String(p?.name || '').split(' ').slice(-1)[0]} #{p?.lineup_spot}→{slot}
                 </button>
               ))}
               {(out.length > 6 || moved.length > 6) && (
-                <span style={{ fontSize: 9.5, color: C.text3 }}>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
                   +{Math.max(0, out.length - 6) + Math.max(0, moved.length - 6)} more
                 </span>
               )}
@@ -974,7 +974,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             <button onClick={() => { setLineupFocus(null); setActive(null) }} style={{
               flex: '1 1 100%', textAlign: 'left', cursor: 'pointer',
               background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 9,
-              padding: '6px 12px', fontSize: 11, fontWeight: 700, color: C.text3,
+              padding: '6px 12px', fontSize: TYPE.body, fontWeight: 700, color: C.text3,
             }}>← All lineups</button>
           )}
           {(lineupFocus ? games.filter((g) => g.game_pk === lineupFocus) : games).map((g) => {
@@ -1067,7 +1067,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
                   cursor: 'pointer',
                 }}>
-                  <span style={{ fontSize: 14, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
+                  <span style={{ fontSize: TYPE.name, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
                   {/* ── THE SCORE, WHILE IT IS HAPPENING (2026-08-10) ──────
                       liveSlate has carried homeScore/awayScore/inning/half
                       since the wire was built; this card just never asked for
@@ -1078,7 +1078,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   {liveG && (liveG.state === 'Live' || liveG.state === 'Final') && (
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, fontFamily: NUM_FONT }}>
                       <span style={{
-                        fontSize: 13, fontWeight: 900,
+                        fontSize: TYPE.name, fontWeight: 900,
                         color: liveG.state === 'Live' ? C.text : C.text2,
                       }}>{liveG.awayScore ?? 0}–{liveG.homeScore ?? 0}</span>
                       {liveG.state === 'Live' ? (
@@ -1086,12 +1086,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           // Delayed/live is a game STATE, not a win/loss
                           // verdict, so this stays the byte-identical
                           // C.green rather than routing through verdictInk.
-                          style={{ fontSize: 10, fontWeight: 800, color: liveG.delayed ? C.yellow : C.green }}>
+                          style={{ fontSize: TYPE.micro, fontWeight: 800, color: liveG.delayed ? C.yellow : C.green }}>
                           {liveG.delayed ? liveG.statusLabel
                             : `${/^top/i.test(liveG.half) ? '▲' : /^bot/i.test(liveG.half) ? '▼' : '·'}${liveG.inning ?? ''}`}
                         </span>
                       ) : (
-                        <span style={{ fontSize: 10, fontWeight: 800, color: C.text3 }}>
+                        <span style={{ fontSize: TYPE.micro, fontWeight: 800, color: C.text3 }}>
                           {liveG.statusLabel || 'F'}
                         </span>
                       )}
@@ -1118,13 +1118,13 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       <span title={posted ? 'The league has posted tonight’s card — these are the real nine.'
                         : g.lineup_confirmed ? 'The bot saw a confirmed lineup on its last run; the league hasn’t posted an update since.'
                         : 'No card posted yet — this order is the bot’s projection.'}
-                        style={{ fontSize: 10, color: col, fontFamily: NUM_FONT, fontWeight: 700 }}>
+                        style={{ fontSize: TYPE.micro, color: col, fontFamily: NUM_FONT, fontWeight: 700 }}>
                         {posted ? '✓ lineup posted' : g.lineup_confirmed ? '✓ confirmed (bot)' : '◻ projected'}
                       </span>
                     )
                   })()}
-                  <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
-                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT }}>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: TYPE.micro, fontFamily: NUM_FONT }}>
                     {temp > 0 && <span style={{ color: temp >= 82 ? C.orange : C.text2 }}>{Math.round(temp)}°</span>}
                     {wind > 0 && <span style={{ color: /out/i.test(wLbl) ? C.orange : C.text3 }}>{/out/i.test(wLbl) ? '↗' : /in\b/i.test(wLbl) ? '↙' : '→'}{Math.round(wind)}mph</span>}
                     {parkF > 0 && <span style={{ color: parkF >= 1.03 ? C.orange : C.text3 }}>park ×{parkF.toFixed(2)}</span>}
@@ -1141,8 +1141,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       borderLeft: ti ? `1px solid ${C.border}` : 'none',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-                        <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT }}>{t}</span>
-                        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                        <span style={{ fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT }}>{t}</span>
+                        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                           vs {String(lineup[0]?.pitcher_name || 'TBD').split(' ').slice(-1)[0]}
                           {lineup[0]?.pitcher_projected ? ' ≈' : ''}
                           {lineup[0]?.pitcher_hr9 ? ` · ${Number(lineup[0].pitcher_hr9).toFixed(2)} HR/9` : ''}
@@ -1162,17 +1162,17 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               : undefined}
                             style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2.5px 0', cursor: 'pointer', minWidth: 0,
                               opacity: lu.scratched ? 0.45 : 1 }}>
-                            <span style={{ fontFamily: NUM_FONT, fontSize: 10, width: 11, flexShrink: 0,
+                            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, width: 11, flexShrink: 0,
                               color: lu.moved ? C.orange : C.text3, fontWeight: lu.moved ? 800 : 400 }}>
                               {lu.posted && lu.slot ? lu.slot : (p?.lineup_spot ?? '·')}
                             </span>
-                            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1,
+                            <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1,
                               textDecoration: lu.scratched ? 'line-through' : 'none' }}>
                               {p?.name}
                               {/* same scratched-is-bad verdict as the card watch above */}
-                              {lu.scratched && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: verdictInk(false).color, marginLeft: 4 }}>OUT</span>}
-                              {lu.moved && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.orange, marginLeft: 4 }}>was #{p?.lineup_spot}</span>}
-                              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>{p?.bats}</span>
+                              {lu.scratched && <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 800, color: verdictInk(false).color, marginLeft: 4 }}>OUT</span>}
+                              {lu.moved && <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.orange, marginLeft: 4 }}>was #{p?.lineup_spot}</span>}
+                              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 4 }}>{p?.bats}</span>
                               {/* AVG, inline (2026-08-21, on request: "batter
                                   splits and avgs... I like all those stats to
                                   sort by"). This card is a per-game lineup
@@ -1183,7 +1183,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                   number, glanceable right on the man's row
                                   without leaving the game card. */}
                               {Number(p?.season_avg) > 0 && (
-                                <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginLeft: 4 }}>
+                                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 4 }}>
                                   {Number(p.season_avg).toFixed(3).replace(/^0/, '')}
                                 </span>
                               )}
@@ -1212,7 +1212,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               )}
                             </div>
                             <span title={p?.off_slate ? 'In the lineup, but not on the bot’s slate — no model score for him tonight.' : undefined}
-                              style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
+                              style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
                                 color: p?.off_slate ? C.text3 : hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>
                               {p?.off_slate ? '–' : hs.toFixed(0)}</span>
                           </div>
@@ -1276,14 +1276,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               border: `1px solid ${col}55`, background: `${col}10`,
                               borderRadius: 7, padding: '3px 8px',
                             }}>
-                              <span style={{ fontSize: 8.5, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{(cats || [cat]).join('/')}</span>
-                              <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
+                              <span style={{ fontSize: TYPE.label, fontWeight: 900, color: col, fontFamily: NUM_FONT, letterSpacing: '.05em', flexShrink: 0 }}>{(cats || [cat]).join('/')}</span>
+                              <span style={{ fontSize: TYPE.body, fontWeight: 700, color: C.text, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{String(p?.name || '').split(' ').slice(-1)[0]}</span>
                               {/* 💸 the price, on the pick. Glows only when
                                   there is a real rate to judge it against —
                                   see components/PriceBubble.js. */}
                               <PriceBubble odds={odds} player={p} cat={cat}
                                 rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
-                              <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
+                              <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
                             </button>
                           )
                         })}
@@ -1299,12 +1299,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                 {isSel && (
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: '9px 12px', background: 'rgba(249,115,22,.02)' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 11, fontWeight: 900 }}>⚔ Slot-by-slot</span>
+                      <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>⚔ Slot-by-slot</span>
                       {/* Trimmed 2026-09-13 (Donovan: "the litte helper text
                           ... does not [h]elp" + mobile pass) — same glyph
                           legend, fewer words, bumped 9→9.5px so it doesn't
                           disappear on a phone. */}
-                      <span style={{ fontSize: 9.5, color: C.text3 }}>
+                      <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
                         bar = arm&apos;s OPS-against that spot · numbers = batter&apos;s AVG/ISO vs this arm&apos;s side
                         {' '}· 💥 bleeds · ⭐ side match · <b style={{ color: C.orange }}>🔥 both (the mismatch)</b>
                       </span>
@@ -1394,7 +1394,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       title={isActive ? 'Collapse this game' : 'Open the full read on this game'}
                     >
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
-                        <span style={{ fontSize: 17, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
+                        <span style={{ fontSize: TYPE.title, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
                           {past ? '✓ ' : ''}{g.away || '—'} <span style={{ color: C.text3, fontWeight: 400 }}>@</span> {g.home || '—'}
                         </span>
                         {/* GLOSSARY-ON-TAP (2026-09-06). Donovan found this
@@ -1405,7 +1405,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             header comment says plainly is invisible on a
                             phone. Same fix that component exists for: a tap
                             target, not a hover. */}
-                        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: NUM_FONT, color: g.lineup_confirmed ? C.green : C.text3 }}>
+                        <span style={{ fontSize: TYPE.micro, fontWeight: 700, fontFamily: NUM_FONT, color: g.lineup_confirmed ? C.green : C.text3 }}>
                           <Explain
                             label={g.lineup_confirmed ? '✓ lineups in' : '◻ projected'}
                             text={g.lineup_confirmed
@@ -1413,8 +1413,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               : "The real batting order hasn't posted yet, so this is the bot's best projection. It can still change before first pitch."}
                           />
                         </span>
-                        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
-                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 10, fontFamily: NUM_FONT, flexShrink: 0 }}>
+                        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 9, fontSize: TYPE.micro, fontFamily: NUM_FONT, flexShrink: 0 }}>
                           {/* Same reason as the duel below: open, the air is a
                               full sentence in GameDeepDive's AirLine. */}
                           {!isActive && temp > 0 && <span title="Game-time temperature" style={{ color: temp >= 82 ? C.orange : C.text3 }}>{Math.round(temp)}°</span>}
@@ -1460,16 +1460,16 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             background: 'rgba(255,255,255,.025)', border: `1px solid ${C.border}`,
                             borderRadius: 8, padding: '4px 10px',
                           }}>
-                            <span style={{ fontSize: 10.5, fontWeight: 900, fontFamily: NUM_FONT, flexShrink: 0 }}>{s.team}</span>
-                            <span style={{ fontSize: 9.5, color: C.text3, flexShrink: 0 }}>vs</span>
-                            <span style={{ fontSize: 10.5, fontWeight: 700, color: C.text2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <span style={{ fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, flexShrink: 0 }}>{s.team}</span>
+                            <span style={{ fontSize: TYPE.micro, color: C.text3, flexShrink: 0 }}>vs</span>
+                            <span style={{ fontSize: TYPE.body, fontWeight: 700, color: C.text2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {s.arm}{s.throws ? ` (${s.throws})` : ''}{s.projected ? ' ≈' : ''}
                               {s.trendingBad && (
                                 <span title={`trending bad — ${s.trend === 'worsening' ? 'published trend is worsening' : `last 3 starts ${s.l3hr9.toFixed(2)} HR/9 vs ${s.hr9.toFixed(2)} season`}`}
                                   style={{ marginLeft: 5, color: C.orange, fontWeight: 900 }}>📉</span>
                               )}
                             </span>
-                            <span style={{ marginLeft: 'auto', display: 'flex', gap: 7, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 9.5 }}>
+                            <span style={{ marginLeft: 'auto', display: 'flex', gap: 7, flexShrink: 0, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>
                               {/* ── THE TEXT AND THE BAR AGREE NOW (2026-09-03) ──
                                   Flagged twice: this label went warm at 1.30
                                   saying "higher favors the bats" while the bar
@@ -1634,10 +1634,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         <div id={`gp-picks-${g.game_pk}`} style={{ borderTop: `1px solid ${C.border}`, marginTop: 14, paddingTop: 12 }} />
                         {(<>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 11.5, fontWeight: 800 }}>
+                          <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>
                             {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
                           </span>
-                          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                             {isDesignated
                               ? 'one per category, the same five slots Results grades'
                               : 'no designated picks published for this game yet'}
@@ -1652,7 +1652,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             title={barsOn ? 'Back to the normal pick cards' : "See the bot's five category bars per card"}
                             style={{
                               marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, cursor: 'pointer',
-                              fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+                              fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT,
                               border: `1px solid ${barsOn ? C.cyan : C.border}`,
                               background: barsOn ? 'rgba(34,211,238,.14)' : 'transparent',
                               color: barsOn ? C.cyan : C.text3,
@@ -1692,7 +1692,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                     background: C.bg,
                                     border: `1px solid ${roleInfo.color}99`,
                                     color: roleInfo.color, borderRadius: 6, padding: '1px 9px',
-                                    fontSize: 9, fontWeight: 900, letterSpacing: '.08em',
+                                    fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.08em',
                                     textTransform: 'uppercase', fontFamily: NUM_FONT,
                                     boxShadow: `0 0 10px ${roleInfo.color}33`,
                                   }}>{roleInfo.label}</span>
@@ -1738,12 +1738,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2, minWidth: 0 }}>
                         {/* same rule as PlayerCard: long names shrink, never clip */}
                         <span title={p?.name || ''} style={{
-                          fontSize: String(p?.name || '').length > 18 ? 11.5 : 13,
+                          fontSize: String(p?.name || '').length > 18 ? TYPE.body : TYPE.name,
                           fontWeight: 700, lineHeight: 1.25, minWidth: 0,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{p?.name || '—'}</span>
                       </div>
-                      <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>
+                      <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginBottom: 8 }}>
                         {p?.team} #{p?.lineup_spot ?? '?'} · vs {p?.pitcher_name || '?'} ({p?.pitcher_throws || '?'})
                       </div>
                       {scores.map(({ k, l, c, cat }) => {
@@ -1753,11 +1753,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         const isHis = slotCats ? slotCats.includes(cat) : cat === slotCat
                         return (
                           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: isHis || !slotCat ? 1 : 0.5 }}>
-                            <span style={{ width: 26, fontSize: 9, color: isHis ? c : C.text3, fontWeight: isHis ? 800 : 400, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{l}</span>
+                            <span style={{ width: 26, fontSize: TYPE.label, color: isHis ? c : C.text3, fontWeight: isHis ? 800 : 400, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{l}</span>
                             <div style={{ flex: 1, height: isHis ? 6 : 4, background: 'rgba(255,255,255,0.07)', borderRadius: 3 }}>
                               <div style={{ width: `${val}%`, height: '100%', background: c, borderRadius: 3, boxShadow: isHis ? `0 0 8px ${c}66` : 'none' }} />
                             </div>
-                            <span style={{ width: 24, fontSize: 10, fontWeight: isHis ? 800 : 400, color: isHis ? c : 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{val.toFixed(0)}</span>
+                            <span style={{ width: 24, fontSize: TYPE.micro, fontWeight: isHis ? 800 : 400, color: isHis ? c : 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{val.toFixed(0)}</span>
                           </div>
                         )
                       })}
@@ -1796,11 +1796,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 5 }}>
                             {extras.map((e) => (
                               <div key={e.l} title={e.tip} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, opacity: 0.85 }}>
-                                <span style={{ width: 26, fontSize: 9, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{e.l}</span>
+                                <span style={{ width: 26, fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{e.l}</span>
                                 <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 3 }}>
                                   <div style={{ width: `${Math.min(100, (e.v / e.max) * 100)}%`, height: '100%', background: e.c2, borderRadius: 3 }} />
                                 </div>
-                                <span style={{ width: 30, fontSize: 10, color: 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{e.txt}</span>
+                                <span style={{ width: 30, fontSize: TYPE.micro, color: 'rgba(255,255,255,0.6)', fontFamily: NUM_FONT, textAlign: 'right' }}>{e.txt}</span>
                               </div>
                             ))}
                           </div>
@@ -1815,7 +1815,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); onAdd?.(p, p?.best_bet_type) }}
-                        style={{ width: '100%', marginTop: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.75)', borderRadius: 8, padding: '6px 10px', fontSize: 11, cursor: 'pointer' }}
+                        style={{ width: '100%', marginTop: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.75)', borderRadius: 8, padding: '6px 10px', fontSize: TYPE.body, cursor: 'pointer' }}
                       >
                         + Add to Slip
                       </button>
@@ -1854,7 +1854,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                 <button disabled={!prev} onClick={() => prev && scrollTo(prev.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: prev ? 1 : 0.35 }}>
                   ‹ {prev ? lbl(prev) : 'first game'}
                 </button>
-                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{idx + 1} / {games.length}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{idx + 1} / {games.length}</span>
                 <button disabled={!next} onClick={() => next && scrollTo(next.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: next ? 1 : 0.35 }}>
                   {next ? lbl(next) : 'last game'} ›
                 </button>
@@ -1901,7 +1901,7 @@ function GameFilterRail({ value, onChange, counts }) {
   ]
   return (
     <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
-      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase' }}>Games</span>
+      <span style={{ fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase' }}>Games</span>
       {opts.map((o) => (
         <FilterPill key={o.key} active={value === o.key} count={o.count} title={o.title}
           disabled={o.count === 0 && value !== o.key}
@@ -2023,7 +2023,7 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
               onClick={(e) => { e.stopPropagation(); jump(k) }}
               title={PANEL_SUB[k]}
               style={{
-                padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+                padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
                 fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
                 border: `1px solid ${on ? C.orange : C.border}`,
                 background: on ? 'rgba(249,115,22,.14)' : 'transparent',
@@ -2038,7 +2038,7 @@ function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '
           )
         })}
       </div>
-      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 5, maxWidth: 720, display: isPhone ? 'none' : 'block' }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, marginTop: 5, maxWidth: 720, display: isPhone ? 'none' : 'block' }}>
         {PANEL_SUB[panel]}
         {panel === 'lineups' && arm && (
           <span style={{ color: C.text3 }}> Tonight: {arm}.</span>
@@ -2055,7 +2055,7 @@ function ViewPills({ views, view, setView }) {
     <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
       {views.map(([k, label]) => (
         <button key={k} onClick={() => setView(k)} style={{
-          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5,
+          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
           fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
           border: `1px solid ${view === k ? C.orange : C.border}`,
           background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
@@ -2079,7 +2079,7 @@ function LiveStamp({ meta, anyLive, onRefresh }) {
   const bad = meta.stale || (age != null && age > (anyLive ? 120 : 600))
   const color = bad ? C.red : anyLive ? C.green : C.text3
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: 10, color: C.text3, margin: '0 0 8px', minWidth: 0 }}>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, margin: '0 0 8px', minWidth: 0 }}>
       <span style={{ width: 7, height: 7, borderRadius: 999, background: color, boxShadow: anyLive && !bad ? `0 0 6px ${color}` : 'none', flexShrink: 0 }} />
       <span
         title={meta.stale && meta.reason ? `Live feed status: ${meta.reason}` : undefined}
@@ -2090,7 +2090,7 @@ function LiveStamp({ meta, anyLive, onRefresh }) {
           : anyLive ? `live · updated ${ageText}` : `no game live · lineups checked ${ageText}`}
       </span>
       <button onClick={onRefresh} disabled={meta.pulling} title="Pull the league feed again now" style={{
-        marginLeft: 'auto', flexShrink: 0, cursor: meta.pulling ? 'default' : 'pointer', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
+        marginLeft: 'auto', flexShrink: 0, cursor: meta.pulling ? 'default' : 'pointer', fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 800,
         padding: '5px 12px', borderRadius: 999, border: `1px solid ${bad ? C.red : C.border}`,
         background: 'transparent', color: bad ? C.red : C.text2, opacity: meta.pulling ? 0.6 : 1,
       }}>{meta.pulling ? 'pulling…' : '↻ refresh'}</button>
