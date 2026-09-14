@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean, hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
-import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName } from '../../lib/odds'
+import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName, priceBand, priceTaken } from '../../lib/odds'
 import { verdictInk } from '../../lib/scales'
 import { hrGameBand, edgeBand } from '../../lib/hrRateBand'
 import { CalibrationScatter } from '../OddsChart'
@@ -269,21 +269,28 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     })
 
     if (!priced) return null
-    const byEdge = [...hr].sort((a, b) => b.diff - a.diff)
+    // THE PRICE RULE (A2, 2026-09-14): a +901 price is never named as a call
+    // on this page, whatever his rate says. lib/odds.js has the numbers. The
+    // row still prints — with PASS on it — and the fade is unaffected, since
+    // a fade is not a bet.
+    const passed = hr.filter((x) => !priceTaken(x.over)).length
+    const takeable = hr.filter((x) => priceTaken(x.over))
+    const byEdge = [...takeable].sort((a, b) => b.diff - a.diff)
     const widest = byEdge[0] && byEdge[0].diff >= CALL_EDGE ? byEdge[0] : null
     // The longest number his own rate still clears. Deliberately a different
     // question from "the biggest gap": the biggest gap is often a short price
     // on a slugger, and he asked for the long plus-money shots by name.
-    const longshot = [...hr]
+    const longshot = [...takeable]
       .filter((x) => x.over >= 200 && x.diff >= CALL_EDGE && x !== widest)
       .sort((a, b) => b.over - a.over)[0] || null
-    const fade = byEdge.length && byEdge[byEdge.length - 1].diff <= -CALL_EDGE
-      ? byEdge[byEdge.length - 1] : null
+    const byEdgeAll = [...hr].sort((a, b) => b.diff - a.diff)
+    const fade = byEdgeAll.length && byEdgeAll[byEdgeAll.length - 1].diff <= -CALL_EDGE
+      ? byEdgeAll[byEdgeAll.length - 1] : null
 
     return {
       priced, plus, offBar, markets: seen.size, maxBooks,
       books: [...bookNames], shop,
-      rated: hr.length, widest, longshot, fade,
+      rated: hr.length, widest, longshot, fade, passed,
       topScore, longest,
       when: clean(odds?.fetched_at_human, ''),
     }
@@ -349,6 +356,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
         rateThin: band?.thin ? 1 : 0,
         rateWhy: band?.why || '',
         fair: rate != null ? fairOdds(rate) : null,
+        band: market === 'batter_home_runs' ? (priceBand(over)?.label || null) : null,
         frozen: q.frozen ? 1 : 0,
         books: n(q.books, 0),
         best: n(q.best_over, over),
@@ -608,6 +616,10 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
                 <Num color={C.green}>{fmtOdds(night.shop.best)}</Num>
                 {night.shop.book ? ` at ${night.shop.book}` : ''} — {one(night.shop.gain)} points of break-even for shopping it.</>
             )}
+            {' '}<span title="Home runs only, off the site's own P&L: flat one unit on every HR pick the board named, Aug 15 to Sep 13. +401..+900 came back +4.4% on 438 bets; +901 and up came back −21.8% on 156, and −24% and −34% in two earlier joins. Same sign three times, with a mechanism — the +901 bats are the wall-scrapers the board measures below random on. No score changes; only which prices get a name next to them.">
+              Homer prices are taken <b style={{ color: C.text }}>+401 to +900</b>; <b style={{ color: C.red }}>+901 and up is a pass</b>
+              {night.passed > 0 ? <> — <Num color={C.red}>{night.passed}</Num> rated {night.passed === 1 ? 'bat' : 'bats'} tonight sit there and none is named below</> : null}.
+            </span>
           </p>
 
           {/* THE WIDEST GAP — the hero. HR only, on the 0.5 bar only, and only
@@ -903,6 +915,14 @@ key={market}
                 </span>
               ),
             },
+            ...(market === 'batter_home_runs' ? [
+              { key: 'band', label: 'BAND', w: 50, heat: false,
+                title: 'The price rule, home runs only, from the site\'s own P&L (736 priced HR picks, Aug 15 to Sep 13, flat one unit): PLAY is +401 to +900 (15.8% hit, ROI +4.4%) — the only band above water. SHORT is +151 to +400 (20.4% hit, ROI −13.0%) — right about who, wrong about the number. PASS is +901 and up (5.1% hit, ROI −21.8%) — never taken, and never named in the read above. Changes no score.',
+                fmt: (v) => (v == null ? '—' : (
+                  <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, letterSpacing: '.06em',
+                              color: v === 'PLAY' ? C.green : v === 'PASS' ? C.red : C.yellow }}>{v}</b>
+                )) },
+            ] : []),
             {
               key: 'need', label: 'NEED %', w: 56, dp: 1, invert: true,
               title: 'What that price has to hit to break even.',
