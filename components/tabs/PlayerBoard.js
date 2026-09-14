@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, playerId, clean, n } from '../../lib/player'
 import { scoreFor, tierRole } from '../../lib/scoring'
 import { Empty, inputStyle } from '../ui'
@@ -159,7 +159,7 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
             return (
               <button key={a.key} onClick={() => setAsk(on ? null : a.key)} title={a.why}
                 style={{
-                  padding: '2px 8px', fontSize: 9, fontWeight: 700, borderRadius: 999, cursor: 'pointer',
+                  padding: '2px 8px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 999, cursor: 'pointer',
                   border: `1px solid ${on ? C.orange : C.border}`,
                   background: on ? 'rgba(249,115,22,.12)' : 'transparent',
                   color: on ? C.orange : C.text3, whiteSpace: 'nowrap',
@@ -170,7 +170,7 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
             onClick={() => { const pool = matches.length ? matches : ranked; const pick = pool[Math.floor(Math.random() * pool.length)]; if (pick) setSelectedId(playerId(pick)) }}
             title="Open a random hitter from the current list — for the nights you want the site to start the conversation"
             style={{
-              padding: '2px 8px', fontSize: 9, fontWeight: 700, borderRadius: 999, cursor: 'pointer',
+              padding: '2px 8px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 999, cursor: 'pointer',
               border: `1px dashed ${C.border2}`, background: 'transparent', color: C.text3, whiteSpace: 'nowrap',
             }}>🎲</button>
         </div>
@@ -196,12 +196,12 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span style={{ display: 'block', fontSize: TYPE.name, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {nameOf(p)}
                     {String(p?.game_pick_role || '').trim() && <span title="Bot pick tonight" style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
                     {p?.weak_spot_flag && <span title="Weak lineup spot vs this starter" style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
                   </span>
-                  <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                     {teamOf(p)} vs {oppOf(p)} · #{clean(p?.lineup_spot, '?')} · {clean(p?.pitcher_name, 'TBD')}
                   </span>
                 </span>
@@ -211,7 +211,7 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
                     <span
                       title={`${role} · HR ${scoreFor(p, 'hr').toFixed(1)}`}
                       style={{
-                        fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800,
+                        fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800,
                         background: bg || C.bg3, color: bg ? inkFor(bg) : C.text3,
                         padding: '2px 6px', borderRadius: 5, minWidth: 30, textAlign: 'center',
                       }}
@@ -222,7 +222,7 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
             )
           })}
           {!matches.length && (
-            <div style={{ padding: 14, fontSize: 12, color: C.text3 }}>No hitter matches that.</div>
+            <div style={{ padding: 14, fontSize: TYPE.body, color: C.text3 }}>No hitter matches that.</div>
           )}
         </div>
       </div>
@@ -234,10 +234,10 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
           <button onClick={() => setSelectedId(null)} className="tap-row" style={{
             display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10,
             border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.04)',
-            color: C.text2, borderRadius: 9, padding: '7px 12px', fontSize: 11.5,
+            color: C.text2, borderRadius: 9, padding: '7px 12px', fontSize: TYPE.body,
             fontWeight: 700, cursor: 'pointer', width: '100%',
           }}>← <span>All hitters</span>
-            <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+            <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
               {matches.length} in the list
             </span>
           </button>
