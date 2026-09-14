@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import LensRow, { LensAnswer } from '../LensRow'
 import RankedBoard from './RankedBoard'
@@ -220,15 +220,15 @@ function SectionHead({ color, icon, title, rate, rateTitle, count, children }) {
     <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, marginBottom: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 14 }}>{icon}</span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{title}</span>
+        <span style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{title}</span>
         <span title={rateTitle} style={{
-          fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color, cursor: 'default',
+          fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color, cursor: 'default',
           border: `1px solid ${color}55`, borderRadius: 999, padding: '1px 8px',
         }}>{rate}</span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{count} players</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{count} players</span>
       </div>
       {children && (
-        <div style={{ fontSize: 10.5, color: C.text3, marginTop: 3, lineHeight: 1.5, maxWidth: 720 }}>{children}</div>
+        <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 3, lineHeight: 1.5, maxWidth: 720 }}>{children}</div>
       )}
     </div>
   )
@@ -391,9 +391,9 @@ function b2bRow(label, rate, players, cashed, onPlayerClick, accent) {
   return (
     <div style={{ marginTop: 6 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-        <span style={{ fontSize: 8.5, color: accent, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
+        <span style={{ fontSize: TYPE.label, color: accent, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
         {rate != null && (
-          <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
             validated {rate.pct}% ({rate.hits}/{rate.n} archive)
           </span>
         )}
@@ -412,9 +412,9 @@ function b2bRow(label, rate, players, cashed, onPlayerClick, accent) {
               <span style={{
                 display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8,
                 background: `${hitAgain ? C.green : C.orange}18`, color: hitAgain ? C.green : C.orange,
-                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900,
+                fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900,
               }}>{teamOf(player) || 'MLB'}</span>
-              <span><b style={{ display: 'block', fontSize: 10 }}>{nameOf(player)}</b><small style={{ display: 'block', marginTop: 3, color: hitAgain ? C.green : C.text3, fontFamily: NUM_FONT, fontSize: 8 }}>{hitAgain ? '✓ HOMERED AGAIN' : `HR score ${Math.round(hrScore(player) || 0)}`}</small></span>
+              <span><b style={{ display: 'block', fontSize: TYPE.name }}>{nameOf(player)}</b><small style={{ display: 'block', marginTop: 3, color: hitAgain ? C.green : C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{hitAgain ? '✓ HOMERED AGAIN' : `HR score ${Math.round(hrScore(player) || 0)}`}</small></span>
             </button>
           )
         })}
@@ -432,16 +432,16 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
       borderRadius: 11, background: `linear-gradient(105deg,${C.orange}16,${C.bg2} 48%,${C.bg})`,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 10 }}>🔁 B2B WATCH</b>
-        <span style={{ color: C.text3, fontSize: 9.5 }}>
+        <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: TYPE.name }}>🔁 B2B WATCH</b>
+        <span style={{ color: C.text3, fontSize: TYPE.micro }}>
           {loading ? 'checking the setup game…' : !verified ? 'setup proof unavailable' : list.length ? `${list.length} verified encore chase${list.length === 1 ? '' : 's'}` : 'no verified encore chases on this slate'}
         </span>
-        <span style={{ marginLeft: 'auto', color: C.text3, fontSize: 8.5 }}>last-game homer proven · no hit-rate claim</span>
+        <span style={{ marginLeft: 'auto', color: C.text3, fontSize: TYPE.micro }}>last-game homer proven · no hit-rate claim</span>
       </div>
       {strict.length > 0 && b2bRow('🔁 back-to-back — played the very next game', B2B_VALIDATED.backToBack, strict, cashed, onPlayerClick, C.orange)}
       {dayOff.length > 0 && b2bRow('🌙 returning from a day off', B2B_VALIDATED.oneDayOff, dayOff, cashed, onPlayerClick, C.blue || C.orange)}
       {list.length > 0 && (
-        <div style={{ marginTop: 7, fontSize: 8, color: C.text3, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 7, fontSize: TYPE.label, color: C.text3, lineHeight: 1.5 }}>
           Validated against 70 nights of the graded archive: back-to-back clears at {B2B_VALIDATED.backToBack.pct}%,
           a day-off return at {B2B_VALIDATED.oneDayOff.pct}% — statistically the same rate, both under the
           {' '}{B2B_VALIDATED.baseline.pct}% baseline for any graded slot. A day off neither helps nor hurts an
@@ -515,7 +515,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             shape before anyone reads a word. */}
         {GROUPS.map(([k, label]) => (
           <button key={k} onClick={() => setBview(k)} style={{
-            padding: '7px 16px', borderRadius: 999, cursor: 'pointer', fontSize: 11.5,
+            padding: '7px 16px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
             fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
             letterSpacing: '.02em',
             border: `1px solid ${bview === k ? C.orange : C.border}`,
@@ -599,7 +599,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
               the archive's verdict on it as a tap-to-open clause. The full
               measured paragraph is behind the headline that names it — read
               the claim, open the receipts. */}
-          <div className="quiet-note" style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
+          <div className="quiet-note" style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
             {/* The sentence folds; the proof button does NOT (2026-08-23).
                 Hiding "✓ 68% over 27 nights ▾" behind a fold would bury the
                 one clause on this page that is a measured record and an
@@ -628,7 +628,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           </div>
           {pr && proofOpen && (
             <div style={{
-              fontSize: 10.5, color: C.text2, lineHeight: 1.6, maxWidth: 780,
+              fontSize: TYPE.label, color: C.text2, lineHeight: 1.6, maxWidth: 780,
               borderLeft: `2px solid ${pr.color}66`, paddingLeft: 11, marginBottom: 12,
             }}>{pr.body}</div>
           )}

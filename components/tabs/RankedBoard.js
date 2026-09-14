@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState, useEffect } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { playerId, nameOf, teamOf, clean, nn, hrScore, hitScore, prodScore, tbScore, barrelRate, pitchMixScore, mlbId } from '../../lib/player'
 import { scoreFor, isAligned, hrRank } from '../../lib/scoring'
 import { useSetupHomers } from '../../lib/b2b'
@@ -187,14 +187,14 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: '-.02em' }}>{title}</span>
+            <span style={{ fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.02em' }}>{title}</span>
             <span style={{
-              fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, color: C.orange,
+              fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT, color: C.orange,
               border: '1px solid rgba(249,115,22,.4)', background: 'rgba(249,115,22,.08)',
               borderRadius: 999, padding: '1px 9px',
             }} title="Rows this board ranks. The filter bar's own count is the pool those rows are drawn from, which is a longer list.">{ranked.length} ranked</span>
           </div>
-          <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{sub}</div>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{sub}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {/* 📸 SHARE (2026-08-23) — this board as a PNG, zero backend, same
@@ -204,18 +204,18 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title="Download this board as a PNG for posting"
               aria-label="Download board as image"
               style={{
-                padding: '4px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
+                padding: '4px 11px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
                 border: `1px solid ${C.border}`, background: 'rgba(249,115,22,.10)', color: C.orange,
               }}>📸</button>
           )}
           <button onClick={() => setViewMode('list')} style={{
-            padding: '4px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
+            padding: '4px 11px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
             border: `1px solid ${viewMode === 'list' ? C.orange : C.border}`,
             background: viewMode === 'list' ? 'rgba(249,115,22,.12)' : 'transparent',
             color: viewMode === 'list' ? C.orange : C.text3,
           }}>☰ List</button>
           <button onClick={() => setViewMode('cards')} style={{
-            padding: '4px 11px', fontSize: 10.5, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
+            padding: '4px 11px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
             border: `1px solid ${viewMode === 'cards' ? C.orange : C.border}`,
             background: viewMode === 'cards' ? 'rgba(249,115,22,.12)' : 'transparent',
             color: viewMode === 'cards' ? C.orange : C.text3,
@@ -230,7 +230,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
 
       {/* One line, only on a doubleheader slate. Empty string otherwise. */}
       {dhNote && (
-        <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, maxWidth: 800, marginBottom: 8 }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, maxWidth: 800, marginBottom: 8 }}>
           ⚾⚾ {dhNote}
         </div>
       )}
