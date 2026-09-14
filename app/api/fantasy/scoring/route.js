@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
-import {autoFillLineups} from '../../../../lib/fantasy/autoLineup'
+import {autoFillLineups,carryForwardLineups} from '../../../../lib/fantasy/autoLineup'
 import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edgeConfig'
 
 export const dynamic='force-dynamic'
@@ -79,11 +79,19 @@ async function synchronize(request) {
     // awaited on for correctness.
     const lineupFills=[]
     for(const week of weeks){
+      // Carry last week's lineup into this week's empty slots FIRST, so the
+      // auto-fill below only ever fills what a manager never set anywhere.
+      // See carryForwardLineups() -- Week 2 opened to nine empty slots for
+      // every team before this existed.
+      const carry=await carryForwardLineups(supabase,{season:feed.season,week})
+      if(carry.rowsCarried||carry.skipped&&!['first_week','no_previous_week','no_active_leagues'].includes(carry.skipped)){
+        console.log(`[franchise/scoring] carry-forward week ${week}:`,JSON.stringify(carry))
+      }
       const fill=await autoFillLineups(supabase,{season:feed.season,week})
       if(fill.slotsFilled||fill.skipped&&!['too_early','no_games','no_kickoffs','no_active_leagues'].includes(fill.skipped)){
         console.log(`[franchise/scoring] auto-lineup week ${week}:`,JSON.stringify(fill))
       }
-      lineupFills.push({week,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped})
+      lineupFills.push({week,carried:carry.rowsCarried,carriedTeams:carry.carried.length,carrySkipped:carry.skipped,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped})
     }
     let matchups=0
     for(const week of weeks){const {data,error}=await supabase.rpc('refresh_all_fantasy_matchup_scores',{p_season:feed.season,p_week:week});if(error)throw error;matchups+=Number(data||0)}
