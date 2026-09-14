@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { FilterPill, FilterLabel, FilterSelect } from '../Filters'
 import { STATE, alpha } from '../../lib/scales'
 import { hr9Color, hr9Fill, hr9Tone, isLeaky, isWall } from '../../lib/hr9'
@@ -89,7 +89,7 @@ const toneColor = (t) => (t === 'hot' ? C.orange : t === 'cold' ? C.blue : C.tex
  * own tooltip, and tone colours from the HITTER's side — ember means the
  * clause is good news for the bat.
  */
-function Clauses({ lead, parts, size = 9.5, color, style, tail = null }) {
+function Clauses({ lead, parts, size = TYPE.micro, color, style, tail = null }) {
   if (!parts?.length) return null
   return (
     <div style={{ fontSize: size, lineHeight: 1.6, color: color || C.text3, ...style }}>
@@ -118,7 +118,7 @@ function Clauses({ lead, parts, size = 9.5, color, style, tail = null }) {
  * tonight's air does to home runs here, and it is a percent effect on a rate,
  * not a chance of anything.
  */
-function AirLine({ row, venue, lead, size = 9.5, style }) {
+function AirLine({ row, venue, lead, size = TYPE.micro, style }) {
   if (!row) return null
   const parts = airParts(row)
   const hrEff = n(row.weather_hr_effect_pct, null)
@@ -332,12 +332,12 @@ function BullpenBoard({ pitchers, onTeamClick }) {
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 13px', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900 }}>🚪 Bullpen board</span>
-        <span style={{ fontSize: 9.5, color: C.text3, flex: '1 1 220px', minWidth: 0 }}>
+        <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>🚪 Bullpen board</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, flex: '1 1 220px', minWidth: 0 }}>
           the other six innings — whose pen, who they face, how good it is and how hard it worked yesterday
         </span>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Sort</span>
+          <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>Sort</span>
           {[['hr9', 'HR/9'], ['fatigue', 'Fatigue'], ['attack', 'Attack']].map(([k, label]) => {
             const dead = (k === 'fatigue' && !anyFatigue) || (k === 'attack' && !anyAttack)
             return (
@@ -351,7 +351,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                       : 'No bullpen attack score published on tonight\'s slate')
                     : 'Season reliever-only HR/9, leakiest first'}
                 style={{
-                  padding: '2px 9px', borderRadius: 999, fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT,
+                  padding: '2px 9px', borderRadius: 999, fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT,
                   cursor: dead ? 'not-allowed' : 'pointer',
                   border: `1px solid ${sortKey === k ? C.orange : C.border}`,
                   background: sortKey === k ? alpha(STATE.on().color, 0.14) : 'transparent',
@@ -402,10 +402,10 @@ function BullpenBoard({ pitchers, onTeamClick }) {
               onMouseEnter={(e) => { if (clickable) e.currentTarget.style.background = 'rgba(255,255,255,.05)' }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
             >
-              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16, flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, width: 34, flexShrink: 0 }}>{r.ab}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, width: 16, flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, width: 34, flexShrink: 0 }}>{r.ab}</span>
               {/* WHO THEY FACE — the question the board couldn't answer. */}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 46, flexShrink: 0 }}>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, width: 46, flexShrink: 0 }}>
                 {opp ? `vs ${opp}` : '—'}
               </span>
               <div style={{ flex: '1 1 60px', maxWidth: 130, height: 7, background: C.bg3, borderRadius: 4, overflow: 'hidden' }}>
@@ -416,13 +416,13 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   }} />
                 )}
               </div>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, width: 38, flexShrink: 0, color: hr9Color(r.st?.hr9, C.text2) }}>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800, width: 38, flexShrink: 0, color: hr9Color(r.st?.hr9, C.text2) }}>
                 {r.st?.hr9 != null ? r.st.hr9.toFixed(2) : '—'}
               </span>
               {/* The raw counts the bar is built from, on the row instead of
                   hidden in a tooltip — a 1.40 on 180 IP and a 1.40 on 40 IP
                   are not the same statement. */}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, width: 82, flexShrink: 0 }}>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, width: 82, flexShrink: 0 }}>
                 {r.st?.hr9 != null ? `${r.st.hr} HR / ${r.st.ip} IP` : 'no split'}
               </span>
               {/* THE SLATE'S OWN PEN LINE (2026-08-15). HR/9 alone can't tell a
@@ -434,7 +434,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                 ? `Slate-published bullpen line for ${r.ab}: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN, liveHr9: r.st?.hr9 }).map((x) => x.text).join(', ')}.`
                 : `No bullpen line published on tonight's slate for ${r.ab}`}
                 style={{
-                  fontFamily: NUM_FONT, fontSize: 8.5, width: 128, flexShrink: 0, cursor: 'default',
+                  fontFamily: NUM_FONT, fontSize: TYPE.micro, width: 128, flexShrink: 0, cursor: 'default',
                   color: r.line?.quality === 'weak' ? C.orange : r.line?.quality === 'strong' ? C.text3 : C.text2,
                 }}>
                 {r.line
@@ -454,7 +454,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                     ? `Bullpen attack score ${r.line.attack.toFixed(0)} — the bot's 0-100 rating of how attackable this pen is against the bats it faces tonight, on a slate spread of ${attackRange ? `${attackRange[0].toFixed(0)}–${attackRange[1].toFixed(0)}` : 'n/a'}. A score, not a chance of anything. This is the number the Attack sort uses.`
                     : `No bullpen attack score published for ${r.ab} tonight — a blank, not a zero, so the Attack sort puts it last.`}
                   style={{
-                    fontFamily: NUM_FONT, fontSize: 9, width: 44, flexShrink: 0, cursor: 'default',
+                    fontFamily: NUM_FONT, fontSize: TYPE.micro, width: 44, flexShrink: 0, cursor: 'default',
                     textAlign: 'right',
                     fontWeight: sortKey === 'attack' ? 900 : 700,
                     color: sortKey === 'attack' ? C.orange : C.text3,
@@ -476,17 +476,17 @@ function BullpenBoard({ pitchers, onTeamClick }) {
               {r.tier ? (
                 <span title={penWorkSentence(r.fat)}
                   onClick={(e) => { e.stopPropagation(); setOpenRow((k) => (k === `w:${r.ab}` ? null : `w:${r.ab}`)) }}
-                  style={{ fontSize: 9, fontWeight: 900, color: r.tier.col, flexShrink: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}>
+                  style={{ fontSize: TYPE.micro, fontWeight: 900, color: r.tier.col, flexShrink: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}>
                   {r.tier.icon} {r.tier.word}
                 </span>
               ) : r.fat ? (
                 <span title={penWorkSentence(r.fat)}
                   onClick={(e) => { e.stopPropagation(); setOpenRow((k) => (k === `w:${r.ab}` ? null : `w:${r.ab}`)) }}
-                  style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}>
+                  style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}>
                   {r.fat.used}a / {r.fat.pitches}p
                 </span>
               ) : (
-                <span title="No reliever workload logged for this club yesterday — an off day, or the boxscore hasn't landed. Unknown, NOT rested." style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'default' }}>
+                <span title="No reliever workload logged for this club yesterday — an off day, or the boxscore hasn't landed. Unknown, NOT rested." style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, cursor: 'default' }}>
                   no log
                 </span>
               )}
@@ -501,14 +501,14 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                 display: 'flex', gap: 10, flexWrap: 'wrap',
               }}>
                 {r.fat.names.filter((x) => x?.pitches > 0).slice(0, 4).map((x) => (
-                  <span key={x.name} style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.text2 }}>
+                  <span key={x.name} style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text2 }}>
                     <b style={{ color: C.text }}>{x.name}</b> {x.pitches}p
                   </span>
                 ))}
               </div>
             )}
             {workOpen && (!r.fat || !(r.fat.names || []).length) && (
-              <div style={{ margin: '2px 0 4px 24px', fontSize: 9, color: C.text3 }}>
+              <div style={{ margin: '2px 0 4px 24px', fontSize: TYPE.micro, color: C.text3 }}>
                 {penWorkSentence(r.fat)}
               </div>
             )}
@@ -518,7 +518,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
       </div>
       {rows.length > 8 && (
         <button onClick={() => setOpen(!open)} style={{
-          marginTop: 6, fontSize: 9.5, fontWeight: 700, cursor: 'pointer', color: C.text3,
+          marginTop: 6, fontSize: TYPE.micro, fontWeight: 700, cursor: 'pointer', color: C.text3,
           background: 'transparent', border: `1px dashed ${C.border}`, borderRadius: 6, padding: '2px 9px',
         }}>{open ? 'show less' : `all ${rows.length} pens`}</button>
       )}
@@ -549,11 +549,11 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   onClick={() => setOpenRow((k) => (k === key ? null : key))}
                   style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', cursor: 'pointer' }}
                 >
-                  <span style={{ fontSize: 10, fontWeight: 900, color: v.col, fontFamily: NUM_FONT }}>{v.label}</span>
-                  <span style={{ fontSize: 9.5, color: C.text3 }}>
+                  <span style={{ fontSize: TYPE.micro, fontWeight: 900, color: v.col, fontFamily: NUM_FONT }}>{v.label}</span>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
                     {r.ab}{oppOfTeam[r.ab] ? ` vs ${oppOfTeam[r.ab]}` : ''}{arm ? `, behind ${arm.pitcher_name}` : ''}
                   </span>
-                  <span style={{ fontSize: 8.5, color: C.text3, marginLeft: 'auto' }}>{isOpen ? 'hide detail ▴' : 'detail ▾'}</span>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, marginLeft: 'auto' }}>{isOpen ? 'hide detail ▴' : 'detail ▾'}</span>
                 </div>
                 {isOpen && (
                   <Clauses
@@ -576,7 +576,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
           bullpen board. One line stays visible — the two symbols you need to
           scan the bars — and every other sentence is one tap behind it.
           Nothing deleted; the form condensed, every fact kept. */}
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
         Red bar = pen giving up 1.30+ HR/9 · 🥵 = threw heavy yesterday · click a row for that club&apos;s starter.
         <details style={{ display: 'inline', marginLeft: 6 }}>
           <summary style={{ display: 'inline', cursor: 'pointer', color: C.orange }}>the fine print</summary>
@@ -606,11 +606,11 @@ function StatBar({ label, value, max, color }) {
   const pct = value == null ? 0 : Math.min(100, Math.max(0, (value / max) * 100))
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-      <span style={{ width: 34, fontSize: 9, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
+      <span style={{ width: 34, fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
       <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 2 }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 2 }} />
       </div>
-      <span style={{ width: 32, fontSize: 10, color: 'rgba(255,255,255,0.7)', fontFamily: NUM_FONT, textAlign: 'right' }}>
+      <span style={{ width: 32, fontSize: TYPE.micro, color: 'rgba(255,255,255,0.7)', fontFamily: NUM_FONT, textAlign: 'right' }}>
         {value == null ? '—' : value.toFixed(2)}
       </span>
     </div>
@@ -627,15 +627,15 @@ function LineupRow({ b, onPlayerClick }) {
         borderRadius: 6,
       }}
     >
-      <span style={{ width: 18, fontSize: 10, color: C.text3, fontFamily: NUM_FONT, textAlign: 'center', flexShrink: 0 }}>
+      <span style={{ width: 18, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, textAlign: 'center', flexShrink: 0 }}>
         {b.lineup_spot ?? '?'}
       </span>
-      <span style={{ fontSize: 12, fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: TYPE.body, fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {b.name}
       </span>
-      <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{b.bats}HB</span>
+      <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{b.bats}HB</span>
       {!b.lineup_confirmed && (
-        <span style={{ fontSize: 9, color: C.text3, flexShrink: 0 }}>(proj.)</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, flexShrink: 0 }}>(proj.)</span>
       )}
       {b.weak_spot_flag && (
         <span title="Weak pitcher spot" style={{ fontSize: 11, flexShrink: 0 }}>⭐</span>
@@ -643,7 +643,7 @@ function LineupRow({ b, onPlayerClick }) {
       {b.pitch_type_match_score > 0 && (
         <span title="Matchup edge" style={{ fontSize: 11, flexShrink: 0 }}>🎯</span>
       )}
-      <span style={{ fontSize: 11, fontWeight: 800, color: C.orange, fontFamily: NUM_FONT, width: 28, textAlign: 'right', flexShrink: 0 }}>
+      <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.orange, fontFamily: NUM_FONT, width: 28, textAlign: 'right', flexShrink: 0 }}>
         {Math.round(b.hr_score)}
       </span>
     </div>
@@ -693,16 +693,16 @@ function ArmStat({ label, value, sub, tone, tip }) {
       cursor: tip ? 'inherit' : 'default',
     }}>
       <span style={{
-        display: 'block', fontSize: 7.5, fontWeight: 800, letterSpacing: '.09em',
+        display: 'block', fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.09em',
         color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }}>{label}</span>
       <span style={{
-        display: 'block', fontSize: 13.5, fontWeight: 900, fontFamily: NUM_FONT,
+        display: 'block', fontSize: TYPE.name, fontWeight: 900, fontFamily: NUM_FONT,
         color: col, lineHeight: 1.15,
       }}>{value}</span>
       {sub && (
-        <span style={{ display: 'block', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>{sub}</span>
+        <span style={{ display: 'block', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{sub}</span>
       )}
     </span>
   )
@@ -714,12 +714,12 @@ function ArmBand({ title, note, children }) {
     <div style={{ marginTop: 8 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
         <span style={{
-          fontSize: 8, fontWeight: 900, letterSpacing: '.11em', color: C.text3,
+          fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.11em', color: C.text3,
           fontFamily: NUM_FONT, textTransform: 'uppercase', flexShrink: 0,
         }}>{title}</span>
         {note && (
           <span style={{
-            fontSize: 8.5, color: C.text3, minWidth: 0,
+            fontSize: TYPE.micro, color: C.text3, minWidth: 0,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{note}</span>
         )}
@@ -789,18 +789,18 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
             width that fits it reads as one line instead of two by default. */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 10, color: C.text3, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', display: 'inline-block', width: 10, alignSelf: 'center' }}>▸</span>
-          <span style={{ fontSize: 14, fontWeight: 800 }}>{pitcher.pitcher_name}</span>
-          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{pitcher.pitcher_throws}HP</span>
+          <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>{pitcher.pitcher_name}</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{pitcher.pitcher_throws}HP</span>
           {band.word && (
             <span title={band.word === 'WALL'
               ? 'Stingy: HR/9 ≤ 0.85 — hitters facing him fight uphill tonight'
               : `From the hitter's side: HR/9 ${hr9 ? hr9.toFixed(2) : '—'}${pitcher.weak_spot_count ? ` + ${pitcher.weak_spot_count} weak spot${pitcher.weak_spot_count > 1 ? 's' : ''}` : ''} — this is an arm to attack`}
-              style={{ fontSize: 8, fontWeight: 900, color: band.col, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
+              style={{ fontSize: TYPE.label, fontWeight: 900, color: band.col, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
               {band.icon} {band.word}
             </span>
           )}
           {hasWeak && <Chip color={C.yellow}>⭐ {pitcher.weak_spot_count} weak spot{pitcher.weak_spot_count > 1 ? 's' : ''}</Chip>}
-          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
             {pitcher.team} vs {pitcher.opponent_team} · {localTime(pitcher.game_time)}
             {pitcher.venue_name ? ` · ${pitcher.venue_name}` : ''}
             {' · '}{pitcher.lineup_confirmed ? 'Confirmed' : 'Projected'}
@@ -810,7 +810,7 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
           <button
             onClick={(e) => { e.stopPropagation(); onOpenPitcher?.(pitcher) }}
             style={{
-              padding: '4px 10px', fontSize: 10.5, fontWeight: 700, borderRadius: 6,
+              padding: '4px 10px', fontSize: TYPE.micro, fontWeight: 700, borderRadius: 6,
               cursor: 'pointer', border: `1px solid ${C.border}`,
               background: 'transparent', color: C.text3, whiteSpace: 'nowrap',
             }}
@@ -830,7 +830,7 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
           <PitcherSpots pitcher={pitcher} onPlayerClick={onPlayerClick} />
           <PitcherProfile pitcher={pitcher} />
 
-          <div style={{ fontSize: 9, color: C.text3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 4px' }}>
+          <div style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 4px' }}>
             Opposing Lineup ({pitcher.lineup.length})
           </div>
           {pitcher.lineup.map((b) => (
@@ -997,24 +997,24 @@ export default function Pitchers({ players, onPlayerClick }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
                   <span style={{
-                    fontSize: 8.5, fontWeight: 900, color: C.orange, letterSpacing: '.1em',
+                    fontSize: TYPE.label, fontWeight: 900, color: C.orange, letterSpacing: '.1em',
                     fontFamily: NUM_FONT, flexShrink: 0,
                   }}>🎯 ATTACK #{i + 1}</span>
                   {leak?.thin && (
                     <span title="Small Statcast sample behind the contact-quality terms"
-                      style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>thin sample</span>
+                      style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>thin sample</span>
                   )}
                   {!p.lineup_confirmed && (
                     <span title="The opposing lineup is projected, not posted — the bats below can change"
-                      style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>◻ proj</span>
+                      style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>◻ proj</span>
                   )}
                 </div>
                 <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', minWidth: 0 }}>
                   <div style={{
-                    fontSize: 15.5, fontWeight: 900, letterSpacing: '-.01em', minWidth: 0,
+                    fontSize: TYPE.name, fontWeight: 900, letterSpacing: '-.01em', minWidth: 0,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>{p.pitcher_name}</div>
-                  <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                  <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                     {p.pitcher_throws}HP · {p.team} vs {p.opponent_team} · {localTime(p.game_time)}
                   </div>
                 </div>
@@ -1023,7 +1023,7 @@ export default function Pitchers({ players, onPlayerClick }) {
 
             {/* ONE SENTENCE. The answer to "i dk what im looking at" is a
                 sentence, not a fourth number. */}
-            <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.5, marginTop: 8 }}>
+            <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.5, marginTop: 8 }}>
               {armVerdict(p, leak, raw)}
             </div>
 
@@ -1094,7 +1094,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                       tip="Share of the baserunners he allows that he picks off. The bot refuses to compute it under twenty baserunners." />
                   </div>
                   {runningGameLine(rg) && (
-                    <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5, marginTop: 5 }}>
+                    <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.5, marginTop: 5 }}>
                       {runningGameLine(rg)}
                     </div>
                   )}
@@ -1119,9 +1119,9 @@ export default function Pitchers({ players, onPlayerClick }) {
                       border: `1px solid ${b.weak_spot_flag ? 'rgba(252,211,77,.5)' : C.border}`,
                       borderRadius: 10, padding: '5px 9px',
                     }}>
-                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{b.lineup_spot ?? '·'}</span>
+                    <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{b.lineup_spot ?? '·'}</span>
                     <span style={{
-                      fontSize: 11, fontWeight: 800, color: C.text, minWidth: 0, flex: '1 1 auto',
+                      fontSize: TYPE.body, fontWeight: 800, color: C.text, minWidth: 0, flex: '1 1 auto',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{/* surname(), not split(' ').pop() — the latter renders
                           Bobby Witt Jr. as a chip that says "Jr.", which is
@@ -1130,13 +1130,13 @@ export default function Pitchers({ players, onPlayerClick }) {
                           the game chips hit the same bug. */}
                       {surname(b.name)}</span>
                     {b.weak_spot_flag && <span style={{ fontSize: 9, flexShrink: 0 }}>⭐</span>}
-                    <span style={{ fontSize: 11, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, flexShrink: 0 }}>{Math.round(b.hr_score)}</span>
+                    <span style={{ fontSize: TYPE.body, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, flexShrink: 0 }}>{Math.round(b.hr_score)}</span>
                   </button>
                 ))}
-                {!bats.length && <span style={{ fontSize: 9.5, color: C.text3 }}>no opposing bats on the slate yet</span>}
+                {!bats.length && <span style={{ fontSize: TYPE.micro, color: C.text3 }}>no opposing bats on the slate yet</span>}
               </div>
               {n(p.weak_spot_count, 0) > 0 && (
-                <div style={{ fontSize: 9, color: '#FCD34D', fontFamily: NUM_FONT, marginTop: 4 }}
+                <div style={{ fontSize: TYPE.micro, color: '#FCD34D', fontFamily: NUM_FONT, marginTop: 4 }}
                   title="Lineup positions this arm has historically been beaten in, that tonight's order actually fills">
                   ★ {p.weak_spot_count} weak lineup spot{p.weak_spot_count > 1 ? 's' : ''} in tonight's order
                 </div>
@@ -1145,7 +1145,7 @@ export default function Pitchers({ players, onPlayerClick }) {
 
             {/* ── THE GAME, not the arm — folded, unchanged ───────────────── */}
             <details style={{ marginTop: 8 }}>
-              <summary style={{ cursor: 'pointer', fontSize: 9, color: C.orange, listStyle: 'revert' }}>
+              <summary style={{ cursor: 'pointer', fontSize: TYPE.micro, color: C.orange, listStyle: 'revert' }}>
                 the game around him — his form in words, his pen, the air
                 {(Number.isFinite(penEra) || Number.isFinite(airPct)) && (
                   <span style={{ color: C.text3, fontFamily: NUM_FONT }}>
@@ -1189,16 +1189,16 @@ export default function Pitchers({ players, onPlayerClick }) {
                 border: '1px solid rgba(96,165,250,.3)', borderRadius: 11, padding: '7px 11px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                  <span style={{ fontSize: 8.5, fontWeight: 900, color: '#60a5fa', letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
+                  <span style={{ fontSize: TYPE.label, fontWeight: 900, color: '#60a5fa', letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
                   <span
                     title={leak ? `Leak score ${leak.leak}/100 against tonight's starters — the same scale the attack cards use.` : 'Season and recent-form blend.'}
-                    style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT, cursor: 'default' }}>
+                    style={{ marginLeft: 'auto', fontSize: TYPE.body, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT, cursor: 'default' }}>
                     {leak ? leak.leak : ov.toFixed(0)}
                   </span>
                 </div>
                 <div onClick={() => setModalPitcher(p)} style={{ cursor: 'pointer', marginTop: 2, minWidth: 0 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800 }}>{p.pitcher_name}</span>
-                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5 }}>{p.team} vs {p.opponent_team} · HR/9 {n(p.pitcher_hr9, 0).toFixed(2)} · ERA {n(p.pitcher_era, 0).toFixed(2)}</span>
+                  <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>{p.pitcher_name}</span>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5 }}>{p.team} vs {p.opponent_team} · HR/9 {n(p.pitcher_hr9, 0).toFixed(2)} · ERA {n(p.pitcher_era, 0).toFixed(2)}</span>
                 </div>
                 {/* A STAY-AWAY IS A CLAIM ABOUT FORM TOO. An arm can be the
                     stingiest on the slate all season and still be the one
@@ -1208,14 +1208,14 @@ export default function Pitchers({ players, onPlayerClick }) {
                 {/* Folded, same as the attack cards — stats are in the line
                     above, the sentences one tap behind. */}
                 <details style={{ marginTop: 3 }}>
-                  <summary style={{ cursor: 'pointer', fontSize: 8.5, color: '#60a5fa', listStyle: 'revert' }}>the read</summary>
+                  <summary style={{ cursor: 'pointer', fontSize: TYPE.micro, color: '#60a5fa', listStyle: 'revert' }}>the read</summary>
                   <Clauses lead="Lately: "
                     parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })}
                     size={9} style={{ marginTop: 3 }} />
                   <AirLine row={rawOf(p)} lead={`${p.venue_name || 'The air'}: `} size={9} style={{ marginTop: 1 }} />
                 </details>
                 {best && (
-                  <div style={{ fontSize: 9, color: C.text3, marginTop: 3 }}>
+                  <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 3 }}>
                     If you must:{' '}
                     <span onClick={() => onPlayerClick?.(best.raw)} style={{ color: C.text2, fontWeight: 700, cursor: 'pointer' }}>
                       {best.name} <b style={{ fontFamily: NUM_FONT, color: C.blue }}>{Math.round(best.hr_score)}</b>
@@ -1259,8 +1259,8 @@ export default function Pitchers({ players, onPlayerClick }) {
           border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 13px', marginBottom: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🌤️ Where they&apos;re throwing</span>
-            <span style={{ fontSize: 9.5, color: C.text3, flex: '1 1 220px', minWidth: 0 }}>
+            <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>🌤️ Where they&apos;re throwing</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, flex: '1 1 220px', minWidth: 0 }}>
               the building and the air each starter works in — the same read the hitter boards get
             </span>
           </div>
@@ -1280,7 +1280,7 @@ export default function Pitchers({ players, onPlayerClick }) {
               const isOpen = openAirGame === g.key
               return (
                 <div key={g.key} style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>
                     {localTime(g.time)}
                   </span>
                   <span style={{ flex: '1 1 260px', minWidth: 0 }}>
@@ -1288,12 +1288,12 @@ export default function Pitchers({ players, onPlayerClick }) {
                       onClick={() => setOpenAirGame((k) => (k === g.key ? null : g.key))}
                       style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', cursor: 'pointer' }}
                     >
-                      <span style={{ fontSize: 10, fontWeight: 900, color: verdictCol, fontFamily: NUM_FONT }}>{verdictLabel}</span>
-                      <span style={{ fontSize: 10, color: C.text2 }}>{g.venue || 'Venue not published'}</span>
-                      <span style={{ fontSize: 8.5, color: C.text3 }}>{isOpen ? 'hide detail ▴' : 'detail ▾'}</span>
+                      <span style={{ fontSize: TYPE.micro, fontWeight: 900, color: verdictCol, fontFamily: NUM_FONT }}>{verdictLabel}</span>
+                      <span style={{ fontSize: TYPE.micro, color: C.text2 }}>{g.venue || 'Venue not published'}</span>
+                      <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{isOpen ? 'hide detail ▴' : 'detail ▾'}</span>
                     </div>
                     {isOpen && <AirLine row={g.row} lead={`${g.venue || 'Venue not published'} — `} size={10} />}
-                    <div style={{ fontSize: 9, color: C.text3, marginTop: 1 }}>
+                    <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 1 }}>
                       {arms.map((a, i) => (
                         <span key={a.pitcher_id ?? a.pitcher_name}>
                           {i > 0 && ' vs '}
@@ -1313,7 +1313,7 @@ export default function Pitchers({ players, onPlayerClick }) {
             })}
           </div>
           {/* One visible line; the rest folds. Same rule as the bullpen note. */}
-          <div style={{ fontSize: 9, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
             Ember = air that helps the ball, blue = air that kills it.
             <details style={{ display: 'inline', marginLeft: 6 }}>
               <summary style={{ display: 'inline', cursor: 'pointer', color: C.orange }}>the fine print</summary>
@@ -1344,7 +1344,7 @@ export default function Pitchers({ players, onPlayerClick }) {
             style={{
               background: C.bg3, border: `1px solid ${gameSel !== 'all' ? C.orange : C.border}`,
               color: gameSel !== 'all' ? C.orange : C.text2, borderRadius: 7,
-              fontSize: 10, fontFamily: NUM_FONT, padding: '3px 6px', cursor: 'pointer', maxWidth: 190,
+              fontSize: TYPE.micro, fontFamily: NUM_FONT, padding: '3px 6px', cursor: 'pointer', maxWidth: 190,
             }}>
             <option value="all">All games ({pitchers.length} arms)</option>
             {gameOptions.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
@@ -1354,14 +1354,14 @@ export default function Pitchers({ players, onPlayerClick }) {
             style={{
               background: C.bg3, border: `1px solid ${armSel !== 'all' ? C.orange : C.border}`,
               color: armSel !== 'all' ? C.orange : C.text2, borderRadius: 7,
-              fontSize: 10, fontFamily: NUM_FONT, padding: '3px 6px', cursor: 'pointer',
+              fontSize: TYPE.micro, fontFamily: NUM_FONT, padding: '3px 6px', cursor: 'pointer',
             }}>
             <option value="all">Any arm</option>
             <option value="L">LHP only</option>
             <option value="R">RHP only</option>
           </select>
           {(gameSel !== 'all' || armSel !== 'all') && (
-            <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
               {tableSource.length} of {pitchers.length}
             </span>
           )}
@@ -1778,7 +1778,7 @@ rows={(() => {
           organized instead of stacked. One table, one click, one deep view. */}
       {/* The column-group buttons already carry their own labels; a paragraph
           re-describing each one was words for words' sake. One sentence. */}
-      <div style={{ fontSize: 10, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
         Click any starter for his full card. A dash means the field has not published — never a zero.
       </div>
 
