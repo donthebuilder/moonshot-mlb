@@ -147,6 +147,15 @@ export default async function MatchupPage({ params, searchParams }) {
     })
   }).sort((x, y) => Math.abs(y.edge) - Math.abs(x.edge)) : []
   const hasLiveGames=nflGames.some((game)=>game.status==='live')
+  // THE WEEK IS IN PROGRESS ONCE ANY GAME HAS STARTED (2026-09-14). The
+  // matchup row's own status comes from SQL and said 'scheduled' on a Sunday
+  // night with fifteen finals (fixed in migration 202609140300, but a page
+  // must not print dashes over real scores while a migration waits). The
+  // games are already loaded here, so the page decides for itself.
+  const weekStarted=nflGames.some((game)=>game.status==='live'||game.status==='final')
+  const weekFinal=nflGames.length>0&&nflGames.every((game)=>game.status==='final')
+  const stateOf=(game)=>weekFinal?'final':weekStarted?'live':(game?.status||'scheduled')
+  const featuredState=featured?stateOf(featured):'scheduled'
   // 🐛 the margin bar and its legend read homeShare/leader/margin, but nothing
   // in this file ever computed them -- a ReferenceError on every render where
   // `featured` is set, i.e. any league with a schedule (Donovan, 2026-08-29:
@@ -155,8 +164,8 @@ export default async function MatchupPage({ params, searchParams }) {
   // Mirrors the scheduled-vs-live split the legend text already made: before
   // kickoff the bar reads on the season projection, live/final reads on the
   // real score, so the fill and the sentence next to it always agree.
-  const featuredHomeScore = featured ? (featured.status==='scheduled' ? homeProjection : Number(featured.home_score)) : 0
-  const featuredAwayScore = featured ? (featured.status==='scheduled' ? awayProjection : Number(featured.away_score)) : 0
+  const featuredHomeScore = featured ? (featuredState==='scheduled' ? homeProjection : Number(featured.home_score)) : 0
+  const featuredAwayScore = featured ? (featuredState==='scheduled' ? awayProjection : Number(featured.away_score)) : 0
   const featuredTotal = featuredHomeScore + featuredAwayScore
   const homeShare = featuredTotal > 0 ? Math.min(100, Math.max(0, (featuredHomeScore / featuredTotal) * 100)) : 50
   const leader = featuredHomeScore === featuredAwayScore ? null : (featuredHomeScore > featuredAwayScore ? home?.name : away?.name)
@@ -173,12 +182,12 @@ export default async function MatchupPage({ params, searchParams }) {
       <NflGameCenter games={nflGames} week={week}/>
       {!featured && <section className={styles.scheduleEmpty}><span>VS</span><div><p className={styles.panelLabel}>SEASON SCHEDULE</p><h1>Your matchups are ready to be built.</h1><p>Franchise creates a balanced 14-week round-robin schedule from the teams currently in this league.</p></div>{league.commissioner_id===user.id?<form action={generateSchedule}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Building…">Create schedule</SubmitButton></form>:<small>Waiting for the commissioner</small>}</section>}
       {featured && <>
-        <section className={styles.matchupHero}><div><small>HOME</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={home}/>{home?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.home_score).toFixed(2)}</strong><em>{homeProjection.toFixed(1)} projected</em></div><span><b>WEEK {week}</b><i>{featured.status==='live'&&!hasLiveGames?'IN PROGRESS':String(featured.status||'').toUpperCase()}</i></span><div><small>AWAY</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={away}/>{away?.name}</h1><strong>{featured.status==='scheduled'?'—':Number(featured.away_score).toFixed(2)}</strong><em>{awayProjection.toFixed(1)} projected</em></div></section>
-        <section className={styles.marginBar} data-live={featured.status==='live'&&hasLiveGames?'true':undefined}>
+        <section className={styles.matchupHero}><div><small>HOME</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={home}/>{home?.name}</h1><strong>{featuredState==='scheduled'?'—':Number(featured.home_score).toFixed(2)}</strong><em>{homeProjection.toFixed(1)} projected</em></div><span><b>WEEK {week}</b><i>{featuredState==='live'&&!hasLiveGames?'IN PROGRESS':featuredState.toUpperCase()}</i></span><div><small>AWAY</small><h1 style={{display:'flex',alignItems:'center',gap:10}}><TeamMark size={30} team={away}/>{away?.name}</h1><strong>{featuredState==='scheduled'?'—':Number(featured.away_score).toFixed(2)}</strong><em>{awayProjection.toFixed(1)} projected</em></div></section>
+        <section className={styles.marginBar} data-live={featuredState==='live'&&hasLiveGames?'true':undefined}>
           <div className={styles.marginTrack}><i style={{ width: `${homeShare}%` }}/><b style={{ left: `${homeShare}%` }}/></div>
           <div className={styles.marginLegend}>
             <span>{home?.name}</span>
-            <em>{featured.status==='scheduled' ? `${Math.abs(homeProjection-awayProjection).toFixed(1)} projected margin` : (leader ? `${leader} by ${margin.toFixed(2)}` : `Tied, ${margin.toFixed(2)}`)}</em>
+            <em>{featuredState==='scheduled' ? `${Math.abs(homeProjection-awayProjection).toFixed(1)} projected margin` : (leader ? `${leader} by ${margin.toFixed(2)}` : `Tied, ${margin.toFixed(2)}`)}</em>
             <span>{away?.name}</span>
           </div>
         </section>
@@ -189,7 +198,7 @@ export default async function MatchupPage({ params, searchParams }) {
             with arithmetic. Only shown before kickoff -- once a game is live
             the real score is the story and a pre-game line beside it is
             clutter. See lib/fantasy/odds.js. */}
-        {featuredOdds && featured.status==='scheduled' && <section className={styles.oddsCard}>
+        {featuredOdds && featuredState==='scheduled' && <section className={styles.oddsCard}>
           <div className={styles.boardHead}><div><p className={styles.panelLabel}>THE LINE · JUST FOR FUN</p><h2>{featuredOdds.pickEm ? 'Pick em' : `${(featuredOdds.spread>0?home:away)?.name} by ${Math.abs(featuredOdds.spread)}`}</h2></div><span>NO VIG</span></div>
           <div className={styles.oddsGrid}>
             <div><small>{home?.name}</small><b>{featuredOdds.homeSpreadLabel}</b><em>{formatOdds(featuredOdds.homeOdds)}</em><i>{Math.round(featuredOdds.homeWinProbability*100)}% to win</i></div>
@@ -212,7 +221,7 @@ export default async function MatchupPage({ params, searchParams }) {
             biggest edge on the board and hiding it would be the one thing this
             section must not do. */}
         {Boolean(duels.length) && <section className={styles.duelBoard}>
-          <div className={styles.boardHead}><div><p className={styles.panelLabel}>SLOT BY SLOT</p><h2>Where this is won</h2></div><span>{featured.status==='scheduled'?'projected':'live'}</span></div>
+          <div className={styles.boardHead}><div><p className={styles.panelLabel}>SLOT BY SLOT</p><h2>Where this is won</h2></div><span>{featuredState==='scheduled'?'projected':'live'}</span></div>
           {duels.map((duel)=>(
             <div className={styles.duelRow} key={duel.key} data-side={duel.edge > 0 ? 'home' : duel.edge < 0 ? 'away' : undefined}>
               <div className={styles.duelName} data-win={duel.edge > 0 ? 'true' : undefined}>
@@ -229,7 +238,7 @@ export default async function MatchupPage({ params, searchParams }) {
           ))}
         </section>}
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/></div>
-        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{game.status==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}{Boolean(idleTeams.length)&&<p className={styles.emptyRoom}>Idle this week: {idleTeams.map((team)=>team.name).join(', ')}</p>}</section>
+        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{stateOf(game)==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}{Boolean(idleTeams.length)&&<p className={styles.emptyRoom}>Idle this week: {idleTeams.map((team)=>team.name).join(', ')}</p>}</section>
       </>}
     </div>
   </main>
