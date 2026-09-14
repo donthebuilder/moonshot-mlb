@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean, hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
 import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName, priceBand, priceTaken } from '../../lib/odds'
 import { verdictInk } from '../../lib/scales'
@@ -393,7 +393,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
   const plusCount = rows.filter((x) => x.over > 0).length
 
   const pill = (on, col = C.orange) => ({
-    padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
+    padding: '5px 12px', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
     border: `1px solid ${on ? col : C.border}`,
     background: on ? `${col}22` : 'transparent',
     color: on ? col : C.text3, whiteSpace: 'nowrap',
@@ -423,7 +423,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
   )
   const Kicker = ({ color, children, onClick, title }) => (
     <div onClick={onClick} title={title} style={{
-      fontSize: 9.5, fontWeight: 900, letterSpacing: '.15em', textTransform: 'uppercase',
+      fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.15em', textTransform: 'uppercase',
       color, marginBottom: 4, cursor: onClick ? 'pointer' : 'default',
     }}>{children} {onClick && <span style={{ opacity: 0.5 }}>→</span>}</div>
   )
@@ -436,11 +436,11 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     const max = Math.max(needPct, ratePct, 1)
     const bar = (w, col, sub) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 74, fontSize: 9, color: C.text3, textAlign: 'right', flexShrink: 0 }}>{sub}</span>
+        <span style={{ width: 74, fontSize: TYPE.micro, color: C.text3, textAlign: 'right', flexShrink: 0 }}>{sub}</span>
         <div style={{ flex: 1, maxWidth: 320, height: 7, background: 'rgba(255,255,255,.05)', borderRadius: 4, overflow: 'hidden' }}>
           <div style={{ width: `${Math.max(1.5, (w / max) * 100)}%`, height: 7, background: col, borderRadius: 4 }} />
         </div>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: col, width: 42 }}>{one(w)}%</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: col, width: 42 }}>{one(w)}%</span>
       </div>
     )
     return (
@@ -452,7 +452,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
   }
 
   const Para = ({ children }) => (
-    <p style={{ margin: '4px 0 0', fontSize: 12.5, lineHeight: 1.7, color: C.text2, maxWidth: 640 }}>{children}</p>
+    <p style={{ margin: '4px 0 0', fontSize: TYPE.body, lineHeight: 1.7, color: C.text2, maxWidth: 640 }}>{children}</p>
   )
 
   const w = night?.widest
@@ -497,15 +497,15 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       <div>
         {viewBar}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
-          <span style={{ fontSize: 10, color: C.red, fontFamily: NUM_FONT }}>
+          <h2 style={{ fontSize: TYPE.title, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
+          <span style={{ fontSize: TYPE.micro, color: C.red, fontFamily: NUM_FONT }}>
             ● board pulled {night?.when || 'a while ago'} · EXPIRED
           </span>
         </div>
         <OddsStatus status={status} />
         <div style={{
           border: `1px solid ${C.border2}`, borderRadius: 12, padding: '22px 20px',
-          marginTop: 10, maxWidth: 640, lineHeight: 1.65, fontSize: 12, color: C.text2,
+          marginTop: 10, maxWidth: 640, lineHeight: 1.65, fontSize: TYPE.body, color: C.text2,
         }}>
           <b style={{ color: C.text, display: 'block', marginBottom: 6 }}>
             This board expired {Math.floor(boardAgeHours / 24) >= 1
@@ -516,7 +516,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           describes a market that no longer exists, so it is not shown next to
           today&apos;s players. The board returns automatically with the next
           successful odds fetch.
-          <span style={{ display: 'block', marginTop: 8, color: C.text3, fontSize: 11 }}>
+          <span style={{ display: 'block', marginTop: 8, color: C.text3, fontSize: TYPE.micro }}>
             True Price still works — it reads season-scale history, not live quotes.
           </span>
         </div>
@@ -549,9 +549,9 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       {viewBar}
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
+        <h2 style={{ fontSize: TYPE.title, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
         {night?.when && (
-          <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 6, height: 6, borderRadius: 999, background: C.green, animation: 'oddsDot 2.2s ease-in-out infinite' }} />
             board pulled {night.when}
           </span>
@@ -578,7 +578,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       {night && (
         <details style={{ margin: '12px 0 18px' }}>
           <summary style={{
-            cursor: 'pointer', fontSize: 11.5, color: C.text3, lineHeight: 1.6,
+            cursor: 'pointer', fontSize: TYPE.body, color: C.text3, lineHeight: 1.6,
             listStyle: 'revert',
           }}>
             <b style={{ color: C.text2 }}>{night.priced} prices</b> across {night.markets} market
@@ -587,7 +587,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
             {' '}— <span style={{ color: C.orange }}>the full read</span>
           </summary>
         <div style={{ margin: '10px 0 8px', animation: 'oddsIn .35s ease both' }}>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: C.text2, maxWidth: 660 }}>
+          <p style={{ margin: 0, fontSize: TYPE.body, lineHeight: 1.7, color: C.text2, maxWidth: 660 }}>
             <Num size={14} color={C.text}>{night.priced}</Num> prices on tonight&apos;s hitters across{' '}
             <Num size={14} color={C.text}>{night.markets}</Num> market{night.markets === 1 ? '' : 's'},{' '}
             <Link color={C.green} onClick={jump(market, { plus: true })}
@@ -632,10 +632,10 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
               </Kicker>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
                 <Name p={w.p} size={22} />
-                <span style={{ fontFamily: NUM_FONT, fontSize: 30, fontWeight: 900, color: w.over > 0 ? C.green : C.text, letterSpacing: '-.02em', lineHeight: 1 }}>
+                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.display, fontWeight: 900, color: w.over > 0 ? C.green : C.text, letterSpacing: '-.02em', lineHeight: 1 }}>
                   {fmtOdds(w.over)}
                 </span>
-                <span style={{ fontSize: 12, color: C.text3 }}>
+                <span style={{ fontSize: TYPE.body, color: C.text3 }}>
                   {teamOf(w.p)} vs {oppOf(w.p)} · {MK.batter_home_runs.verb}
                 </span>
               </div>
@@ -663,8 +663,8 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
               </Kicker>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                 <Name p={ls.p} size={17} />
-                <span style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900, color: C.green, lineHeight: 1 }}>{fmtOdds(ls.over)}</span>
-                <span style={{ fontSize: 11, color: C.text3 }}>{teamOf(ls.p)} vs {oppOf(ls.p)}</span>
+                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: C.green, lineHeight: 1 }}>{fmtOdds(ls.over)}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{teamOf(ls.p)} vs {oppOf(ls.p)}</span>
               </div>
               <Para>
                 <Num color={C.text}>{fmtOdds(ls.over)}</Num> needs it to happen <Num color={C.text}>{one(ls.need)}%</Num> of
@@ -688,8 +688,8 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
               </Kicker>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                 <Name p={fd.p} size={17} />
-                <span style={{ fontFamily: NUM_FONT, fontSize: 22, fontWeight: 900, color: C.red, lineHeight: 1 }}>{fmtOdds(fd.over)}</span>
-                <span style={{ fontSize: 11, color: C.text3 }}>{teamOf(fd.p)} vs {oppOf(fd.p)}</span>
+                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: C.red, lineHeight: 1 }}>{fmtOdds(fd.over)}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{teamOf(fd.p)} vs {oppOf(fd.p)}</span>
               </div>
               <Para>
                 The board&apos;s shortest homer price relative to the man taking it:{' '}
@@ -765,12 +765,12 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           has ever been here is still here — the lead sits on top of it, it
           does not replace it. */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 6 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 900, margin: 0, letterSpacing: '-.01em' }}>The full board</h3>
-        <span style={{ fontSize: 11, color: C.text3 }}>
+        <h3 style={{ fontSize: TYPE.name, fontWeight: 900, margin: 0, letterSpacing: '-.01em' }}>The full board</h3>
+        <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
           every price the bot pulled tonight — with the number the book is actually offering
         </span>
       </div>
-      <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, maxWidth: 760, marginBottom: 10 }}>
+      <div style={{ fontSize: TYPE.label, color: C.text2, lineHeight: 1.6, maxWidth: 760, marginBottom: 10 }}>
         <b style={{ color: C.text }}>LINE is the bar the book set.</b> Everywhere else this site
         assumes the standard one ({live.label} at {live.std}); when a book moves it — a hit line at
         1.5, bases at 2.5 — a rate measured against the standard bar is answering a different
@@ -798,7 +798,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
               disabled={!cnt}
               style={{ ...pill(market === m.key, m.color), opacity: cnt ? 1 : 0.35 }}>
               {m.label}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5, opacity: 0.75 }}>{cnt}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, marginLeft: 5, opacity: 0.75 }}>{cnt}</span>
             </button>
           )
         })}
@@ -808,11 +808,11 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
         <button onClick={() => setPlusOnly((v) => !v)} style={pill(plusOnly, '#4ade80')}
           title="Only quotes paying plus money — the book says unlikely. If your board disagrees, this is where the value is.">
-          ＋ Plus money only <span style={{ fontFamily: NUM_FONT, fontSize: 9 }}>{plusCount}</span>
+          ＋ Plus money only <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{plusCount}</span>
         </button>
         <button onClick={() => setOffStd((v) => !v)} style={pill(offStd, '#FCD34D')}
           title={`Only quotes where the book moved OFF the standard ${live.std} bar — the ones where a normal hit-rate column is answering the wrong question.`}>
-          ≠ Off the standard line <span style={{ fontFamily: NUM_FONT, fontSize: 9 }}>{offCount}</span>
+          ≠ Off the standard line <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{offCount}</span>
         </button>
         <span style={{ width: 1, height: 18, background: C.border, margin: '0 2px' }} />
         {['any', '1', '2', '3'].map((k) => {
@@ -823,7 +823,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
               title={k === 'any' ? 'Every line the books posted' : `Only the ${k}+ bet — the book's ${Number(k) - 0.5} line`}
               style={{ ...pill(need === k, '#60a5fa'), opacity: cnt || k === 'any' ? 1 : 0.35 }}>
               {k === 'any' ? 'Any line' : `${k}+`}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4, opacity: 0.75 }}>{cnt}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, marginLeft: 4, opacity: 0.75 }}>{cnt}</span>
             </button>
           )
         })}
@@ -832,8 +832,8 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           ⏱ Still bettable
         </button>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team" aria-label="Search the board"
-          style={{ fontFamily: NUM_FONT, fontSize: 10.5, padding: '4px 9px', borderRadius: 999, border: `1px solid ${q ? C.orange : C.border}`, background: 'transparent', color: C.text, minWidth: 120, outline: 'none' }} />
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
+          style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, padding: '4px 9px', borderRadius: 999, border: `1px solid ${q ? C.orange : C.border}`, background: 'transparent', color: C.text, minWidth: 120, outline: 'none' }} />
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
           {shown.length} of {rows.length} shown
         </span>
       </div>
@@ -851,7 +851,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           anything. */}
       {market === 'batter_home_runs' && shown.filter((r) => r.rate != null).length >= 4 && (
         <details style={{ marginBottom: 10 }}>
-          <summary style={{ cursor: 'pointer', fontSize: 10.5, color: C.text3, listStyle: 'revert' }}>
+          <summary style={{ cursor: 'pointer', fontSize: TYPE.label, color: C.text3, listStyle: 'revert' }}>
             <span style={{ color: C.text2 }}>See the board as a picture</span>
             {' '}— his rate against what each price needs, with the sampling band on every dot
           </summary>
@@ -871,7 +871,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       {!rows.length ? (
         <div style={{
           background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
-          padding: '14px 16px', fontSize: 11, color: C.text3, lineHeight: 1.6,
+          padding: '14px 16px', fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6,
         }}>
           No {live.label} prices joined to tonight&apos;s slate yet. The status line above says where
           the fetch stands — an empty board here with a healthy status usually just means the books
@@ -906,7 +906,7 @@ key={market}
                     <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, color: '#60a5fa' }}>⟲</span>
                   ) : Number.isFinite(r?.moveOpen) && Math.abs(r.moveOpen) >= 1.5 ? (
                     <span style={{
-                      fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,
+                      fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900,
                       color: r.moveOpen >= 3 ? '#4ade80' : r.moveOpen <= -3 ? '#f87171' : C.text3,
                     }}>
                       {r.moveOpen > 0 ? '▲' : '▼'}{Math.abs(r.moveOpen).toFixed(1)}
@@ -919,7 +919,7 @@ key={market}
               { key: 'band', label: 'BAND', w: 50, heat: false,
                 title: 'The price rule, home runs only, from the site\'s own P&L (736 priced HR picks, Aug 15 to Sep 13, flat one unit): PLAY is +401 to +900 (15.8% hit, ROI +4.4%) — the only band above water. SHORT is +151 to +400 (20.4% hit, ROI −13.0%) — right about who, wrong about the number. PASS is +901 and up (5.1% hit, ROI −21.8%) — never taken, and never named in the read above. Changes no score.',
                 fmt: (v) => (v == null ? '—' : (
-                  <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, letterSpacing: '.06em',
+                  <b style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, letterSpacing: '.06em',
                               color: v === 'PLAY' ? C.green : v === 'PASS' ? C.red : C.yellow }}>{v}</b>
                 )) },
             ] : []),
@@ -938,7 +938,7 @@ key={market}
                   <span style={{ display: 'inline-block', lineHeight: 1.15 }}>
                     <b style={{ fontFamily: NUM_FONT }}>{v.toFixed(1)}</b>
                     {r?.rateLo != null && (
-                      <span style={{ display: 'block', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>
+                      <span style={{ display: 'block', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                         {r.rateLo.toFixed(1)}–{r.rateHi.toFixed(1)}
                       </span>
                     )}
@@ -958,7 +958,7 @@ key={market}
                       <span title="The whole 95% band on his season rate sits on one side of this price." style={{ fontSize: 8, marginLeft: 3, color: verdictInk(v > 0).color }}>●</span>
                     ) : null}
                     {r?.edgeLo != null && (
-                      <span style={{ display: 'block', fontSize: 8, color: C.text3 }}>
+                      <span style={{ display: 'block', fontSize: TYPE.micro, color: C.text3 }}>
                         {r.edgeLo > 0 ? '+' : ''}{r.edgeLo.toFixed(1)}…{r.edgeHi > 0 ? '+' : ''}{r.edgeHi.toFixed(1)}
                       </span>
                     )}
