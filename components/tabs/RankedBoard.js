@@ -147,6 +147,17 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // rule as the watchlist -- preview 5, "Show N more" the rest.
   const cardsPreview = usePreview(ranked, 5)
 
+  // ── LEAD WITH THE STORY, NOT THE SPREADSHEET (2026-09-14, MOONSHOT batch 3)
+  // Donovan, off the brand audit: "top-5 as headline cards instead of the
+  // heat-mapped table leading." The full ranked list below is unchanged —
+  // still the default view, still every row — this is only the five names a
+  // reader would actually ask about first, using the same PlayerCard the
+  // opt-in Cards view already renders, so nothing new had to be designed.
+  // List-mode only: switching to Cards view already puts every row in this
+  // same shape, and a second top-5 strip above a full card grid would just
+  // repeat the first five players on the page.
+  const top5 = ranked.slice(0, 5)
+
   // 🔒 SLATE-WIDE RANK for the HR board (2026-08-11, Donovan: "give me the
   // ranking on the hr board that will show me the order the players are in on
   // the results page. and don't change it ever again.")
@@ -227,6 +238,29 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
         height: 2, marginBottom: 10, borderRadius: 1,
         background: 'linear-gradient(90deg, #f97316, rgba(252,211,77,.5) 45%, transparent)',
       }} />
+
+      {viewMode === 'list' && top5.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{
+            fontSize: 9.5, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
+            color: C.text3, fontFamily: NUM_FONT, marginBottom: 7,
+          }}>Top 5</div>
+          <Grid>
+            {top5.map((p) => (
+              <PlayerCard
+                key={playerId(p)}
+                p={p}
+                type={type}
+                onAdd={onAdd}
+                onWatch={onWatch}
+                watched={watchIds.has(playerId(p))}
+                onClick={() => onPlayerClick?.(p)}
+              />
+            ))}
+          </Grid>
+        </div>
+      )}
+
       {/* One line, only on a doubleheader slate. Empty string otherwise. */}
       {dhNote && (
         <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, maxWidth: 800, marginBottom: 8 }}>

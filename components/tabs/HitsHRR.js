@@ -537,7 +537,15 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           components/LensRow.js for why that divider could never do the job it
           was being asked to do. */}
       {boards && (
-        <div style={{ marginBottom: 4 }}>
+        // ── ONE ROW, NOT TWO (2026-09-14, MOONSHOT batch 3) ────────────────
+        // Donovan, off the brand audit: "three rows of filter pills ... one
+        // filter row." Market and Angle stay two named groups — that split is
+        // still real, see LensRow.js — they just sit on the same flex line
+        // now instead of stacked, wrapping together onto a second line only
+        // when a phone is too narrow to fit both. The Group tier above this
+        // (Boards/Power/Patterns/Steals/Gap) is tool navigation, not a filter,
+        // so it keeps its own row same as the tab rail above it.
+        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 20, rowGap: 4, marginBottom: 4 }}>
           <LensRow
             label="Market"
             options={MARKET_LENSES.map((o) => ({ ...o, title: LENS_TITLE(o) }))}
