@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import styles from '../../../fantasy.module.css'
+import { matchupState, weekStates } from '../../../../../lib/fantasy/matchupState'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { generateWeeklyContent } from './actions'
@@ -25,7 +26,7 @@ export default async function LeaguePage({params,searchParams}) {
   if(!supabase)redirect('/fantasy')
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
-  const [{data:league},{data:membership},{data:teamRows},{data:matchupRows},{data:rankings},{data:awards},{data:recap}]=await Promise.all([
+  const [{data:league},{data:membership},{data:teamRows},{data:matchupRows},{data:rankings},{data:awards},{data:recap},{data:nflGameRows}]=await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).order('created_at'),
@@ -33,10 +34,14 @@ export default async function LeaguePage({params,searchParams}) {
     supabase.from('fantasy_power_rankings').select('*').eq('league_id',leagueId).eq('season',SEASON).eq('week',week).order('rank'),
     supabase.from('fantasy_weekly_awards').select('*').eq('league_id',leagueId).eq('season',SEASON).eq('week',week),
     supabase.from('fantasy_weekly_recaps').select('*').eq('league_id',leagueId).eq('season',SEASON).eq('week',week).maybeSingle(),
+    supabase.from('nfl_week_games').select('week,status,season_type').eq('season',SEASON).eq('season_type',2).lte('week',14),
   ])
   if(!league||!membership)notFound()
   const teams=teamRows||[]
-  const matchups=matchupRows||[]
+  // A matchup is FINAL when its week's NFL games are all final -- derived from
+  // the games, not the row's status column (see lib/fantasy/matchupState.js).
+  const states=weekStates(nflGameRows||[])
+  const matchups=(matchupRows||[]).map((game)=>({...game,status:matchupState(game,states[game.week])}))
   const safeRankings=rankings||[]
   const safeAwards=awards||[]
   const table=teams.map((team)=>{const record={...team,wins:0,losses:0,ties:0,pointsFor:0,pointsAgainst:0};matchups.filter((game)=>game.status==='final'&&(game.home_team_id===team.id||game.away_team_id===team.id)).forEach((game)=>{const home=game.home_team_id===team.id;const pf=Number(home?game.home_score:game.away_score);const pa=Number(home?game.away_score:game.home_score);record.pointsFor+=pf;record.pointsAgainst+=pa;if(pf>pa)record.wins+=1;else if(pf<pa)record.losses+=1;else record.ties+=1});return record})

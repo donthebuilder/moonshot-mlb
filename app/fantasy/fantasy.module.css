@@ -6534,3 +6534,136 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .gameStrip .gameStripLive {
   color: var(--fx-good);
 }
+
+/* ── THE SCOREBOARD (2026-09-14) ─────────────────────────────────────────────
+   Replaces .matchupHero. Takes a side: the leader is lit, the trailer dimmed,
+   the verdict in the middle says who and by how much. Black / cream / one
+   orange. No glow, no gradient doing the talking. */
+.scoreboard {
+  display: grid;
+  grid-template-columns: 1fr minmax(120px,auto) 1fr;
+  grid-template-areas: "status status status" "home verdict away";
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0 0 12px;
+  padding: 16px 22px 22px;
+  border: 1px solid var(--fx-line-3);
+  border-radius: 17px;
+  background: var(--fx-panel-2);
+  position: relative;
+  overflow: hidden;
+}
+.scoreboard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--fx-line-3);
+}
+.scoreboard[data-state="live"]::before { background: var(--fx-good); }
+.scoreboard[data-state="final"]::before { background: var(--fx-accent); }
+.scoreStatus {
+  grid-area: status;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 12px;
+  font: 900 9px/1 monospace;
+  letter-spacing: .14em;
+  color: var(--fx-dim);
+}
+.scoreStatus i {
+  font-style: normal;
+  color: var(--fx-ink);
+}
+.scoreboard[data-state="live"] .scoreStatus i { color: var(--fx-good); }
+.scoreboard[data-state="final"] .scoreStatus i { color: var(--fx-accent); }
+.scoreSide {
+  min-width: 0;
+  text-align: left;
+}
+.scoreSide[data-side="away"] { text-align: right; }
+.scoreSide[data-side="away"] .scoreTeam { flex-direction: row-reverse; }
+.scoreTeam {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.scoreTeam b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(15px,2.2vw,22px);
+  letter-spacing: -.02em;
+  color: var(--fx-ink);
+}
+.scoreNumber {
+  display: block;
+  margin-top: 8px;
+  font: 900 clamp(44px,7vw,72px)/1 monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  color: var(--fx-ink);
+  transition: color .2s;
+}
+.scoreSide[data-ahead="true"] .scoreNumber { color: var(--fx-accent); }
+.scoreSide[data-behind="true"] .scoreNumber,
+.scoreSide[data-behind="true"] .scoreTeam b { color: var(--fx-muted-3); }
+.scoreMeta {
+  display: block;
+  margin-top: 7px;
+  font: 800 9px/1.3 monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--fx-dim);
+}
+.scoreSide[data-ahead="true"] .scoreMeta { color: var(--fx-accent); }
+.scoreVerdict {
+  grid-area: verdict;
+  text-align: center;
+  padding: 10px 12px;
+  border-left: 1px solid var(--fx-line-3);
+  border-right: 1px solid var(--fx-line-3);
+}
+.scoreVerdict em {
+  display: block;
+  font: 900 clamp(20px,3vw,30px)/1 monospace;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--fx-ink);
+}
+.scoreVerdict span {
+  display: block;
+  margin-top: 5px;
+  font: 800 8px/1.35 monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fx-dim);
+}
+.scoreboard[data-state="final"] .scoreVerdict em { color: var(--fx-accent); }
+/* Around the League: a score is two numbers with the leader lit. */
+.gameCell:has(.gameScore) { flex-direction: row; gap: 9px; }
+.gameScore {
+  font: 900 13px/1 monospace;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--fx-muted-3);
+}
+.gameScore[data-win="true"] { color: var(--fx-ink); }
+@media(max-width:760px) {
+  .scoreboard {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "status status" "home away" "verdict verdict";
+    gap: 8px 10px;
+    padding: 12px 12px 14px;
+  }
+  .scoreNumber { font-size: 40px; margin-top: 4px; }
+  .scoreTeam b { font-size: 14px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; }
+  .scoreVerdict {
+    border: 0;
+    border-top: 1px solid var(--fx-line-3);
+    padding: 8px 0 0;
+  }
+  .scoreVerdict em { font-size: 18px; }
+}
