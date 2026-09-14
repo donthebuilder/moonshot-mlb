@@ -131,10 +131,9 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
 
       <div className="sl-note">
         <b>One more angle, not live yet.</b> Game narrative (revenge games, injury-driven role
-        changes, schedule swings) needs more than the Questionable/Out tag the site already shows —
-        it needs snap- or target-share modeling to actually connect one player's absence to
-        another's role, and that doesn't exist here yet. Rather than guess at that connection, this
-        page leaves it out.
+        changes, schedule swings) needs more than the Questionable/Out tag the site already
+        shows — connecting one player's absence to another's role takes snap- or target-share
+        modeling that doesn't exist here yet, so rather than guess, this page leaves it out.
       </div>
 
       <style>{`
