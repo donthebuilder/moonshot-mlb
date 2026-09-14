@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { ORANGE_RAMP, inkFor } from '../Heatmap'
 import PaletteToggle from '../PaletteToggle'
 import { RAMPS, usePalette } from '../../lib/palette'
@@ -41,7 +41,7 @@ function Section({ title, emoji, children, defaultOpen = false }) {
           padding: '13px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
         }}
       >
-        <span style={{ fontSize: 14, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: TYPE.title, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
           {emoji && <span style={{ fontSize: 16 }}>{emoji}</span>}
           {title}
         </span>
@@ -53,12 +53,12 @@ function Section({ title, emoji, children, defaultOpen = false }) {
 }
 
 function P({ children }) {
-  return <p style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.65, marginBottom: 10 }}>{children}</p>
+  return <p style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, marginBottom: 10 }}>{children}</p>
 }
 
 function Note({ children, color = C.orange }) {
   return (
-    <div style={{ background: `${color}14`, border: `1px solid ${color}33`, borderRadius: 8, padding: '9px 12px', fontSize: 11.5, color: C.text2, lineHeight: 1.55, marginBottom: 12 }}>
+    <div style={{ background: `${color}14`, border: `1px solid ${color}33`, borderRadius: 8, padding: '9px 12px', fontSize: TYPE.body, color: C.text2, lineHeight: 1.55, marginBottom: 12 }}>
       {children}
     </div>
   )
@@ -80,9 +80,9 @@ function Term({ icon, term, def, tab, go }) {
       }}>
       <div style={{ width: 24, flexShrink: 0, fontSize: 14, textAlign: 'center', lineHeight: '18px' }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: clickable ? C.orange : C.text }}>{term}</span>
+        <span style={{ fontSize: TYPE.name, fontWeight: 800, color: clickable ? C.orange : C.text }}>{term}</span>
         {clickable && <span style={{ color: C.orange, fontSize: 11, fontWeight: 900 }}> →</span>}
-        <span style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.55 }}> — {def}</span>
+        <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.55 }}> — {def}</span>
       </div>
     </div>
   )
@@ -91,8 +91,8 @@ function Term({ icon, term, def, tab, go }) {
 function Stat({ stat, def, good }) {
   return (
     <div style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 11.5, fontWeight: 800, color: C.orange, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>{stat}</span>
-      <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.text2, lineHeight: 1.55 }}>
+      <span style={{ fontSize: TYPE.label, fontWeight: 800, color: C.orange, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>{stat}</span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: TYPE.body, color: C.text2, lineHeight: 1.55 }}>
         {def}
         {good && <span style={{ color: '#4ade80', fontFamily: NUM_FONT }}> · {good}</span>}
       </span>
@@ -157,8 +157,8 @@ function ColorKey() {
       background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
       padding: '13px 16px', marginBottom: 10,
     }}>
-      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 3 }}>🎨 Reading the colours</div>
-      <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, marginBottom: 9 }}>
+      <div style={{ fontSize: TYPE.title, fontWeight: 800, marginBottom: 3 }}>🎨 Reading the colours</div>
+      <div className="quiet-note" style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 9 }}>
         <b style={{ color: C.text2 }}>What this answers:</b> what a coloured cell on any board means.
       </div>
 
@@ -166,7 +166,7 @@ function ColorKey() {
         {stops.map((c, i) => (
           <div key={c} style={{
             flex: 1, background: c, color: inkFor(c), fontFamily: NUM_FONT,
-            fontSize: 8.5, fontWeight: 700, textAlign: 'center', padding: '7px 2px',
+            fontSize: TYPE.micro, fontWeight: 700, textAlign: 'center', padding: '7px 2px',
             textTransform: 'uppercase', letterSpacing: '.04em',
           }}>{i === 0 ? 'lowest' : i === stops.length - 1 ? 'highest' : ''}</div>
         ))}
@@ -200,7 +200,7 @@ export default function Guide({ onNavigate }) {
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 6 }}>Guide</div>
+        <div style={{ fontSize: TYPE.title, fontWeight: 900, color: C.text, marginBottom: 6 }}>Guide</div>
         <P>
           This site predicts which hitters are most likely to go deep tonight, and then grades
           itself on it the next morning. You don&apos;t need to know a single advanced stat to use
@@ -216,8 +216,8 @@ export default function Guide({ onNavigate }) {
         border: `1px solid ${C.border}`, borderRadius: 12,
         padding: '11px 13px', marginBottom: 18, background: C.bg2,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 2 }}>🎨 Heat colours</div>
-        <div style={{ fontSize: 10, color: C.text3, marginBottom: 8 }}>
+        <div style={{ fontSize: TYPE.name, fontWeight: 900, marginBottom: 2 }}>🎨 Heat colours</div>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 8 }}>
           How every board shows strong versus weak. Pick the one you read fastest.
         </div>
         <PaletteToggle />
@@ -229,10 +229,10 @@ export default function Guide({ onNavigate }) {
         border: `1px solid ${C.orange}55`, borderRadius: 14,
         padding: '16px 18px', marginBottom: 14,
       }}>
-        <div style={{ fontSize: 9.5, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT, marginBottom: 3 }}>
+        <div style={{ fontSize: TYPE.label, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT, marginBottom: 3 }}>
           ▶ START HERE
         </div>
-        <div style={{ fontSize: 17, fontWeight: 900, marginBottom: 10 }}>
+        <div style={{ fontSize: TYPE.title, fontWeight: 900, marginBottom: 10 }}>
           Five steps, in order
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -250,20 +250,20 @@ export default function Guide({ onNavigate }) {
               <span style={{
                 flexShrink: 0, width: 24, height: 24, borderRadius: '50%',
                 border: `1px solid ${C.orange}77`, background: `${C.orange}18`,
-                color: C.orange, fontFamily: NUM_FONT, fontWeight: 900, fontSize: 12,
+                color: C.orange, fontFamily: NUM_FONT, fontWeight: 900, fontSize: TYPE.label,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>{s.n}</span>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.4 }}>
+                <div style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text, lineHeight: 1.4 }}>
                   {s.title}
                   {s.tab && onNavigate && <span style={{ color: C.orange, fontWeight: 900 }}> →</span>}
                 </div>
-                <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>{s.body}</div>
+                <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>{s.body}</div>
               </div>
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.orange}33` }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.orange}33` }}>
           That&apos;s the whole path. Everything below is reference — open a section only when a
           symbol or a stat on screen doesn&apos;t make sense, and remember that almost everything on
           this site explains itself if you hover it.
@@ -295,13 +295,13 @@ export default function Guide({ onNavigate }) {
           border: `1px solid ${C.orange}55`, borderRadius: 12,
           padding: '13px 15px', marginBottom: 12,
         }}>
-          <div style={{ fontSize: 9.5, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT, marginBottom: 6 }}>
+          <div style={{ fontSize: TYPE.label, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT, marginBottom: 6 }}>
             POWER-3 — THE THREE THAT WORK
           </div>
           <Stat stat="HR / BBE" def="season home runs per batted ball" />
           <Stat stat="Avg EV" def="season average exit velocity" />
           <Stat stat="Max EV" def="season hardest ball hit" />
-          <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, marginTop: 9 }}>
+          <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginTop: 9 }}>
             Each is ranked inside tonight&apos;s slate and the three ranks are averaged. The top ten
             of that board homer at <b style={{ color: C.orange, fontFamily: NUM_FONT }}>20–21%</b> —
             roughly double the field — and the board beats the field on 94–97% of nights. Adding a
