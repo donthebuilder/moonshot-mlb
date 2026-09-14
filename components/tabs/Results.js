@@ -2,7 +2,7 @@
 import Leaders from './Leaders'
 import MoneyAnswer from '../MoneyAnswer'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
 import { catColor, verdictInk } from '../../lib/scales'
 import { gradedResultsUrl } from '../../lib/dataSource'
@@ -115,15 +115,15 @@ function barColor(p) {
 // results silently refreshed.
 const Flow = ({ num, title, note }) => (
   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '20px 0 8px', paddingBottom: 5, borderBottom: `1px solid ${C.border}` }}>
-    <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 999, padding: '1px 8px' }}>{num}</span>
-    <span style={{ fontSize: 12.5, fontWeight: 900 }}>{title}</span>
-    <span style={{ fontSize: 9.5, color: C.text3 }}>{note}</span>
+    <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 999, padding: '1px 8px' }}>{num}</span>
+    <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>{title}</span>
+    <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{note}</span>
   </div>
 )
 // A demoted panel: closed by default, honest label about what's inside.
 const Fold = ({ label, children }) => (
   <details style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, marginBottom: 8 }}>
-    <summary style={{ padding: '8px 13px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
+    <summary style={{ padding: '8px 13px', fontSize: TYPE.label, fontWeight: 800, cursor: 'pointer', color: C.text2 }}>{label}</summary>
     <div style={{ padding: '4px 10px 10px' }}>{children}</div>
   </details>
 )
@@ -133,7 +133,7 @@ const Fold = ({ label, children }) => (
 function TabBtn({ active, onClick, children }) {
   return (
     <button onClick={onClick} style={{
-      padding: '5px 12px', fontSize: 12, fontWeight: 700, borderRadius: 999,
+      padding: '5px 12px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 999,
       border: `1px solid ${active ? C.orange : C.border}`,
       background: active ? `${C.orange}22` : 'rgba(255,255,255,.035)',
       color: active ? C.orange : C.text2, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -144,8 +144,8 @@ function TabBtn({ active, onClick, children }) {
 function StatRow({ label, value, accent }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 11, color: C.text3 }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: 800, color: accent || C.text, fontFamily: NUM_FONT }}>{value}</span>
+      <span style={{ fontSize: TYPE.label, color: C.text3 }}>{label}</span>
+      <span style={{ fontSize: TYPE.body, fontWeight: 800, color: accent || C.text, fontFamily: NUM_FONT }}>{value}</span>
     </div>
   )
 }
@@ -163,7 +163,7 @@ function SectionHeader({ title, color = C.text3, right }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'baseline', gap: 8,
-      fontSize: 10, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.07em',
+      fontSize: TYPE.label, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.07em',
       padding: '10px 14px 6px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
     }}>
       <span>{title}</span>
@@ -224,8 +224,8 @@ function TrackingLegend({ slots }) {
             borderRadius: 8, background: `${color}14`, border: `1px solid ${color}33`,
           }}>
             <span style={{ fontSize: 13 }}>{emoji}</span>
-            <span style={{ fontSize: 11, color: C.text2 }}>{label}</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color, fontFamily: NUM_FONT }}>{count}</span>
+            <span style={{ fontSize: TYPE.label, color: C.text2 }}>{label}</span>
+            <span style={{ fontSize: TYPE.body, fontWeight: 800, color, fontFamily: NUM_FONT }}>{count}</span>
           </div>
         ))}
       </div>
@@ -291,9 +291,9 @@ function ExpandedStats({ slots, players = [] }) {
   const { unique, matched, avgHrScore, avgHrw, total375, total350 } = stats
   const Cell = ({ label, value, sub, tone }) => (
     <div>
-      <div style={{ fontSize: 10, color: C.text3 }}>{label}</div>
-      <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15, color: tone || C.text }}>{value}</span>
-      {sub && <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}
+      <div style={{ fontSize: TYPE.micro, color: C.text3 }}>{label}</div>
+      <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: TYPE.title, color: tone || C.text }}>{value}</span>
+      {sub && <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}
     </div>
   )
 
@@ -307,7 +307,7 @@ function ExpandedStats({ slots, players = [] }) {
         <Cell label="Total 375+ (slate)" value={total375 || '—'} tone={C.orange} />
         <Cell label="Unique players tracked" value={unique.length} />
       </div>
-      <div style={{ fontSize: 9, color: C.text3, padding: '0 14px 10px', lineHeight: 1.5 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, padding: '0 14px 10px', lineHeight: 1.5 }}>
         HRW and the 375+ count aren&apos;t written into the graded results, so they&apos;re read off
         tonight&apos;s slate instead — matched {matched} of {unique.length} players by id.
         {matched < unique.length && ' The unmatched ones are graded players who aren’t on the current slate, which happens when results are showing a different day; they’re excluded rather than counted as zero.'}
@@ -336,10 +336,10 @@ function CaptureBanner({ report, uniqueReport }) {
               many of the night's homers appeared anywhere on the full sheet
               (hundreds of names), not how many picks hit. Label it what it is
               and say so on the card (08-29 outside review). */}
-          <div style={{ fontSize: 10, color: C.text3, marginBottom: 5, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full-sheet HR coverage</div>
+          <div style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 5, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full-sheet HR coverage</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <MiniBar value={pctVal} color={col} />
-            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 18, color: col, minWidth: 52 }}>{pctVal.toFixed(1)}%</span>
+            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: TYPE.title, color: col, minWidth: 52 }}>{pctVal.toFixed(1)}%</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -348,7 +348,7 @@ function CaptureBanner({ report, uniqueReport }) {
           <Chip color={C.text2}>{total} total HRs</Chip>
         </div>
       </div>
-      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.5, marginBottom: uniqueReport?.unique_players_tracked ? 8 : 0 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.5, marginBottom: uniqueReport?.unique_players_tracked ? 8 : 0 }}>
         Coverage, not accuracy: this counts homers by anyone appearing anywhere on the
         full scored sheet — not homers by picks. Pick accuracy is the graded card above.
       </div>
@@ -356,16 +356,16 @@ function CaptureBanner({ report, uniqueReport }) {
       {uniq.unique_players_tracked ? (
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
           <div>
-            <div style={{ fontSize: 10, color: C.text3, marginBottom: 2 }}>Unique tracked</div>
-            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15, color: C.text }}>{si(uniq.unique_players_tracked)}</span>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 2 }}>Unique tracked</div>
+            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: TYPE.title, color: C.text }}>{si(uniq.unique_players_tracked)}</span>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: C.text3, marginBottom: 2 }}>With HR</div>
-            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15, color: C.green }}>{si(uniq.unique_players_with_hr)}</span>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 2 }}>With HR</div>
+            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: TYPE.title, color: C.green }}>{si(uniq.unique_players_with_hr)}</span>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: C.text3, marginBottom: 2 }}>HR accuracy</div>
-            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: 15, color: barColor(sf(uniq.unique_hr_accuracy_pct)) }}>{sf(uniq.unique_hr_accuracy_pct).toFixed(1)}%</span>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 2 }}>HR accuracy</div>
+            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: TYPE.title, color: barColor(sf(uniq.unique_hr_accuracy_pct)) }}>{sf(uniq.unique_hr_accuracy_pct).toFixed(1)}%</span>
           </div>
         </div>
       ) : null}
@@ -394,9 +394,9 @@ function HRHits({ homers }) {
               background: `${col}18`, border: `1px solid ${col}44`,
             }}>
               <span style={{ fontSize: 13 }}>{mainTag}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{h.name}</span>
-              <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{h.team}</span>
-              {multiHR && <span style={{ fontSize: 10, color: C.yellow, fontWeight: 800, fontFamily: NUM_FONT }}>{si(base.actual_hr)}HR</span>}
+              <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text }}>{h.name}</span>
+              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{h.team}</span>
+              {multiHR && <span style={{ fontSize: TYPE.micro, color: C.yellow, fontWeight: 800, fontFamily: NUM_FONT }}>{si(base.actual_hr)}HR</span>}
               {tags.slice(1).map((t, ti) => <span key={ti} style={{ fontSize: 11 }}>{t}</span>)}
             </div>
           )
@@ -439,21 +439,21 @@ const Row = ({ p, accent }) => {
     <div style={{ padding: '7px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{p.name}</span>
-          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{p.throws}HP</span>
-          {p.weak_side && <span style={{ fontSize: 9.5, color: C.purple, fontFamily: NUM_FONT }}>bleeds vs {p.weak_side}</span>}
+          <span style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{p.name}</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{p.throws}HP</span>
+          {p.weak_side && <span style={{ fontSize: TYPE.micro, color: C.purple, fontFamily: NUM_FONT }}>bleeds vs {p.weak_side}</span>}
         </div>
-        <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
           our picks vs him: <b style={{ color: hitPicks ? accent : C.text3 }}>{hitPicks}/{p.picks.length} homered</b>
           {p.hr9 > 0 && <> · HR/9 <span style={{ color: hr9Color(p.hr9, C.text2) }}>{p.hr9.toFixed(2)}</span></>}
           {p.whip > 0 && <> · WHIP <span style={{ color: p.whip >= 1.30 ? verdictInk(true).color : C.text2 }}>{p.whip.toFixed(2)}</span></>}
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 900, fontFamily: NUM_FONT, color: p.hr_allowed_today > 0 ? accent : C.text3 }}>
+        <div style={{ fontSize: TYPE.title, fontWeight: 900, fontFamily: NUM_FONT, color: p.hr_allowed_today > 0 ? accent : C.text3 }}>
           {p.hr_allowed_today} HR
         </div>
-        <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {p.hit_allowed_today} H · <span title="Strikeouts he hung on OUR graded hitters — partial by construction, but a K-heavy line here marks a strikeout-prop arm" style={{ color: p.k_today >= 6 ? verdictInk(false).color : C.text3, cursor: 'default' }}>{p.k_today} K</span>
         </div>
       </div>
@@ -468,12 +468,12 @@ const Group = ({ icon, label, note, list, accent, collapsed }) => {
     <div style={{ borderLeft: `3px solid ${accent}`, margin: '8px 10px', borderRadius: 8, background: `${accent}06`, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, padding: '7px 14px 5px' }}>
         <span style={{ fontSize: 11 }}>{icon}</span>
-        <span style={{ fontSize: 10, fontWeight: 900, color: accent, letterSpacing: '.08em', fontFamily: NUM_FONT }}>{label}</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>{note}</span>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, color: accent, letterSpacing: '.08em', fontFamily: NUM_FONT }}>{label}</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{note}</span>
       </div>
       {collapsed ? (
         <details>
-          <summary style={{ fontSize: 9.5, color: C.text3, padding: '0 14px 8px', cursor: 'pointer', fontFamily: NUM_FONT }}>
+          <summary style={{ fontSize: TYPE.micro, color: C.text3, padding: '0 14px 8px', cursor: 'pointer', fontFamily: NUM_FONT }}>
             {list.length} arm{list.length > 1 ? 's' : ''} — expand
           </summary>
           {body}
@@ -534,7 +534,7 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
   if (!pitchers.length) {
     return (
       <Card style={{ padding: '12px 14px', marginBottom: 10 }}>
-        <div style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.6 }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6 }}>
           No starter could be matched to tonight&apos;s graded picks. The results payload doesn&apos;t
           carry pitcher names, so this panel joins each graded slot to the slate by player_id — which
           means it needs the slate loaded. If the Games board has data and this is still empty, the
@@ -574,7 +574,7 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
           the nearest hue. */}
       <SectionHeader title="⚾ Pitcher Results — Model vs Actual" color="#38bdf8" />
       {/* the verdict, before the list */}
-      <div style={{ padding: '8px 14px 2px', fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
+      <div style={{ padding: '8px 14px 2px', fontSize: TYPE.body, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
         flagged <b style={{ color: C.text }}>{flaggedN}</b> weak arm{flaggedN !== 1 ? 's' : ''} ·{' '}
         <b style={{ color: verdictInk(true).color }}>{buckets.called.length}</b> gave it up
         {flaggedN > 0 && <> ({((100 * buckets.called.length) / flaggedN).toFixed(0)}%)</>}
@@ -612,9 +612,9 @@ function MissedHRs({ report }) {
             display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px',
             borderTop: i ? `1px solid ${C.border}` : 'none',
           }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.text, flex: 1 }}>{h.name}</span>
-            <span style={{ fontSize: 10, color: C.text3 }}>{h.team}</span>
-            {si(h.hr) > 1 && <span style={{ fontSize: 10, color: C.yellow, fontFamily: NUM_FONT, fontWeight: 800 }}>{si(h.hr)} HR</span>}
+            <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text, flex: 1 }}>{h.name}</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{h.team}</span>
+            {si(h.hr) > 1 && <span style={{ fontSize: TYPE.micro, color: C.yellow, fontFamily: NUM_FONT, fontWeight: 800 }}>{si(h.hr)} HR</span>}
           </div>
         ))}
       </div>
@@ -653,7 +653,7 @@ function PairsResults({ pairPoolResults }) {
 
       {/* pair summary */}
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ fontSize: 11, color: C.text3, marginBottom: 6 }}>PAIRS ({pairs.length} total · {clearedPairs.length} cleared)</div>
+        <div style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 6 }}>PAIRS ({pairs.length} total · {clearedPairs.length} cleared)</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {pairs.map((pair, i) => {
             const aHR = si(pair.a_hr) > 0
@@ -667,10 +667,10 @@ function PairsResults({ pairPoolResults }) {
                 border: `1px solid ${col}44`,
               }}>
                 <span style={{ fontSize: 11, color: col, fontWeight: 800, minWidth: 14 }}>{cleared ? '✅' : (aHR || bHR) ? '½' : '·'}</span>
-                <span style={{ fontSize: 11, color: aHR ? C.green : C.text2, fontWeight: aHR ? 700 : 400 }}>{pair.a?.name}</span>
-                <span style={{ fontSize: 10, color: C.text3 }}>+</span>
-                <span style={{ fontSize: 11, color: bHR ? C.green : C.text2, fontWeight: bHR ? 700 : 400 }}>{pair.b?.name}</span>
-                <span style={{ fontSize: 10, color: C.text3, marginLeft: 'auto', fontFamily: NUM_FONT }}>{si(pair.hr_count)}/{si(pair.total_count)} HR</span>
+                <span style={{ fontSize: TYPE.name, color: aHR ? C.green : C.text2, fontWeight: aHR ? 700 : 400 }}>{pair.a?.name}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>+</span>
+                <span style={{ fontSize: TYPE.name, color: bHR ? C.green : C.text2, fontWeight: bHR ? 700 : 400 }}>{pair.b?.name}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, marginLeft: 'auto', fontFamily: NUM_FONT }}>{si(pair.hr_count)}/{si(pair.total_count)} HR</span>
               </div>
             )
           })}
@@ -686,7 +686,7 @@ function PairsResults({ pairPoolResults }) {
       ].map(({ label, list }) => (
         list.length > 0 && (
           <div key={label} style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 11, color: C.text3, marginBottom: 6 }}>{label}</div>
+            <div style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 6 }}>{label}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {list.map((pool, i) => {
                 // Colour and bar run to the published 2+ primary grade. The
@@ -706,9 +706,9 @@ function PairsResults({ pairPoolResults }) {
                     background: hitRatio > 0 ? `${col}0d` : 'transparent',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: col, minWidth: 14 }}>{letter}</span>
+                      <span style={{ fontSize: TYPE.micro, fontWeight: 800, color: col, minWidth: 14 }}>{letter}</span>
                       <MiniBar value={Math.min(100, hitRatio * 100)} color={col} />
-                      <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: col, minWidth: 44 }}>
+                      <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: col, minWidth: 44 }}>
                         {hits}/{size} HR · need {bar}
                       </span>
                     </div>
@@ -721,12 +721,12 @@ function PairsResults({ pairPoolResults }) {
                           const hit = homered.has(String(m?.name || '').toLowerCase())
                           return (
                             <span key={j} style={{
-                              fontSize: 10.5,
+                              fontSize: TYPE.name,
                               color: hit ? C.green : C.text2,
                               fontWeight: hit ? 700 : 400,
                             }}>
                               {hit ? '💥 ' : ''}{m?.name}
-                              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}> {m?.team}</span>
+                              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {m?.team}</span>
                               {j < members.length - 1 && <span style={{ color: C.text3 }}> ·</span>}
                             </span>
                           )
@@ -789,16 +789,16 @@ function MultiHitCluster({ slots }) {
               border: `1px solid ${pick ? C.orange : `${col}44`}`,
               boxShadow: pick ? `0 0 8px ${C.orange}22` : 'none',
             }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{r.name}</span>
-              <span style={{ fontSize: 10, color: C.text3 }}>{r.team}</span>
-              <span style={{ fontSize: 10, fontWeight: 800, color: col, fontFamily: NUM_FONT }}>
+              <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text }}>{r.name}</span>
+              <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{r.team}</span>
+              <span style={{ fontSize: TYPE.micro, fontWeight: 800, color: col, fontFamily: NUM_FONT }}>
                 {si(r.actual_hits)}H{si(r.actual_hr) > 0 ? ` · ${si(r.actual_hr)}HR` : ''}{si(r.actual_tb) > 0 ? ` · ${si(r.actual_tb)}TB` : ''}
               </span>
               {pick && (
                 <span
                   title={`The bot designated him as its ${pick} pick for this game`}
                   style={{
-                    fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT,
+                    fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT,
                     color: C.orange, letterSpacing: '.05em',
                   }}
                 >🤖 {pick}</span>
@@ -832,16 +832,16 @@ function HRTierRecord({ report }) {
           return (
             <Card key={key} style={{ borderTop: `3px solid ${colors[key]}`, padding: 13 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <b style={{ color: C.text, fontSize: 13 }}>{tier.label || key.replaceAll('_', ' ')}</b>
-                <span style={{ color: colors[key], fontSize: 9, fontWeight: 900, textTransform: 'uppercase' }}>
+                <b style={{ color: C.text, fontSize: TYPE.name }}>{tier.label || key.replaceAll('_', ' ')}</b>
+                <span style={{ color: colors[key], fontSize: TYPE.label, fontWeight: 900, textTransform: 'uppercase' }}>
                   {full.n >= 200 ? 'measured' : 'tracking'}
                 </span>
               </div>
-              <div style={{ color: C.text3, fontSize: 10, lineHeight: 1.5, minHeight: 30, marginTop: 4 }}>{tier.rule || 'Waiting for the first locked row.'}</div>
-              <div style={{ color: colors[key], fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, marginTop: 8 }}>{record(full)}</div>
-              <div style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10, marginTop: 5 }}>L7 {record(seven)} · L30 {record(thirty)}</div>
+              <div style={{ color: C.text3, fontSize: TYPE.body, lineHeight: 1.5, minHeight: 30, marginTop: 4 }}>{tier.rule || 'Waiting for the first locked row.'}</div>
+              <div style={{ color: colors[key], fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, marginTop: 8 }}>{record(full)}</div>
+              <div style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro, marginTop: 5 }}>L7 {record(seven)} · L30 {record(thirty)}</div>
               {reference && (
-                <div style={{ color: C.text2, fontSize: 9.5, lineHeight: 1.5, marginTop: 8 }}>
+                <div style={{ color: C.text2, fontSize: TYPE.body, lineHeight: 1.5, marginTop: 8 }}>
                   Audit reference: {(reference.hr_rate * 100).toFixed(1)}% over {reference.n} hitter-games; shown separately from the live locked record.
                 </div>
               )}
@@ -850,7 +850,7 @@ function HRTierRecord({ report }) {
         })}
       </div>
       {!hasSchema && (
-        <div style={{ color: C.text3, fontSize: 10, lineHeight: 1.6, marginTop: 7 }}>
+        <div style={{ color: C.text3, fontSize: TYPE.body, lineHeight: 1.6, marginTop: 7 }}>
           Clean tracking for these power tiers begins with the first official run using hr_overlay_v2. Earlier nights are not recreated from later data.
         </div>
       )}
@@ -1009,15 +1009,15 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
           background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 11px',
         }}>
-          <span style={{ fontSize: 9, color: C.green, fontWeight: 900, letterSpacing: '.09em', fontFamily: NUM_FONT }}>● LIVE</span>
-          <span style={{ fontSize: 12.5, fontWeight: 900, color: C.text }}>Tonight</span>
-          <span style={{ fontSize: 10, color: C.text3 }}>
+          <span style={{ fontSize: TYPE.label, color: C.green, fontWeight: 900, letterSpacing: '.09em', fontFamily: NUM_FONT }}>● LIVE</span>
+          <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>Tonight</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
             {liveMissing ? 'waiting for grading' : 'updates as games finish'}
           </span>
           {(liveMissing || liveFileStale) && (
             <div style={{
               order: 4, flex: '1 1 100%', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-              fontSize: 10.5, color: C.text2, lineHeight: 1.5,
+              fontSize: TYPE.body, color: C.text2, lineHeight: 1.5,
               border: '1px solid rgba(248,113,113,.45)', background: 'rgba(248,113,113,.08)',
               borderRadius: 8, padding: '7px 9px',
             }}>
@@ -1026,7 +1026,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                 <button type="button" onClick={() => setDay(gradedDays[0])} style={{
                   marginLeft: 'auto', padding: '5px 9px', borderRadius: 7, cursor: 'pointer',
                   border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
-                  fontSize: 10, fontWeight: 800,
+                  fontSize: TYPE.label, fontWeight: 800,
                 }}>Open latest final</button>
               )}
             </div>
@@ -1034,7 +1034,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           {liveIsPregame && gradedDays.length > 0 && (
             <div style={{
               order: 4, flex: '1 1 100%', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-              fontSize: 10.5, color: C.text2, lineHeight: 1.5,
+              fontSize: TYPE.body, color: C.text2, lineHeight: 1.5,
               border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.03)',
               borderRadius: 8, padding: '7px 9px',
             }}>
@@ -1042,7 +1042,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
               <button type="button" onClick={() => setDay(gradedDays[0])} style={{
                 marginLeft: 'auto', padding: '5px 9px', borderRadius: 7, cursor: 'pointer',
                 border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
-                fontSize: 10, fontWeight: 800,
+                fontSize: TYPE.label, fontWeight: 800,
               }}>View latest final</button>
             </div>
           )}
@@ -1054,7 +1054,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
               aria-controls="results-archive-nights"
               style={{
                 marginLeft: 'auto', padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
-                fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
+                fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT,
                 border: `1px solid ${archiveOpen ? C.orange : C.border}`,
                 background: archiveOpen ? `${C.orange}18` : 'transparent',
                 color: archiveOpen ? C.orange : C.text2,
@@ -1068,19 +1068,19 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           background: `${C.orange}14`, border: `1px solid ${C.orange}55`,
           borderRadius: 11, padding: '9px 13px',
         }}>
-          <span style={{ fontSize: 9, color: C.orange, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.label, color: C.orange, fontWeight: 900, letterSpacing: '.1em', fontFamily: NUM_FONT }}>
             📅 ARCHIVE
           </span>
-          <span style={{ fontSize: 12.5, fontWeight: 900, color: C.text }}>{prettyDay(day)}</span>
-          <span style={{ fontSize: 10, color: C.text3 }}>graded · final</span>
+          <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>{prettyDay(day)}</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3 }}>graded · final</span>
           {newerDay && <button type="button" onClick={() => setDay(newerDay)} style={{
             marginLeft: 'auto', padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-            fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+            fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT,
             border: `1px solid ${C.border}`, background: C.bg3, color: C.text2,
           }}>← Newer</button>}
           {olderDay && <button type="button" onClick={() => setDay(olderDay)} style={{
             padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-            fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+            fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT,
             border: `1px solid ${C.border}`, background: C.bg3, color: C.text2,
           }}>Older →</button>}
           <button
@@ -1088,7 +1088,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             onClick={() => { setDay('live'); setArchiveOpen(false) }}
             style={{
               marginLeft: newerDay ? 0 : 'auto', padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
-              fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
+              fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT,
               border: `1px solid ${C.orange}`, background: `${C.orange}22`, color: C.orange,
             }}
           >Tonight</button>
@@ -1099,7 +1099,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             aria-controls="results-archive-nights"
             style={{
               padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
-              fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT,
+              fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT,
               border: `1px solid ${C.border}`, background: 'transparent', color: C.text2,
             }}
           >📅 All nights</button>
@@ -1112,9 +1112,9 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           borderRadius: 11, padding: '10px 13px',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 900 }}>Past nights</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>Selecting a date changes Results only.</span>
-            <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{gradedDays.length} final</span>
+            <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>Past nights</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>Selecting a date changes Results only.</span>
+            <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{gradedDays.length} final</span>
           </div>
           <div className="archive-night-grid">
             {gradedDays.map((d) => (
@@ -1125,7 +1125,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                 aria-current={day === d ? 'date' : undefined}
                 style={{
                   padding: '5px 11px', borderRadius: 8, cursor: 'pointer',
-                  fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+                  fontSize: TYPE.label, fontWeight: 700, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
                   border: `1px solid ${day === d ? C.orange : C.border}`,
                   background: day === d ? `${C.orange}18` : C.bg3,
                   color: day === d ? C.orange : C.text2,
@@ -1137,7 +1137,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
       )}
 
       {dayState === 'loading' && (
-        <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 6 }}>loading that night…</div>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 6 }}>loading that night…</div>
       )}
     </div>
   )
@@ -1200,7 +1200,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             : day !== 'live' ? `No graded file published for ${day}.`
             : 'No graded results yet tonight — games haven’t started or nothing has been graded.'
         } />
-        <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, marginTop: 10, maxWidth: 640 }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, marginTop: 10, maxWidth: 640 }}>
           <b style={{ color: C.text2 }}>All season</b> above still works — the report card, the
           per-player track record, the signal audit and the P/L run off the archive and do not need
           tonight to have started.
@@ -1307,7 +1307,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
         const Take = ({ col, children, title }) => (
           <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }} title={title}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: col, flexShrink: 0, position: 'relative', top: -1 }} />
-            <span style={{ fontSize: 12, color: C.text2, lineHeight: 1.65, minWidth: 0 }}>{children}</span>
+            <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, minWidth: 0 }}>{children}</span>
           </div>
         )
 
@@ -1505,7 +1505,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             {/* Restated from the 2026-08-16 backtest over this project's own
                 archive. Older copy elsewhere in the repo was fit on nine days
                 and counted voids as losses, which is most of the gap. */}
-            <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.7 }}>
+            <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.7 }}>
               <B>{ARCHIVE.nights}</B> graded nights, <B>{ARCHIVE.games.toLocaleString()}</B> games,{' '}
               <B>{ARCHIVE.picks.toLocaleString()}</B> judgeable designated picks. Each lane on its own
               bar, voids excluded — a man who never batted is a void, not a loss.
@@ -1535,7 +1535,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                 setting them aside and that floor is{' '}
                 <B>{ARCHIVE.onePerGame.voidsAsLossesPct}%</B>.
               </div>
-              <div style={{ marginTop: 6, fontSize: 10, color: C.text3 }}>
+              <div style={{ marginTop: 6, fontSize: TYPE.micro, color: C.text3 }}>
                 These are measured frequencies with their denominators, over an archive that is not a
                 random sample of the season — it is whatever survived on disk, 62 nights inside a
                 119-day span. Tonight is one night against them.
@@ -1561,9 +1561,9 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                   display: 'inline-flex', alignItems: 'baseline', gap: 6,
                   border: `1px solid ${l.color}44`, background: `${l.color}10`, borderRadius: 9, padding: '4px 11px',
                 }}>
-                  <span style={{ fontSize: 10, fontWeight: 900, color: l.color, fontFamily: NUM_FONT }}>{l.label}</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text, fontFamily: NUM_FONT }}>{l.did}/{l.n}</span>
-                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{((100 * l.did) / l.n).toFixed(0)}%</span>
+                  <span style={{ fontSize: TYPE.label, fontWeight: 900, color: l.color, fontFamily: NUM_FONT }}>{l.label}</span>
+                  <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.text, fontFamily: NUM_FONT }}>{l.did}/{l.n}</span>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{((100 * l.did) / l.n).toFixed(0)}%</span>
                 </span>
               ))}
             </div>
@@ -1622,7 +1622,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                     const l5h = Number(sl?.last5_hits)
                     if (Number.isFinite(l5h) && l5h <= 3) clues.push(`only ${l5h} hits over his last 5`)
                     return (
-                      <div key={`${r.player_id}-miss`} style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+                      <div key={`${r.player_id}-miss`} style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65 }}>
                         <b onClick={() => sl && onPlayerClick?.(sl)}
                           style={{ color: C.text, cursor: sl ? 'pointer' : 'default' }}>{r.name || sl?.name}</b>
                         <span style={{ fontFamily: NUM_FONT, color: C.text3 }}>
@@ -1636,7 +1636,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
                     )
                   })}
                   {misses.length > 8 && (
-                    <div style={{ fontSize: 9.5, color: C.text3 }}>+ {misses.length - 8} more hitless 60+ scores — the full table below has every one.</div>
+                    <div style={{ fontSize: TYPE.micro, color: C.text3 }}>+ {misses.length - 8} more hitless 60+ scores — the full table below has every one.</div>
                   )}
                 </div>
               </>
@@ -1647,7 +1647,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           <Flow num="5" title="What got away" note="homers the sheet never had — the model's real misses" />
           {missedList.length > 0 ? (
             <>
-              <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6, marginBottom: 8 }}>
+              <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginBottom: 8 }}>
                 {missedList.slice(0, 3).map((h, i) => (
                   <span key={i}>
                     <b style={{ color: C.text }}>{clean(h?.name, '—')}</b>
@@ -1662,7 +1662,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
               </Fold>
             </>
           ) : (
-            <div style={{ fontSize: 11, color: C.text3, marginBottom: 8 }}>
+            <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 8 }}>
               Nothing got away{capTotal > 0 ? ' — every slate homer was on the sheet somewhere' : ' yet'}.
             </div>
           )}
@@ -1768,8 +1768,8 @@ function ModeBar({ mode, setMode }) {
               background: on ? 'rgba(249,115,22,.13)' : 'rgba(255,255,255,.03)',
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 900, color: on ? C.orange : C.text2 }}>{label}</div>
-            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 1 }}>{question}</div>
+            <div style={{ fontSize: TYPE.name, fontWeight: 900, color: on ? C.orange : C.text2 }}>{label}</div>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 1 }}>{question}</div>
           </button>
         )
       })}
