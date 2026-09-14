@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, txt, playerId } from '../../lib/player'
 import { quoteFor, fmtOdds } from '../../lib/odds'
 import {
@@ -70,10 +70,10 @@ function GroupHead({ role, count }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 9px' }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: col, flexShrink: 0 }} />
       <span style={{
-        fontSize: 9.5, fontWeight: 900, letterSpacing: '.14em',
+        fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em',
         textTransform: 'uppercase', color: col, whiteSpace: 'nowrap',
       }}>{verdictFor(role).market}</span>
-      <span style={{ fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700, color: C.text3 }}>{count}</span>
+      <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, fontWeight: 700, color: C.text3 }}>{count}</span>
       <span style={{ flex: 1, height: 1, background: C.border, minWidth: 8 }} />
     </div>
   )
@@ -440,7 +440,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
         display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8,
       }}>
         <span style={{
-          fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
+          fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
           textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0,
         }}>Only</span>
         <FilterPill active={onlyPriced} onClick={() => setOnlyPriced(!onlyPriced)}
@@ -457,7 +457,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
         </FilterPill>
         <span style={{ width: 6 }} />
         <span style={{
-          fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
+          fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
           textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0,
         }}>Sort</span>
         {[['score', 'Score'], ['price', 'Longest price'], ['time', 'First pitch']].map(([k, label]) => (
@@ -480,7 +480,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
         display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8,
       }}>
         <span style={{
-          fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
+          fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3,
           textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0,
         }}>Precision</span>
         {PRECISION.map((o) => (
@@ -493,7 +493,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
         ))}
       </div>
 
-      <div style={{ fontSize: 10, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
         {hidden > 0 ? `showing ${total - hidden} of ${total}` : `${total} card${total === 1 ? '' : 's'}`}
         {' — the verdict first, tap one for the full read.'}
         {dropped > 0 && (
@@ -508,7 +508,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
       </div>
 
       {total === 0 ? (
-        <div style={{ fontSize: 11.5, color: C.text3, marginTop: 10 }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>
           Nothing matches.{' '}
           {onlyPriced || onlyUpcoming || onlyWatched
             ? `The ${[onlyPriced && 'Priced', onlyUpcoming && 'Not started', onlyWatched && 'Watchlist'].filter(Boolean).join(' + ')} filter left nobody in this market — turn one off above.`
