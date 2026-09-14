@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
@@ -113,21 +113,21 @@ function LeaderTile({ label, rows, fmt, color, onPlayerClick }) {
         cursor: onPlayerClick ? 'pointer' : 'default',
       }}>
       <div style={{
-        fontSize: 8.5, color: C.text3, textTransform: 'uppercase',
+        fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase',
         letterSpacing: '.09em', fontWeight: 800,
       }}>{label}</div>
       <div style={{
-        fontSize: 13, fontWeight: 800, marginTop: 1,
+        fontSize: TYPE.name, fontWeight: 800, marginTop: 1,
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }}>{top.name}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, color }}>{fmt(top)}</span>
-        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color }}>{fmt(top)}</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {top.team} · {top.pa} PA
         </span>
       </div>
       {facing && (
-        <div style={{ fontSize: 9, color: C.text2, fontFamily: NUM_FONT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+        <div style={{ fontSize: TYPE.micro, color: C.text2, fontFamily: NUM_FONT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
           title={`Tonight: ${top.team} vs ${top.opp} — he faces ${facing}${n(top._raw?.pitcher_hr9, 0) ? `, ${n(top._raw.pitcher_hr9, 0).toFixed(2)} HR/9` : ''}`}>
           tonight vs {facing.split(' ').slice(-1)[0]}
           {n(top._raw?.pitcher_hr9, 0) > 0 && (
@@ -138,7 +138,7 @@ function LeaderTile({ label, rows, fmt, color, onPlayerClick }) {
         </div>
       )}
       {rest.length > 0 && (
-        <div style={{ fontSize: 8.5, color: C.text3, marginTop: 3, lineHeight: 1.5 }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 3, lineHeight: 1.5 }}>
           {rest.map((r) => (
             <span key={r._key}
               onClick={(e) => { e.stopPropagation(); onPlayerClick?.(r._raw) }}
@@ -165,7 +165,7 @@ function LeagueLeadersCard({ cat, rows, slateById, onPlayerClick }) {
       borderRadius: 11, padding: '8px 12px', minWidth: 0,
     }}>
       <div style={{
-        fontSize: 9, color: C.text3, textTransform: 'uppercase',
+        fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase',
         letterSpacing: '.09em', fontWeight: 800, marginBottom: 5,
       }}>{cat.icon} {cat.label} — MLB top 10</div>
       {rows.map((r, i) => {
@@ -178,13 +178,13 @@ function LeagueLeadersCard({ cat, rows, slateById, onPlayerClick }) {
               display: 'flex', alignItems: 'baseline', gap: 6, padding: '1.5px 0',
               cursor: onSlate && onPlayerClick ? 'pointer' : 'default',
             }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 14, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, width: 14, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
             <span style={{
-              fontSize: 10.5, fontWeight: onSlate ? 800 : 600,
+              fontSize: TYPE.name, fontWeight: onSlate ? 800 : 600,
               color: onSlate ? C.text : C.text2,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
             }}>{r.name}{onSlate ? ' 🤖' : ''}</span>
-            <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: onSlate ? C.orange : C.text2, flexShrink: 0 }}>
+            <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: onSlate ? C.orange : C.text2, flexShrink: 0 }}>
               {r.value}
             </span>
           </div>
@@ -204,10 +204,10 @@ function LeagueLeadersCard({ cat, rows, slateById, onPlayerClick }) {
 function HistBoard({ title, lead, rows, empty, renderRow }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 10.5, fontWeight: 900, color: C.text }}>{title}</div>
-      <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.55, margin: '1px 0 4px' }}>{lead}</div>
+      <div style={{ fontSize: TYPE.title, fontWeight: 900, color: C.text }}>{title}</div>
+      <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.55, margin: '1px 0 4px' }}>{lead}</div>
       {rows.length === 0
-        ? <div style={{ fontSize: 9.5, color: C.text3, fontStyle: 'italic' }}>{empty}</div>
+        ? <div style={{ fontSize: TYPE.body, color: C.text3, fontStyle: 'italic' }}>{empty}</div>
         : rows.map(renderRow)}
     </div>
   )
@@ -225,18 +225,18 @@ function HistRow({ i, name, team, main, note, onClick, title }) {
         display: 'flex', alignItems: 'baseline', gap: 6, padding: '1.5px 0',
         cursor: onClick ? 'pointer' : 'default',
       }}>
-      <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 13, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+      <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, width: 13, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
       <span style={{
-        fontSize: 10.5, fontWeight: onClick ? 800 : 600, color: onClick ? C.text : C.text2,
+        fontSize: TYPE.name, fontWeight: onClick ? 800 : 600, color: onClick ? C.text : C.text2,
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
       }}>
         {name}{onClick ? ' 🤖' : ''}
-        {team ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}> {team}</span> : null}
+        {team ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}> {team}</span> : null}
       </span>
       <span style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: C.orange }}>{main}</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: C.orange }}>{main}</span>
         {note && (
-          <span style={{ display: 'block', fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginTop: -1 }}>{note}</span>
+          <span style={{ display: 'block', fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginTop: -1 }}>{note}</span>
         )}
       </span>
     </div>
@@ -347,7 +347,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
     return p && onPlayerClick ? () => onPlayerClick(p) : undefined
   }
   const histBtn = {
-    padding: '4px 11px', fontSize: 10.5, fontWeight: 800, borderRadius: 7, cursor: 'pointer',
+    padding: '4px 11px', fontSize: TYPE.body, fontWeight: 800, borderRadius: 7, cursor: 'pointer',
     fontFamily: NUM_FONT, border: `1px solid ${C.orange}`,
     background: 'rgba(249,115,22,.12)', color: C.orange,
   }
@@ -386,12 +386,12 @@ export default function Leaders({ players = [], onPlayerClick }) {
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900 }}>🗓️ Historical — the bot&apos;s own graded nights</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>
+        <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🗓️ Historical — the bot&apos;s own graded nights</span>
+        <span style={{ fontSize: TYPE.body, color: C.text3 }}>
           every other board on this page is tonight; this one is the archive
         </span>
       </div>
-      <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px', maxWidth: 780 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px', maxWidth: 780 }}>
         After each slate the bot publishes a graded file — who it designated, what each designation needed, and
         what the hitter actually did. These boards read those files back and rank them over TIME instead of over
         tonight. <b style={{ color: C.text2 }}>Everybody in here was already a bot pick</b>, so a rate below says
@@ -405,7 +405,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
           <button style={histBtn} onClick={() => loadHistory(HIST_FIRST)}>
             Load the last {HIST_FIRST} graded nights
           </button>
-          <span style={{ fontSize: 9.5, color: C.text3 }}>
+          <span style={{ fontSize: TYPE.body, color: C.text3 }}>
             {HIST_FIRST} files, one per night, roughly a megabyte each — so they load when you reach this section
             rather than every time this tab opens. Extends to {HIST_MAX} once they&apos;re in.
           </span>
@@ -413,7 +413,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
       )}
 
       {histState === 'loading' && (
-        <div style={{ fontSize: 10, color: C.text3, marginBottom: hist ? 7 : 0 }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: hist ? 7 : 0 }}>
           Reading the last {histN} graded nights… (dates the archive never published are skipped, not waited on)
           {hist && <> The boards below are still the {hist.window.loaded}-night window until it lands.</>}
         </div>
@@ -421,7 +421,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
 
       {histState === 'error' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, color: C.text3 }}>
+          <span style={{ fontSize: TYPE.body, color: C.text3 }}>
             Not one of the last {histN} dates came back. The published branch only keeps a rolling window of graded
             days, so an old date genuinely may not exist — but nothing is shown rather than boards built on no nights.
           </span>
@@ -437,7 +437,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
               this sentence inherits it — "most homers" means nothing until
               it says across how many nights, out of whose picks, and how many
               of the slots in them were actually judgeable. */}
-          <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginBottom: 8, maxWidth: 780 }}>
+          <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginBottom: 8, maxWidth: 780 }}>
             <b style={{ fontFamily: NUM_FONT }}>{w.loaded} graded {w.loaded === 1 ? 'night' : 'nights'}</b>
             {' '}found in the last {w.tried} dates, <span style={{ fontFamily: NUM_FONT }}>{w.from}</span> to{' '}
             <span style={{ fontFamily: NUM_FONT }}>{w.to}</span>
@@ -514,7 +514,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
               <button style={histBtn} onClick={() => loadHistory(HIST_MAX)}>
                 Extend to {HIST_MAX} nights
               </button>
-              <span style={{ fontSize: 9.5, color: C.text3 }}>
+              <span style={{ fontSize: TYPE.body, color: C.text3 }}>
                 {HIST_MAX - histN} more files — the {histN} already here are cached and won&apos;t be fetched again.
                 A longer window is the only honest way to make the rate board mean more.
               </span>
@@ -556,14 +556,14 @@ export default function Leaders({ players = [], onPlayerClick }) {
     .slice(0, 8)
 
   const chip = (on) => ({
-    padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+    padding: '3px 9px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
     fontFamily: NUM_FONT,
     border: `1px solid ${on ? C.orange : C.border}`,
     background: on ? alpha(C.orange, 0.12) : 'transparent',
     color: on ? C.orange : C.text3,
   })
   const lbl = {
-    fontSize: 8, color: C.text3, textTransform: 'uppercase',
+    fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase',
     letterSpacing: '.09em', fontWeight: 800,
   }
 
@@ -577,13 +577,13 @@ export default function Leaders({ players = [], onPlayerClick }) {
         right={(
           <span
             title="Hitters on tonight's slate with a published season line, out of every hitter on the slate."
-            style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}
+            style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}
           >{rows.length} of {all.length} hitters</span>
         )}
       />
 
       <div style={{
-        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
+        fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 700,
       }}>
         Straight season numbers — the batting line, nothing weighted or projected. Every other board
@@ -594,7 +594,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
 
       {historyStrip}
 
-      <div style={{ fontSize: 9.5, color: C.text3, margin: '0 0 6px' }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '0 0 6px' }}>
         Every leader below is <b style={{ color: C.text2 }}>on tonight&apos;s slate</b> — tiles show who
         each one faces, plus the #2 and #3 so the tile is a lead, not a trivia answer.
       </div>
@@ -619,16 +619,16 @@ export default function Leaders({ players = [], onPlayerClick }) {
         border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px', marginBottom: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-          <span style={{ fontSize: 11.5, fontWeight: 900 }}>🏃 League-wide top 10s — speed &amp; run production</span>
-          <span style={{ fontSize: 9.5, color: C.text3 }}>
+          <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🏃 League-wide top 10s — speed &amp; run production</span>
+          <span style={{ fontSize: TYPE.body, color: C.text3 }}>
             whole league, live from the MLB StatsAPI — the slate publishes no stolen bases, so this
             board is the only speed read here. 🤖 = on tonight&apos;s slate (click to open his card).
           </span>
         </div>
         {league === undefined ? (
-          <div style={{ fontSize: 10, color: C.text3, padding: '4px 0' }}>Fetching live league leaders…</div>
+          <div style={{ fontSize: TYPE.body, color: C.text3, padding: '4px 0' }}>Fetching live league leaders…</div>
         ) : league === null ? (
-          <div style={{ fontSize: 10, color: C.text3, padding: '4px 0' }}>
+          <div style={{ fontSize: TYPE.body, color: C.text3, padding: '4px 0' }}>
             The live MLB StatsAPI leaders call didn&apos;t come back — nothing cached, so no numbers
             rather than stale ones. Reload to retry.
           </div>
@@ -655,8 +655,8 @@ export default function Leaders({ players = [], onPlayerClick }) {
           border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px', marginBottom: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 900 }}>⚡ Season power, homer-prone arm</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>
+            <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>⚡ Season power, homer-prone arm</span>
+            <span style={{ fontSize: TYPE.body, color: C.text3 }}>
               .200+ ISO facing a starter allowing 1.30+ HR/9 tonight — two published numbers, no
               model. Ordered by <b style={{ color: C.text2 }}>ISO × HR/9</b>, printed on each chip;
               top {collisions.length} of {collisionPool.length} who clear both bars.
@@ -673,12 +673,12 @@ export default function Leaders({ players = [], onPlayerClick }) {
                     border: `1px solid ${alpha(C.orange, 0.27)}`, background: alpha(C.orange, 0.08),
                     borderRadius: 8, padding: '4px 10px',
                   }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{r.name}</span>
-                  <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: tone('green'), fontWeight: 800 }}>ISO {r.iso.toFixed(3)}</span>
-                  <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.orange, fontWeight: 800 }}>
+                  <span style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{r.name}</span>
+                  <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: tone('green'), fontWeight: 800 }}>ISO {r.iso.toFixed(3)}</span>
+                  <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.orange, fontWeight: 800 }}>
                     vs {String(clean(r._raw?.pitcher_name, '?')).split(' ').slice(-1)[0]} {hr9.toFixed(2)} HR/9
                   </span>
-                  <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, fontWeight: 800 }}
+                  <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text3, fontWeight: 800 }}
                     title="ISO × HR/9 — the product these chips are ordered by. Not a rate and not a score: it is the two published numbers multiplied, and it exists so the order is visible rather than implied.">
                     = {r.collide.toFixed(2)}
                   </span>
@@ -717,7 +717,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
           placeholder="Search a hitter…"
           style={{
             flex: 1, minWidth: 150, background: C.bg3, border: `1px solid ${C.border}`,
-            borderRadius: 7, padding: '5px 10px', fontSize: 11, color: C.text,
+            borderRadius: 7, padding: '5px 10px', fontSize: TYPE.body, color: C.text,
             outline: 'none', fontFamily: NUM_FONT,
           }}
         />
