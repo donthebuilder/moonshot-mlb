@@ -1216,6 +1216,13 @@
 .commishBar strong {
   font-size: 12px;
 }
+.commishBar small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted, #a89f8c);
+}
 .commishBar button,
 .draftPlayer button {
   padding: 9px 11px;

@@ -93,10 +93,20 @@ async function synchronize(request) {
       }
       lineupFills.push({week,carried:carry.rowsCarried,carriedTeams:carry.carried.length,carrySkipped:carry.skipped,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped})
     }
+    // WAIVERS CLEAR ON THE CLOCK (2026-09-14). Claims whose 24 hours are up
+    // used to wait for the commissioner's button on the Wire. Service-only
+    // function; awards are logged, a failure is reported and never fatal.
+    let waiversAwarded=0
+    {
+      const {data,error}=await supabase.rpc('process_all_fantasy_waivers')
+      if(error)console.error('[franchise/scoring] waivers failed',error.message)
+      else if(Number(data))console.log(`[franchise/scoring] waivers awarded: ${data}`)
+      waiversAwarded=error?null:Number(data||0)
+    }
     let matchups=0
     for(const week of weeks){const {data,error}=await supabase.rpc('refresh_all_fantasy_matchup_scores',{p_season:feed.season,p_week:week});if(error)throw error;matchups+=Number(data||0)}
     await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:new Date().toISOString()}).eq('id',runId)
-    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,builtAt:feed.builtAt})
+    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,waiversAwarded,builtAt:feed.builtAt})
   } catch(error) {
     console.error('[franchise/scoring] sync failed', error)
     if(runId)await supabase.from('fantasy_scoring_sync_runs').update({status:'failed',error_message:String(error?.message||error).slice(0,500),completed_at:new Date().toISOString()}).eq('id',runId)

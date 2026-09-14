@@ -49,6 +49,12 @@ export default async function MatchupPage({ params, searchParams }) {
   // the first one if you don't have a team yet.
   const requestedMatchup = query?.matchup ? matchups.find((game)=>String(game.id)===String(query.matchup)) : null
   const featured = requestedMatchup || myMatchup || matchups[0]
+  // NINE TEAMS, FOUR GAMES (2026-09-14). An odd league pairs one team with
+  // nobody each week (generate_fantasy_schedule appends a null slot), and this
+  // page fell through to matchups[0] and featured a stranger's game as if it
+  // were yours, with nothing saying why. Idle is a fact worth one line.
+  const idleTeams = teams.filter((team)=>!matchups.some((game)=>game.home_team_id===team.id||game.away_team_id===team.id))
+  const iAmIdle = Boolean(myTeam && matchups.length && !myMatchup)
   const home = teams.find((team)=>team.id===featured?.home_team_id)
   const away = teams.find((team)=>team.id===featured?.away_team_id)
   // EVERY TEAM'S STARTERS, not just the featured pair (2026-09-07). The extra
@@ -161,6 +167,7 @@ export default async function MatchupPage({ params, searchParams }) {
     <LeagueNav leagueId={leagueId} active="matchup" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
+      {iAmIdle&&!requestedMatchup&&<p className={styles.message}>{myTeam.name} is idle in Week {week} — nine teams, four games, one sits. Showing {home?.name} vs {away?.name}; your record doesn&apos;t move this week.</p>}
       <LiveMatchupCenter leagueId={leagueId} live={hasLiveGames} lastUpdated={latestSync?.completed_at}/>
       <div className={styles.weekStrip}>{Array.from({length:14},(_,i)=>i+1).map((number)=><Link className={number===week?styles.weekActive:''} href={`/fantasy/league/${leagueId}/matchup?week=${number}`} key={number}>W{number}</Link>)}</div>
       <NflGameCenter games={nflGames} week={week}/>
@@ -222,7 +229,7 @@ export default async function MatchupPage({ params, searchParams }) {
           ))}
         </section>}
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/></div>
-        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{game.status==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}</section>
+        <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{game.status==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():`${Number(game.home_score).toFixed(1)} — ${Number(game.away_score).toFixed(1)}`}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}{Boolean(idleTeams.length)&&<p className={styles.emptyRoom}>Idle this week: {idleTeams.map((team)=>team.name).join(', ')}</p>}</section>
       </>}
     </div>
   </main>
