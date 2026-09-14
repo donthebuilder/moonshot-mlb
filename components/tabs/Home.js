@@ -240,7 +240,8 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
   // Built in lib/headlines.js -- the header's ticker rolls the same set.
   const cards = useMemo(() => buildHeadlines({ players, headline, results, isLive, airRanked }), [players, headline, results, isLive, airRanked])
   const stripRef = useRef(null)
-  useAutoScroll(stripRef, { speed: 22 })
+  // 22 -> 30 px/s (2026-09-14, Donovan: 'make the headline move at a little faster pace')
+  useAutoScroll(stripRef, { speed: 30 })
   if (!cards.length) return null
   const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
   const Card = ({ c, i, echo }) => (
@@ -963,9 +964,29 @@ export default function Home({
             <span style={{ flex: 1, minWidth: 0, background: `${C.orange}12`, borderTop: `1px solid ${C.orange}33`, borderBottom: `1px solid ${C.orange}33`, fontSize: 11, color: C.text, fontFamily: NUM_FONT, padding: '6px 10px', lineHeight: 1.5 }}>{pulse}</span>
           </div>
         )}
+        {/* THE FOUR LIVES IN THE HERO (2026-09-14, Donovan: "move the four
+            into the hero"). The bot's four headline picks are the top of the
+            show, not a panel below it. Same strip, same data, one container up. */}
+        {!empty && (
+          <div style={{ marginTop: 14 }}>
+            <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
+          </div>
+        )}
       </div>
 
       <ScoreRail players={players} results={results} onNavigate={onNavigate} />
+
+      {/* Storylines sit right under the tally (2026-09-14, Donovan: 'bring the
+          storylines out and put under 2') -- out of the More drawer. */}
+      {/* The full storyline engine — milestones, duels, revenge games,
+          birthdays, giveaways. Same panel the Scoreboard carries; collapsed
+          by default, the header counts tell you if it's worth opening. It sat
+          eight hundred lines further down, below two stat boards, which split
+          the narrative half of the page in two. It belongs next to the angles
+          it expands on.
+          results (2026-08-13): this page already holds it — see the note in
+          Storylines.js for why it used to fetch its own copy. */}
+      <Storylines players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-03) — replaces FollowingStrip here.
           Same list, same stores, same place on the page. What changed is that
@@ -980,18 +1001,6 @@ export default function Home({
         onPlayerClick={onPlayerClick}
       />
 
-      {/* ── THE FOUR, ON THE PAGE INSTEAD OF ONE TAB AWAY (2026-08-29) ──────
-          TUDDY puts The Six on its Home. MOONSHOT's own headline cut sat on
-          the Scoreboard, and this page's rotating pulse line literally read
-          "The Four on the Scoreboard is the headline cut" — the front door
-          telling you the headline is somewhere else.
-
-          Mounted, not forked: components/BotPicksStrip.js is the same
-          component the Scoreboard renders, so there is one source for what
-          The Four is and no chance of the two disagreeing. It carries its own
-          empty state, so a slate with no designations renders nothing rather
-          than an empty frame. */}
-      <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
 
       {/* ── 💵 #34: THE MONEY ANSWER, WHERE THE CLAIM IS MADE ────────────────
           The hero above says "every pick is graded in public." True, and the
@@ -1033,7 +1042,7 @@ export default function Home({
           sit on the page is still here, one drawer down, closed by default —
           the Fold renders nothing until it is opened, so a closed drawer costs
           the phone nothing. Same panels, same code, one level deeper. */}
-      <Fold id="more-tonight" title="••• More on tonight" meta="angles · storylines · top 10s · weakest arms · the snapshot · steal looks · the game to circle · the read · October · comebacks · moneyline · your night">
+      <Fold id="more-tonight" title="••• More on tonight" meta="angles · top 10s · weakest arms · the snapshot · steal looks · the game to circle · the read · October · comebacks · moneyline · your night">
       {/* ── TONIGHT'S ANGLES — hero lines, not tables ─────────────────
           Renamed from "storylines" in the 2026-08-09 polish pass: the full
           Storylines engine renders directly below, and two adjacent panels
@@ -1235,15 +1244,6 @@ export default function Home({
         </Fold>
       )}
 
-      {/* The full storyline engine — milestones, duels, revenge games,
-          birthdays, giveaways. Same panel the Scoreboard carries; collapsed
-          by default, the header counts tell you if it's worth opening. It sat
-          eight hundred lines further down, below two stat boards, which split
-          the narrative half of the page in two. It belongs next to the angles
-          it expands on.
-          results (2026-08-13): this page already holds it — see the note in
-          Storylines.js for why it used to fetch its own copy. */}
-      <Storylines players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
 
       {/* ── TOP WEATHER GAMES lived here until 2026-08-16 ───────────────
              Three tiles, ~60 lines, printing the same three parks the hero had
