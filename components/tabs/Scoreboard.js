@@ -21,6 +21,7 @@ import WeakSpotCards from '../WeakSpotCards'
 import StartHere from '../StartHere'
 import SlatePulse from '../SlatePulse'
 import LiveWire from '../LiveWire'
+import HomerEventCards from '../HomerEventCards'
 // NearMisses is no longer mounted here (2026-09-03) — the component still
 // exists and is still imported by the pages that use it; only this page's
 // mount was removed.
@@ -695,6 +696,14 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         })() : null,
         pK9: p ? n(p.pitcher_k9, null) : null,
         pLuck: p ? n(p.pitcher_hr_luck, null) : null,
+        // ── EVENT-CARD FIELDS (2026-09-14, MOONSHOT batch 2) ──────────────
+        // Donovan, off the brand audit: homer event cards need distance + EV
+        // big. No bot work needed — get_all_homers_from_game() has stamped
+        // these on every hr_capture_report entry since the 08-11 backfill;
+        // they just weren't being read onto this table's rows yet.
+        longestFt: h?.longest_ft == null ? null : Number(h.longest_ft),
+        maxEv: h?.max_ev_mph == null ? null : Number(h.max_ev_mph),
+        launchAngle: h?.launch_angle == null ? null : Number(h.launch_angle),
       }
     })
     // laneOf omitted from deps deliberately — it's itself a [players]-keyed
@@ -846,6 +855,12 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       answers="is the model seeing tonight coming? Every homer already hit, in the lane it landed in — PICKS is the bet slip, BOARD is each game's top 8, RATED is everyone the slate scored. A RATED hit is a RATED hit; it is never written up as a pick."
       note={<LaneRecord record={laneRec} />}
     >
+      {/* THE CARD IS THE STORY (2026-09-14, MOONSHOT batch 2) — Donovan, off
+          the brand audit: a homer is an event, not a spreadsheet row. Cards
+          render first and always; the 12-column table below is the same
+          research view as before, one tap away instead of the headline. */}
+      <HomerEventCards rows={goneYard} onPlayerClick={onPlayerClick} />
+      <Fold label="Full research table — every column, sortable">
       <DenseTable
         rows={goneYard}
         columns={[
@@ -916,6 +931,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         maxHeight={280}
         caption="Every homer already hit tonight, next to where this board had the hitter — and the line the arm was carrying into it. The pitcher columns are drawn against league marks, so ▲ means he was already worse than average at that and ▼ means he was better. Two columns from the ask are not here, and both on purpose: there is no last-three-starts K/9 in the payload (L3 covers ERA, WHIP and HR/9 only), and HR luck ships zero-filled for every starter tonight — it appears the day it carries a reading. Inventing either from the season figure would be a number that looks measured and is not."
       />
+      </Fold>
     </Tracker>
   )
   // Live: who's gone yard is the news — it renders open, right under the
