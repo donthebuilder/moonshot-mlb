@@ -14,7 +14,7 @@ import YourPlayers from '../YourPlayers'
 import Fold from '../Fold'
 import BotPicksStrip from '../BotPicksStrip'
 import StealLooksStrip from '../StealLooksStrip'
-import ReadTeaser from '../ReadTeaser'
+import ReadTeaser, { callOfTheNight } from '../ReadTeaser'
 import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
@@ -584,6 +584,10 @@ export default function Home({
   // One line each for who, what, when, where and why, and every one of them
   // names something. The trust line stays last, because a record is the one
   // claim that should not rotate away before it is read.
+  // Same selection as the Read fold and the Bot page's hero — see the note
+  // where this feeds the pulse line below.
+  const theCall = useMemo(() => callOfTheNight(players), [players])
+
   const lines = useMemo(() => {
     const out = []
     const top = [...players].filter((p) => Number.isFinite(hrScore(p)))
@@ -631,6 +635,19 @@ export default function Home({
       }
     }
 
+    // THE READ — the call of the night, in one line (2026-09-14). Donovan:
+    // both this and the game-to-circle line above were sitting a tap deep in
+    // the More drawer, unread by anyone who doesn't open it. Same source as
+    // the Read fold below and the Bot page's own hero — callOfTheNight() out
+    // of ReadTeaser.js is THE selection, so this line and that panel can
+    // never name different players.
+    if (theCall?.hero?.p) {
+      const c = theCall.hero
+      const clear = c.conv && c.conv.depth >= 3 && c.conv.gap != null && c.conv.z >= 0.8 ? c.conv : null
+      out.push(`📰 Tonight's read: ${nameOf(c.p)} is the call of the night — ${c.label}${
+        clear ? `, ${clear.gap.toFixed(1)} points clear of the field` : ''}.`)
+    }
+
     // WHY — the count kept, but now it says what the star MEANS rather than
     // how many there are.
     if (weakStars > 0) out.push(`★ ${weakStars} hitters draw a lineup spot tonight's starter has already been beaten in — that is what a star means on every board.`)
@@ -643,7 +660,7 @@ export default function Home({
     const scores = live.items.filter((i) => i.live).concat(live.items.filter((i) => !i.live && !i.pregame))
     scores.forEach((i, idx) => { out.splice(Math.min(out.length, 1 + idx * 2), 0, `${i.icon} ${i.text}${i.sub ? ` · ${i.sub}` : ''}`) })
     return out
-  }, [isLive, homersSoFar, laneRec, picks, weakStars, confirmed, players, proj, record, airRanked, firstPitch, headline, games, live.items])
+  }, [isLive, homersSoFar, laneRec, picks, weakStars, confirmed, players, proj, record, airRanked, firstPitch, headline, games, live.items, theCall])
   const pulse = useRotating(lines, 4200)
 
   const empty = !players.length
