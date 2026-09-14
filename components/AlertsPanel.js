@@ -28,6 +28,7 @@ import { CATEGORIES, PRESETS, presetOf, useAlertPrefs } from '../lib/dash/alerts
 import { useDashAccount } from '../lib/dash/sync'
 import { canNotify, installHint, permission, requestPermission } from '../lib/notify'
 import { currentSubscription, pushSupported, subscribePush, unsubscribePush, vapidPublicKey } from '../lib/dash/push'
+import RecentAlerts from './RecentAlerts'
 
 // Every group in lib/dash/alerts.js has to appear here or its switches simply
 // do not render -- the panel iterates GROUPS, not CATEGORIES. Franchise
@@ -237,6 +238,10 @@ export default function AlertsPanel({ styles }) {
         </div>
       ) : null}
       {pushNote ? <p className={styles.muted}>{pushNote}</p> : null}
+
+      {/* What this account's phones were actually sent, and what was dropped
+          for losing a lane -- only meaningful once push is on somewhere. */}
+      <RecentAlerts styles={styles} enabled={mounted && account.signedIn && closedSite} />
 
       <p className={styles.muted}>
         {account.signedIn

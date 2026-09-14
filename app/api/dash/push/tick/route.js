@@ -37,7 +37,7 @@ import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 
@@ -118,10 +118,52 @@ async function saveLineupState(db, rows) {
   }
 }
 
+// ── TONIGHT'S BOARD, ALL NIGHT (2026-09-14) ────────────────────────────────
+//
+// The board is four megabytes and is fetched at most once per five minutes,
+// only before first pitch (lib/dash/board.js). Two things now need it AFTER
+// first pitch: the slate homer wants to say "#4 on tonight's board", and
+// dropout wants to stay quiet for a man scratched already covers. So the one
+// run that fetches the board also writes the ~60 rows it needs -- id, score,
+// role, name -- to dash_board_day, and every later sweep reads that instead.
+// A few kilobytes a minute in place of four megabytes.
+//
+// Best-effort both ways. Without the table (migration not run) the save logs
+// once and the read returns null, and both consumers fall back to what they
+// did before: a plain slate homer, and the route's in-sweep dropout filter.
+const BOARD_KEEP = ['player_id', 'name', 'hr_score', 'game_pick_role', 'game_pk']
+let boardDayCache = { day: '', at: 0, info: null }
+
+async function saveBoardDay(db, rows) {
+  if (!Array.isArray(rows) || !rows.length) return
+  const slim = rows.map((r) => Object.fromEntries(BOARD_KEEP.filter((k) => r[k] !== undefined).map((k) => [k, r[k]])))
+  const { error } = await db
+    .from('dash_board_day')
+    .upsert([{ day: today(), rows: slim, updated_at: new Date().toISOString() }], { onConflict: 'day' })
+  if (error) console.error(`[push] dash_board_day upsert failed: ${error.message}`)
+  else boardDayCache = { day: today(), at: Date.now(), info: boardInfoFrom(slim) }
+}
+
+async function fetchBoardDay(db) {
+  const day = today()
+  if (boardDayCache.day === day && Date.now() - boardDayCache.at < 60 * 1000) return boardDayCache.info
+  try {
+    const { data, error } = await db.from('dash_board_day').select('rows').eq('day', day).maybeSingle()
+    if (error) { console.error(`[push] dash_board_day read failed: ${error.message}`); return null }
+    const info = data?.rows ? boardInfoFrom(data.rows) : null
+    boardDayCache = { day, at: Date.now(), info }
+    return info
+  } catch (err) {
+    console.error('[push] dash_board_day read threw: ' + String(err?.message || err))
+    return null
+  }
+}
+
 async function mlbEvents(db, audience) {
   const snap = await fetchLiveSlate({ force: true }).catch(() => null)
   const lineupState = await fetchLineupState(db, audience)
-  const events = mlbEventsFrom(snap, today(), audience, lineupState)
+  const board = await fetchBoardDay(db)
+  const events = mlbEventsFrom(snap, today(), audience, lineupState, board)
   await saveLineupState(db, lineupUpdatesFrom(snap, today(), audience))
   return events
 }
@@ -140,6 +182,7 @@ async function pregameEvents(db, audience) {
   if (!snap?.games?.some((g) => g?.state === 'Preview')) return []
   if (!(await claimBoardWindow(db))) return []
   const rows = await fetchBoard('today')
+  if (rows) await saveBoardDay(db, rows)
   return rows ? pregameEventsFrom(rows, snap, today(), audience) : []
 }
 
@@ -167,14 +210,24 @@ async function nflEvents(audience) {
 //
 // Quiet events that lose the claim are DROPPED, not queued. They are already
 // marked seen, and "he doubled" arriving eleven minutes late is worth less
-// than the silence it costs.
-const QUIET_WINDOW_MS = 10 * 60 * 1000
+// than the silence it costs. Since 2026-09-14 the drop is at least WRITTEN
+// DOWN -- see logOutcomes -- so the alerts page can show it.
+//
+// TWO LANES (2026-09-14, notification audit). One quiet slot for everything
+// non-urgent meant a multihit could take the window from a dropout -- the
+// scoreboard beating the news, decided by which producer ran first. Now
+// priority 1 (actionable: the board, a lineup change, on deck, a clutch spot)
+// has its own 10-minute slot and priority 2+ (scoreboard: what already
+// happened) a slower 30-minute one. The two devices that were hitting the
+// old cap 62-69 times a night hit these at most 6 + 2 an hour.
+const LANE_WINDOW_MS = { actionable: 10 * 60 * 1000, scoreboard: 30 * 60 * 1000 }
 const BODY_CAP = 5
 
 const shortId = (s) => createHash('sha1').update(String(s)).digest('hex').slice(0, 16)
 
-async function claimQuietSlot(db, endpoint) {
-  const key = `quiet:${shortId(endpoint)}:${Math.floor(Date.now() / QUIET_WINDOW_MS)}`
+async function claimQuietSlot(db, endpoint, lane = 'actionable') {
+  const win = LANE_WINDOW_MS[lane] || LANE_WINDOW_MS.actionable
+  const key = `quiet:${lane}:${shortId(endpoint)}:${Math.floor(Date.now() / win)}`
   const { data, error } = await db
     .from('dash_push_seen')
     .upsert([{ event_key: key }], { onConflict: 'event_key', ignoreDuplicates: true })
@@ -387,14 +440,38 @@ export async function GET(request) {
 
   if (dead.length) await db.from('dash_push_subscriptions').delete().in('endpoint', dead)
   await db.rpc('dash_push_seen_prune')
+  // Fourteen days of per-device history for the alerts page; a missing
+  // function (migration not run) is logged, never thrown.
+  const { error: pruneErr } = await db.rpc('dash_push_log_prune')
+  if (pruneErr) console.error(`[push] dash_push_log_prune: ${pruneErr.message}`)
   return Response.json({ ...totals, dropped: dead.length })
+}
+
+// ── WHAT ACTUALLY REACHED EACH PHONE (2026-09-14) ──────────────────────────
+//
+// dash_push_seen is the sender's dedupe, global and pruned at two days; it
+// cannot say what one device got or lost. dash_push_log can: one row per
+// event per device with the outcome -- sent alone, sent inside a bundle,
+// dropped for losing its lane, or failed at the push service. The alerts
+// page reads it back. Best-effort: a missing table logs once and costs
+// nothing else.
+async function logOutcomes(db, sub, rows) {
+  if (!rows.length) return
+  const endpoint_hash = shortId(sub.endpoint)
+  const { error } = await db.from('dash_push_log').insert(rows.map((r) => ({
+    user_id: sub.user_id, endpoint_hash,
+    event_key: r.event.key, category: r.event.category || null, sport: r.event.sport || null,
+    priority: priorityOf(r.event), lane: laneOf(r.event),
+    title: r.event.title || null, body: r.event.body || null, outcome: r.outcome,
+  })))
+  if (error) console.error(`[push] dash_push_log insert failed: ${error.message}`)
 }
 
 /** One pass: what happened, who has not been told, tell them. */
 async function sweep(db, subs, stateByUser, audience, { full }) {
   const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0 }
   const redZoneEnabled = await isRedZoneAlertsEnabled()
-  const events = [
+  const produced = [
     ...(await mlbEvents(db, audience)),
     ...(await nflEvents(audience)),
     // Every sweep, not gated behind `full` -- see starterScoreEventsFrom's own
@@ -417,6 +494,15 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // take the empty-slot alert down with it.
     ...(full ? await byeStarterEventsFrom(db) : []),
   ].filter((e) => redZoneEnabled || e.category !== 'nflred')
+
+  // ONE FACT, ONE ALERT. A board man missing from the posted card is
+  // `scratched` (P0). mlbEventsFrom already skips his `dropout` when it has
+  // the board in hand; this is the backstop for a sweep that produced both
+  // without one (dash_board_day not yet written, or not yet migrated).
+  const scratchedIds = new Set(produced.filter((e) => e.category === 'scratched').map((e) => String(e.playerId)))
+  const events = scratchedIds.size
+    ? produced.filter((e) => !(e.category === 'dropout' && scratchedIds.has(String(e.playerId))))
+    : produced
   if (!events.length) return nothing
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.
@@ -462,28 +548,34 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
       .sort((a, b) => priorityOf(a) - priorityOf(b))
     if (!mine.length) return
 
-    const urgent = mine.filter((e) => priorityOf(e) === 0)
-    const quiet = mine.filter((e) => priorityOf(e) !== 0)
+    const urgent = mine.filter((e) => laneOf(e) === 'urgent')
+    const actionable = mine.filter((e) => laneOf(e) === 'actionable')
+    const scoreboard = mine.filter((e) => laneOf(e) === 'scoreboard')
 
-    const notes = []
-    if (urgent.length) notes.push(bundle(urgent))
-    if (quiet.length) {
-      if (await claimQuietSlot(db, sub.endpoint)) notes.push(bundle(quiet))
-      else held += quiet.length
+    const notes = []      // [{ note, events }]
+    const outcomes = []   // [{ event, outcome }]
+    if (urgent.length) notes.push({ note: bundle(urgent), events: urgent })
+    for (const [lane, list] of [['actionable', actionable], ['scoreboard', scoreboard]]) {
+      if (!list.length) continue
+      if (await claimQuietSlot(db, sub.endpoint, lane)) notes.push({ note: bundle(list), events: list })
+      else { held += list.length; for (const e of list) outcomes.push({ event: e, outcome: 'dropped' }) }
     }
 
-    for (const note of notes) {
+    for (const { note, events: batch } of notes) {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(note),
         )
         sent += 1
+        for (const e of batch) outcomes.push({ event: e, outcome: batch.length === 1 ? 'sent' : 'bundled' })
       } catch (err) {
         if (err?.statusCode === 404 || err?.statusCode === 410) dead.push(sub.endpoint)
+        for (const e of batch) outcomes.push({ event: e, outcome: 'failed' })
         break
       }
     }
+    await logOutcomes(db, sub, outcomes)
   }))
 
   const discord = await discordSend
