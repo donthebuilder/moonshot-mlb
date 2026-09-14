@@ -15,6 +15,7 @@ import {
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { AnatomyStrip } from '../ScoreAnatomy'
 import SlateGaps from '../SlateGaps'
+import ChartFrame from '../ChartFrame'
 
 // 🎫 PICKS — the bot's card, and yours on top of it.
 //
@@ -287,8 +288,8 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
             {totals.n > 0 && !edgeReal && (
               <div style={{ fontSize: 10.5, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
                 {totals.n} contested rung{totals.n === 1 ? '' : 's'} is not a record yet —
-                both ranges above still overlap, so neither of you has out-picked the other.
-                They come apart somewhere around a hundred rungs, not ten.
+                both ranges above still overlap, so neither of you has out-picked the other, and
+                they come apart somewhere around a hundred rungs, not ten.
               </div>
             )}
 
@@ -328,10 +329,10 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
 
             <div style={{ fontSize: 10.5, color: C.text3, marginTop: 10, lineHeight: 1.6 }}>
               Head to head is the number with a claim on the scoring — same market, same bar,
-              same rung, only the name changed. Void legs (never played) drop from both sides.
+              same rung, only the name changed; void legs (never played) drop from both sides.
               {totals.exhibition > 0 && (
                 <> <b style={{ color: C.yellow }}>Preseason counts here</b> — starters play two
-                  series, so those weeks are thin by nature. They&apos;re stamped in the record
+                  series, so those weeks are thin by nature, and they&apos;re stamped in the record
                   so they can be split back out.</>
               )}
               {totals.n > 0 && totals.n < 30 && (
@@ -342,7 +343,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
           </>
         ) : (
           <div style={{ fontSize: 11.5, color: C.text3, marginTop: 9, lineHeight: 1.6 }}>
-            Nothing graded yet. Take a rung off the bot below, tag how sure you are, and once
+            Nothing graded yet — take a rung off the bot below, tag how sure you are, and once
             the games finish both picks get scored against the same bar.
           </div>
         )}
@@ -392,7 +393,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
         />
       </div>
       <div style={{ fontSize: 11, color: C.text3, marginBottom: 10, lineHeight: 1.6 }}>
-        Five deep per market, ranked across the whole slate. Swap yourself onto any rung and
+        Five deep per market, ranked across the whole slate — swap yourself onto any rung and
         tag how sure you are — <b style={{ color: C.text2 }}>rungs lock at kickoff.</b>
       </div>
 
@@ -517,7 +518,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                       {row && outcome(row.botOut, row.botVal)}
                       {!locked && (
                         <button onClick={() => setOpenSlot(picking ? null : sk)} style={{
-                          ...btnStyle(C.cyan, open), fontSize: 9.5, padding: '3px 8px',
+                          ...btnStyle(C.cyan, open), fontSize: 9.5, padding: '5px 8px',
                         }}>{my ? 'change' : 'take it'}</button>
                       )}
                       {locked && !my && (
@@ -557,7 +558,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                                       onClick={() => conviction(market, rung.rank, k)}
                                       style={{
                                         fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900,
-                                        padding: '2px 7px', borderRadius: 6, cursor: 'pointer',
+                                        padding: '4px 7px', borderRadius: 6, cursor: 'pointer',
                                         letterSpacing: '.06em',
                                         border: `1px solid ${my.conviction === k ? CONV_COLOR()[k] : C.border}`,
                                         background: my.conviction === k ? `${CONV_COLOR()[k]}22` : 'transparent',
