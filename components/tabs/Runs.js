@@ -1,6 +1,6 @@
 'use client'
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { STATE, alpha } from '../../lib/scales'
 import { fetchJSON, groupGames } from '../../lib/data'
 import { clean, teamOf } from '../../lib/player'
@@ -69,7 +69,7 @@ import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS, H, HRR }
 const chip = (on) => {
   const st = on ? STATE.on() : STATE.off()
   return {
-    padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
+    padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.label,
     fontWeight: st.fontWeight, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
     border: `1px solid ${st.borderColor}`,
     background: on ? alpha(st.color, 0.14) : 'transparent',
@@ -108,7 +108,7 @@ function runOdds(run, base) {
  * expanded row too. Phrasing stays descriptive of his own past rate; nothing
  * here says a run continues.
  */
-function RunOddsLine({ run, base, size = 9 }) {
+function RunOddsLine({ run, base, size = TYPE.body }) {
   const k = Math.abs(run)
   const odds = runOdds(k, base)
   if (!odds) return null
@@ -137,7 +137,7 @@ function Picker({ label, value, onChange, options, title }) {
           color: on ? C.orange : C.text3,
           fontWeight: on ? 800 : 700,
           borderRadius: 999, padding: '3px 21px 3px 10px',
-          fontSize: 9.5, fontFamily: NUM_FONT, outline: 'none', cursor: 'pointer',
+          fontSize: TYPE.label, fontFamily: NUM_FONT, outline: 'none', cursor: 'pointer',
           maxWidth: 172, textOverflow: 'ellipsis',
         }}
       >
@@ -184,7 +184,7 @@ function MatchupLine({ row }) {
   const hr = Number(row.bvp_hr) || 0
   if (!arm && !sideTxt && !ab) return null
   return (
-    <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginTop: 3, lineHeight: 1.5 }}>
+    <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, color: C.text3, marginTop: 3, lineHeight: 1.5 }}>
       {arm && (
         <span title={`Tonight's starter${throws ? ` — throws ${throws}HP` : ''}`}>
           vs <b style={{ color: C.text2 }}>{arm}</b>{throws ? ` (${throws})` : ''}
@@ -264,7 +264,7 @@ function DonutLine({ g }) {
   if (!d) return null
   if (!d.n) {
     return (
-      <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginTop: 2 }}
+      <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, color: C.text3, marginTop: 2 }}
         title="A donut is a game with no hit, no run and no RBI — emptier than the blank board's 0-fer, which only requires no hit.">
         🍩 no donut games in this window
       </div>
@@ -272,7 +272,7 @@ function DonutLine({ g }) {
   }
   const f1 = (v) => (v == null ? '—' : (Math.round(v * 10) / 10).toString())
   return (
-    <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, marginTop: 2, lineHeight: 1.55 }}
+    <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, color: C.text3, marginTop: 2, lineHeight: 1.55 }}
       title={`A donut is a game with no hit, no run and no RBI. He has ${d.n} in this window. After each one: how many games he took to record a hit, and to record a 1+ hits+runs+RBI game. A donut with no bounce yet in the window counts as unresolved, not dropped.`}>
       🍩 last donut <b style={{ color: d.last === 0 ? C.red : C.text2 }}>{d.last === 0 ? 'his most recent game' : `${d.last} game${d.last === 1 ? '' : 's'} ago`}</b>
       {' · '}{d.n} in window
@@ -430,7 +430,7 @@ export default function Runs({ players = [], onPlayerClick }) {
   }, [ordered, order]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (data === undefined) {
-    return <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, padding: 18 }}>Loading the run board…</div>
+    return <div style={{ fontSize: TYPE.body, color: C.text3, fontFamily: NUM_FONT, padding: 18 }}>Loading the run board…</div>
   }
   if (!data) {
     return (
@@ -454,7 +454,7 @@ export default function Runs({ players = [], onPlayerClick }) {
             style={chip(mk === m.key)}>{m.label}</button>
         ))}
         <span style={{ width: 8 }} />
-        <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Bar</span>
+        <span style={{ fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Bar</span>
         {market.lines.map((v) => (
           <button key={v} onClick={() => { setThr(v); setOpen(null) }} style={chip(bar === v)}>{v}+</button>
         ))}
@@ -472,7 +472,7 @@ export default function Runs({ players = [], onPlayerClick }) {
             Hot run length, and is disabled rather than hidden on Cold so its
             state survives a toggle back. */}
         <span style={{ width: 8 }} />
-        <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Breaks Allowed</span>
+        <span style={{ fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Breaks Allowed</span>
         {[0, 1, 2, 3].map((n2) => (
           <button key={n2} onClick={() => setBreaks(n2)} disabled={dir !== 'hot'}
             style={{ ...chip(dir === 'hot' && breaks === n2), opacity: dir === 'hot' ? 1 : 0.4, cursor: dir === 'hot' ? 'pointer' : 'default' }}
@@ -493,7 +493,7 @@ export default function Runs({ players = [], onPlayerClick }) {
           title="Show both lineups in one matchup — the whole game on one board."
           options={games.map((g) => [g.key, g.label])} />
         <span style={{ width: 8 }} />
-        <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Order</span>
+        <span style={{ fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Order</span>
         {ORDERS.map(([k, l]) => (
           <button key={k} onClick={() => { setOrder(k); setOpen(null) }} style={chip(order === k)}
             title={k === 'run'
@@ -505,7 +505,7 @@ export default function Runs({ players = [], onPlayerClick }) {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team"
           title="Free-text search. To slice the slate rather than hunt one name, use the team and game pickers."
           style={{
-            marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10.5, padding: '4px 9px',
+            marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: TYPE.body, padding: '4px 9px',
             borderRadius: 999, border: `1px solid ${C.border}`, background: 'transparent',
             color: C.text, minWidth: 128, outline: 'none',
           }} />
@@ -515,7 +515,7 @@ export default function Runs({ players = [], onPlayerClick }) {
           wrong number waiting to happen — this is the same lesson that put
           allPlayers into HitsHRR's Runs mount. */}
       {(team || game) && (
-        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginBottom: 9 }}>
+        <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginBottom: 9 }}>
           Showing <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{sliceName}</b> only —{' '}
           <b style={{ fontFamily: NUM_FONT, color: C.text }}>{rows.length}</b> of the{' '}
           <b style={{ fontFamily: NUM_FONT }}>{base.length}</b> hitters this board would otherwise show.{' '}
@@ -564,8 +564,8 @@ export default function Runs({ players = [], onPlayerClick }) {
                 background: C.bg2, marginBottom: 11,
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
-                  <b style={{ fontSize: 11 }}>Every active run on the board</b>
-                  <span style={{ fontSize: 9, color: C.text3 }}>
+                  <b style={{ fontSize: TYPE.name }}>Every active run on the board</b>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
                     {rows.length} hitters on {label} · longest{' '}
                     <b style={{ color: '#4ade80', fontFamily: NUM_FONT }}>{longest}</b>
                     {coldest < 0 ? <> · deepest drought <b style={{ color: '#f87171', fontFamily: NUM_FONT }}>{Math.abs(coldest)}</b></> : null}
@@ -578,12 +578,12 @@ export default function Runs({ players = [], onPlayerClick }) {
                     return (
                       <div key={v} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}
                         title={`${c2} hitter${c2 === 1 ? '' : 's'} ${hotCol ? 'on a run of' : 'in a drought of'} ${Math.abs(v)}${Math.abs(v) === 8 ? ' or more' : ''} game${Math.abs(v) === 1 ? '' : 's'} for ${label}.`}>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 8, color: c2 ? tone : C.text3 }}>{c2 || ''}</span>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: c2 ? tone : C.text3 }}>{c2 || ''}</span>
                         <span style={{
                           width: '100%', height: Math.max(2, Math.round((c2 / top) * 34)),
                           borderRadius: 2, background: c2 ? alpha(tone, 0.55) : C.border,
                         }} />
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3 }}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
                           {Math.abs(v) === 8 ? `${Math.abs(v)}+` : Math.abs(v)}
                         </span>
                       </div>
@@ -591,10 +591,10 @@ export default function Runs({ players = [], onPlayerClick }) {
                   })}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                  <span style={{ fontSize: 8, color: '#f87171', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>← DROUGHT</span>
-                  <span style={{ fontSize: 8, color: '#4ade80', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>RUN →</span>
+                  <span style={{ fontSize: TYPE.label, color: '#f87171', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>← DROUGHT</span>
+                  <span style={{ fontSize: TYPE.label, color: '#4ade80', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>RUN →</span>
                 </div>
-                <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+                <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
                   The same {rows.length} rows the board is sorted by, counted rather than listed — so a card&apos;s
                   number can be read against the field instead of against the card beside it. Most of any board
                   lives in the first two columns on each side; that is what a run board looks like when nothing
@@ -618,12 +618,12 @@ export default function Runs({ players = [], onPlayerClick }) {
                     borderRadius: 12, padding: '9px 12px', cursor: 'pointer',
                     background: hot ? 'rgba(74,222,128,.05)' : 'rgba(248,113,113,.04)',
                   }}>
-                  <div style={{ fontFamily: NUM_FONT, fontSize: 8, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+                  <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase' }}>
                     {p.team}{p.opp ? ` vs ${p.opp}` : ''} · {label}
                   </div>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 1 }}>{p.name}</div>
+                  <div style={{ fontSize: TYPE.name, fontWeight: 800, marginTop: 1 }}>{p.name}</div>
                   <div style={{
-                    fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, marginTop: 2,
+                    fontFamily: NUM_FONT, fontSize: TYPE.display, fontWeight: 900, marginTop: 2,
                     color: hot ? '#4ade80' : '#f87171',
                     display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap',
                   }}>
@@ -649,7 +649,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                       if (!best) return null
                       if (r.atBest) {
                         return (
-                          <span style={{ fontSize: 9, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
+                          <span style={{ fontSize: TYPE.micro, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
                             title={prev
                               ? `Nothing else in these ${r.n} games comes close: his next-longest ${word} is ${prev}. Strict consecutive, both measured the same way.`
                               : `The only ${word} of any length he has in these ${r.n} games.`}>
@@ -658,7 +658,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                         )
                       }
                       return (
-                        <span style={{ fontSize: 9, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
+                        <span style={{ fontSize: TYPE.micro, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
                           title={`He has been on a longer ${word} inside these ${r.n} games — ${best}. Strict consecutive, the same rule this one is measured against, so the two numbers compare.`}>
                           he has had <b style={{ color: C.text2 }}>{best}</b>
                         </span>
@@ -669,7 +669,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                     title={`His last ${Math.min(r.strip.length, 30)} games for ${label} — oldest on the left, tonight would come next on the right. Bright green is the active run.`}>
                     <Sparkline strip={r.strip} run={r.run} />
                   </div>
-                  <div style={{ display: 'flex', gap: 10, fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
+                  <div style={{ display: 'flex', gap: 10, fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
                     <span title={r.l5 ? `${r.l5.ok} of ${r.l5.n} games` : ''}>L5 <b style={{ color: C.text2 }}>{pct(r.l5)}</b></span>
                     <span title={r.l10 ? `${r.l10.ok} of ${r.l10.n} games` : ''}>L10 <b style={{ color: C.text2 }}>{pct(r.l10)}</b></span>
                     <span title={r.l15 ? `${r.l15.ok} of ${r.l15.n} games` : ''}>L15 <b style={{ color: C.text2 }}>{pct(r.l15)}</b></span>
@@ -679,7 +679,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                       it is the reason to trust or discount the big green
                       number directly above it, so it should not read as fine
                       print. */}
-                  <RunOddsLine run={r.run} base={r.l30 || r.l15} size={9.5} />
+                  <RunOddsLine run={r.run} base={r.l30 || r.l15} size={TYPE.body} />
                   <MatchupLine row={slateRow(players, p)} />
                   <DonutLine g={p.g} />
                 </div>
@@ -703,9 +703,9 @@ export default function Runs({ players = [], onPlayerClick }) {
                       gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 9,
                       padding: i === 0 ? '2px 2px 1px' : '11px 2px 1px',
                     }}>
-                      <span style={{ fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT, color: C.text2, letterSpacing: '.05em' }}>{g}</span>
+                      <span style={{ fontSize: TYPE.name, fontWeight: 900, fontFamily: NUM_FONT, color: C.text2, letterSpacing: '.05em' }}>{g}</span>
                       <span style={{ flex: 1, height: 1, background: C.border }} />
-                      <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>{groupCounts.get(g)} hitters</span>
+                      <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}>{groupCounts.get(g)} hitters</span>
                     </div>
                   )}
                   <div style={{
@@ -718,32 +718,32 @@ export default function Runs({ players = [], onPlayerClick }) {
                       <span
                         title={`${p.name} ${verb} ${label} in each of his last ${Math.abs(r.run)} ${split === 'all' ? '' : `${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} `}games. Tap for the log.`}
                         style={{
-                          fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, minWidth: 26, textAlign: 'right',
+                          fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, minWidth: 26, textAlign: 'right',
                           color: r.run > 0 ? '#4ade80' : r.run < 0 ? '#f87171' : C.text3,
                         }}>{r.run > 0 ? `${r.run}▲` : `${-r.run}▼`}</span>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: TYPE.name, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
                         {p.name}
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>{p.team}</span>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 5 }}>{p.team}</span>
                       </span>
                       <Sparkline strip={r.strip} run={r.run} size={6} max={15} />
                       <span title={r.l15 ? `${r.l15.ok} of his last ${r.l15.n} games cleared ${label}` : ''}
-                        style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, minWidth: 30, textAlign: 'right' }}>
+                        style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, minWidth: 30, textAlign: 'right' }}>
                         {pct(r.l15)}
                       </span>
                     </div>
                     {isOpen && (
                       <div style={{ paddingTop: 8 }}>
-                        <div style={{ display: 'flex', gap: 12, marginBottom: 7, flexWrap: 'wrap', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 7, flexWrap: 'wrap', fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
                           {[['L5', r.l5], ['L10', r.l10], ['L15', r.l15], ['L30', r.l30]].map(([l, w]) => (
                             <span key={l} title={w ? `${w.ok} of ${w.n}` : ''}>
-                              {l} <b style={{ color: C.text, fontSize: 12 }}>{pct(w)}</b>
+                              {l} <b style={{ color: C.text, fontSize: TYPE.body }}>{pct(w)}</b>
                             </span>
                           ))}
                           <button onClick={(e) => { e.stopPropagation(); onPlayerClick?.(slateRow(players, p)) }}
                             style={{ ...chip(false), marginLeft: 'auto' }}>open his card →</button>
                         </div>
                         <GameStrip strip={r.strip} max={15} />
-                        <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5 }}>
+                        <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 5 }}>
                           {label} · newest on the right · green cleared it
                           {split !== 'all' ? ` · ${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} only` : ''}
                         </div>
@@ -773,14 +773,14 @@ function Head({ stamp, n, span }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 4 }}>
-        <span style={{ fontSize: 14, fontWeight: 900 }}>🔥 Patterns</span>
+        <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>🔥 Patterns</span>
         {n != null && (
-          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
             {n} hitters · last {span || 30} games{stamp ? ` · ${stamp}` : ''}
           </span>
         )}
       </div>
-      <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, maxWidth: 780, marginBottom: 9 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, maxWidth: 780, marginBottom: 9 }}>
         Everyone on tonight&apos;s card, sorted by how many games running they&apos;ve cleared the bar you
         pick. <b style={{ color: C.text }}>Cold</b> flips it to the drought board — nine misses in a row
         is a position too. The strip is his last games, newest on the right, and the active run is the
