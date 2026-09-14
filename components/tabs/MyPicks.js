@@ -254,7 +254,9 @@ function Chip({ on, color, onClick, title, children }) {
       disabled={!onClick}
       style={{
         fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.06em',
-        padding: '2.5px 8px', borderRadius: 999, textTransform: 'uppercase',
+        // 2026-09-14: 2.5px vertical was hard to hit on a phone; 6px keeps the
+        // chip row dense but tappable (same call as the Filters.js pass).
+        padding: '6px 9px', borderRadius: 999, textTransform: 'uppercase',
         cursor: onClick ? 'pointer' : 'default', whiteSpace: 'nowrap',
         border: `1px solid ${on ? `${col}88` : C.border}`,
         background: on ? `${col}1f` : 'transparent',
@@ -446,7 +448,8 @@ function Versus({
   })
   const head = { fontSize: 8, fontWeight: 800, letterSpacing: '.11em', textTransform: 'uppercase', fontFamily: NUM_FONT }
   const nameStyle = (dim) => ({
-    background: 'none', border: 'none', padding: 0, textAlign: 'left', minWidth: 0,
+    // 2026-09-14: padding:0 gave the name (the card-opener) no hit area.
+    background: 'none', border: 'none', padding: '4px 0', textAlign: 'left', minWidth: 0,
     fontSize: 12.5, fontWeight: 800, color: dim ? C.text3 : C.text,
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   })
@@ -1021,7 +1024,8 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                       onClick={() => live && onPlayerClick?.(live)}
                       disabled={!live}
                       style={{
-                        background: 'none', border: 'none', padding: 0,
+                        // 2026-09-14: padding:0 -> a real vertical hit area.
+                        background: 'none', border: 'none', padding: '4px 0',
                         cursor: live ? 'pointer' : 'default',
                         fontSize: 12.5, fontWeight: 800, color: C.text,
                       }}
@@ -1676,7 +1680,8 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
 function btn() {
   return {
     border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.035)',
-    color: C.text2, borderRadius: 999, padding: '5px 11px',
+    // 2026-09-14: 5px vertical was a ~26px target on the row's main actions.
+    color: C.text2, borderRadius: 999, padding: '8px 12px',
     fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
   }
 }
