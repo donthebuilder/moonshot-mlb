@@ -247,7 +247,7 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
                 <button
                   onClick={() => unsaved.forEach((r) => onWatch(r.hit, true))}
                   style={{
-                    fontSize: 10.5, fontWeight: 800, padding: '4px 12px', borderRadius: 7,
+                    fontSize: 10.5, fontWeight: 800, padding: '7px 12px', borderRadius: 7,
                     border: `1px solid ${C.orange}`, background: 'rgba(249,115,22,.12)',
                     color: C.orange, cursor: 'pointer', fontFamily: NUM_FONT,
                   }}
@@ -648,10 +648,12 @@ function WatchTracker({ items, nightOf, slateDate, mode, onLedger }) {
   )
 }
 
+// 2026-09-14 tap-target pass: every button on this tab was 3-4px vertical
+// (~22-26px targets). Bumped to 6-7px throughout; the chip rows still wrap.
 function ledBtn() {
   return {
     border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.035)',
-    color: C.text2, borderRadius: 999, padding: '3px 10px',
+    color: C.text2, borderRadius: 999, padding: '6px 11px',
     fontSize: 9.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
   }
 }
@@ -775,7 +777,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             <button
               onClick={handleCopy}
               style={{
-                fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+                fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
                 border: `1px solid ${copied === 'ok' ? C.green : C.border2}`,
                 background: copied === 'ok' ? `${C.green}22` : 'rgba(255,255,255,.04)',
                 color: copied === 'ok' ? C.green : C.text2,
@@ -788,7 +790,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
               onClick={() => downloadShareCard(items)}
               title="Render the list as a PNG image for posting — top 12 by HR score, with bot-pick tags"
               style={{
-                fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+                fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
                 border: `1px solid ${C.border2}`,
                 background: 'rgba(249,115,22,.10)',
                 color: C.orange,
@@ -800,7 +802,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             <button
               onClick={() => downloadTxt(items)}
               style={{
-                fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+                fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
                 border: `1px solid ${C.border2}`,
                 background: 'rgba(255,255,255,.04)',
                 color: C.text2,
@@ -812,7 +814,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             <button
               onClick={() => downloadCsv(items)}
               style={{
-                fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+                fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
                 border: `1px solid ${C.border2}`,
                 background: 'rgba(255,255,255,.04)',
                 color: C.text2,
@@ -825,7 +827,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
               onClick={handleClearAll}
               onBlur={() => setConfirming(false)}
               style={{
-                fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+                fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
                 border: `1px solid ${confirming ? C.red : C.border}`,
                 background: confirming ? `${C.red}22` : 'rgba(255,255,255,.04)',
                 color: confirming ? C.red : C.text3,
@@ -925,7 +927,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                   title={fin ? 'Game final — his full line is in' : 'Game in progress — line so far'}
                   style={{
                     fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
-                    padding: '3px 9px', borderRadius: 7,
+                    padding: '6px 10px', borderRadius: 7,
                     border: `1px solid ${col}55`, color: col,
                     background: hr ? 'rgba(74,222,128,.10)' : 'transparent',
                     fontFamily: NUM_FONT, opacity: fin && !hr && !hits ? 0.65 : 1,
@@ -1118,7 +1120,7 @@ rows={filteredOnSlate.map((p) => {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
                     background: 'rgba(249,115,22,.10)', border: `1px solid ${C.orange}55`,
-                    borderRadius: 8, padding: '4px 10px',
+                    borderRadius: 8, padding: '7px 11px',
                   }}
                 >
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>{nameOf(p)}</span>
@@ -1166,7 +1168,7 @@ rows={filteredOnSlate.map((p) => {
                   style={{
                     fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
                     border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',
-                    borderRadius: 7, padding: '3px 9px',
+                    borderRadius: 7, padding: '6px 10px',
                   }}>
                   {nameOf(p)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>{teamOf(p)}</span>
                   {track !== '—' && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 4 }}>· {track}</span>}
