@@ -39,7 +39,14 @@ export default async function LeaguePage({params,searchParams}) {
   const matchups=matchupRows||[]
   const safeRankings=rankings||[]
   const safeAwards=awards||[]
-  const table=teams.map((team)=>{const record={...team,wins:0,losses:0,ties:0,pointsFor:0,pointsAgainst:0};matchups.filter((game)=>game.status==='final'&&(game.home_team_id===team.id||game.away_team_id===team.id)).forEach((game)=>{const home=game.home_team_id===team.id;const pf=Number(home?game.home_score:game.away_score);const pa=Number(home?game.away_score:game.home_score);record.pointsFor+=pf;record.pointsAgainst+=pa;if(pf>pa)record.wins+=1;else if(pf<pa)record.losses+=1;else record.ties+=1});return record}).sort((a,b)=>b.wins-a.wins||b.pointsFor-a.pointsFor||b.ties-a.ties)
+  const table=teams.map((team)=>{const record={...team,wins:0,losses:0,ties:0,pointsFor:0,pointsAgainst:0};matchups.filter((game)=>game.status==='final'&&(game.home_team_id===team.id||game.away_team_id===team.id)).forEach((game)=>{const home=game.home_team_id===team.id;const pf=Number(home?game.home_score:game.away_score);const pa=Number(home?game.away_score:game.home_score);record.pointsFor+=pf;record.pointsAgainst+=pa;if(pf>pa)record.wins+=1;else if(pf<pa)record.losses+=1;else record.ties+=1});return record})
+    // RANK BY WIN PERCENTAGE, NOT WINS (2026-09-14). Nine teams and four games
+    // a week means five teams play 12 and four play 13 over the 14-week
+    // schedule (generate_fantasy_schedule rotates one null slot). Sorting on
+    // raw wins hands the 13-game teams a free rung; percentage is what every
+    // odd-team league uses. Ties count half. Points for breaks the tie.
+    .map((record)=>({...record,games:record.wins+record.losses+record.ties,pct:(record.wins+record.losses+record.ties)?(record.wins+record.ties*0.5)/(record.wins+record.losses+record.ties):0}))
+    .sort((a,b)=>b.pct-a.pct||b.wins-a.wins||b.pointsFor-a.pointsFor)
   const finalGames=matchups.filter((game)=>game.status==='final').length
   const weekFinals=matchups.filter((game)=>game.week===week&&game.status==='final').length
   const playoffSpots=Math.max(2,Math.min(6,Math.floor((teams.length||league.team_count||8)/2)))
@@ -108,7 +115,7 @@ export default async function LeaguePage({params,searchParams}) {
   </main>
 }
 
-function Standings({finalGames,leagueId,playoffSpots,table,user}){return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON</p><h2>Standings</h2></div><span>W-L-T · Points</span></div><div className={styles.standingHead}><span>RK</span><span>TEAM</span><span>W</span><span>L</span><span>T</span><span>PF</span><span>PA</span></div>{table.map((team,index)=><div className={styles.standingRow} data-cut={finalGames&&index===playoffSpots-1?'true':undefined} data-mine={team.owner_id===user.id?'true':undefined} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:9}}><TeamMark team={team}/><div><b><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link></b>{/* NO GAMES YET, printed under all nine teams, is the same fact the 0-0-0
+function Standings({finalGames,leagueId,playoffSpots,table,user}){return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON</p><h2>Standings</h2></div><span>{table.length%2?`By win % · ${table.length} teams, one idle a week`:'W-L-T · Points'}</span></div><div className={styles.standingHead}><span>RK</span><span>TEAM</span><span>W</span><span>L</span><span>T</span><span>PF</span><span>PA</span></div>{table.map((team,index)=><div className={styles.standingRow} data-cut={finalGames&&index===playoffSpots-1?'true':undefined} data-mine={team.owner_id===user.id?'true':undefined} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:9}}><TeamMark team={team}/><div><b><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link></b>{/* NO GAMES YET, printed under all nine teams, is the same fact the 0-0-0
         and the 0.0 already carry -- and it cost a line of row height on every
         one of them. The line is rendered only when it distinguishes a team. */}
       {(team.owner_id===user.id||finalGames)&&<small>{team.owner_id===user.id?'YOUR TEAM':index<playoffSpots?'IN THE FIELD':'IN THE HUNT'}</small>}</div></div><strong>{team.wins}</strong><strong>{team.losses}</strong><strong>{team.ties}</strong><span>{team.pointsFor.toFixed(1)}</span><span>{team.pointsAgainst.toFixed(1)}</span></div>)}</section>}
