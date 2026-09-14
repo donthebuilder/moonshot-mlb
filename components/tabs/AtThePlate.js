@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { fullBox, forget } from '../../lib/boxscore'
 import { BattingBox, PitchingBox } from '../BoxTable'
 import { nameOf, teamOf, oppOf, clean, n, hrScore, playerId } from '../../lib/player'
@@ -88,15 +88,15 @@ function CountDots({ balls, strikes }) {
     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}
       title={`The count, walked from tonight's pitch sequence: ${balls} ball${balls === 1 ? '' : 's'}, ${strikes} strike${strikes === 1 ? '' : 's'}.`}>
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <span style={{ fontSize: 7.5, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>B</span>
+        <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>B</span>
         {[0, 1, 2].map((i) => <span key={i} style={dot(i < balls, '#4ade80')} />)}
       </div>
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <span style={{ fontSize: 7.5, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>S</span>
+        <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>S</span>
         {[0, 1].map((i) => <span key={i} style={dot(i < strikes, '#f87171')} />)}
       </div>
       <span style={{
-        fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, letterSpacing: '-.02em',
+        fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.02em',
         color: COUNT_COL(balls, strikes), marginLeft: 2,
       }}>{balls}–{strikes}</span>
     </div>
@@ -125,17 +125,17 @@ function Sequence({ pitches }) {
               background: missed ? 'rgba(248,113,113,.12)' : `${col}12`,
               borderRadius: 9, padding: '4px 8px 5px', textAlign: 'center',
             }}>
-            <div style={{ fontSize: 7.5, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.2 }}>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.2 }}>
               {p.seq} · {p.cnt}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 900, color: col, fontFamily: NUM_FONT, lineHeight: 1.25 }}>
+            <div style={{ fontSize: TYPE.body, fontWeight: 900, color: col, fontFamily: NUM_FONT, lineHeight: 1.25 }}>
               {p.type || '—'}
             </div>
-            <div style={{ fontSize: 8.5, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.25 }}>
+            <div style={{ fontSize: TYPE.micro, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.25 }}>
               {p.velo != null ? p.velo.toFixed(0) : '·'}
             </div>
             <div style={{
-              fontSize: 7.5, lineHeight: 1.25, whiteSpace: 'nowrap',
+              fontSize: TYPE.micro, lineHeight: 1.25, whiteSpace: 'nowrap',
               color: missed ? '#f87171' : took ? '#4ade80' : C.text3,
             }}>{KIND_WORD[p.kind] === 'swing & miss' ? 'whiff' : KIND_WORD[p.kind] || p.kind}</div>
           </div>
@@ -150,14 +150,14 @@ function Arsenal({ rows, pitcherName }) {
   if (!rows?.length) return null
   return (
     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-      <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.07em', textTransform: 'uppercase' }}>
+      <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.07em', textTransform: 'uppercase' }}>
         Tonight&apos;s mix
       </span>
       {rows.slice(0, 6).map((r) => (
         <span key={r.code}
           title={`${pitcherName || 'He'} has thrown ${r.n} ${PITCH_NAMES[r.code] || r.code}${r.n === 1 ? '' : 's'} tonight — ${r.pct.toFixed(0)}% of his pitches${r.velo != null ? `, averaging ${r.velo.toFixed(1)} mph` : ''}${r.swings ? `. ${r.whiffs} whiff${r.whiffs === 1 ? '' : 's'} on ${r.swings} swing${r.swings === 1 ? '' : 's'}` : ''}. Counted from this game only.`}
           style={{
-            fontSize: 9, fontFamily: NUM_FONT, cursor: 'default', whiteSpace: 'nowrap',
+            fontSize: TYPE.micro, fontFamily: NUM_FONT, cursor: 'default', whiteSpace: 'nowrap',
             color: pitchColor(r.code), border: `1px solid ${pitchColor(r.code)}44`,
             background: `${pitchColor(r.code)}10`, borderRadius: 999, padding: '1px 8px',
           }}>
@@ -183,7 +183,7 @@ function PitcherChips({ pitchers, viewId, onPick }) {
   if (pitchers.length < 2) return null
   return (
     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
-      <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.07em', textTransform: 'uppercase' }}>
+      <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.07em', textTransform: 'uppercase' }}>
         Pitchers tonight
       </span>
       {pitchers.map((p) => {
@@ -193,7 +193,7 @@ function PitcherChips({ pitchers, viewId, onPick }) {
             title={`${p.name} — ${p.n} tracked pitch${p.n === 1 ? '' : 'es'} tonight${p.live ? '. Currently on the mound.' : '. No longer in the game — tap to view his night.'}`}
             style={{
               display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-              fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800,
+              fontSize: TYPE.micro, fontFamily: NUM_FONT, fontWeight: 800,
               border: `1px solid ${on ? '#4ade80' : C.border}`,
               background: on ? 'rgba(74,222,128,.12)' : 'rgba(255,255,255,.02)',
               color: on ? '#4ade80' : C.text2,
@@ -229,10 +229,10 @@ function GamesBoard({ games, activePk, lines, abbrs, onSelect }) {
       <Band note="every live at-bat, your picks first — tap a row to open that game's room below">Games</Band>
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
-          <span style={{ width: 118, flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>GAME</span>
-          <span style={{ width: 58, flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>INN</span>
-          <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>AT THE PLATE</span>
-          <span style={{ width: 70, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>TONIGHT</span>
+          <span style={{ width: 118, flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>GAME</span>
+          <span style={{ width: 58, flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>INN</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>AT THE PLATE</span>
+          <span style={{ width: 70, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>TONIGHT</span>
         </div>
         {games.map((x, i) => {
           const on = x.pk === activePk
@@ -246,22 +246,22 @@ function GamesBoard({ games, activePk, lines, abbrs, onSelect }) {
               background: on ? 'rgba(249,115,22,.07)' : 'transparent',
               borderBottom: i < games.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
             }}>
-              <span style={{ width: 118, flexShrink: 0, fontSize: 10.5, fontWeight: 700, fontFamily: NUM_FONT, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ width: 118, flexShrink: 0, fontSize: TYPE.body, fontWeight: 700, fontFamily: NUM_FONT, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {abbrs?.[x.g.awayId] || 'Away'} <b style={{ color: on ? C.orange : C.text }}>{x.g.awayScore ?? 0}–{x.g.homeScore ?? 0}</b> {abbrs?.[x.g.homeId] || 'Home'}
               </span>
-              <span style={{ width: 58, flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}
+              <span style={{ width: 58, flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}
                 title={outs != null ? `${String(x.g.half || '')} ${x.g.inning}, ${outs} out${outs === 1 ? '' : 's'}` : undefined}>
                 {String(x.g.half || '').slice(0, 3)}{x.g.inning}{outs != null ? ` · ${outs}o` : ''}
               </span>
               <span style={{ flex: 1, minWidth: 0, display: 'flex', gap: 5, alignItems: 'baseline' }}>
                 {x.role ? (
-                  <span style={{ fontSize: 7.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[x.role] || C.text3, letterSpacing: '.05em', flexShrink: 0 }}>🤖{x.role}</span>
+                  <span style={{ fontSize: TYPE.label, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[x.role] || C.text3, letterSpacing: '.05em', flexShrink: 0 }}>🤖{x.role}</span>
                 ) : x.watched ? (
                   <span style={{ fontSize: 9, flexShrink: 0 }}>★</span>
                 ) : null}
-                <span style={{ fontSize: 10.5, fontWeight: on ? 800 : 600, color: on ? C.text : C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{x.name}</span>
+                <span style={{ fontSize: TYPE.body, fontWeight: on ? 800 : 600, color: on ? C.text : C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{x.name}</span>
               </span>
-              <span style={{ width: 70, textAlign: 'right', flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: l?.hr ? C.orange : C.text3, fontWeight: l?.hr ? 800 : 400 }}
+              <span style={{ width: 70, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: l?.hr ? C.orange : C.text3, fontWeight: l?.hr ? 800 : 400 }}
                 title={l ? `The batter at the plate, tonight: ${l.h}-${l.ab}${l.hr ? `, ${l.hr} HR` : ''}` : 'First trip tonight'}>
                 {l ? `${l.h}-${l.ab}${l.hr ? ` ${l.hr}HR` : ''}` : '—'}
               </span>
@@ -269,7 +269,7 @@ function GamesBoard({ games, activePk, lines, abbrs, onSelect }) {
           )
         })}
       </div>
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
         This picks the GAME — inside its room, tap anyone in Coming up or the box score to point
         the charts at him instead.
       </div>
@@ -306,7 +306,7 @@ function Timeline({ feed, g, abbrs, onPick }) {
           <span style={{ display: 'flex', gap: 4 }}>
             {[[false, `Scoring ${scoring.length}`], [true, `All plays ${meta.length}`]].map(([v, label]) => (
               <button key={String(v)} onClick={() => setAllPlays(v)} style={{
-                fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer',
+                fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer',
                 border: `1px solid ${allPlays === v ? C.orange : C.border}`,
                 background: allPlays === v ? 'rgba(249,115,22,.12)' : 'transparent',
                 color: allPlays === v ? C.orange : C.text3,
@@ -314,10 +314,10 @@ function Timeline({ feed, g, abbrs, onPick }) {
               }}>{label}</button>
             ))}
           </span>
-          <span style={{ marginLeft: 'auto', fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>{away}–{home}</span>
+          <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{away}–{home}</span>
         </div>
         {rows.length === 0 ? (
-          <div style={{ fontSize: 10, color: C.text3, padding: '6px 0', lineHeight: 1.5 }}>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, padding: '6px 0', lineHeight: 1.5 }}>
             No runs yet — {meta.length} plate appearance{meta.length === 1 ? '' : 's'} complete.
             Tap <b style={{ color: C.text2 }}>All plays</b> for every one of them.
           </div>
@@ -331,21 +331,21 @@ function Timeline({ feed, g, abbrs, onPick }) {
                 cursor: 'pointer', minWidth: 0,
                 borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
               }}>
-              <span style={{ width: 30, flexShrink: 0, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+              <span style={{ width: 30, flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                 {/^top/i.test(m.half) ? 'T' : 'B'}{m.inning}
               </span>
               <span style={{
-                flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: hr ? 800 : 600,
+                flex: 1, minWidth: 0, fontSize: TYPE.body, fontWeight: hr ? 800 : 600,
                 color: hr ? C.orange : C.text2,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {hr ? '💥 ' : ''}<b style={{ color: C.text }}>{String(m.batterName || '').split(' ').slice(-1)[0] || '—'}</b>
                 {' '}{String(m.event || '').toLowerCase()}
               </span>
-              <span style={{ width: 34, textAlign: 'right', flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: m.rbi ? '#4ade80' : C.text3, fontWeight: m.rbi ? 800 : 400 }}>
+              <span style={{ width: 34, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: m.rbi ? '#4ade80' : C.text3, fontWeight: m.rbi ? 800 : 400 }}>
                 {m.rbi ? `+${m.rbi}` : '·'}
               </span>
-              <span style={{ width: 44, textAlign: 'right', flexShrink: 0, fontSize: 9.5, fontFamily: NUM_FONT, color: (m.rbi || 0) > 0 || hr ? C.text : C.text3, fontWeight: (m.rbi || 0) > 0 || hr ? 800 : 400 }}>
+              <span style={{ width: 44, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: (m.rbi || 0) > 0 || hr ? C.text : C.text3, fontWeight: (m.rbi || 0) > 0 || hr ? 800 : 400 }}>
                 {m.as != null && m.hs != null ? `${m.as}–${m.hs}` : '·'}
               </span>
             </div>
@@ -412,12 +412,12 @@ function Situation({ outs, on1, on2, on3 }) {
               border: `1px solid ${outs > i ? '#f87171' : 'rgba(255,255,255,.28)'}`,
             }} />
           ))}
-          <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.06em', fontWeight: 800 }}>OUT</span>
+          <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.06em', fontWeight: 800 }}>OUT</span>
         </span>
       </span>
       {/* THE NAMES, ON SCREEN (2026-08-18) — see header note above. */}
       {runners.length > 0 && (
-        <span style={{ fontSize: 8, color: '#FCD34D', fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700 }}>
+        <span style={{ fontSize: TYPE.micro, color: '#FCD34D', fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700 }}>
           {runners.map(([b, name]) => `${b} ${lastOf(name)}`).join(' · ')}
         </span>
       )}
@@ -437,7 +437,7 @@ const CARD = () => ({
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const LABEL = () => ({
-  fontSize: 8.5, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
+  fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
   color: C.text3, fontFamily: NUM_FONT,
 })
 
@@ -758,11 +758,11 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               const s = feed && feed.outs != null ? feed : (a.g.outs != null ? a.g : null)
               return s ? <Situation outs={s.outs} on1={s.on1} on2={s.on2} on3={s.on3} /> : null
             })()}
-            <span style={{ fontSize: 11, fontWeight: 900, color: LIVE }}>
+            <span style={{ fontSize: TYPE.body, fontWeight: 900, color: LIVE }}>
               {String(a.g.half || '').slice(0, 3)} {a.g.inning}
             </span>
             {a.g.awayScore != null && a.g.homeScore != null && (
-              <span style={{ fontSize: 11, color: C.text2, fontWeight: 700 }}>
+              <span style={{ fontSize: TYPE.body, color: C.text2, fontWeight: 700 }}>
                 {a.g.awayScore}<span style={{ color: C.text3 }}>–</span>{a.g.homeScore}
               </span>
             )}
@@ -776,7 +776,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               onClick={() => a.p && onPlayerClick?.(a.p)}
               className={a.p ? 'tap-row' : undefined}
               style={{
-                fontSize: a.name.length > 18 ? 22 : 27, fontWeight: 900, letterSpacing: '-.025em',
+                fontSize: a.name.length > 18 ? TYPE.title : TYPE.display, fontWeight: 900, letterSpacing: '-.025em',
                 lineHeight: 1.05, cursor: a.p ? 'pointer' : 'default',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}
@@ -785,25 +785,25 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
               {a.role && (
                 <span style={{
-                  fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.06em',
+                  fontSize: TYPE.label, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.06em',
                   color: '#0b0b0d', background: ROLE_COLOR[a.role],
                   borderRadius: 5, padding: '2px 8px',
                 }}>{a.role} PICK</span>
               )}
               {a.p && (
-                <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}>
+                <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}>
                   {teamOf(a.p)} · #{clean(a.p?.lineup_spot, '?')} · {String(a.p?.bats || '?').toUpperCase().slice(0, 1)}HB
                 </span>
               )}
               {a.p && (
-                <span title="The bot's HR score for him tonight" style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, cursor: 'default' }}>
+                <span title="The bot's HR score for him tonight" style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3, cursor: 'default' }}>
                   board <b style={{ color: C.orange }}>{hrScore(a.p).toFixed(0)}</b>
                 </span>
               )}
             </div>
 
             {/* one quiet line: the arm, and his night so far */}
-            <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 5, lineHeight: 1.6 }}>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 5, lineHeight: 1.6 }}>
               {a.p ? <>vs <b style={{ color: C.text2 }}>{clean(a.p?.pitcher_name, 'TBD')}</b>
                 {a.p?.pitcher_throws ? ` (${a.p.pitcher_throws})` : ''}
                 {n(a.p?.pitcher_hr9, 0) > 0 && <span style={{ color: n(a.p.pitcher_hr9, 0) >= 1.4 ? '#f87171' : C.text3 }}> · {n(a.p.pitcher_hr9, 0).toFixed(2)} HR/9</span>}
@@ -826,7 +826,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               background: `${COUNT_COL(atBat.balls, atBat.strikes)}0e`,
               textAlign: 'center', minWidth: 118,
             }}>
-              <div style={{ ...LABEL(), fontSize: 7.5, marginBottom: 3 }}>
+              <div style={{ ...LABEL(), marginBottom: 3 }}>
                 {atBat.live ? 'The count' : 'Final count'}
               </div>
               <CountDots balls={atBat.balls} strikes={atBat.strikes} />
@@ -834,7 +834,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                 <div
                   title={`Plate appearance number ${facing} against this arm tonight. Hitters historically do better the third time through — the pitcher has shown them everything by then.`}
                   style={{
-                    fontSize: 8.5, fontFamily: NUM_FONT, marginTop: 5, cursor: 'default',
+                    fontSize: TYPE.micro, fontFamily: NUM_FONT, marginTop: 5, cursor: 'default',
                     color: facing >= 3 ? C.orange : C.text3, fontWeight: facing >= 3 ? 800 : 400,
                   }}>
                   {facing === 1 ? '1st look at him' : facing === 2 ? '2nd look' : `${facing}${facing === 3 ? 'rd' : 'th'} time through`}
@@ -852,19 +852,19 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             marginTop: 11, paddingTop: 10, borderTop: `1px solid ${C.border}`,
           }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 7 }}>
-              <span style={{ ...LABEL(), fontSize: 7.5 }}>
+              <span style={{ ...LABEL() }}>
                 {atBat.live ? 'Pitch by pitch' : 'How it ended'}
               </span>
               {!atBat.live && atBat.event && (
                 <span style={{
-                  fontSize: 9.5, fontWeight: 900, fontFamily: NUM_FONT,
+                  fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT,
                   color: /home run/i.test(atBat.event) ? C.orange : C.text3,
                   border: `1px solid ${/home run/i.test(atBat.event) ? C.orange : C.border2}`,
                   borderRadius: 999, padding: '2px 9px',
                 }}>{atBat.event.toUpperCase()}</span>
               )}
               {prior.length > 0 && (
-                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}
                   title={prior.map((x) => `${x.inning ? `inning ${x.inning}: ` : ''}${x.event}`).join(' · ')}>
                   earlier: {prior.map((x) => x.event).join(' · ')}
                 </span>
@@ -890,7 +890,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         {/* No pitches yet is a real state on this page — he steps in before
             the first one is thrown. Say so rather than showing an empty box. */}
         {feed && !atBat && (
-          <div style={{ marginTop: 9, fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
+          <div style={{ marginTop: 9, fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6 }}>
             He hasn&apos;t seen a pitch yet — the count and the sequence fill in from the first one.
           </div>
         )}
@@ -923,22 +923,22 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
       {/* ── 4 · THE CHARTS ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{
-          fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
+          fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
           color: C.text2, fontFamily: NUM_FONT,
         }}>Zone &amp; spray</span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{selName || '—'}</span>
+        <span style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{selName || '—'}</span>
         {watchingSomeoneElse && (
           <button onClick={() => setPinnedHitter(null)} style={{
-            fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 999,
+            fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 999,
             padding: '2px 10px', border: `1px solid ${LIVE}66`, background: 'rgba(74,222,128,.10)', color: LIVE,
           }}>← back to the hitter at the plate</button>
         )}
         {selLine && (
-          <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
             tonight {selLine.h}-{selLine.ab}{selLine.hr ? ` · ${selLine.hr} HR` : ''}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+        <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {feed === undefined ? 'loading tonight’s feed…'
             : feed === null ? 'live feed unavailable — nothing to plot'
             : `${feed.pitches.length} pitches · ${feed.balls.length} balls in play this game`}
@@ -946,13 +946,13 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
       </div>
 
       {feed && livePitchesFor.length === 0 && zoneScope !== 'all' && (
-        <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
           {viewPitcher ? (
             <>{selName || 'He'} hasn&apos;t faced{' '}
               <b style={{ color: C.text2 }}>{pitchersTonight.find((x) => x.id === viewPitcher)?.name || 'that pitcher'}</b>{' '}
               tonight — showing nothing rather than another arm&apos;s pitches under his name.{' '}
               <button onClick={() => setViewPitcherId(null)} style={{
-                fontSize: 10, fontWeight: 700, color: LIVE, background: 'none', border: 'none',
+                fontSize: TYPE.micro, fontWeight: 700, color: LIVE, background: 'none', border: 'none',
                 padding: 0, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit',
               }}>see every pitcher instead</button>.
             </>
@@ -997,10 +997,10 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 800 }}>🗺 Spray chart</span>
+              <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>🗺 Spray chart</span>
               {sprayBalls.length > 0 && (
                 <span title={`${sprayBalls.length} tracked ball${sprayBalls.length === 1 ? '' : 's'} in play ${sprayScope === 'him' ? `from ${selName || 'him'}` : 'in this game'}, plotted on the same field`} style={{
-                  fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
+                  fontSize: TYPE.label, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.08em',
                   color: LIVE, border: `1px solid ${LIVE}70`, background: 'rgba(74,222,128,.10)',
                   borderRadius: 999, padding: '2px 8px',
                 }}>● LIVE {sprayBalls.length}</span>
@@ -1012,7 +1012,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                 <span style={{ display: 'flex', gap: 4 }}>
                   {[['game', `This game ${liveBalls.length}`], ['him', `Just ${String(selName || 'him').split(' ').slice(-1)[0]} ${hisBalls.length}`]].map(([k, label]) => (
                     <button key={k} onClick={() => setSprayScope(k)} style={{
-                      fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer',
+                      fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer',
                       border: `1px solid ${sprayScope === k ? LIVE : C.border}`,
                       background: sprayScope === k ? 'rgba(74,222,128,.12)' : 'transparent',
                       color: sprayScope === k ? LIVE : C.text3,
@@ -1021,7 +1021,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                   ))}
                 </span>
               )}
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
+              <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                 tonight only
               </span>
             </div>
@@ -1058,39 +1058,39 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           </Band>
           <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ width: 30, flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>INN</span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>RESULT</span>
-              <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>EV</span>
-              <span style={{ width: 30, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>LA</span>
-              <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>DIST</span>
-              <span style={{ width: 66, textAlign: 'right', flexShrink: 0, fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}>FLAGS</span>
+              <span style={{ width: 30, flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>INN</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>RESULT</span>
+              <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>EV</span>
+              <span style={{ width: 30, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>LA</span>
+              <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>DIST</span>
+              <span style={{ width: 66, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>FLAGS</span>
             </div>
             {[...hisBalls].reverse().map((b, i) => {
               const isHr = /home.?run/i.test(String(b.event || ''))
               return (
                 <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '3px 0', borderBottom: i < hisBalls.length - 1 ? `1px solid rgba(255,255,255,.04)` : 'none' }}>
-                  <span style={{ width: 30, flexShrink: 0, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+                  <span style={{ width: 30, flexShrink: 0, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                     {b.half === 'top' ? 'T' : 'B'}{b.inning || '?'}
                   </span>
                   <span title={b.typeName ? `Off a ${b.typeName}${b.velo != null ? ` at ${b.velo.toFixed(0)} mph` : ''}` : undefined} style={{
-                    flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: isHr ? 900 : 600,
+                    flex: 1, minWidth: 0, fontSize: TYPE.body, fontWeight: isHr ? 900 : 600,
                     color: isHr ? C.orange : b.xbh ? '#4ade80' : C.text2,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>
                     {isHr ? '💥 ' : ''}{String(b.event || '—').replace(/_/g, ' ')}
                   </span>
-                  <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT, fontWeight: b.hh ? 800 : 400, color: b.hh ? '#fb923c' : C.text2 }}>
+                  <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, fontWeight: b.hh ? 800 : 400, color: b.hh ? '#fb923c' : C.text2 }}>
                     {b.ev != null ? b.ev.toFixed(1) : '·'}
                   </span>
-                  <span style={{ width: 30, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT, color: C.text2 }}>
+                  <span style={{ width: 30, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text2 }}>
                     {b.la != null ? `${Math.round(b.la)}°` : '·'}
                   </span>
-                  <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT, color: b.dist >= 375 ? '#fb923c' : C.text2 }}>
+                  <span style={{ width: 38, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: b.dist >= 375 ? '#fb923c' : C.text2 }}>
                     {b.dist ? Math.round(b.dist) : '·'}
                   </span>
                   <span style={{ width: 66, textAlign: 'right', flexShrink: 0, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
-                    {b.hh && <span title="Hard hit — 95+ mph off the bat" style={{ fontSize: 7.5, fontWeight: 900, fontFamily: NUM_FONT, color: '#fb923c', border: '1px solid #fb923c55', borderRadius: 4, padding: '0 4px' }}>HH</span>}
-                    {b.barrel && <span title="Barrel — the EV/LA combinations that historically produce .500/1.500" style={{ fontSize: 7.5, fontWeight: 900, fontFamily: NUM_FONT, color: '#f87171', border: '1px solid #f8717155', borderRadius: 4, padding: '0 4px' }}>BRL</span>}
+                    {b.hh && <span title="Hard hit — 95+ mph off the bat" style={{ fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color: '#fb923c', border: '1px solid #fb923c55', borderRadius: 4, padding: '0 4px' }}>HH</span>}
+                    {b.barrel && <span title="Barrel — the EV/LA combinations that historically produce .500/1.500" style={{ fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color: '#f87171', border: '1px solid #f8717155', borderRadius: 4, padding: '0 4px' }}>BRL</span>}
                   </span>
                 </div>
               )
@@ -1107,7 +1107,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
         <JustNow players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
       </div>
 
-      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 10, lineHeight: 1.65, maxWidth: 760 }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 10, lineHeight: 1.65, maxWidth: 760 }}>
         The same zone map and spray chart the player card uses, in their <b style={{ color: C.text2 }}>tonight-only</b>{' '}
         skin: every dot on this page comes from this game and nothing else. Tonight&apos;s pitches are the
         feed&apos;s own pX/pZ laid on the zone grid; tonight&apos;s batted balls are its own hit coordinates
@@ -1180,7 +1180,7 @@ function BoxScore({ g, byId, watchIds, onPick, abbrs }) {
   if (!g?.pk) return null
   if (box === undefined) {
     return (
-      <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, padding: '8px 0' }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, padding: '8px 0' }}>
         Loading the box…
       </div>
     )
@@ -1191,10 +1191,10 @@ function BoxScore({ g, byId, watchIds, onPick, abbrs }) {
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
         <span style={{
-          fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
+          fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
           color: C.text2, fontFamily: NUM_FONT,
         }}>Box score</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>
+        <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
           both sides, straight off the league&apos;s boxscore{live ? ' · refreshing every 30s' : ''}
         </span>
       </div>
@@ -1223,18 +1223,18 @@ function Header({ auto, setAuto, refresh, count }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 19, fontWeight: 900, letterSpacing: '-.01em' }}>🎤 At the Plate</span>
-        <span style={{ fontSize: 10.5, color: C.text3 }}>
+        <span style={{ fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.01em' }}>🎤 At the Plate</span>
+        <span style={{ fontSize: TYPE.body, color: C.text3 }}>
           {count > 0 ? `${count} hitter${count === 1 ? '' : 's'} batting right now` : 'live batters, as they step in'}
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           <button onClick={() => setAuto((v) => !v)} style={{
-            fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 7, padding: '3px 10px',
+            fontSize: TYPE.micro, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 7, padding: '3px 10px',
             border: `1px solid ${auto ? LIVE : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
             color: auto ? LIVE : C.text3,
           }}>{auto ? '● auto 25s' : '○ auto'}</button>
           <button onClick={refresh} style={{
-            fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 7, padding: '3px 10px',
+            fontSize: TYPE.micro, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 7, padding: '3px 10px',
             border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
           }}>↻</button>
         </span>
