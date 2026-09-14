@@ -841,63 +841,57 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
       />
       <WatchTracker items={items} nightOf={nightOf} slateDate={slateDate} mode={mode} onLedger={setLed} />
 
-      {/* VITALS STRIP — the list as one glance: size, bot overlap, power,
-          matchup edges. Each tile is the answer to a question you'd otherwise
-          scan twelve cards for. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+      {/* VITALS STRIP → ONE SENTENCE (2026-09-14, Path to Victory E1 —
+          flagged in the commit that closed the tap-target half of this
+          file: "the 12-tile stat grid ... costs ~two phone screens before
+          the ledger. 'tiles lose to sentences' applies, and it is a
+          rewrite of the header, not a padding change."). Same twelve
+          facts, no boxes. Base clause always renders; the graded clause
+          (six bars + the raw hit count) only prints once tonight has
+          graded rows — same gate the tiles used. Hover a bold number for
+          the definition its tile used to carry as a title.
+
+          THE SIX BARS AREN'T A JUDGEMENT CALL (2026-08-31, on request —
+          "i think it should track a few more like xbh or hrr... maybe
+          like total hits"): pickCleared() in lib/liveSlate.js already
+          defines the bars the BOT is graded on — 1+ HR, 1+ hit, 2+
+          H+R+RBI, 2+ total bases. XBH and multi-hit ride along because
+          the raw counts already answer them. */}
+      <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.65, marginBottom: 10 }}>
         {(() => {
           const bots = items.filter((p) => botPickOf(p)).length
           const avgHr = items.reduce((s2, p) => s2 + hrScore(p), 0) / Math.max(1, items.length)
           const weak = items.filter((p) => p?.weak_spot_flag).length
           const conf = items.filter((p) => p?.lineup_confirmed).length
-          return [
-            ['Saved', items.length, C.orange, ''],
-            ['Bot picks', bots, '#FCD34D', bots ? 'the bot agrees on these' : ''],
-            ['Avg HR score', avgHr.toFixed(1), '#f97316', ''],
-            ['Weak spots', weak, '#FCD34D', ''],
-            ['Confirmed', `${conf}/${items.length}`, conf === items.length ? '#4ade80' : '#a78bfa', 'lineups locked'],
-            // ── TONIGHT, ON ALL SIX BARS (2026-08-31) ──────────────────
-            //
-            // Donovan: "i think it should trakc a few more like xbh or hrr...
-            // maybe like total hits."
-            //
-            // The four that matter are not a judgement call: pickCleared() in
-            // lib/liveSlate.js already defines the bars the BOT is graded on —
-            // 1+ HR, 1+ hit, 2+ H+R+RBI, 2+ total bases. Tracking two of them
-            // meant your saved list and the bot's picks were being measured
-            // with different rulers and could not be compared. Now they can.
-            //
-            // XBH and multi-hit ride along because the raw counts already
-            // answer them and nobody was asking: a double is not a homer and
-            // is not nothing, and one hit is not three.
-            ...(() => {
-              const graded = items.map((p) => nightOf.get(mlbId(p))).filter(Boolean)
-              if (!graded.length) return []
-              const N = graded.length
-              const cnt = (f) => graded.filter(f).length
-              const xbh = (g) => Number(g.actual_doubles || 0) + Number(g.actual_triples || 0) + Number(g.actual_hr || 0)
-              const combo = (g) => Number(g.actual_hits || 0) + Number(g.actual_runs || 0) + Number(g.actual_rbi || 0)
-              const hrs = cnt((g) => Number(g.actual_hr) > 0)
-              const half = (v) => (v > N / 2 ? '#4ade80' : '#a78bfa')
-              return [
-                ['💥 Went deep', `${hrs}/${N}`, hrs ? '#4ade80' : C.text3, 'Saved hitters who homered tonight. The bot\u2019s HR and TOP bar.'],
-                ['Got a hit', `${cnt((g) => Number(g.actual_hits) > 0)}/${N}`, half(cnt((g) => Number(g.actual_hits) > 0)), 'One hit or more \u2014 the bot\u2019s HIT bar, of those graded so far.'],
-                ['Multi-hit', `${cnt((g) => Number(g.actual_hits || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_hits || 0) >= 2)), 'Two hits or more. One hit and three hits are not the same night.'],
-                ['XBH', `${cnt((g) => xbh(g) > 0)}/${N}`, half(cnt((g) => xbh(g) > 0)), 'A double, a triple or a homer. A double is not a homer and is not nothing.'],
-                ['H+R+RBI 2+', `${cnt((g) => combo(g) >= 2)}/${N}`, half(cnt((g) => combo(g) >= 2)), 'The bot\u2019s HRR bar, scored exactly as pickCleared() scores it.'],
-                ['2+ bases', `${cnt((g) => Number(g.actual_tb || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_tb || 0) >= 2)), 'The bot\u2019s CONTACT bar: two or more total bases.'],
-                ['Total hits', graded.reduce((a, g) => a + (Number(g.actual_hits) || 0), 0), C.orange, 'Raw hits across every saved hitter tonight \u2014 a count, not a rate, so it has no denominator to be honest about.'],
-              ]
-            })(),
-          ].map(([l, v, c2, note]) => (
-            <div key={l} title={note} style={{
-              background: `linear-gradient(135deg, ${c2}14, ${c2}05)`,
-              border: `1px solid ${c2}3d`, borderRadius: 10, padding: '7px 13px',
-            }}>
-              <div style={{ fontSize: 8.5, textTransform: 'uppercase', letterSpacing: '.07em', color: C.text3, fontWeight: 800 }}>{l}</div>
-              <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: c2 }}>{v}</div>
-            </div>
-          ))
+          const graded = items.map((p) => nightOf.get(mlbId(p))).filter(Boolean)
+          const N = graded.length
+          const cnt = (f) => graded.filter(f).length
+          const xbh = (g) => Number(g.actual_doubles || 0) + Number(g.actual_triples || 0) + Number(g.actual_hr || 0)
+          const combo = (g) => Number(g.actual_hits || 0) + Number(g.actual_runs || 0) + Number(g.actual_rbi || 0)
+          const hrs = N ? cnt((g) => Number(g.actual_hr) > 0) : 0
+          const half = (v) => (v > N / 2 ? C.green : C.purple)
+          const b = (v, col) => <b style={{ fontFamily: NUM_FONT, color: col }}>{v}</b>
+
+          return (
+            <>
+              {b(items.length, C.orange)} saved
+              {' · '}<span title={bots ? 'the bot agrees on these' : undefined}>{b(bots, '#FCD34D')} bot pick{bots === 1 ? '' : 's'}</span>
+              {' · '}avg HR score {b(avgHr.toFixed(1), '#f97316')}
+              {' · '}{b(weak, '#FCD34D')} weak spot{weak === 1 ? '' : 's'}
+              {' · '}<span title="lineups locked">{b(`${conf}/${items.length}`, conf === items.length ? C.green : C.purple)} confirmed</span>.
+              {N > 0 && (
+                <>
+                  {' '}Tonight — <span title="Saved hitters who homered tonight. The bot's HR and TOP bar.">went deep {b(`${hrs}/${N}`, hrs ? C.green : C.text3)}</span>
+                  {', '}<span title="One hit or more — the bot's HIT bar, of those graded so far.">got a hit {b(`${cnt((g) => Number(g.actual_hits) > 0)}/${N}`, half(cnt((g) => Number(g.actual_hits) > 0)))}</span>
+                  {', '}<span title="Two hits or more. One hit and three hits are not the same night.">multi-hit {b(`${cnt((g) => Number(g.actual_hits || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_hits || 0) >= 2)))}</span>
+                  {', '}<span title="A double, a triple or a homer. A double is not a homer and is not nothing.">XBH {b(`${cnt((g) => xbh(g) > 0)}/${N}`, half(cnt((g) => xbh(g) > 0)))}</span>
+                  {', '}<span title="The bot's HRR bar, scored exactly as pickCleared() scores it.">H+R+RBI 2+ {b(`${cnt((g) => combo(g) >= 2)}/${N}`, half(cnt((g) => combo(g) >= 2)))}</span>
+                  {', and '}<span title="The bot's CONTACT bar: two or more total bases.">2+ bases {b(`${cnt((g) => Number(g.actual_tb || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_tb || 0) >= 2)))}</span>
+                  {' — '}<span title="Raw hits across every saved hitter tonight — a count, not a rate, so it has no denominator to be honest about.">{b(graded.reduce((a, g) => a + (Number(g.actual_hits) || 0), 0), C.orange)} hits total</span>.
+                </>
+              )}
+            </>
+          )
         })()}
       </div>
 
