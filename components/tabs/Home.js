@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { logUrl, dataUrl } from '../../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
 import { laneRecord } from '../../lib/lanes'
@@ -151,16 +151,16 @@ function Stat({ label, value, sub, col = C.text, title }) {
       borderRadius: 8, padding: '4px 9px', cursor: title ? 'inherit' : 'inherit',
     }}>
       <span style={{
-        fontSize: 8.5, color: C.text3, letterSpacing: '.06em', fontFamily: NUM_FONT,
+        fontSize: TYPE.label, color: C.text3, letterSpacing: '.06em', fontFamily: NUM_FONT,
         flexShrink: 0,
       }}>{label}</span>
       <b style={{
-        fontSize: 12, color: col, fontFamily: NUM_FONT, minWidth: 0,
+        fontSize: TYPE.body, color: col, fontFamily: NUM_FONT, minWidth: 0,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{value}</b>
       {sub && (
         <span style={{
-          fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, minWidth: 0,
+          fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, minWidth: 0,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{sub}</span>
       )}
@@ -253,23 +253,23 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
         background: `linear-gradient(160deg, ${c.col}14, ${C.glass} 70%)`, color: C.text, textAlign: 'left', cursor: 'pointer', font: 'inherit',
       }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, color: c.col }}>{String(i + 1).padStart(2, '0')}</span>
-        <span style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: c.col }}>{c.tag}</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, color: c.col }}>{String(i + 1).padStart(2, '0')}</span>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: c.col }}>{c.tag}</span>
         <span style={{ marginLeft: 'auto', fontSize: 13, lineHeight: 1 }}>{c.icon}</span>
       </span>
-      <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+      <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
       <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.why}</span>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: c.col, whiteSpace: 'nowrap', border: `1px solid ${c.col}44`, background: `${c.col}14`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>{c.stat}</span>
+        <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.why}</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: c.col, whiteSpace: 'nowrap', border: `1px solid ${c.col}44`, background: `${c.col}14`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>{c.stat}</span>
       </span>
     </button>
   )
   return (
     <div className="home-headlines" style={{ margin: '2px 0 0' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>HEADLINES</span>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>HEADLINES</span>
         <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.orange}66, transparent)` }} />
-        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any · swipe or let it roll</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any · swipe or let it roll</span>
       </div>
       {/* #97: WebkitOverflowScrolling:'touch' dropped here too -- see the
           matching note in components/Header.js. Same useAutoScroll hook,
@@ -835,13 +835,13 @@ export default function Home({
         {/* the ember glow lived here until 2026-09-14 — removed on the audit: the type carries the hero. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 16 }}>{icon}</span>
-          <span style={{ fontSize: 11, color: C.text3, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT }}>
             {dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')}{slateDate ? ` · ${slateDate}` : ''}
           </span>
           {isLive && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 4,
-              fontSize: 9, fontWeight: 900, color: C.green, letterSpacing: '.1em', fontFamily: NUM_FONT,
+              fontSize: TYPE.label, fontWeight: 900, color: C.green, letterSpacing: '.1em', fontFamily: NUM_FONT,
               border: `1px solid ${C.green}55`, background: `${C.green}14`, borderRadius: 999, padding: '2px 9px',
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, animation: 'homePulse 1.6s infinite' }} />
@@ -864,7 +864,7 @@ export default function Home({
             The headline is computed, so it is never furniture: it says
             something different at 9am to an unbuilt slate than it does at
             midnight with six games running. */}
-        <h1 style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-.03em', margin: '0 0 4px', lineHeight: 1.15 }}>
+        <h1 style={{ fontSize: TYPE.display, fontWeight: 900, letterSpacing: '-.03em', margin: '0 0 4px', lineHeight: 1.15 }}>
           {empty ? (
             <>Tonight&apos;s board isn&apos;t built yet.</>
           ) : slateInPast ? (
@@ -888,8 +888,8 @@ export default function Home({
           )}
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 10px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.orange, border: `1px solid ${C.orange}55`, background: `${C.orange}12`, borderRadius: 3, padding: '2px 7px' }}>{icon} {hello}</span>
-          <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.orange, border: `1px solid ${C.orange}55`, background: `${C.orange}12`, borderRadius: 3, padding: '2px 7px' }}>{icon} {hello}</span>
+          <span style={{ fontSize: TYPE.body, color: C.text3, fontFamily: NUM_FONT }}>
             {empty ? 'board posts when tonight\u2019s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? 'final · every pick graded' : 'the sheet is set · every pick graded in public'}
           </span>
         </div>
@@ -965,7 +965,7 @@ export default function Home({
             tap to open. Every look is a field already on this page. The
             rotating line survives as the crawl underneath. */}
         {empty ? (
-          <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.75, maxWidth: 720 }}>
+          <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.75, maxWidth: 720 }}>
             No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands.
           </div>
         ) : (
@@ -977,8 +977,8 @@ export default function Home({
             marginTop: 12, display: 'flex', alignItems: 'stretch', overflow: 'hidden', borderRadius: 4,
             animation: 'homeFade .5s ease both',
           }}>
-            <span style={{ background: C.orange, color: C.bg, fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, padding: '6px 8px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>CRAWL</span>
-            <span style={{ flex: 1, minWidth: 0, background: `${C.orange}12`, borderTop: `1px solid ${C.orange}33`, borderBottom: `1px solid ${C.orange}33`, fontSize: 11, color: C.text, fontFamily: NUM_FONT, padding: '6px 10px', lineHeight: 1.5 }}>{pulse}</span>
+            <span style={{ background: C.orange, color: C.bg, fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, padding: '6px 8px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>CRAWL</span>
+            <span style={{ flex: 1, minWidth: 0, background: `${C.orange}12`, borderTop: `1px solid ${C.orange}33`, borderBottom: `1px solid ${C.orange}33`, fontSize: TYPE.body, color: C.text, fontFamily: NUM_FONT, padding: '6px 10px', lineHeight: 1.5 }}>{pulse}</span>
           </div>
         )}
         {/* THE FOUR LIVES IN THE HERO (2026-09-14, Donovan: "move the four
@@ -1043,10 +1043,10 @@ export default function Home({
           }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
               <span style={{ fontSize: 15 }}>{d.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: d.color }}>{d.title}</span>
+              <span style={{ fontSize: TYPE.name, fontWeight: 900, color: d.color }}>{d.title}</span>
               <span style={{ marginLeft: 'auto', fontSize: 12, color: d.color }}>→</span>
             </span>
-            <span style={{ display: 'block', fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
+            <span style={{ display: 'block', fontSize: TYPE.body, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
           </button>
         ))}
       </div>
@@ -1074,8 +1074,8 @@ export default function Home({
           padding: '13px 16px', marginBottom: 14,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <span style={{ fontSize: 9.5, fontWeight: 900, color: C.yellow, letterSpacing: '.1em', fontFamily: NUM_FONT }}>📖 TONIGHT&apos;S ANGLES</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>every line from tonight&apos;s own data</span>
+            <span style={{ fontSize: TYPE.label, fontWeight: 900, color: C.yellow, letterSpacing: '.1em', fontFamily: NUM_FONT }}>📖 TONIGHT&apos;S ANGLES</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>every line from tonight&apos;s own data</span>
           </div>
 
           {/* 🌤 BEST AIR — was a row of three tiles ("BEST AIR TONIGHT") sitting
@@ -1088,7 +1088,7 @@ export default function Home({
               neutral empty state both survive verbatim. Still taps through to
               the full park ladder on Power. */}
           {airRanked.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
               <span style={{ flexShrink: 0 }}>{airRanked[0].edge >= 10 ? '🌋' : airRanked[0].edge >= 5 ? '🔥' : '🌤'}</span>
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Best air</b> —{' '}
@@ -1109,11 +1109,11 @@ export default function Home({
                           title={`${g.matchup}${airTitle(g) ? `\n${airTitle(g)}` : ''}\nPark factor plus the published weather effect, as a percentage swing on home-run rate — tap for the full park ladder.`}
                           style={{
                             background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                            fontSize: 12, fontWeight: 800, color: i === 0 ? '#FB923C' : C.text,
+                            fontSize: TYPE.body, fontWeight: 800, color: i === 0 ? '#FB923C' : C.text,
                             textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
                           }}
                         >{g.venue}</button>
-                        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {g.matchup}</span>
+                        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {g.matchup}</span>
                         {' at '}
                         <b style={{ fontFamily: NUM_FONT, color: '#FB923C' }}>+{g.edge.toFixed(0)}%</b>
                         {/* CONDITIONS ON THE LEADER ONLY (2026-08-23). Three
@@ -1126,7 +1126,7 @@ export default function Home({
                     ))}
                     .{' '}</>
                 )}
-                <span style={{ fontSize: 9.5, color: C.text3 }}>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
                   Park factor plus published weather, as a swing on the rate — not a chance of one. Tap a park for the ladder.
                 </span>
               </span>
@@ -1138,7 +1138,7 @@ export default function Home({
               came back empty. Same meaning, one line — the full detail is
               still available in each check's own tooltip once it fires. */}
           {!b2b.length && !fenceRider && !pens.length && !nearMiss && (
-            <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, padding: '2px 0' }}>
+            <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, padding: '2px 0' }}>
               Beyond the air, nothing else fired tonight — no back-to-back bat, fence rider, or
               bullpen alert cleared the bar. Empty because the checks came back empty, not
               because anything's broken.
@@ -1162,15 +1162,15 @@ export default function Home({
                 {i > 0 && ', '}
                 <button onClick={() => onPlayerClick?.(p)} style={{
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 800, color: '#f87171', textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
+                  fontSize: TYPE.body, fontWeight: 800, color: '#f87171', textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
                 }}>{nameOf(p)}</button>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}</span>
               </span>
             ))
             return (
               <>
                 {strict.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
                     <span style={{ flexShrink: 0 }}>🔁</span>
                     <span style={{ minWidth: 0 }}>
                       <b style={{ color: C.text }}>Back-to-back watch</b> —{' '}
@@ -1180,12 +1180,12 @@ export default function Home({
                           hid behind — on a rebuilt slate his last game is today. */}
                       {' '}went deep {isTmrwSlate ? 'today' : 'last night'} — {isTmrwSlate ? 'tomorrow' : 'tonight'} is the encore try.
                       <span title="Every name here is checked against the graded results for that night, by player id. If that file hasn't published, this line doesn't render at all."
-                        style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
+                        style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
                     </span>
                   </div>
                 )}
                 {dayOff.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
                     <span style={{ flexShrink: 0 }}>🌙</span>
                     <span style={{ minWidth: 0 }}>
                       <b style={{ color: C.text }}>Returning from a day off</b> —{' '}
@@ -1193,7 +1193,7 @@ export default function Home({
                       {dayOff.length > 3 && <span style={{ color: C.text3 }}> and {dayOff.length - 3} more</span>}
                       {' '}homered in his last game, then sat — {isTmrwSlate ? 'tomorrow' : 'tonight'} is his first shot back.
                       <span title="Validated against the graded archive: a day-off return clears at about the same rate as a literal back-to-back, both a touch under the baseline for any graded slot. Not an edge, just tracked the same way."
-                        style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
+                        style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginLeft: 5, cursor: 'default' }}>✓ verified</span>
                     </span>
                   </div>
                 )}
@@ -1202,15 +1202,15 @@ export default function Home({
           })()}
 
           {fenceRider && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
               <span style={{ flexShrink: 0 }}>🧱</span>
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Tonight&apos;s fence rider</b> —{' '}
                 <button onClick={() => onPlayerClick?.(fenceRider.p)} style={{
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 800, color: C.orange, textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
+                  fontSize: TYPE.body, fontWeight: 800, color: C.orange, textDecoration: 'underline', textDecorationColor: 'rgba(249,115,22,.35)',
                 }}>{fenceRider.r.name}</button>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {fenceRider.r.team}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {fenceRider.r.team}</span>
                 {' '}has <b style={{ fontFamily: NUM_FONT, color: '#4ade80' }}>{fenceRider.r.over_ct}</b> balls over 375ft
                 and <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{fenceRider.r.fence_ct}</b> pulled into the wall-scraper zone
                 in his last <span style={{ fontFamily: NUM_FONT }}>{fenceRider.r.games}</span> games — measured landing data, all wall, no feel.
@@ -1222,15 +1222,15 @@ export default function Home({
               the Scoreboard's near-miss board, reduced to its single best
               case. Same statcast fields, a higher bar (close ≥ 3). */}
           {nearMiss && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
               <span style={{ flexShrink: 0 }}>🧱</span>
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Near-miss watch</b> —{' '}
                 <button onClick={() => onPlayerClick?.(nearMiss.p)} style={{
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 800, color: '#FCD34D', textDecoration: 'underline', textDecorationColor: 'rgba(252,211,77,.35)',
+                  fontSize: TYPE.body, fontWeight: 800, color: '#FCD34D', textDecoration: 'underline', textDecorationColor: 'rgba(252,211,77,.35)',
                 }}>{nameOf(nearMiss.p)}</button>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(nearMiss.p)}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(nearMiss.p)}</span>
                 {' '}is <b style={{ fontFamily: NUM_FONT, color: nearMiss.since >= 10 ? '#f87171' : C.orange }}>{nearMiss.since} games</b> without
                 a homer, but his recent window holds a <b style={{ fontFamily: NUM_FONT }}>{Math.round(nearMiss.d)} ft</b> ball
                 {nearMiss.e > 0 && <> at <b style={{ fontFamily: NUM_FONT }}>{nearMiss.e.toFixed(0)} mph</b></>}
@@ -1241,7 +1241,7 @@ export default function Home({
           )}
 
           {pens.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', padding: '4px 0', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
               <span style={{ flexShrink: 0 }}>🚪</span>
               <span style={{ minWidth: 0 }}>
                 <b style={{ color: C.text }}>Pen door</b> —{' '}
@@ -1250,7 +1250,7 @@ export default function Home({
                     {i > 0 && ', '}
                     <b style={{ color: x.tier.col }}>{x.ab}</b>
                     <span title={`${x.ab} bullpen yesterday: ${x.t.used} relievers, ${x.t.pitches} pitches — ${(x.t.names || []).map((r2) => `${String(r2.name).split(' ').slice(-1)[0]} ${r2.pitches}p`).join(', ')}`}
-                      style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text3 }}> {x.tier.icon} {x.t.used} arms / {x.t.pitches}p yesterday</span>
+                      style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}> {x.tier.icon} {x.t.used} arms / {x.t.pitches}p yesterday</span>
                   </span>
                 ))}
                 {' '}— tired relief gives up homers; the late innings are the window.
@@ -1302,8 +1302,8 @@ export default function Home({
                 border: `1px solid ${col}30`, borderRadius: 12, padding: '10px 13px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
-                  <span style={{ fontSize: 12, fontWeight: 900 }}>{title}</span>
-                  <button type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', padding: '5px 3px', fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
+                  <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>{title}</span>
+                  <button type="button" onClick={() => onNavigate?.(door)} style={{ ...BARE_BUTTON, marginLeft: 'auto', padding: '5px 3px', fontSize: TYPE.micro, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>full board →</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {rows.map((p, i) => {
@@ -1317,28 +1317,28 @@ export default function Home({
                         padding: '6px 5px', borderRadius: 6, minWidth: 0,
                         background: i === 0 ? `${col}12` : 'transparent',
                       }}>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: i < 3 ? col : C.text3, fontWeight: 900, width: 16, flexShrink: 0 }}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: i < 3 ? col : C.text3, fontWeight: 900, width: 16, flexShrink: 0 }}>
                           {i + 1}
                         </span>
-                        <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                           {nameOf(p)}
-                          {p?.weak_spot_flag ? <span title="Weak lineup spot vs this starter — the validated 18.0% vs 13.9% flag" style={{ fontSize: 9 }}> ★</span> : null}
+                          {p?.weak_spot_flag ? <span title="Weak lineup spot vs this starter — the validated 18.0% vs 13.9% flag" style={{ fontSize: TYPE.micro }}> ★</span> : null}
                         </span>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0 }}>
                           vs {clean(p?.pitcher_name, 'TBD').split(' ').slice(-1)[0]}
                           {hr9 > 0 && <b style={{ color: leaky ? '#f87171' : C.text3 }} title={leaky ? 'This arm leaks homers — 1.40+ HR/9' : 'Starter HR/9'}> {hr9.toFixed(2)}</b>}
                         </span>
                         <span style={{ display: 'block', flex: '0 0 46px', height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
                           <span style={{ display: 'block', width: `${Math.min(100, (100 * s) / max)}%`, height: '100%', background: col, opacity: i < 3 ? 1 : 0.55 }} />
                         </span>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: i < 3 ? col : C.text2, width: 24, textAlign: 'right', flexShrink: 0 }}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: i < 3 ? col : C.text2, width: 24, textAlign: 'right', flexShrink: 0 }}>
                           {s.toFixed(0)}
                         </span>
                       </button>
                     )
                   })}
                 </div>
-                <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+                <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
                   Ranked by the site&apos;s own score · ★ weak spot vs tonight&apos;s starter ·{' '}
                   <b style={{ color: '#f87171' }}>red HR/9</b> = a leaking arm. Tap a name for his card.
                 </div>
@@ -1393,7 +1393,7 @@ export default function Home({
           return (
             <div style={{
               background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
-              padding: '10px 14px', marginBottom: 14, fontSize: 10.5, color: C.text3, lineHeight: 1.6,
+              padding: '10px 14px', marginBottom: 14, fontSize: TYPE.body, color: C.text3, lineHeight: 1.6,
             }}>
               🩹 <b style={{ color: C.text2 }}>Weakest arms tonight</b> — no starter on this slate
               carries a published HR/9 yet, which usually means the probables are still TBD. The
@@ -1407,17 +1407,17 @@ export default function Home({
             display: 'flex', gap: 7, alignItems: 'baseline', cursor: 'pointer',
             padding: '6px 5px', borderRadius: 6, minWidth: 0,
           }} title={`${a.nm} vs ${a.vs}: ${a.hr9.toFixed(2)} HR/9 season${a.l3hr9 != null ? `, ${a.l3hr9.toFixed(2)} over his last 3 starts` : ''}${a.weak ? ` · ${a.weak} weak lineup spots against him` : ''} — tap for the Pitchers workbench`}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, color: i === 0 ? '#f87171' : C.text3, width: 14, flexShrink: 0 }}>{i + 1}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, color: i === 0 ? '#f87171' : C.text3, width: 14, flexShrink: 0 }}>{i + 1}</span>
+            <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
               {a.nm}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>vs {a.vs}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 5 }}>vs {a.vs}</span>
             </span>
             {showTrend && a.l3hr9 != null && (
-              <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: '#f87171', flexShrink: 0 }}>L3 {a.l3hr9.toFixed(2)}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: '#f87171', flexShrink: 0 }}>L3 {a.l3hr9.toFixed(2)}</span>
             )}
             {/* 1.6-or-red / else-orange was a private two-step nobody else
                 used; the shared line decides now (2026-09-03). */}
-            <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, color: hr9Color(a.hr9, C.text2), flexShrink: 0 }}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: hr9Color(a.hr9, C.text2), flexShrink: 0 }}>
               {a.hr9.toFixed(2)}
             </span>
             {/* The blended rank, plus the one term carrying it — so a row that
@@ -1426,7 +1426,7 @@ export default function Home({
               <span
                 title={`Leak score ${leakBy.get(a.nm).leak}/100 — ranked against tonight's ${ranked.length} starters only, not the league. Built from ${leakBy.get(a.nm).scoredOn} published fields: ${leakBy.get(a.nm).terms.map((t) => `${t.label} ${t.text}`).join(' · ')}.${leakBy.get(a.nm).thin ? ' Small Statcast sample — the contact-quality terms are thin.' : ''} Display ranking only; it never touches a pick.`}
                 style={{
-                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, flexShrink: 0, cursor: 'default',
+                  fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, flexShrink: 0, cursor: 'default',
                   color: '#f87171', border: '1px solid rgba(248,113,113,.4)', background: 'rgba(248,113,113,.1)',
                   borderRadius: 999, padding: '0 6px',
                 }}>
@@ -1434,11 +1434,11 @@ export default function Home({
               </span>
             )}
             {leakBy.get(a.nm)?.drivers?.[0] && (
-              <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
                 {leakBy.get(a.nm).drivers[0].label} {leakBy.get(a.nm).drivers[0].text}
               </span>
             )}
-            {a.weak > 0 && <span style={{ fontSize: 8.5, flexShrink: 0 }} title={`${a.weak} weak spots in the lineup he faces`}>★{a.weak}</span>}
+            {a.weak > 0 && <span style={{ fontSize: TYPE.micro, flexShrink: 0 }} title={`${a.weak} weak spots in the lineup he faces`}>★{a.weak}</span>}
           </button>
         )
         return (
@@ -1449,8 +1449,8 @@ export default function Home({
               border: '1px solid rgba(248,113,113,.28)', borderRadius: 12, padding: '10px 13px',
             }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 900 }}>🩹 Weakest arms tonight</span>
-                <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}
+                <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>🩹 Weakest arms tonight</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}
                   title="Ranked by a blend of eight published fields — season HR/9, last three starts, barrels and hard contact allowed, fly-ball rate, meatball rate, tonight's park and fastball velocity against his own baseline — each ranked against tonight's other starters, not the league. Hover any arm's red number for its full breakdown. Display ranking only; nothing here feeds a pick.">
                   leak score · HR/9 · ★N weak spots vs him
                 </span>
@@ -1466,8 +1466,8 @@ export default function Home({
                 border: '1px solid rgba(252,211,77,.28)', borderRadius: 12, padding: '10px 13px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, fontWeight: 900 }}>📉 Trending weak</span>
-                  <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>last 3 starts leaking harder than his season</span>
+                  <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>📉 Trending weak</span>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>last 3 starts leaking harder than his season</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {trending.map((a, i) => <Arm key={a.nm} a={a} i={i} showTrend />)}
@@ -1562,27 +1562,27 @@ export default function Home({
           padding: '13px 16px', marginBottom: 14,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 9.5, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT }}>🔥 TONIGHT&apos;S HEADLINER</span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>the game whose top power bats stack highest on the board — a ranking, not a promise</span>
+            <span style={{ fontSize: TYPE.label, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT }}>🔥 TONIGHT&apos;S HEADLINER</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>the game whose top power bats stack highest on the board — a ranking, not a promise</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 7 }}>
-            <div style={{ fontSize: 21, fontWeight: 900, letterSpacing: '-.02em', fontFamily: NUM_FONT }}>
+            <div style={{ fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.02em', fontFamily: NUM_FONT }}>
               {clean(headline.g.away, '?')} <span style={{ color: C.text3, fontWeight: 400 }}>@</span> {clean(headline.g.home, '?')}
             </div>
-            <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT }}>{dateText(headline.g.game_time)}</div>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{dateText(headline.g.game_time)}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
               {headline.bats.map((p, i) => (
                 <button key={i} onClick={() => onPlayerClick?.(p)} style={{
                   display: 'inline-flex', alignItems: 'baseline', gap: 6, cursor: 'pointer',
                   background: C.bg3, border: `1px solid ${C.border2}`, borderRadius: 9, padding: '7px 12px',
                 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text }}>{nameOf(p)}</span>
-                  <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(p)}</span>
-                  <span style={{ fontSize: 11, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT }}>{hrScore(p).toFixed(1)}</span>
+                  <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.text }}>{nameOf(p)}</span>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(p)}</span>
+                  <span style={{ fontSize: TYPE.body, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT }}>{hrScore(p).toFixed(1)}</span>
                 </button>
               ))}
               <button onClick={() => onNavigate?.('games')} style={{
-                fontSize: 10, fontWeight: 800, color: C.orange, cursor: 'pointer',
+                fontSize: TYPE.micro, fontWeight: 800, color: C.orange, cursor: 'pointer',
                 background: 'transparent', border: '1px dashed rgba(249,115,22,.4)', borderRadius: 9, padding: '7px 12px',
               }}>full matchup →</button>
             </div>
@@ -1600,7 +1600,7 @@ export default function Home({
             const parts = airParts(row)
             const venue = clean(row?.venue_name, '')
             return (
-              <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.65, marginTop: 7 }}>
+              <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.65, marginTop: 7 }}>
                 Its three best power bats sum to{' '}
                 <b title="The sum of this game's three highest HR scores — the ranking key for this section. A 0-100 board score, not a chance of anything."
                   style={{ color: C.orange, fontFamily: NUM_FONT, cursor: 'default' }}>{headline.heat.toFixed(1)}</b>
@@ -1675,7 +1675,7 @@ export default function Home({
           border: '1px solid rgba(96,165,250,.3)', borderRadius: 14,
           padding: '11px 16px', marginBottom: 14,
         }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>
             <span style={{ flexShrink: 0 }}>🎟</span>
             <span style={{ minWidth: 0 }}>
               <b style={{ color: '#60a5fa' }}>Your night</b> — you have{' '}
@@ -1685,7 +1685,7 @@ export default function Home({
                 <span key={i}>
                   {i > 0 && ', '}
                   <b style={{ color: C.text }}>{m.name}</b>
-                  <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {m.role}{m.conviction ? ` · ${convWord(m.conviction)}` : ''}</span>
+                  <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {m.role}{m.conviction ? ` · ${convWord(m.conviction)}` : ''}</span>
                 </span>
               ))}
               {mine.length > 3 && <span style={{ color: C.text3 }}> and {mine.length - 3} more</span>}
@@ -1708,8 +1708,8 @@ export default function Home({
           background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 14,
           padding: '16px 18px', marginBottom: 14,
         }}>
-          <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 5 }}>Nothing on the board yet</div>
-          <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.65, maxWidth: 620 }}>
+          <div style={{ fontSize: TYPE.name, fontWeight: 800, marginBottom: 5 }}>Nothing on the board yet</div>
+          <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 620 }}>
             The bot builds tonight&apos;s slate on its morning run. Once it publishes, this page fills
             in with the headline game, the top angles, and the HR and hit leaderboards. Until then,
             the doors below still work, and the record has every graded night behind it.
@@ -1717,7 +1717,7 @@ export default function Home({
         </div>
       )}
 
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 12, lineHeight: 1.5 }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 12, lineHeight: 1.5 }}>
         Everything here comes from tonight&apos;s slate file, the live feed, or the bot&apos;s own sheet,
         and never a guess. Hover any number for what it is and where it&apos;s from.
       </div>
