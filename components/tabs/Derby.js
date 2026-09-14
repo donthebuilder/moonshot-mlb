@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf, hrScore, playerId } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
 import { tone } from '../../lib/scales'
@@ -192,9 +192,9 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
           borderRadius: 8, padding: '5px 11px',
         }}
       >
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: inRoster ? C.orange : C.text }}>{nameOf(p)}</span>
-        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(p)} v {oppOf(p)}</span>
-        <span style={{ fontSize: 10.5, fontWeight: 900, fontFamily: NUM_FONT, color: inRoster ? C.orange : C.text2 }}>{c}</span>
+        <span style={{ fontSize: TYPE.name, fontWeight: 700, color: inRoster ? C.orange : C.text }}>{nameOf(p)}</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{teamOf(p)} v {oppOf(p)}</span>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, fontFamily: NUM_FONT, color: inRoster ? C.orange : C.text2 }}>{c}</span>
       </button>
     )
   }
@@ -205,7 +205,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
         title="🏆 Derby"
         sub={`Draft ${SQUAD} under a ${CAP} cap · locks at first pitch · real homers score real feet · you vs the bot`}
         right={record && (record.w + record.l + record.t) > 0 ? (
-          <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text2 }}>
+          <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text2 }}>
             season: <b style={{ color: record.w >= record.l ? '#4ade80' : '#f87171' }}>{record.w}–{record.l}{record.t ? `–${record.t}` : ''}</b>
             {' '}· {Math.round(record.ft).toLocaleString()} ft vs {Math.round(record.botFt).toLocaleString()}
           </span>
@@ -230,29 +230,29 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
                 title={label === 'THE BOT'
                   ? `The bot drafts greedily: highest HR score first, taking any hitter it can still afford, until it has ${SQUAD} or the ${CAP} cap runs out. The number on each chip is his cost — his HR score, floored at 20 — so the order you see is the order it picked in.`
                   : `Your squad. Same ${CAP} cap, same costs; a hitter costs his HR score, floored at 20.`}
-                style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.09em', color: col, fontFamily: NUM_FONT, cursor: 'default' }}
+                style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.09em', color: col, fontFamily: NUM_FONT, cursor: 'default' }}
               >{label}</span>
-              <span style={{ fontSize: 22, fontWeight: 900, fontFamily: NUM_FONT, color: r.ft ? col : C.text3 }}>
-                {Math.round(r.ft).toLocaleString()} <span style={{ fontSize: 10 }}>ft</span>
+              <span style={{ fontSize: TYPE.display, fontWeight: 900, fontFamily: NUM_FONT, color: r.ft ? col : C.text3 }}>
+                {Math.round(r.ft).toLocaleString()} <span style={{ fontSize: TYPE.label }}>ft</span>
               </span>
               {label === 'YOU' && !locked && roster.length > 0 && (
-                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>drafting… {spent}/{CAP} spent</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>drafting… {spent}/{CAP} spent</span>
               )}
-              {label === 'YOU' && locked && <span style={{ fontSize: 9, color: tone('green'), fontFamily: NUM_FONT }}>🔒 locked</span>}
+              {label === 'YOU' && locked && <span style={{ fontSize: TYPE.micro, color: tone('green'), fontFamily: NUM_FONT }}>🔒 locked</span>}
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
               {squad.map((p) => (
                 <span key={playerId(p)} onClick={() => onPlayerClick?.(p)} style={{
-                  fontSize: 9.5, fontWeight: 700, color: C.text2, cursor: 'pointer',
+                  fontSize: TYPE.micro, fontWeight: 700, color: C.text2, cursor: 'pointer',
                   border: `1px solid ${C.border}`, borderRadius: 999, padding: '2px 8px', fontFamily: NUM_FONT,
                 }}>
                   {String(nameOf(p)).split(' ').slice(-1)[0]} {costOf(p)}
                 </span>
               ))}
-              {label === 'YOU' && !squad.length && <span style={{ fontSize: 10, color: C.text3 }}>no squad yet — draft below</span>}
+              {label === 'YOU' && !squad.length && <span style={{ fontSize: TYPE.micro, color: C.text3 }}>no squad yet — draft below</span>}
             </div>
             {r.bombs.length > 0 && (
-              <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 5 }}>
+              <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 5 }}>
                 {r.bombs.map((b, i) => `${b.name.split(' ').slice(-1)[0]} ${Math.round(b.d)}${b.est ? '~' : ''}ft`).join(' · ')}
               </div>
             )}
@@ -264,18 +264,18 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
         {!locked && roster.length === SQUAD && (
           <button onClick={lockNow} style={{
-            padding: '6px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 900,
+            padding: '6px 16px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900,
             border: '1px solid rgba(74,222,128,.6)', background: 'rgba(74,222,128,.12)', color: '#4ade80',
           }}>🔒 LOCK MY FIVE</button>
         )}
         {roster.length > 0 && (
           <button onClick={runSim} style={{
-            padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 800,
+            padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 800,
             border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2,
           }}>🎲 simulate my night ×10,000</button>
         )}
         {sim && (
-          <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text2 }}>
+          <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text2 }}>
             your squad averages <b style={{ color: C.orange }}>{Math.round(sim.avg)} ft</b> and beats the bot in{' '}
             <b style={{ color: sim.win >= 50 ? '#4ade80' : '#f87171' }}>{sim.win.toFixed(0)}%</b> of sims
             {sim.tie >= 1 ? ` (ties ${sim.tie.toFixed(0)}%)` : ''}
@@ -283,11 +283,11 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
         )}
         {slateFinal && locked && !savedDay && (
           <button onClick={saveResult} style={{
-            padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 800,
+            padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 800,
             border: '1px solid rgba(252,211,77,.5)', background: 'rgba(252,211,77,.1)', color: '#FCD34D',
           }}>🧾 save tonight to my record</button>
         )}
-        {savedDay && <span style={{ fontSize: 10, color: '#4ade80', fontFamily: NUM_FONT }}>✓ counted in the season record</span>}
+        {savedDay && <span style={{ fontSize: TYPE.micro, color: '#4ade80', fontFamily: NUM_FONT }}>✓ counted in the season record</span>}
       </div>
 
       {/* the draft board */}
@@ -299,7 +299,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
             placeholder="Search a hitter to draft…"
             style={{
               background: C.bg3, border: `1px solid ${C.border2}`, color: C.text, borderRadius: 999,
-              padding: '8px 14px', fontSize: 12, outline: 'none', width: '100%', maxWidth: 340,
+              padding: '8px 14px', fontSize: TYPE.body, outline: 'none', width: '100%', maxWidth: 340,
               boxSizing: 'border-box', marginBottom: 8,
             }}
           />
@@ -309,7 +309,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
         </>
       )}
 
-      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 14, lineHeight: 1.65, maxWidth: 760 }}>
+      <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 14, lineHeight: 1.65, maxWidth: 760 }}>
         The rules, honestly: your squad locks at first pitch whether you hit LOCK or not — after that,
         no edits, same as the bot lives with. Every real homer by your five scores its actual statcast
         distance (a ~ marks a bomb whose distance hasn&apos;t been measured yet — held at 400 until it
