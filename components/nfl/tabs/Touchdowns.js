@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
@@ -117,7 +117,7 @@ function Row({ p, rank, matchup, odds, onPlayerClick, weights, why }) {
           <span className="td-vs">{p.team} vs {p.opp}</span>
           <MatchupBadge matchup={matchup} player={p} market={MARKET} />
           {tag && (
-            <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900, fontSize: 8.5 }}>
+            <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900, fontSize: TYPE.label }}>
               {tag}
             </span>
           )}
@@ -134,7 +134,7 @@ function Row({ p, rank, matchup, odds, onPlayerClick, weights, why }) {
         </span>
       </span>
       <span className="td-right">
-        <b style={{ color: g.color, fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900 }}>
+        <b style={{ color: g.color, fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900 }}>
           {Math.round(p.scores?.[MARKET] ?? 0)}
         </b>
         <OddsLine quote={quoteFor(odds, p, MARKET)} compact />
@@ -161,7 +161,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick }) {
   }, [data])
 
   if (!rows.length) {
-    return <div style={{ color: C.text3, fontSize: 12.5, padding: 18 }}>
+    return <div style={{ color: C.text3, fontSize: TYPE.body, padding: 18 }}>
       No scored players in this week&apos;s payload yet.
     </div>
   }
