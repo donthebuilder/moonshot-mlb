@@ -358,18 +358,29 @@ const MILESTONE_MID_HOUR = 3    // 3pm ET
 // post like some of these throught the day, people love them" -- then:
 // "storylies post 4 a day once slate starts for games that havent started"
 // and "thing else post in a combined tweet. makesure not srepat
-// info,ations"). Four Storyline Watch slots fill the account's evening
-// window (5/8/9/10pm ET all sit empty today -- HOTTEST_CONTACT_MID is 4pm,
-// DANGER_COMBOS_MID is 7pm, MATCHUP_LATE is 6pm, nothing else runs after
-// that), each excluding every text any earlier slot (or funfacts/
-// matchuplines) already posted today. Revenge & Giveaways is its own single
-// combined post -- 7am ET, the other half of the 4-7am dead window
-// MILESTONE_AM was placed to fill, an hour ahead of it so the account isn't
-// silent from 4am to 6am.
-const STORYLINE_WATCH_1_HOUR = 5   // 5pm ET
-const STORYLINE_WATCH_2_HOUR = 8   // 8pm ET
-const STORYLINE_WATCH_3_HOUR = 9   // 9pm ET
-const STORYLINE_WATCH_4_HOUR = 10  // 10pm ET
+// info,ations"). ORIGINALLY placed at 5/8/9/10pm; Donovan corrected same day
+// -- "those storylines need to be earlier than that... later storyline
+// tweets seem dumb and not helpful" -- because storylineWatchPicks only
+// draws from pregameRows(), and by 8/9/10pm ET most of the night's games
+// have already thrown a first pitch (the 6:35pm+ wave), so the "hasn't
+// started" pool it's allowed to talk about is nearly empty and thin by
+// then. Compressed into the actual pregame window instead -- 11am/1pm/2pm/
+// 4pm ET -- so every slot still has most (usually all) of the day's slate
+// to draw real, un-posted lines from; 4pm is the last stop before the
+// night's first pitches start clearing that pool out. The evening/live
+// window (6:35pm ET on) is intentionally left to the real event-driven
+// tracker tweets and the existing "mid" reposts below (HOTTEST_CONTACT_MID,
+// MATCHUP_LATE, DANGER_COMBOS_MID), which read midRows() rather than
+// pregameRows() and so stay accurate deep into the night -- a pregame-only
+// format was never going to be the right fit for that window regardless of
+// what hour it fired at. Revenge & Giveaways is its own single combined
+// post -- 7am ET, the other half of the 4-7am dead window MILESTONE_AM was
+// placed to fill, an hour ahead of it so the account isn't silent from 4am
+// to 6am.
+const STORYLINE_WATCH_1_HOUR = -1  // 11am ET
+const STORYLINE_WATCH_2_HOUR = 1   // 1pm ET
+const STORYLINE_WATCH_3_HOUR = 2   // 2pm ET
+const STORYLINE_WATCH_4_HOUR = 4   // 4pm ET
 const REVENGE_GIVEAWAY_HOUR = -5   // 7am ET
 
 function etHoursSinceNoon() {
