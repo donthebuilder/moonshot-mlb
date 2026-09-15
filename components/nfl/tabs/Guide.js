@@ -54,8 +54,8 @@ export default function Guide({ onNavigate, data }) {
       <Section title="Start here — three taps">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
           <PageCard tab="home" title="1 · Read the slate" note="Home shows the live ledger, The Six, lookout spots and the strongest boards." onNavigate={onNavigate} />
-          <PageCard tab="picks" title="2 · Read the calls" note="Picks holds the designated calls. A call is graded; a high Board rank is not automatically a call." onNavigate={onNavigate} />
-          <PageCard tab="boards" title="3 · Compare the field" note="Boards ranks every eligible player by market. Filter it, inspect recent form, then tap a player for the full card." onNavigate={onNavigate} />
+          <PageCard tab="touchdowns" title="2 · See who scores" note="Touchdowns opens with names and a sentence, not a table -- the fastest read on tonight's board." onNavigate={onNavigate} />
+          <PageCard tab="picks" title="3 · Read the calls" note="Picks holds the designated calls. A call is graded; a high Board rank is not automatically a call." onNavigate={onNavigate} />
         </div>
       </Section>
 
