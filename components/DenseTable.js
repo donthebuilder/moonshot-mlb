@@ -83,7 +83,7 @@ const STANDOUT_SLICE = 0.2   // top 20% and bottom 20% of a column
 
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const moreBtn = () => ({
+export const moreBtn = () => ({
   border: `1px solid ${C.orange}66`, background: `${C.orange}14`, color: C.orange,
   // Padding widened 2026-09-13 (Donovan: "buttons/tap targets too small or
   // cramped" on mobile) — this pill is every "show N more"/"show all" button

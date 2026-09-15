@@ -14,6 +14,7 @@ import {
 import { wilson, wilsonLower } from '../../lib/interval'
 import { benjaminiHochberg, expectedFalseAlarms } from '../../lib/fdr'
 import { RoiErrorBars, GapFunnel, GapIntervals } from '../OddsChart'
+import { moreBtn } from '../DenseTable'
 
 // 🏷 TRUE PRICE
 //
@@ -309,6 +310,20 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
     // Every comparator above is written descending; ascending is the mirror.
     return dir === 'asc' ? out.reverse() : out
   }, [rows, market, minN, sort, dir, q, team, tonightOnly, lean, reads, plusOnly])
+
+  // ── Path to Victory A7 / #19: A CAP WITH NO WAY PAST IT ──────────────
+  // This table hard-capped at the first 300 rows with a note but no control
+  // to reach the rest ("Showing the first 300 of {shown.length}"). Same shape
+  // of bug DenseTable's own #19 fix solved for Research/You (see DenseTable.js
+  // 'A CAP WITH NO WAY PAST IT') — reused here rather than inventing a second
+  // pattern: keep the 300-row default (dense/phone-first, matches the site's
+  // existing cap), add one button that raises it a page (300) at a time, and
+  // one that lifts it entirely for anyone who wants the full list.
+  const TRUE_PRICE_CAP = 300
+  const [extra, setExtra] = useState(0)
+  const cap = TRUE_PRICE_CAP + extra
+  const view = shown.length > cap ? shown.slice(0, cap) : shown
+  const truncated = shown.length - view.length
 
   const teams = useMemo(() => [...new Set(rows.map((x) => x.team).filter(Boolean))].sort(), [rows])
 
@@ -612,7 +627,7 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
               </tr>
             </thead>
             <tbody>
-              {shown.slice(0, 300).map((r) => {
+              {view.map((r) => {
                 const t = readsAs(r.trust, r.edge)
                 const isOpen = open === r.id
                 return (
@@ -721,9 +736,25 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
               })}
             </tbody>
           </table>
-          {shown.length > 300 && (
+          {truncated > 0 && (
             <div style={{ fontSize: 9.5, color: C.text3, padding: '6px 2px' }}>
-              Showing the first 300 of {shown.length} — narrow it with a prop filter or the search box.
+              Showing the first {view.length} of {shown.length} — narrow it with a prop filter or the search box, or{' '}
+              <button
+                type="button"
+                onClick={() => setExtra((n) => n + TRUE_PRICE_CAP)}
+                style={moreBtn()}
+              >show {Math.min(TRUE_PRICE_CAP, truncated)} more</button>
+              {truncated > TRUE_PRICE_CAP && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => setExtra(shown.length)}
+                    style={moreBtn()}
+                  >show all {shown.length}</button>
+                </>
+              )}
+              .
             </div>
           )}
         </div>
