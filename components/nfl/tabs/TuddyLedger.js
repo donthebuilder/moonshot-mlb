@@ -6,6 +6,7 @@ import {
   weekRows, weekTotals, seasonHitterRows,
 } from '../../../lib/tuddyLedger'
 import { labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
+import { C as NFL_C } from '../../../lib/nfl/theme'
 
 // 📒 THE TUDDY LEDGER — NFL'S SIDE OF PATH TO VICTORY B10a.
 //
@@ -120,6 +121,11 @@ export default function TuddyLedger({ data, results, onPlayerClick = null }) {
     <Ledger
       eventLabel="TD"
       eventLabelLong="Touchdown"
+      // Ledger.js's own accent defaults to MLB's orange (it imports lib/theme.js,
+      // not lib/nfl/theme.js) -- TD is jade on every other NFL page
+      // (Accountability.js's MARKET_COLOR), so this is the one prop that has
+      // to travel explicitly or the page reads as MOONSHOT's, not TUDDY's.
+      accent={NFL_C.green}
       baseRate={baseRate}
       periodWord="week"
       periodWordPlural="weeks"
