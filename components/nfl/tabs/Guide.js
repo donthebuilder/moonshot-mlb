@@ -148,15 +148,20 @@ export default function Guide({ onNavigate, data }) {
 
       <Section title="Where each page takes you">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
+          <PageCard tab="touchdowns" title="Touchdowns" note="The front door — this week's anytime-TD board, opened with names and a plain-English reason instead of a table of percentiles." onNavigate={onNavigate} />
+          <PageCard tab="storylines" title="Storylines" note="Milestones, streaks, and calls the model saw but filed under the wrong market — read as sentences. Revenge games and injury-driven role changes aren't built yet." onNavigate={onNavigate} />
           <PageCard tab="games" title="Games" note="Drive state, weather, defense fatigue and designated calls grouped by matchup." onNavigate={onNavigate} />
           <PageCard tab="players" title="Player Portal" note="Search one player for measurables, splits, projections, recent games and storylines." onNavigate={onNavigate} />
           <PageCard tab="watchlist" title="Watchlist" note="Only the players you saved, with the current slate row kept intact." onNavigate={onNavigate} />
           <PageCard tab="research" title="Research" note="Deeper model inputs and supporting context. Useful after the verdict, not before it." onNavigate={onNavigate} />
           <PageCard tab="matchups" title="Matchups" note="Defense-versus-position and matchup context without turning team context into a player pick." onNavigate={onNavigate} />
           <PageCard tab="pairs" title="Pairs" note="Related same-game combinations. Relationship labels are context, not a guarantee or independent grade." onNavigate={onNavigate} />
+          <PageCard tab="leaders" title="Leaders" note="Who is first in each stat category, already sorted side by side — measured, not modeled." onNavigate={onNavigate} />
           <PageCard tab="live" title="Live" note="Every rung on the card against its bar, on the league feed, while the game is on. Cleared, live, or missed — plus the scoring plays as they land." onNavigate={onNavigate} />
+          <PageCard tab="boxscores" title="Box Scores" note="This week's games broken into passing, rushing, receiving and kicking lines, plus each team's defense." onNavigate={onNavigate} />
           <PageCard tab="streaks" title="Streaks" note="Who is hot or cold at a line you pick, last 30 games, no model in the way. Hot is the play; cold is the fade." onNavigate={onNavigate} />
           <PageCard tab="accountability" title="The record" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
+          <PageCard tab="tuddyledger" title="Tuddy Ledger" note="Every touchdown this season sorted into called, on the board, or never tracked, with the season's running totals." onNavigate={onNavigate} />
           <PageCard tab="report" title="Report Card" note="Backtests each model against a simple trailing-average baseline." onNavigate={onNavigate} />
         </div>
       </Section>
