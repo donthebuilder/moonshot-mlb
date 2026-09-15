@@ -13,6 +13,7 @@ import {
   wilson95, separated,
 } from '../../../lib/nfl/myPicks'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
+import MatchupBadge from '../MatchupBadge'
 import { AnatomyStrip } from '../ScoreAnatomy'
 import SlateGaps from '../SlateGaps'
 import ChartFrame from '../ChartFrame'
@@ -82,7 +83,7 @@ function Stat({ label, value, sub, color, big }) {
   )
 }
 
-export default function Picks({ picks, results, data, onPlayerClick, odds, oddsStatus }) {
+export default function Picks({ picks, results, data, matchup, onPlayerClick, odds, oddsStatus }) {
   const [mine, setMine] = useState({})
   const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState('')
@@ -494,6 +495,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                           {rung.position} {rung.team}{rung.opp ? ` vs ${rung.opp}` : ''}
                         </span>
                       </button>
+                      <MatchupBadge matchup={matchup} player={rung} market={market} />
                       {/* The book's line on the bot's own rung — renders
                           nothing when this player has none (a normal,
                           per-player state; the banner above says whether the

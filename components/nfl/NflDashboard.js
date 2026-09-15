@@ -245,7 +245,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'numerology' && <Numerology data={data} />}
-            {tab === 'picks'    && <Picks picks={picks} results={nflResults} data={data} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
+            {tab === 'picks'    && <Picks picks={picks} results={nflResults} data={data} matchup={matchup} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
