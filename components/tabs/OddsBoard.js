@@ -154,9 +154,13 @@ const PAGE_VIEWS = [
   // "Tonight's board" was a lie whenever the fetch was old (see the
   // freshness gate below) — the label now claims nothing about when.
   ['board', '💵 Odds board'],
+  // A11 (2026-09-13, Donovan): "surface it higher in nav." True Price
+  // already carries Model Score and Streak beside its own rate
+  // (7217318) but sat last of four pills, behind two sub-views most
+  // readers never open. Order only — nothing about the page changed.
+  ['trueprice', '🏷 True Price'],
   ['signals', '⚡ Moves & gaps'],
   ['shop', '🛒 Line shop'],
-  ['trueprice', '🏷 True Price'],
 ]
 
 export default function OddsBoard({ players = [], odds = null, onPlayerClick, initialView = 'board' }) {
