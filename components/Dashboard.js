@@ -40,6 +40,7 @@ import You from './tabs/You'
 import Pools from './tabs/Pools'
 import Leaders from './tabs/Leaders'
 import Results from './tabs/Results'
+import CalledLedger from './tabs/CalledLedger'
 import Watchlist from './tabs/Watchlist'
 import Pairs from './tabs/Pairs'
 import Bot from './tabs/Bot'
@@ -715,6 +716,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'calledledger' && <CalledLedger slateDate={slateDate} onPlayerClick={setModalPlayer} />}
 
             {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
             {/* 2026-09-13: AtThePlate now lives inside Home's own view system
