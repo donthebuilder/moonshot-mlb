@@ -345,8 +345,16 @@ const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 // day's claim on empty text (the same rule the pregame call relies on), so
 // an early tick with nothing confirmed yet just retries next minute for
 // free until real lineups land.
-const MATCHUP_HOUR = 2          // 2pm ET -- first wave of confirmed lineups
-const MATCHUP_LATE_HOUR = 6     // 6pm ET -- evening/West-Coast games locking
+// 2026-09-15 (Donovan: "lets have those fire earlier too"). Both floors are
+// safety minimums, not promises -- the day wave only actually posts once
+// vsPitcherCareerLines() finds a real CONFIRMED lineup spot, and the late
+// wave only runs once a game has actually gone Live (see the "MID-SLATE
+// STAT-FEED REPOSTS" gate below) -- so moving the floor earlier costs
+// nothing on a normal night, it just stops an already-confirmed early
+// lineup or an already-started day game from sitting there unposted until
+// an arbitrary clock time.
+const MATCHUP_HOUR = -1         // 11am ET -- first wave of confirmed lineups
+const MATCHUP_LATE_HOUR = 3     // 3pm ET -- once ANY game (day slate included) goes live
 // 2026-09-15 (Donovan: "milestones do 2 different sets of players two
 // different times a day," spread out to fill the account's two dead
 // windows -- nothing posts 4-7am ET today, and 6am is the middle of it;
