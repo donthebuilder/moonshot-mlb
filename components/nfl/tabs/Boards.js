@@ -5,6 +5,7 @@ import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import NflFace from '../NflFace'
+import MatchupBadge from '../MatchupBadge'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 
@@ -75,7 +76,7 @@ function FormSparkline({ form, bar, color }) {
 // board — is this a market with three clear plays or twenty coin flips — and
 // a column of numbers doesn't show you that.
 
-export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) {
+export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus }) {
   const [market, setMarket] = useState('TD')
   const [showLow, setShowLow] = useState(false)
   const [query, setQuery] = useState('')
@@ -236,8 +237,13 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
                   }}>{p.name}</div>
                   <div className="nfl-board-matchup" style={{
                     fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{p.position} · {p.team} {p.opp ? `vs ${p.opp}` : ''}</div>
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.position} · {p.team} {p.opp ? `vs ${p.opp}` : ''}
+                    </span>
+                    <MatchupBadge matchup={matchup} player={p} market={market} />
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
                   {/* The grade, same ladder as the MLB board. The number alone

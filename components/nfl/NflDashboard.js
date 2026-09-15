@@ -240,7 +240,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'touchdowns' && <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={openPlayer} />}
-            {tab === 'boards' && <Boards data={data} logs={logs} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
+            {tab === 'boards' && <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
