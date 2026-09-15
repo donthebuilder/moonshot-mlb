@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { softRole, softLine, softStrength, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
@@ -37,7 +37,7 @@ function StateBadge({ g }) {
           boxShadow: `0 0 6px ${C.cyan}`, flexShrink: 0,
         }} />
         <span style={{
-          fontSize: 10, fontWeight: 900, color: C.cyan, letterSpacing: '.06em', fontFamily: NUM_FONT,
+          fontSize: TYPE.label, fontWeight: 900, color: C.cyan, letterSpacing: '.06em', fontFamily: NUM_FONT,
         }}>{g.detail || 'LIVE'}</span>
       </span>
     )
@@ -45,7 +45,7 @@ function StateBadge({ g }) {
   if (g.completed) {
     return (
       <span style={{
-        fontSize: 9.5, fontWeight: 900, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase',
+        fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase',
       }}>Final</span>
     )
   }
@@ -73,7 +73,7 @@ function StateBadge({ g }) {
     return (
       <span
         title="This game's kickoff has passed and the feed never marked it live or final, so the bot has no result for it. The card below is the last thing the bot published about this game, not a live read."
-        style={{ fontSize: 9.5, fontWeight: 900, color: '#fbbf24', letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'default' }}
+        style={{ fontSize: TYPE.label, fontWeight: 900, color: '#fbbf24', letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'default' }}
       >Kickoff passed · not tracked</span>
     )
   }
@@ -85,7 +85,7 @@ function StateBadge({ g }) {
       })
     } catch { t = 'TBD' }
   }
-  return <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{t || 'TBD'}</span>
+  return <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{t || 'TBD'}</span>
 }
 
 // Real scoreboard weight — 21px numerals, not the 12px line the score used
@@ -95,11 +95,11 @@ function StateBadge({ g }) {
 function ScoreLine({ g }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontFamily: NUM_FONT, marginBottom: 4 }}>
-      <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text2, minWidth: 28 }}>{g.away}</span>
-      <span style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{g.away_score ?? 0}</span>
-      <span style={{ fontSize: 12, color: C.text3 }}>–</span>
-      <span style={{ fontSize: 21, fontWeight: 900, color: C.text }}>{g.home_score ?? 0}</span>
-      <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text2, minWidth: 28 }}>{g.home}</span>
+      <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.text2, minWidth: 28 }}>{g.away}</span>
+      <span style={{ fontSize: TYPE.display, fontWeight: 900, color: C.text }}>{g.away_score ?? 0}</span>
+      <span style={{ fontSize: TYPE.body, color: C.text3 }}>–</span>
+      <span style={{ fontSize: TYPE.display, fontWeight: 900, color: C.text }}>{g.home_score ?? 0}</span>
+      <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.text2, minWidth: 28 }}>{g.home}</span>
     </div>
   )
 }
@@ -111,7 +111,7 @@ function SidePicks({ players, team, onPlayerClick, matchup }) {
     .slice(0, 3)
 
   if (!rows.length) {
-    return <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>No scored players</div>
+    return <div style={{ fontSize: TYPE.body, color: C.text3, padding: '6px 0' }}>No scored players</div>
   }
 
   return (
@@ -129,7 +129,7 @@ function SidePicks({ players, team, onPlayerClick, matchup }) {
             }}
           >
             <span style={{
-              fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: g.color,
+              fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: g.color,
               minWidth: 30,
             }}>{Math.round(p.scores?.TD ?? 0)}</span>
             {/* ONE AXIS FOR THE WHOLE PAGE. The lists used to be sixteen
@@ -154,14 +154,14 @@ function SidePicks({ players, team, onPlayerClick, matchup }) {
                 ellipsing. That was invisible until the bar above took 34px —
                 names clipped at the card edge with no ellipsis, both columns. */}
             <span style={{
-              fontSize: 11, color: C.text, fontWeight: 600, flex: 1, minWidth: 0,
+              fontSize: TYPE.body, color: C.text, fontWeight: 600, flex: 1, minWidth: 0,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{p.name}</span>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.position}</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.position}</span>
             <MatchupBadge matchup={matchup} player={p} market="TD" />
             {injuryTag(p) && (
               <span title={injuryTitle(injuryTag(p))}
-                    style={{ fontSize: 8.5, color: injuryColor(injuryTag(p), C), fontWeight: 900 }}>
+                    style={{ fontSize: TYPE.label, color: injuryColor(injuryTag(p), C), fontWeight: 900 }}>
                 {injuryTag(p)}
               </span>
             )}
@@ -176,11 +176,11 @@ function DesignatedCalls({ game, picks, playersById, onPlayerClick, matchup }) {
   const calls = Object.entries(picks?.card || {}).filter(([market]) => HEADLINE_MARKETS.has(market))
     .map(([market, block]) => ({ market, block, call: block?.rungs?.[0] }))
     .filter(({ call }) => call && (call.team === game.away || call.team === game.home))
-  if (!calls.length) return <div style={{ color: C.text3, fontSize: 9.5 }}>No headline call lands in this game.</div>
+  if (!calls.length) return <div style={{ color: C.text3, fontSize: TYPE.body }}>No headline call lands in this game.</div>
   return <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>{calls.map(({ market, block, call }) => {
     const player = playersById[String(call.player_id)]
     const grade = gradeFor(call.score)
-    return <button key={market} onClick={() => player && onPlayerClick?.(player, market)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', border: `1px solid ${grade.color}45`, borderRadius: 8, background: `${grade.color}0d`, color: C.text, cursor: player ? 'pointer' : 'default', textAlign: 'left' }}><span style={{ color: grade.color, fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900 }}>{market}</span><b style={{ fontSize: 9.5 }}>{call.name}</b><em style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 8, fontStyle: 'normal' }}>bar {block.bar}</em>{player && <MatchupBadge matchup={matchup} player={player} market={market} />}</button>
+    return <button key={market} onClick={() => player && onPlayerClick?.(player, market)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', border: `1px solid ${grade.color}45`, borderRadius: 8, background: `${grade.color}0d`, color: C.text, cursor: player ? 'pointer' : 'default', textAlign: 'left' }}><span style={{ color: grade.color, fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900 }}>{market}</span><b style={{ fontSize: TYPE.body }}>{call.name}</b><em style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro, fontStyle: 'normal' }}>bar {block.bar}</em>{player && <MatchupBadge matchup={matchup} player={player} market={market} />}</button>
   })}</div>
 }
 
@@ -382,7 +382,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
     return (
       <div style={{
         border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
-        textAlign: 'center', color: C.text3, fontSize: 12.5,
+        textAlign: 'center', color: C.text3, fontSize: TYPE.body,
       }}>
         No games on this slate yet. The bot posts the week when the schedule lands.
       </div>
@@ -426,7 +426,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
           style={{
             marginBottom: 11, padding: '10px 14px', borderRadius: 12,
             border: `1px solid ${C.yellow}5c`, background: `${C.yellow}20`,
-            color: C.text2, fontSize: 11.5, lineHeight: 1.5,
+            color: C.text2, fontSize: TYPE.body, lineHeight: 1.5,
           }}
         >
           <b style={{ color: C.yellow }}>This wave is over.</b> Last kickoff was {waveEnded}
@@ -460,7 +460,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
       {!sorted.length && (
         <div style={{
           border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 22,
-          textAlign: 'center', color: C.text3, fontSize: 12,
+          textAlign: 'center', color: C.text3, fontSize: TYPE.body,
         }}>No games clear this filter.</div>
       )}
 
@@ -486,10 +486,10 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
                   <StateBadge g={g} />
                 ) : (
                   <>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: C.text }}>
+                    <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>
                       {g.away} <span style={{ color: C.text3, fontWeight: 600 }}>@</span> {g.home}
                     </span>
-                    <span style={{ fontSize: 10, fontFamily: NUM_FONT }}><StateBadge g={g} /></span>
+                    <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT }}><StateBadge g={g} /></span>
                   </>
                 )}
               </div>
@@ -504,8 +504,8 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
                   possession and down/distance are the league feed's, not the
                   bot's last run. Absent only when ESPN's situation block is. */}
               {live && (g.down_distance || g.possession
-                ? <div style={{ margin: '1px 0 7px', color: g.red_zone ? C.yellow : C.cyan, fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT }}>{g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}</div>
-                : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: 8.5, fontFamily: NUM_FONT }}>Waiting on the drive feed · {g.detail || 'live'}</div>
+                ? <div style={{ margin: '1px 0 7px', color: g.red_zone ? C.yellow : C.cyan, fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT }}>{g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}</div>
+                : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: TYPE.micro, fontFamily: NUM_FONT }}>Waiting on the drive feed · {g.detail || 'live'}</div>
               )}
 
               {(() => {
@@ -526,7 +526,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
               {open ? (
                 <>
                   {g.venue && (
-                    <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 2 }}>
+                    <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 2 }}>
                       {g.venue}{g.indoors ? ' · indoors' : ''}
                     </div>
                   )}
@@ -534,7 +534,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
                   <GameIntel game={g} matchup={matchup} />
 
                   <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
-                    <div style={{ marginBottom: 6, color: C.green, fontSize: 8, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.09em' }}>THE SIX · DESIGNATED CALLS IN THIS GAME</div>
+                    <div style={{ marginBottom: 6, color: C.green, fontSize: TYPE.label, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.09em' }}>THE SIX · DESIGNATED CALLS IN THIS GAME</div>
                     <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} matchup={matchup} />
                   </div>
 
@@ -542,7 +542,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
                     {[g.away, g.home].map((t) => (
                       <div key={t}>
                         <div style={{
-                          fontSize: 9.5, fontWeight: 900, color: C.text3,
+                          fontSize: TYPE.label, fontWeight: 900, color: C.text3,
                           letterSpacing: '.08em', textTransform: 'uppercase',
                         }}>{t}</div>
                         <SidePicks players={players} team={t} onPlayerClick={onPlayerClick} matchup={matchup} />
@@ -568,10 +568,10 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
                           background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
                           borderRadius: 8, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
                         }}>
-                          <span style={{ fontSize: 8.5, fontWeight: 900, color: C.text3, fontFamily: NUM_FONT, minWidth: 28 }}>{t}</span>
-                          <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: bg.color, minWidth: 26 }}>{Math.round(best.scores?.TD ?? 0)}</span>
-                          <span style={{ fontSize: 11, color: C.text, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{best.name}</span>
-                          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{best.position}</span>
+                          <span style={{ fontSize: TYPE.micro, fontWeight: 900, color: C.text3, fontFamily: NUM_FONT, minWidth: 28 }}>{t}</span>
+                          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: bg.color, minWidth: 26 }}>{Math.round(best.scores?.TD ?? 0)}</span>
+                          <span style={{ fontSize: TYPE.body, color: C.text, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{best.name}</span>
+                          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{best.position}</span>
                         </button>
                       )
                     })}
