@@ -1116,7 +1116,11 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= MATCHUP_HOUR) {
       await safeStat('matchuphistory', async () => {
         const lines = await vsPitcherCareerLines(pregameRows())
-        const hrPicks = hrVsStarterPicks(lines)
+        // Capped to 6 explicitly (2026-09-15, card-overflow fix): the
+        // function's own default is 12, sized for a real page/table, not a
+        // fixed-canvas social card -- careerVsStarterPicks below already
+        // defaults to 6, so this just brings HR history in line with it.
+        const hrPicks = hrVsStarterPicks(lines, 6)
         await claimAndPostStat(db, day, 'matchup_hr', MATCHUP_HOUR,
           hrVsStarterText(hrPicks, { day, ...TAIL }),
           hrPicks.length ? {
@@ -1147,7 +1151,15 @@ export async function GET(request) {
     //    (milestoneSeenIds above), so the two posts never repeat a player.
     if (etHoursSinceNoon() >= MILESTONE_AM_HOUR) {
       await safeStat('milestone_am', async () => {
-        const miles = await milestonePicks(boardRows())
+        // Capped to 6 right after the real computation (2026-09-15, fixing an
+        // overloaded card Donovan flagged): milestonePicks() returns EVERY
+        // qualifying candidate with no built-in limit -- milestoneText()
+        // already only ever displays the top 6 of whatever it's given, but
+        // the card's `lines` and the exclude payload below were reading the
+        // raw, uncapped list, so a deep candidate pool rendered a card with
+        // far more rows than the fixed-size canvas has room for. Slicing
+        // here means text/card/exclude-set all agree on the same 6 names.
+        const miles = (await milestonePicks(boardRows())).slice(0, 6)
         await claimAndPostStat(db, day, 'milestone_am', MILESTONE_AM_HOUR,
           milestoneText(miles, { day, wave: 'am', ...TAIL }),
           miles.length ? {
@@ -1161,7 +1173,7 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= MILESTONE_MID_HOUR) {
       await safeStat('milestone_mid', async () => {
         const seen = await milestoneSeenIds(db, day)
-        const miles = await milestonePicks(boardRows(), { exclude: seen })
+        const miles = (await milestonePicks(boardRows(), { exclude: seen })).slice(0, 6)  // same card-overflow fix as the AM wave above
         await claimAndPostStat(db, day, 'milestone_mid', MILESTONE_MID_HOUR,
           milestoneText(miles, { day, wave: 'mid', ...TAIL }),
           miles.length ? {
@@ -1185,7 +1197,12 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= STORYLINE_WATCH_1_HOUR) {
       await safeStat('storyline_watch_1', async () => {
         const seen = await storylineSeenTexts(db, day)
-        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        // Capped to 6 (2026-09-15, same card-overflow fix as Milestone Watch):
+        // storylineWatchPicks pulls a wide pool (8 matchup lines + 10 fun
+        // facts) on purpose, so there's still something left after the
+        // exclude filter runs -- but that whole surviving pool was going
+        // straight into the card's `lines`, uncapped, same bug as milestones.
+        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
         await claimAndPostStat(db, day, 'storyline_watch_1', STORYLINE_WATCH_1_HOUR,
           storylineWatchText(picks, { day, slot: 1, ...TAIL }),
           picks.length ? {
@@ -1199,7 +1216,8 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR) {
       await safeStat('storyline_watch_2', async () => {
         const seen = await storylineSeenTexts(db, day)
-        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        // capped to 6, see storyline_watch_1 above
+        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
         await claimAndPostStat(db, day, 'storyline_watch_2', STORYLINE_WATCH_2_HOUR,
           storylineWatchText(picks, { day, slot: 2, ...TAIL }),
           picks.length ? {
@@ -1213,7 +1231,8 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR) {
       await safeStat('storyline_watch_3', async () => {
         const seen = await storylineSeenTexts(db, day)
-        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        // capped to 6, see storyline_watch_1 above
+        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
         await claimAndPostStat(db, day, 'storyline_watch_3', STORYLINE_WATCH_3_HOUR,
           storylineWatchText(picks, { day, slot: 3, ...TAIL }),
           picks.length ? {
@@ -1227,7 +1246,8 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR) {
       await safeStat('storyline_watch_4', async () => {
         const seen = await storylineSeenTexts(db, day)
-        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        // capped to 6, see storyline_watch_1 above
+        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
         await claimAndPostStat(db, day, 'storyline_watch_4', STORYLINE_WATCH_4_HOUR,
           storylineWatchText(picks, { day, slot: 4, ...TAIL }),
           picks.length ? {
@@ -1248,7 +1268,12 @@ export async function GET(request) {
     // posted).
     if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR) {
       await safeStat('revenge_giveaway', async () => {
-        const rg = await revengeGiveawayPicks(boardRows(), day)
+        // Capped right after the fetch, same card-overflow fix as Milestone/
+        // Storyline Watch above -- revengeGiveawayText() already only ever
+        // shows 4 revenge games + 3 giveaways, but the card's `lines` was
+        // reading the full, uncapped lists straight off revengeGiveawayPicks().
+        const full = await revengeGiveawayPicks(boardRows(), day)
+        const rg = { revenge: full.revenge.slice(0, 4), giveaways: full.giveaways.slice(0, 3) }
         await claimAndPostStat(db, day, 'revenge_giveaway', REVENGE_GIVEAWAY_HOUR,
           revengeGiveawayText(rg, { day, ...TAIL }),
           (rg.revenge.length || rg.giveaways.length) ? {
@@ -1503,7 +1528,7 @@ export async function GET(request) {
   await safeStat('matchuphistory_late', async () => {
     const seen = await matchupHistorySeenIds(db, day)
     const lines = await vsPitcherCareerLines(midRows(), { exclude: seen })
-    const hrPicks = hrVsStarterPicks(lines)
+    const hrPicks = hrVsStarterPicks(lines, 6)  // same card-overflow fix as the day wave above
     await claimAndPostStat(db, day, 'matchup_hr_late', MATCHUP_LATE_HOUR,
       hrVsStarterText(hrPicks, { day, ...TAIL, wave: 'late' }),
       hrPicks.length ? {
