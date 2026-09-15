@@ -1,6 +1,6 @@
 'use client'
 import { useMemo } from 'react'
-import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
 
 // 🤝 PAIRS — two props from the same slate, sold as one. The NFL sibling of
@@ -139,7 +139,7 @@ function GradeBadge({ state }) {
   }[state] || 'Not graded yet.'
   return (
     <span title={why} style={{
-      fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: s.color,
+      fontSize: TYPE.label, fontWeight: 900, fontFamily: NUM_FONT, color: s.color,
       letterSpacing: '.03em',
     }}>{s.text}</span>
   )
@@ -300,7 +300,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
     return (
       <div style={{
         border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
-        textAlign: 'center', color: C.text3, fontSize: 12.5,
+        textAlign: 'center', color: C.text3, fontSize: TYPE.body,
       }}>No slate loaded yet.</div>
     )
   }
@@ -326,7 +326,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
 
   return (
     <div>
-      <div style={{ fontSize: 11, color: C.text3, marginBottom: 12, lineHeight: 1.6 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 12, lineHeight: 1.6 }}>
         Two props, one player, played together — the market on this page is <b style={{ color: C.text2 }}>mechanical
         correlation</b> (the same touches drive both numbers), not a backtested claim. A pair is only ever as good
         as its <b style={{ color: C.text2 }}>weaker leg</b>: both have to clear their own bar, so a 90 + 30 is worth
@@ -343,10 +343,10 @@ export default function Pairs({ data, results, onPlayerClick }) {
           padding: '11px 14px', marginBottom: 14,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-            <span style={{ fontSize: 9, fontWeight: 900, color: lead.color, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
+            <span style={{ fontSize: TYPE.label, fontWeight: 900, color: lead.color, letterSpacing: '.09em', fontFamily: NUM_FONT }}>
               {leadTitle}
             </span>
-            <span style={{ fontSize: 9.5, color: C.text3 }}>{leadCaption}</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{leadCaption}</span>
             {results && <span style={{ marginLeft: 'auto' }}><GradeBadge state={lead.gradeState} /></span>}
           </div>
           <div
@@ -354,25 +354,25 @@ export default function Pairs({ data, results, onPlayerClick }) {
             className="tap-row"
             style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}
           >
-            <span style={{ fontSize: 13, fontWeight: 900, color: C.text }}>{lead.name}</span>
-            <span style={{ fontSize: 10, color: C.text3, marginLeft: 8, fontFamily: NUM_FONT }}>
+            <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>{lead.name}</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, marginLeft: 8, fontFamily: NUM_FONT }}>
               {lead.position} · {lead.team} {lead.opp}
             </span>
           </div>
-          <div style={{ fontSize: 10.5, color: C.text2, marginTop: 4 }}>{lead.pairLabel}</div>
+          <div style={{ fontSize: TYPE.micro, color: C.text2, marginTop: 4 }}>{lead.pairLabel}</div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginTop: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, color: C.text }}>{lead.stronger.toFixed(0)}</span>
-            <span style={{ color: C.text3, fontSize: 12 }}>+</span>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, color: lead.weaker >= 60 ? lead.color : C.red }}>{lead.weaker.toFixed(0)}</span>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>gap {lead.gap.toFixed(0)}</span>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: C.text }}>{lead.stronger.toFixed(0)}</span>
+            <span style={{ color: C.text3, fontSize: TYPE.micro }}>+</span>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: lead.weaker >= 60 ? lead.color : C.red }}>{lead.weaker.toFixed(0)}</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>gap {lead.gap.toFixed(0)}</span>
           </div>
-          <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>{lead.why}</div>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>{lead.why}</div>
         </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
-        <span style={{ fontSize: 12, fontWeight: 800 }}>Same player, two markets</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{sameRows.length} pairs</span>
+        <span style={{ fontSize: TYPE.title, fontWeight: 800 }}>Same player, two markets</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{sameRows.length} pairs</span>
       </div>
 
       {sameRows.length > 0 ? (
@@ -403,14 +403,14 @@ export default function Pairs({ data, results, onPlayerClick }) {
           caption="Sorted by weaker leg, worst-case first — that's the number that decides whether a pair clears. Leg 1 and Leg 2 are both NFL's mean-47/sd-11 scale (see lib/nfl/theme.js), so unlike MLB's pair board these ARE comparable across different pairings. Graded reuses nfl_results.json's last run only — it is overwritten every grading pass, not a season total — and a TD leg reads ungraded rather than missed when a player scored exactly zero, because nfl_results.py drops falsy values before they reach this page (see the Accountability tab for the full explanation)."
         />
       ) : (
-        <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0' }}>
           No player on this slate currently carries scores on two paired markets at once.
         </div>
       )}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
-        <span style={{ fontSize: 12, fontWeight: 800 }}>QB + his own top receiver, same game</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+        <span style={{ fontSize: TYPE.title, fontWeight: 800 }}>QB + his own top receiver, same game</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {crossRows.length} teams · the cross-player case, kept to the one the brief named
         </span>
       </div>
@@ -435,14 +435,14 @@ export default function Pairs({ data, results, onPlayerClick }) {
           caption="One pair per team — that team's best-scored QB paired with that team's best-scored receiver, same team, same game. No same-game-correlation claim is made beyond that: lib/pairEvidence.js's own measurement on the MLB archive found shared-environment pairs (same game, same team) landing at or below a random pair once independence is accounted for. This section exists because the brief named the cross-player, same-game case explicitly — treat the pairing as a plausible story tied to one game script, not a measured edge."
         />
       ) : (
-        <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0' }}>
           No team on this slate currently has both a scored QB and a scored receiver.
         </div>
       )}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
-        <span style={{ fontSize: 12, fontWeight: 800 }}>ATD stack — two scorers, same team</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+        <span style={{ fontSize: TYPE.title, fontWeight: 800 }}>ATD stack — two scorers, same team</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {stackRows.length} teams · same market both legs, the plan's own named case
         </span>
       </div>
@@ -469,7 +469,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
           caption="One stack per team — that team's two highest anytime-TD scores, paired together. Both legs grade against the SAME market (Anytime TD), unlike the two sections above. No same-game-correlation claim is made: lib/pairEvidence.js's own measurement on the MLB archive found shared-environment pairs (same game, same team) landing at or below a random pair once independence is accounted for — this section exists because the master plan named ATD stacks explicitly, not because a real edge has been measured here yet."
         />
       ) : (
-        <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0' }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0' }}>
           No team on this slate currently has two players carrying an Anytime TD score.
         </div>
       )}
