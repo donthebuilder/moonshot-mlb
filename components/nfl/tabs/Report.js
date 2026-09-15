@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { C, NUM_FONT } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import ChartFrame from '../ChartFrame'
 
@@ -26,25 +26,25 @@ function Row({ k, m, tuned }) {
   const col = beat ? C.green : flat ? C.text3 : C.red
   return (
     <tr style={{ borderTop: `1px solid ${C.border}` }}>
-      <td style={{ padding: '7px 8px', fontSize: 11.5, color: C.text, fontWeight: 600 }}>
+      <td style={{ padding: '7px 8px', fontSize: TYPE.body, color: C.text, fontWeight: 600 }}>
         {m.label}
-        <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}> · {m.bar}</span>
+        <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}> · {m.bar}</span>
       </td>
       <td style={{
         padding: '7px 8px', textAlign: 'right', fontFamily: NUM_FONT,
-        fontSize: 12.5, fontWeight: 900, color: C.text,
+        fontSize: TYPE.title, fontWeight: 900, color: C.text,
       }}>{m.model}%</td>
       <td style={{
         padding: '7px 8px', textAlign: 'right', fontFamily: NUM_FONT,
-        fontSize: 11.5, color: C.text3,
+        fontSize: TYPE.body, color: C.text3,
       }}>{m.form}%</td>
       <td style={{
         padding: '7px 8px', textAlign: 'right', fontFamily: NUM_FONT,
-        fontSize: 11.5, color: C.text3,
+        fontSize: TYPE.body, color: C.text3,
       }}>{m.base}%</td>
       <td style={{
         padding: '7px 8px', textAlign: 'right', fontFamily: NUM_FONT,
-        fontSize: 12.5, fontWeight: 900, color: col,
+        fontSize: TYPE.title, fontWeight: 900, color: col,
       }}>{m.vs_form > 0 ? '+' : ''}{m.vs_form}</td>
     </tr>
   )
@@ -61,7 +61,7 @@ function Deciles({ m }) {
       {rows.map((r) => (
         <div key={r.d} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
           <span style={{
-            fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, minWidth: 26,
+            fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, minWidth: 26,
           }}>D{r.d}</span>
           <div style={{ flex: 1, height: 9, background: 'rgba(255,255,255,.04)', borderRadius: 3 }}>
             <div style={{
@@ -70,7 +70,7 @@ function Deciles({ m }) {
             }} />
           </div>
           <span style={{
-            fontFamily: NUM_FONT, fontSize: 10, color: C.text2, minWidth: 40, textAlign: 'right',
+            fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text2, minWidth: 40, textAlign: 'right',
           }}>{r.rate}%</span>
         </div>
       ))}
@@ -87,7 +87,7 @@ export default function Report({ report }) {
     return (
       <div style={{
         border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
-        textAlign: 'center', color: C.text3, fontSize: 12.5,
+        textAlign: 'center', color: C.text3, fontSize: TYPE.body,
       }}>Report card hasn&apos;t been published yet.</div>
     )
   }
@@ -101,7 +101,7 @@ export default function Report({ report }) {
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
         borderRadius: 10, padding: '11px 14px', marginBottom: 12,
-        fontSize: 11.5, color: C.text2, lineHeight: 1.65,
+        fontSize: TYPE.body, color: C.text2, lineHeight: 1.65,
       }}>
         <b style={{ color: C.text }}>Calibrated, not accumulated.</b> This page is the
         seven models run against completed past seasons on real outcomes — top{' '}
@@ -125,7 +125,7 @@ export default function Report({ report }) {
       {tuned && (
         <div style={{
           background: `${C.yellow}20`, border: `1px solid ${C.yellow}3d`, borderRadius: 9,
-          padding: '8px 12px', marginBottom: 10, fontSize: 11, color: C.text2, lineHeight: 1.6,
+          padding: '8px 12px', marginBottom: 10, fontSize: TYPE.body, color: C.text2, lineHeight: 1.6,
         }}>
           <b style={{ color: C.yellow }}>This is the season the weights were fit on.</b>{' '}
           Numbers here flatter the model by construction — the Anytime TD edge is
@@ -139,7 +139,7 @@ export default function Report({ report }) {
             <tr style={{ background: 'rgba(255,255,255,.03)' }}>
               {['Market · bar', 'MODEL', 'FORM', 'BASE', 'vs FORM'].map((h, i) => (
                 <th key={h} style={{
-                  padding: '7px 8px', fontSize: 9.5, fontWeight: 900, color: C.text3,
+                  padding: '7px 8px', fontSize: TYPE.label, fontWeight: 900, color: C.text3,
                   letterSpacing: '.08em', textAlign: i === 0 ? 'left' : 'right',
                 }}>{h}</th>
               ))}
@@ -154,7 +154,7 @@ export default function Report({ report }) {
       {failing.length > 0 && (
         <div style={{
           background: `${C.red}10`, border: `1px solid ${C.red}4d`, borderRadius: 9,
-          padding: '9px 12px', marginTop: 10, fontSize: 11, color: C.text2, lineHeight: 1.6,
+          padding: '9px 12px', marginTop: 10, fontSize: TYPE.body, color: C.text2, lineHeight: 1.6,
         }}>
           <b style={{ color: C.red }}>Not beating the dumb model in {season}:</b>{' '}
           {failing.map(([, m]) => m.label).join(' · ')}. On these, ranking by trailing
@@ -163,7 +163,7 @@ export default function Report({ report }) {
       )}
 
       <div style={{
-        fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+        fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
         margin: '20px 0 8px',
       }}>SEPARATION — HIT RATE BY SCORE DECILE</div>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -174,7 +174,7 @@ export default function Report({ report }) {
         ))}
       </div>
       <ChartFrame pad="12px 14px" style={{ borderRadius: 11 }}>
-        <div style={{ fontSize: 11, color: C.text3, marginBottom: 6, lineHeight: 1.6 }}>
+        <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 6, lineHeight: 1.6 }}>
           D10 is the highest-scoring tenth of the pool, D1 the lowest. A model can rank
           well and still not beat naive form on a top-15 slice — this is the chart that
           shows whether the <i>ordering</i> is real.
