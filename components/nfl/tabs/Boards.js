@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
@@ -38,7 +38,7 @@ function recentForm(logs, playerId, market, bar) {
 }
 
 function FormSparkline({ form, bar, color }) {
-  if (!form) return <span style={{ color: C.text3, fontSize: 9 }}>No form</span>
+  if (!form) return <span style={{ color: C.text3, fontSize: TYPE.micro }}>No form</span>
   const values = form.points.map((point) => point.value)
   const ceiling = Math.max(Number(bar) || 0, ...values, 1)
   const coords = values.map((value, index) => {
@@ -60,7 +60,7 @@ function FormSparkline({ form, bar, color }) {
           return <circle key={`${point.season}-${point.week}`} cx={x} cy={y} r="1.8" fill={point.value >= Number(bar) ? C.green : color} />
         })}
       </svg>
-      <b style={{ color: directionColor, fontFamily: NUM_FONT, fontSize: 9 }}>{direction}</b>
+      <b style={{ color: directionColor, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{direction}</b>
     </span>
   )
 }
@@ -175,22 +175,22 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
         <div style={{
           background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
           borderRadius: 10, padding: '9px 13px', marginBottom: 10,
-          fontSize: 11.5, color: C.text2, lineHeight: 1.6,
+          fontSize: TYPE.body, color: C.text2, lineHeight: 1.6,
         }}>
           <b style={{ color: C.text }}>{spec.label}</b> · bar{' '}
           <b style={{ color: C.green, fontFamily: NUM_FONT }}>{spec.bar}</b> ·{' '}
           {spec.positions.join(' / ')}
           {spec.dropped?.length > 0 && (
-            <div style={{ color: C.yellow, marginTop: 3, fontSize: 10 }}>
+            <div style={{ color: C.yellow, marginTop: 3, fontSize: TYPE.micro }}>
               no lines this slate · weight redistributed
             </div>
           )}
-          <div style={{ color: C.text3, marginTop: 3, fontSize: 9.5 }}>
+          <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
             Form line = last 8 games · dotted line = market bar · arrow compares recent half with prior half
           </div>
           {/* The single most common misread of the board (08-29 review): an 81
               looks like an 81% chance. Say what it is where it first appears. */}
-          <div style={{ color: C.text3, marginTop: 3, fontSize: 9.5 }}>
+          <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
             The score is a <b style={{ color: C.text2 }}>league ranking on a 0–100 scale</b>, not a probability — 81 means far up the league on this market&apos;s inputs, not an 81% chance.
           </div>
         </div>
@@ -226,16 +226,16 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, minWidth: 13,
+                  fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, minWidth: 13,
                 }}>{i + 1}</span>
                 <NflFace player={p} size={38} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="nfl-board-name" style={{
-                    fontSize: 12.5, fontWeight: 700, color: C.text,
+                    fontSize: TYPE.name, fontWeight: 700, color: C.text,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>{p.name}</div>
                   <div className="nfl-board-matchup" style={{
-                    fontSize: 10, color: C.text3, fontFamily: NUM_FONT,
+                    fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>{p.position} · {p.team} {p.opp ? `vs ${p.opp}` : ''}</div>
                 </div>
@@ -243,10 +243,10 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
                   {/* The grade, same ladder as the MLB board. The number alone
                       doesn't tell you whether 61 is good on this slate. */}
                   <div style={{
-                    fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: g.color, lineHeight: 1,
+                    fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: g.color, lineHeight: 1,
                   }}>{Math.round(s)}</div>
                   <div style={{
-                    fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, color: g.color,
+                    fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: g.color,
                     border: `1px solid ${g.color}55`, borderRadius: 5,
                     padding: '1px 4px', marginTop: 3, textAlign: 'center',
                   }}>{g.label}</div>
@@ -266,13 +266,13 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
                 <div style={{ display: 'flex', gap: 8 }}>
                   {injuryTag(p) && (
                     <span title={injuryTitle(injuryTag(p))} style={{
-                      fontSize: 9, fontWeight: 900, color: injuryColor(injuryTag(p), C),
+                      fontSize: TYPE.label, fontWeight: 900, color: injuryColor(injuryTag(p), C),
                     }}>{injuryTag(p)}</span>
                   )}
                   {p.carryover && (
                     <span
                       title="Built from last season's per-game baseline -- no current-season form yet."
-                      style={{ fontSize: 9, fontWeight: 900, color: C.purple }}
+                      style={{ fontSize: TYPE.label, fontWeight: 900, color: C.purple }}
                     >CO</span>
                   )}
                 </div>
@@ -285,7 +285,7 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
       {!rows.length && (
         <div style={{
           border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
-          textAlign: 'center', color: C.text3, fontSize: 12.5,
+          textAlign: 'center', color: C.text3, fontSize: TYPE.body,
         }}>Nothing scored for this market on this slate.</div>
       )}
     </div>
