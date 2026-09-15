@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import MatchupMap from '../MatchupMap'
 import DvpTable from '../DvpTable'
@@ -33,8 +33,8 @@ function surname(name) {
 function Row({ label, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
-      <span style={{ fontSize: 10, color: C.text3, minWidth: 96 }}>{label}</span>
-      <span style={{ fontFamily: NUM_FONT, fontSize: 11.5, color: C.text }}>{children}</span>
+      <span style={{ fontSize: TYPE.label, color: C.text3, minWidth: 96 }}>{label}</span>
+      <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, color: C.text }}>{children}</span>
     </div>
   )
 }
@@ -54,7 +54,7 @@ function Profile({ data, team }) {
           borderRadius: 10, padding: '11px 14px',
         }}>
           <div style={{
-            fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+            fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
             marginBottom: 7,
           }}>{team} COVERAGE</div>
           <Row label="Man / Zone">{cov.man_pct}% / {cov.zone_pct}%</Row>
@@ -62,12 +62,12 @@ function Profile({ data, team }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 7 }}>
             {Object.entries(cov.shells || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
               <span key={k} style={{
-                fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, color: C.text2,
+                fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, color: C.text2,
                 border: `1px solid ${C.border}`, borderRadius: 5, padding: '2px 6px',
               }}>{k} <b style={{ color: C.cyan }}>{v}%</b></span>
             ))}
           </div>
-          <div style={{ fontSize: 9.5, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
             Shell rates are off the {cov.shell_n} snaps NGS charted a coverage for —
             roughly half. Man/zone is charted on effectively all of them.
           </div>
@@ -79,7 +79,7 @@ function Profile({ data, team }) {
           borderRadius: 10, padding: '11px 14px',
         }}>
           <div style={{
-            fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+            fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
             marginBottom: 7,
           }}>{team} EXPLOSIVE ALLOWED</div>
           <Row label="Pass yards">{exp.yds}</Row>
@@ -110,10 +110,10 @@ function Section({ title, sub, children, style }) {
         display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap',
       }}>
         <span style={{
-          fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, color: C.text,
+          fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: C.text,
           letterSpacing: '.12em',
         }}>{title}</span>
-        {sub && <span style={{ fontSize: 10.5, color: C.text3 }}>{sub}</span>}
+        {sub && <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{sub}</span>}
       </div>
       {children}
     </ChartFrame>
@@ -123,7 +123,7 @@ function Section({ title, sub, children, style }) {
 // Squarer and tighter than the shared pill. The MLB side keeps btnStyle as-is.
 function teamStyle(active) {
   return {
-    fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.06em',
+    fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.06em',
     padding: '6px 10px', borderRadius: 7, cursor: 'pointer', whiteSpace: 'nowrap',
     border: `1px solid ${active ? C.green : C.border}`,
     background: active ? `${C.green}33` : 'rgba(255,255,255,.03)',
@@ -186,7 +186,7 @@ export default function Matchups({ matchup, data }) {
     return (
       <div style={{
         border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
-        textAlign: 'center', color: C.text3, fontSize: 12.5,
+        textAlign: 'center', color: C.text3, fontSize: TYPE.body,
       }}>Matchup data hasn&apos;t been published yet.</div>
     )
   }
@@ -202,7 +202,7 @@ export default function Matchups({ matchup, data }) {
             border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2,
           }}>
             <button onClick={() => pick(away)} style={teamStyle(away === active)}>{away}</button>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>@</span>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>@</span>
             <button onClick={() => pick(home)} style={teamStyle(home === active)}>{home}</button>
           </div>
         ))}
@@ -265,7 +265,7 @@ export default function Matchups({ matchup, data }) {
           <div style={{
             margin: '10px 14px 0', padding: '9px 12px', borderLeft: `2px solid ${C.cyan}`,
             background: 'rgba(53,205,255,.06)', borderRadius: '0 8px 8px 0',
-            fontSize: 12.5, lineHeight: 1.6, color: C.text2,
+            fontSize: TYPE.body, lineHeight: 1.6, color: C.text2,
           }}>
             <span className="tuddy-live-dot-sm" aria-hidden="true" />
             {/* Was "Nth softest of 32" — which, measured, read 1st or 2nd for
@@ -289,7 +289,7 @@ export default function Matchups({ matchup, data }) {
           <div style={{
             margin: '8px 14px 0', padding: '9px 12px', borderLeft: `2px solid ${C.red}`,
             background: 'rgba(255,60,60,.06)', borderRadius: '0 8px 8px 0',
-            fontSize: 12.5, lineHeight: 1.6, color: C.text2,
+            fontSize: TYPE.body, lineHeight: 1.6, color: C.text2,
           }}>
             <b style={{ color: C.text }}>{active}</b>&apos;s real individual threat up front:{' '}
             <b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) grades{' '}
@@ -309,7 +309,7 @@ export default function Matchups({ matchup, data }) {
           <DvpDrift data={matchup} team={active} highlight={role} />
         </div>
         {picked && !role && (
-          <div style={{ fontSize: 10, color: C.text3, padding: '8px 14px 12px' }}>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, padding: '8px 14px 12px' }}>
             Depth roles publish with the next bot run — until then no row is pinned to {picked.name}.
           </div>
         )}
