@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { accountabilityText, boardIndexFrom, botPollText, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { accountabilityText, boardIndexFrom, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
@@ -233,6 +233,7 @@ const STORYLINES_HOUR = 0       // noon ET
 const THE_FOUR_HOUR = 0         // noon ET
 const BEST_AIR_HOUR = 2         // 2pm ET
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
+const BOARD_RESULTS_HOUR = -4   // 8am ET -- grades YESTERDAY's Tonight's Board
 const COMMUNITY_PICK_HOUR = -4  // 8am ET
 // 2026-09-15 (Donovan: pairswatch/longshot "get posted... almost at
 // midnight"). Traced, not guessed: the bot's day-rollover cron
@@ -660,6 +661,36 @@ export async function GET(request) {
     }
   }
 
+  // TONIGHT'S BOARD, GRADED (2026-09-15, Donovan: "do the recemmomdend but
+  // maks sure its graded"). Same read-back shape as RESULTS/ACCOUNTABILITY
+  // just above -- yesterday's 'board' post already persisted its picks
+  // (homer_feed_posts.payload.picks) -- but HIT and HRR can clear without a
+  // home run, so this cannot reuse homer_feed (HR-only) the way accountability
+  // does. boxLinesForDate re-pulls yesterday's real box scores instead, and
+  // pickCleared (lib/liveSlate.js) settles each pick against them -- the same
+  // bars the live in-card badges use.
+  if (etHoursSinceNoon() >= BOARD_RESULTS_HOUR) {
+    const yday = shiftDay(day, -1)
+    const boardResultsClaim = await claimSlot(db, yday, 'board_results')
+    if (boardResultsClaim) {
+      const { data: yBoard } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: 'board' }).maybeSingle()
+      const yBoardPicks = yBoard?.payload?.picks || []
+      if (yBoardPicks.length) {
+        const lines = await boxLinesForDate(yday)
+        const text = boardRoleResultsText(yBoardPicks, lines, { day: yday, ...TAIL })
+        const patch = { payload: { picks: yBoardPicks } }
+        const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+        if (d.ok) patch.discord_sent = true
+        if (hasX()) {
+          const r = await postToX(text)
+          if (r.ok && r.id) patch.x_post_id = r.id
+          else console.error(`[homers] board_results refused: ${r.status} ${r.error}`)
+        }
+        await db.from('homer_feed_posts').update(patch).match({ day: yday, kind: 'board_results' })
+      }
+    }
+  }
+
   // The nights before the feed existed, one per tick until the /called window
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
@@ -1030,10 +1061,18 @@ export async function GET(request) {
       // one-hour-before-first-pitch mark PREGAME_LEAD_MS already defined for
       // `overdue` -- so it fires off the board as it stands closest to first
       // pitch instead of as it stood at 6:30am.
+      // HOISTED (2026-09-15 fix): the botpoll block below reads `picks` after
+      // this if/else closes. Declaring it `const` inside the `else` only --
+      // as the 2026-09-15 pregameLockReady wrap first had it -- put it out of
+      // scope for that later reference (and left it undeclared entirely on
+      // the `!pregameLockReady` path), which would 500 the whole tick route
+      // the moment either branch ran. `let` here, assigned inside the branch
+      // that actually has picks, empty otherwise.
+      let picks = []
       if (!pregameLockReady) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
-        const picks = pregamePicks(pregameRows(), odds, day)
+        picks = pregamePicks(pregameRows(), odds, day)
         // Every roled name on tonight's board, for the receipt quote only --
         // see pregameCalled() in homerFeed.js. Not used by any post text.
         const called = pregameCalled(pregameRows())
@@ -1060,6 +1099,32 @@ export async function GET(request) {
             }
             await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
             if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
+          }
+        }
+      }
+
+      // TONIGHT'S BOARD (2026-09-15, Donovan: "role based tweets no cards
+      // just text" / "make sure its graded" -- see boardRolePicks and
+      // boardRoleResultsText in lib/dash/homerFeed.js). One pick per role
+      // (TOP/HR/HIT/HRR), no ten-per-category dump. Same lock window as
+      // Called Shots above, same reasoning: a per-player role call against a
+      // lineup that can still change is least accurate called off a board
+      // published hours before lineups lock.
+      if (pregameLockReady) {
+        const boardPicks = boardRolePicks(pregameRows())
+        if (boardPicks.length) {
+          const boardClaim = await claimSlot(db, day, 'board')
+          if (boardClaim) {
+            const text = boardRoleText(boardPicks, { day, ...TAIL })
+            const patch = { payload: { picks: boardPicks } }
+            const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+            if (d.ok) patch.discord_sent = true
+            if (hasX()) {
+              const r = await postToX(text)
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] board refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'board' })
           }
         }
       }
