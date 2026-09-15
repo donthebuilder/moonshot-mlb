@@ -25,6 +25,7 @@ import Touchdowns from './tabs/Touchdowns'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
 import Explosive from './tabs/Explosive'
+import Numerology from './tabs/Numerology'
 import Picks from './tabs/Picks'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
@@ -243,6 +244,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
+            {tab === 'numerology' && <Numerology data={data} />}
             {tab === 'picks'    && <Picks picks={picks} results={nflResults} data={data} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
