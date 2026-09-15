@@ -234,6 +234,25 @@ const THE_FOUR_HOUR = 0         // noon ET
 const BEST_AIR_HOUR = 2         // 2pm ET
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
 const COMMUNITY_PICK_HOUR = -4  // 8am ET
+// 2026-09-15 (Donovan: pairswatch/longshot "get posted... almost at
+// midnight"). Traced, not guessed: the bot's day-rollover cron
+// (today.yml, bot repo) fires at 12:05am Phoenix -- explicitly ON PURPOSE,
+// Donovan's own 2026-08-28 call, so the SITE turns over at midnight. But
+// `ready` above only checks the board's slate_date, not how much of the
+// day has actually run through it, and pairswatch/longshot had no hour
+// floor of their own -- so they were firing within minutes of that bare
+// midnight rollover, off the same unconfirmed-lineup board Called Shots
+// used to. Unlike the six board-only stat posts above (openly projections,
+// never claimed otherwise), pairswatch and longshot both READ the real
+// TOP/HR designations -- the same accuracy-sensitive data Called Shots is
+// built from. Noon/1pm ET lines them up with the start of the bot's own
+// declared lineup-drop window (9am-2:30pm Phoenix, today.yml) instead of
+// its opening bell, while still landing well ahead of Called Shots' new
+// closer-to-first-pitch slot -- keeping the "spread through the day"
+// cadence Donovan asked for on 2026-09-07 rather than clumping every
+// pregame post into one window.
+const PAIRSWATCH_HOUR = 0       // noon ET
+const LONGSHOT_HOUR = 1         // 1pm ET
 const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 
 function etHoursSinceNoon() {
@@ -677,6 +696,13 @@ export async function GET(request) {
   // above, so this always sees the freshest cached rows.
   const firstPitch = firstPitchOf(boardRows())
   const overdue = firstPitch != null && Date.now() >= firstPitch - PREGAME_LEAD_MS
+  // 2026-09-15 (Donovan: "the top ten needs to be updated before first
+  // pitch"). Reverses part of the 2026-09-10 change for ONE post only --
+  // see the note above the pregame claim below for which one and why.
+  // firstPitch can be null (no parseable game_time on the board at all);
+  // waiting forever in that case would be worse than the thing being
+  // reverted, so it falls open rather than blocking the call permanently.
+  const pregameLockReady = firstPitch == null ? true : overdue
   // WHO IS STILL PLAYABLE (2026-09-07, Donovan: "it should not be tweeting
   // things about the slate that's already gone off or players that are not
   // playing anymore"). One index over tonight's snapshot; every board-derived
@@ -768,9 +794,10 @@ export async function GET(request) {
         } : null)
     }
     // The hour is checked BEFORE the fetch here, unlike the two pure
-    // formatters above: fetchWeekdayHrLeaders walks up to 8 graded_results
-    // files off the network, and this block now runs on every tick all day
-    // rather than only inside the old pregame gate.
+    // formatters above: fetchWeekdayHrLeaders walks up to 5 graded_results
+    // files off the network (plus a second 5-file fetch for L5), and this
+    // block now runs on every tick all day rather than only inside the old
+    // pregame gate.
     if (etHoursSinceNoon() >= HR_LEADERS_DOW_HOUR) {
       const { leaders, dow } = await fetchWeekdayHrLeaders(day)
       await claimAndPostStat(db, day, 'hrleadersdow', HR_LEADERS_DOW_HOUR,
@@ -778,7 +805,7 @@ export async function GET(request) {
         leaders.length ? {
           pill: 'LEADERS', label: `MLB HR LEADERS — ${String(dow || '').toUpperCase()}S`,
           headline: `Most home runs on a ${dow || 'this weekday'} this season`,
-          lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR${p.avgEv != null ? `, ${p.avgEv} mph avg EV` : ''}`),
+          lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR, ${p.hr ? Math.round((p.hh / p.hr) * 100) : 0}% Hard Hit, L5: ${p.l5} HR`),
         } : null)
     }
     // ── BIRTHDAY WATCH / BACK-TO-BACK WATCH / FUN FACTS (2026-09-08) ──────
@@ -943,7 +970,7 @@ export async function GET(request) {
       // Each claims its own (day, kind) row, independent of the pregame
       // call below and of each other -- a slow news night for one is not a
       // reason to hold back the other, and neither can double-post.
-      {
+      if (etHoursSinceNoon() >= PAIRSWATCH_HOUR) {
         const hits = pairsToWatch(pregameRows(), pairs, odds, day)
         if (hits.length) {
           const claim = await claimSlot(db, day, 'pairswatch')
@@ -967,7 +994,7 @@ export async function GET(request) {
           }
         }
       }
-      {
+      if (etHoursSinceNoon() >= LONGSHOT_HOUR) {
         const pick = longshotPick(pregameRows(), odds, day)
         if (pick) {
           const claim = await claimSlot(db, day, 'longshot')
@@ -992,33 +1019,48 @@ export async function GET(request) {
         }
       }
 
-      const picks = pregamePicks(pregameRows(), odds, day)
-      // Every roled name on tonight's board, for the receipt quote only --
-      // see pregameCalled() in homerFeed.js. Not used by any post text.
-      const called = pregameCalled(pregameRows())
-      if (!picks.length) {
-        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
+      // THE CALLED SHOTS, HELD FOR THE LOCK WINDOW (2026-09-15). The
+      // 2026-09-10 change above made `ready` fire the moment the board
+      // publishes -- right for pairswatch/longshot/community_pick (none of
+      // them name a player against a lineup that can still change), wrong
+      // for this one: it is a per-player TOP/HR call that quoteFor() below
+      // anchors the WHOLE NIGHT's reply-quotes to, so calling it off a board
+      // published hours before lineups lock is the least accurate version
+      // of itself it could be. Held here until pregameLockReady -- the same
+      // one-hour-before-first-pitch mark PREGAME_LEAD_MS already defined for
+      // `overdue` -- so it fires off the board as it stands closest to first
+      // pitch instead of as it stood at 6:30am.
+      if (!pregameLockReady) {
+        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
-        const claim = await claimSlot(db, day, 'pregame')
-        if (!claim) {
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
+        const picks = pregamePicks(pregameRows(), odds, day)
+        // Every roled name on tonight's board, for the receipt quote only --
+        // see pregameCalled() in homerFeed.js. Not used by any post text.
+        const called = pregameCalled(pregameRows())
+        if (!picks.length) {
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
         } else {
-          const text = pregameText(picks, { day, ...TAIL })
-          const patch = { payload: { picks, called } }
-          // The payload goes in FIRST so the public card route can render the
-          // Discord embed from it; the post ids follow.
-          await db.from('homer_feed_posts').update({ payload: { picks, called } }).match({ day, kind: 'pregame' })
-          const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
-          if (d.ok) patch.discord_sent = true
-          if (hasX()) {
-            const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
-            const mediaId = png ? await uploadImageToX(png) : null
-            const r = await postToX(text, { mediaId })
-            if (r.ok && r.id) patch.x_post_id = r.id
-            else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
+          const claim = await claimSlot(db, day, 'pregame')
+          if (!claim) {
+            if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
+          } else {
+            const text = pregameText(picks, { day, ...TAIL })
+            const patch = { payload: { picks, called } }
+            // The payload goes in FIRST so the public card route can render the
+            // Discord embed from it; the post ids follow.
+            await db.from('homer_feed_posts').update({ payload: { picks, called } }).match({ day, kind: 'pregame' })
+            const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
+            if (d.ok) patch.discord_sent = true
+            if (hasX()) {
+              const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
+              const mediaId = png ? await uploadImageToX(png) : null
+              const r = await postToX(text, { mediaId })
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
+            if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
           }
-          await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
         }
       }
 
