@@ -41,7 +41,7 @@ import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
   careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
   hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
-  playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
+  milestonePicks, milestoneText, playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
 } from '../../../../../lib/dash/tweetFeed'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -183,6 +183,26 @@ async function matchupHistorySeenIds(db, day) {
   }
 }
 
+// WHO THE AM MILESTONE POST ALREADY NAMED (2026-09-15). Same shape as
+// matchupHistorySeenIds just above, one kind instead of two -- lets the
+// mid-day milestone post surface a different set of players instead of
+// repeating the morning's names.
+async function milestoneSeenIds(db, day) {
+  try {
+    const { data } = await db.from('homer_feed_posts').select('payload').eq('day', day).eq('kind', 'milestone_am')
+    const out = new Set()
+    for (const row of data || []) {
+      for (const p of row?.payload?.picks || []) {
+        const id = String(p?.player_id || '').trim()
+        if (id) out.add(id)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
+}
+
 function authorized(request) {
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
   if (!supplied) return false
@@ -297,6 +317,13 @@ const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 // free until real lineups land.
 const MATCHUP_HOUR = 2          // 2pm ET -- first wave of confirmed lineups
 const MATCHUP_LATE_HOUR = 6     // 6pm ET -- evening/West-Coast games locking
+// 2026-09-15 (Donovan: "milestones do 2 different sets of players two
+// different times a day," spread out to fill the account's two dead
+// windows -- nothing posts 4-7am ET today, and 6am is the middle of it;
+// 3pm sits in an otherwise-empty hour between Longshot/Fun Facts (1pm) and
+// Hottest Contact's mid repost (4pm).
+const MILESTONE_AM_HOUR = -6    // 6am ET
+const MILESTONE_MID_HOUR = 3    // 3pm ET
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -1033,6 +1060,42 @@ export async function GET(request) {
             lines: careerPicks.map((p) => `${p.name} — ${p.h}-for-${p.ab} vs ${p.pitcher}`),
           } : null,
           { picks: careerPicks })
+      })
+    }
+    // ── MILESTONE WATCH, TWO WAVES (2026-09-15, Donovan: "milestone emoji
+    //    title then players with stats," two posts a day, two different
+    //    sets of players) -- ported from components/Storylines.js, see
+    //    milestonePicks() in tweetFeed.js for the real computation. Runs
+    //    off boardRows(), not pregameRows(): a milestone doesn't depend on
+    //    tonight's lineup being confirmed, so the AM wave can fire at 6am
+    //    ET while matchup history above is still waiting on lineups to
+    //    lock. The mid wave excludes whoever the AM wave already named
+    //    (milestoneSeenIds above), so the two posts never repeat a player.
+    if (etHoursSinceNoon() >= MILESTONE_AM_HOUR) {
+      await safeStat('milestone_am', async () => {
+        const miles = await milestonePicks(boardRows())
+        await claimAndPostStat(db, day, 'milestone_am', MILESTONE_AM_HOUR,
+          milestoneText(miles, { day, wave: 'am', ...TAIL }),
+          miles.length ? {
+            pill: 'MILESTONE', label: 'MILESTONE WATCH',
+            headline: miles[0]?.name ? `${miles[0].name} is ${miles[0].need} away from ${miles[0].t.toLocaleString()} ${miles[0].word}` : 'Tonight\'s milestone watch',
+            lines: miles.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.need} from ${p.t.toLocaleString()} ${p.word}`),
+          } : null,
+          { picks: miles })
+      })
+    }
+    if (etHoursSinceNoon() >= MILESTONE_MID_HOUR) {
+      await safeStat('milestone_mid', async () => {
+        const seen = await milestoneSeenIds(db, day)
+        const miles = await milestonePicks(boardRows(), { exclude: seen })
+        await claimAndPostStat(db, day, 'milestone_mid', MILESTONE_MID_HOUR,
+          milestoneText(miles, { day, wave: 'mid', ...TAIL }),
+          miles.length ? {
+            pill: 'MILESTONE', label: 'MILESTONE WATCH',
+            headline: miles[0]?.name ? `${miles[0].name} is ${miles[0].need} away from ${miles[0].t.toLocaleString()} ${miles[0].word}` : 'Tonight\'s milestone watch',
+            lines: miles.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.need} from ${p.t.toLocaleString()} ${p.word}`),
+          } : null,
+          { picks: miles })
       })
     }
   }
