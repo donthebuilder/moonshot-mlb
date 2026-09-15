@@ -149,7 +149,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: 7 }}>
               <Tile label="Home runs" value={season.total} color={C.orange} sub={`${season.perNight} a night`} />
               <Tile label="On the sheet" value={season.capturePct != null ? `${season.capturePct}%` : '—'} color={C.cyan} sub={`${season.onSheet} of ${season.total}`} />
-              <Tile label="Wore TOP or HR" value={season.badged} color={C.green} sub="hitters, on the night" />
+              <Tile label="Badged (call)" value={season.badged} color={C.green} sub="TOP/HR/HIT/HRR, on the night" />
               <Tile
                 label="Longest" value={season.longest ? `${season.longest.ft} ft` : '—'} color={C.purple}
                 sub={season.longest ? `${season.longest.name} · ${shortDate(season.longest.date)}` : ''}
@@ -204,7 +204,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                       {n.total} HR
                     </span>
                     <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      title={`${n.onSheet} of ${n.total} were on the sheet · ${n.badged} wore TOP or HR${n.multi ? ` · ${n.multi} multi-homer night${n.multi === 1 ? '' : 's'}` : ''}`}>
+                      title={`${n.onSheet} of ${n.total} were on the sheet · ${n.badged} badged (TOP/HR/HIT/HRR)${n.multi ? ` · ${n.multi} multi-homer night${n.multi === 1 ? '' : 's'}` : ''}`}>
                       sheet {n.capturePct != null ? `${Math.round(n.capturePct)}%` : '—'} · {n.badged} badged
                       {n.longest ? ` · ${n.longest.ft} ft ${n.longest.name.split(' ').slice(-1)[0]}` : ''}
                     </span>
@@ -278,7 +278,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                     {hTh('Hitter', 'name', 'Sort by name', 'left')}
                     {hTh('HR', 'hr', 'Home runs across the nights held')}
                     {hTh('Nights', 'nights', 'Nights he went deep')}
-                    {hTh('Badged', 'badged', 'Nights he went deep wearing TOP or HR')}
+                    {hTh('Badged', 'badged', 'Nights he went deep wearing a call badge -- TOP, HR, HIT or HRR')}
                     {hTh('On sheet', 'sheet', 'Nights he went deep while on the sheet at all (badged or not)')}
                     {hTh('Avg score', 'score', "Average of the bot's HR score on his homer nights, where the sheet had him")}
                     {hTh('Longest', 'far', 'His longest in the window, feet')}

@@ -24,12 +24,14 @@ import { easternToday } from '../../lib/data'
 // same component: NFL's own data, a ~32% TD base rate instead of the
 // league's HR/team-game, "TD" instead of "HR".
 //
-// OPEN QUESTION FOR DONOVAN (flagged in the session report, not decided
-// here): "CALLED" on this page means wearing a TOP or HR badge specifically
-// — the model's actual top call. A hitter merely tracked (WATCH / HIT / HRR
-// / CONTACT / TOP15, or on the sheet with no badge at all) shows as ON
-// BOARD, not CALLED. If "called" was meant to include those designations
-// too, the counts move; nothing else about the page does.
+// "CALLED" (decided 2026-09-15, Donovan, following up on the open
+// question this page originally flagged): wearing a TOP, HR, HIT or HRR
+// badge — each is its own real call lane with its own hit-rate scoreboard
+// elsewhere on the site (Path to Victory A1's PICKS lane, A9's Hits/HRR
+// lanes). WATCH is explicitly "not a call" per A1; CONTACT and TOP15 are
+// ranking bands, not designated picks. A hitter under any of those three,
+// or on the sheet with no badge at all, shows as ON BOARD, not CALLED. See
+// lib/ledgerArchive.js's fetchGradedNight for the one place this is decided.
 
 const dayStr = (d) => d.toISOString().slice(0, 10)
 const shiftDate = (date, deltaDays) => {
