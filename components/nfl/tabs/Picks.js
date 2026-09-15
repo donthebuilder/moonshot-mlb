@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
@@ -50,7 +50,7 @@ function Pill({ tone, children, title }) {
   const col = tone === 'won' ? C.green : tone === 'lost' ? C.red : C.text3
   return (
     <span title={title} style={{
-      fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.05em',
+      fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.05em',
       padding: '1.5px 6px', borderRadius: 999, whiteSpace: 'nowrap',
       border: `1px solid ${col}66`, background: `${col}1a`, color: col,
     }}>{children}</span>
@@ -70,14 +70,14 @@ function Stat({ label, value, sub, color, big }) {
       borderRadius: 10, padding: '9px 13px', minWidth: 104,
     }}>
       <div style={{
-        fontSize: 8.5, fontWeight: 800, color: C.text3,
+        fontSize: TYPE.label, fontWeight: 800, color: C.text3,
         letterSpacing: '.09em', textTransform: 'uppercase',
       }}>{label}</div>
       <div style={{
-        fontFamily: NUM_FONT, fontSize: big ? 20 : 14.5, fontWeight: 900,
+        fontFamily: NUM_FONT, fontSize: big ? TYPE.display : TYPE.title, fontWeight: 900,
         color: color || C.text, lineHeight: 1.2, marginTop: 2,
       }}>{value}</div>
-      {sub && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }
@@ -202,7 +202,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
     return (
       <div style={{
         border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
-        textAlign: 'center', color: C.text3, fontSize: 12.5,
+        textAlign: 'center', color: C.text3, fontSize: TYPE.body,
       }}>The pick card hasn&apos;t been published yet.</div>
     )
   }
@@ -249,8 +249,8 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
         padding: '13px 15px', marginBottom: 14,
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 900 }}>🎫 Your record vs the bot</span>
-          <span style={{ fontSize: 10, color: C.text3 }}>
+          <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🎫 Your record vs the bot</span>
+          <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
             {totals.slates} slate{totals.slates === 1 ? '' : 's'}
             {totals.exhibition > 0 && ` · ${totals.exhibition} preseason`} · this device only
           </span>
@@ -259,7 +259,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
         {totals.slates > 0 ? (
           <>
             {totals.n === 0 ? (
-              <div style={{ fontSize: 11.5, color: C.text2, marginTop: 10, lineHeight: 1.6 }}>
+              <div style={{ fontSize: TYPE.body, color: C.text2, marginTop: 10, lineHeight: 1.6 }}>
                 Slates are grading, but you haven&apos;t contested a rung yet — swap someone
                 in below and the head-to-head starts.
               </div>
@@ -286,7 +286,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
             {/* Said once, in words, under the row that could otherwise be read
                 as a verdict. */}
             {totals.n > 0 && !edgeReal && (
-              <div style={{ fontSize: 10.5, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+              <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
                 {totals.n} contested rung{totals.n === 1 ? '' : 's'} is not a record yet —
                 both ranges above still overlap, so neither of you has out-picked the other, and
                 they come apart somewhere around a hundred rungs, not ten.
@@ -327,7 +327,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
               <Stat label="Overrides" value={totals.overrides} sub="all time" />
             </div>
 
-            <div style={{ fontSize: 10.5, color: C.text3, marginTop: 10, lineHeight: 1.6 }}>
+            <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10, lineHeight: 1.6 }}>
               Head to head is the number with a claim on the scoring — same market, same bar,
               same rung, only the name changed; void legs (never played) drop from both sides.
               {totals.exhibition > 0 && (
@@ -342,7 +342,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
             </div>
           </>
         ) : (
-          <div style={{ fontSize: 11.5, color: C.text3, marginTop: 9, lineHeight: 1.6 }}>
+          <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 9, lineHeight: 1.6 }}>
             Nothing graded yet — take a rung off the bot below, tag how sure you are, and once
             the games finish both picks get scored against the same bar.
           </div>
@@ -358,7 +358,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
           }} style={{ ...btnStyle(C.red, false), color: C.red }}>Clear all</button>
           <input ref={fileRef} type="file" accept="application/json,.json"
                  onChange={doImport} style={{ display: 'none' }} />
-          {msg && <span style={{ fontSize: 10.5, color: C.text3, alignSelf: 'center' }}>{msg}</span>}
+          {msg && <span style={{ fontSize: TYPE.body, color: C.text3, alignSelf: 'center' }}>{msg}</span>}
         </div>
       </div>
 
@@ -380,7 +380,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
           <FilterSearch value={filterQuery} onChange={setFilterQuery} placeholder="Search pick…" width={160} />
           <FilterSelect label="Team" value={filterTeam} options={teamOptions} onChange={setFilterTeam} />
           <FilterSelect label="Position" value={filterPosition} options={positionOptions} onChange={setFilterPosition} />
-          <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>{shownRungs}/{allRungs.length} rungs</span>
+          <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{shownRungs}/{allRungs.length} rungs</span>
         </FilterBar>
         <ActiveFilters
           filters={[
@@ -392,7 +392,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
           onClearAll={() => { setFilterQuery(''); setFilterMarket('all'); setFilterTeam('all'); setFilterPosition('all') }}
         />
       </div>
-      <div style={{ fontSize: 11, color: C.text3, marginBottom: 10, lineHeight: 1.6 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 10, lineHeight: 1.6 }}>
         Five deep per market, ranked across the whole slate — swap yourself onto any rung and
         tag how sure you are — <b style={{ color: C.text2 }}>rungs lock at kickoff.</b>
       </div>
@@ -407,15 +407,15 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
             }}>
               <div style={{ padding: '10px 13px', borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: C.text }}>{blk.label}</span>
-                  <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
+                  <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>{blk.label}</span>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
                     bar {blk.bar} · {(blk.positions || []).join('/')}
                   </span>
                 </div>
                 {e ? (
                   <div
                     title={`Out of sample, top ${e.depth} a week: the model's picks cleared the bar ${e.hit}% of the time versus ${e.form_hit}% for picking on recent form alone. That +${e.edge} gap carries a standard error of ${e.se}, so z = ${e.z}.`}
-                    style={{ fontSize: 10, color: C.text3, marginTop: 5, lineHeight: 1.5 }}
+                    style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 5, lineHeight: 1.5 }}
                   >
                     <b style={{ color: C.text, fontFamily: NUM_FONT }}>{e.hit}%</b> cleared the bar
                     out of sample · vs form{' '}
@@ -433,7 +433,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                      the chips below are this season's live grading of
                      individual calls. Saying which is missing costs six words
                      and stops the card contradicting itself. */
-                  <div style={{ fontSize: 10, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
                     No out-of-sample backtest for this market yet — any HIT/MISS below is
                     this season&apos;s live grading, which is a different measurement.
                   </div>
@@ -468,11 +468,11 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{
-                        fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900,
+                        fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900,
                         color: C.text3, minWidth: 14,
                       }}>{rung.rank}</span>
                       <span style={{
-                        fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900,
+                        fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900,
                         color: g.color, minWidth: 30,
                       }}>{Math.round(rung.score)}</span>
                       <AnatomyStrip
@@ -484,13 +484,13 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                         onClick={() => open(rung.player_id, market)}
                         style={{
                           background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
-                          textAlign: 'left', fontSize: 12, flex: 1, minWidth: 120,
+                          textAlign: 'left', fontSize: TYPE.name, flex: 1, minWidth: 120,
                           color: my ? C.text3 : C.text,
                           textDecoration: my ? 'line-through' : 'none',
                         }}
                       >
                         {rung.name}{' '}
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
                           {rung.position} {rung.team}{rung.opp ? ` vs ${rung.opp}` : ''}
                         </span>
                       </button>
@@ -506,23 +506,23 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                       )}
                       {injuryTag(rung) && (
                         <span title={injuryTitle(injuryTag(rung))}
-                              style={{ fontSize: 9, fontWeight: 900,
+                              style={{ fontSize: TYPE.label, fontWeight: 900,
                                        color: injuryColor(injuryTag(rung), C) }}>
                           {injuryTag(rung)}
                         </span>
                       )}
                       {rung.low_sample && (
                         <span title="Below the sample the model wants — it backfilled this rung."
-                              style={{ fontSize: 9, fontWeight: 900, color: C.text3 }}>~</span>
+                              style={{ fontSize: TYPE.micro, fontWeight: 900, color: C.text3 }}>~</span>
                       )}
                       {row && outcome(row.botOut, row.botVal)}
                       {!locked && (
                         <button onClick={() => setOpenSlot(picking ? null : sk)} style={{
-                          ...btnStyle(C.cyan, open), fontSize: 9.5, padding: '5px 8px',
+                          ...btnStyle(C.cyan, open), fontSize: TYPE.label, padding: '5px 8px',
                         }}>{my ? 'change' : 'take it'}</button>
                       )}
                       {locked && !my && (
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>🔒</span>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>🔒</span>
                       )}
                     </div>
 
@@ -531,11 +531,11 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                         display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap',
                         marginTop: 6, paddingLeft: 22,
                       }}>
-                        <span style={{ color: C.text3, fontSize: 11 }}>→</span>
+                        <span style={{ color: C.text3, fontSize: TYPE.body }}>→</span>
                         <span style={{
-                          fontSize: 12, fontWeight: 800, color: CONV_COLOR()[my.conviction],
+                          fontSize: TYPE.name, fontWeight: 800, color: CONV_COLOR()[my.conviction],
                         }}>{my.name}</span>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
+                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
                           {my.position} {my.team}
                         </span>
                         {row && outcome(row.mineOut, row.mineVal)}
@@ -548,7 +548,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                         )}
                         {locked ? (
                           <span style={{
-                            fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900,
+                            fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900,
                             color: CONV_COLOR()[my.conviction], letterSpacing: '.08em',
                           }}>{my.conviction.toUpperCase()} 🔒</span>
                         ) : (
@@ -557,7 +557,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                               <button key={k} title={blurb}
                                       onClick={() => conviction(market, rung.rank, k)}
                                       style={{
-                                        fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900,
+                                        fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900,
                                         padding: '4px 7px', borderRadius: 6, cursor: 'pointer',
                                         letterSpacing: '.06em',
                                         border: `1px solid ${my.conviction === k ? CONV_COLOR()[k] : C.border}`,
@@ -577,7 +577,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
                           onChange={(ev) => choose(market, rung.rank, ev.target.value, rung)}
                           style={{
                             background: C.bg, color: C.text2, border: `1px solid ${C.border2}`,
-                            borderRadius: 7, padding: '5px 8px', fontSize: 11,
+                            borderRadius: 7, padding: '5px 8px', fontSize: TYPE.body,
                             cursor: 'pointer', maxWidth: 330, width: '100%',
                           }}
                         >
@@ -601,7 +601,7 @@ export default function Picks({ picks, results, data, onPlayerClick, odds, oddsS
       {!filteredCard.length && (
         <div style={{
           border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24,
-          textAlign: 'center', color: C.text3, fontSize: 11,
+          textAlign: 'center', color: C.text3, fontSize: TYPE.body,
         }}>No published pick matches these filters.</div>
       )}
     </div>
