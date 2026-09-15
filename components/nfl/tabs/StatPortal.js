@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { oppLabel, oppShort, onBye, noData } from '../../../lib/nfl/oppLabel'
 import { ActiveFilters, FilterSearch, FilterSelect } from '../../Filters'
@@ -193,7 +193,7 @@ function Storylines({ player, market, rows, matchup }) {
     note: { label: 'CONTEXT', color: C.text3 },
   }
   const query = encodeURIComponent(`${player.name} ${player.team} NFL`)
-  return <section className="portal-card portal-story"><div className="portal-card-head"><div><small>STORYLINE DESK</small><h2>What the data says</h2></div></div>{bullets.map((b, index) => <article key={b.text}><span>0{index + 1}</span><p><em style={{ display: 'inline-block', marginRight: 7, padding: '1px 5px', borderRadius: 4, border: `1px solid ${TONE[b.tone].color}66`, color: TONE[b.tone].color, fontFamily: NUM_FONT, fontSize: 8, fontStyle: 'normal', fontWeight: 900, letterSpacing: '.1em', verticalAlign: '1px' }}>{TONE[b.tone].label}</em>{b.text}</p></article>)}<div className="portal-news"><small>LATEST COVERAGE · LINKS ONLY</small><a href={`https://www.espn.com/search/_/q/${encodeURIComponent(player.name)}`} target="_blank" rel="noreferrer">Search ESPN for {player.name} ↗</a><a href={`https://news.google.com/search?q=${query}`} target="_blank" rel="noreferrer">Search recent headlines ↗</a></div></section>
+  return <section className="portal-card portal-story"><div className="portal-card-head"><div><small>STORYLINE DESK</small><h2>What the data says</h2></div></div>{bullets.map((b, index) => <article key={b.text}><span>0{index + 1}</span><p><em style={{ display: 'inline-block', marginRight: 7, padding: '1px 5px', borderRadius: 4, border: `1px solid ${TONE[b.tone].color}66`, color: TONE[b.tone].color, fontFamily: NUM_FONT, fontSize: TYPE.label, fontStyle: 'normal', fontWeight: 900, letterSpacing: '.1em', verticalAlign: '1px' }}>{TONE[b.tone].label}</em>{b.text}</p></article>)}<div className="portal-news"><small>LATEST COVERAGE · LINKS ONLY</small><a href={`https://www.espn.com/search/_/q/${encodeURIComponent(player.name)}`} target="_blank" rel="noreferrer">Search ESPN for {player.name} ↗</a><a href={`https://news.google.com/search?q=${query}`} target="_blank" rel="noreferrer">Search recent headlines ↗</a></div></section>
 }
 
 function PlayerDirectory({ players, selected, choose }) {
