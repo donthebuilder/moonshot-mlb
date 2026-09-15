@@ -24,9 +24,13 @@ import Boards from './tabs/Boards'
 import Touchdowns from './tabs/Touchdowns'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
+import Explosive from './tabs/Explosive'
+import Numerology from './tabs/Numerology'
 import Picks from './tabs/Picks'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
+import TuddyLedger from './tabs/TuddyLedger'
+import BoxScores from './tabs/BoxScores'
 import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
 import Live from './tabs/Live'
@@ -239,9 +243,13 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'boards' && <Boards data={data} logs={logs} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
+            {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
+            {tab === 'numerology' && <Numerology data={data} />}
             {tab === 'picks'    && <Picks picks={picks} results={nflResults} data={data} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
+            {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
+            {tab === 'boxscores' && <BoxScores data={data} onPlayerClick={openPlayer} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} onPlayerClick={openPlayer} setTab={setTab} />}

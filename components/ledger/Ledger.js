@@ -71,6 +71,18 @@ export default function Ledger({
   eventLabelLong = 'Event',
   accent = C.orange,
   baseRate = null,
+  // Generalised 2026-09-15 for B10a (TUDDY Ledger, weekly cadence) --
+  // MOONSHOT's own CalledLedger.js passes none of these, so it keeps the
+  // exact nightly wording it always had.
+  periodWord = 'night',             // 'night' | 'week'
+  periodWordPlural = 'nights',
+  todayLabel = 'Tonight',
+  formatPeriod = null,               // (period) => string; defaults to prettyDate
+  seasonLoadOptions = [
+    { n: 30, label: 'Load 30 nights' },
+    { n: 90, label: 'Load 90 nights' },
+    { n: 150, label: 'Load full season' },
+  ],
   date, onPrevDate, onNextDate, onToday, canGoNext = false,
   night = null,             // { totals: {total,called,board,off}, rows: [...] } | null
   nightLoading = false,
@@ -88,6 +100,7 @@ export default function Ledger({
   const view = viewProp || viewState
   const setView = onViewChange || setViewState
 
+  const fmtPeriod = formatPeriod || prettyDate
   const open = (row) => onPlayerClick?.(row._raw || row)
 
   const nameCell = (v, r) => (
@@ -97,8 +110,8 @@ export default function Ledger({
   const nightColumns = [
     { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 130, fmt: nameCell },
     { key: 'team', label: 'Team', heat: false, w: 46 },
-    { key: 'value', label: eventLabel, w: 40, dp: 0, primary: true, title: `${eventLabelLong}s that night` },
-    { key: 'score', label: 'Score', w: 50, dp: 0, blankWhen: (n) => !Number.isFinite(n), title: "The model's score for him that night, where it had one" },
+    { key: 'value', label: eventLabel, w: 40, dp: 0, primary: true, title: `${eventLabelLong}s that ${periodWord}` },
+    { key: 'score', label: 'Score', w: 50, dp: 0, blankWhen: (n) => !Number.isFinite(n), title: `The model's score for him that ${periodWord}, where it had one` },
     {
       key: 'statusLabel', label: 'Status', heat: false, w: 100,
       fmt: (v, r) => (
@@ -111,7 +124,7 @@ export default function Ledger({
       ),
     },
     { key: 'detail', label: 'Detail', heat: false, w: 150, dim: true },
-    { key: 'wasOn', label: 'Was on', w: 54, blankWhen: (n) => !Number.isFinite(n), title: `Season ${eventLabel} total as the board knew it that night — not added to` },
+    { key: 'wasOn', label: 'Was on', w: 54, blankWhen: (n) => !Number.isFinite(n), title: `Season ${eventLabel} total as the board knew it that ${periodWord} — not added to` },
   ]
 
   const hitterColumns = [
@@ -121,13 +134,13 @@ export default function Ledger({
     { key: 'statusLabel', label: 'Record', heat: false, w: 118 },
     { key: 'score', label: 'Avg score', w: 62, dp: 0, blankWhen: (n) => !Number.isFinite(n) },
     { key: 'detail', label: 'Detail', heat: false, w: 160, dim: true },
-    { key: 'last', label: 'Last', heat: false, w: 64, fmt: (v) => (v ? prettyDate(v) : '—') },
+    { key: 'last', label: 'Last', heat: false, w: 64, fmt: (v) => (v ? fmtPeriod(v) : '—') },
   ]
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
-        {[['night', 'One night'], ['season', `Season · ${eventLabel}`]].map(([k, label]) => (
+        {[['night', `One ${periodWord}`], ['season', `Season · ${eventLabel}`]].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={btnStyle(accent, view === k)}>{label}</button>
         ))}
       </div>
@@ -136,9 +149,9 @@ export default function Ledger({
         <div style={panel(accent)}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             <button onClick={onPrevDate} style={btnStyle(C.text3, false)} disabled={nightLoading}>← Prev</button>
-            <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 13 }}>{date ? prettyDate(date) : '—'}</span>
+            <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 13 }}>{date ? fmtPeriod(date) : '—'}</span>
             <button onClick={onNextDate} style={btnStyle(C.text3, false)} disabled={nightLoading || !canGoNext}>Next →</button>
-            <button onClick={onToday} style={{ ...btnStyle(accent, false), marginLeft: 'auto' }} disabled={nightLoading}>Tonight</button>
+            <button onClick={onToday} style={{ ...btnStyle(accent, false), marginLeft: 'auto' }} disabled={nightLoading}>{todayLabel}</button>
           </div>
 
           {nightLoading && <div style={{ fontSize: 11.5, color: C.text3 }}>Reading {date}…</div>}
@@ -157,7 +170,7 @@ export default function Ledger({
                   columns={nightColumns}
                   heatMode="none"
                   maxRows={100}
-                  caption={`Every ${eventLabelLong.toLowerCase()} on the board that night, tagged called / on board / not on board.`}
+                  caption={`Every ${eventLabelLong.toLowerCase()} on the board that ${periodWord}, tagged called / on board / not on board.`}
                 />
               ) : (
                 <div style={{ fontSize: 11.5, color: C.text3, padding: '10px 2px', lineHeight: 1.6 }}>
@@ -181,12 +194,12 @@ export default function Ledger({
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 9 }}>
               <span style={{ fontSize: 13, fontWeight: 900 }}>Season ledger</span>
               <span style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT }}>
-                {season ? `${season.nightsCount} night${season.nightsCount === 1 ? '' : 's'} · ${prettyDate(season.from)} → ${prettyDate(season.to)}` : 'nothing loaded this session yet'}
+                {season ? `${season.nightsCount} ${season.nightsCount === 1 ? periodWord : periodWordPlural} · ${fmtPeriod(season.from)} → ${fmtPeriod(season.to)}` : 'nothing loaded this session yet'}
               </span>
             </div>
             {season ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: 7 }}>
-                <Tile label={`${eventLabelLong}s`} value={season.totalEvents} color={accent} sub={season.perNight != null ? `${season.perNight}/night` : ''} />
+                <Tile label={`${eventLabelLong}s`} value={season.totalEvents} color={accent} sub={season.perNight != null ? `${season.perNight}/${periodWord}` : ''} />
                 <Tile label="Called" value={season.called} color={C.green} sub={season.totalEvents ? `${Math.round((1000 * season.called) / season.totalEvents) / 10}%` : ''} />
                 <Tile label="On board" value={season.board} color={C.cyan} />
                 <Tile label="Not on board" value={season.off} color={C.text3} />
@@ -205,18 +218,20 @@ export default function Ledger({
               </div>
             )}
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11, alignItems: 'center' }}>
-              <button disabled={seasonLoading} onClick={() => onLoadSeason?.(30)} style={btnStyle(accent, false)}>{seasonLoading ? 'Loading…' : 'Load 30 nights'}</button>
-              <button disabled={seasonLoading} onClick={() => onLoadSeason?.(90)} style={btnStyle(accent, false)}>Load 90 nights</button>
-              <button disabled={seasonLoading} onClick={() => onLoadSeason?.(150)} style={btnStyle(accent, false)}>Load full season</button>
+              {seasonLoadOptions.map(({ n, label }, i) => (
+                <button key={n} disabled={seasonLoading} onClick={() => onLoadSeason?.(n)} style={btnStyle(accent, false)}>
+                  {seasonLoading && i === 0 ? 'Loading…' : label}
+                </button>
+              ))}
               {seasonMessage && <span style={{ fontSize: 10, color: C.text3 }}>{seasonMessage}</span>}
             </div>
             <WhatThis label="what this counts and where it comes from" maxWidth={720}>
               Every {eventLabelLong.toLowerCase()} here is read fresh off the model&apos;s own published record for that
-              night — the same file the record/results page grades from — on every load of this page, on any
+              {' '}{periodWord} — the same file the record/results page grades from — on every load of this page, on any
               device. Nothing is stored only in a browser.
               {baseRate ? ` ${baseRate.label} (${baseRate.note}) is shown for scale, not as a claim about these picks.` : ''}
-              {' '}Some earlier nights this season were published in an older format with no full capture report —
-              those are skipped here rather than counted as zero, and the load button says how many of the nights it
+              {' '}Some earlier {periodWordPlural} this season were published in an older format with no full capture report —
+              those are skipped here rather than counted as zero, and the load button says how many of the {periodWordPlural} it
               checked actually had one.
             </WhatThis>
           </div>

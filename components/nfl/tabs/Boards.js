@@ -4,6 +4,7 @@ import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
+import NflFace from '../NflFace'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 
@@ -195,7 +196,17 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
+          just need the pictures on there ... a table flip wouldn't be bad,
+          I do like the props card"). Same rows, same scores, same sparkline,
+          same odds line, same onClick -- this is a presentation change only,
+          not a new data path. Photo comes from the same NflFace tile every
+          other TUDDY page already uses (real ESPN headshot keyed off the
+          player's own espn_id, team-colored monogram when there isn't one --
+          never invented). */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))', gap: 8,
+      }}>
         {rows.map((p, i) => {
           const s = p.scores[market]
           const g = gradeFor(s)
@@ -205,76 +216,66 @@ export default function Boards({ data, logs, onPlayerClick, odds, oddsStatus }) 
               key={p.player_id}
               onClick={() => onPlayerClick?.(p, market)}
               style={{
-                position: 'relative', display: 'flex', alignItems: 'center', gap: 10,
-                width: '100%', textAlign: 'left', cursor: 'pointer',
-                background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 9,
-                padding: '7px 11px', overflow: 'hidden',
+                position: 'relative', display: 'flex', flexDirection: 'column', gap: 7,
+                textAlign: 'left', cursor: 'pointer',
+                background: C.bg2, border: `1px solid ${C.border}`,
+                borderTop: `3px solid ${g.color}`, borderRadius: 10,
+                padding: '9px 10px 10px', overflow: 'hidden',
                 opacity: p.low_sample ? 0.5 : 1,
               }}
             >
-              {/* the bar IS the score — read the board's shape before any number */}
-              <div style={{
-                position: 'absolute', left: 0, top: 0, bottom: 0,
-                // The fill spans the LIVE band, not 0-100. On the MLB scale
-                // nothing legitimately reaches 100, so a raw percentage made
-                // every bar look half-empty and flattened the difference
-                // between a 67 and a 30.
-                width: `${Math.max(2, Math.min(100, ((s - 20) / 60) * 100))}%`,
-                background: `linear-gradient(90deg, ${g.color}38, transparent)`,
-                pointerEvents: 'none',
-              }} />
-              <span style={{
-                position: 'relative', fontFamily: NUM_FONT, fontSize: 10,
-                color: C.text3, minWidth: 20,
-              }}>{i + 1}</span>
-              <span style={{
-                position: 'relative', fontFamily: NUM_FONT, fontSize: 14,
-                fontWeight: 900, color: g.color, minWidth: 36,
-              }}>{Math.round(s)}</span>
-              {/* The grade, same ladder as the MLB board. The number alone
-                  doesn't tell you whether 61 is good on this slate. */}
-              <span style={{
-                position: 'relative', fontFamily: NUM_FONT, fontSize: 9.5,
-                fontWeight: 900, color: g.color, minWidth: 22,
-                border: `1px solid ${g.color}55`, borderRadius: 5,
-                padding: '1px 4px', textAlign: 'center',
-              }}>{g.label}</span>
-              <span className="nfl-board-name" style={{
-                position: 'relative', fontSize: 12.5, fontWeight: 700, color: C.text,
-                flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>{p.name}</span>
-              <span style={{
-                position: 'relative', fontSize: 10, color: C.text3, fontFamily: NUM_FONT,
-              }}>{p.position}</span>
-              <span className="nfl-board-matchup" style={{
-                position: 'relative', fontSize: 10.5, color: C.text2,
-                fontFamily: NUM_FONT, minWidth: 74, textAlign: 'right',
-              }}>{p.team} {p.opp ? `vs ${p.opp}` : ''}</span>
-              {/* The book's line, when one exists for this player/market —
-                  renders nothing per-row when it doesn't (no line offered is
-                  a normal, per-player state; the banner above is what says
-                  whether the FETCH itself found anything at all). */}
-              {odds && (
-                <span style={{ position: 'relative' }}>
-                  <OddsLine quote={quoteFor(odds, p, market)} compact />
-                </span>
-              )}
-              <span className="nfl-board-spark"
-                    style={{ position: 'relative', minWidth: 88, display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, minWidth: 13,
+                }}>{i + 1}</span>
+                <NflFace player={p} size={38} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="nfl-board-name" style={{
+                    fontSize: 12.5, fontWeight: 700, color: C.text,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{p.name}</div>
+                  <div className="nfl-board-matchup" style={{
+                    fontSize: 10, color: C.text3, fontFamily: NUM_FONT,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{p.position} · {p.team} {p.opp ? `vs ${p.opp}` : ''}</div>
+                </div>
+                <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
+                  {/* The grade, same ladder as the MLB board. The number alone
+                      doesn't tell you whether 61 is good on this slate. */}
+                  <div style={{
+                    fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: g.color, lineHeight: 1,
+                  }}>{Math.round(s)}</div>
+                  <div style={{
+                    fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, color: g.color,
+                    border: `1px solid ${g.color}55`, borderRadius: 5,
+                    padding: '1px 4px', marginTop: 3, textAlign: 'center',
+                  }}>{g.label}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                 <FormSparkline form={form} bar={spec?.bar} color={g.color} />
-              </span>
-              {injuryTag(p) && (
-                <span title={injuryTitle(injuryTag(p))} style={{
-                  position: 'relative', fontSize: 9, fontWeight: 900,
-                  color: injuryColor(injuryTag(p), C),
-                }}>{injuryTag(p)}</span>
-              )}
-              {p.carryover && (
-                <span
-                  title="Built from last season's per-game baseline — no current-season form yet."
-                  style={{ position: 'relative', fontSize: 9, fontWeight: 900, color: C.purple }}
-                >CO</span>
+                {/* The book's line, when one exists for this player/market --
+                    renders nothing per-card when it doesn't (no line offered is
+                    a normal, per-player state; the banner above is what says
+                    whether the FETCH itself found anything at all). */}
+                {odds && <OddsLine quote={quoteFor(odds, p, market)} compact />}
+              </div>
+
+              {(injuryTag(p) || p.carryover) && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {injuryTag(p) && (
+                    <span title={injuryTitle(injuryTag(p))} style={{
+                      fontSize: 9, fontWeight: 900, color: injuryColor(injuryTag(p), C),
+                    }}>{injuryTag(p)}</span>
+                  )}
+                  {p.carryover && (
+                    <span
+                      title="Built from last season's per-game baseline -- no current-season form yet."
+                      style={{ fontSize: 9, fontWeight: 900, color: C.purple }}
+                    >CO</span>
+                  )}
+                </div>
               )}
             </button>
           )

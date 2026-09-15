@@ -35,13 +35,14 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { accountabilityText, boardIndexFrom, botPollText, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { accountabilityText, boardIndexFrom, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
-  dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
-  hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
-  playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText,
+  careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
+  hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
+  milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
+  streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
 } from '../../../../../lib/dash/tweetFeed'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -133,10 +134,17 @@ async function claimSlot(db, day, kind) {
   return Boolean(data?.length)
 }
 
-async function claimAndPostStat(db, day, kind, hourGate, text, card) {
+// `payload` (2026-09-15, matchup-history posts): every other caller leaves
+// this at the default `{}` -- claimAndPostStat has never persisted anything
+// beyond the claim itself. The two new matchup-history kinds are the first
+// that need a later tick to read back WHO got named (the late wave's
+// exclude-set, see matchupHistorySeenIds below), so this is now a real
+// parameter instead of a hardcoded literal. Optional and additive: every
+// existing call site is unaffected.
+async function claimAndPostStat(db, day, kind, hourGate, text, card, payload = {}) {
   if (!text || etHoursSinceNoon() < hourGate) return false
   if (!(await claimSlot(db, day, kind))) return false
-  const patch = { payload: {} }
+  const patch = { payload }
   // ONE RENDER, BOTH PLACES (2026-09-07). The card used to be built inside the
   // `hasX()` branch, below Discord, so Discord got bare text while a finished
   // PNG existed a few lines later -- and on a night with X off it was never
@@ -152,6 +160,77 @@ async function claimAndPostStat(db, day, kind, hourGate, text, card) {
   }
   await db.from('homer_feed_posts').update(patch).match({ day, kind })
   return true
+}
+
+// WHO THE DAY WAVE ALREADY NAMED (2026-09-15). Reads both matchup-history
+// kinds' payloads back -- claimAndPostStat now writes { picks } for these two
+// (see the `payload` param above) -- so the late wave can exclude them and
+// surface different names for the later games instead of repeating the same
+// handful. Best-effort: a read failure just means the late wave doesn't
+// exclude anyone, never that it fails to post.
+async function matchupHistorySeenIds(db, day) {
+  try {
+    const { data } = await db.from('homer_feed_posts').select('payload').eq('day', day).in('kind', ['matchup_hr', 'matchup_career'])
+    const out = new Set()
+    for (const row of data || []) {
+      for (const p of row?.payload?.picks || []) {
+        const id = String(p?.player_id || '').trim()
+        if (id) out.add(id)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
+}
+
+// WHO THE AM MILESTONE POST ALREADY NAMED (2026-09-15). Same shape as
+// matchupHistorySeenIds just above, one kind instead of two -- lets the
+// mid-day milestone post surface a different set of players instead of
+// repeating the morning's names.
+async function milestoneSeenIds(db, day) {
+  try {
+    const { data } = await db.from('homer_feed_posts').select('payload').eq('day', day).eq('kind', 'milestone_am')
+    const out = new Set()
+    for (const row of data || []) {
+      for (const p of row?.payload?.picks || []) {
+        const id = String(p?.player_id || '').trim()
+        if (id) out.add(id)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
+}
+
+// EVERY LINE SAID SO FAR TODAY (2026-09-15, Donovan: "makesure not srepat
+// info,ations" -- the "never repeat information" rule spanning funfacts,
+// matchuplines and all four Storyline Watch slots). Unlike the two exclude
+// helpers above, this one keys on exact posted TEXT rather than a player id,
+// because a matchup-line or fun fact is the sentence itself, not a player --
+// two different sentences about the same player are fine, the same sentence
+// twice is the thing being guarded against. funfacts/matchuplines now store
+// { texts } (see the claimAndPostStat calls above); each storyline-watch slot
+// stores its own texts too, so slot 4 excludes everything slots 1-3 said as
+// well as the noon posts, without needing its own separate kind list to grow
+// by hand each time a slot is added.
+async function storylineSeenTexts(db, day) {
+  try {
+    const { data } = await db.from('homer_feed_posts').select('payload')
+      .eq('day', day)
+      .in('kind', ['funfacts', 'matchuplines', 'storyline_watch_1', 'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4'])
+    const out = new Set()
+    for (const row of data || []) {
+      for (const t of row?.payload?.texts || []) {
+        const s = String(t || '').trim()
+        if (s) out.add(s)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
 }
 
 function authorized(request) {
@@ -233,8 +312,76 @@ const STORYLINES_HOUR = 0       // noon ET
 const THE_FOUR_HOUR = 0         // noon ET
 const BEST_AIR_HOUR = 2         // 2pm ET
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
+const BOARD_RESULTS_HOUR = -4   // 8am ET -- grades YESTERDAY's Tonight's Board
 const COMMUNITY_PICK_HOUR = -4  // 8am ET
+// 2026-09-15 (Donovan: pairswatch/longshot "get posted... almost at
+// midnight"). Traced, not guessed: the bot's day-rollover cron
+// (today.yml, bot repo) fires at 12:05am Phoenix -- explicitly ON PURPOSE,
+// Donovan's own 2026-08-28 call, so the SITE turns over at midnight. But
+// `ready` above only checks the board's slate_date, not how much of the
+// day has actually run through it, and pairswatch/longshot had no hour
+// floor of their own -- so they were firing within minutes of that bare
+// midnight rollover, off the same unconfirmed-lineup board Called Shots
+// used to. Unlike the six board-only stat posts above (openly projections,
+// never claimed otherwise), pairswatch and longshot both READ the real
+// TOP/HR designations -- the same accuracy-sensitive data Called Shots is
+// built from. Noon/1pm ET lines them up with the start of the bot's own
+// declared lineup-drop window (9am-2:30pm Phoenix, today.yml) instead of
+// its opening bell, while still landing well ahead of Called Shots' new
+// closer-to-first-pitch slot -- keeping the "spread through the day"
+// cadence Donovan asked for on 2026-09-07 rather than clumping every
+// pregame post into one window.
+const PAIRSWATCH_HOUR = 0       // noon ET
+const LONGSHOT_HOUR = 1         // 1pm ET
 const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
+// MATCHUP HISTORY (2026-09-15, Donovan: someone requested a fan account's
+// "has a HR vs tonight's starter" list; confirmed he wants BOTH that and the
+// best-batting-line "who owns him" trivia, as a pool that fires again later
+// for the later slate rather than one single snapshot -- "this can fire
+// later in the day or middle slate for a liter game just an idea"). Unlike
+// every hour above, this is a floor, not a promise: vsPitcherCareerLines()
+// only counts a hitter once his lineup spot is CONFIRMED, which most of the
+// board doesn't have yet at 2pm -- but claimAndPostStat never spends the
+// day's claim on empty text (the same rule the pregame call relies on), so
+// an early tick with nothing confirmed yet just retries next minute for
+// free until real lineups land.
+const MATCHUP_HOUR = 2          // 2pm ET -- first wave of confirmed lineups
+const MATCHUP_LATE_HOUR = 6     // 6pm ET -- evening/West-Coast games locking
+// 2026-09-15 (Donovan: "milestones do 2 different sets of players two
+// different times a day," spread out to fill the account's two dead
+// windows -- nothing posts 4-7am ET today, and 6am is the middle of it;
+// 3pm sits in an otherwise-empty hour between Longshot/Fun Facts (1pm) and
+// Hottest Contact's mid repost (4pm).
+const MILESTONE_AM_HOUR = -6    // 6am ET
+const MILESTONE_MID_HOUR = 3    // 3pm ET
+// 2026-09-15 (Donovan, real site "Storylines" panel: "please can you just
+// post like some of these throught the day, people love them" -- then:
+// "storylies post 4 a day once slate starts for games that havent started"
+// and "thing else post in a combined tweet. makesure not srepat
+// info,ations"). ORIGINALLY placed at 5/8/9/10pm; Donovan corrected same day
+// -- "those storylines need to be earlier than that... later storyline
+// tweets seem dumb and not helpful" -- because storylineWatchPicks only
+// draws from pregameRows(), and by 8/9/10pm ET most of the night's games
+// have already thrown a first pitch (the 6:35pm+ wave), so the "hasn't
+// started" pool it's allowed to talk about is nearly empty and thin by
+// then. Compressed into the actual pregame window instead -- 11am/1pm/2pm/
+// 4pm ET -- so every slot still has most (usually all) of the day's slate
+// to draw real, un-posted lines from; 4pm is the last stop before the
+// night's first pitches start clearing that pool out. The evening/live
+// window (6:35pm ET on) is intentionally left to the real event-driven
+// tracker tweets and the existing "mid" reposts below (HOTTEST_CONTACT_MID,
+// MATCHUP_LATE, DANGER_COMBOS_MID), which read midRows() rather than
+// pregameRows() and so stay accurate deep into the night -- a pregame-only
+// format was never going to be the right fit for that window regardless of
+// what hour it fired at. Revenge & Giveaways is its own single combined
+// post -- 7am ET, the other half of the 4-7am dead window MILESTONE_AM was
+// placed to fill, an hour ahead of it so the account isn't silent from 4am
+// to 6am.
+const STORYLINE_WATCH_1_HOUR = -1  // 11am ET
+const STORYLINE_WATCH_2_HOUR = 1   // 1pm ET
+const STORYLINE_WATCH_3_HOUR = 2   // 2pm ET
+const STORYLINE_WATCH_4_HOUR = 4   // 4pm ET
+const REVENGE_GIVEAWAY_HOUR = -5   // 7am ET
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -641,6 +788,36 @@ export async function GET(request) {
     }
   }
 
+  // TONIGHT'S BOARD, GRADED (2026-09-15, Donovan: "do the recemmomdend but
+  // maks sure its graded"). Same read-back shape as RESULTS/ACCOUNTABILITY
+  // just above -- yesterday's 'board' post already persisted its picks
+  // (homer_feed_posts.payload.picks) -- but HIT and HRR can clear without a
+  // home run, so this cannot reuse homer_feed (HR-only) the way accountability
+  // does. boxLinesForDate re-pulls yesterday's real box scores instead, and
+  // pickCleared (lib/liveSlate.js) settles each pick against them -- the same
+  // bars the live in-card badges use.
+  if (etHoursSinceNoon() >= BOARD_RESULTS_HOUR) {
+    const yday = shiftDay(day, -1)
+    const boardResultsClaim = await claimSlot(db, yday, 'board_results')
+    if (boardResultsClaim) {
+      const { data: yBoard } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: 'board' }).maybeSingle()
+      const yBoardPicks = yBoard?.payload?.picks || []
+      if (yBoardPicks.length) {
+        const lines = await boxLinesForDate(yday)
+        const text = boardRoleResultsText(yBoardPicks, lines, { day: yday, ...TAIL })
+        const patch = { payload: { picks: yBoardPicks } }
+        const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+        if (d.ok) patch.discord_sent = true
+        if (hasX()) {
+          const r = await postToX(text)
+          if (r.ok && r.id) patch.x_post_id = r.id
+          else console.error(`[homers] board_results refused: ${r.status} ${r.error}`)
+        }
+        await db.from('homer_feed_posts').update(patch).match({ day: yday, kind: 'board_results' })
+      }
+    }
+  }
+
   // The nights before the feed existed, one per tick until the /called window
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
@@ -677,6 +854,13 @@ export async function GET(request) {
   // above, so this always sees the freshest cached rows.
   const firstPitch = firstPitchOf(boardRows())
   const overdue = firstPitch != null && Date.now() >= firstPitch - PREGAME_LEAD_MS
+  // 2026-09-15 (Donovan: "the top ten needs to be updated before first
+  // pitch"). Reverses part of the 2026-09-10 change for ONE post only --
+  // see the note above the pregame claim below for which one and why.
+  // firstPitch can be null (no parseable game_time on the board at all);
+  // waiting forever in that case would be worse than the thing being
+  // reverted, so it falls open rather than blocking the call permanently.
+  const pregameLockReady = firstPitch == null ? true : overdue
   // WHO IS STILL PLAYABLE (2026-09-07, Donovan: "it should not be tweeting
   // things about the slate that's already gone off or players that are not
   // playing anymore"). One index over tonight's snapshot; every board-derived
@@ -768,9 +952,10 @@ export async function GET(request) {
         } : null)
     }
     // The hour is checked BEFORE the fetch here, unlike the two pure
-    // formatters above: fetchWeekdayHrLeaders walks up to 8 graded_results
-    // files off the network, and this block now runs on every tick all day
-    // rather than only inside the old pregame gate.
+    // formatters above: fetchWeekdayHrLeaders walks up to 5 graded_results
+    // files off the network (plus a second 5-file fetch for L5), and this
+    // block now runs on every tick all day rather than only inside the old
+    // pregame gate.
     if (etHoursSinceNoon() >= HR_LEADERS_DOW_HOUR) {
       const { leaders, dow } = await fetchWeekdayHrLeaders(day)
       await claimAndPostStat(db, day, 'hrleadersdow', HR_LEADERS_DOW_HOUR,
@@ -778,7 +963,7 @@ export async function GET(request) {
         leaders.length ? {
           pill: 'LEADERS', label: `MLB HR LEADERS — ${String(dow || '').toUpperCase()}S`,
           headline: `Most home runs on a ${dow || 'this weekday'} this season`,
-          lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR${p.avgEv != null ? `, ${p.avgEv} mph avg EV` : ''}`),
+          lines: leaders.map((p) => `${p.name} (${p.team || '?'}) — ${p.hr} HR, ${p.hr ? Math.round((p.hh / p.hr) * 100) : 0}% Hard Hit, L5: ${p.l5} HR`),
         } : null)
     }
     // ── BIRTHDAY WATCH / BACK-TO-BACK WATCH / FUN FACTS (2026-09-08) ──────
@@ -820,7 +1005,11 @@ export async function GET(request) {
             pill: 'FACTS', label: 'FUN FACTS',
             headline: facts[0]?.player ? String(facts[0].player.name || facts[0].player) : 'Tonight\'s whimsical stat line',
             lines: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean),
-          } : null)
+          } : null,
+          // texts stored (2026-09-15) so the afternoon/evening Storyline
+          // Watch posts (storylineSeenTexts below) never repeat one of
+          // these facts verbatim.
+          { texts: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean) })
       })
     }
     // ── MATCHUP LINES / THE CALL OF THE NIGHT / STREAKS / STORYLINES /
@@ -839,7 +1028,11 @@ export async function GET(request) {
             pill: 'MATCHUP', label: 'MATCHUP LINES',
             headline: stories[0]?.player ? String(stories[0].player.name || '') : 'Tonight\'s park history',
             lines: stories.map((s) => s?.text).filter(Boolean),
-          } : null)
+          } : null,
+          // texts stored (2026-09-15) for the same reason as funfacts above --
+          // storylineSeenTexts below reads this back so Storyline Watch never
+          // repeats one of these lines verbatim.
+          { texts: stories.map((s) => s?.text).filter(Boolean) })
       })
     }
     if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR) {
@@ -906,6 +1099,160 @@ export async function GET(request) {
           } : null)
       })
     }
+    // ── MATCHUP HISTORY, DAY WAVE — "HAS A HR VS THE STARTER" / "WHO OWNS
+    //    HIM" (2026-09-15) ─────────────────────────────────────────────────
+    // Both posts read the SAME StatsAPI vsPlayer pull off the same confirmed
+    // rows, so it happens once here and each formatter just re-ranks it --
+    // one round trip for two posts instead of two. See MATCHUP_HOUR above for
+    // why the hour is a floor rather than a real deadline.
+    if (etHoursSinceNoon() >= MATCHUP_HOUR) {
+      await safeStat('matchuphistory', async () => {
+        const lines = await vsPitcherCareerLines(pregameRows())
+        const hrPicks = hrVsStarterPicks(lines)
+        await claimAndPostStat(db, day, 'matchup_hr', MATCHUP_HOUR,
+          hrVsStarterText(hrPicks, { day, ...TAIL }),
+          hrPicks.length ? {
+            pill: 'HISTORY', label: 'HAS A HR VS THE STARTER',
+            headline: hrPicks[0]?.name ? `${hrPicks[0].name} has gone deep on tonight's arm before` : 'Tonight\'s history vs the starter',
+            lines: hrPicks.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.hr}x off ${p.pitcher}`),
+          } : null,
+          { picks: hrPicks })
+        const careerPicks = careerVsStarterPicks(lines)
+        await claimAndPostStat(db, day, 'matchup_career', MATCHUP_HOUR,
+          careerVsStarterText(careerPicks, { day, ...TAIL }),
+          careerPicks.length ? {
+            pill: 'HISTORY', label: 'WHO OWNS HIM',
+            headline: careerPicks[0]?.name ? `${careerPicks[0].name} vs ${careerPicks[0].pitcher}` : 'Tonight\'s best line vs the starter',
+            lines: careerPicks.map((p) => `${p.name} — ${p.h}-for-${p.ab} vs ${p.pitcher}`),
+          } : null,
+          { picks: careerPicks })
+      })
+    }
+    // ── MILESTONE WATCH, TWO WAVES (2026-09-15, Donovan: "milestone emoji
+    //    title then players with stats," two posts a day, two different
+    //    sets of players) -- ported from components/Storylines.js, see
+    //    milestonePicks() in tweetFeed.js for the real computation. Runs
+    //    off boardRows(), not pregameRows(): a milestone doesn't depend on
+    //    tonight's lineup being confirmed, so the AM wave can fire at 6am
+    //    ET while matchup history above is still waiting on lineups to
+    //    lock. The mid wave excludes whoever the AM wave already named
+    //    (milestoneSeenIds above), so the two posts never repeat a player.
+    if (etHoursSinceNoon() >= MILESTONE_AM_HOUR) {
+      await safeStat('milestone_am', async () => {
+        const miles = await milestonePicks(boardRows())
+        await claimAndPostStat(db, day, 'milestone_am', MILESTONE_AM_HOUR,
+          milestoneText(miles, { day, wave: 'am', ...TAIL }),
+          miles.length ? {
+            pill: 'MILESTONE', label: 'MILESTONE WATCH',
+            headline: miles[0]?.name ? `${miles[0].name} is ${miles[0].need} away from ${miles[0].t.toLocaleString()} ${miles[0].word}` : 'Tonight\'s milestone watch',
+            lines: miles.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.need} from ${p.t.toLocaleString()} ${p.word}`),
+          } : null,
+          { picks: miles })
+      })
+    }
+    if (etHoursSinceNoon() >= MILESTONE_MID_HOUR) {
+      await safeStat('milestone_mid', async () => {
+        const seen = await milestoneSeenIds(db, day)
+        const miles = await milestonePicks(boardRows(), { exclude: seen })
+        await claimAndPostStat(db, day, 'milestone_mid', MILESTONE_MID_HOUR,
+          milestoneText(miles, { day, wave: 'mid', ...TAIL }),
+          miles.length ? {
+            pill: 'MILESTONE', label: 'MILESTONE WATCH',
+            headline: miles[0]?.name ? `${miles[0].name} is ${miles[0].need} away from ${miles[0].t.toLocaleString()} ${miles[0].word}` : 'Tonight\'s milestone watch',
+            lines: miles.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.need} from ${p.t.toLocaleString()} ${p.word}`),
+          } : null,
+          { picks: miles })
+      })
+    }
+    // ── STORYLINE WATCH, FOUR WAVES (2026-09-15, Donovan: "storylies post 4
+    //    a day once slate starts for games that havent started") ───────────
+    // Same matchupLinesPicks/funFactsPicks data the 8am/1pm posts already
+    // pull, on pregameRows() so a slot never names a game that's already
+    // under way -- and each slot excludes every real line/fact posted
+    // ANYWHERE today (funfacts, matchuplines, and every earlier slot) via
+    // storylineSeenTexts above, so four posts plus the two morning ones never
+    // repeat a sentence. A slot with nothing left un-said just posts nothing
+    // -- claimAndPostStat never spends the day's claim on empty text -- it
+    // does not pad with a repeat to hit a count.
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_1_HOUR) {
+      await safeStat('storyline_watch_1', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_1', STORYLINE_WATCH_1_HOUR,
+          storylineWatchText(picks, { day, slot: 1, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR) {
+      await safeStat('storyline_watch_2', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_2', STORYLINE_WATCH_2_HOUR,
+          storylineWatchText(picks, { day, slot: 2, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR) {
+      await safeStat('storyline_watch_3', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_3', STORYLINE_WATCH_3_HOUR,
+          storylineWatchText(picks, { day, slot: 3, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR) {
+      await safeStat('storyline_watch_4', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_4', STORYLINE_WATCH_4_HOUR,
+          storylineWatchText(picks, { day, slot: 4, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    // ── REVENGE GAMES + GIVEAWAYS, ONE COMBINED POST (2026-09-15, Donovan:
+    //    "thing else post in a combined tweet") ─────────────────────────────
+    // Off boardRows(), not pregameRows(): a revenge game is a fact about
+    // tonight's matchup, not something that stops being true once first
+    // pitch happens, and a giveaway is tied to the whole game, not a lineup
+    // slot -- same reasoning MILESTONE_AM above already uses for running off
+    // the full board this early (7am ET, before most lineups are even
+    // posted).
+    if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR) {
+      await safeStat('revenge_giveaway', async () => {
+        const rg = await revengeGiveawayPicks(boardRows(), day)
+        await claimAndPostStat(db, day, 'revenge_giveaway', REVENGE_GIVEAWAY_HOUR,
+          revengeGiveawayText(rg, { day, ...TAIL }),
+          (rg.revenge.length || rg.giveaways.length) ? {
+            pill: 'REVENGE', label: 'REVENGE & GIVEAWAYS',
+            headline: rg.revenge[0]?.name ? `${rg.revenge[0].name} faces his old team tonight` : 'Tonight\'s revenge games and giveaways',
+            lines: [
+              ...rg.revenge.map((r) => `${r.name}${r.team ? ` (${r.team})` : ''} vs ${r.opp} — wore it ${r.span}`),
+              ...rg.giveaways.map((g) => `${g.home}: ${g.name}`),
+            ],
+          } : null)
+      })
+    }
   }
 
   if (!started || overdue) {
@@ -943,7 +1290,7 @@ export async function GET(request) {
       // Each claims its own (day, kind) row, independent of the pregame
       // call below and of each other -- a slow news night for one is not a
       // reason to hold back the other, and neither can double-post.
-      {
+      if (etHoursSinceNoon() >= PAIRSWATCH_HOUR) {
         const hits = pairsToWatch(pregameRows(), pairs, odds, day)
         if (hits.length) {
           const claim = await claimSlot(db, day, 'pairswatch')
@@ -967,7 +1314,7 @@ export async function GET(request) {
           }
         }
       }
-      {
+      if (etHoursSinceNoon() >= LONGSHOT_HOUR) {
         const pick = longshotPick(pregameRows(), odds, day)
         if (pick) {
           const claim = await claimSlot(db, day, 'longshot')
@@ -992,33 +1339,82 @@ export async function GET(request) {
         }
       }
 
-      const picks = pregamePicks(pregameRows(), odds, day)
-      // Every roled name on tonight's board, for the receipt quote only --
-      // see pregameCalled() in homerFeed.js. Not used by any post text.
-      const called = pregameCalled(pregameRows())
-      if (!picks.length) {
-        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
+      // THE CALLED SHOTS, HELD FOR THE LOCK WINDOW (2026-09-15). The
+      // 2026-09-10 change above made `ready` fire the moment the board
+      // publishes -- right for pairswatch/longshot/community_pick (none of
+      // them name a player against a lineup that can still change), wrong
+      // for this one: it is a per-player TOP/HR call that quoteFor() below
+      // anchors the WHOLE NIGHT's reply-quotes to, so calling it off a board
+      // published hours before lineups lock is the least accurate version
+      // of itself it could be. Held here until pregameLockReady -- the same
+      // one-hour-before-first-pitch mark PREGAME_LEAD_MS already defined for
+      // `overdue` -- so it fires off the board as it stands closest to first
+      // pitch instead of as it stood at 6:30am.
+      // HOISTED (2026-09-15 fix): the botpoll block below reads `picks` after
+      // this if/else closes. Declaring it `const` inside the `else` only --
+      // as the 2026-09-15 pregameLockReady wrap first had it -- put it out of
+      // scope for that later reference (and left it undeclared entirely on
+      // the `!pregameLockReady` path), which would 500 the whole tick route
+      // the moment either branch ran. `let` here, assigned inside the branch
+      // that actually has picks, empty otherwise.
+      let picks = []
+      if (!pregameLockReady) {
+        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
-        const claim = await claimSlot(db, day, 'pregame')
-        if (!claim) {
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
+        picks = pregamePicks(pregameRows(), odds, day)
+        // Every roled name on tonight's board, for the receipt quote only --
+        // see pregameCalled() in homerFeed.js. Not used by any post text.
+        const called = pregameCalled(pregameRows())
+        if (!picks.length) {
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
         } else {
-          const text = pregameText(picks, { day, ...TAIL })
-          const patch = { payload: { picks, called } }
-          // The payload goes in FIRST so the public card route can render the
-          // Discord embed from it; the post ids follow.
-          await db.from('homer_feed_posts').update({ payload: { picks, called } }).match({ day, kind: 'pregame' })
-          const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
-          if (d.ok) patch.discord_sent = true
-          if (hasX()) {
-            const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
-            const mediaId = png ? await uploadImageToX(png) : null
-            const r = await postToX(text, { mediaId })
-            if (r.ok && r.id) patch.x_post_id = r.id
-            else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
+          const claim = await claimSlot(db, day, 'pregame')
+          if (!claim) {
+            if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
+          } else {
+            const text = pregameText(picks, { day, ...TAIL })
+            const patch = { payload: { picks, called } }
+            // The payload goes in FIRST so the public card route can render the
+            // Discord embed from it; the post ids follow.
+            await db.from('homer_feed_posts').update({ payload: { picks, called } }).match({ day, kind: 'pregame' })
+            const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
+            if (d.ok) patch.discord_sent = true
+            if (hasX()) {
+              const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
+              const mediaId = png ? await uploadImageToX(png) : null
+              const r = await postToX(text, { mediaId })
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
+            if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
           }
-          await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
+        }
+      }
+
+      // TONIGHT'S BOARD (2026-09-15, Donovan: "role based tweets no cards
+      // just text" / "make sure its graded" -- see boardRolePicks and
+      // boardRoleResultsText in lib/dash/homerFeed.js). One pick per role
+      // (TOP/HR/HIT/HRR), no ten-per-category dump. Same lock window as
+      // Called Shots above, same reasoning: a per-player role call against a
+      // lineup that can still change is least accurate called off a board
+      // published hours before lineups lock.
+      if (pregameLockReady) {
+        const boardPicks = boardRolePicks(pregameRows())
+        if (boardPicks.length) {
+          const boardClaim = await claimSlot(db, day, 'board')
+          if (boardClaim) {
+            const text = boardRoleText(boardPicks, { day, ...TAIL })
+            const patch = { payload: { picks: boardPicks } }
+            const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+            if (d.ok) patch.discord_sent = true
+            if (hasX()) {
+              const r = await postToX(text)
+              if (r.ok && r.id) patch.x_post_id = r.id
+              else console.error(`[homers] board refused: ${r.status} ${r.error}`)
+            }
+            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'board' })
+          }
         }
       }
 
@@ -1087,6 +1483,37 @@ export async function GET(request) {
         lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
       } : null)
   }
+  // ── MATCHUP HISTORY, LATE WAVE (2026-09-15, Donovan: "this can fire later
+  //    in the day or middle slate for a liter game"). Same StatsAPI pull as
+  //    the day wave, but against midRows() (live-filtered, so a scratched or
+  //    already-finished hitter can't show up) and excluding whoever the day
+  //    wave already named, so a 7pm West-Coast slate gets fresh names instead
+  //    of a rerun. Wrapped in safeStat: this is the one mid-slate repost that
+  //    touches the network (StatsAPI, plus a read-back for the exclude set),
+  //    unlike hotcontact_mid/dangercombos_mid just above which only re-rank
+  //    the board already in memory.
+  await safeStat('matchuphistory_late', async () => {
+    const seen = await matchupHistorySeenIds(db, day)
+    const lines = await vsPitcherCareerLines(midRows(), { exclude: seen })
+    const hrPicks = hrVsStarterPicks(lines)
+    await claimAndPostStat(db, day, 'matchup_hr_late', MATCHUP_LATE_HOUR,
+      hrVsStarterText(hrPicks, { day, ...TAIL, wave: 'late' }),
+      hrPicks.length ? {
+        pill: 'HISTORY', label: 'HR HISTORY — LATE SLATE',
+        headline: hrPicks[0]?.name ? `${hrPicks[0].name} has gone deep on tonight's arm before` : 'Tonight\'s late-slate history vs the starter',
+        lines: hrPicks.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.hr}x off ${p.pitcher}`),
+      } : null,
+      { picks: hrPicks })
+    const careerPicks = careerVsStarterPicks(lines)
+    await claimAndPostStat(db, day, 'matchup_career_late', MATCHUP_LATE_HOUR,
+      careerVsStarterText(careerPicks, { day, ...TAIL, wave: 'late' }),
+      careerPicks.length ? {
+        pill: 'HISTORY', label: 'WHO OWNS HIM — LATE SLATE',
+        headline: careerPicks[0]?.name ? `${careerPicks[0].name} vs ${careerPicks[0].pitcher}` : 'Tonight\'s late-slate best line vs the starter',
+        lines: careerPicks.map((p) => `${p.name} — ${p.h}-for-${p.ab} vs ${p.pitcher}`),
+      } : null,
+      { picks: careerPicks })
+  })
 
   const homers = homersFrom(snap, day, board, odds)
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }

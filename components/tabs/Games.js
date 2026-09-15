@@ -15,6 +15,10 @@ import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
 import { FilterPill } from '../Filters'
 import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
+// roleColor (2026-09-15): the registry's own "WATCH is coverage, never a
+// pick" rule (lib/verdict.js) — reused here instead of a fourth local copy
+// that would have had to invent its own colour for WATCH from scratch.
+import { roleColor } from '../../lib/verdict'
 import { fetchLiveSlate, lineupStatus, liveSlateStatus } from '../../lib/liveSlate'
 import LiveAtBats from '../LiveAtBats'
 import Explain from '../Explain'
@@ -82,9 +86,15 @@ function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
 // CAT_COLOR four lines up called it cyan, in one file, for the same concept.
 const ROLE_LABEL = {
   TOP: 'Top Pick', HR: 'HR Pick', HIT: 'Hit Pick', HRR: 'HRR Pick', CONTACT: 'Contact Pick',
+  // 2026-09-15 (Donovan: "show the game picks each game... the HR watch").
+  // WATCH already exists on the board (the next three bats by hr_score once
+  // TOP/HR are pulled, per mlb_dashboard.py) and already has a site-wide
+  // colour rule (lib/verdict.js roleColor: coverage, not a pick, muted grey)
+  // -- it just never had a label or a slot on THIS page's per-game chips.
+  WATCH: 'HR Watch',
 }
 const ROLE_CONFIG = Object.fromEntries(
-  Object.entries(ROLE_LABEL).map(([k, label]) => [k, { label, get color() { return catColor('role', k) } }])
+  Object.entries(ROLE_LABEL).map(([k, label]) => [k, { label, get color() { return roleColor(k) } }])
 )
 function getRoleDisplay(p) {
   const primary = (p?.game_pick_role || '').split('/')[0]
@@ -130,22 +140,30 @@ function isPast(gameTime) {
   return new Date(gameTime) < new Date(Date.now() - 3 * 60 * 60 * 1000) // 3hr buffer for late games
 }
 
-// The five designated slots for a game — the same ones Results grades.
-// Shared by the rundown cards and the expanded pick row so the two can
-// never disagree about who a game's picks are.
-const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
+// The designated slots for a game — the same ones Results grades, plus
+// WATCH (2026-09-15) — a coverage marker, not a graded pick, tacked on at
+// the end so it never displaces the five real designations in priority
+// order. Shared by the rundown cards and the expanded pick row so neither
+// can disagree with the other about who a game's picks are.
+const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT', 'WATCH']
 // OFF THE REGISTRY (2026-08-23). These five hexes were this file's own copy
 // of the pick-role palette — one of the eleven copies scripts/check-scales.mjs
 // was written about, and the reason HRR could be cyan here and green four
 // lines down in ROLE_CONFIG. catColor('role', …) is the single source, so the
-// mono/steel/regal/light chromes reach the Games tab too.
-const catColorOf = (cat) => catColor('role', cat)
+// mono/steel/regal/light chromes reach the Games tab too. roleColor (not
+// catColor directly) so WATCH renders muted rather than borrowing a market
+// hue it hasn't earned — same rule lib/verdict.js already enforces elsewhere.
+const catColorOf = (cat) => roleColor(cat)
 const CAT_SCORE = {
   TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? p?.hr_score ?? 0,
   HR: (p) => p?.hr_score ?? 0,
   HIT: (p) => p?.hit_score ?? 0,
   HRR: (p) => p?.hrr_score ?? 0,
   CONTACT: (p) => p?.contact_score ?? 0,
+  // WATCH has no score of its own — it's ranked off the same hr_score the
+  // bot ranks WATCH candidates by (mlb_dashboard.py: next 3 bats by hr_score
+  // once TOP/HR are excluded), not invented for this chip.
+  WATCH: (p) => p?.hr_score ?? 0,
 }
 // A player can carry more than one role (e.g. "TOP/HR") -- match on any
 // tag, not just the first, so a double-up shows up in every slot he holds
@@ -159,9 +177,21 @@ const roleTags = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.
 const picksFor = (g) => {
   const perSlot = CAT_ORDER
     .map((cat) => {
-      const p = [...(g.players || [])]
-        .filter((pp) => roleTags(pp).includes(cat))
-        .sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0]
+      // BEST HIT PICK (2026-09-15, Donovan: "show... the best HIT pick").
+      // Every other slot only appears when the bot's own game_pick_role
+      // designated someone for it — a BETTING/grading decision, not a
+      // ranking one. The roadmap's own R1 finding (best-hit-in-game pass,
+      // claude/moonshot-roadmap-post-config-hash.md item 20) is that
+      // hit_score already orders a game's hitters correctly top to bottom
+      // (78.1% base-hit rate at rank 1, monotone down through rank 5)
+      // independent of whether anyone got the HIT tag that night. So HIT
+      // alone ranks the whole scored roster by hit_score instead of
+      // filtering to the tag first — every game with scored hitters gets a
+      // Best Hit Pick, not only the ones the bot happened to designate.
+      const pool = cat === 'HIT'
+        ? [...(g.players || [])]
+        : [...(g.players || [])].filter((pp) => roleTags(pp).includes(cat))
+      const p = pool.sort((a, b) => (CAT_SCORE[cat](b) || 0) - (CAT_SCORE[cat](a) || 0))[0]
       return p ? { cat, p } : null
     })
     .filter(Boolean)
@@ -1226,36 +1256,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     (2026-08-06, on request) — one chip per category, the same
                     five slots Results grades. */}
                 {(() => {
-                  const CAT_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
-                  // was a THIRD local copy of the role palette in this file
-                  const CAT_COLOR = Object.fromEntries(CAT_ORDER.map((k) => [k, catColor('role', k)]))
-                  const CAT_SC = {
-                    TOP: (p) => p?.top_board_score_v2 ?? p?.overall_score ?? 0,
-                    HR: (p) => p?.hr_score ?? 0, HIT: (p) => p?.hit_score ?? 0,
-                    HRR: (p) => p?.hrr_score ?? 0, CONTACT: (p) => p?.contact_score ?? 0,
-                  }
-                  // A player can carry more than one role (e.g. "TOP/HR") --
-                  // match on any tag, not just the first, so a double-up
-                  // still holds every slot (2026-08-13; mirrors
-                  // BotPicksStrip.js's pickBuckets) -- but he renders as ONE
-                  // chip wearing both names, not one chip per slot
-                  // (2026-08-14, Donovan: "show the player once"). Primary
-                  // slot (first in CAT_ORDER) drives the colour and score.
-                  const roleTags = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
-                  const perSlot = CAT_ORDER
-                    .map((cat) => {
-                      const p = (g.players || []).filter((pp) => roleTags(pp).includes(cat))
-                        .sort((a, b) => (CAT_SC[cat](b) || 0) - (CAT_SC[cat](a) || 0))[0]
-                      return p ? { cat, p } : null
-                    })
-                    .filter(Boolean)
-                  const byPlayer = new Map()
-                  perSlot.forEach(({ cat, p }) => {
-                    const k = playerId(p)
-                    if (byPlayer.has(k)) byPlayer.get(k).cats.push(cat)
-                    else byPlayer.set(k, { cat, cats: [cat], p })
-                  })
-                  const picks = [...byPlayer.values()]
+                  // 2026-09-15: this used to be a THIRD local copy of
+                  // CAT_ORDER/roleTags/perSlot/byPlayer (plus a dead
+                  // CAT_COLOR that nothing ever read) — the module-level
+                  // picksFor(g) at the top of this file is the exact same
+                  // logic, now including WATCH and the always-on Best Hit
+                  // Pick. One function, so this view and the card grid below
+                  // can never quietly drift apart on who a game's picks are.
+                  const picks = picksFor(g)
                   if (!picks.length) return null
                   return (
                     <div style={{
@@ -1283,7 +1291,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                   see components/PriceBubble.js. */}
                               <PriceBubble odds={odds} player={p} cat={cat}
                                 rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
-                              <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SC[cat](p) || 0).toFixed(0)}</span>
+                              <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, fontWeight: 800, color: col, fontFamily: NUM_FONT, flexShrink: 0 }}>{(CAT_SCORE[cat](p) || 0).toFixed(0)}</span>
                             </button>
                           )
                         })}
