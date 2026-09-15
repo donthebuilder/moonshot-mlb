@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
 
@@ -155,7 +155,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
 
   if (!Object.keys(matchup?.player_explosive || {}).length && !Object.keys(matchup?.def_explosive || {}).length) {
     return (
-      <div style={{ padding: 26, border: `1px dashed ${C.border2}`, borderRadius: 12, textAlign: 'center', color: C.text3, fontSize: 10.5 }}>
+      <div style={{ padding: 26, border: `1px dashed ${C.border2}`, borderRadius: 12, textAlign: 'center', color: C.text3, fontSize: TYPE.body }}>
         Waiting on the bot's next matchup publish — explosive-play data ships with nfl_matchup.json.
       </div>
     )
@@ -174,7 +174,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         <h1 style={{ margin: '0 0 6px', fontSize: 'clamp(22px,3.8vw,34px)', letterSpacing: '-.03em' }}>
           {lens === 'player' ? 'Who turns a target into a chunk play' : 'Who gives up the chunk play'}
         </h1>
-        <p style={{ maxWidth: 620, margin: 0, color: C.text3, fontSize: 11, lineHeight: 1.55 }}>
+        <p style={{ maxWidth: 620, margin: 0, color: C.text3, fontSize: TYPE.body, lineHeight: 1.55 }}>
           Every 10/20/30/40-yard reception, real, off {matchup?.season || 'the'} play-by-play
           {' — '}
           {lens === 'player'
@@ -235,7 +235,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         />
       )}
 
-      <div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: 10, lineHeight: 1.6 }}>
+      <div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.6 }}>
         Receiving only — rushing has no chunk-play split published yet, so this board doesn't guess at one.
         Minimum 8 targets on the season to keep a name off this list on a single fluke catch.
       </div>
