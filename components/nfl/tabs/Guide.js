@@ -1,5 +1,5 @@
 'use client'
-import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
 
 // Guide — what every number means, and what it doesn't.
 //
@@ -11,10 +11,10 @@ function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
       <div style={{
-        fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+        fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
         marginBottom: 8, textTransform: 'uppercase',
       }}>{title}</div>
-      <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.75 }}>{children}</div>
+      <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.75 }}>{children}</div>
     </div>
   )
 }
@@ -38,8 +38,8 @@ function PageCard({ tab, title, note, onNavigate }) {
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 9,
       }}
     >
-      <b style={{ display: 'block', color: C.text, fontSize: 12 }}>{title}</b>
-      <span style={{ display: 'block', marginTop: 4, color: C.text3, fontSize: 10, lineHeight: 1.45 }}>{note}</span>
+      <b style={{ display: 'block', color: C.text, fontSize: TYPE.name }}>{title}</b>
+      <span style={{ display: 'block', marginTop: 4, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.45 }}>{note}</span>
     </button>
   )
 }
@@ -108,8 +108,8 @@ export default function Guide({ onNavigate, data }) {
               flex: '1 1 210px', background: C.bg2, border: `1px solid ${C.border}`,
               borderTop: `2px solid ${C.green}`, borderRadius: 9, padding: '9px 12px',
             }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{label}</div>
-              <div style={{ fontSize: 10, color: C.text3, marginTop: 2, fontFamily: NUM_FONT }}>{note}</div>
+              <div style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{label}</div>
+              <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 2, fontFamily: NUM_FONT }}>{note}</div>
             </div>
           ))}
         </div>
