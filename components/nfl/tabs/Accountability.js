@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, MARKETS, gradeFor } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { downloadNflPickCard } from '../shareCard'
@@ -126,7 +126,7 @@ function Badge({ tone, children }) {
   const col = map[tone] || C.text3
   return (
     <span style={{
-      fontSize: 9, fontWeight: 900, padding: '1.5px 6px', borderRadius: 4,
+      fontSize: TYPE.label, fontWeight: 900, padding: '1.5px 6px', borderRadius: 4,
       fontFamily: NUM_FONT, letterSpacing: '.04em',
       background: `${col}22`, color: col,
     }}>{children}</span>
@@ -205,14 +205,14 @@ function CardGrid({ results }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, fontWeight: 800 }}>Did the card do its job?</span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+        <span style={{ fontSize: TYPE.title, fontWeight: 800 }}>Did the card do its job?</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {sumHit} of {sumN} card rungs cleared their own bar this run
           {sumVoid > 0 && ` · ${sumVoid} void`}
         </span>
       </div>
 
-      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
         Five rungs a market, thirty-five total on a full card — never more, no matter how the
         run graded. That&apos;s why every number below is shown as a fraction first: <b
         style={{ color: C.text2 }}>a percentage off five picks is a coin flip wearing a
@@ -233,17 +233,17 @@ function CardGrid({ results }) {
                 border: `1px solid ${b.color}44`, borderRadius: 11, padding: '8px 12px',
               }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 10.5, fontWeight: 900, color: b.color, fontFamily: NUM_FONT }}>{b.label}</span>
-                <span style={{ fontSize: 8.5, color: C.text3 }}>bar {b.bar}</span>
+                <span style={{ fontSize: TYPE.label, fontWeight: 900, color: b.color, fontFamily: NUM_FONT }}>{b.label}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>bar {b.bar}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <span style={{ fontFamily: NUM_FONT, fontSize: 19, fontWeight: 900, color: b.color }}>
+                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.display, fontWeight: 900, color: b.color }}>
                   {n ? `${hit}/${n}` : '—'}
                 </span>
-                {n > 0 && <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{pctTxt(pct)}</span>}
+                {n > 0 && <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{pctTxt(pct)}</span>}
               </div>
               {voidN > 0 && (
-                <div style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3, marginTop: 1 }}>
+                <div style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3, marginTop: 1 }}>
                   {voidN} void
                 </div>
               )}
@@ -364,10 +364,10 @@ function ScoreBands({ data, results }) {
 
   return (
     <div style={{ marginTop: 18 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 2 }}>
+      <div style={{ fontSize: TYPE.title, fontWeight: 800, marginBottom: 2 }}>
         Is the score separating outcomes, live?
       </div>
-      <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
         Not the five-deep card — every player this run who had both a score and a graded line for
         that market, split into quartiles by score. If the top quarter of the pool doesn&apos;t
         clear the bar noticeably more than the bottom quarter, the ranking isn&apos;t doing
@@ -380,8 +380,8 @@ function ScoreBands({ data, results }) {
         <ChartFrame key={r.key} pad="9px 12px"
           style={{ borderRadius: 11, marginBottom: 7 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 800, color: r.color }}>{r.label}</span>
-            <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>bar {r.bar}</span>
+            <span style={{ fontSize: TYPE.name, fontWeight: 800, color: r.color }}>{r.label}</span>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>bar {r.bar}</span>
             {r.state === 'missing' && <Badge tone="dim">NO JOINED LINES</Badge>}
             {r.state === 'thin' && <Badge tone="dim">TOO THIN · n={r.n}, need {BAND_MIN}</Badge>}
             {r.state === 'degenerate' && <Badge tone="yellow">NOT READABLE · every line cleared</Badge>}
@@ -393,14 +393,14 @@ function ScoreBands({ data, results }) {
           </div>
 
           {r.state === 'missing' && (
-            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
               No player this run has both a {MARKET_LABEL[r.key]} score and a graded line —
               either nothing has finished yet, or this market has no eligible players on the
               slate.
             </div>
           )}
           {r.state === 'degenerate' && (
-            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
               Every one of the {r.n} joined lines cleared bar {r.bar}. {r.key === 'TD'
                 ? <>Expected for TD specifically: a value of exactly 0 never reaches this payload
                     (see the note at the top of this file), so a miss can&apos;t be observed here
@@ -416,11 +416,11 @@ function ScoreBands({ data, results }) {
                   flex: '1 1 90px', background: C.bg, border: `1px solid ${C.border}`,
                   borderRadius: 8, padding: '5px 8px',
                 }}>
-                  <div style={{ fontSize: 8.5, color: C.text3 }}>{b.label}</div>
-                  <div style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: r.color }}>
+                  <div style={{ fontSize: TYPE.micro, color: C.text3 }}>{b.label}</div>
+                  <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: r.color }}>
                     {b.pct.toFixed(1)}%
                   </div>
-                  <div style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+                  <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                     {b.ok}/{b.n} cleared
                   </div>
                 </div>
@@ -525,7 +525,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
     return (
       <div style={{
         border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
-        textAlign: 'center', color: C.text3, fontSize: 12.5,
+        textAlign: 'center', color: C.text3, fontSize: TYPE.body,
       }}>Nothing has been graded yet.</div>
     )
   }
@@ -543,7 +543,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
         borderRadius: 10, padding: '10px 14px', marginBottom: 14,
-        fontSize: 11, color: C.text3, lineHeight: 1.6,
+        fontSize: TYPE.body, color: C.text3, lineHeight: 1.6,
       }}>
         {picked && picked !== currentKey ? 'Showing' : 'Last graded'}: <b style={{ color: C.text2 }}>{when}</b>
         {results.exhibition && <> · <b style={{ color: C.yellow }}>preseason counts</b>, starters play two series</>}
@@ -569,7 +569,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
                     aria-label="Download result card as image"
                     style={{
                       background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
-                      borderRadius: 6, padding: '1px 5px', cursor: 'pointer', fontSize: 10,
+                      borderRadius: 6, padding: '1px 5px', cursor: 'pointer', fontSize: TYPE.micro,
                     }}
                   >📸</button>
                 ) },
