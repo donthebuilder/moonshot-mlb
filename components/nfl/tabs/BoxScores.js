@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { fetchNfl, nflFantasyStatsPaths, nflFantasyStatsLooksReal } from '../../../lib/nfl/dataSource'
 import DenseTable from '../../DenseTable'
 import { Empty } from '../../ui'
@@ -95,7 +95,7 @@ function statusOf(g) {
 function DefRow({ abbr, d }) {
   if (!d) return null
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', fontFamily: NUM_FONT, fontSize: 10, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', fontFamily: NUM_FONT, fontSize: TYPE.micro, flexWrap: 'wrap' }}>
       <b style={{ width: 34, color: C.text2 }}>{abbr}</b>
       <span>{d.def_sacks || 0} SK</span>
       <span>{d.def_interceptions || 0} INT</span>
@@ -116,7 +116,7 @@ function TeamDefenseStrip({ away, home, defense }) {
       display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', marginTop: 4,
       background: C.bg3, borderRadius: 8, border: `1px solid ${C.border}`,
     }}>
-      <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase' }}>
+      <div style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase' }}>
         Team defense
       </div>
       <DefRow abbr={away} d={d1} />
@@ -138,20 +138,20 @@ function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick }) {
         onClick={onToggle}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 13px', cursor: 'pointer' }}
       >
-        <div style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 12 }}>
+        <div style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: TYPE.name }}>
           {game.away} <span style={{ color: C.text3, fontWeight: 700 }}>{game.away_score ?? ''}</span>
           {' @ '}
           {game.home} <span style={{ color: C.text3, fontWeight: 700 }}>{game.home_score ?? ''}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, color: st.tone }}>{st.text}</span>
-          <span style={{ color: C.text3, fontSize: 11 }}>{open ? '▾' : '▸'}</span>
+          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, color: st.tone }}>{st.text}</span>
+          <span style={{ color: C.text3, fontSize: TYPE.micro }}>{open ? '▾' : '▸'}</span>
         </div>
       </div>
       {open && (
         <div style={{ padding: '0 13px 12px', borderTop: `1px solid ${C.border}` }}>
           {!anyStats ? (
-            <div style={{ fontSize: 10.5, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
+            <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
               {game.state === 'pre'
                 ? "Hasn't kicked off yet."
                 : "No box in this feed yet for this game — check back once the bot's next 15-minute publish lands."}
@@ -163,7 +163,7 @@ function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick }) {
                 if (!rows.length) return null
                 return (
                   <div key={cat.key} style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 4 }}>
+                    <div style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 4 }}>
                       {cat.label}
                     </div>
                     <DenseTable
@@ -236,8 +236,8 @@ export default function BoxScores({ data, onPlayerClick }) {
   return (
     <div>
       <div style={{ marginBottom: 10 }}>
-        <h1 style={{ margin: 0, fontSize: 18 }}>Box Scores</h1>
-        <p style={{ margin: '4px 0 0', color: C.text3, fontSize: 10.5, lineHeight: 1.5, maxWidth: 640 }}>
+        <h1 style={{ margin: 0, fontSize: TYPE.title }}>Box Scores</h1>
+        <p style={{ margin: '4px 0 0', color: C.text3, fontSize: TYPE.body, lineHeight: 1.5, maxWidth: 640 }}>
           Week {stats?.week ?? '—'} — every game, passing / rushing / receiving / kicking, off the bot&apos;s own
           live scoring feed. It refreshes every 15 minutes in game windows and only ever covers the current week —
           a past week&apos;s box isn&apos;t available here, the same limit the Tuddy Ledger discloses for its own
