@@ -41,7 +41,8 @@ import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
   careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
   hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
-  milestonePicks, milestoneText, playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
+  milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
+  streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
 } from '../../../../../lib/dash/tweetFeed'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -203,6 +204,35 @@ async function milestoneSeenIds(db, day) {
   }
 }
 
+// EVERY LINE SAID SO FAR TODAY (2026-09-15, Donovan: "makesure not srepat
+// info,ations" -- the "never repeat information" rule spanning funfacts,
+// matchuplines and all four Storyline Watch slots). Unlike the two exclude
+// helpers above, this one keys on exact posted TEXT rather than a player id,
+// because a matchup-line or fun fact is the sentence itself, not a player --
+// two different sentences about the same player are fine, the same sentence
+// twice is the thing being guarded against. funfacts/matchuplines now store
+// { texts } (see the claimAndPostStat calls above); each storyline-watch slot
+// stores its own texts too, so slot 4 excludes everything slots 1-3 said as
+// well as the noon posts, without needing its own separate kind list to grow
+// by hand each time a slot is added.
+async function storylineSeenTexts(db, day) {
+  try {
+    const { data } = await db.from('homer_feed_posts').select('payload')
+      .eq('day', day)
+      .in('kind', ['funfacts', 'matchuplines', 'storyline_watch_1', 'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4'])
+    const out = new Set()
+    for (const row of data || []) {
+      for (const t of row?.payload?.texts || []) {
+        const s = String(t || '').trim()
+        if (s) out.add(s)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
+}
+
 function authorized(request) {
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
   if (!supplied) return false
@@ -324,6 +354,23 @@ const MATCHUP_LATE_HOUR = 6     // 6pm ET -- evening/West-Coast games locking
 // Hottest Contact's mid repost (4pm).
 const MILESTONE_AM_HOUR = -6    // 6am ET
 const MILESTONE_MID_HOUR = 3    // 3pm ET
+// 2026-09-15 (Donovan, real site "Storylines" panel: "please can you just
+// post like some of these throught the day, people love them" -- then:
+// "storylies post 4 a day once slate starts for games that havent started"
+// and "thing else post in a combined tweet. makesure not srepat
+// info,ations"). Four Storyline Watch slots fill the account's evening
+// window (5/8/9/10pm ET all sit empty today -- HOTTEST_CONTACT_MID is 4pm,
+// DANGER_COMBOS_MID is 7pm, MATCHUP_LATE is 6pm, nothing else runs after
+// that), each excluding every text any earlier slot (or funfacts/
+// matchuplines) already posted today. Revenge & Giveaways is its own single
+// combined post -- 7am ET, the other half of the 4-7am dead window
+// MILESTONE_AM was placed to fill, an hour ahead of it so the account isn't
+// silent from 4am to 6am.
+const STORYLINE_WATCH_1_HOUR = 5   // 5pm ET
+const STORYLINE_WATCH_2_HOUR = 8   // 8pm ET
+const STORYLINE_WATCH_3_HOUR = 9   // 9pm ET
+const STORYLINE_WATCH_4_HOUR = 10  // 10pm ET
+const REVENGE_GIVEAWAY_HOUR = -5   // 7am ET
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -947,7 +994,11 @@ export async function GET(request) {
             pill: 'FACTS', label: 'FUN FACTS',
             headline: facts[0]?.player ? String(facts[0].player.name || facts[0].player) : 'Tonight\'s whimsical stat line',
             lines: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean),
-          } : null)
+          } : null,
+          // texts stored (2026-09-15) so the afternoon/evening Storyline
+          // Watch posts (storylineSeenTexts below) never repeat one of
+          // these facts verbatim.
+          { texts: facts.map((f) => `${f?.icon || ''} ${f?.text || ''}`.trim()).filter(Boolean) })
       })
     }
     // ── MATCHUP LINES / THE CALL OF THE NIGHT / STREAKS / STORYLINES /
@@ -966,7 +1017,11 @@ export async function GET(request) {
             pill: 'MATCHUP', label: 'MATCHUP LINES',
             headline: stories[0]?.player ? String(stories[0].player.name || '') : 'Tonight\'s park history',
             lines: stories.map((s) => s?.text).filter(Boolean),
-          } : null)
+          } : null,
+          // texts stored (2026-09-15) for the same reason as funfacts above --
+          // storylineSeenTexts below reads this back so Storyline Watch never
+          // repeats one of these lines verbatim.
+          { texts: stories.map((s) => s?.text).filter(Boolean) })
       })
     }
     if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR) {
@@ -1096,6 +1151,95 @@ export async function GET(request) {
             lines: miles.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.need} from ${p.t.toLocaleString()} ${p.word}`),
           } : null,
           { picks: miles })
+      })
+    }
+    // ── STORYLINE WATCH, FOUR WAVES (2026-09-15, Donovan: "storylies post 4
+    //    a day once slate starts for games that havent started") ───────────
+    // Same matchupLinesPicks/funFactsPicks data the 8am/1pm posts already
+    // pull, on pregameRows() so a slot never names a game that's already
+    // under way -- and each slot excludes every real line/fact posted
+    // ANYWHERE today (funfacts, matchuplines, and every earlier slot) via
+    // storylineSeenTexts above, so four posts plus the two morning ones never
+    // repeat a sentence. A slot with nothing left un-said just posts nothing
+    // -- claimAndPostStat never spends the day's claim on empty text -- it
+    // does not pad with a repeat to hit a count.
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_1_HOUR) {
+      await safeStat('storyline_watch_1', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_1', STORYLINE_WATCH_1_HOUR,
+          storylineWatchText(picks, { day, slot: 1, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR) {
+      await safeStat('storyline_watch_2', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_2', STORYLINE_WATCH_2_HOUR,
+          storylineWatchText(picks, { day, slot: 2, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR) {
+      await safeStat('storyline_watch_3', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_3', STORYLINE_WATCH_3_HOUR,
+          storylineWatchText(picks, { day, slot: 3, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR) {
+      await safeStat('storyline_watch_4', async () => {
+        const seen = await storylineSeenTexts(db, day)
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
+        await claimAndPostStat(db, day, 'storyline_watch_4', STORYLINE_WATCH_4_HOUR,
+          storylineWatchText(picks, { day, slot: 4, ...TAIL }),
+          picks.length ? {
+            pill: 'STORY', label: 'STORYLINE WATCH',
+            headline: 'Tonight\'s storylines',
+            lines: picks.map((p) => p.text).filter(Boolean),
+          } : null,
+          { texts: picks.map((p) => p.text).filter(Boolean) })
+      })
+    }
+    // ── REVENGE GAMES + GIVEAWAYS, ONE COMBINED POST (2026-09-15, Donovan:
+    //    "thing else post in a combined tweet") ─────────────────────────────
+    // Off boardRows(), not pregameRows(): a revenge game is a fact about
+    // tonight's matchup, not something that stops being true once first
+    // pitch happens, and a giveaway is tied to the whole game, not a lineup
+    // slot -- same reasoning MILESTONE_AM above already uses for running off
+    // the full board this early (7am ET, before most lineups are even
+    // posted).
+    if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR) {
+      await safeStat('revenge_giveaway', async () => {
+        const rg = await revengeGiveawayPicks(boardRows(), day)
+        await claimAndPostStat(db, day, 'revenge_giveaway', REVENGE_GIVEAWAY_HOUR,
+          revengeGiveawayText(rg, { day, ...TAIL }),
+          (rg.revenge.length || rg.giveaways.length) ? {
+            pill: 'REVENGE', label: 'REVENGE & GIVEAWAYS',
+            headline: rg.revenge[0]?.name ? `${rg.revenge[0].name} faces his old team tonight` : 'Tonight\'s revenge games and giveaways',
+            lines: [
+              ...rg.revenge.map((r) => `${r.name}${r.team ? ` (${r.team})` : ''} vs ${r.opp} — wore it ${r.span}`),
+              ...rg.giveaways.map((g) => `${g.home}: ${g.name}`),
+            ],
+          } : null)
       })
     }
   }
