@@ -28,7 +28,7 @@
 // the kind of fabricated causality this page has avoided from the start.
 // See the note at the bottom, which still says so in plain words.
 import { useMemo } from 'react'
-import { C, NUM_FONT } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { streakMarkets } from '../../../lib/nfl/streaks'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { VERB, NOUN, fmtBar, ordinal, weekLabel, milestoneStreaks, modelNarrativeStories } from '../../../lib/nfl/storylines'
@@ -82,8 +82,8 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
               </div>
               <div className="sl-sub">{c.player.team} · {c.player.position} — priced {fmtBar(c.missBar)} {NOUN[c.missMarket] || c.missMarket}, went {fmtBar(c.missActual)}.</div>
               <div className="sl-rail">
-                <div className="sl-stat"><div className="v" style={{ color: C.red }}>{fmtBar(c.missActual)}<span style={{ fontSize: 11 }}>/{fmtBar(c.missBar)}</span></div><div className="k">missed<br />{NOUN[c.missMarket] || c.missMarket}</div></div>
-                <div className="sl-stat"><div className="v" style={{ color: C.orange }}>{fmtBar(c.hitVal)}<span style={{ fontSize: 11 }}>/{fmtBar(c.hitBar)}</span></div><div className="k">cleared<br />{NOUN[c.hitMarket] || c.hitMarket}</div></div>
+                <div className="sl-stat"><div className="v" style={{ color: C.red }}>{fmtBar(c.missActual)}<span style={{ fontSize: TYPE.body }}>/{fmtBar(c.missBar)}</span></div><div className="k">missed<br />{NOUN[c.missMarket] || c.missMarket}</div></div>
+                <div className="sl-stat"><div className="v" style={{ color: C.orange }}>{fmtBar(c.hitVal)}<span style={{ fontSize: TYPE.body }}>/{fmtBar(c.hitBar)}</span></div><div className="k">cleared<br />{NOUN[c.hitMarket] || c.hitMarket}</div></div>
                 <div className="sl-stat"><div className="v">+{fmtBar(c.hitVal - c.hitBar)}</div><div className="k">past the<br />unset bar</div></div>
               </div>
             </button>
@@ -116,7 +116,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
                 <div className="sl-rail">
                   <div className="sl-stat"><div className="v">{r.streak}</div><div className="k">straight<br />games</div></div>
                   <div className="sl-stat"><div className="v">{r.hits}/{r.games}</div><div className="k">hit rate<br />last {r.games}</div></div>
-                  <div className="sl-stat"><div className="v">{Math.round(r.rate * 100)}<span style={{ fontSize: 11 }}>%</span></div><div className="k">clip at<br />this mark</div></div>
+                  <div className="sl-stat"><div className="v">{Math.round(r.rate * 100)}<span style={{ fontSize: TYPE.body }}>%</span></div><div className="k">clip at<br />this mark</div></div>
                   <div className="sl-stat"><div className="v">{r.lastV}</div><div className="k">last<br />game</div></div>
                 </div>
               </button>
