@@ -21,7 +21,14 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 function authorized(request) {
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
+  const url = new URL(request.url)
+  // A plain browser click can't set an Authorization header (needed because
+  // this preview deployment sits behind Vercel's own SSO wall, which a
+  // logged-in Vercel session clears automatically but a bare curl cannot) --
+  // so this throwaway-only route also accepts the same secret as ?key=.
+  // The production tick route does NOT do this; this file is deleted with
+  // the rest of the diagnostic once the pipeline it's scoping is trusted.
+  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || url.searchParams.get('key') || ''
   if (!supplied) return false
   return [process.env.CRON_SECRET, process.env.FRANCHISE_CRON_SECRET, process.env.CALLEDIT_SECRET].filter(Boolean).some((expected) => {
     const a = Buffer.from(expected)
