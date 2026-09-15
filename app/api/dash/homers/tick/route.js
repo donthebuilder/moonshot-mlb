@@ -39,9 +39,9 @@ import { accountabilityText, boardIndexFrom, boardRolePicks, boardRoleResultsTex
 import { homerCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
-  dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
-  hottestContactPicks, hottestContactText, hrLeadersByDowText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
-  playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText,
+  careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
+  hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
+  playableRows, storylinesPicks, storylinesText, streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
 } from '../../../../../lib/dash/tweetFeed'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -133,10 +133,17 @@ async function claimSlot(db, day, kind) {
   return Boolean(data?.length)
 }
 
-async function claimAndPostStat(db, day, kind, hourGate, text, card) {
+// `payload` (2026-09-15, matchup-history posts): every other caller leaves
+// this at the default `{}` -- claimAndPostStat has never persisted anything
+// beyond the claim itself. The two new matchup-history kinds are the first
+// that need a later tick to read back WHO got named (the late wave's
+// exclude-set, see matchupHistorySeenIds below), so this is now a real
+// parameter instead of a hardcoded literal. Optional and additive: every
+// existing call site is unaffected.
+async function claimAndPostStat(db, day, kind, hourGate, text, card, payload = {}) {
   if (!text || etHoursSinceNoon() < hourGate) return false
   if (!(await claimSlot(db, day, kind))) return false
-  const patch = { payload: {} }
+  const patch = { payload }
   // ONE RENDER, BOTH PLACES (2026-09-07). The card used to be built inside the
   // `hasX()` branch, below Discord, so Discord got bare text while a finished
   // PNG existed a few lines later -- and on a night with X off it was never
@@ -152,6 +159,28 @@ async function claimAndPostStat(db, day, kind, hourGate, text, card) {
   }
   await db.from('homer_feed_posts').update(patch).match({ day, kind })
   return true
+}
+
+// WHO THE DAY WAVE ALREADY NAMED (2026-09-15). Reads both matchup-history
+// kinds' payloads back -- claimAndPostStat now writes { picks } for these two
+// (see the `payload` param above) -- so the late wave can exclude them and
+// surface different names for the later games instead of repeating the same
+// handful. Best-effort: a read failure just means the late wave doesn't
+// exclude anyone, never that it fails to post.
+async function matchupHistorySeenIds(db, day) {
+  try {
+    const { data } = await db.from('homer_feed_posts').select('payload').eq('day', day).in('kind', ['matchup_hr', 'matchup_career'])
+    const out = new Set()
+    for (const row of data || []) {
+      for (const p of row?.payload?.picks || []) {
+        const id = String(p?.player_id || '').trim()
+        if (id) out.add(id)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
 }
 
 function authorized(request) {
@@ -255,6 +284,19 @@ const COMMUNITY_PICK_HOUR = -4  // 8am ET
 const PAIRSWATCH_HOUR = 0       // noon ET
 const LONGSHOT_HOUR = 1         // 1pm ET
 const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
+// MATCHUP HISTORY (2026-09-15, Donovan: someone requested a fan account's
+// "has a HR vs tonight's starter" list; confirmed he wants BOTH that and the
+// best-batting-line "who owns him" trivia, as a pool that fires again later
+// for the later slate rather than one single snapshot -- "this can fire
+// later in the day or middle slate for a liter game just an idea"). Unlike
+// every hour above, this is a floor, not a promise: vsPitcherCareerLines()
+// only counts a hitter once his lineup spot is CONFIRMED, which most of the
+// board doesn't have yet at 2pm -- but claimAndPostStat never spends the
+// day's claim on empty text (the same rule the pregame call relies on), so
+// an early tick with nothing confirmed yet just retries next minute for
+// free until real lineups land.
+const MATCHUP_HOUR = 2          // 2pm ET -- first wave of confirmed lineups
+const MATCHUP_LATE_HOUR = 6     // 6pm ET -- evening/West-Coast games locking
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -964,6 +1006,35 @@ export async function GET(request) {
           } : null)
       })
     }
+    // ── MATCHUP HISTORY, DAY WAVE — "HAS A HR VS THE STARTER" / "WHO OWNS
+    //    HIM" (2026-09-15) ─────────────────────────────────────────────────
+    // Both posts read the SAME StatsAPI vsPlayer pull off the same confirmed
+    // rows, so it happens once here and each formatter just re-ranks it --
+    // one round trip for two posts instead of two. See MATCHUP_HOUR above for
+    // why the hour is a floor rather than a real deadline.
+    if (etHoursSinceNoon() >= MATCHUP_HOUR) {
+      await safeStat('matchuphistory', async () => {
+        const lines = await vsPitcherCareerLines(pregameRows())
+        const hrPicks = hrVsStarterPicks(lines)
+        await claimAndPostStat(db, day, 'matchup_hr', MATCHUP_HOUR,
+          hrVsStarterText(hrPicks, { day, ...TAIL }),
+          hrPicks.length ? {
+            pill: 'HISTORY', label: 'HAS A HR VS THE STARTER',
+            headline: hrPicks[0]?.name ? `${hrPicks[0].name} has gone deep on tonight's arm before` : 'Tonight\'s history vs the starter',
+            lines: hrPicks.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.hr}x off ${p.pitcher}`),
+          } : null,
+          { picks: hrPicks })
+        const careerPicks = careerVsStarterPicks(lines)
+        await claimAndPostStat(db, day, 'matchup_career', MATCHUP_HOUR,
+          careerVsStarterText(careerPicks, { day, ...TAIL }),
+          careerPicks.length ? {
+            pill: 'HISTORY', label: 'WHO OWNS HIM',
+            headline: careerPicks[0]?.name ? `${careerPicks[0].name} vs ${careerPicks[0].pitcher}` : 'Tonight\'s best line vs the starter',
+            lines: careerPicks.map((p) => `${p.name} — ${p.h}-for-${p.ab} vs ${p.pitcher}`),
+          } : null,
+          { picks: careerPicks })
+      })
+    }
   }
 
   if (!started || overdue) {
@@ -1194,6 +1265,37 @@ export async function GET(request) {
         lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
       } : null)
   }
+  // ── MATCHUP HISTORY, LATE WAVE (2026-09-15, Donovan: "this can fire later
+  //    in the day or middle slate for a liter game"). Same StatsAPI pull as
+  //    the day wave, but against midRows() (live-filtered, so a scratched or
+  //    already-finished hitter can't show up) and excluding whoever the day
+  //    wave already named, so a 7pm West-Coast slate gets fresh names instead
+  //    of a rerun. Wrapped in safeStat: this is the one mid-slate repost that
+  //    touches the network (StatsAPI, plus a read-back for the exclude set),
+  //    unlike hotcontact_mid/dangercombos_mid just above which only re-rank
+  //    the board already in memory.
+  await safeStat('matchuphistory_late', async () => {
+    const seen = await matchupHistorySeenIds(db, day)
+    const lines = await vsPitcherCareerLines(midRows(), { exclude: seen })
+    const hrPicks = hrVsStarterPicks(lines)
+    await claimAndPostStat(db, day, 'matchup_hr_late', MATCHUP_LATE_HOUR,
+      hrVsStarterText(hrPicks, { day, ...TAIL, wave: 'late' }),
+      hrPicks.length ? {
+        pill: 'HISTORY', label: 'HR HISTORY — LATE SLATE',
+        headline: hrPicks[0]?.name ? `${hrPicks[0].name} has gone deep on tonight's arm before` : 'Tonight\'s late-slate history vs the starter',
+        lines: hrPicks.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.hr}x off ${p.pitcher}`),
+      } : null,
+      { picks: hrPicks })
+    const careerPicks = careerVsStarterPicks(lines)
+    await claimAndPostStat(db, day, 'matchup_career_late', MATCHUP_LATE_HOUR,
+      careerVsStarterText(careerPicks, { day, ...TAIL, wave: 'late' }),
+      careerPicks.length ? {
+        pill: 'HISTORY', label: 'WHO OWNS HIM — LATE SLATE',
+        headline: careerPicks[0]?.name ? `${careerPicks[0].name} vs ${careerPicks[0].pitcher}` : 'Tonight\'s late-slate best line vs the starter',
+        lines: careerPicks.map((p) => `${p.name} — ${p.h}-for-${p.ab} vs ${p.pitcher}`),
+      } : null,
+      { picks: careerPicks })
+  })
 
   const homers = homersFrom(snap, day, board, odds)
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }
