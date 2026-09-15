@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import ChartFrame from '../ChartFrame'
 
@@ -65,10 +65,10 @@ function Card({ col, rows, open, onToggle, onPlayerClick }) {
     }}>
       <header style={{ marginBottom: 8 }}>
         <div style={{
-          fontFamily: NUM_FONT, fontSize: 11.5, fontWeight: 900, color: C.text,
+          fontFamily: NUM_FONT, fontSize: TYPE.name, fontWeight: 900, color: C.text,
           letterSpacing: '.04em',
         }}>{col.label}</div>
-        <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.45, marginTop: 2 }}>
+        <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.45, marginTop: 2 }}>
           {col.desc}
         </div>
       </header>
@@ -97,26 +97,26 @@ function Card({ col, rows, open, onToggle, onPlayerClick }) {
                     : `linear-gradient(90deg, ${C.green}30, ${C.green}18)`,
                 }} />
                 <span style={{
-                  position: 'relative', fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,
+                  position: 'relative', fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900,
                   color: i === 0 ? C.green : C.text3, minWidth: 12,
                 }}>{i + 1}</span>
                 <span style={{
-                  position: 'relative', flex: 1, minWidth: 0, fontSize: 11,
+                  position: 'relative', flex: 1, minWidth: 0, fontSize: TYPE.name,
                   fontWeight: i === 0 ? 800 : 650, color: C.text,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{r.p.name}</span>
                 {tag && (
                   <span title={injuryTitle(tag)} style={{
-                    position: 'relative', fontSize: 8.5, fontWeight: 900,
+                    position: 'relative', fontSize: TYPE.label, fontWeight: 900,
                     color: injuryColor(tag, C),
                   }}>{tag}</span>
                 )}
                 <span style={{
-                  position: 'relative', fontFamily: NUM_FONT, fontSize: 9,
+                  position: 'relative', fontFamily: NUM_FONT, fontSize: TYPE.micro,
                   color: C.text3, whiteSpace: 'nowrap',
                 }}>{r.p.position} · {r.p.team}</span>
                 <span style={{
-                  position: 'relative', fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900,
+                  position: 'relative', fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900,
                   color: i === 0 ? C.green : C.text, minWidth: 46, textAlign: 'right',
                 }}>{fmt(r.v, col.dp, col.pct)}</span>
               </button>
@@ -129,7 +129,7 @@ function Card({ col, rows, open, onToggle, onPlayerClick }) {
         <button onClick={onToggle} style={{
           marginTop: 6, alignSelf: 'flex-start', background: 'transparent',
           border: `1px solid ${C.border}`, borderRadius: 7, color: C.text3,
-          fontSize: 9, fontWeight: 800, padding: '3px 9px', cursor: 'pointer',
+          fontSize: TYPE.label, fontWeight: 800, padding: '3px 9px', cursor: 'pointer',
         }}>
           {open ? 'show less' : `show top ${Math.min(TOP_N, rows.length)}`}
         </button>
@@ -173,13 +173,13 @@ export default function Leaders({ data, onPlayerClick }) {
         padding: '13px 14px',
       }}>
         <div style={{
-          fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.14em',
+          fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em',
           color: C.text3,
         }}>TUDDY · LEADERS</div>
-        <h1 style={{ margin: '4px 0 5px', fontSize: 25, fontWeight: 900, color: C.text }}>
+        <h1 style={{ margin: '4px 0 5px', fontSize: TYPE.title, fontWeight: 900, color: C.text }}>
           Who is first, and by how much
         </h1>
-        <p style={{ margin: 0, fontSize: 11, color: C.text2, lineHeight: 1.55, maxWidth: 620 }}>
+        <p style={{ margin: 0, fontSize: TYPE.body, color: C.text2, lineHeight: 1.55, maxWidth: 620 }}>
           Measured per-game rates from the slate — no model score anywhere on this page.
           Every board on the site already ranks by the model; this one ranks by what
           actually happened. Tap a name to open his card.
@@ -189,14 +189,14 @@ export default function Leaders({ data, onPlayerClick }) {
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
         {POSITIONS.map((k) => (
           <button key={k} onClick={() => setPos(k)} style={{
-            fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, cursor: 'pointer',
+            fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, cursor: 'pointer',
             padding: '4px 11px', borderRadius: 8,
             border: `1px solid ${pos === k ? C.green : C.border}`,
             background: pos === k ? `${C.green}2a` : 'transparent',
             color: pos === k ? C.green : C.text3,
           }}>{k}</button>
         ))}
-        <span style={{ fontSize: 9.5, color: C.text3, marginLeft: 4 }}>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, marginLeft: 4 }}>
           {cards.length} categor{cards.length === 1 ? 'y' : 'ies'}
           {dropped > 0 && ` · ${dropped} hidden for want of data`}
         </span>
@@ -205,7 +205,7 @@ export default function Leaders({ data, onPlayerClick }) {
       {cards.length === 0 ? (
         <div style={{
           background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
-          padding: 18, fontSize: 11.5, color: C.text2,
+          padding: 18, fontSize: TYPE.body, color: C.text2,
         }}>
           Nothing to rank at {pos} on this slate yet.
         </div>
@@ -223,7 +223,7 @@ export default function Leaders({ data, onPlayerClick }) {
         </div>
       )}
 
-      <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '2px 2px 0' }}>
+      <p style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, margin: '2px 2px 0' }}>
         Per-game rates over the trailing window the slate publishes, players on bye excluded.
         A category needs {MIN_QUALIFIED} qualified players to appear at all — on the current
         payload the NGS columns (separation, YAC over expected, rush yards over expected) are
