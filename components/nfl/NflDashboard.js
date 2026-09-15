@@ -27,6 +27,7 @@ import Matchups from './tabs/Matchups'
 import Picks from './tabs/Picks'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
+import TuddyLedger from './tabs/TuddyLedger'
 import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
 import Live from './tabs/Live'
@@ -242,6 +243,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'picks'    && <Picks picks={picks} results={nflResults} data={data} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
+            {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} onPlayerClick={openPlayer} setTab={setTab} />}

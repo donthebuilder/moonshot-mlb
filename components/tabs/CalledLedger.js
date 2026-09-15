@@ -20,9 +20,11 @@ import { easternToday } from '../../lib/data'
 // ago.
 //
 // This is the MLB half of the shared <Ledger/> component
-// (components/ledger/Ledger.js) — Path to Victory B10a's Tuddy Ledger is the
-// same component: NFL's own data, a ~32% TD base rate instead of the
-// league's HR/team-game, "TD" instead of "HR".
+// (components/ledger/Ledger.js) — Path to Victory B10a's Tuddy Ledger
+// (components/nfl/tabs/TuddyLedger.js, shipped 2026-09-15) is the same
+// component: NFL's own data, a measured ~20% TD base rate (see
+// lib/tuddyLedger.js's tdBaseRate) instead of the league's HR/team-game,
+// "TD" instead of "HR".
 //
 // "CALLED" (decided 2026-09-15, Donovan, following up on the open
 // question this page originally flagged): wearing a TOP, HR, HIT or HRR
