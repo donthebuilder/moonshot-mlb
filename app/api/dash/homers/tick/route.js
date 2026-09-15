@@ -1116,27 +1116,20 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= MATCHUP_HOUR) {
       await safeStat('matchuphistory', async () => {
         const lines = await vsPitcherCareerLines(pregameRows())
-        // Capped to 6 explicitly (2026-09-15, card-overflow fix): the
-        // function's own default is 12, sized for a real page/table, not a
-        // fixed-canvas social card -- careerVsStarterPicks below already
-        // defaults to 6, so this just brings HR history in line with it.
-        const hrPicks = hrVsStarterPicks(lines, 6)
+        // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
+        // card... a decent list of names on tweet so people can screenshot
+        // and share"). No card at all -- text is the whole deliverable, so
+        // both picks functions get their normal default pool (12 / 6) and
+        // shrinkToFit alone decides how many names fit in 270 chars.
+        const hrPicks = hrVsStarterPicks(lines)
         await claimAndPostStat(db, day, 'matchup_hr', MATCHUP_HOUR,
           hrVsStarterText(hrPicks, { day, ...TAIL }),
-          hrPicks.length ? {
-            pill: 'HISTORY', label: 'HAS A HR VS THE STARTER',
-            headline: hrPicks[0]?.name ? `${hrPicks[0].name} has gone deep on tonight's arm before` : 'Tonight\'s history vs the starter',
-            lines: hrPicks.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.hr}x off ${p.pitcher}`),
-          } : null,
+          null,
           { picks: hrPicks })
         const careerPicks = careerVsStarterPicks(lines)
         await claimAndPostStat(db, day, 'matchup_career', MATCHUP_HOUR,
           careerVsStarterText(careerPicks, { day, ...TAIL }),
-          careerPicks.length ? {
-            pill: 'HISTORY', label: 'WHO OWNS HIM',
-            headline: careerPicks[0]?.name ? `${careerPicks[0].name} vs ${careerPicks[0].pitcher}` : 'Tonight\'s best line vs the starter',
-            lines: careerPicks.map((p) => `${p.name} — ${p.h}-for-${p.ab} vs ${p.pitcher}`),
-          } : null,
+          null,
           { picks: careerPicks })
       })
     }
@@ -1151,36 +1144,24 @@ export async function GET(request) {
     //    (milestoneSeenIds above), so the two posts never repeat a player.
     if (etHoursSinceNoon() >= MILESTONE_AM_HOUR) {
       await safeStat('milestone_am', async () => {
-        // Capped to 6 right after the real computation (2026-09-15, fixing an
-        // overloaded card Donovan flagged): milestonePicks() returns EVERY
-        // qualifying candidate with no built-in limit -- milestoneText()
-        // already only ever displays the top 6 of whatever it's given, but
-        // the card's `lines` and the exclude payload below were reading the
-        // raw, uncapped list, so a deep candidate pool rendered a card with
-        // far more rows than the fixed-size canvas has room for. Slicing
-        // here means text/card/exclude-set all agree on the same 6 names.
-        const miles = (await milestonePicks(boardRows())).slice(0, 6)
+        // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
+        // card... a decent list of names"). No card -- milestoneText()
+        // (tweetFeed.js) no longer pre-trims to 6 either, so shrinkToFit
+        // alone decides how many real names fit in 270 chars.
+        const miles = await milestonePicks(boardRows())
         await claimAndPostStat(db, day, 'milestone_am', MILESTONE_AM_HOUR,
           milestoneText(miles, { day, wave: 'am', ...TAIL }),
-          miles.length ? {
-            pill: 'MILESTONE', label: 'MILESTONE WATCH',
-            headline: miles[0]?.name ? `${miles[0].name} is ${miles[0].need} away from ${miles[0].t.toLocaleString()} ${miles[0].word}` : 'Tonight\'s milestone watch',
-            lines: miles.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.need} from ${p.t.toLocaleString()} ${p.word}`),
-          } : null,
+          null,
           { picks: miles })
       })
     }
     if (etHoursSinceNoon() >= MILESTONE_MID_HOUR) {
       await safeStat('milestone_mid', async () => {
         const seen = await milestoneSeenIds(db, day)
-        const miles = (await milestonePicks(boardRows(), { exclude: seen })).slice(0, 6)  // same card-overflow fix as the AM wave above
+        const miles = await milestonePicks(boardRows(), { exclude: seen })  // text-only now, see the AM wave above
         await claimAndPostStat(db, day, 'milestone_mid', MILESTONE_MID_HOUR,
           milestoneText(miles, { day, wave: 'mid', ...TAIL }),
-          miles.length ? {
-            pill: 'MILESTONE', label: 'MILESTONE WATCH',
-            headline: miles[0]?.name ? `${miles[0].name} is ${miles[0].need} away from ${miles[0].t.toLocaleString()} ${miles[0].word}` : 'Tonight\'s milestone watch',
-            lines: miles.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.need} from ${p.t.toLocaleString()} ${p.word}`),
-          } : null,
+          null,
           { picks: miles })
       })
     }
@@ -1197,64 +1178,48 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= STORYLINE_WATCH_1_HOUR) {
       await safeStat('storyline_watch_1', async () => {
         const seen = await storylineSeenTexts(db, day)
-        // Capped to 6 (2026-09-15, same card-overflow fix as Milestone Watch):
-        // storylineWatchPicks pulls a wide pool (8 matchup lines + 10 fun
-        // facts) on purpose, so there's still something left after the
-        // exclude filter runs -- but that whole surviving pool was going
-        // straight into the card's `lines`, uncapped, same bug as milestones.
-        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
+        // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
+        // card... a decent list of names"). No card -- storylineWatchPicks
+        // still pulls a wide pool (8 matchup lines + 10 fun facts) so
+        // there's something left after the exclude filter, and shrinkToFit
+        // alone now decides how many survivors fit in 270 chars.
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
         await claimAndPostStat(db, day, 'storyline_watch_1', STORYLINE_WATCH_1_HOUR,
           storylineWatchText(picks, { day, slot: 1, ...TAIL }),
-          picks.length ? {
-            pill: 'STORY', label: 'STORYLINE WATCH',
-            headline: 'Tonight\'s storylines',
-            lines: picks.map((p) => p.text).filter(Boolean),
-          } : null,
+          null,
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR) {
       await safeStat('storyline_watch_2', async () => {
         const seen = await storylineSeenTexts(db, day)
-        // capped to 6, see storyline_watch_1 above
-        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
+        // text-only now, see storyline_watch_1 above
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
         await claimAndPostStat(db, day, 'storyline_watch_2', STORYLINE_WATCH_2_HOUR,
           storylineWatchText(picks, { day, slot: 2, ...TAIL }),
-          picks.length ? {
-            pill: 'STORY', label: 'STORYLINE WATCH',
-            headline: 'Tonight\'s storylines',
-            lines: picks.map((p) => p.text).filter(Boolean),
-          } : null,
+          null,
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR) {
       await safeStat('storyline_watch_3', async () => {
         const seen = await storylineSeenTexts(db, day)
-        // capped to 6, see storyline_watch_1 above
-        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
+        // text-only now, see storyline_watch_1 above
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
         await claimAndPostStat(db, day, 'storyline_watch_3', STORYLINE_WATCH_3_HOUR,
           storylineWatchText(picks, { day, slot: 3, ...TAIL }),
-          picks.length ? {
-            pill: 'STORY', label: 'STORYLINE WATCH',
-            headline: 'Tonight\'s storylines',
-            lines: picks.map((p) => p.text).filter(Boolean),
-          } : null,
+          null,
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR) {
       await safeStat('storyline_watch_4', async () => {
         const seen = await storylineSeenTexts(db, day)
-        // capped to 6, see storyline_watch_1 above
-        const picks = (await storylineWatchPicks(pregameRows(), day, { exclude: seen })).slice(0, 6)
+        // text-only now, see storyline_watch_1 above
+        const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
         await claimAndPostStat(db, day, 'storyline_watch_4', STORYLINE_WATCH_4_HOUR,
           storylineWatchText(picks, { day, slot: 4, ...TAIL }),
-          picks.length ? {
-            pill: 'STORY', label: 'STORYLINE WATCH',
-            headline: 'Tonight\'s storylines',
-            lines: picks.map((p) => p.text).filter(Boolean),
-          } : null,
+          null,
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
@@ -1268,22 +1233,14 @@ export async function GET(request) {
     // posted).
     if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR) {
       await safeStat('revenge_giveaway', async () => {
-        // Capped right after the fetch, same card-overflow fix as Milestone/
-        // Storyline Watch above -- revengeGiveawayText() already only ever
-        // shows 4 revenge games + 3 giveaways, but the card's `lines` was
-        // reading the full, uncapped lists straight off revengeGiveawayPicks().
-        const full = await revengeGiveawayPicks(boardRows(), day)
-        const rg = { revenge: full.revenge.slice(0, 4), giveaways: full.giveaways.slice(0, 3) }
+        // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
+        // card"). No card -- revengeGiveawayText() (tweetFeed.js) no longer
+        // pre-trims to 4 revenge + 3 giveaways either, so shrinkToFit alone
+        // decides how many real lines fit in 270 chars.
+        const rg = await revengeGiveawayPicks(boardRows(), day)
         await claimAndPostStat(db, day, 'revenge_giveaway', REVENGE_GIVEAWAY_HOUR,
           revengeGiveawayText(rg, { day, ...TAIL }),
-          (rg.revenge.length || rg.giveaways.length) ? {
-            pill: 'REVENGE', label: 'REVENGE & GIVEAWAYS',
-            headline: rg.revenge[0]?.name ? `${rg.revenge[0].name} faces his old team tonight` : 'Tonight\'s revenge games and giveaways',
-            lines: [
-              ...rg.revenge.map((r) => `${r.name}${r.team ? ` (${r.team})` : ''} vs ${r.opp} — wore it ${r.span}`),
-              ...rg.giveaways.map((g) => `${g.home}: ${g.name}`),
-            ],
-          } : null)
+          null)
       })
     }
   }
@@ -1528,23 +1485,15 @@ export async function GET(request) {
   await safeStat('matchuphistory_late', async () => {
     const seen = await matchupHistorySeenIds(db, day)
     const lines = await vsPitcherCareerLines(midRows(), { exclude: seen })
-    const hrPicks = hrVsStarterPicks(lines, 6)  // same card-overflow fix as the day wave above
+    const hrPicks = hrVsStarterPicks(lines)  // text-only now, see the day wave above
     await claimAndPostStat(db, day, 'matchup_hr_late', MATCHUP_LATE_HOUR,
       hrVsStarterText(hrPicks, { day, ...TAIL, wave: 'late' }),
-      hrPicks.length ? {
-        pill: 'HISTORY', label: 'HR HISTORY — LATE SLATE',
-        headline: hrPicks[0]?.name ? `${hrPicks[0].name} has gone deep on tonight's arm before` : 'Tonight\'s late-slate history vs the starter',
-        lines: hrPicks.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''} — ${p.hr}x off ${p.pitcher}`),
-      } : null,
+      null,
       { picks: hrPicks })
     const careerPicks = careerVsStarterPicks(lines)
     await claimAndPostStat(db, day, 'matchup_career_late', MATCHUP_LATE_HOUR,
       careerVsStarterText(careerPicks, { day, ...TAIL, wave: 'late' }),
-      careerPicks.length ? {
-        pill: 'HISTORY', label: 'WHO OWNS HIM — LATE SLATE',
-        headline: careerPicks[0]?.name ? `${careerPicks[0].name} vs ${careerPicks[0].pitcher}` : 'Tonight\'s late-slate best line vs the starter',
-        lines: careerPicks.map((p) => `${p.name} — ${p.h}-for-${p.ab} vs ${p.pitcher}`),
-      } : null,
+      null,
       { picks: careerPicks })
   })
 
