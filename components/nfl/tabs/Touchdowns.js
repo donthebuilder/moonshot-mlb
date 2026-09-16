@@ -6,6 +6,7 @@ import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import OddsLine from '../../OddsLine'
 import MatchupBadge from '../MatchupBadge'
 import { AnatomyStrip } from '../ScoreAnatomy'
+import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 
 // TOUCHDOWNS — the front door.
 //
@@ -105,11 +106,25 @@ function ScoreBar({ score }) {
   )
 }
 
-function Row({ p, rank, matchup, odds, onPlayerClick, weights, why }) {
+function Row({ p, rank, matchup, odds, onPlayerClick, weights, why, watchlist }) {
   const g = gradeFor(p.scores?.[MARKET])
   const tag = injuryTag(p)
+  const pinned = watchlist?.isPinned(p.player_id)
   return (
-    <button type="button" onClick={() => onPlayerClick?.(p, MARKET)} className="td-row">
+    <div onClick={() => onPlayerClick?.(p, MARKET)} className="td-row">
+      {watchlist && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
+          title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
+          className="td-star"
+          style={{
+            background: pinned ? 'rgba(0,245,173,.14)' : 'transparent',
+            border: `1px solid ${pinned ? C.green : C.border}`,
+            color: pinned ? C.green : C.text3,
+          }}
+        >{pinned ? '★' : '☆'}</button>
+      )}
       <span className="td-rank" style={{ color: rank <= 3 ? C.green : C.text3 }}>{rank}</span>
       <span className="td-main">
         <span className="td-top">
@@ -139,12 +154,14 @@ function Row({ p, rank, matchup, odds, onPlayerClick, weights, why }) {
         </b>
         <OddsLine quote={quoteFor(odds, p, MARKET)} compact />
       </span>
-    </button>
+    </div>
   )
 }
 
 export default function Touchdowns({ data, matchup, odds, onPlayerClick }) {
   const [open, setOpen] = useState(false)
+
+  const watchlist = useNflWatchlist(data)
 
   const { rows, weights, games, base } = useMemo(() => {
     const m = (data?.markets || []).find((x) => x.key === MARKET)
@@ -211,7 +228,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick }) {
       <div className="td-list">
         {shown.map((p, i) => (
           <Row key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
-               onPlayerClick={onPlayerClick} weights={weights} why={whyFor[i]} />
+               onPlayerClick={onPlayerClick} weights={weights} why={whyFor[i]} watchlist={watchlist} />
         ))}
       </div>
 
@@ -240,8 +257,9 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick }) {
         .td-hero-stats span{display:flex;flex-direction:column;gap:3px;color:${C.text3};font:800 8px/1.2 ${NUM_FONT};letter-spacing:.1em;text-transform:uppercase}
         .td-hero-stats b{color:${C.green};font:900 21px/1 ${NUM_FONT}}
         .td-list{display:flex;flex-direction:column;gap:5px}
-        .td-row{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;text-align:left;cursor:pointer;
+        .td-row{position:relative;display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;text-align:left;cursor:pointer;
           border:1px solid ${C.border};border-radius:11px;background:rgba(255,255,255,.022);color:inherit}
+        .td-star{position:absolute;top:6px;right:6px;z-index:1;border-radius:7px;padding:3px 7px;font-size:13px;line-height:1;cursor:pointer}
         .td-row:hover{border-color:rgba(0,245,173,.34);background:rgba(0,245,173,.045)}
         .td-rank{flex:0 0 20px;font:900 12px/1 ${NUM_FONT};text-align:right}
         .td-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
