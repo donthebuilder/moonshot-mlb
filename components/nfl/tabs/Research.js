@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
+import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { oppShort } from '../../../lib/nfl/oppLabel'
 import { btnStyle, selectStyle } from '../../ui'
 
@@ -30,6 +31,7 @@ const POS_GROUPS = [
 const INVERT = new Set([])
 
 export default function Research({ data, onPlayerClick }) {
+  const watchlist = useNflWatchlist(data)
   const [pos, setPos] = useState('ALL')
   const [team, setTeam] = useState('')
   const [q, setQ] = useState('')
@@ -51,16 +53,21 @@ export default function Research({ data, onPlayerClick }) {
       .map((p) => ({
         ...p.stats,
         _p: p,
+        _raw: p,
         name: p.name,
         pos: p.position,
         team: p.team,
         opp: oppShort(p),
         TDSC: p.scores?.TD ?? null,
+        watched: watchlist.isPinned(p.player_id) ? 1 : 0,
       }))
-  }, [data, pos, team, q])
+  }, [data, pos, team, q, watchlist])
 
   const columns = useMemo(() => {
     const base = [
+      { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
+        titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
+        onAction: (row) => watchlist.toggle(row) },
       { key: 'name', label: 'Player', w: 150, heat: false, sticky: true },
       { key: 'pos', label: 'POS', w: 42, heat: false },
       { key: 'team', label: 'TM', w: 42, heat: false },
@@ -89,7 +96,7 @@ export default function Research({ data, onPlayerClick }) {
         return s.pct ? `${(n * 100).toFixed(s.dp ?? 1)}%` : n.toFixed(s.dp ?? 2)
       },
     }))]
-  }, [specs, rows])
+  }, [specs, rows, watchlist])
 
   return (
     <div>
