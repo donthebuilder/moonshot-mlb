@@ -3,13 +3,30 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
-import { softRole, softLine, softStrength, SOFT_TITLE } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, softStrength, SOFT_TITLE, alignedSignals } from '../../../lib/nfl/dvpSignal'
 import { rankColor } from '../DvpTable'
 import MatchupBadge from '../MatchupBadge'
+import DenseTable from '../../DenseTable'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
+
+// ── THE LANDING VIEW, TABLE FIRST (parity pass, 2026-09-16) ─────────────────
+// MOONSHOT's own Games.js already made this exact call, from Donovan's own
+// mouth (2026-08-30): "have the games open up full table instead of cards
+// first, the game chips take up too much screen space." TUDDY never had a
+// table view of Games at all -- cards were the only option. This is the same
+// preference, same page's job, carried over: table lands first, cards are
+// one tap away, same DenseTable component MOONSHOT's own table reuses (and
+// TUDDY already reuses on Pairs/Explosive/Accountability/BoxScores).
+function kickoffLabel(game) {
+  if (game.state === 'in') return 'LIVE'
+  if (game.completed) return 'FINAL'
+  const at = game.kickoff ? Date.parse(game.kickoff) : NaN
+  if (!Number.isFinite(at)) return '—'
+  return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+}
 
 // Games — the slate, one card per matchup: real scoreboard weight up top,
 // each side's best plays underneath.
@@ -305,6 +322,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
   const [selectedGame, setSelectedGame] = useState('all')
   const [stateFilter, setStateFilter] = useState('all')
   const [query, setQuery] = useState('')
+  const [view, setView] = useState('table')
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
   // WHY THIS MATTERS (2026-09-12) -- Storylines' second surface, per Phase
@@ -403,6 +421,47 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
   const liveCount = games.filter((game) => game.state === 'in').length
   const finalCount = games.filter((game) => game.completed).length
 
+  // ── ONE ROW PER PLAYER, THE WHOLE SLATE (parity pass, 2026-09-16) ───────
+  // Same filtered/sorted game set the card view already uses (state/search/
+  // game-picker all apply to both views identically) -- just a different
+  // shape of the same real data, nothing new fetched. TD is the flagship
+  // market (same reason Home's own hero strip leads with it), so it's the
+  // one numeric column here; the matchup badge and the two real signal
+  // flags built this session (high_confidence_td_flag, alignedSignals) ride
+  // along -- the first place either flag is visible on this page.
+  const gameByTeam = {}
+  for (const g of games) { gameByTeam[g.away] = g; gameByTeam[g.home] = g }
+  const shownTeams = new Set(sorted.flatMap((g) => [g.away, g.home]))
+  const tableRows = players
+    .filter((p) => shownTeams.has(p.team) && !p.low_sample)
+    .map((p) => {
+      const g = gameByTeam[p.team]
+      const aligned = alignedSignals(matchup, p)
+      const flags = `${p.high_confidence_td_flag ? '⭐' : ''}${aligned?.aligned ? '🧩' : ''}` || '—'
+      return {
+        _raw: p,
+        name: p.name,
+        team: p.team,
+        position: p.position,
+        opp: g ? (g.away === p.team ? g.home : g.away) : '—',
+        state: g ? kickoffLabel(g) : '—',
+        td: p.scores?.TD ?? null,
+        matchup: null,
+        flags,
+      }
+    })
+    .sort((a, b) => (b.td ?? -1) - (a.td ?? -1))
+  const TABLE_COLUMNS = [
+    { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 150 },
+    { key: 'team', label: 'Team', heat: false, w: 44 },
+    { key: 'position', label: 'Pos', heat: false, w: 38 },
+    { key: 'opp', label: 'Opp', heat: false, w: 44 },
+    { key: 'state', label: 'Game', heat: false, w: 76 },
+    { key: 'td', label: 'TD Score', w: 70, dp: 0 },
+    { key: 'matchup', label: 'Matchup', heat: false, w: 88, fmt: (v, r) => <MatchupBadge matchup={matchup} player={r._raw} market="TD" /> },
+    { key: 'flags', label: 'Signal', heat: false, w: 50, title: '⭐ A+ TD look · 🧩 aligned signals' },
+  ]
+
   // ── IS THERE ANY FOOTBALL LEFT ON THIS SLATE? ──────────────────────────
   // (2026-08-29.) Every game on the published wave had kicked off days ago
   // and the tab still called itself "the slate". One line at the top is the
@@ -443,6 +502,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         <FilterBar>
           <FilterSearch value={query} onChange={setQuery} placeholder="Search team…" width={165} />
           <Segmented label="State" value={stateFilter} onChange={setStateFilter} options={STATE_OPTIONS} />
+          <Segmented label="View" value={view} onChange={setView} options={[{ key: 'table', label: '📊 Table' }, { key: 'cards', label: '🏟 Cards' }]} />
         </FilterBar>
         <ActiveFilters
           shown={sorted.length}
@@ -464,6 +524,17 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         }}>No games clear this filter.</div>
       )}
 
+      {view === 'table' && (
+        <DenseTable
+          rows={tableRows}
+          columns={TABLE_COLUMNS}
+          onRowClick={(r) => onPlayerClick?.(r._raw)}
+          caption={`${tableRows.length} players · sorted by TD score`}
+          maxRows={300}
+        />
+      )}
+
+      {view === 'cards' && (
       <div style={{
         display: 'grid', gap: 10,
         gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
@@ -591,6 +662,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
           )
         })}
       </div>
+      )}
       <style>{`
         .nfl-games-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:175px;margin-bottom:9px;padding:24px;border:1px solid rgba(53,205,255,.28);border-radius:16px;background:radial-gradient(circle at 88% 10%,rgba(53,205,255,.13),transparent 36%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.12),transparent 40%),${C.bg2}}.nfl-games-hero small{color:${C.cyan};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.nfl-games-hero h1{max-width:720px;margin:8px 0 6px;font-size:clamp(30px,5vw,50px);line-height:1;letter-spacing:-.05em}.nfl-games-hero p{margin:0;color:${C.text3};font-size:10px}.nfl-games-hero>div:last-child{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:4px 9px}.nfl-games-hero>div:last-child strong{color:${C.green};font:900 22px/1 ${NUM_FONT};text-align:right}.nfl-games-hero>div:last-child span{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(var(--intel-cols,4),minmax(0,1fr));gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:72px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}.nfl-game-why{display:flex;align-items:baseline;gap:7px;width:100%;text-align:left;margin:2px 0 8px;padding:7px 9px;border:1px solid rgba(0,245,173,.3);border-radius:8px;background:rgba(0,245,173,.06);color:inherit;cursor:pointer}.nfl-game-why:hover{border-color:rgba(0,245,173,.5)}.nfl-game-why .tag{flex:0 0 auto;font:900 7.5px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.green};text-transform:uppercase}.nfl-game-why .text{font-size:10px;line-height:1.35;color:${C.text2}}.nfl-game-why.model{border-color:rgba(251,146,60,.32);background:rgba(251,146,60,.07)}.nfl-game-why.model:hover{border-color:rgba(251,146,60,.5)}.nfl-game-why.model .tag{color:${C.orange}}@media(max-width:620px){.nfl-games-hero{align-items:flex-start}.nfl-games-hero>div:last-child{display:none}.nfl-game-intel{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
