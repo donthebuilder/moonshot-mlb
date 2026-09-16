@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Children, cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
@@ -23,7 +23,7 @@ const hexToRgba = (hex, a) => {
 // never picked them up because it renders a fixed set of slate-projection
 // Tiles, not a live feed. Same hook, filtered to NFL only (it also carries
 // MLB games for MOONSHOT's header, which have no business on this one).
-import { useLiveScores } from '../../lib/headlines'
+import { useLiveScores, useAutoScroll } from '../../lib/headlines'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
@@ -45,90 +45,47 @@ const NFL_JOBS = () => [
 // Games · Picks) and MOONSHOT's own bar shape — the 2026-08-29 review caught
 // the two rails listing the same destinations in two different orders, which
 // makes muscle memory impossible for anyone who uses both widths.
-// ── THE TICKER SHELL ────────────────────────────────────────────────────────
-// Renders its children twice inside one clipped track and lets MobileCSS's
-// .slate-tiles animation move it (see the note at the call site). Paused, the
-// echo is hidden and the real row becomes a normal sideways scroll — the same
-// contract MOONSHOT's SlateTiles.js offers, so the two products behave
-// identically for anyone who uses both.
+// ── THE TICKER SHELL (2026-09-16 — SAME MECHANISM AS MOONSHOT NOW) ──────────
+// Donovan, both headers side by side: "why are the roatating headliner thing
+// different... the tuddy page [is] spinnin so fast." It was a real bug, and
+// it was this component: the loop used to be a CSS @keyframes slide whose
+// duration was `8 * copies` seconds, `copies` a whole number picked only to
+// cover 2x the viewport width. That makes the actual px/s rate a function of
+// how much content is in the track, not a fixed speed -- so the 2026-09-16
+// headline-bite batch, which pushed up to five more tiles into this exact
+// strip, grew the track without growing its duration to match, and the ride
+// visibly sped up the moment those tiles shipped. MOONSHOT's own ticker
+// (components/Header.js's Scorebug) was never built this way: it drives
+// el.scrollLeft itself at a literal, content-independent 55px/s, through
+// lib/headlines.js's shared useAutoScroll hook. Rather than re-tune the
+// keyframe math a second time and drift again the next time either ticker
+// grows a tile, this now calls that exact hook -- same file, same speed,
+// same mechanism as MOONSHOT, so the two cannot disagree about how fast the
+// slate scrolls. useAutoScroll's own math assumes exactly two identical
+// copies in the track (it halves scrollWidth to find the loop point), so
+// children render twice via Children.toArray, the same trick Scorebug's own
+// items.map() done twice does with plain data. Hover/touch pausing is the
+// hook's own built-in behavior (same as Scorebug) -- no separate pause
+// button, because MOONSHOT's ticker doesn't have one either.
 function TickerStrip({ children }) {
-  const [paused, setPaused] = useState(false)
-  // HOW MANY COPIES (2026-08-29). MOONSHOT's ticker hardcodes two copies and a
-  // 0 -> -50% slide, which is only seamless while ONE copy is at least as wide
-  // as the strip that clips it. MOONSHOT runs seven tiles, so it always is.
-  // TUDDY runs four, and on a 1280px header one copy is about a third of the
-  // width — with two copies the track runs out mid-slide and the row scrolls
-  // into an empty gap. So the set is repeated until the track is at least
-  // twice the viewport, and the slide is 100/copies% (exactly one copy's
-  // width) instead of a fixed 50%. Measured after layout, remeasured on
-  // resize, and it degrades to the plain two-copy case if measurement is
-  // unavailable.
-  const [copies, setCopies] = useState(2)
-  const viewportRef = useRef(null)
-  const setRef = useRef(null)
-  useEffect(() => {
-    const measure = () => {
-      const viewport = viewportRef.current?.clientWidth || 0
-      const one = setRef.current?.scrollWidth || 0
-      if (!viewport || !one) return
-      // Capped at 6: a set narrow enough to need more than that is a set
-      // with nothing in it (an unpublished slate renders three empty tiles),
-      // and repeating that twelve times is DOM for no one.
-      setCopies(Math.min(6, Math.max(2, Math.ceil((2 * viewport) / one))))
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [children])
-
-  const shift = (100 / copies).toFixed(4)
-  const name = `nflTicker${copies}`
+  const trackRef = useRef(null)
+  useAutoScroll(trackRef, { speed: 55 })
+  const items = Children.toArray(children)
   return (
     <div
-      className={`nfl-ticker-shell slate-tiles-shell${paused ? ' ticker-paused' : ''}`}
-      style={{ position: 'relative', flex: '1 1 320px', minWidth: 0 }}
+      ref={trackRef}
+      className="nfl-ticker-shell"
+      style={{
+        flex: '1 1 320px', minWidth: 0, overflowX: 'auto', overflowY: 'hidden',
+        scrollbarWidth: 'none', lineHeight: 1, maxWidth: '100%',
+        WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)',
+        maskImage: 'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)',
+      }}
     >
-      <div ref={viewportRef} className="slate-tiles-viewport" style={{ width: '100%', minWidth: 0, overflow: 'hidden', paddingRight: 38 }}>
-        {/* The animation is applied through a CLASS, not an inline style:
-            MobileCSS's own `.ticker-paused .slate-tiles { animation: none }`
-            and its reduced-motion rule are class rules, and an inline
-            animation would outrank both — the pause button and the OS
-            motion setting would stop working. */}
-        <div
-          className="slate-tiles nfl-ticker-track"
-          style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'stretch', width: 'max-content' }}
-        >
-          {Array.from({ length: copies }, (_, index) => (
-            <div
-              key={index}
-              ref={index === 0 ? setRef : undefined}
-              className={index === 0 ? 'nfl-tiles-set' : 'nfl-tiles-set slate-tiles-echo'}
-              aria-hidden={index === 0 ? undefined : 'true'}
-            >{children}</div>
-          ))}
-        </div>
+      <div className="nfl-tiles-set nfl-ticker-track" style={{ width: 'max-content' }}>
+        {items}
+        {items.map((el, i) => cloneElement(el, { key: `echo-${i}`, 'aria-hidden': true }))}
       </div>
-      <button
-        type="button"
-        className="slate-ticker-toggle"
-        aria-pressed={paused}
-        aria-label={paused ? 'Resume moving slate ticker' : 'Pause moving slate ticker'}
-        title={paused ? 'Resume ticker' : 'Pause ticker'}
-        onClick={() => setPaused((value) => !value)}
-        style={{
-          position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
-          zIndex: 2, width: 32, height: 32, minHeight: 32, padding: 0,
-          display: 'grid', placeItems: 'center', borderRadius: 999,
-          border: `1px solid ${C.border}`, background: C.bg2, color: C.text2,
-          cursor: 'pointer', fontSize: 11, fontWeight: 900,
-        }}
-      >{paused ? '\u25B6' : '\u2161'}</button>
-      <style jsx global>{`
-        @keyframes ${name} { from { transform: translateX(0); } to { transform: translateX(-${shift}%); } }
-        .nfl-ticker-track { animation-name: ${name}; animation-duration: ${8 * copies}s; }
-        .ticker-paused .nfl-ticker-track { animation: none; }
-        @media (prefers-reduced-motion: reduce) { .nfl-ticker-track { animation: none; } }
-      `}</style>
     </div>
   )
 }
@@ -492,18 +449,20 @@ export default function NflHeader({ tab, setTab, data, meta, matchup }) {
         maxWidth: 1300, margin: '0 auto', padding: '0 16px 8px',
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0,
       }}>
-          {/* ── TUDDY GETS THE MOVING STRIP (2026-08-29) ────────────────────
+          {/* ── TUDDY GETS THE MOVING STRIP (2026-08-29, mechanism replaced 2026-09-16) ──
               Donovan: "we need to add the moving headline thing on top for
               nfl." MOONSHOT has had it since 2026-08-24 (SlateTiles.js); NFL
               had the same numbers sitting still in a wrapped grid.
 
-              The animation, the seamless-loop trick and the pause control all
-              already exist as CSS in components/MobileCSS.js, which
-              NflDashboard.js already mounts — so this reuses those classes
-              rather than shipping a second ticker: the set renders twice into
-              one track, the track runs 0 -> -50%, and because the halves are
-              byte-identical the restart is invisible. The echo is aria-hidden
-              (a visual repeat, not new content) and nothing in the strip is
+              TickerStrip used to run its own CSS @keyframes loop (see its
+              own header comment for why that broke -- speed rode on tile
+              count instead of being fixed). It now calls the exact same
+              lib/headlines.js useAutoScroll hook MOONSHOT's own header
+              ticker uses, at the same 55px/s, so the two cannot go out of
+              sync again just because one of them grows a tile. The set still
+              renders twice into one track (that hook's own loop math
+              requires it) and the echo is still aria-hidden -- a visual
+              repeat, not new content -- and nothing in the strip is
               clickable, so an animated row can't steal a tap.
 
               Layout is TUDDY's own (.nfl-tiles-set) because these tiles size
