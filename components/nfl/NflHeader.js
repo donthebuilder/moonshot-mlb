@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
@@ -24,6 +24,9 @@ const hexToRgba = (hex, a) => {
 // Tiles, not a live feed. Same hook, filtered to NFL only (it also carries
 // MLB games for MOONSHOT's header, which have no business on this one).
 import { useLiveScores } from '../../lib/headlines'
+// Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
+// header comment. NFL equivalent of buildHeadlines() above.
+import { buildNflHeadlines } from '../../lib/nfl/headlines'
 
 // The colour key, in football's words. PaletteButton used to render MOONSHOT's
 // four pick jobs (Home run / Base hit / Runs + RBI / Total bases) on this
@@ -228,7 +231,7 @@ function NflSettingsSheet() {
   )
 }
 
-export default function NflHeader({ tab, setTab, data, meta }) {
+export default function NflHeader({ tab, setTab, data, meta, matchup }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const go = (next) => { setMoreOpen(false); setTab(next) }
   const games = data?.games?.length ?? 0
@@ -266,6 +269,14 @@ export default function NflHeader({ tab, setTab, data, meta }) {
   // -- this is the actual live ESPN poll, so during a real Sunday these two
   // sources can (correctly) disagree about which games are "live" right now.
   const nflLive = useLiveScores({ nfl: true }).items.filter((i) => i.sport === 'nfl')
+
+  // REAL HEADLINE STORY-BITES (2026-09-16). Same idea as MOONSHOT's
+  // ticker: live scores plus a handful of real, icon-tagged "what does
+  // the model actually think" bites, not just aggregate counts.
+  const heads = useMemo(
+    () => buildNflHeadlines({ players: rows, games: data?.games || [], markets: data?.markets || [], matchup }),
+    [rows, data?.games, data?.markets, matchup],
+  )
 
   // Expected touchdowns summed per team, then per matchup. Same shape as
   // MOONSHOT's "best game" tile, so the two products read alike.
@@ -531,6 +542,12 @@ export default function NflHeader({ tab, setTab, data, meta }) {
             {nflLive.map((i) => (
               <Tile key={i.k} label={i.sub || (i.live ? 'live' : 'final')} value={i.text} color={i.col} live={!!i.live}
                 title={i.kind === 'leader' ? `Leading this game's stat line` : (i.live ? 'Live now — open TUDDY’s Live tab' : 'Final')} />
+            ))}
+            {/* REAL STORY-BITES (2026-09-16) -- MOONSHOT's ticker equivalent.
+                Icon folded into the label like Header.js's Pill does; `why`
+                carries the reasoning as the tooltip, same as MOONSHOT. */}
+            {heads.map((h) => (
+              <Tile key={`h-${h.k}`} label={`${h.icon} ${h.tag}`} value={h.name} color={h.col} title={h.why} />
             ))}
           </TickerStrip>
           {isPre && (

@@ -215,7 +215,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       <MobileCSS />
       {/* See the note in components/Dashboard.js -- same gap, same fix. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} />
+      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} />
       <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
         <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
