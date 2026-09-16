@@ -7,6 +7,7 @@ import { softRole, softLine, softStrength, SOFT_TITLE, alignedSignals } from '..
 import { rankColor } from '../DvpTable'
 import MatchupBadge from '../MatchupBadge'
 import DenseTable from '../../DenseTable'
+import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
 
@@ -323,6 +324,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
   const [stateFilter, setStateFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [view, setView] = useState('table')
+  const watchlist = useNflWatchlist(data)
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
   // WHY THIS MATTERS (2026-09-12) -- Storylines' second surface, per Phase
@@ -447,11 +449,25 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         state: g ? kickoffLabel(g) : '—',
         td: p.scores?.TD ?? null,
         matchup: null,
+        watch: null,
         flags,
       }
     })
     .sort((a, b) => (b.td ?? -1) - (a.td ?? -1))
   const TABLE_COLUMNS = [
+    { key: 'watch', label: '', heat: false, w: 28, fmt: (v, r) => {
+      const pinned = watchlist.isPinned(r._raw.player_id)
+      return (
+        <button
+          onClick={(e) => { e.stopPropagation(); watchlist.toggle(r._raw) }}
+          title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
+          style={{
+            background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+            fontSize: 13, lineHeight: 1, color: pinned ? C.green : C.text3,
+          }}
+        >{pinned ? '★' : '☆'}</button>
+      )
+    } },
     { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 150 },
     { key: 'team', label: 'Team', heat: false, w: 44 },
     { key: 'position', label: 'Pos', heat: false, w: 38 },
