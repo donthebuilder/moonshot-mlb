@@ -540,8 +540,8 @@ export default function NflHeader({ tab, setTab, data, meta, matchup }) {
                 same order MOONSHOT's ticker uses (score, then up to two
                 stat-line leaders), same useLiveScores() output shape. */}
             {nflLive.map((i) => (
-              <Tile key={i.k} label={i.sub || (i.live ? 'live' : 'final')} value={i.text} color={i.col} live={!!i.live}
-                title={i.kind === 'leader' ? `Leading this game's stat line` : (i.live ? 'Live now — open TUDDY’s Live tab' : 'Final')} />
+              <Tile key={i.k} label={i.sub || (i.live ? 'live' : i.pregame ? 'kickoff' : 'final')} value={i.text} color={i.col} live={!!i.live}
+                title={i.kind === 'leader' ? `Leading this game's stat line` : (i.live ? 'Live now — open TUDDY’s Live tab' : i.pregame ? 'Not underway yet' : 'Final')} />
             ))}
             {/* REAL STORY-BITES (2026-09-16) -- MOONSHOT's ticker equivalent.
                 Icon folded into the label like Header.js's Pill does; `why`
