@@ -12,6 +12,7 @@ import { hrOverlayRead } from '../../lib/hrOverlay'
 import { gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
+import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { kRiskScore, matchupAvg, rbiScore, runScore } from '../../lib/scoring_additions'
 import OffBoardStrip from '../OffBoardStrip'
 import HomerLedger from '../HomerLedger'
@@ -493,6 +494,16 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
 
+  // Game / starting pitcher / category filter -- the same shared
+  // BoardFilters panel the ranked boards use (components/BoardFilters.js),
+  // reused rather than rebuilt (rule #21). No scoreType: this page isn't a
+  // single-score ranking, it's every column, sortable -- so the Score
+  // slider stays hidden, same as Watchlist.js's own useBoardFilter(onSlate)
+  // call. Team already has a site-wide filter (Controls, in Dashboard.js)
+  // so BoardFilters correctly doesn't duplicate one -- see that file's own
+  // header comment.
+  const { filtered, state: filterState } = useBoardFilter(players)
+
   // Off the FULL slate, not the filtered pool: whether a matchup repeats is a
   // fact about tonight's schedule, and it must not switch off because the
   // aligned-only toggle happened to hide one half of the doubleheader.
@@ -502,7 +513,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const dhNote = useMemo(() => doubleheaderNote(players), [players])
 
   const rows = useMemo(() => {
-    const pool = alignedOnly ? players.filter(isAligned) : players
+    const pool = alignedOnly ? filtered.filter(isAligned) : filtered
     return pool.map((p, i) => {
       const hrOverlay = hrOverlayRead(p)
       return ({
@@ -603,7 +614,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       pL3Hr9: n(p?.pitcher_l3_hr9, null),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     })})
-  }, [players, alignedOnly, watchIds, dh])
+  }, [players, filtered, alignedOnly, watchIds, dh])
 
   // Who has already homered tonight, matched back to where the board had him.
   // The board rank is the point: a scoreboard that only lists the homers tells
@@ -1107,6 +1118,12 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         }}>
           ⚾⚾ {dhNote}
         </div>
+      )}
+
+      <BoardFilters state={filterState} total={players.length} shown={filtered.length} />
+
+      {!rows.length && (
+        <Empty text={filterState.active ? 'No hitters clear this filter.' : 'No hitters on the board.'} />
       )}
 
       <DenseTable
