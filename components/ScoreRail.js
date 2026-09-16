@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { C as MLB_C, NUM_FONT as MLB_NUM_FONT } from '../lib/theme'
 import { scheduleFor, slateDay } from '../lib/boxscore'
 import { mlbId } from '../lib/player'
 import { pickCleared } from '../lib/liveSlate'
@@ -50,6 +50,25 @@ import MlbTeamMark from './MlbTeamMark'
 //      has actually cleared — colour that means something.
 //   4. NO CHROME. The record pill lost its border (a number needs no ring),
 //      PPD/SUSP lost their colour coding (the word already says it).
+//
+// ── SHELLED OUT FOR TUDDY (2026-09-16) ───────────────────────────────────────
+//
+// Donovan: "why is the tuddy page spinning so fast" widened into "would it be
+// best to full delete the nfl side, or shell it out so we have the same exact
+// components... just branded for nfl and tuddy." This rail was the clearest
+// case — TUDDY's own version (SlateStrip, in components/nfl/tabs/Home.js) was
+// a 20-line placeholder missing this entire "does it matter to me" column, not
+// just styled differently.
+//
+// So this is now the ONE rail both products render. Every sport-specific piece
+// — colours, the team mark, how a game is fetched, what counts as "the bot's
+// pick" and whether it cleared, and how a live game's clock reads — is a prop
+// with an MLB default equal to EXACTLY what this file did before. MOONSHOT's
+// own call site (components/tabs/Home.js) passes none of the new props and is
+// byte-for-byte unaffected. TUDDY's adapter (components/nfl/tabs/Home.js)
+// is built entirely from data this project already publishes — lib/nfl/
+// liveSlate.js's gameFor/lineFor/tdsIn, the same functions NflYourPlayers and
+// the header ticker already read — nothing new invented, per rule #16.
 
 const ROLES = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
 const roleOf = (p) => String(p?.game_pick_role || '').split('/').filter(Boolean).map((r) => r.trim().toUpperCase())
@@ -71,72 +90,111 @@ const roleOf = (p) => String(p?.game_pick_role || '').split('/').filter(Boolean)
 // want the scores today" is a mood, not a setting, and a preference you set
 // once in August should not still be deciding your layout in October).
 const RAIL_OPEN_KEY = 'dash_rail_open_v1'
-const railWasOpen = () => {
-  try { return sessionStorage.getItem(RAIL_OPEN_KEY) === '1' } catch { return false }
+const railWasOpen = (key) => {
+  try { return sessionStorage.getItem(key) === '1' } catch { return false }
 }
 
-export default function ScoreRail({ players = [], results, onNavigate }) {
+// The exact MLB reducer this file always ran, now named so it can serve as
+// the default `computeByGame`. Signature unchanged: (players, results).
+function defaultMlbByGame(players, results) {
+  const lines = new Map()
+  const rows = results?.graded_slots || results?.results || []
+  rows.forEach((r) => {
+    const id = mlbId(r)
+    if (!id) return
+    // One row per pick CATEGORY, identical actual_* on each — first wins.
+    if (!lines.has(id)) {
+      lines.set(id, {
+        ab: Number(r.actual_ab) || 0, bb: Number(r.actual_bb) || 0,
+        h: Number(r.actual_hits) || 0, hr: Number(r.actual_hr) || 0,
+        tb: Number(r.actual_tb) || 0, r: Number(r.actual_runs) || 0,
+        rbi: Number(r.actual_rbi) || 0, settled: true,
+      })
+    }
+  })
+  const out = new Map()
+  players.forEach((p) => {
+    const roles = roleOf(p).filter((x) => ROLES.includes(x))
+    if (!roles.length) return
+    const pk = Number(p?.game_pk)
+    if (!pk) return
+    const line = lines.get(mlbId(p)) || null
+    const rec = out.get(pk) || { n: 0, ok: 0, live: 0, names: [] }
+    roles.forEach((role) => {
+      rec.n += 1
+      // Void is not a miss and it is not a hit — it simply leaves both
+      // counts, the same rule as everywhere else in this project.
+      if (line && line.ab === 0 && line.bb === 0) { rec.n -= 1; return }
+      const c = line ? pickCleared(role, line) : null
+      if (c === true) { rec.ok += 1; rec.names.push(`${p.player_name || ''} ${role} ✓`) }
+      else if (c === null || !line) rec.live += 1
+    })
+    out.set(pk, rec)
+  })
+  return out
+}
+
+// The exact MLB state-text ternary this file always ran, now the default
+// `renderState`.
+function defaultMlbState(g) {
+  return g.postponed ? 'PPD'
+    : g.suspended ? 'SUSP'
+      : g.live ? `${/top/i.test(g.inningState) ? '▲' : '▼'}${g.inning ?? ''}`
+        : g.final ? 'F'
+          : g.startTime ? new Date(g.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+}
+
+export default function ScoreRail({
+  players = [], results, onNavigate,
+  sport = 'mlb',
+  theme,
+  TeamMark = MlbTeamMark,
+  fetchGames = () => scheduleFor(slateDay(0)),
+  computeByGame = defaultMlbByGame,
+  renderState = defaultMlbState,
+  label = 'Tonight',
+  moreLabel = 'full boxes →',
+  moreTarget = 'boxes',
+}) {
+  const C = theme?.C || MLB_C
+  const NUM_FONT = theme?.NUM_FONT || MLB_NUM_FONT
+  // MOONSHOT keeps the exact original key so an already-open rail never
+  // resets for existing users; every other sport gets its own key so the
+  // two rails don't fight over one flag in the same browser tab.
+  const storageKey = sport === 'mlb' ? RAIL_OPEN_KEY : `dash_rail_open_v1_${sport}`
   const [games, setGames] = useState(null)
   // Read in an effect, not in useState's initialiser: this component renders
   // on the server too, where sessionStorage does not exist, and a first paint
   // that disagrees with the second is a hydration error.
   const [open, setOpen] = useState(false)
-  useEffect(() => { setOpen(railWasOpen()) }, [])
+  useEffect(() => { setOpen(railWasOpen(storageKey)) }, [storageKey])
   const toggle = () => setOpen((v) => {
     const next = !v
-    try { sessionStorage.setItem(RAIL_OPEN_KEY, next ? '1' : '0') } catch { /* private mode */ }
+    try { sessionStorage.setItem(storageKey, next ? '1' : '0') } catch { /* private mode */ }
     return next
   })
 
+  // `fetchGames`/`computeByGame` come in as props and may be a fresh function
+  // identity on every parent render (TUDDY's adapter is built inline). The
+  // poller below must still only ever run ONCE per mount — exactly like this
+  // file always has — so it reads the latest one through a ref instead of
+  // depending on it, the same "read fresh, don't restart the loop" pattern
+  // lib/headlines.js's useAutoScroll already uses.
+  const fetchGamesRef = useRef(fetchGames)
+  useEffect(() => { fetchGamesRef.current = fetchGames })
   useEffect(() => {
     let alive = true
-    const pull = () => scheduleFor(slateDay(0)).then((g) => { if (alive && g) setGames(g) }).catch(() => {})
+    const pull = () => fetchGamesRef.current().then((g) => { if (alive && g) setGames(g) }).catch(() => {})
     pull()
     const t = setInterval(() => { if (!document.hidden) pull() }, 45000)
     return () => { alive = false; clearInterval(t) }
   }, [])
 
-  // The bot's picks, per game, graded off the published results file. This is
-  // the SAME grading rule every other surface uses (pickCleared), and it is
-  // fed the date-gated results copy — a stale file must never put a green
-  // check on tonight's rail.
-  const byGame = useMemo(() => {
-    const lines = new Map()
-    const rows = results?.graded_slots || results?.results || []
-    rows.forEach((r) => {
-      const id = mlbId(r)
-      if (!id) return
-      // One row per pick CATEGORY, identical actual_* on each — first wins.
-      if (!lines.has(id)) {
-        lines.set(id, {
-          ab: Number(r.actual_ab) || 0, bb: Number(r.actual_bb) || 0,
-          h: Number(r.actual_hits) || 0, hr: Number(r.actual_hr) || 0,
-          tb: Number(r.actual_tb) || 0, r: Number(r.actual_runs) || 0,
-          rbi: Number(r.actual_rbi) || 0, settled: true,
-        })
-      }
-    })
-    const out = new Map()
-    players.forEach((p) => {
-      const roles = roleOf(p).filter((x) => ROLES.includes(x))
-      if (!roles.length) return
-      const pk = Number(p?.game_pk)
-      if (!pk) return
-      const line = lines.get(mlbId(p)) || null
-      const rec = out.get(pk) || { n: 0, ok: 0, live: 0, names: [] }
-      roles.forEach((role) => {
-        rec.n += 1
-        // Void is not a miss and it is not a hit — it simply leaves both
-        // counts, the same rule as everywhere else in this project.
-        if (line && line.ab === 0 && line.bb === 0) { rec.n -= 1; return }
-        const c = line ? pickCleared(role, line) : null
-        if (c === true) { rec.ok += 1; rec.names.push(`${p.player_name || ''} ${role} ✓`) }
-        else if (c === null || !line) rec.live += 1
-      })
-      out.set(pk, rec)
-    })
-    return out
-  }, [players, results])
+  // The bot's picks, per game. MLB's default reads the graded results file
+  // (pickCleared); TUDDY's own computeByGame ignores these two args entirely
+  // and closes over its own live snapshot instead — see components/nfl/tabs/
+  // Home.js's nflComputeByGame for why.
+  const byGame = useMemo(() => computeByGame(players, results), [players, results, computeByGame])
 
   if (!games?.length) return null
 
@@ -156,7 +214,7 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          title={open ? 'Collapse tonight\u2019s games' : 'Show every game on the slate'}
+          title={open ? `Collapse ${label}’s games` : 'Show every game on the slate'}
           style={{
             display: 'flex', alignItems: 'baseline', gap: 8, background: 'none',
             border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
@@ -165,7 +223,7 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
           <span style={{
             fontSize: 8.5, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase',
             color: C.text2, fontFamily: NUM_FONT,
-          }}>Tonight</span>
+          }}>{label}</span>
           <span style={{ fontSize: 9, color: C.text3 }}>
             {live.length ? `${live.length} live · ` : ''}{games.filter((g) => g.final).length} final
             {pn > 0 && <> · picks <b style={{ color: pok ? C.green : C.text3 }}>{pok}/{pn}</b> cleared</>}
@@ -178,10 +236,10 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
           </span>
         </button>
         {onNavigate && (
-          <button onClick={() => onNavigate('boxes')} style={{
+          <button onClick={() => onNavigate(moreTarget)} style={{
             marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
             fontFamily: NUM_FONT, fontSize: 9.5, color: C.orange, fontWeight: 800,
-          }}>full boxes →</button>
+          }}>{moreLabel}</button>
         )}
       </div>
       {/* Principle 1 — the air lives in the tiles' own padding rather than in
@@ -194,15 +252,11 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
           const w = g.final && g.away.score != null && g.home.score != null
             ? (g.away.score > g.home.score ? 'away' : g.home.score > g.away.score ? 'home' : null)
             : null
-          const stateTxt = g.postponed ? 'PPD'
-            : g.suspended ? 'SUSP'
-              : g.live ? `${/top/i.test(g.inningState) ? '▲' : '▼'}${g.inning ?? ''}`
-                : g.final ? 'F'
-                  : g.startTime ? new Date(g.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+          const stateTxt = renderState(g)
           return (
             <div key={g.pk}
               className="quiet-tile"
-              onClick={() => onNavigate?.('boxes')}
+              onClick={() => onNavigate?.(moreTarget)}
               title={rec?.names?.length ? rec.names.join('\n') : undefined}
               style={{
                 flex: '0 0 auto', minWidth: 124, cursor: onNavigate ? 'pointer' : 'default',
@@ -246,8 +300,8 @@ export default function ScoreRail({ players = [], results, onNavigate }) {
                       club colour must never take that job over.
 
                       A club colour is an IDENTITY here, never a data colour:
-                      see lib/mlbTeams.js. */}
-                  <MlbTeamMark abbr={t.abbr || t.name} dim={!!(w && w !== side)} />
+                      see lib/mlbTeams.js (MLB) / lib/nfl/teamColors.js (NFL). */}
+                  <TeamMark abbr={t.abbr || t.name} dim={!!(w && w !== side)} />
                   {/* Principle 2 — the score is the biggest thing here by a
                       factor the old 12px never gave it. The winner is told by
                       the loser dimming, not by an accent. */}

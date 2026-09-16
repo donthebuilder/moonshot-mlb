@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import NflYourPlayers from '../NflYourPlayers'
 import { useResultsArchive, seasonTotals, grandTotal } from '../../../lib/nfl/resultsArchive'
@@ -10,6 +10,9 @@ import TeamPower from '../TeamPower'
 import StartSit from '../StartSit'
 import Storylines from './Storylines'
 import Fold from '../../Fold'
+import ScoreRail from '../../ScoreRail'
+import NflRailTeamMark from '../NflTeamMark'
+import { fetchNflLive, lineFor, tdsIn } from '../../../lib/nfl/liveSlate'
 // Shared, sport-agnostic self-scroll hook -- components/Header.js and
 // components/nfl/NflHeader.js's ticker both already use it.
 import { useAutoScroll } from '../../../lib/headlines'
@@ -106,25 +109,6 @@ function PanelTitle({ eyebrow, title, action, onAction }) {
     <div className="tuddy-panel-title">
       <div><small>{eyebrow}</small><h2>{title}</h2></div>
       {action && <button onClick={onAction}>{action} →</button>}
-    </div>
-  )
-}
-
-function SlateStrip({ games }) {
-  if (!games.length) return null
-  return (
-    <div className="tuddy-slate-strip" aria-label="NFL slate">
-      {games.map((game) => {
-        const live = game.state === 'in'
-        const done = game.completed || game.state === 'post'
-        return (
-          <div key={game.game_id} className={live ? 'is-live' : ''}>
-            <span>{live ? '● LIVE' : done ? 'FINAL' : kickoff(game)}</span>
-            <b>{game.away} <i>{live || done ? number(game.away_score) : '@'}</i> {game.home}</b>
-            {(live || done) && <em>{number(game.home_score)}</em>}
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -318,6 +302,75 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   const games = data?.games || []
   const players = data?.players || []
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
+
+  // ── THE SCORE RAIL, FOR REAL (round 5, "shell it out," 2026-09-16) ────────
+  // Donovan: "would it be best to full delete the nfl side, or shell it out
+  // so we have the same exact components... just branded for nfl and tuddy."
+  // ScoreRail (components/ScoreRail.js) is now the ONE score rail both
+  // products render -- SlateStrip (removed) was a 20-line placeholder with
+  // none of the "does it matter to me" column MOONSHOT's rail has always had.
+  //
+  // Game list/scores/state come from `games` above (data.games) -- the exact
+  // same live-refreshing source the snapshot tiles below already trust for
+  // "live"/"final". Whether a designated pick actually CLEARED needs the
+  // live per-player STAT LINE, which data.games/data.players don't carry --
+  // fetchNflLive() is the shared, TTL-cached snapshot NflYourPlayers and the
+  // header ticker already poll on this exact page, so this adds no new
+  // fetch, it just reads the same one again.
+  const gamesRef = useRef(games)
+  useEffect(() => { gamesRef.current = games })
+  const nflSnapRef = useRef(null)
+
+  const nflFetchGames = useCallback(() => {
+    const list = (gamesRef.current || []).map((g) => ({
+      pk: g.game_id,
+      live: g.state === 'in',
+      final: g.completed || g.state === 'post',
+      postponed: false,
+      suspended: false,
+      startTime: g.kickoff,
+      away: { abbr: g.away, score: g.away_score },
+      home: { abbr: g.home, score: g.home_score },
+      _period: g.period,
+      _clock: g.clock,
+    }))
+    return fetchNflLive().then((snap) => { nflSnapRef.current = snap; return list }).catch(() => list)
+  }, [])
+
+  const nflRenderState = useCallback((g) => {
+    if (g.final) return 'F'
+    if (g.live) {
+      const q = g._period ? `Q${g._period}` : ''
+      return g._clock ? `${q} ${g._clock}`.trim() : (q || 'LIVE')
+    }
+    return kickoff({ kickoff: g.startTime })
+  }, [])
+
+  // "The bot's picks in that game" -- TUDDY's designated calls are the TD
+  // market's rungs (the same ladder Picks/TheSix read), each already carrying
+  // its own team, so no name/id join is needed to place one in a game. Real,
+  // per-game touchdown clearance from the live snapshot (lineFor/tdsIn), the
+  // same rule NflYourPlayers uses for "did he clear a bar" -- not invented
+  // here a second time.
+  const nflComputeByGame = useCallback(() => {
+    const out = new Map()
+    const rungs = picks?.card?.TD?.rungs || []
+    const rawGames = gamesRef.current || []
+    const snap = nflSnapRef.current
+    rungs.forEach((r) => {
+      const g = rawGames.find((gm) => gm.away === r.team || gm.home === r.team)
+      if (!g) return
+      const key = g.game_id
+      const rec = out.get(key) || { n: 0, ok: 0, live: 0, names: [] }
+      rec.n += 1
+      const line = snap ? lineFor(snap, { name: r.name, team: r.team }) : null
+      const tds = line ? tdsIn(line) : 0
+      if (tds > 0) { rec.ok += 1; rec.names.push(`${r.name} TD ✓`) }
+      else if (!(g.completed || g.state === 'post')) rec.live += 1
+      out.set(key, rec)
+    })
+    return out
+  }, [picks])
   const live = games.filter((game) => game.state === 'in').length
   const final = games.filter((game) => game.completed || game.state === 'post').length
   const topTd = [...players].filter((player) => Number.isFinite(player.scores?.TD)).sort((a, b) => b.scores.TD - a.scores.TD)[0]
@@ -347,7 +400,20 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
         onPlayerClick={onPlayerClick} setTab={setTab} />
 
-      <SlateStrip games={games} />
+      <ScoreRail
+        sport="nfl"
+        theme={{ C, NUM_FONT }}
+        TeamMark={NflRailTeamMark}
+        players={players}
+        results={results}
+        fetchGames={nflFetchGames}
+        computeByGame={nflComputeByGame}
+        renderState={nflRenderState}
+        label="This week"
+        moreLabel="full box scores →"
+        moreTarget="boxscores"
+        onNavigate={setTab}
+      />
       <section className="tuddy-snapshot">
         <div><small>SLATE</small><strong>{games.length}</strong><span>games</span></div>
         <div><small>STATE</small><strong>{live || final}</strong><span>{live ? 'live now' : final ? 'final' : 'awaiting kickoff'}</span></div>

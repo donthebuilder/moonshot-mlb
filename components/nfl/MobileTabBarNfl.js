@@ -25,12 +25,18 @@ import { worthPolling } from '../../lib/nfl/liveMerge'
 // (🌙 home, 📊 boards, 🏈 games, 📡 live, 🎯 picks -- colour emoji since 2026-09-06; the old
 // ◎ ▥ ◉ ✦ text glyphs vanished on the bar next to real emoji) -- same glyph, same
 // meaning, cross-sport, one design language rather than two.
-const MAIN_KEYS = ['touchdowns', 'games', 'picks', 'research', 'storylines']
+// 2026-09-16, Donovan: "trim something that doesn't match the moonshot
+// nav style." Picks is the one -- MOONSHOT's own bar doesn't carry a
+// Picks tab either (demoted to More on 2026-08-30, nav-rename-and-
+// grouping doc: "the two navigations were disagreeing about what
+// mattered"). This restores the 4-tab shape the comment above already
+// describes -- Picks stays one tap away in the sheet, same slot as home.
+const MAIN_KEYS = ['touchdowns', 'games', 'research', 'storylines']
 // GAME DAY (2026-09-05): while football is on -- or twenty minutes out --
 // Live takes Research's slot on the phone bar. Research is a Tuesday page;
 // the Live page is the one you open with the game on, and burying it under
 // More on a Sunday defeats it. Research stays one tap away in the sheet.
-const GAMEDAY_KEYS = ['touchdowns', 'live', 'picks', 'games', 'storylines']
+const GAMEDAY_KEYS = ['touchdowns', 'live', 'games', 'storylines']
 const mainFor = (keys) => keys.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
 const MAIN = mainFor(MAIN_KEYS)
 
@@ -40,6 +46,7 @@ const MAIN = mainFor(MAIN_KEYS)
 const MORE = [
   ['@This week', ''],
   ['home', NFL_NAV.home.label, NFL_NAV.home.blurb],
+  ['picks', NFL_NAV.picks.label, NFL_NAV.picks.blurb],
   ...NFL_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
     ...keys.map((k) => [k, NFL_NAV[k].label, NFL_NAV[k].blurb]),
