@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
-import FollowingStrip from '../../FollowingStrip'
+import NflYourPlayers from '../NflYourPlayers'
 import { useResultsArchive, seasonTotals, grandTotal } from '../../../lib/nfl/resultsArchive'
 import { ledgerTotals } from '../../../lib/nfl/myPicks'
 import NflTeamMark from '../../fantasy/NflTeamMark'
@@ -323,6 +323,20 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   const topTd = [...players].filter((player) => Number.isFinite(player.scores?.TD)).sort((a, b) => b.scores.TD - a.scores.TD)[0]
   const greeting = new Date().getHours() < 12 ? 'Good morning.' : new Date().getHours() < 18 ? 'Good afternoon.' : 'Good evening.'
 
+  // ── THREE DOORS, TUDDY'S OWN (parity pass, 2026-09-16) ────────────────────
+  // MOONSHOT's own Scoreboard/Games/Results triad, same idea, TUDDY's own
+  // destinations: lib/routes.js's 2026-09-13 note already establishes
+  // Touchdowns as TUDDY's actual "the board" -- the tab that leads the rail
+  // the same way MOONSHOT's HR board does -- not the demoted Boards tab.
+  const TUDDY_DOORS = [
+    { tab: 'touchdowns', icon: '\u{1F3C8}', title: 'The Touchdown Board', color: C.green,
+      body: 'Every player on the slate, ranked by anytime-TD score, live once kickoffs land -- the same board Home draws its calls from.' },
+    { tab: 'games', icon: '\u{1F3DF}️', title: 'Game by game', color: C.cyan,
+      body: "Tonight matchup by matchup: the script, the matchup pressure, and each side's own touchdown board." },
+    { tab: 'accountability', icon: '✅', title: 'The record', color: C.purple,
+      body: 'Every call graded against its own bar, every week, wins and losses alike -- the record the claim above is drawn from.' },
+  ]
+
   return (
     <div className="tuddy-home">
       <section className="tuddy-hero">
@@ -333,17 +347,6 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
         onPlayerClick={onPlayerClick} setTab={setTab} />
 
-      {/* Following, on the page the week starts on — same reasoning as
-          MOONSHOT's Home. A list that outlives the slate should meet you
-          rather than wait on a tab you have to remember to open. */}
-      <FollowingStrip
-        sport="nfl"
-        liveIds={new Set(Object.keys(playersById))}
-        onPlayerClick={(row) => {
-          const player = playersById[String(row.id)]
-          if (player) onPlayerClick?.(player, 'TD')
-        }}
-      />
       <SlateStrip games={games} />
       <section className="tuddy-snapshot">
         <div><small>SLATE</small><strong>{games.length}</strong><span>games</span></div>
@@ -361,18 +364,64 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
           (data/logs/results/onPlayerClick/setTab) — nothing new fetched. */}
       <Storylines data={data} logs={logs} results={results} onPlayerClick={onPlayerClick} setTab={setTab} />
 
-      {/* ── EVERYTHING ELSE, BEHIND ONE FOLD (parity pass, 2026-09-16) ────
-          Donovan, building Fold.js for MOONSHOT: "it's a lot going on on
-          this site... I don't want that to happen when NFL starts." It
-          happened anyway — every one of these five sections rendered,
-          unconditionally, on every visit, with no MLB-side equivalent of
-          "closed by default, still says what it holds." Same component
-          (components/Fold.js, sport-agnostic — only reads lib/theme's
-          neutral chrome colors, not a sport accent), same nested-Fold-
-          inside-a-parent-Fold shape MOONSHOT's own "More on tonight"
-          drawer uses. Nothing removed, nothing recomputed differently —
-          every section below is byte-identical to what rendered inline
-          before, just closed until tapped open. */}
+      {/* ⭐ YOUR PLAYERS (2026-09-16, parity pass) -- replaces the old
+          FollowingStrip mount, and moves to MOONSHOT's own shelf for it:
+          right after Storylines, ahead of the accountability claim below.
+          Same reason MOONSHOT gave for the same move on 2026-09-03: a
+          followed player used to be a name and nothing else; this says what
+          he actually did this week. See NflYourPlayers.js's own header for
+          why TUDDY only needs ONE store here, not MOONSHOT's two. */}
+      <NflYourPlayers players={players} onPlayerClick={onPlayerClick} />
+
+      {/* —— THE MONEY-ANSWER SLOT (parity pass, 2026-09-16) ————————————
+          MOONSHOT puts a compact MoneyAnswer right here -- one bordered
+          claim, one button through to the full page -- reading a real
+          odds_history.json archive of $-return by market. TUDDY keeps no
+          NFL equivalent of that archive, and project rule #16 is never
+          invent the number that would go in that slot. What TUDDY already
+          has for this exact job is this section: a REAL, already-computed
+          accuracy record (grandTotal over the harvested weekly files)
+          making the same claim -- "here's the receipt for what we said
+          would happen" -- measured in hit rate instead of ROI. Repositioned
+          into MOONSHOT's slot rather than left at the bottom of the page,
+          where it read as an afterthought instead of the answer to the
+          claim the hero makes. */}
+      <section className="tuddy-receipts"><div><small>ACCOUNTABILITY IS THE PRODUCT</small><h2>Every call gets a receipt.</h2><p>The public record keeps the hits, the misses, the voids, and the bar each market had to clear.{mine?.n ? <> <b style={{ color: C.text2 }}>Your week:</b> {mine.w}–{mine.l}{mine.t ? `–${mine.t}` : ''} on {mine.n} calls{mine.overrides ? `, ${mine.overrides} override${mine.overrides === 1 ? '' : 's'}` : ''} — you {mine.minePct != null && mine.botPct != null ? (mine.minePct > mine.botPct ? 'beat' : mine.minePct < mine.botPct ? 'trail' : 'match') : 'vs'} the bot.</> : null}</p></div><button onClick={() => setTab('accountability')}>Receipts →</button></section>
+
+      {/* —— THREE DOORS (parity pass, 2026-09-16) ————————————————————
+          MOONSHOT's own three nav cards, same slot: right after the money
+          claim, right before the deep-dive fold. */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {TUDDY_DOORS.map((d) => (
+          <button type="button" key={d.tab} onClick={() => setTab(d.tab)} style={{
+            display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+            flex: '1 1 240px', minWidth: 0, font: 'inherit', color: 'inherit',
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 13, padding: '13px 15px',
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
+              <span style={{ fontSize: 15 }}>{d.icon}</span>
+              <span style={{ fontSize: 14, fontWeight: 900, color: d.color }}>{d.title}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: d.color }}>→</span>
+            </span>
+            <span style={{ display: 'block', fontSize: 12, color: C.text2, lineHeight: 1.55 }}>{d.body}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* —— EVERYTHING ELSE, BEHIND ONE FOLD (parity pass, 2026-09-16;
+          moved again the same day to sit after Doors, not before it --
+          MOONSHOT's own order is Doors then the "More on tonight" fold, the
+          deepest tools last). Donovan, building Fold.js for MOONSHOT: "it's
+          a lot going on on this site... I don't want that to happen when
+          NFL starts." It happened anyway -- every one of these five
+          sections rendered, unconditionally, on every visit, with no
+          MLB-side equivalent of "closed by default, still says what it
+          holds." Same component (components/Fold.js, sport-agnostic --
+          only reads lib/theme's neutral chrome colors, not a sport accent),
+          same nested-Fold-inside-a-parent-Fold shape MOONSHOT's own "More
+          on tonight" drawer uses. Nothing removed, nothing recomputed
+          differently -- every section below is byte-identical to what
+          rendered inline before, just closed until tapped open. */}
       <Fold id="tuddy-more" title="••• More on this slate" meta="team power · start/sit · touchdown ledger · the look-out · angles · top 10s">
         <Fold id="tuddy-power" title="📊 Team power rankings" meta="all 32 teams, ranked">
           <TeamPower players={players} statSeason={data?.stat_season} onPlayerClick={onPlayerClick} />
@@ -391,7 +440,6 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         </Fold>
       </Fold>
 
-      <section className="tuddy-receipts"><div><small>ACCOUNTABILITY IS THE PRODUCT</small><h2>Every call gets a receipt.</h2><p>The public record keeps the hits, the misses, the voids, and the bar each market had to clear.{mine?.n ? <> <b style={{ color: C.text2 }}>Your week:</b> {mine.w}–{mine.l}{mine.t ? `–${mine.t}` : ''} on {mine.n} calls{mine.overrides ? `, ${mine.overrides} override${mine.overrides === 1 ? '' : 's'}` : ''} — you {mine.minePct != null && mine.botPct != null ? (mine.minePct > mine.botPct ? 'beat' : mine.minePct < mine.botPct ? 'trail' : 'match') : 'vs'} the bot.</> : null}</p></div><button onClick={() => setTab('accountability')}>Receipts →</button></section>
       <style>{`
         .tuddy-home{display:flex;flex-direction:column;gap:12px}.tuddy-hero{position:relative;display:flex;align-items:center;justify-content:space-between;min-height:220px;padding:28px;border:1px solid rgba(0,245,173,.32);border-radius:18px;overflow:hidden;background:radial-gradient(circle at 82% 18%,rgba(53,205,255,.16),transparent 30%),radial-gradient(circle at 8% 100%,rgba(0,245,173,.14),transparent 38%),#101314}.tuddy-hero:after{content:'';position:absolute;inset:auto -8% -44% 42%;height:190px;border:1px solid rgba(53,205,255,.18);border-radius:50%}.tuddy-hero>div:first-child{position:relative;z-index:1}.tuddy-hero small,.tuddy-panel-title small,.tuddy-six-head small{font:900 8px/1 ${NUM_FONT};letter-spacing:.14em;color:${C.green}}.tuddy-hero h1{max-width:760px;margin:10px 0 9px;font-size:clamp(34px,6vw,67px);line-height:.95;letter-spacing:-.06em}.tuddy-hero p{margin:0;color:${C.text2};font-size:12px}.tuddy-hero-mark{position:relative;z-index:1;display:flex;align-items:center;gap:12px;padding:15px 19px;border:1px solid rgba(53,205,255,.28);border-radius:18px;background:rgba(7,13,12,.66)}.tuddy-hero-mark span{font:900 58px/.8 ${NUM_FONT};color:${C.cyan}}.tuddy-hero-mark small{color:${C.text2};line-height:1.35}.tuddy-slate-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}.tuddy-slate-strip>div{flex:0 0 150px;padding:9px 11px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2}}.tuddy-slate-strip>div.is-live{border-color:rgba(53,205,255,.45);box-shadow:inset 0 0 22px rgba(53,205,255,.05)}.tuddy-slate-strip span{display:block;color:${C.text3};font:800 8px/1 ${NUM_FONT}}.tuddy-slate-strip .is-live span{color:${C.cyan}}.tuddy-slate-strip b{display:inline-block;margin-top:6px;color:${C.text};font:900 10px/1 ${NUM_FONT}}.tuddy-slate-strip b i{color:${C.text3};font-style:normal}.tuddy-slate-strip em{margin-left:5px;color:${C.text};font:900 10px/1 ${NUM_FONT};font-style:normal}.tuddy-snapshot{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.tuddy-snapshot>div,.tuddy-snapshot>button{display:flex;flex-direction:column;align-items:flex-start;min-height:84px;padding:12px 14px;border:1px solid ${C.border};border-radius:11px;background:${C.bg2};color:inherit;text-align:left}.tuddy-snapshot>button{cursor:pointer}.tuddy-snapshot small{color:${C.text3};font:900 8px/1 ${NUM_FONT};letter-spacing:.08em}.tuddy-snapshot strong{margin-top:7px;color:${C.green};font:900 24px/1 ${NUM_FONT}}.tuddy-snapshot span{margin-top:5px;color:${C.text2};font-size:10px}.tuddy-six{overflow:hidden;border:1px solid rgba(0,245,173,.25);border-radius:16px;background:linear-gradient(155deg,rgba(0,245,173,.06),rgba(53,205,255,.025)),${C.bg2}}.tuddy-six-head{display:flex;align-items:flex-end;justify-content:space-between;padding:19px 20px;border-bottom:1px solid ${C.border}}.tuddy-six-head h2{margin:5px 0 2px;font-size:30px;letter-spacing:-.04em}.tuddy-six-head p{margin:0;color:${C.text3};font-size:10px}.tuddy-six-head button,.tuddy-panel-title button,.tuddy-receipts button{border:0;background:transparent;padding:8px 6px;margin:-8px -6px;color:${C.green};font:900 9px/1 ${NUM_FONT};cursor:pointer}.tuddy-six-grid{display:grid;grid-template-columns:repeat(3,1fr)}.tuddy-six-grid>button{position:relative;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:9px;min-height:94px;padding:14px;border:0;border-right:1px solid ${C.border};border-bottom:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}.tuddy-six-grid>button:disabled{cursor:default}.tuddy-six-grid>button:hover:not(:disabled){background:color-mix(in srgb,var(--market) 7%,transparent)}.tuddy-six-number{color:var(--market);font:900 10px/1 ${NUM_FONT}}.tuddy-six-grid small{display:block;color:var(--market);font:900 8px/1 ${NUM_FONT}}.tuddy-six-grid strong{display:block;margin-top:6px;font-size:13px}.tuddy-six-grid em{display:block;margin-top:4px;color:${C.text3};font-size:9px;font-style:normal}.tuddy-six-score{text-align:center}.tuddy-six-score b{display:block;font:900 20px/1 ${NUM_FONT}}.tuddy-six-score span{font:900 8px/1 ${NUM_FONT}}.tuddy-six-headliner{position:relative;display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;width:calc(100% - 40px);margin:14px 20px 0;padding:16px 20px;overflow:hidden;border:1px solid color-mix(in srgb,var(--market) 40%,transparent);border-radius:13px;background:linear-gradient(155deg,color-mix(in srgb,var(--market) 12%,transparent),${C.bg2} 62%);color:inherit;text-align:left;cursor:pointer}.tuddy-six-headliner:disabled{cursor:default}.tuddy-six-ghost{position:absolute;right:6px;top:50%;transform:translateY(-50%);font:900 96px/1 ${NUM_FONT};color:color-mix(in srgb,var(--market) 10%,transparent);pointer-events:none;z-index:0}.tuddy-six-headliner-body{position:relative;z-index:1;min-width:0}.tuddy-six-headliner-body small{display:block;color:var(--market);font:900 9px/1 ${NUM_FONT};letter-spacing:.1em}.tuddy-six-headliner-body strong{display:block;margin-top:6px;font-size:20px;font-weight:900;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tuddy-six-headliner-body em{display:block;margin-top:4px;color:${C.text3};font-size:10.5px;font-style:normal}.tuddy-six-headliner-score{position:relative;z-index:1;text-align:right;flex-shrink:0}.tuddy-six-headliner-score b{display:block;font:900 34px/1 ${NUM_FONT}}.tuddy-six-headliner-score span{font:900 9px/1 ${NUM_FONT}}.tuddy-home-split,.tuddy-board-split{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tuddy-panel,.tuddy-angles,.tuddy-mini-board{padding:15px;border:1px solid ${C.border};border-radius:13px;background:${C.bg2}}.tuddy-panel-title{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px}.tuddy-panel-title h2{margin:5px 0 0;font-size:17px}.tuddy-ledger-total{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid rgba(53,205,255,.18);border-radius:10px;background:rgba(53,205,255,.04)}.tuddy-ledger-total strong{color:${C.cyan};font:900 36px/1 ${NUM_FONT}}.tuddy-ledger-total span{color:${C.text3};font-size:9px;line-height:1.4}.tuddy-ledger-list{margin-top:8px}.tuddy-ledger-list>div{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:8px;padding:7px 3px;border-bottom:1px solid ${C.border}}.tuddy-ledger-list span,.tuddy-ledger-list em{color:${C.text3};font:800 8px/1 ${NUM_FONT};font-style:normal}.tuddy-ledger-list b{font-size:11px}.tuddy-ledger-list p,.tuddy-leaks p,.tuddy-milestones p{color:${C.text3};font-size:10px;line-height:1.5}.tuddy-lookout h3{margin:13px 0 6px;color:${C.text2};font:900 9px/1 ${NUM_FONT};letter-spacing:.08em;text-transform:uppercase}.tuddy-leaks>div,.tuddy-milestones>div{display:grid;grid-template-columns:44px 1fr auto;gap:7px;padding:6px 0;border-bottom:1px solid ${C.border};align-items:center}.tuddy-leaks b{color:${C.red};font:900 10px/1 ${NUM_FONT}}.tuddy-leaks span,.tuddy-milestones b{font-size:10px}.tuddy-leaks em,.tuddy-milestones em{color:${C.text3};font:700 8px/1 ${NUM_FONT};font-style:normal}.tuddy-milestones>div{grid-template-columns:1fr auto auto}.tuddy-milestones span{color:${C.yellow};font-size:9px}.tuddy-angles>div:last-child{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.tuddy-angles article{display:flex;gap:9px;padding:12px;border:1px solid ${C.border};border-radius:10px;background:rgba(255,255,255,.025)}.tuddy-angles article>span{color:${C.green};font:900 9px/1 ${NUM_FONT}}.tuddy-angles article small{color:${C.text3};font:800 8px/1 ${NUM_FONT}}.tuddy-angles article b{display:block;margin-top:7px;font-size:11px}.tuddy-angles article p{margin:4px 0 0;color:${C.text3};font-size:9px}.tuddy-mini-board>button{display:grid;grid-template-columns:20px 24px 1fr auto 34px;align-items:center;gap:8px;width:100%;padding:7px 4px;border:0;border-top:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}.tuddy-mini-board>button>span{color:${C.text3};font:800 9px/1 ${NUM_FONT}}.tuddy-mini-board>button>b{font-size:11px}.tuddy-mini-board>button>em{color:${C.text3};font:700 8px/1 ${NUM_FONT};font-style:normal}.tuddy-mini-board>button>strong{text-align:right;font:900 13px/1 ${NUM_FONT}}.tuddy-receipts{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border:1px solid rgba(167,139,250,.28);border-radius:14px;background:radial-gradient(circle at 90% 20%,rgba(167,139,250,.11),transparent 35%),${C.bg2}}.tuddy-receipts small{color:${C.purple};font:900 8px/1 ${NUM_FONT};letter-spacing:.1em}.tuddy-receipts h2{margin:6px 0 4px;font-size:21px}.tuddy-receipts p{margin:0;color:${C.text3};font-size:10px}.tuddy-receipts button{color:${C.purple}}.tuddy-headlines{margin-top:2px}.tuddy-headlines-rule{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.tuddy-headlines-rule>span{font:900 8px/1 ${NUM_FONT};letter-spacing:.16em;color:${C.text3}}.tuddy-headlines-rule>i{flex:1;height:1px;background:linear-gradient(90deg,${C.green}66,transparent)}.tuddy-headlines-rule>em{font:700 8px/1 ${NUM_FONT};color:${C.text3};font-style:normal}.tuddy-headlines-viewport{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent)}.tuddy-headlines-track{display:flex;gap:12px;width:max-content;padding-bottom:2px}.tuddy-headline-card{display:grid;grid-template-rows:auto 1fr auto;gap:3px;width:232px;min-height:104px;flex-shrink:0;padding:10px 12px 9px;border-radius:10px;border:1px solid color-mix(in srgb,var(--card-col) 20%,transparent);background:linear-gradient(160deg,color-mix(in srgb,var(--card-col) 8%,transparent),${C.bg2} 70%);color:inherit;text-align:left;cursor:pointer;font:inherit}.tuddy-headline-top{display:flex;align-items:center;gap:6px}.tuddy-headline-num{font:900 9px/1 ${NUM_FONT};color:var(--card-col)}.tuddy-headline-tag{font:900 8px/1 ${NUM_FONT};letter-spacing:.14em;color:var(--card-col)}.tuddy-headline-icon{margin-left:auto;font-size:13px;line-height:1}.tuddy-headline-name{font-size:13px;font-weight:800;letter-spacing:-.01em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tuddy-headline-bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}.tuddy-headline-why{font-size:10.5px;color:${C.text2};line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.tuddy-headline-stat{font:900 8px/1 ${NUM_FONT};color:var(--card-col);white-space:nowrap;border:1px solid color-mix(in srgb,var(--card-col) 30%,transparent);background:color-mix(in srgb,var(--card-col) 8%,transparent);border-radius:4px;padding:2px 6px;flex-shrink:0}
         @media(max-width:800px){.tuddy-hero{min-height:190px;padding:22px}.tuddy-six-ghost{font-size:72px}.tuddy-hero-mark{display:none}.tuddy-snapshot{grid-template-columns:1fr 1fr}.tuddy-six-grid{grid-template-columns:1fr 1fr}.tuddy-home-split,.tuddy-board-split{grid-template-columns:1fr}.tuddy-angles>div:last-child{grid-template-columns:1fr 1fr}}
