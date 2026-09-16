@@ -449,25 +449,19 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         state: g ? kickoffLabel(g) : '—',
         td: p.scores?.TD ?? null,
         matchup: null,
-        watch: null,
+        watched: watchlist.isPinned(p.player_id) ? 1 : 0,
         flags,
       }
     })
     .sort((a, b) => (b.td ?? -1) - (a.td ?? -1))
   const TABLE_COLUMNS = [
-    { key: 'watch', label: '', heat: false, w: 28, fmt: (v, r) => {
-      const pinned = watchlist.isPinned(r._raw.player_id)
-      return (
-        <button
-          onClick={(e) => { e.stopPropagation(); watchlist.toggle(r._raw) }}
-          title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
-          style={{
-            background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
-            fontSize: 13, lineHeight: 1, color: pinned ? C.green : C.text3,
-          }}
-        >{pinned ? '★' : '☆'}</button>
-      )
-    } },
+    // Native DenseTable action column (see LongestBoard.js's buildColumns) --
+    // lit off the row's own watched:1/0 field, not a custom button, so this
+    // table's watchlist star behaves identically to every other DenseTable
+    // board's, MLB or NFL.
+    { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
+      titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
+      onAction: (row) => watchlist.toggle(row) },
     { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 150 },
     { key: 'team', label: 'Team', heat: false, w: 44 },
     { key: 'position', label: 'Pos', heat: false, w: 38 },
