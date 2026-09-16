@@ -183,6 +183,51 @@ function Tile({ label, value, color, title, live = false }) {
   )
 }
 
+
+// Same convention as components/Header.js's SettingsSheet -- one (gear)
+// icon instead of the palette + light/dark buttons sitting loose in the
+// header at all times. Own copy, own accent (green, not MOONSHOT's
+// orange), because this file already keeps its own C rather than sharing
+// MOONSHOT's -- same reasoning as this file's local hexToRgba.
+function NflSettingsSheet() {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const key = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', key)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key) }
+  }, [open])
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-haspopup="dialog"
+        title="View settings — palette, light/dark"
+        style={{
+          width: 30, height: 30, borderRadius: 999, display: 'grid', placeItems: 'center', cursor: 'pointer',
+          border: `1px solid ${open ? `${C.green}66` : C.border}`, background: open ? `${C.green}1f` : C.glass,
+          color: open ? C.green : C.text2, fontSize: 14, transition: 'transform .12s, background .12s',
+          transform: open ? 'rotate(30deg)' : 'none',
+        }}>⚙</button>
+      {open && (
+        <div role="dialog" aria-label="View settings" style={{
+          position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 60, minWidth: 200,
+          background: hexToRgba(C.bg2, .98), border: `1px solid ${C.border}`, borderRadius: 12,
+          boxShadow: '0 12px 32px rgba(0,0,0,.45)', padding: '10px 10px 8px', display: 'grid', gap: 8,
+        }}>
+          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', color: C.text3, textTransform: 'uppercase' }}>View</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
+            <ThemeModeButton />
+          </div>
+          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>Palette · light/dark. Sticks on this device.</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function NflHeader({ tab, setTab, data, meta }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const go = (next) => { setMoreOpen(false); setTab(next) }
@@ -431,8 +476,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
           <SignUpPill accent={C.green} />
           <AlertBell />
-          <ThemeModeButton />
-          <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
+          <NflSettingsSheet />
         </div>
       </div>
 
