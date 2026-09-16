@@ -168,7 +168,7 @@ function Tile({ label, value, color, title, live = false }) {
     >
       <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
         <span style={{
-          fontSize: 8.5, color: C.text3, textTransform: 'uppercase',
+          fontSize: 7.5, color: C.text3, textTransform: 'uppercase',
           letterSpacing: '.09em', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4,
         }}>
           {/* Reuses the same @keyframes pulse this file already defines for
@@ -177,7 +177,7 @@ function Tile({ label, value, color, title, live = false }) {
           {live && <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: color, animation: 'pulse 2s infinite' }} />}
           {label}
         </span>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color }}>{value}</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color }}>{value}</span>
       </div>
     </div>
   )
@@ -441,14 +441,6 @@ export default function NflHeader({ tab, setTab, data, meta }) {
                   }}>MOONSHOT</button>
               </span>
             </div>
-            {/* SIGNAL TRACE (2026-09-11, "more futuristic, innovate and
-                original"). Was a static two-pixel bar. A product whose whole
-                job is finding the live soft spot in a defense shouldn't sit
-                under a motionless underline -- this sweeps the same two
-                accents across the track on a loop, like a trace on a live
-                readout rather than decoration. Respects reduced-motion
-                (falls back to the old static bar) via the CSS below. */}
-            <div className="tuddy-signal-trace" aria-hidden="true" />
           </div>
         </div>
 
@@ -628,20 +620,6 @@ export default function NflHeader({ tab, setTab, data, meta }) {
 
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        @keyframes tuddySweep { 0% { background-position: 200% 0; } 100% { background-position: -100% 0; } }
-        .tuddy-signal-trace {
-          height: 2px; width: 80px; margin-top: 1px; border-radius: 1px;
-          background: linear-gradient(90deg, transparent, ${C.green}, ${C.cyan}, transparent);
-          background-size: 200% 100%;
-          animation: tuddySweep 2.6s ease-in-out infinite;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .tuddy-signal-trace {
-            animation: none;
-            background: linear-gradient(90deg, ${C.green}, transparent);
-            background-size: 100% 100%;
-          }
-        }
         header div::-webkit-scrollbar { display: none; }
         @media (max-width: 700px) {
           .nfl-simple-more { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
