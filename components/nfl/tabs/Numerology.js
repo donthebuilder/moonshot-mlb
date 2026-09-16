@@ -1,7 +1,8 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
-import { AXIS_META, alignedWith, slateAlignments } from '../../../lib/nfl/alignments'
+import { AXIS_META, alignedWith, slateAlignments, dateDigitRoot, shiftDateKey } from '../../../lib/nfl/alignments'
+import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 
 // 🔮 NUMEROLOGY — B10(d), 2026-09-15. TUDDY's clone of MLB's Alignments view
 // (components/Alignments.js + lib/alignments.js). Donovan approved shipping
@@ -24,10 +25,21 @@ import { AXIS_META, alignedWith, slateAlignments } from '../../../lib/nfl/alignm
 // exists for NFL yet -- no per-game live results writer at TUDDY's weekly
 // cadence, no Builder-equivalent to hand names to -- so this ships the
 // pregame slate engine only, the same core MLB's own page leads with.
+//
+// YOUR WATCHLIST, ALIGNING -- ONE THIRD OF MLB's CHECK, NOT ALL THREE
+// (2026-09-16). MLB's own section checks a watched hitter's own axes
+// against YESTERDAY's and TODAY's archived leading root (both read
+// HomerLedger's live graded-results archive -- the same missing writer
+// named above) AND against TOMORROW's date, reduced -- pure calendar
+// arithmetic on a player's own unchanging numbers, needing no archive at
+// all. Only the third one ports honestly here. Building fake yesterday/
+// today checks off a results writer TUDDY doesn't have would be exactly
+// the invented-data rule #16 exists to stop.
 
 const ROOT_COLORS = ['', '#f97316', '#f59e0b', '#22d3ee', '#4ade80', '#a78bfa', '#f87171', '#60a5fa', '#FCD34D', '#c084fc']
 
 export default function Numerology({ data }) {
+  const watchlist = useNflWatchlist(data)
   const [openRoot, setOpenRoot] = useState(null)
   const players = data?.players || []
 
@@ -36,6 +48,17 @@ export default function Numerology({ data }) {
 
   const ranked = useMemo(() => [...clubs].sort((a, b) => b.count - a.count), [clubs])
   const expected = totalMemberships / 9
+
+  // Tomorrow's date, reduced -- see the header note above for why this is
+  // the one archive-free third of MLB's watchlist cross-check. Recomputed
+  // per render (cheap string arithmetic); the day doesn't change mid-session.
+  const tomorrowRoot = dateDigitRoot(shiftDateKey(new Date().toISOString().slice(0, 10), 1))
+  const watchedRows = useMemo(() => rows
+    .filter((a) => watchlist.isPinned(a.pid))
+    .map((a) => {
+      const ownRoots = new Set(Object.values(a.axes).filter((v) => v != null))
+      return { a, hitsTomorrow: tomorrowRoot != null && ownRoots.has(tomorrowRoot) }
+    }), [rows, watchlist, tomorrowRoot])
 
   if (!players.length) {
     return (
@@ -66,6 +89,47 @@ export default function Numerology({ data }) {
         raw count. MLB&apos;s own sweep of this same method tested 18 axes against 4,238 real player-nights and found
         zero significant ones -- fun to track, never a reason to bet. Nothing here feeds any score, board, or call.
       </div>
+
+      {/* ── YOUR WATCHLIST, ALIGNING (tomorrow only -- see header note) ──── */}
+      {watchlist.pins.length > 0 && (
+        <div style={{
+          border: `1px solid ${watchedRows.some((w) => w.hitsTomorrow) ? C.orange + '77' : C.border}`,
+          background: watchedRows.some((w) => w.hitsTomorrow) ? 'rgba(249,115,22,.06)' : C.bg2,
+          borderRadius: 10, padding: '8px 11px', marginBottom: 10,
+        }}>
+          <div style={{ fontSize: TYPE.label, fontWeight: 800, color: C.text2, marginBottom: 2 }}>
+            ⭐ YOUR WATCHLIST, ALIGNING
+          </div>
+          {watchedRows.length === 0 ? (
+            <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6 }}>
+              None of your starred players are on this week&apos;s slate.
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, marginBottom: 6 }}>
+                Checked against each man&apos;s own jersey / birthday / life-path roots --{' '}
+                <b style={{ color: C.orange }}>+1</b> means tomorrow&apos;s date reduces to a root his own numbers
+                touch. No yesterday/today check yet -- those read a live graded-results archive MLB has and TUDDY
+                doesn&apos;t, at its weekly cadence.
+              </div>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {watchedRows.map(({ a, hitsTomorrow }) => (
+                  <span key={a.pid} style={{
+                    padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
+                    border: `1px solid ${hitsTomorrow ? C.orange : C.border}`,
+                    background: hitsTomorrow ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
+                  }}>
+                    {a.name}
+                    {hitsTomorrow && (
+                      <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: TYPE.micro, marginLeft: 4 }}>+1</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── THE CLUBS — nine roots, concentration stated ─────────────────── */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
