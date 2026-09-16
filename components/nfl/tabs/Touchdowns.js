@@ -3,37 +3,59 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
+import { alignedSignals } from '../../../lib/nfl/dvpSignal'
 import OddsLine from '../../OddsLine'
+import OddsStatus from '../../OddsStatus'
 import MatchupBadge from '../MatchupBadge'
-import { AnatomyStrip } from '../ScoreAnatomy'
+import NflFace from '../NflFace'
+import { AnatomyStrip, anatomyOf } from '../ScoreAnatomy'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
+import { FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
+import MobileFold from '../../MobileFold'
+import TdCompare from '../TdCompare'
 
 // TOUCHDOWNS — the front door.
 //
-// Donovan, 2026-09-13: "this shit has to help people and me find touchdowns
-// just like for home runs." The MLB side has a dedicated HR board; the NFL
-// side had touchdowns as market #1 of seven inside a shared ranking shell,
-// which is not the same thing as a page that answers the question the product
-// exists to answer.
+// REBUILT 2026-09-16 (Donovan, comparing this page's list against Props'
+// card grid: "you see the diefferenece" — then, asked directly how far to
+// take it: "Rebuild it like Props (Recommended) ... Scrap the beginner-list
+// design. Rebuild Touchdowns as a dense card grid with search, filter pills,
+// sort, a compare-two tool, and per-card stat chips -- true click-over
+// parity with Props, stat jargon and all.")
 //
-// Written for the stated audience — people who do NOT follow football — so:
+// The 2026-09-13 build (see git history) was a DELIBERATE beginner-list --
+// written for someone who has never watched football, no percentiles, no
+// jargon, one sentence per player. That brief is now explicitly superseded:
+// the ask is stat-forward parity with components/tabs/PropsGrid.js, not a
+// second pass on the same idea.
 //
-//   · the page opens with names and a sentence, not a table
-//   · every number on screen is a bar or a plain-English clause; there is no
-//     percentile, no rank chip, no role code
-//   · the reason comes from the model's OWN component percentiles, so it can
-//     never drift from the score it is explaining
+// WHAT PORTS FROM PROPS AND WHAT DOESN'T, and why -- the same never-invent-
+// data discipline this whole project runs on:
 //
-// The reason is not decoration. It is the single component doing the most
-// work for THIS player — weight x percentile, off `markets[].weights` and
-// `player.components.TD`, both already published — so two players at the same
-// score can say different things, and the page teaches what the score means
-// while it ranks.
+//   PORTS DIRECTLY: search, a pills-then-sort filter bar (components/
+//   Filters.js, already shared site-wide), a MobileFold "compare two" tool,
+//   per-card stat chips, a soft render cap with "show the rest".
+//
+//   DOESN'T PORT: Props' five-role grouping (TOP/HR/HIT/HRR/CONTACT) has no
+//   TD equivalent -- TD is ONE market, not five, so there is nothing to
+//   group cards BY. The pills here are TD's own real tiers instead (see
+//   TIER below). Props' PRECISION cut is a measured study
+//   (bots/precision_study.py, 65.0% vs 41.2% over 25 graded nights) with no
+//   NFL sibling -- inventing a percentage for a study that doesn't exist
+//   would be exactly what rule #16 forbids, so it's left out rather than
+//   faked.
+//
+//   THE STAT CHIPS ARE REAL. Each card's chips are its own top
+//   components.TD entries (ScoreAnatomy.js's anatomyOf(), already built and
+//   already driving the AnatomyStrip on the old row) -- weight x percentile,
+//   the same arithmetic the score is built from, just surfaced as tags
+//   instead of only a bar.
 const MARKET = 'TD'
-const PREVIEW = 6
+const SOFT_CAP = 60
 
-// One clause per component, in the vocabulary of somebody who has never
-// watched a game. Keep these short: they read as the end of "…because he".
+// One clause per component, kept from the previous build -- still a real,
+// useful sentence and not what Donovan asked to cut (the CARD DESIGN was
+// the beginner thing, not every plain-English clause on the site).
 const WHY = {
   f_gl_opp:      'gets the ball right next to the end zone more than almost anyone',
   f_rz_opp:      'is on the field for the plays that happen close to the end zone',
@@ -45,16 +67,6 @@ const WHY = {
   td_regression: 'has had the chances and not cashed them yet',
 }
 
-// WHAT MAKES HIM DIFFERENT, not what carries the most weight. Rendered the
-// first version and every row on the board said the identical sentence —
-// "he gets the ball right next to the end zone" — because goal-line
-// opportunity has the biggest weight AND everyone near the top of a TD board
-// is 99th percentile in it. A reason every player shares is not a reason; it
-// is the definition of the board.
-//
-// So each component is scored on how far this player sits ABOVE the rest of
-// the ranked field in it, times its weight. The thing he is unusual at wins,
-// which is also the only thing worth a sentence.
 function baseline(rows) {
   const acc = {}
   for (const p of rows) {
@@ -81,17 +93,23 @@ function reasonFor(player, weights, base) {
     const edge = (pct - (base?.[k] ?? 50)) * w
     if (!best || edge > best.edge) best = { k, edge, pct }
   }
-  // Two floors, both deliberate: he has to be good at it in absolute terms
-  // AND ahead of the field in it. Saying nothing beats dressing up a 50th
-  // percentile, and beats telling sixteen players the same thing.
   if (!best || best.pct < 60 || best.edge <= 0) return null
   return WHY[best.k]
 }
 
+// The card's stat chips -- top three components by actual weighted
+// contribution (anatomyOf's own `points`), same source as the AnatomyStrip
+// bar beneath them. "Stat jargon and all", as asked: the raw label and
+// percentile, not a translated sentence.
+function statChips(components, weights) {
+  const a = anatomyOf(components, weights)
+  if (!a) return null
+  return [...a.parts].sort((x, y) => y.points - x.points).slice(0, 3)
+    .map((p) => ({ t: `${p.label} ${Math.round(p.pct)}p`, key: p.key }))
+}
+
 function ScoreBar({ score }) {
   const g = gradeFor(score)
-  // Fixed 30-80 scale, the range the board actually occupies — so a short bar
-  // on this page and a short bar on Games mean the same thing.
   const pct = Math.max(4, Math.min(100, ((Number(score) || 0) - 30) / 50 * 100))
   return (
     <span style={{
@@ -106,64 +124,122 @@ function ScoreBar({ score }) {
   )
 }
 
-function Row({ p, rank, matchup, odds, onPlayerClick, weights, why, watchlist }) {
-  const g = gradeFor(p.scores?.[MARKET])
+function kickoffFor(games, player) {
+  const g = (games || []).find((row) => row.away === player.team || row.home === player.team)
+  return g?.kickoff ? Date.parse(g.kickoff) : null
+}
+
+// ── THE CARD ─────────────────────────────────────────────────────────────
+function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, watchlist }) {
+  const score = p.scores?.[MARKET]
+  const g = gradeFor(score)
+  const why = reasonFor(p, weights, base)
+  const chips = statChips(p.components?.[MARKET], weights)
   const tag = injuryTag(p)
-  const pinned = watchlist?.isPinned(p.player_id)
+  const pinned = watchlist.isPinned(p.player_id)
+  const aligned = alignedSignals(matchup, p)
+  const highConf = Boolean(p.high_confidence_td_flag)
+  const quote = quoteFor(odds, p, MARKET)
+
   return (
-    <div onClick={() => onPlayerClick?.(p, MARKET)} className="td-row">
-      {watchlist && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
-          title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
-          className="td-star"
-          style={{
-            background: pinned ? 'rgba(0,245,173,.14)' : 'transparent',
-            border: `1px solid ${pinned ? C.green : C.border}`,
-            color: pinned ? C.green : C.text3,
-          }}
-        >{pinned ? '★' : '☆'}</button>
-      )}
-      <span className="td-rank" style={{ color: rank <= 3 ? C.green : C.text3 }}>{rank}</span>
-      <span className="td-main">
-        <span className="td-top">
-          <b className="td-name">{p.name}</b>
-          <span className="td-vs">{p.team} vs {p.opp}</span>
-          <MatchupBadge matchup={matchup} player={p} market={MARKET} />
-          {tag && (
-            <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900, fontSize: TYPE.label }}>
-              {tag}
+    <div
+      onClick={() => onPlayerClick?.(p, MARKET)}
+      style={{
+        position: 'relative', display: 'flex', flexDirection: 'column', gap: 8,
+        cursor: 'pointer', minWidth: 0, overflow: 'hidden',
+        border: `1px solid ${C.border}`, borderRadius: 14, padding: '11px 12px 10px',
+        background: `linear-gradient(158deg, ${g.color}1c, ${C.bg2} 58%)`,
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: `linear-gradient(90deg, ${g.color}, ${g.color}00 72%)`,
+      }} />
+
+      <button
+        onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
+        title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
+        style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 1,
+          background: pinned ? `${C.green}22` : 'transparent',
+          border: `1px solid ${pinned ? C.green : C.border}`,
+          color: pinned ? C.green : C.text3,
+          borderRadius: 7, padding: '3px 7px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
+        }}
+      >{pinned ? '★' : '☆'}</button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, paddingRight: 26 }}>
+        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: rank <= 3 ? C.green : C.text3, minWidth: 14 }}>{rank}</span>
+        <NflFace player={p} size={36} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: TYPE.name, fontWeight: 700, color: C.text, minWidth: 0,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{p.name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
+              {p.position} · {p.team} vs {p.opp}
             </span>
-          )}
-        </span>
-        {why && <span className="td-why">He {why}.</span>}
-        <span className="td-marks">
-          <ScoreBar score={p.scores?.[MARKET]} />
-          {/* THE SHAPE, which differentiates where the sentence cannot. Two
-              players on the same score built it differently and the strip
-              shows that at a glance — the site's own existing chart language
-              (ScoreAnatomy, built in the chart-language batch), not a new
-              one invented here. */}
-          <AnatomyStrip components={p.components?.[MARKET]} weights={weights} width={72} />
-        </span>
-      </span>
-      <span className="td-right">
-        <b style={{ color: g.color, fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900 }}>
-          {Math.round(p.scores?.[MARKET] ?? 0)}
-        </b>
-        <OddsLine quote={quoteFor(odds, p, MARKET)} compact />
-      </span>
+            <MatchupBadge matchup={matchup} player={p} market={MARKET} />
+            {highConf && <span title="The bot's own high-confidence TD flag" style={{ fontSize: TYPE.label }}>⭐</span>}
+            {aligned.aligned && <span title={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: TYPE.label }}>🧩</span>}
+            {tag && (
+              <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900, fontSize: TYPE.label }}>{tag}</span>
+            )}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: g.color, lineHeight: 1 }}>
+            {Math.round(score ?? 0)}
+          </div>
+          <div style={{
+            fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: g.color,
+            border: `1px solid ${g.color}55`, borderRadius: 5, padding: '1px 4px', marginTop: 3, textAlign: 'center',
+          }}>{g.label}</div>
+        </div>
+      </div>
+
+      {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4 }}>He {why}.</div>}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}><ScoreBar score={score} /></div>
+        <AnatomyStrip components={p.components?.[MARKET]} weights={weights} width={56} />
+      </div>
+
+      {chips && chips.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {chips.map((c) => (
+            <span key={c.key} style={{
+              fontSize: 8.5, fontWeight: 800, letterSpacing: '.02em', padding: '2px 7px',
+              borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+              color: C.text2, border: `1px solid ${g.color}33`, background: `${g.color}0f`,
+            }}>{c.t}</span>
+          ))}
+        </div>
+      )}
+
+      {(odds || quote) && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <OddsLine quote={quote} compact />
+        </div>
+      )}
     </div>
   )
 }
 
-export default function Touchdowns({ data, matchup, odds, onPlayerClick }) {
-  const [open, setOpen] = useState(false)
-
+export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus }) {
   const watchlist = useNflWatchlist(data)
+  const [query, setQuery] = useState('')
+  const [position, setPosition] = useState('all')
+  const [tier, setTier] = useState('everyone')
+  const [onlyPriced, setOnlyPriced] = useState(false)
+  const [onlyUpcoming, setOnlyUpcoming] = useState(false)
+  const [onlyWatched, setOnlyWatched] = useState(false)
+  const [sortBy, setSortBy] = useState('score')
+  const [all, setAll] = useState(false)
+  const now = useMemo(() => Date.now(), [data, onlyUpcoming])
 
-  const { rows, weights, games, base } = useMemo(() => {
+  const { rows, weights, base, games } = useMemo(() => {
     const m = (data?.markets || []).find((x) => x.key === MARKET)
     const elig = new Set(m?.positions || ['RB', 'WR', 'TE'])
     const list = (data?.players || [])
@@ -177,110 +253,160 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick }) {
     }
   }, [data])
 
+  const positionOptions = useMemo(() => {
+    const counts = {}
+    for (const p of rows) counts[p.position] = (counts[p.position] || 0) + 1
+    return [
+      { key: 'all', label: 'All positions', count: rows.length },
+      ...Object.keys(counts).sort().map((k) => ({ key: k, label: k, count: counts[k] })),
+    ]
+  }, [rows])
+
+  const tierCounts = useMemo(() => {
+    let highconf = 0, aligned = 0
+    for (const p of rows) {
+      if (p.high_confidence_td_flag) highconf += 1
+      if (alignedSignals(matchup, p).aligned) aligned += 1
+    }
+    return { everyone: rows.length, highconf, aligned }
+  }, [rows, matchup])
+
+  const tierPills = [
+    { key: 'everyone', label: 'Everyone', count: tierCounts.everyone },
+    { key: 'highconf', label: '⭐ High confidence', count: tierCounts.highconf, title: "The bot's own high-confidence TD flag." },
+    { key: 'aligned', label: '🧩 Aligned', count: tierCounts.aligned, title: '2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share.' },
+  ]
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    let out = rows
+    if (position !== 'all') out = out.filter((p) => p.position === position)
+    if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
+    if (tier === 'highconf') out = out.filter((p) => p.high_confidence_td_flag)
+    else if (tier === 'aligned') out = out.filter((p) => alignedSignals(matchup, p).aligned)
+    if (onlyWatched) out = out.filter((p) => watchlist.isPinned(p.player_id))
+    if (onlyUpcoming) out = out.filter((p) => {
+      const t = kickoffFor(data?.games, p)
+      return t != null && t > now
+    })
+    if (onlyPriced) out = out.filter((p) => {
+      const q = quoteFor(odds, p, MARKET)
+      return !!q && q.over != null && q.matches !== false
+    })
+
+    const cmp = sortBy === 'price'
+      ? (a, b) => {
+        const qa = quoteFor(odds, a, MARKET), qb = quoteFor(odds, b, MARKET)
+        const va = qa && qa.over != null && qa.matches !== false ? Number(qa.over) : -1e9
+        const vb = qb && qb.over != null && qb.matches !== false ? Number(qb.over) : -1e9
+        return vb - va || (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
+      }
+      : sortBy === 'kickoff'
+        ? (a, b) => {
+          const ta = kickoffFor(data?.games, a) ?? 9e15, tb = kickoffFor(data?.games, b) ?? 9e15
+          return ta - tb || (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
+        }
+        : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
+    return [...out].sort(cmp)
+  }, [rows, query, position, tier, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
+
+  const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
+  const hidden = filtered.length - capped.length
+
   if (!rows.length) {
     return <div style={{ color: C.text3, fontSize: TYPE.body, padding: 18 }}>
       No scored players in this week&apos;s payload yet.
     </div>
   }
 
-  const top = rows[0]
-  const topWhy = reasonFor(top, weights, base)
-  const shown = open ? rows : rows.slice(0, PREVIEW)
-
-  // ── SAY IT ONCE ────────────────────────────────────────────────────────
-  // Rendered this twice before believing it: the top of a touchdown board is
-  // genuinely homogeneous — the same handful of high-usage backs on the best
-  // offences — so the honest "what stands out about him" answer is the SAME
-  // sentence for the first six names, whichever way it is computed. Forcing a
-  // different one per player would mean inventing a distinction the model
-  // does not make.
-  //
-  // So the sentence prints on the first player it is true of and goes quiet
-  // underneath, and the anatomy strip carries the per-player difference
-  // instead. Six identical sentences in a column stop being information.
-  const seen = new Set()
-  const whyFor = shown.map((p) => {
-    const r = reasonFor(p, weights, base)
-    if (!r || seen.has(r)) return null
-    seen.add(r)
-    return r
-  })
-
   return (
     <div>
-      {/* THE ANSWER, BEFORE THE LIST — the same shape the Map's rebuild uses,
-          for the same reason: the page should say something before it asks
-          anyone to read a ranking. */}
-      <div className="td-hero">
-        <small>WHO SCORES A TOUCHDOWN THIS WEEK</small>
-        <h1>{top.name}</h1>
-        <p>
-          {topWhy
-            ? <>He {topWhy} — the best chance on the board across {games} game{games === 1 ? '' : 's'}.</>
-            : <>Top of the board across {games} game{games === 1 ? '' : 's'}.</>}
-        </p>
-        <div className="td-hero-stats">
-          <span><b>{rows.length}</b>players ranked</span>
-          <span><b>{rows.filter((p) => (p.scores?.[MARKET] ?? 0) >= 70).length}</b>rated A or better</span>
-        </div>
-      </div>
+      {/* ⚖️ COMPARE TWO (2026-09-16) — folded on a phone, open on desktop,
+          same rule Props' own compare tool uses. */}
+      <MobileFold title="⚖️ Compare two players" summary="side by side, stat for stat" accent={C.green}>
+        <TdCompare rows={rows} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} />
+      </MobileFold>
 
-      <div className="td-list">
-        {shown.map((p, i) => (
-          <Row key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
-               onPlayerClick={onPlayerClick} weights={weights} why={whyFor[i]} watchlist={watchlist} />
+      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 2 }}>
+        {tierPills.map((o) => (
+          <FilterPill key={o.key} active={tier === o.key} onClick={() => { setTier(o.key); setAll(false) }} count={o.count} title={o.title}>
+            {o.label}
+          </FilterPill>
         ))}
       </div>
 
-      {/* LONG-LIST RULE (site-wide, 2026-09-11): preview a short cut with a
-          clear way to see the rest. A phone does not want 180 rows. */}
-      {rows.length > PREVIEW && (
-        <button type="button" className="td-more" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-          {open ? 'Show fewer' : `Show all ${rows.length}`}
-        </button>
+      <div style={{ marginTop: 8 }}>
+        <FilterBar>
+          <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
+          <FilterSelect label="Position" value={position} options={positionOptions} onChange={setPosition} />
+        </FilterBar>
+      </div>
+
+      {/* Says WHY there's no price on a card below, rather than every card
+          just silently carrying nothing -- same discipline Boards.js/
+          Picks.js already hold odds_status.json to. Silent once a fetch has
+          actually succeeded. */}
+      {oddsStatus && (
+        <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      <p className="td-foot">
-        Ranked by the model&apos;s own touchdown score. The short bar is the
-        score; the striped bar beside it is what built it, so two players on
-        the same number can look different. A sentence appears the first time
-        it is true of somebody and stays quiet below that.
-      </p>
+      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Only</span>
+        <FilterPill active={onlyPriced} onClick={() => setOnlyPriced(!onlyPriced)} title="Cards where the book has posted a number on this player's anytime-TD line.">
+          💵 Priced
+        </FilterPill>
+        <FilterPill active={onlyUpcoming} onClick={() => setOnlyUpcoming(!onlyUpcoming)} title="His game has not kicked off yet.">
+          ⏱ Not kicked off
+        </FilterPill>
+        <FilterPill active={onlyWatched} onClick={() => setOnlyWatched(!onlyWatched)} title="Only names on your watchlist.">
+          ★ Watchlist
+        </FilterPill>
+        <span style={{ width: 6 }} />
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Sort</span>
+        {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
+          <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
+            title={k === 'score' ? "The model's own touchdown score — the page's default."
+              : k === 'price' ? 'Longest anytime-TD price first. An unpriced card sinks rather than sorting as if it were even money.'
+                : 'Earliest kickoff first.'}>
+            {label}
+          </FilterPill>
+        ))}
+      </div>
 
-      <style>{`
-        .td-hero{padding:22px 22px 18px;margin-bottom:11px;border:1px solid rgba(0,245,173,.26);border-radius:16px;
-          background:radial-gradient(circle at 88% 6%,rgba(0,245,173,.11),transparent 46%),${C.bg2}}
-        .td-hero small{display:block;color:${C.green};font:900 8.5px/1 ${NUM_FONT};letter-spacing:.19em}
-        .td-hero h1{margin:11px 0 8px;font-size:clamp(27px,5.4vw,44px);line-height:1.02;letter-spacing:-.035em;color:${C.text}}
-        .td-hero p{margin:0;max-width:620px;font-size:14px;line-height:1.55;color:${C.text2}}
-        .td-hero-stats{display:flex;gap:22px;margin-top:15px}
-        .td-hero-stats span{display:flex;flex-direction:column;gap:3px;color:${C.text3};font:800 8px/1.2 ${NUM_FONT};letter-spacing:.1em;text-transform:uppercase}
-        .td-hero-stats b{color:${C.green};font:900 21px/1 ${NUM_FONT}}
-        .td-list{display:flex;flex-direction:column;gap:5px}
-        .td-row{position:relative;display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;text-align:left;cursor:pointer;
-          border:1px solid ${C.border};border-radius:11px;background:rgba(255,255,255,.022);color:inherit}
-        .td-star{position:absolute;top:6px;right:6px;z-index:1;border-radius:7px;padding:3px 7px;font-size:13px;line-height:1;cursor:pointer}
-        .td-row:hover{border-color:rgba(0,245,173,.34);background:rgba(0,245,173,.045)}
-        .td-rank{flex:0 0 20px;font:900 12px/1 ${NUM_FONT};text-align:right}
-        .td-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
-        .td-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-        .td-name{font-size:13.5px;font-weight:700;color:${C.text}}
-        .td-vs{font:800 8.5px/1 ${NUM_FONT};color:${C.text3};letter-spacing:.06em}
-        .td-why{font-size:11.5px;line-height:1.4;color:${C.text2}}
-        .td-marks{display:flex;align-items:center;gap:9px}
-        .td-marks>span:first-child{flex:1;min-width:0}
-        .td-right{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-        .td-more{width:100%;margin-top:7px;padding:9px;cursor:pointer;border:1px solid ${C.border};
-          border-radius:10px;background:transparent;color:${C.text3};font:800 10px/1 ${NUM_FONT};letter-spacing:.1em}
-        .td-more:hover{border-color:rgba(0,245,173,.34);color:${C.green}}
-        .td-foot{margin:13px 0 0;max-width:620px;font-size:11px;line-height:1.55;color:${C.text3}}
-        @media(max-width:620px){
-          .td-hero{padding:17px 15px 15px}
-          .td-hero-stats{gap:16px}
-          .td-row{gap:8px;padding:9px 10px}
-          .td-why{font-size:11px}
-        }
-      `}</style>
+      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
+        {hidden > 0 ? `showing ${capped.length} of ${filtered.length}` : `${filtered.length} player${filtered.length === 1 ? '' : 's'}`}
+        {' across '}{games} game{games === 1 ? '' : 's'}
+        {' — ranked by the model’s own touchdown score.'}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>
+          Nothing matches.{' '}
+          {onlyPriced || onlyUpcoming || onlyWatched
+            ? `The ${[onlyPriced && 'Priced', onlyUpcoming && 'Not kicked off', onlyWatched && 'Watchlist'].filter(Boolean).join(' + ')} filter left nobody — turn one off above.`
+            : 'Clear the search or position filter above.'}
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
+            {capped.map((p, i) => (
+              <Card key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
+                    onPlayerClick={onPlayerClick} weights={weights} base={base} watchlist={watchlist} />
+            ))}
+          </div>
+          {hidden > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <FilterPill onClick={() => setAll(true)} count={hidden}>Show the rest</FilterPill>
+            </div>
+          )}
+        </>
+      )}
+
+      <p style={{ margin: '13px 0 0', maxWidth: 620, fontSize: 11, lineHeight: 1.55, color: C.text3 }}>
+        Ranked by the model&apos;s own touchdown score. The short bar is the score; the striped bar
+        beside it and the tags under the reason are what built it — the same weighted percentiles,
+        surfaced as jargon instead of only a shape.
+      </p>
     </div>
   )
 }
