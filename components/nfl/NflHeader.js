@@ -7,6 +7,15 @@ import PaletteButton from '../PaletteButton'
 import ThemeModeButton from '../ThemeModeButton'
 import AlertBell from './AlertBell'
 import SignUpPill from '../SignUpPill'
+
+// Same helper as components/Header.js -- kept as its own tiny copy here
+// rather than shared, matching how this file already keeps its own C
+// (lib/nfl/theme.js) instead of importing MOONSHOT's.
+const hexToRgba = (hex, a) => {
+  const h = String(hex).replace('#', '')
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
 // THE TICKER GETS LIVE SCORES + MORE HEADLINES (2026-09-06). Donovan: "the
 // roatating thing needs more stats and headlines things." MOONSHOT's header
 // has carried live scores + leader stat lines since the ticker rework
@@ -295,7 +304,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
     // navigation once you're down the page, same as MOONSHOT.
     <header className={tab === 'home' ? undefined : 'hdr-slate-on'} style={{
       position: 'relative', zIndex: 50,
-      background: 'rgba(9,9,11,0.86)', backdropFilter: 'blur(14px)',
+      background: hexToRgba(C.bg, 0.92), backdropFilter: 'blur(14px)',
       borderBottom: `1px solid ${C.border}`,
     }}>
       {/* ── THREE ROWS, SAME SHAPE AS MOONSHOT'S (2026-09-06) ─────────────
@@ -317,14 +326,16 @@ export default function NflHeader({ tab, setTab, data, meta }) {
           <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE"
             aria-label="DASH Network home"
             style={{ display: 'flex', textDecoration: 'none', borderRadius: 10 }}>
-          <div style={{
-            position: 'relative', width: 34, height: 34, borderRadius: 10,
+          <div className="nfl-hdr-mark" style={{
+            position: 'relative', width: 46, height: 46, borderRadius: 12,
             boxShadow: `0 0 18px ${C.green}75`, cursor: 'pointer',
           }}>
-            {/* The DASH Network monogram, identical on MOONSHOT. One mark, one
-                destination; the green TUDDY wordmark beside it says where you are. */}
-            <img src="/icon-192.png" alt="" width={34} height={34}
-              style={{ display: 'block', width: '100%', height: '100%', borderRadius: 10 }} />
+            {/* The DASH Network monogram, identical on MOONSHOT -- same 46px size
+                as Header.js's mark (2026-09-16 fix, was 34px and read as a lighter-
+                weight brand mark next to MOONSHOT's). One mark, one destination; the
+                green TUDDY wordmark beside it says where you are. */}
+            <img src="/icon-192.png" alt="" width={46} height={46}
+              style={{ display: 'block', width: '100%', height: '100%', borderRadius: 12 }} />
             {live > 0 && (
               <div style={{
                 position: 'absolute', top: -2, right: -2, width: 8, height: 8,
@@ -531,7 +542,7 @@ export default function NflHeader({ tab, setTab, data, meta }) {
       </nav>
 
       {moreOpen && (
-        <div style={{ borderTop:`1px solid ${C.border}`, background:'rgba(17,17,19,.98)' }}>
+        <div style={{ borderTop:`1px solid ${C.border}`, background:hexToRgba(C.bg2, .98) }}>
           <div className="nfl-simple-more" style={{
             maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
             display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:6,
@@ -605,6 +616,8 @@ export default function NflHeader({ tab, setTab, data, meta }) {
         }
         @media (max-width: 760px) {
           .nfl-header-rail { display: none !important; }
+          /* Same mobile size as Header.js's .hdr-mark (40px). */
+          .nfl-hdr-mark { width: 40px !important; height: 40px !important; }
           /* THE TICKER COMES BACK, EXCEPT ON HOME (2026-08-31). It went
              with the rest of the diet on the grounds that "Home's hero
              repeats the slate context" -- true of Home and of no other tab,
