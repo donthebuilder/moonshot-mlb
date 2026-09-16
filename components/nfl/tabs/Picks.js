@@ -10,7 +10,7 @@ import {
   CONVICTION, slateKey, slotKey, isLocked,
   getPicks, savePick, setConviction, clearPick,
   gradeSlate, recordSlate, ledgerTotals, exportStore, importStore, clearAll,
-  wilson95, separated,
+  wilson95, separated, readLedger, slateVerdict,
 } from '../../../lib/nfl/myPicks'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import MatchupBadge from '../MatchupBadge'
@@ -80,6 +80,41 @@ function Stat({ label, value, sub, color, big }) {
       }}>{value}</div>
       {sub && <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 2 }}>{sub}</div>}
     </div>
+  )
+}
+
+// 🟩 YOUR SLATES, AS A STRIP — the same instrument MLB's My Picks runs
+// (components/tabs/MyPicks.js's NightStrip), one square per graded slate:
+// green you beat the bot on contested rungs, red it beat you, grey a push
+// or a slate you didn't contest at all. Built entirely off readLedger(),
+// which the export/import/clear-all controls below were already reading —
+// this just draws what was already being recorded.
+function SlateStrip({ bump }) {
+  const rows = useMemo(() => readLedger().slice(-20), [bump])
+  if (rows.length < 2) return null
+  let streak = 0
+  const last = slateVerdict(rows[rows.length - 1])
+  if (last !== 0) {
+    for (let i = rows.length - 1; i >= 0 && slateVerdict(rows[i]) === last; i--) streak += 1
+  }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
+      <span style={{ display: 'inline-flex', gap: 2 }}>
+        {rows.map((r, i) => {
+          const v = slateVerdict(r)
+          return (
+            <span key={r.key || i}
+              title={`${r.key} — you ${r.mw ?? 0}, bot ${r.bw ?? 0} on ${r.n ?? 0} contested (${r.w ?? 0}–${r.l ?? 0}–${r.t ?? 0})`}
+              style={{
+                width: 7, height: 7, borderRadius: 1.5,
+                background: v > 0 ? C.green : v < 0 ? `${C.red}cc` : 'rgba(255,255,255,.14)',
+                boxShadow: i >= rows.length - streak && last !== 0 && v === last
+                  ? `0 0 4px ${last > 0 ? `${C.green}99` : `${C.red}88`}` : 'none',
+              }} />
+          )
+        })}
+      </span>
+    </span>
   )
 }
 
@@ -255,6 +290,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
             {totals.slates} slate{totals.slates === 1 ? '' : 's'}
             {totals.exhibition > 0 && ` · ${totals.exhibition} preseason`} · this device only
           </span>
+          <SlateStrip bump={bump} />
         </div>
 
         {totals.slates > 0 ? (
@@ -341,6 +377,37 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                   a read, not a finding.</>
               )}
             </div>
+
+            {/* DESCRIPTIVE ONLY — a run that happened, not a forecast for next
+                week. Same instrument and same caveat as MLB's streak line. */}
+            {(() => {
+              const st = totals.streak || {}
+              if (st.len >= 2) {
+                return (
+                  <div style={{
+                    fontSize: TYPE.body, color: st.dir > 0 ? C.green : C.red,
+                    marginTop: 8, lineHeight: 1.6,
+                  }}>
+                    {st.dir > 0
+                      ? <>🔥 <b>{st.len}</b> slate{st.len === 1 ? '' : 's'} running you have taken the head-to-head</>
+                      : <>🧊 The bot has taken it <b>{st.len}</b> slate{st.len === 1 ? '' : 's'} running</>}
+                    {' '}(longest on this record: <b style={{ color: C.text2 }}>{st.bestWin || 0}</b> yours,{' '}
+                    <b style={{ color: C.text2 }}>{st.bestLoss || 0}</b> its). A run that happened —
+                    it says nothing about next week.
+                  </div>
+                )
+              }
+              if (st.bestWin >= 2 || st.bestLoss >= 2) {
+                return (
+                  <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
+                    📆 Longest runs on this record: <b style={{ color: C.text2 }}>{st.bestWin || 0}</b> slates
+                    over the bot, <b style={{ color: C.text2 }}>{st.bestLoss || 0}</b> under it. Slates you
+                    contested nothing break a run rather than extend it.
+                  </div>
+                )
+              }
+              return null
+            })()}
           </>
         ) : (
           <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 9, lineHeight: 1.6 }}>
