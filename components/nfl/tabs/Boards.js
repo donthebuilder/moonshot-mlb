@@ -8,6 +8,7 @@ import NflFace from '../NflFace'
 import MatchupBadge from '../MatchupBadge'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
+import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 
 const LOG_FIELD = {
   TD: 'g_td',
@@ -77,6 +78,16 @@ function FormSparkline({ form, bar, color }) {
 // a column of numbers doesn't show you that.
 
 export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus }) {
+  // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
+  // MOONSHOT's PropsGrid found this exact gap 2026-08-24 (Donovan: "click a
+  // player to add to watch list, nothing happens") -- its card board had no
+  // direct star, only the modal you reach by opening the card first. TUDDY's
+  // own Watchlist.js empty state already tells a visitor to "tap SAVE TO
+  // WATCHLIST" on a card, but Boards.js -- the props card board Donovan
+  // explicitly likes -- never actually had that button. useNflWatchlist is
+  // the same hook StatPortal.js/Live.js/NflPlayerModal.js already call
+  // directly off `data`, self-contained -- no new prop plumbing needed.
+  const watchlist = useNflWatchlist(data)
   const [market, setMarket] = useState('TD')
   const [showLow, setShowLow] = useState(false)
   const [query, setQuery] = useState('')
@@ -213,7 +224,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           const g = gradeFor(s)
           const form = recentForm(logs, p.player_id, market, spec?.bar)
           return (
-            <button
+            <div
               key={p.player_id}
               onClick={() => onPlayerClick?.(p, market)}
               style={{
@@ -225,6 +236,17 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                 opacity: p.low_sample ? 0.5 : 1,
               }}
             >
+              <button
+                onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
+                title={watchlist.isPinned(p.player_id) ? 'Remove from watchlist' : 'Add to watchlist'}
+                style={{
+                  position: 'absolute', top: 6, right: 6, zIndex: 1,
+                  background: watchlist.isPinned(p.player_id) ? 'rgba(0,245,173,.14)' : 'transparent',
+                  border: `1px solid ${watchlist.isPinned(p.player_id) ? C.green : C.border}`,
+                  color: watchlist.isPinned(p.player_id) ? C.green : C.text3,
+                  borderRadius: 7, padding: '3px 7px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
+                }}
+              >{watchlist.isPinned(p.player_id) ? '★' : '☆'}</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
                   fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, minWidth: 13,
@@ -283,7 +305,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                   )}
                 </div>
               )}
-            </button>
+            </div>
           )
         })}
       </div>
