@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { fetchNfl, nflFantasyStatsPaths, nflFantasyStatsLooksReal } from '../../../lib/nfl/dataSource'
 import DenseTable from '../../DenseTable'
+import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { Empty } from '../../ui'
 
 // 📋 BOX SCORES — TUDDY'S SIDE OF PATH TO VICTORY B10m.
@@ -125,12 +126,15 @@ function TeamDefenseStrip({ away, home, defense }) {
   )
 }
 
-function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick }) {
+function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick, watchlist }) {
   const st = statusOf(game)
   const away = byTeam.get(game.away) || []
   const home = byTeam.get(game.home) || []
   const pool = useMemo(() => [...away, ...home], [away, home])
   const anyStats = pool.length > 0
+  const watchColumn = { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
+    titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
+    onAction: (row) => watchlist.toggle(row) }
 
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
@@ -160,6 +164,7 @@ function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick }) {
             <div style={{ paddingTop: 8 }}>
               {CATS.map((cat) => {
                 const rows = pool.filter((p) => cat.has(p)).sort((a, b) => (b[cat.sort] || 0) - (a[cat.sort] || 0))
+                  .map((p) => ({ ...p, watched: watchlist.isPinned(p.id) ? 1 : 0 }))
                 if (!rows.length) return null
                 return (
                   <div key={cat.key} style={{ marginBottom: 10 }}>
@@ -168,7 +173,7 @@ function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick }) {
                     </div>
                     <DenseTable
                       rows={rows}
-                      columns={cat.columns}
+                      columns={[watchColumn, ...cat.columns]}
                       onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, cat.key === 'passing' ? 'PASS_YDS' : cat.key === 'rushing' ? 'RUSH_YDS' : cat.key === 'receiving' ? 'REC_YDS' : 'KICK_PTS') : null}
                       maxHeight={9999}
                       dense
@@ -186,6 +191,7 @@ function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick }) {
 }
 
 export default function BoxScores({ data, onPlayerClick }) {
+  const watchlist = useNflWatchlist(data)
   const [stats, setStats] = useState(undefined) // undefined = loading, null = unreachable
   const [open, setOpen] = useState(() => new Set())
 
@@ -257,6 +263,7 @@ export default function BoxScores({ data, onPlayerClick }) {
           open={open.has(g.game_id)}
           onToggle={() => toggle(g.game_id)}
           onPlayerClick={onPlayerClick}
+          watchlist={watchlist}
         />
       ))}
     </div>
