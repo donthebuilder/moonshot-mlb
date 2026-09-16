@@ -154,7 +154,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         </div>
       </aside>
 
-      <nav className="mobileTabBar" aria-label={`${brand} primary navigation`}>
+      <nav className="mobileTabBar" aria-label={`${brand} primary navigation`} style={{ '--tab-count': main.length + 1 }}>
         {main.map(([key, icon, label]) => (
           <button key={key} tabIndex={open ? undefined : -1} className={tab === key ? 'active' : ''} onClick={() => go(key)} aria-current={tab === key ? 'page' : undefined}>
             <i>{icon}</i><span>{label}</span>
@@ -215,7 +215,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         }
         @media(max-width:760px){
           :global(.dashboard-main){padding-bottom:102px!important}
-          .mobileTabBar{position:fixed;z-index:390;left:10px;right:10px;bottom:max(9px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);height:62px;padding:5px;border:1px solid ${C.border2};border-radius:17px;background:color-mix(in srgb,${C.bg2} 92%,transparent);box-shadow:0 18px 55px #000b,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(18px) saturate(140%)}
+          .mobileTabBar{position:fixed;z-index:390;left:10px;right:10px;bottom:max(9px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(var(--tab-count,5),1fr);height:62px;padding:5px;border:1px solid ${C.border2};border-radius:17px;background:color-mix(in srgb,${C.bg2} 92%,transparent);box-shadow:0 18px 55px #000b,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(18px) saturate(140%)}
           .mobileTabBar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;border:0;border-radius:12px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.02em}
           .mobileTabBar button i{height:20px;color:${C.text2};font-family:system-ui;font-size:16px;font-style:normal;line-height:20px}
           .mobileTabBar button.active{background:linear-gradient(145deg,#f9731628,#fcd34d0b);color:#fbbf24}
