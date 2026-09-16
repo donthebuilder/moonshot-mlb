@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
+import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 
 // 🚀 EXPLOSIVE — TUDDY'S SIDE OF PATH TO VICTORY B10(l), THE POWER BOARD.
 //
@@ -50,7 +51,10 @@ const BUCKET_COLS = [
   { key: 'rec_40', label: '40+', w: 34, dp: 0, title: '40+ yard receptions' },
 ]
 
-const PLAYER_COLUMNS = [
+const buildPlayerColumns = (watchlist) => [
+  { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
+    titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
+    onAction: (row) => watchlist.toggle(row) },
   { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 148 },
   { key: 'team', label: 'Team', heat: false, w: 46 },
   { key: 'position', label: 'Pos', heat: false, w: 40 },
@@ -82,6 +86,7 @@ const DEFENSE_COLUMNS = [
 ]
 
 export default function Explosive({ matchup, data, onPlayerClick }) {
+  const watchlist = useNflWatchlist(data)
   const [lens, setLens] = useState('player')
   const [query, setQuery] = useState('')
   const [team, setTeam] = useState('all')
@@ -108,10 +113,11 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         team: p.team,
         position: p.position,
         opp: p.opp,
+        watched: watchlist.isPinned(pid) ? 1 : 0,
         _raw: p,
       }
     }).filter(Boolean)
-  }, [matchup, rosterById])
+  }, [matchup, rosterById, watchlist])
 
   const defenseRows = useMemo(() => {
     const de = matchup?.def_explosive || {}
@@ -221,7 +227,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
       {lens === 'player' ? (
         <DenseTable
           rows={filteredPlayers}
-          columns={PLAYER_COLUMNS}
+          columns={buildPlayerColumns(watchlist)}
           initialSort="rec_20"
           onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, 'REC_YDS') : null}
           maxRows={269}
