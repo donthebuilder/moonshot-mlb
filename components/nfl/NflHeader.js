@@ -21,8 +21,17 @@ const hexToRgba = (hex, a) => {
 // has carried live scores + leader stat lines since the ticker rework
 // earlier today (lib/headlines.js's useLiveScores) -- TUDDY's own ticker
 // never picked them up because it renders a fixed set of slate-projection
-// Tiles, not a live feed. Same hook, filtered to NFL only (it also carries
-// MLB games for MOONSHOT's header, which have no business on this one).
+// Tiles, not a live feed. Same hook MOONSHOT's Scorebug uses.
+//
+// SEAMLESS ACROSS THE SITE (2026-09-17). Donovan: "its not showing the
+// bsasbll game ... i just want the hader to be seamleass acrre those whole
+// site." This used to call the hook as `useLiveScores({ nfl: true })` and
+// then immediately `.filter((i) => i.sport === 'nfl')` -- but the hook
+// fetches MLB's schedule unconditionally regardless of that `nfl` flag (read
+// lib/headlines.js: `pullMlb`/`pullYday`/`pullLines` never check it), so
+// this was throwing away MLB scores it had already paid for the network
+// call to fetch, for no reason. Removed. Both sports now ride the same
+// strip, same as MOONSHOT's header always has -- see `liveItems` below.
 import { useLiveScores, useAutoScroll } from '../../lib/headlines'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
@@ -115,30 +124,51 @@ const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 // left, status strip centre, controls right, tab rail underneath — so the
 // switch feels like changing channel, not changing site. Only the accents move.
 
-function Tile({ label, value, color, title, live = false }) {
+// Shared box for every ticker chip, tappable or not -- pulled out so the
+// tappable branch below doesn't duplicate it with slightly different values
+// and drift out of sync the way the two headers themselves used to.
+const tileBox = (color) => ({
+  display: 'flex', alignItems: 'center', gap: 8,
+  padding: '5px 13px', borderRadius: 9,
+  background: `linear-gradient(135deg, ${color}1e, ${color}08)`,
+  border: `1px solid ${color}4d`,
+})
+
+// TAPPABLE NOW (2026-09-17). MOONSHOT's own ticker pill has always been a
+// <button> with an onClick -- see components/Header.js's `Pill`. This one was
+// a plain <div>, so nothing in TUDDY's strip ever responded to a tap. `onClick`
+// is optional: the static slate-projection tiles (Games, Proj TD, Pool, etc.)
+// have nowhere to navigate to and stay inert divs, same as before. Only the
+// live-score and headline tiles below pass one in.
+function Tile({ label, value, color, title, live = false, onClick }) {
+  const interactive = typeof onClick === 'function'
+  const inner = (
+    <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+      <span style={{
+        fontSize: 7.5, color: C.text3, textTransform: 'uppercase',
+        letterSpacing: '.09em', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4,
+      }}>
+        {/* Reuses the same @keyframes pulse this file already defines for
+            the account menu -- one animation, two consumers, not a second
+            copy. */}
+        {live && <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: color, animation: 'pulse 2s infinite' }} />}
+        {label}
+      </span>
+      <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color }}>{value}</span>
+    </div>
+  )
+  if (interactive) {
+    return (
+      <button type="button" onClick={onClick} title={title} style={{
+        ...tileBox(color), cursor: 'pointer', color: 'inherit', font: 'inherit',
+      }}>
+        {inner}
+      </button>
+    )
+  }
   return (
-    <div
-      title={title}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '5px 13px', borderRadius: 9,
-        background: `linear-gradient(135deg, ${color}1e, ${color}08)`,
-        border: `1px solid ${color}4d`,
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
-        <span style={{
-          fontSize: 7.5, color: C.text3, textTransform: 'uppercase',
-          letterSpacing: '.09em', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4,
-        }}>
-          {/* Reuses the same @keyframes pulse this file already defines for
-              the account menu -- one animation, two consumers, not a second
-              copy. */}
-          {live && <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: color, animation: 'pulse 2s infinite' }} />}
-          {label}
-        </span>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color }}>{value}</span>
-      </div>
+    <div title={title} style={tileBox(color)}>
+      {inner}
     </div>
   )
 }
@@ -188,7 +218,7 @@ function NflSettingsSheet() {
   )
 }
 
-export default function NflHeader({ tab, setTab, data, meta, matchup }) {
+export default function NflHeader({ tab, setTab, data, meta, matchup, onPlayerClick }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const go = (next) => { setMoreOpen(false); setTab(next) }
   const games = data?.games?.length ?? 0
@@ -219,13 +249,16 @@ export default function NflHeader({ tab, setTab, data, meta, matchup }) {
   const topRec = rows.reduce(
     (best, p) => ((p?.scores?.REC_YDS ?? -1) > (best?.scores?.REC_YDS ?? -1) ? p : best), null)
 
-  // LIVE SCORES + LEADERS RIDE THE TICKER TOO (2026-09-06). Same hook
-  // MOONSHOT's header ticker uses; filtered to NFL because it also carries
-  // MLB games for that header. `data.games` above is the slate's own
+  // LIVE SCORES + LEADERS RIDE THE TICKER TOO (2026-09-06; unfiltered
+  // 2026-09-17). Same hook MOONSHOT's header ticker uses, and now the same
+  // BOTH-SPORTS output -- see the import comment above for why the old
+  // `.filter((i) => i.sport === 'nfl')` was actively throwing away data the
+  // hook had already fetched. `data.games` above is the slate's own
   // projections payload (has a staleness clock, gets rebuilt on a schedule)
-  // -- this is the actual live ESPN poll, so during a real Sunday these two
-  // sources can (correctly) disagree about which games are "live" right now.
-  const nflLive = useLiveScores({ nfl: true }).items.filter((i) => i.sport === 'nfl')
+  // -- this is the actual live ESPN/MLB poll, so during a real Sunday these
+  // two sources can (correctly) disagree about which games are "live" right
+  // now.
+  const liveItems = useLiveScores().items
 
   // REAL HEADLINE STORY-BITES (2026-09-16). Same idea as MOONSHOT's
   // ticker: live scores plus a handful of real, icon-tagged "what does
@@ -234,6 +267,30 @@ export default function NflHeader({ tab, setTab, data, meta, matchup }) {
     () => buildNflHeadlines({ players: rows, games: data?.games || [], markets: data?.markets || [], matchup }),
     [rows, data?.games, data?.markets, matchup],
   )
+
+  // WHERE A TAP ON A LIVE/HEADLINE TILE GOES (2026-09-17). Mirrors
+  // components/Header.js's own `open()` exactly in spirit -- a player bite
+  // opens the player, an item for the other product switches products, an
+  // item for this one jumps to the page that shows it -- but the
+  // destinations are TUDDY's own, not copied verbatim: `useLiveScores()`
+  // items only carry `nav: 'nfl'`/`'scoreboard'` meanings that make sense
+  // from MOONSHOT's side (see lib/headlines.js); from inside TUDDY itself,
+  // an MLB item's job is "send me to MOONSHOT" and an NFL item's job is
+  // "show me TUDDY's own live scores" -- `live` in lib/routes.js's alias
+  // table, confirmed to resolve to TUDDY's scoreboard tab. Four of
+  // buildNflHeadlines's five bite types (THE BOT'S #1, HIGH-CONFIDENCE,
+  // SIGNAL STACK, SOFTEST MATCHUP) carry a real player row on `.p` -- same
+  // shape `openPlayer` already takes from every other TUDDY tab (Touchdowns,
+  // Boards, Games, ...), so this reuses the same `onPlayerClick` prop rather
+  // than inventing a second way to open a player. The fifth (GAME TO CIRCLE)
+  // carries `nav: 'games'` instead. A bite with neither renders but does
+  // nothing, same honesty rule MOONSHOT's `open()` uses.
+  const openTile = (it) => {
+    if (it.p) onPlayerClick?.(it.p)
+    else if (it.sport === 'mlb') setSport('mlb')
+    else if (it.sport === 'nfl') go('live')
+    else if (it.nav) go(it.nav)
+  }
 
   // Expected touchdowns summed per team, then per matchup. Same shape as
   // MOONSHOT's "best game" tile, so the two products read alike.
@@ -260,12 +317,12 @@ export default function NflHeader({ tab, setTab, data, meta, matchup }) {
   // Formatted in an effect, never during render: a kickoff rendered in the
   // server's timezone and again in the reader's is a hydration mismatch, and
   // this is a sticky header that would flash on every load.
-  const [kickLabel, setKickLabel] = useState('\u2014')
+  const [kickLabel, setKickLabel] = useState('—')
   useEffect(() => {
     const t = Date.parse(nextKick?.kickoff || '')
     setKickLabel(Number.isFinite(t)
       ? new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
-      : '\u2014')
+      : '—')
   }, [nextKick?.kickoff])
 
   const builtAt = meta?.built_at || data?.built_at || ''
@@ -462,8 +519,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup }) {
               sync again just because one of them grows a tile. The set still
               renders twice into one track (that hook's own loop math
               requires it) and the echo is still aria-hidden -- a visual
-              repeat, not new content -- and nothing in the strip is
-              clickable, so an animated row can't steal a tap.
+              repeat, not new content.
 
               Layout is TUDDY's own (.nfl-tiles-set) because these tiles size
               from their content, not MOONSHOT's fixed 104px cells. The
@@ -483,30 +539,46 @@ export default function NflHeader({ tab, setTab, data, meta, matchup }) {
                   title="Players clearing A- (62) in at least one market" />
             <Tile label="Pool" value={rows.length} color={C.text2}
               title="Players this slate scored — the pool every board on TUDDY is drawn from" />
-            <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '\u2014'} color={C.green}
+            <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '—'} color={C.green}
               title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} />
-            <Tile label="Best game" value={bestGame ? bestGame.label : '\u2014'} color={C.cyan}
+            <Tile label="Best game" value={bestGame ? bestGame.label : '—'} color={C.cyan}
               title={bestGame ? `${bestGame.label} — ${bestGame.total.toFixed(1)} expected touchdowns between the two, the most on the slate` : 'No games scored yet'} />
-            <Tile label="Top rusher" value={topRush?.scores?.RUSH_YDS ? Math.round(topRush.scores.RUSH_YDS) : '\u2014'} color={C.orange}
+            <Tile label="Top rusher" value={topRush?.scores?.RUSH_YDS ? Math.round(topRush.scores.RUSH_YDS) : '—'} color={C.orange}
               title={topRush?.name ? `${topRush.name} — ${Number(topRush.stats?.RUYD || 0).toFixed(1)} rush yds/game season average` : 'No scored players yet'} />
-            <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '\u2014'} color={C.purple}
+            <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '—'} color={C.purple}
               title={topRec?.name ? `${topRec.name} — ${Number(topRec.stats?.RECYD || 0).toFixed(1)} rec yds/game season average` : 'No scored players yet'} />
             <Tile label={live > 0 ? 'Live' : 'Kickoff'} value={live > 0 ? live : kickLabel}
               color={live > 0 ? C.yellow : C.text2}
               title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
-            {/* LIVE, FROM ESPN, NOT FROM THE SLATE PAYLOAD (2026-09-06). One
-                tile per live/final game, a leader tile right after each --
-                same order MOONSHOT's ticker uses (score, then up to two
-                stat-line leaders), same useLiveScores() output shape. */}
-            {nflLive.map((i) => (
-              <Tile key={i.k} label={i.sub || (i.live ? 'live' : i.pregame ? 'kickoff' : 'final')} value={i.text} color={i.col} live={!!i.live}
-                title={i.kind === 'leader' ? `Leading this game's stat line` : (i.live ? 'Live now — open TUDDY’s Live tab' : i.pregame ? 'Not underway yet' : 'Final')} />
+            {/* LIVE, FROM ESPN + MLB, NOT FROM THE SLATE PAYLOAD (2026-09-06;
+                both sports 2026-09-17). One tile per live/final game, a
+                leader tile right after each -- same order MOONSHOT's ticker
+                uses (score, then up to two stat-line leaders), same
+                useLiveScores() output shape. Every tile here is tappable --
+                see `openTile` above. */}
+            {liveItems.map((i) => (
+              <Tile
+                key={i.k}
+                label={`${i.icon ? `${i.icon} ` : ''}${i.sub || (i.live ? 'live' : i.pregame ? 'kickoff' : 'final')}`}
+                value={i.text}
+                color={i.col}
+                live={!!i.live}
+                onClick={() => openTile(i)}
+                title={
+                  i.sport === 'mlb'
+                    ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : `${i.live ? 'Live on MOONSHOT' : i.pregame ? 'Not underway yet' : 'Final'} — tap to switch to MOONSHOT`)
+                    : (i.kind === 'leader' ? `Leading this game's stat line` : (i.live ? 'Live now — open TUDDY’s Live tab' : i.pregame ? 'Not underway yet — open TUDDY’s Live tab' : 'Final — open TUDDY’s Live tab'))
+                }
+              />
             ))}
             {/* REAL STORY-BITES (2026-09-16) -- MOONSHOT's ticker equivalent.
                 Icon folded into the label like Header.js's Pill does; `why`
-                carries the reasoning as the tooltip, same as MOONSHOT. */}
+                carries the reasoning as the tooltip, same as MOONSHOT.
+                Tappable now too: a `.p` bite opens that player, a `.nav`
+                bite (GAME TO CIRCLE) jumps to Games. */}
             {heads.map((h) => (
-              <Tile key={`h-${h.k}`} label={`${h.icon} ${h.tag}`} value={h.name} color={h.col} title={h.why} />
+              <Tile key={`h-${h.k}`} label={`${h.icon} ${h.tag}`} value={h.name} color={h.col} title={h.why}
+                onClick={(h.p || h.nav) ? () => openTile(h) : undefined} />
             ))}
           </TickerStrip>
           {isPre && (
