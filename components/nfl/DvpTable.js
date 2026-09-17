@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
+import { softRole } from '../../lib/nfl/dvpSignal'
 
 // Defence vs position, BY DEPTH ROLE.
 //
@@ -114,12 +115,15 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
   }
 
   // The softest cell on the board, so the panel opens on an answer instead of
-  // making you find one.
-  let best = null
-  for (const r of rows) for (const s of stats) {
-    const rk = blob[r]?.[`${s}_rank`]
-    if (Number.isFinite(rk) && (!best || rk < best.rank)) best = { role: r, stat: s, rank: rk }
-  }
+  // making you find one. Was its own inline minimum-rank loop -- the exact
+  // bug lib/nfl/dvpSignal.js's own header describes fixing everywhere else
+  // on 2026-09-13 (measured live: 18 of 32 defences landed at "1st softest
+  // of 32," 11 more at 2nd -- the minimum of many ranked draws, not a real
+  // signal). This file's own footer never got that fix. Now calls the same
+  // shared softRole() every other "softest cell" sentence on the site uses,
+  // scoped to `rows` so a role-restricted view (the player modal's own
+  // position group) can't name a role that isn't even in the table above it.
+  const best = softRole(data, team, win, rows)
 
   // The caller's minWidth was written for the old two-line cells and is now a
   // CEILING, not a floor: a strip needs 32px a column and 88 for the label, so
@@ -166,10 +170,10 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
         </div>
       </div>
 
-      {best && (
+      {best?.standout && (
         <div style={{ fontSize: 10.5, color: C.text2, marginTop: 9, lineHeight: 1.55 }}>
           Softest cell on this board: <b style={{ color: C.green }}>{best.role}</b> in
-          {' '}<b style={{ color: C.green }}>{labels[best.stat] || best.stat}</b>, {best.rank} of 32.
+          {' '}<b style={{ color: C.green }}>{best.label}</b>, {best.rank} of 32.
         </div>
       )}
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
