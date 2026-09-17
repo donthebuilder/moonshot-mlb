@@ -2,13 +2,15 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
+import { kickoffFor } from '../../../lib/nfl/kickoff'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import NflFace from '../NflFace'
 import MatchupBadge from '../MatchupBadge'
-import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
+import { ActiveFilters, FilterBar, FilterPill, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
+import { reasonFor, baselineFor, topStatChips } from '../ScoreAnatomy'
 
 const LOG_FIELD = {
   TD: 'g_td',
@@ -76,7 +78,29 @@ function FormSparkline({ form, bar, color }) {
 // The score bar is the whole visual. At a glance you want the SHAPE of the
 // board — is this a market with three clear plays or twenty coin flips — and
 // a column of numbers doesn't show you that.
-
+//
+// ── 2026-09-17: THE "WHY" LINE + STAT CHIPS + SORT (markets-prominence pass) ─
+//
+// Donovan, off a screenshot of MOONSHOT's storylines and a separate note the
+// same day: "the prop eq rn is touchdowns just add the different markets rec
+// yards rush yards pass yards you know i feel we need induivual score for
+// each posititokns in a sense." Traced first
+// (claude/tuddy-storylines-and-markets-audit-2026-09-16.md): every player
+// already carries a real, weighted `scores`/`components` object across all
+// seven markets (bots/nfl/nfl_scoring.py) — this page has been ranking by
+// that score since it shipped. The gap wasn't the model, it was that this
+// page — the one place all six non-TD markets actually live — never got
+// Touchdowns.js's own "here's what's actually driving this number" layer:
+// the one-line reason and the stat chips underneath a card. Two scoping
+// questions later (one combined page, all six non-TD markets), this is that
+// layer, generalized off Touchdowns.js's own reasonFor()/topStatChips()
+// (now market-parametrized in ScoreAnatomy.js, see its header) instead of a
+// second copy written for six more markets. Sort by price/kickoff is the
+// same parity move, off the same kickoffFor() Touchdowns.js already used.
+//
+// TD stays in this page's own market pills too — Touchdowns.js's own
+// dedicated page still exists for the deeper tier/compare-tool experience,
+// this is not a replacement for it, just the rest of the board catching up.
 export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus }) {
   // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
   // MOONSHOT's PropsGrid found this exact gap 2026-08-24 (Donovan: "click a
@@ -93,11 +117,21 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const [query, setQuery] = useState('')
   const [team, setTeam] = useState('all')
   const [position, setPosition] = useState('all')
+  const [sortBy, setSortBy] = useState('score')
 
   const spec = useMemo(
     () => (data?.markets || []).find((m) => m.key === market),
     [data, market],
   )
+
+  // Baseline is the market's FULL eligible pool, not whatever the search/
+  // team/position filters below leave on screen -- the same rule
+  // Touchdowns.js's own baseline always followed. Computed off it, not off
+  // `rows`, so searching one name can't collapse the league median to n=1.
+  const base = useMemo(() => {
+    const eligible = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
+    return baselineFor(eligible, market)
+  }, [data, market])
 
   const rows = useMemo(() => {
     const all = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
@@ -108,11 +142,24 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       && (position === 'all' || p.position === position)
       && (!needle || String(p.name || '').toLowerCase().includes(needle))
     ))
+    const cmp = sortBy === 'price'
+      ? (a, b) => {
+        const qa = quoteFor(odds, a, market), qb = quoteFor(odds, b, market)
+        const va = qa && qa.over != null && qa.matches !== false ? Number(qa.over) : -1e9
+        const vb = qb && qb.over != null && qb.matches !== false ? Number(qb.over) : -1e9
+        return vb - va || (b.scores[market] ?? 0) - (a.scores[market] ?? 0)
+      }
+      : sortBy === 'kickoff'
+        ? (a, b) => {
+          const ta = kickoffFor(data?.games, a) ?? 9e15, tb = kickoffFor(data?.games, b) ?? 9e15
+          return ta - tb || (b.scores[market] ?? 0) - (a.scores[market] ?? 0)
+        }
+        : (a, b) => b.scores[market] - a.scores[market]
     // 60 was most of a 102-player preseason pool. Week 1 scores 500+, so 60
     // is a silent truncation of the board this tab exists to be -- and there
     // was no "showing 60 of N" anywhere to say so.
-    return kept.sort((a, b) => b.scores[market] - a.scores[market]).slice(0, 200)
-  }, [data, market, showLow, query, team, position])
+    return kept.sort(cmp).slice(0, 200)
+  }, [data, market, showLow, query, team, position, sortBy, odds])
 
   const filterOptions = useMemo(() => {
     const eligible = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
@@ -162,6 +209,17 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
             ]}
           />
         </FilterBar>
+        <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Sort</span>
+          {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
+            <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
+              title={k === 'score' ? "The model's own score for this market — the board's default."
+                : k === 'price' ? 'Longest price first. An unpriced card sinks rather than sorting as if it were even money.'
+                  : 'Earliest kickoff first.'}>
+              {label}
+            </FilterPill>
+          ))}
+        </div>
         <ActiveFilters
           shown={rows.length}
           total={(data?.players || []).filter((p) => Number.isFinite(p.scores?.[market])).length}
@@ -223,6 +281,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           const s = p.scores[market]
           const g = gradeFor(s)
           const form = recentForm(logs, p.player_id, market, spec?.bar)
+          const why = reasonFor(p, spec?.weights, base, market)
+          const chips = topStatChips(p.components?.[market], spec?.weights, 2)
           return (
             <div
               key={p.player_id}
@@ -280,6 +340,25 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                   }}>{g.label}</div>
                 </div>
               </div>
+
+              {/* THE WHY LINE + CHIPS (2026-09-17) — the same "here's what's
+                  actually driving this number" Touchdowns.js gives TD,
+                  generalized off the real components/weights every market
+                  already publishes. Renders nothing on a market/player pair
+                  with no component clearing reasonFor()'s own bar, same as
+                  Touchdowns -- an absent line is honest, not a bug. */}
+              {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.35 }}>He {why}.</div>}
+              {chips && chips.length > 0 && (
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {chips.map((c) => (
+                    <span key={c.key} style={{
+                      fontSize: 8.5, fontWeight: 800, letterSpacing: '.02em', padding: '2px 7px',
+                      borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+                      color: C.text2, border: `1px solid ${g.color}33`, background: `${g.color}0f`,
+                    }}>{c.t}</span>
+                  ))}
+                </div>
+              )}
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                 <FormSparkline form={form} bar={spec?.bar} color={g.color} />

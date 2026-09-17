@@ -90,6 +90,121 @@ export function anatomyOf(components, weights) {
   return { parts, composite, lead }
 }
 
+// ── WHY / REASONFOR / BASELINEFOR / TOPSTATCHIPS (2026-09-17, markets pass) ─
+//
+// Donovan, off the MOONSHOT storylines screenshot: "the prop eq rn is
+// touchdowns just add the different markets... i feel we need induivual
+// score for each position in a sense." Traced first
+// (claude/tuddy-storylines-and-markets-audit-2026-09-16.md): every player
+// already carries a `scores`/`components` object across all 7 markets
+// (bots/nfl/nfl_scoring.py, bots/nfl/nfl_bot.py) — the model and the numbers
+// were never missing. What Touchdowns.js had that the other six markets'
+// home (Boards.js) didn't was the ONE-LINE "why" explanation and the stat
+// chips underneath a card — Touchdowns.js's own WHY map, `reasonFor()` and
+// `statChips()`, hardcoded to the TD market and its eight TD-only
+// components.
+//
+// These four exports are that same logic, market-parametrized instead of
+// TD-only, so Boards.js's seven-market card board can give every market the
+// same "here's what's actually driving this number" sentence Touchdowns
+// gives TD — not a new model, not new copy invented for its own sake: WHY's
+// twenty new clauses are one-line descriptions of the real components
+// bots/nfl/nfl_scoring.py's MODELS table already weights for REC_YDS, REC,
+// RUSH_YDS, RUSH_ATT, PASS_YDS and KICK_PTS (read there before adding a
+// component key here — a clause with no matching weight in a market's own
+// model is dead code, not a feature).
+//
+// Touchdowns.js has been refactored to call these instead of keeping its own
+// copy (rule #21: one place, not seven markets each growing their own).
+export const WHY = {
+  // TD (bots/nfl/nfl_scoring.py MODELS.TD.w)
+  f_gl_opp:      'gets the ball right next to the end zone more than almost anyone',
+  f_rz_opp:      'is on the field for the plays that happen close to the end zone',
+  f_touches:     'gets handed the ball constantly — the offence runs through him',
+  f_snap_pct:    'almost never comes off the field',
+  implied_total: 'plays for the team expected to score the most points',
+  f_xtd:         'gets the kind of chances that usually turn into touchdowns',
+  opp_td_soft:   'faces a defence that has been giving touchdowns up',
+  td_regression: 'has had the chances and not cashed them yet',
+  // REC_YDS (MODELS.REC_YDS.w)
+  f_wopr:                'commands a huge share of his team’s targets and air yards',
+  f_receiving_yards:     'has been racking up real receiving yardage lately',
+  f_receiving_air_yards: 'is getting targeted deep down the field',
+  opp_pass_soft:         'faces a defence that has been giving up yards through the air',
+  // REC (MODELS.REC.w)
+  f_target_share: 'is one of his team’s most-targeted receivers',
+  f_receptions:   'has been catching the ball at a high rate',
+  f_targets:      'keeps getting thrown the ball',
+  // RUSH_YDS / RUSH_ATT (MODELS.RUSH_YDS.w, MODELS.RUSH_ATT.w)
+  f_carries:                                'keeps getting handed the ball',
+  f_rushing_yards:                          'has been piling up rushing yards lately',
+  f_rz_car:                                 'gets the ball on the ground near the goal line',
+  f_ngs_rush_yards_over_expected_per_att:   'gains more per carry than a runner in his shoes usually would',
+  // PASS_YDS (MODELS.PASS_YDS.w)
+  total_line:      'is in a game Vegas expects to be a shootout',
+  f_passing_yards: 'has been throwing for real yardage lately',
+  f_attempts:      'throws the ball more than almost anyone',
+  f_passing_cpoe:  'completes passes at a higher rate than the situation calls for',
+  // KICK_PTS (MODELS.KICK_PTS.w)
+  f_tm_fg_drive_rate:  'plays for an offense whose drives keep stalling into field-goal range',
+  f_tm_rz_td_rate_inv: 'plays for an offense that struggles to finish drives with touchdowns, which means more kicks',
+  f_fg_att:            'gets a high number of field-goal chances',
+  kick_env:            'kicks in a clean, low-wind setup',
+  f_tm_drives:         'plays for a team that runs more drives than most',
+}
+
+/** Per-component league median for `market`, over whatever pool the caller
+ * hands in — Touchdowns.js passes every TD-eligible player before its own
+ * search/tier filters narrow the view; Boards.js does the same per market,
+ * so the baseline doesn't collapse to n=1 the moment someone searches a
+ * name. */
+export function baselineFor(rows, market) {
+  const acc = {}
+  for (const p of rows) {
+    for (const [k, v] of Object.entries(p?.components?.[market] || {})) {
+      if (Number.isFinite(Number(v))) (acc[k] ||= []).push(Number(v))
+    }
+  }
+  const out = {}
+  for (const [k, vals] of Object.entries(acc)) {
+    vals.sort((a, b) => a - b)
+    out[k] = vals[Math.floor(vals.length / 2)]
+  }
+  return out
+}
+
+/** The single biggest reason THIS player is scoring what he's scoring in
+ * `market`, as a plain clause ("gets handed the ball constantly...") — or
+ * null when nothing clears the bar (best percentile under 60, or no
+ * component actually ahead of the field). Same edge = (percentile - league
+ * median) * weight Touchdowns.js always used, just pointed at whichever
+ * market's own components/weights the caller passes in. */
+export function reasonFor(player, weights, base, market) {
+  const comps = player?.components?.[market]
+  if (!comps || !weights) return null
+  let best = null
+  for (const [k, pctRaw] of Object.entries(comps)) {
+    const w = Number(weights[k])
+    const pct = Number(pctRaw)
+    if (!Number.isFinite(w) || !Number.isFinite(pct) || !WHY[k]) continue
+    const edge = (pct - (base?.[k] ?? 50)) * w
+    if (!best || edge > best.edge) best = { k, edge, pct }
+  }
+  if (!best || best.pct < 60 || best.edge <= 0) return null
+  return WHY[best.k]
+}
+
+/** The card's stat chips — top N components by actual weighted contribution
+ * (anatomyOf's own `points`), the same source as the AnatomyStrip bar.
+ * Stat jargon and all: the raw label and percentile, not a translated
+ * sentence. */
+export function topStatChips(components, weights, n = 3) {
+  const a = anatomyOf(components, weights)
+  if (!a) return null
+  return [...a.parts].sort((x, y) => y.points - x.points).slice(0, n)
+    .map((p) => ({ t: `${p.label} ${Math.round(p.pct)}p`, key: p.key }))
+}
+
 // Inline strip for a board rung: the shape only, no text, ~5px tall.
 export function AnatomyStrip({ components, weights, width = 84 }) {
   const a = anatomyOf(components, weights)

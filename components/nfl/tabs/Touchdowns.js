@@ -4,11 +4,12 @@ import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import { alignedSignals } from '../../../lib/nfl/dvpSignal'
+import { kickoffFor } from '../../../lib/nfl/kickoff'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import MatchupBadge from '../MatchupBadge'
 import NflFace from '../NflFace'
-import { AnatomyStrip, anatomyOf } from '../ScoreAnatomy'
+import { AnatomyStrip, reasonFor, baselineFor, topStatChips } from '../ScoreAnatomy'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
 import MobileFold from '../../MobileFold'
@@ -50,63 +51,17 @@ import TdCompare from '../TdCompare'
 //   already driving the AnatomyStrip on the old row) -- weight x percentile,
 //   the same arithmetic the score is built from, just surfaced as tags
 //   instead of only a bar.
+//
+// 2026-09-17: the WHY map, baseline() and statChips() that used to live here
+// are now reasonFor()/baselineFor()/topStatChips() in ScoreAnatomy.js,
+// market-parametrized instead of hardcoded to TD — Boards.js needed the same
+// "why is this score what it is" sentence for the other six markets, and
+// two copies of the same edge-scoring arithmetic is how they drift the
+// moment one changes and the other doesn't (rule #21). Behavior here is
+// unchanged: same components, same weights, same edge formula, just called
+// with MARKET passed in instead of closed over.
 const MARKET = 'TD'
 const SOFT_CAP = 60
-
-// One clause per component, kept from the previous build -- still a real,
-// useful sentence and not what Donovan asked to cut (the CARD DESIGN was
-// the beginner thing, not every plain-English clause on the site).
-const WHY = {
-  f_gl_opp:      'gets the ball right next to the end zone more than almost anyone',
-  f_rz_opp:      'is on the field for the plays that happen close to the end zone',
-  f_touches:     'gets handed the ball constantly — the offence runs through him',
-  f_snap_pct:    'almost never comes off the field',
-  implied_total: 'plays for the team expected to score the most points',
-  f_xtd:         'gets the kind of chances that usually turn into touchdowns',
-  opp_td_soft:   'faces a defence that has been giving touchdowns up',
-  td_regression: 'has had the chances and not cashed them yet',
-}
-
-function baseline(rows) {
-  const acc = {}
-  for (const p of rows) {
-    for (const [k, v] of Object.entries(p?.components?.[MARKET] || {})) {
-      if (Number.isFinite(Number(v))) (acc[k] ||= []).push(Number(v))
-    }
-  }
-  const out = {}
-  for (const [k, vals] of Object.entries(acc)) {
-    vals.sort((a, b) => a - b)
-    out[k] = vals[Math.floor(vals.length / 2)]
-  }
-  return out
-}
-
-function reasonFor(player, weights, base) {
-  const comps = player?.components?.[MARKET]
-  if (!comps || !weights) return null
-  let best = null
-  for (const [k, pctRaw] of Object.entries(comps)) {
-    const w = Number(weights[k])
-    const pct = Number(pctRaw)
-    if (!Number.isFinite(w) || !Number.isFinite(pct) || !WHY[k]) continue
-    const edge = (pct - (base?.[k] ?? 50)) * w
-    if (!best || edge > best.edge) best = { k, edge, pct }
-  }
-  if (!best || best.pct < 60 || best.edge <= 0) return null
-  return WHY[best.k]
-}
-
-// The card's stat chips -- top three components by actual weighted
-// contribution (anatomyOf's own `points`), same source as the AnatomyStrip
-// bar beneath them. "Stat jargon and all", as asked: the raw label and
-// percentile, not a translated sentence.
-function statChips(components, weights) {
-  const a = anatomyOf(components, weights)
-  if (!a) return null
-  return [...a.parts].sort((x, y) => y.points - x.points).slice(0, 3)
-    .map((p) => ({ t: `${p.label} ${Math.round(p.pct)}p`, key: p.key }))
-}
 
 function ScoreBar({ score }) {
   const g = gradeFor(score)
@@ -124,17 +79,12 @@ function ScoreBar({ score }) {
   )
 }
 
-function kickoffFor(games, player) {
-  const g = (games || []).find((row) => row.away === player.team || row.home === player.team)
-  return g?.kickoff ? Date.parse(g.kickoff) : null
-}
-
 // ── THE CARD ─────────────────────────────────────────────────────────────
 function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, watchlist }) {
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
-  const why = reasonFor(p, weights, base)
-  const chips = statChips(p.components?.[MARKET], weights)
+  const why = reasonFor(p, weights, base, MARKET)
+  const chips = topStatChips(p.components?.[MARKET], weights)
   const tag = injuryTag(p)
   const pinned = watchlist.isPinned(p.player_id)
   const aligned = alignedSignals(matchup, p)
@@ -248,7 +198,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     return {
       rows: list,
       weights: m?.weights || null,
-      base: baseline(list),
+      base: baselineFor(list, MARKET),
       games: new Set(list.map((p) => [p.team, p.opp].sort().join('@'))).size,
     }
   }, [data])
