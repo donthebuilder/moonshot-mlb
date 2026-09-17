@@ -21,6 +21,8 @@ import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
 import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown, useAutoScroll } from '../../lib/headlines'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
+import { setSport } from '../../lib/sport'
+import { fetchCombinedGamesForMlbHome, combinedRenderState, CombinedTeamMark } from '../../lib/combinedRail'
 import { btnStyle } from '../ui'
 import { PillRow } from '../Filters'
 import Scoreboard from './Scoreboard'
@@ -991,7 +993,20 @@ export default function Home({
         )}
       </div>
 
-      <ScoreRail players={players} results={results} onNavigate={onNavigate} />
+      {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- Donovan chose merging
+          both sports into this one rail over keeping two visually-identical-
+          but-separate rails (AskUserQuestion). `computeByGame` stays the
+          default MLB reducer: MOONSHOT's own picks are the only ones this
+          page has data for, so an NFL tile here shows its real score/state
+          and nothing invented in the picks column -- lib/combinedRail.js's
+          own header comment has the full trace. */}
+      <ScoreRail
+        players={players} results={results} onNavigate={onNavigate}
+        fetchGames={fetchCombinedGamesForMlbHome}
+        renderState={combinedRenderState}
+        TeamMark={CombinedTeamMark}
+        onSwitchSport={setSport}
+      />
 
       {/* Storylines sit right under the tally (2026-09-14, Donovan: 'bring the
           storylines out and put under 2') -- out of the More drawer. */}

@@ -11,8 +11,15 @@ import StartSit from '../StartSit'
 import Storylines from './Storylines'
 import Fold from '../../Fold'
 import ScoreRail from '../../ScoreRail'
-import NflRailTeamMark from '../NflTeamMark'
 import { fetchNflLive, lineFor, tdsIn } from '../../../lib/nfl/liveSlate'
+import { scheduleFor, slateDay } from '../../../lib/boxscore'
+import { setSport } from '../../../lib/sport'
+// ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- see lib/combinedRail.js's
+// own header comment for the full trace. `NflRailTeamMark`/local
+// `nflRenderState` (both below, previously) are now `CombinedTeamMark`/
+// `combinedRenderState` from there, shared with MOONSHOT's own Home.js
+// instead of two copies of the same dispatch logic.
+import { toRailGame, toMlbRailGames, mergeGamesSorted, combinedRenderState, CombinedTeamMark } from '../../../lib/combinedRail'
 // Shared, sport-agnostic self-scroll hook -- components/Header.js and
 // components/nfl/NflHeader.js's ticker both already use it.
 import { useAutoScroll } from '../../../lib/headlines'
@@ -38,15 +45,10 @@ const MARKET_COLOR = () => ({
 
 const number = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback
 
-function kickoff(game) {
-  if (game.detail) return game.detail
-  if (!game.kickoff) return 'TBD'
-  try {
-    return new Date(game.kickoff).toLocaleString('en-US', {
-      weekday: 'short', hour: 'numeric', minute: '2-digit',
-    })
-  } catch { return 'TBD' }
-}
+// `kickoff()`, formerly here, was only ever called by the local
+// `nflRenderState` this round replaced with the shared `combinedRenderState`
+// (lib/combinedRail.js, which carries the exact same weekday/time format) --
+// removed rather than left as dead code.
 
 // ── THE ROTATING HEADLINE STRIP (parity pass, 2026-09-16) ─────────────────
 // Donovan, side by side with MOONSHOT: TUDDY's home page needs "the same
@@ -321,29 +323,18 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   useEffect(() => { gamesRef.current = games })
   const nflSnapRef = useRef(null)
 
+  // ONE RAIL, BOTH SPORTS (round 10, 2026-09-17). The NFL half is exactly
+  // what this function always built (now via the shared `toRailGame`
+  // instead of an inline copy of the same mapping -- lib/combinedRail.js);
+  // the MLB half is new, additive, and degrades to an empty list on its own
+  // if the fetch fails, same as the NFL half already did -- neither can
+  // break the other. `nflSnapRef`'s stash for `nflComputeByGame` below is
+  // untouched.
   const nflFetchGames = useCallback(() => {
-    const list = (gamesRef.current || []).map((g) => ({
-      pk: g.game_id,
-      live: g.state === 'in',
-      final: g.completed || g.state === 'post',
-      postponed: false,
-      suspended: false,
-      startTime: g.kickoff,
-      away: { abbr: g.away, score: g.away_score },
-      home: { abbr: g.home, score: g.home_score },
-      _period: g.period,
-      _clock: g.clock,
-    }))
-    return fetchNflLive().then((snap) => { nflSnapRef.current = snap; return list }).catch(() => list)
-  }, [])
-
-  const nflRenderState = useCallback((g) => {
-    if (g.final) return 'F'
-    if (g.live) {
-      const q = g._period ? `Q${g._period}` : ''
-      return g._clock ? `${q} ${g._clock}`.trim() : (q || 'LIVE')
-    }
-    return kickoff({ kickoff: g.startTime })
+    const nflList = (gamesRef.current || []).map(toRailGame)
+    const nflPromise = fetchNflLive().then((snap) => { nflSnapRef.current = snap; return nflList }).catch(() => nflList)
+    const mlbPromise = scheduleFor(slateDay(0)).then(toMlbRailGames).catch(() => [])
+    return Promise.all([nflPromise, mlbPromise]).then(mergeGamesSorted)
   }, [])
 
   // "The bot's picks in that game" -- TUDDY's designated calls are the TD
@@ -400,19 +391,24 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
         onPlayerClick={onPlayerClick} setTab={setTab} />
 
+      {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- see lib/combinedRail.js's
+          own header comment for the full trace. `computeByGame` stays TUDDY's
+          own reducer: this page only has NFL picks data, so an MLB tile here
+          shows its real score/state and nothing invented in the picks column. */}
       <ScoreRail
         sport="nfl"
         theme={{ C, NUM_FONT }}
-        TeamMark={NflRailTeamMark}
+        TeamMark={CombinedTeamMark}
         players={players}
         results={results}
         fetchGames={nflFetchGames}
         computeByGame={nflComputeByGame}
-        renderState={nflRenderState}
+        renderState={combinedRenderState}
         label="This week"
         moreLabel="full box scores →"
         moreTarget="boxscores"
         onNavigate={setTab}
+        onSwitchSport={setSport}
       />
       <section className="tuddy-snapshot">
         <div><small>SLATE</small><strong>{games.length}</strong><span>games</span></div>

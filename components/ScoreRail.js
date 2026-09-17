@@ -96,7 +96,9 @@ const railWasOpen = (key) => {
 
 // The exact MLB reducer this file always ran, now named so it can serve as
 // the default `computeByGame`. Signature unchanged: (players, results).
-function defaultMlbByGame(players, results) {
+// Exported (round 10, ONE COMBINED RAIL) so lib/combinedRail.js's merged-
+// state helper can share it instead of copying the ternary a second time.
+export function defaultMlbByGame(players, results) {
   const lines = new Map()
   const rows = results?.graded_slots || results?.results || []
   rows.forEach((r) => {
@@ -135,8 +137,10 @@ function defaultMlbByGame(players, results) {
 }
 
 // The exact MLB state-text ternary this file always ran, now the default
-// `renderState`.
-function defaultMlbState(g) {
+// `renderState`. Exported (round 10) for the same reason as
+// `defaultMlbByGame` above -- lib/combinedRail.js's `combinedRenderState`
+// reuses this for the MLB half of a merged rail instead of duplicating it.
+export function defaultMlbState(g) {
   return g.postponed ? 'PPD'
     : g.suspended ? 'SUSP'
       : g.live ? `${/top/i.test(g.inningState) ? '▲' : '▼'}${g.inning ?? ''}`
@@ -155,6 +159,21 @@ export default function ScoreRail({
   label = 'Tonight',
   moreLabel = 'full boxes →',
   moreTarget = 'boxes',
+  // ONE RAIL, BOTH SPORTS (round 10, 2026-09-17). Donovan: "merge it over to
+  // moon shot ... i just want the hader to be seamleass acrre those whole
+  // site" -- asked which "exact match" he meant for this rail specifically
+  // (AskUserQuestion), and he picked merging both sports into one rail
+  // rather than keeping two visually-identical-but-separate ones. `fetchGames`
+  // can now hand back games from BOTH sports in one array, each tagged
+  // `sport: 'mlb'|'nfl'` (see lib/combinedRail.js) -- this component still
+  // has no idea two sports exist beyond that one optional tag. `onSwitchSport`
+  // is new and optional: when a tile's own tag disagrees with this rail's own
+  // `sport` prop, a tap has nowhere sensible to navigate TO on this product
+  // (MOONSHOT's own box-scores tab can't show an NFL game), so it calls this
+  // instead -- same job the header ticker's `setSport('mlb'/'nfl')` already
+  // does for a cross-sport tile. Untagged games (every existing caller that
+  // hasn't opted into a merged `fetchGames`) never hit that branch at all.
+  onSwitchSport,
 }) {
   const C = theme?.C || MLB_C
   const NUM_FONT = theme?.NUM_FONT || MLB_NUM_FONT
@@ -253,13 +272,18 @@ export default function ScoreRail({
             ? (g.away.score > g.home.score ? 'away' : g.home.score > g.away.score ? 'home' : null)
             : null
           const stateTxt = renderState(g)
+          // A tile for the OTHER sport (merged rail only -- see onSwitchSport
+          // above) has no `moreTarget` on this product worth going to; switch
+          // products instead, same as the header ticker does for its own
+          // cross-sport tiles.
+          const foreign = g.sport && g.sport !== sport
           return (
             <div key={g.pk}
               className="quiet-tile"
-              onClick={() => onNavigate?.(moreTarget)}
+              onClick={() => (foreign ? onSwitchSport?.(g.sport) : onNavigate?.(moreTarget))}
               title={rec?.names?.length ? rec.names.join('\n') : undefined}
               style={{
-                flex: '0 0 auto', minWidth: 124, cursor: onNavigate ? 'pointer' : 'default',
+                flex: '0 0 auto', minWidth: 124, cursor: (foreign ? onSwitchSport : onNavigate) ? 'pointer' : 'default',
                 padding: '5px 12px 6px',
               }}>
               {/* Principle 3 + 4 — the dot is the rail's only colour, and the
@@ -301,7 +325,7 @@ export default function ScoreRail({
 
                       A club colour is an IDENTITY here, never a data colour:
                       see lib/mlbTeams.js (MLB) / lib/nfl/teamColors.js (NFL). */}
-                  <TeamMark abbr={t.abbr || t.name} dim={!!(w && w !== side)} />
+                  <TeamMark abbr={t.abbr || t.name} dim={!!(w && w !== side)} sport={g.sport || sport} />
                   {/* Principle 2 — the score is the biggest thing here by a
                       factor the old 12px never gave it. The winner is told by
                       the loser dimming, not by an accent. */}
