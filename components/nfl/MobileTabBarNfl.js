@@ -15,12 +15,6 @@ import { worthPolling } from '../../lib/nfl/liveMerge'
 // "Home" there and "This week" in the table. Worse, "Tonight" was borrowed
 // from a baseball product: football's unit is a week.
 //
-// The four are now the same four the desktop rail carries. They used to
-// differ: Research was primary on desktop and buried in this sheet, because
-// this bar dropped it to keep a 4+More shape while the rail kept five. The
-// fifth slot is not needed any more -- This week left both bars and lives on
-// the TUDDY wordmark in the header, the same move MOONSHOT made.
-//
 // Icons come from NFL_NAV, which reuses MOONSHOT's glyph vocabulary 1:1
 // (🌙 home, 📊 boards, 🏈 games, 📡 live, 🎯 picks -- colour emoji since 2026-09-06; the old
 // ◎ ▥ ◉ ✦ text glyphs vanished on the bar next to real emoji) -- same glyph, same
@@ -29,13 +23,22 @@ import { worthPolling } from '../../lib/nfl/liveMerge'
 // nav style." Picks is the one -- MOONSHOT's own bar doesn't carry a
 // Picks tab either (demoted to More on 2026-08-30, nav-rename-and-
 // grouping doc: "the two navigations were disagreeing about what
-// mattered"). This restores the 4-tab shape the comment above already
-// describes -- Picks stays one tap away in the sheet, same slot as home.
-const MAIN_KEYS = ['touchdowns', 'games', 'research', 'storylines']
+// mattered"). Picks stays one tap away in the sheet, same slot as home.
+//
+// 2026-09-17: Boards is promoted onto the desktop rail (components/nfl/
+// NflHeader.js), and this bar follows -- Donovan's own instruction was to
+// promote it, not just widen the desktop one. Research trades out to stay
+// at four; it was already the one stop the desktop rail carried that this
+// bar didn't, so the two bars go on disagreeing about that one stop,
+// deliberately, same as they already disagree about Picks. Research isn't
+// lost -- it moves into the sheet's own Research group below, unconditionally
+// now rather than only on game day (see MORE).
+const MAIN_KEYS = ['touchdowns', 'boards', 'games', 'storylines']
 // GAME DAY (2026-09-05): while football is on -- or twenty minutes out --
-// Live takes Research's slot on the phone bar. Research is a Tuesday page;
-// the Live page is the one you open with the game on, and burying it under
-// More on a Sunday defeats it. Research stays one tap away in the sheet.
+// Live takes a slot on the phone bar. Research is a Tuesday page and Boards
+// a pre-game one; the Live page is the one you open with the game on, and
+// burying it under More on a Sunday defeats it. This list already excludes
+// both Boards and Research, so 2026-09-17's swap above needs no change here.
 const GAMEDAY_KEYS = ['touchdowns', 'live', 'games', 'storylines']
 const mainFor = (keys) => keys.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
 const MAIN = mainFor(MAIN_KEYS)
@@ -43,24 +46,35 @@ const MAIN = mainFor(MAIN_KEYS)
 // Grouped, like MOONSHOT's. A group heading is an entry whose key starts '@'.
 // This week leads even though it is not on the bar: the sheet calls itself
 // "everything on this site", and the front page is part of everything.
+//
+// Research (2026-09-17) is folded into its own drawer group here, at the
+// front of it, rather than left for the shared NFL_MORE_GROUPS table in
+// lib/routes.js to carry -- the desktop rail still shows Research on its
+// own bar unconditionally, so adding it to that shared table would double-
+// list it there for no reason. Only this bar ever drops it, so only this
+// bar's own copy of the group gains it.
 const MORE = [
   ['@This week', ''],
   ['home', NFL_NAV.home.label, NFL_NAV.home.blurb],
   ['picks', NFL_NAV.picks.label, NFL_NAV.picks.blurb],
-  ...NFL_MORE_GROUPS.flatMap(([group, keys]) => [
-    [`@${group}`, ''],
-    ...keys.map((k) => [k, NFL_NAV[k].label, NFL_NAV[k].blurb]),
-  ]),
+  ...NFL_MORE_GROUPS.flatMap(([group, keys]) => {
+    const groupKeys = group === 'Research' ? ['research', ...keys] : keys
+    return [
+      [`@${group}`, ''],
+      ...groupKeys.map((k) => [k, NFL_NAV[k].label, NFL_NAV[k].blurb]),
+    ]
+  }),
 ]
 
 export default function MobileTabBarNfl({ tab, setTab, data }) {
   const games = data?.games
   const gameday = useMemo(() => worthPolling(games), [games])
   const main = gameday ? mainFor(GAMEDAY_KEYS) : MAIN
-  // On game day Live is on the bar, so its More group goes and Research
-  // (which left the bar) takes a group of its own at the top of the sheet.
+  // Research sits in the sheet unconditionally now (see MORE), so the only
+  // game-day-specific change left is dropping Live's own drawer entry once
+  // it moves to the bar in its place.
   const more = useMemo(() => gameday
-    ? [['@Research', ''], ['research', NFL_NAV.research.label, NFL_NAV.research.blurb], ...MORE.filter(([k]) => k !== 'live' && k !== '@Sunday')]
+    ? MORE.filter(([k]) => k !== 'live' && k !== '@Sunday')
     : MORE, [gameday])
   return <MobileTabBar tab={tab} setTab={setTab} main={main} more={more} brand="TUDDY" />
 }

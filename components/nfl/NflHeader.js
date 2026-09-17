@@ -109,11 +109,16 @@ function TickerStrip({ children }) {
 //
 // `home` left the rail. The TUDDY WORDMARK is the home button now (see where
 // it renders), which is where a home button belongs and is visible on a phone;
-// only the tab rail hides below 760px, not the brand row. Desktop and the
-// phone bar carry the same four stops now -- the phone used to drop Research
-// to make room, so the two navigations of one product disagreed about what
-// mattered.
-const PRIMARY_KEY_LIST = ['touchdowns', 'games', 'picks', 'research', 'storylines']
+// only the tab rail hides below 760px, not the brand row.
+//
+// Desktop and the phone bar no longer carry identical stops, on purpose, same
+// as MOONSHOT's own two bars don't (MOONSHOT's phone bar drops `bot`/Picks to
+// stay at four; this one already dropped Picks the same way, 2026-09-16).
+// Boards joined this bar 2026-09-17, promoted from the drawer once round 8
+// gave it real depth -- see lib/routes.js's NFL_NAV comment above `boards`.
+// The phone bar picks it up too (components/nfl/MobileTabBarNfl.js), trading
+// away Research to stay at four stops rather than growing the bar there.
+const PRIMARY_KEY_LIST = ['touchdowns', 'boards', 'games', 'picks', 'research', 'storylines']
 const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${NFL_NAV[k].icon} ${NFL_NAV[k].label}`])
 const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
 // Same exception as MOONSHOT's: This week is reached from the wordmark, so it
