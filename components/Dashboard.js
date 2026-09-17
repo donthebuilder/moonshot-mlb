@@ -55,6 +55,7 @@ import { markDirty } from '../lib/dash/sync'
 import ErrorBoundary from './ErrorBoundary'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
+const WATCH_EVENT = 'mlb-watchlist-change'
 
 // Tabs that read no slate data and must render even when tonight's card
 // hasn't been built. See the gate below.
@@ -213,10 +214,31 @@ export default function Dashboard({ palettePass = 0 }) {
 
   const [focusPlayerId, setFocusPlayerId] = useState(null)
 
+  // Cross-tab and cross-device sync for the star list -- the same idiom
+  // lib/dash/follow.js's useFollowing and lib/nfl/watchlist.js's
+  // useNflWatchlist already use. This used to run once on mount only, so a
+  // second open tab (or the cloud sync poll landing in THIS tab) could write
+  // a stale watchlist over a fresher one and nobody here would know.
+  // Donovan, 2026-09-17: "i satrt a new list and then out of no wherer 90
+  // players pop back up... idk if it because i have multi tabs open." It
+  // was exactly that. mlb_watchlist_v1 is now registered with an `event` in
+  // lib/dash/sync.js (mlb-watchlist-change, matching tuddy_watchlist_v1's
+  // existing pattern), so this fires on: a native `storage` event from
+  // another tab's write, the cloud sync layer applying a pulled watchlist,
+  // and this tab's own writes below.
   useEffect(() => {
-    try {
-      setWatch(JSON.parse(localStorage.getItem(WATCH_KEY) || '[]'))
-    } catch { /* ignore */ }
+    const sync = () => {
+      try {
+        setWatch(JSON.parse(localStorage.getItem(WATCH_KEY) || '[]'))
+      } catch { /* ignore */ }
+    }
+    sync()
+    window.addEventListener(WATCH_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(WATCH_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
   }, [])
 
   const [refreshKey, setRefreshKey] = useState(0)
@@ -461,7 +483,10 @@ export default function Dashboard({ palettePass = 0 }) {
       })
       if (kept.length === watch.length) return
       setWatch(kept)
-      try { localStorage.setItem(WATCH_KEY, JSON.stringify(kept)) } catch { /* ignore */ }
+      try {
+        localStorage.setItem(WATCH_KEY, JSON.stringify(kept))
+        window.dispatchEvent(new Event(WATCH_EVENT))
+      } catch { /* ignore */ }
     }).catch(() => { /* a failed snapshot must never clear the list */ })
     return () => { alive = false }
   }, [allPlayers, watch])
@@ -499,7 +524,10 @@ export default function Dashboard({ palettePass = 0 }) {
     setWatch((prev) => {
       const ids = new Set(prev.map(playerId))
       const next = [...prev, ...add.filter((p) => !ids.has(playerId(p)))]
-      try { localStorage.setItem(WATCH_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      try {
+        localStorage.setItem(WATCH_KEY, JSON.stringify(next))
+        window.dispatchEvent(new Event(WATCH_EVENT))
+      } catch { /* ignore */ }
       return next
     })
   }, [allPlayers, followedRows, watch])
@@ -534,8 +562,20 @@ export default function Dashboard({ palettePass = 0 }) {
     const id = playerId(p)
     const on = prev.some((x) => playerId(x) === id)
     const next = on ? prev.filter((x) => playerId(x) !== id) : [...prev, p]
-    try { localStorage.setItem(WATCH_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(WATCH_KEY, JSON.stringify(next))
+      window.dispatchEvent(new Event(WATCH_EVENT))
+    } catch { /* ignore */ }
     if (!on) follow('mlb', { id: clean(p?.player_id, ''), name: nameOf(p), team: teamOf(p) })
+    // Un-starring a still-followed player is a decision, not a lapse. Record
+    // it in relitRef (declared above, populated only when the relight effect
+    // itself adds someone) so that effect's very next run treats him as
+    // "already decided this slate" instead of "never offered" -- otherwise
+    // it saw an un-starred-but-followed player as new and put the star right
+    // back on the next render, and removing him only stuck on the SECOND
+    // click, once the bounce-back finally landed in relitRef. Donovan,
+    // 2026-09-17: "i have to click them twice to remove them."
+    if (on) relitRef.current.add(clean(p?.player_id, ''))
     markDirty()
     return next
   })
