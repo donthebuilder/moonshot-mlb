@@ -43,7 +43,7 @@ import {
   hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
   milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
   streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
-  boardPitchersFresh, probableIndexFor,
+  boardPitchersFresh, probableIndexFor, hotStretchPicks, hotStretchText,
 } from '../../../../../lib/dash/tweetFeed'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -142,9 +142,37 @@ async function claimSlot(db, day, kind) {
 // exclude-set, see matchupHistorySeenIds below), so this is now a real
 // parameter instead of a hardcoded literal. Optional and additive: every
 // existing call site is unaffected.
-async function claimAndPostStat(db, day, kind, hourGate, text, card, payload = {}) {
+// TEXT-ONLY POSTS (2026-09-18, Donovan: "honestly also alot of the tweets dont
+// need cards either").
+//
+// The precedent is his own, from 2026-09-15 -- "some of these I just wanted
+// tweets and no card... a decent list of names on tweet so people can
+// screenshot and share" -- which is why matchup history, milestone watch and
+// revenge/giveaways already pass null. This extends the same call to every
+// other plain LIST post: a stacked list of names is already legible as text,
+// and a card on it costs a render plus an X media upload to say the same thing
+// twice.
+//
+// Cards are kept where the image carries analysis the text cannot: the homer
+// alert and recap (their own bespoke cards, not routed through here), the
+// pregame call, tonight's board, pairs, the longest call, numerology, and the
+// new hot-stretch post (a six-line slash line is exactly what a stat card is
+// for).
+//
+// Done HERE, in one set, rather than by editing fourteen call sites: the card
+// specs stay in the code, correct and ready, so putting one back is deleting a
+// string from this list rather than rebuilding a card from scratch.
+const TEXT_ONLY_KINDS = new Set([
+  'hotcontact', 'hotcontact_mid',
+  'dangercombos', 'dangercombos_mid',
+  'hrleadersdow', 'backtoback', 'birthday', 'funfacts',
+  'matchuplines', 'callofnight', 'streaks', 'storylines', 'thefour', 'bestair',
+])
+
+async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload = {}) {
   if (!text || etHoursSinceNoon() < hourGate) return false
   if (!(await claimSlot(db, day, kind))) return false
+  const card = TEXT_ONLY_KINDS.has(kind) ? null : cardSpec
   const patch = { payload }
   // ONE RENDER, BOTH PLACES (2026-09-07). The card used to be built inside the
   // `hasX()` branch, below Discord, so Discord got bare text while a finished
@@ -192,6 +220,25 @@ async function matchupHistorySeenIds(db, day) {
 async function milestoneSeenIds(db, day) {
   try {
     const { data } = await db.from('homer_feed_posts').select('payload').eq('day', day).eq('kind', 'milestone_am')
+    const out = new Set()
+    for (const row of data || []) {
+      for (const p of row?.payload?.picks || []) {
+        const id = String(p?.player_id || '').trim()
+        if (id) out.add(id)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
+}
+
+// WHO THE MORNING HOT-STRETCH POST NAMED (2026-09-18). Same shape as
+// milestoneSeenIds above: the 5pm week wave reads the 7am month wave's payload
+// back so the two never feature the same player on the same day.
+async function hotStretchSeenIds(db, day) {
+  try {
+    const { data } = await db.from('homer_feed_posts').select('payload').eq('day', day).eq('kind', 'hot_month')
     const out = new Set()
     for (const row of data || []) {
       for (const p of row?.payload?.picks || []) {
@@ -312,6 +359,14 @@ const STREAKS_HOUR = -3         // 9am ET
 const STORYLINES_HOUR = 0       // noon ET
 const THE_FOUR_HOUR = 0         // noon ET
 const BEST_AIR_HOUR = 2         // 2pm ET
+// THE HOT STRETCH (2026-09-18, Donovan: "i want player highlights liike this
+// too... for players doing well during the week or throught the month"). Two
+// waves a day off one builder, deliberately parked on two of the few hours
+// nothing else claims (7am / 5pm ET) rather than stacked on an already-busy
+// tick. The week wave excludes whoever the month wave named -- see
+// hotStretchSeenIds below.
+const HOT_MONTH_HOUR = -5       // 7am ET
+const HOT_WEEK_HOUR = 5         // 5pm ET
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
 const BOARD_RESULTS_HOUR = -4   // 8am ET -- grades YESTERDAY's Tonight's Board
 const COMMUNITY_PICK_HOUR = -4  // 8am ET
@@ -1170,6 +1225,43 @@ export async function GET(request) {
           { picks: careerPicks })
       })
     }
+    // ── THE HOT STRETCH, TWO WAVES (2026-09-18) ──────────────────────────
+    // A month-to-date line at 7am ET and a last-7-days line at 5pm ET, each on
+    // the hottest bat ON TONIGHT'S BOARD by OPS over that window. Every number
+    // is MLB's own byDateRange split for that player, not recomputed here --
+    // see hotStretchPicks in tweetFeed.js for the window rules and the sample
+    // floors. Both are wrapped in safeStat: they are the only stat slots that
+    // fan out ~25 API calls, so a StatsAPI wobble must not take the tick down.
+    const hotCard = (pick, label) => (pick ? {
+      pill: 'HOT', label,
+      headline: `${pick.name}${pick.team ? ` (${pick.team})` : ''}`,
+      lines: [
+        `${pick.avg} AVG · ${pick.obp} OBP · ${pick.slg} SLG`,
+        `${pick.ops} OPS`,
+        `${pick.hr} HR · ${pick.rbi} RBI`,
+        `${pick.games} games, ${pick.ab} AB`,
+      ],
+    } : null)
+    if (etHoursSinceNoon() >= HOT_MONTH_HOUR) {
+      await safeStat('hot_month', async () => {
+        const { pick } = await hotStretchPicks(boardRows(), day, { window: 'month' })
+        await claimAndPostStat(db, day, 'hot_month', HOT_MONTH_HOUR,
+          hotStretchText(pick, { day, ...TAIL, window: 'month' }),
+          hotCard(pick, 'THE HOT STRETCH — THIS MONTH'),
+          pick ? { picks: [{ player_id: pick.player_id, name: pick.name }] } : {})
+      })
+    }
+    if (etHoursSinceNoon() >= HOT_WEEK_HOUR) {
+      await safeStat('hot_week', async () => {
+        const exclude = await hotStretchSeenIds(db, day)
+        const { pick } = await hotStretchPicks(boardRows(), day, { window: 'week', exclude })
+        await claimAndPostStat(db, day, 'hot_week', HOT_WEEK_HOUR,
+          hotStretchText(pick, { day, ...TAIL, window: 'week' }),
+          hotCard(pick, 'THE HOT STRETCH — LAST 7 DAYS'),
+          pick ? { picks: [{ player_id: pick.player_id, name: pick.name }] } : {})
+      })
+    }
+
     // ── MILESTONE WATCH, TWO WAVES (2026-09-15, Donovan: "milestone emoji
     //    title then players with stats," two posts a day, two different
     //    sets of players) -- ported from components/Storylines.js, see
