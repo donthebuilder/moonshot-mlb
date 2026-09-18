@@ -83,6 +83,22 @@
     {
       "path": "/api/dash/nfl/tick",
       "schedule": "* 0-5 * * 2"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 14-17 * * 3"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 14-16 * * 4"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 14-16 * * 5"
+    },
+    {
+      "path": "/api/dash/nfl/tick",
+      "schedule": "* 14-16 * * 1"
     }
   ]
 }

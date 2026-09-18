@@ -54,10 +54,14 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday } from '../../../../../lib/data'
 import {
-  fetchNfl, nflLogPaths, nflMatchupLooksReal, nflMatchupPaths,
+  fetchNfl, nflFantasyStatsPaths, nflLogPaths, nflMatchupLooksReal, nflMatchupPaths,
   nflPicksLooksReal, nflPicksPaths, nflRosterPaths, nflSlateLooksReal, nflSlatePaths,
 } from '../../../../../lib/nfl/dataSource'
-import { milestonePicks, milestoneText } from '../../../../../lib/nfl/tweetFeed'
+import {
+  milestonePicks, milestoneText,
+  opportunityPicks, opportunityText, tdHistoryPicks, tdHistoryText,
+  whyOnBoardPick, whyOnBoardText, bigWeekPicks, bigWeekText,
+} from '../../../../../lib/nfl/tweetFeed'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
@@ -102,6 +106,51 @@ const FEED_WEBHOOKS = () => {
 // the UTC clock has rolled past midnight.
 const THU_HOUR = 6    // 6pm ET Thursday
 const SUN_HOUR = -3   // 9am ET Sunday
+
+// ── THE WEEKLY CONTENT RHYTHM (2026-09-18) ──────────────────────────────────
+//
+// Donovan: "I'd make Sundays feel different. The account should have a weekly
+// rhythm. Wednesday-Thursday: matchup / usage / injury / red-zone information.
+// Friday: TUDDY BOARD. ... That turns @CalledItHR into something people check
+// throughout the week, rather than an account that appears only when the model
+// wants to make a pick."
+//
+// Before this, TUDDY's entire scheduled surface was ONE post kind on two days
+// (nfl_milestone, Thursday 6pm and Sunday 9am) against MOONSHOT's ~33 a day.
+// These three are the ones that needed no new bot work -- every field was
+// verified against the live Week 2 payloads first; see
+// claude/tuddy-content-plan-feasibility-2026-09-18.md.
+//
+// One post per day, spread across the three quiet days, so the account has a
+// reason to exist mid-week:
+//   WED 10am ET  red-zone touches   opportunity, before anyone is talking
+//   WED  1pm ET  goal-line touches  the same question one step closer in
+//   THU 11am ET  TD history         lands before the existing 6pm milestone
+//   FRI 10am ET  why he's on the board -- the board drops
+//
+// vercel.json gains Wed/Thu/Fri daytime windows for these; the existing
+// game-day windows are untouched.
+const WED_REDZONE_HOUR = -2    // 10am ET Wednesday
+const WED_GOALLINE_HOUR = 1    //  1pm ET Wednesday
+const THU_TDHISTORY_HOUR = -1  // 11am ET Thursday
+const FRI_WHYBOARD_HOUR = -2   // 10am ET Friday
+// BIG WEEK (2026-09-18, Donovan: "same deal for a player that had a big week
+// maybe 1 rb and 1 wr and 1 qb who played well this week"). Monday, because
+// that is the first morning the week's games are actually in the box score --
+// and it is his own rhythm's "Monday: TUDDY WEEK IN REVIEW" slot. Monday
+// Night Football has not been played yet at this hour, so the post covers
+// Thursday plus Sunday; bigWeekPicks refuses outright until enough of the
+// week is complete.
+const MON_BIGWEEK_HOUR = -2    // 10am ET Monday
+
+// Which post, if any, this weekday owns. 0=Sun .. 6=Sat, same etWeekday()
+// the milestone gate already uses.
+const WEEKLY_SLOTS = {
+  3: [{ kind: 'nfl_redzone', hour: WED_REDZONE_HOUR }, { kind: 'nfl_goalline', hour: WED_GOALLINE_HOUR }],
+  4: [{ kind: 'nfl_tdhistory', hour: THU_TDHISTORY_HOUR }],
+  5: [{ kind: 'nfl_whyboard', hour: FRI_WHYBOARD_HOUR }],
+  1: [{ kind: 'nfl_bigweek', hour: MON_BIGWEEK_HOUR }],
+}
 
 function etHoursSinceNoon() {
   const h = new Date().getUTCHours()
@@ -306,6 +355,79 @@ const service = () => {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
+// THE MID-WEEK CONTENT POSTS. Same claim-then-post shape as Milestone below
+// and as every MLB stat slot: build the text FIRST, claim only once there is
+// something to say, so a tick that finds nothing costs nothing and retries
+// next minute rather than burning the day's slot (homers/tick's own
+// pregame-post incident, still the most expensive lesson in this codebase).
+//
+// Deliberately text-only, matching Milestone. TUDDY has no card of its own
+// for these yet and a generic one would be the MLB statCard problem again --
+// a headline and some grey lines. The lists stand up as text.
+async function runWeeklyContentTick(db, day) {
+  const slots = (WEEKLY_SLOTS[etWeekday(day)] || []).filter((sl) => etHoursSinceNoon() >= sl.hour)
+  if (!slots.length) return { skipped: 'no-slot-this-hour' }
+
+  // One fetch for however many slots this day owns, and only once an hour
+  // gate has actually opened -- a Wednesday 6am tick pulls nothing.
+  const wantsLogs = slots.some((sl) => sl.kind === 'nfl_tdhistory')
+  const wantsBox = slots.some((sl) => sl.kind === 'nfl_bigweek')
+  const [data, logs, box] = await Promise.all([
+    fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
+    wantsLogs ? fetchNfl(nflLogPaths()).catch(() => null) : Promise.resolve(null),
+    wantsBox ? fetchNfl(nflFantasyStatsPaths()).catch(() => null) : Promise.resolve(null),
+  ])
+  if (!data) return { skipped: 'no-slate-yet' }
+
+  const out = {}
+  for (const sl of slots) {
+    try {
+      let text = ''
+      let payload = {}
+      if (sl.kind === 'nfl_redzone' || sl.kind === 'nfl_goalline') {
+        const stat = sl.kind === 'nfl_goalline' ? 'GL' : 'RZ'
+        const picks = opportunityPicks(data, stat)
+        text = opportunityText(picks, data, stat, TAIL)
+        payload = { picks: picks.map((p) => ({ player_id: p.player_id, name: p.name, value: p.value })) }
+      } else if (sl.kind === 'nfl_tdhistory') {
+        if (!logs) { out[sl.kind] = 'no-logs-yet'; continue }
+        const picks = tdHistoryPicks(logs, data)
+        text = tdHistoryText(picks, data, TAIL)
+        payload = { picks: picks.map((p) => ({ player_id: p.player_id, name: p.name, tds: p.tds, meetings: p.meetings, opp: p.opp })) }
+      } else if (sl.kind === 'nfl_bigweek') {
+        if (!box) { out[sl.kind] = 'no-box-score-yet'; continue }
+        const picks = bigWeekPicks(box, data)
+        text = bigWeekText(picks, data, TAIL)
+        payload = { picks: picks.map((p) => ({ player_id: p.player_id, name: p.name, pos: p.pos, line: p.line })) }
+      } else if (sl.kind === 'nfl_whyboard') {
+        const pick = whyOnBoardPick(data)
+        text = whyOnBoardText(pick, data, TAIL)
+        payload = pick ? { picks: [{ player_id: pick.player_id, name: pick.name, score: pick.score }] } : {}
+      }
+      if (!text) { out[sl.kind] = 'nothing-to-say-yet'; continue }
+      if (!(await claimSlot(db, day, sl.kind))) { out[sl.kind] = 'already-posted-or-claim-failed'; continue }
+
+      const patch = { payload }
+      const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+      if (d.ok) patch.discord_sent = true
+      if (hasX()) {
+        const r = await postToX(text)
+        if (r.ok && r.id) patch.x_post_id = r.id
+        else console.error(`[nfl-tick] ${sl.kind} refused: ${r.status} ${r.error}`)
+      }
+      await db.from('homer_feed_posts').update(patch).match({ day, kind: sl.kind })
+      out[sl.kind] = 'posted'
+    } catch (err) {
+      // One slot throwing must never take the touchdown alerts down with it --
+      // same rule (and the same 2026-09-08 incident) behind safeStat() in the
+      // MLB tick.
+      console.error(`[nfl-tick] ${sl.kind} block threw`, err)
+      out[sl.kind] = `error: ${String(err?.message || err)}`
+    }
+  }
+  return out
+}
+
 // The twice-a-week Milestone post, unchanged in every particular except its
 // shape: used to BE the whole route (its own early-returning Response.json
 // per branch); now a plain function returning a plain result object, since
@@ -364,6 +486,7 @@ export async function GET(request) {
   // own Thursday/Sunday gate below (see runTouchdownTick()'s own header).
   const td = await runTouchdownTick(db, day)
   const milestone = await runMilestoneTick(db, day)
+  const weekly = await runWeeklyContentTick(db, day)
 
-  return Response.json({ day, td, milestone })
+  return Response.json({ day, td, milestone, weekly })
 }

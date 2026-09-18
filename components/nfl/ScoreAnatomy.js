@@ -29,36 +29,11 @@ import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
 // redistributed across the components that are present, so the static table in
 // nfl_scoring.MODELS is the wrong one to draw with.
 
-export const LABELS = {
-  f_gl_opp: 'Goal-line opportunity',
-  f_rz_opp: 'Red-zone touches',
-  implied_total: 'Implied team total',
-  f_xtd: 'Expected TDs',
-  f_touches: 'Touches (carries + targets)',
-  f_snap_pct: 'Snap share',
-  opp_td_soft: 'Defense TD softness',
-  td_regression: 'TD regression (due)',
-  f_wopr: 'WOPR (opportunity)',
-  f_receiving_yards: 'Receiving yards form',
-  f_receiving_air_yards: 'Air yards (depth)',
-  opp_pass_soft: 'Defense pass softness',
-  f_target_share: 'Target share',
-  f_receptions: 'Receptions form',
-  f_targets: 'Targets',
-  f_carries: 'Carries',
-  f_rushing_yards: 'Rushing yards form',
-  f_rz_car: 'Red-zone carries',
-  f_ngs_rush_yards_over_expected_per_att: 'RYOE per attempt (NGS)',
-  total_line: 'Game total',
-  f_passing_yards: 'Passing yards form',
-  f_attempts: 'Pass attempts',
-  f_passing_cpoe: 'CPOE',
-  f_tm_fg_drive_rate: 'Team FG-drive rate',
-  f_tm_rz_td_rate_inv: 'Team RZ TD rate (inverted)',
-  f_fg_att: 'FG attempts',
-  kick_env: 'Kicking environment',
-  f_tm_drives: 'Team drives',
-}
+// Imported AND re-exported: this file still uses both tables itself (the
+// label lookup in anatomyOf and the clause picker in reasonFor), and a bare
+// `export ... from` does not bring a binding into local scope.
+import { LABELS, WHY } from '../../lib/nfl/scoreLabels'
+export { LABELS, WHY }
 
 // The shared ramp (lib/nfl/theme.js), heaviest component at the warm end.
 // The first pass used a jade→cyan ramp and the segments blurred into one
@@ -116,42 +91,6 @@ export function anatomyOf(components, weights) {
 //
 // Touchdowns.js has been refactored to call these instead of keeping its own
 // copy (rule #21: one place, not seven markets each growing their own).
-export const WHY = {
-  // TD (bots/nfl/nfl_scoring.py MODELS.TD.w)
-  f_gl_opp:      'gets the ball right next to the end zone more than almost anyone',
-  f_rz_opp:      'is on the field for the plays that happen close to the end zone',
-  f_touches:     'gets handed the ball constantly — the offence runs through him',
-  f_snap_pct:    'almost never comes off the field',
-  implied_total: 'plays for the team expected to score the most points',
-  f_xtd:         'gets the kind of chances that usually turn into touchdowns',
-  opp_td_soft:   'faces a defence that has been giving touchdowns up',
-  td_regression: 'has had the chances and not cashed them yet',
-  // REC_YDS (MODELS.REC_YDS.w)
-  f_wopr:                'commands a huge share of his team’s targets and air yards',
-  f_receiving_yards:     'has been racking up real receiving yardage lately',
-  f_receiving_air_yards: 'is getting targeted deep down the field',
-  opp_pass_soft:         'faces a defence that has been giving up yards through the air',
-  // REC (MODELS.REC.w)
-  f_target_share: 'is one of his team’s most-targeted receivers',
-  f_receptions:   'has been catching the ball at a high rate',
-  f_targets:      'keeps getting thrown the ball',
-  // RUSH_YDS / RUSH_ATT (MODELS.RUSH_YDS.w, MODELS.RUSH_ATT.w)
-  f_carries:                                'keeps getting handed the ball',
-  f_rushing_yards:                          'has been piling up rushing yards lately',
-  f_rz_car:                                 'gets the ball on the ground near the goal line',
-  f_ngs_rush_yards_over_expected_per_att:   'gains more per carry than a runner in his shoes usually would',
-  // PASS_YDS (MODELS.PASS_YDS.w)
-  total_line:      'is in a game Vegas expects to be a shootout',
-  f_passing_yards: 'has been throwing for real yardage lately',
-  f_attempts:      'throws the ball more than almost anyone',
-  f_passing_cpoe:  'completes passes at a higher rate than the situation calls for',
-  // KICK_PTS (MODELS.KICK_PTS.w)
-  f_tm_fg_drive_rate:  'plays for an offense whose drives keep stalling into field-goal range',
-  f_tm_rz_td_rate_inv: 'plays for an offense that struggles to finish drives with touchdowns, which means more kicks',
-  f_fg_att:            'gets a high number of field-goal chances',
-  kick_env:            'kicks in a clean, low-wind setup',
-  f_tm_drives:         'plays for a team that runs more drives than most',
-}
 
 /** Per-component league median for `market`, over whatever pool the caller
  * hands in — Touchdowns.js passes every TD-eligible player before its own
