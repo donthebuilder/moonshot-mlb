@@ -259,6 +259,11 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             return {
               _key: `${playerId(p)}-${p?.game_pk ?? ''}-${i}`,
               _raw: p,
+              // Lights the watch column below. DenseTable's action column
+              // reads the row's own truthy field, and hands `_raw ?? row` to
+              // onAction — so the real slate row reaches toggleWatch, which
+              // needs it (the star is keyed on the composite player+game key).
+              watched: watchIds?.has(playerId(p)) ? 1 : 0,
               rank: slateRank ? (slateRank.get(mlbId(p)) ?? i + 1) : i + 1,
               name: nameOf(p),
               team: teamOf(p),
@@ -302,6 +307,21 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             }
           })}
           columns={[
+            // ── THE WATCH COLUMN (2026-09-18) ──────────────────────────────
+            // Donovan: "watch list button in general is not working." It was
+            // not broken — on THIS board, the one he actually reads, it did
+            // not exist. The board defaults to the list view (tables lead,
+            // 2026-09-14), and the only save control RankedBoard had lived in
+            // the CARDS view behind the toggle. Worse, the list already shows
+            // a ★ on most rows — the WEAK SPOT flag, four columns over, which
+            // is a data mark and not a button. So the page looked like it had
+            // a star on every row and did nothing when you pressed it.
+            //
+            // Same native DenseTable action column LongestBoard.js and
+            // Games.js already use, in the same leading slot, with the same
+            // ☆/★ marks and the same wording — not a new mechanism.
+            { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
+              titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
             { key: 'rank',   label: '#', heat: false, w: 34, mono: true, dim: true,
               title: 'His rank on this board — the thing the cards never showed' },
             { key: 'name',   label: 'Player', heat: false, w: 150, bold: true, sticky: true },
