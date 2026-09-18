@@ -98,8 +98,13 @@ export default function MobileCSS() {
            numbers, and nothing is dropped — the same facts, stacked. */
         .yp-row { flex-wrap: wrap !important; row-gap: 2px !important; }
         .yp-line { margin-left: 0 !important; width: 100% !important; padding-left: 14px !important; }
-        .yp-x { position: absolute !important; right: 6px !important; top: 4px !important; }
-        .yp-row { position: relative !important; padding-right: 30px !important; }
+        /* 2026-09-18: the × is a 44px box now (YourPlayers.js), so the row
+           has to reserve that much rather than the old 30px, and the negative
+           margins that keep it from growing the row on a monitor have to be
+           dropped here — this is an absolutely positioned corner control, not
+           an inline one. Donovan: "your players is hard to remove." */
+        .yp-x { position: absolute !important; right: 0 !important; top: 0 !important; margin: 0 !important; }
+        .yp-row { position: relative !important; padding-right: 46px !important; min-height: 44px !important; }
       }
 
       @media (max-width: 520px) {

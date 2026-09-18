@@ -140,8 +140,18 @@ const writeOpen = (v) => {
   try { window.localStorage.setItem(OPEN_KEY, v ? '1' : '0') } catch { /* private mode */ }
 }
 
-export default function YourPlayers({ players = [], onPlayerClick = null, watchIds = null, collapsible = true }) {
-  const { rows: followed, unfollow } = useFollowing('mlb')
+export default function YourPlayers({ players = [], onPlayerClick = null, watchIds = null, collapsible = true, onUnstar = null }) {
+  const { rows: followed, unfollow, clear: clearFollowing } = useFollowing('mlb')
+  // Two-step, no window.confirm(). A native confirm dialog blocks the page and
+  // reads as a browser artefact rather than part of the product; the button
+  // turning into "Sure? Clear N" for a beat does the same job in the same
+  // place. It resets itself, so a stray tap can't sit armed.
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    if (!armed) return undefined
+    const t = setTimeout(() => setArmed(false), 4000)
+    return () => clearTimeout(t)
+  }, [armed])
   const account = useDashAccount()
   const [snap, setSnap] = useState(null)
   // Starts closed on the server and on the first client render, then adopts
@@ -384,25 +394,47 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
                     : r.status === 'pre' && r.g?.statusLabel ? r.g.statusLabel
                       : ''}
               </span>
-              {/* Unfollow only removes him from the DURABLE list, and only
-                  shows for men who are on it. A starred-only man is cleared by
-                  the slate on his own and has no × to press, which is the
-                  behaviour the two stores already had. */}
-              {r.followed && (
-                <button
-                  type="button"
-                  className="yp-x"
-                  aria-label={`Stop following ${r.name}`}
-                  title="Stop following"
-                  onClick={(e) => { e.stopPropagation(); unfollow(r.id) }}
-                  style={{
-                    flexShrink: 0, width: 22, height: 22, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', padding: 0,
-                    background: 'transparent', border: 'none', borderRadius: 6,
-                    color: C.text3, fontSize: 13, lineHeight: 1, cursor: 'pointer',
-                  }}
-                >×</button>
-              )}
+              {/* ── × MEANS GONE, ON EVERY ROW (2026-09-18) ──────────────
+                  Donovan: "when i click the x the person stayed." Two
+                  separate reasons, both fixed here:
+
+                  1. It only ever dropped the FOLLOW. A man who was also
+                     starred stayed on this list as a starred-only row —
+                     which then rendered no × at all, so the list showed him
+                     sitting there with nothing left to press. Pressing ×
+                     now clears him from both stores.
+                  2. It was only rendered for followed rows in the first
+                     place, so a starred-only row was unremovable from here
+                     by construction.
+
+                  Still 22px of glyph, but in a 44px box — the tap target
+                  every phone guideline asks for, on a row that is itself a
+                  button (a near-miss used to open his card instead of
+                  removing him, which reads exactly like "nothing
+                  happened"). */}
+              <button
+                type="button"
+                className="yp-x"
+                aria-label={`Remove ${r.name} from your players`}
+                title="Remove — he stops coming back"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  unfollow(r.id)
+                  // The star is keyed on the composite row key, not the
+                  // numeric id, so it can only be dropped through the slate
+                  // row itself — see the `rows` memo's own note on the two
+                  // identities. `onUnstar` is Dashboard's toggleWatch, which
+                  // is a toggle: guarded on r.starred so it can never ADD a
+                  // star to a man who is being removed.
+                  if (r.starred && r.p && onUnstar) onUnstar(r.p)
+                }}
+                style={{
+                  flexShrink: 0, width: 44, height: 44, marginTop: -11, marginBottom: -11,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                  background: 'transparent', border: 'none', borderRadius: 6,
+                  color: C.text3, fontSize: 18, lineHeight: 1, cursor: 'pointer',
+                }}
+              >×</button>
             </span>
           </div>
         ))}
@@ -431,6 +463,37 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
                 ? ` — ${[hiddenLive ? `${hiddenLive} live` : '', hiddenHr ? `${hiddenHr} with a HR` : ''].filter(Boolean).join(', ')}`
                 : ''}`}
         </button>
+      )}
+
+      {/* ── CLEAR ALL (2026-09-18) ──────────────────────────────────────────
+          Donovan: "where is the clear all button." There wasn't one — the
+          only way to empty this list was one × at a time, and the × was
+          broken. Clears both stores the same way a single × does: every
+          follow is tombstoned (lib/dash/follow.js's `unfollowAll`, a
+          tombstone per player rather than a bare delete, so another tab or
+          device can't merge them all back), and every starred row on tonight's
+          board is un-starred through the same toggle a × uses.
+
+          Only rendered when there is something to clear, and it sits after
+          the show-more control rather than up in the header: a destructive
+          action should not be the first thing your thumb finds. */}
+      {rows.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!armed) { setArmed(true); return }
+              setArmed(false)
+              clearFollowing()
+              if (onUnstar) rows.forEach((r) => { if (r.starred && r.p) onUnstar(r.p) })
+            }}
+            style={{
+              background: 'transparent', border: 'none', padding: '8px 6px', minHeight: 36,
+              cursor: 'pointer', fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+              letterSpacing: '.04em', color: armed ? C.red : C.text3,
+            }}
+          >{armed ? `Sure? Clear all ${rows.length}` : 'Clear all'}</button>
+        </div>
       )}
     </div>
   )

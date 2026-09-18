@@ -49,7 +49,7 @@ import Pitchers from './tabs/Pitchers'
 import PropsGrid from './tabs/PropsGrid'
 import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
-import { follow, useFollowing } from '../lib/dash/follow'
+import { follow, unfollow, useFollowing } from '../lib/dash/follow'
 import { liveOdds } from '../lib/oddsFreshness'
 import { markDirty } from '../lib/dash/sync'
 import ErrorBoundary from './ErrorBoundary'
@@ -556,8 +556,9 @@ export default function Dashboard({ palettePass = 0 }) {
   // after as the days arent keeping track." Starring now also files the
   // player in the durable, account-synced Following list (lib/dash/follow.js),
   // and the effect below re-lights his star automatically the next time he
-  // turns up on a board. Un-starring is a statement about tonight and does
-  // NOT unfollow; that lives on the Following list itself.
+  // turns up on a board. Un-starring removes him from BOTH lists (2026-09-18)
+  // -- see the note inside the function for why the original split was
+  // retired.
   const toggleWatch = (p) => setWatch((prev) => {
     const id = playerId(p)
     const on = prev.some((x) => playerId(x) === id)
@@ -567,6 +568,22 @@ export default function Dashboard({ palettePass = 0 }) {
       window.dispatchEvent(new Event(WATCH_EVENT))
     } catch { /* ignore */ }
     if (!on) follow('mlb', { id: clean(p?.player_id, ''), name: nameOf(p), team: teamOf(p) })
+    // ── UN-STARRING UNFOLLOWS NOW (2026-09-18) ────────────────────────────
+    // Donovan: "fix the watch list removal thing... when i click the x the
+    // person stayed." Root cause, traced end to end: starring follows (line
+    // above), un-starring only dropped the STAR, and the relight effect
+    // above re-stars every followed man who is on tonight's board. `relitRef`
+    // held that back for the rest of the page's life — and `relitRef` is a
+    // plain ref, so it is empty again on the next load. Removal therefore
+    // survived exactly until you refreshed, which is indistinguishable from
+    // removal not working.
+    //
+    // The 08-28 split ("un-starring is about tonight, unfollow is its own
+    // action") was a real distinction, but no screen ever offered it: there
+    // has never been a control that says "drop him tonight, keep him for
+    // tomorrow." So it bought nothing and cost the one behaviour everybody
+    // expects. Un-star is now a removal, full stop, on both lists.
+    if (on) unfollow('mlb', clean(p?.player_id, ''))
     // Un-starring a still-followed player is a decision, not a lapse. Record
     // it in relitRef (declared above, populated only when the relight effect
     // itself adds someone) so that effect's very next run treats him as

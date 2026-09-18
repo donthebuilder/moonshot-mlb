@@ -84,6 +84,10 @@ export default function You({
           players={players}
           watchIds={new Set((watchItems || []).map(playerId))}
           onPlayerClick={onPlayerClick}
+          /* onUnstar (2026-09-18): the same toggleWatch every board's star
+             already calls. Without it, this section's × could only drop the
+             follow and a starred man stayed put — see YourPlayers.js. */
+          onUnstar={onWatch}
         />
         <Watchlist
           items={watchItems}

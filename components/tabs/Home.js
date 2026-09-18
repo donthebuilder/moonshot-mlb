@@ -1031,6 +1031,10 @@ export default function Home({
         players={players}
         watchIds={watchIds}
         onPlayerClick={onPlayerClick}
+        /* onUnstar (2026-09-18): the same toggleWatch this page's own boards
+           already use for their stars, so the × here removes a man from both
+           lists instead of leaving a starred row behind. */
+        onUnstar={onWatch}
       />
 
 
