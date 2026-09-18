@@ -43,6 +43,7 @@ import {
   hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
   milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
   streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
+  boardPitchersFresh, probableIndexFor,
 } from '../../../../../lib/dash/tweetFeed'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -878,6 +879,40 @@ export async function GET(request) {
   const pregameRows = () => playableRows(boardRows(), live, 'pregame')
   const midRows = () => playableRows(boardRows(), live, 'mid')
 
+  // IS THE BOARD TONIGHT'S BOARD (2026-09-18, Donovan: "THE TWEETS are
+  // sending out yesterday's information again") ─────────────────────────────
+  //
+  // Two questions, both asked ONCE here and answered for every board-derived
+  // post below -- the stat slots AND the pregame block, which is the whole
+  // point. The slate_date half of this already existed, but it was computed
+  // ~380 lines further down and only ever guarded the pregame/pairswatch/
+  // longshot branch. Every stat slot moved OUT of that branch on 2026-09-07
+  // (to post earlier in the day) was left on a bare `board.size` -- "is there
+  // a file," never "is it today's file" -- so the whole morning feed could and
+  // did run off a leftover board. Hoisted so there is one answer, not two.
+  //
+  //   1. slate_date: does run_meta say the file describes THIS day.
+  //   2. pitcher column: does the board's arm for each game agree with MLB's
+  //      own probables. A board can pass (1) and still fail (2) -- that is
+  //      exactly what happened on 09-18, when the arms were the previous day's
+  //      starters on today's slate. See boardPitchersFresh in tweetFeed.js.
+  //
+  // Both fail OPEN: run_meta missing is not a hold (that half already behaved
+  // this way via `boardIsToday` being compared, not required), and an
+  // unreachable StatsAPI or a slate with too few verifiable games returns
+  // fresh. A hold costs one tick and retries; a false hold that never clears
+  // would be worse than the bug.
+  const runMeta = await fetchRunMeta('today')
+  const boardIsToday = runMeta?.slate_date === day
+  const probables = await probableIndexFor(day)
+  const pitcherFreshness = boardPitchersFresh(boardRows(), probables)
+  // The one gate every board-derived post now shares.
+  const boardUsable = Boolean(board.size) && boardIsToday && pitcherFreshness.fresh
+  const boardHold = board.size
+    ? (!boardIsToday ? 'stale-slate-date' : (!pitcherFreshness.fresh ? 'stale-pitchers' : null))
+    : 'no-board'
+  if (boardHold) console.error(`[homers] board held: ${boardHold}`, { slate_date: runMeta?.slate_date, day, ...pitcherFreshness })
+
   // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
   //
   // CLAIM-BEFORE-VALIDATE (2026-09-06). Donovan: "I don't see the pregame
@@ -930,7 +965,9 @@ export async function GET(request) {
       statErrors[kind] = String(err?.message || err)
     }
   }
-  if (board.size) {
+  // 2026-09-18: was `if (board.size)`. See boardUsable above for why that was
+  // not enough -- a non-empty file is not the same question as a current one.
+  if (boardUsable) {
     // ── HOTTEST CONTACT / DANGER COMBOS / MLB HR LEADERS — [DAY] ───────────
     // 2026-09-07 (Donovan: "earlier in the day for all of these"). Moved OUT
     // of the `!started || overdue` / `ready` gate these used to sit inside:
@@ -1265,16 +1302,17 @@ export async function GET(request) {
     // removed on 2026-09-10 ("post first thing when the new slate is
     // posted"): the moment the bot's real rollover run publishes TODAY's
     // board, slate_date flips and this still fires immediately.
-    const runMeta = await fetchRunMeta('today')
-    const boardIsToday = runMeta?.slate_date === day
-    const ready = Boolean(board.size) && boardIsToday
+    // 2026-09-18: runMeta/boardIsToday used to be fetched here. They are now
+    // computed once, far above, alongside the pitcher-column check -- so the
+    // stat slots get the same protection this branch has had since 09-12.
+    const ready = boardUsable
     // Every early return below is now guarded on `!started`: when overdue is
     // the ONLY reason this block ran (a cron gap let an early game go Live
     // before the deadline post went out), the pregame attempt still happens
     // but this falls through to homer processing afterward instead of
     // returning -- a late tick must not also skip tonight's live homers.
     if (!ready) {
-      if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: boardIsToday ? 'no-board' : 'stale-board', statErrors, discordErrors: discordFailuresSnapshot() })
+      if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: boardHold, pitcherCheck: pitcherFreshness, statErrors, discordErrors: discordFailuresSnapshot() })
     } else {
       // PAIRS TO WATCH + TONIGHT'S LONGEST CALL (2026-09-06, Donovan).
       // Each claims its own (day, kind) row, independent of the pregame
@@ -1453,6 +1491,10 @@ export async function GET(request) {
   // Live. That is deliberate now the thresholds moved up: "still cooking" at
   // 4pm ET on a slate where nothing has started yet would be a lie. 4pm/7pm ET
   // are the EARLIEST these can fire, not a guarantee.
+  // 2026-09-18: these three read the same board the morning slots do, and name
+  // the same starting pitchers, so they share the same gate. Un-gated they
+  // would happily repost a stale board's arms under "still cooking."
+  if (boardUsable) {
   {
     const hc = hottestContactPicks(midRows())
     await claimAndPostStat(db, day, 'hotcontact_mid', HOTTEST_CONTACT_MID_HOUR,
@@ -1496,6 +1538,7 @@ export async function GET(request) {
       null,
       { picks: careerPicks })
   })
+  }
 
   const homers = homersFrom(snap, day, board, odds)
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }
