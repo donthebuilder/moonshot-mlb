@@ -259,7 +259,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           </ErrorBoundary>
         )}
       </main>
-      <MobileTabBarNfl tab={tab} setTab={setTab} data={slate} />
+      <MobileTabBarNfl tab={tab} setTab={setTab} />
       {/* The live wire. Renders nothing until something actually happens to
           one of your names, and polls nothing unless a game is in progress or
           about to start — see components/nfl/NflWire.js. */}

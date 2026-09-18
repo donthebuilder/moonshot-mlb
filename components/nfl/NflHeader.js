@@ -115,11 +115,11 @@ function TickerStrip({ children }) {
 // Desktop and the phone bar no longer carry identical stops, on purpose, same
 // as MOONSHOT's own two bars don't (MOONSHOT's phone bar drops `bot`/Picks to
 // stay at four; this one already dropped Picks the same way, 2026-09-16).
-// Boards joined this bar 2026-09-17, promoted from the drawer once round 8
-// gave it real depth -- see lib/routes.js's NFL_NAV comment above `boards`.
-// The phone bar picks it up too (components/nfl/MobileTabBarNfl.js), trading
-// away Research to stay at four stops rather than growing the bar there.
-const PRIMARY_KEY_LIST = ['touchdowns', 'boards', 'games', 'picks', 'research', 'storylines']
+// The same five stops MOONSHOT carries, in its order, under its words
+// (2026-09-18 -- see lib/routes.js's NFL_NAV note). touchdowns reads "Props",
+// games reads "Slate", live is here every day now. Research and Storylines
+// moved to the drawer.
+const PRIMARY_KEY_LIST = ['touchdowns', 'boards', 'live', 'games', 'picks']
 const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${NFL_NAV[k].icon} ${NFL_NAV[k].label}`])
 const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
 // Same exception as MOONSHOT's: This week is reached from the wordmark, so it
@@ -595,7 +595,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, onPlayerCl
         display: 'flex', alignItems: 'stretch', width: '100%',
       }}>
         {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
-        {tabBtn('more', 'More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
+        {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
       </nav>
 
       {moreOpen && (
