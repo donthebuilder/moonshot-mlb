@@ -36,7 +36,7 @@ import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { accountabilityText, boardIndexFrom, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
-import { homerCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
+import { homerCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
   careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
@@ -169,16 +169,22 @@ const TEXT_ONLY_KINDS = new Set([
   'matchuplines', 'callofnight', 'streaks', 'storylines', 'thefour', 'bestair',
 ])
 
-async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload = {}) {
+// `renderCard` (2026-09-18): a post whose card is its OWN design rather than
+// the generic statCard passes a thunk here and leaves cardSpec null. Optional
+// and additive -- every existing call site keeps the statCard path.
+async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload = {}, renderCard = null) {
   if (!text || etHoursSinceNoon() < hourGate) return false
   if (!(await claimSlot(db, day, kind))) return false
   const card = TEXT_ONLY_KINDS.has(kind) ? null : cardSpec
+  const custom = TEXT_ONLY_KINDS.has(kind) ? null : renderCard
   const patch = { payload }
   // ONE RENDER, BOTH PLACES (2026-09-07). The card used to be built inside the
   // `hasX()` branch, below Discord, so Discord got bare text while a finished
   // PNG existed a few lines later -- and on a night with X off it was never
   // built at all. Now it is rendered once, up front, and both take it.
-  const png = card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
+  const png = custom
+    ? await bytesOf(custom)
+    : card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
   const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
   if (hasX()) {
@@ -1232,33 +1238,30 @@ export async function GET(request) {
     // see hotStretchPicks in tweetFeed.js for the window rules and the sample
     // floors. Both are wrapped in safeStat: they are the only stat slots that
     // fan out ~25 API calls, so a StatsAPI wobble must not take the tick down.
-    const hotCard = (pick, label) => (pick ? {
-      pill: 'HOT', label,
-      headline: `${pick.name}${pick.team ? ` (${pick.team})` : ''}`,
-      lines: [
-        `${pick.avg} AVG · ${pick.obp} OBP · ${pick.slg} SLG`,
-        `${pick.ops} OPS`,
-        `${pick.hr} HR · ${pick.rbi} RBI`,
-        `${pick.games} games, ${pick.ab} AB`,
-      ],
-    } : null)
+    // 2026-09-18 (Donovan, on the first version's generic statCard: "that can
+    // be alot better color and more stuff kinda like how the home run cards
+    // are make its like a show case card"). These two are the only stat slots
+    // with a card of their own -- hotStretchCard in homerCard.js -- so they
+    // pass a render thunk instead of a statCard spec.
     if (etHoursSinceNoon() >= HOT_MONTH_HOUR) {
       await safeStat('hot_month', async () => {
-        const { pick } = await hotStretchPicks(boardRows(), day, { window: 'month' })
+        const { pick, window: win } = await hotStretchPicks(boardRows(), day, { window: 'month' })
         await claimAndPostStat(db, day, 'hot_month', HOT_MONTH_HOUR,
           hotStretchText(pick, { day, ...TAIL, window: 'month' }),
-          hotCard(pick, 'THE HOT STRETCH — THIS MONTH'),
-          pick ? { picks: [{ player_id: pick.player_id, name: pick.name }] } : {})
+          null,
+          pick ? { picks: [{ player_id: pick.player_id, name: pick.name }] } : {},
+          pick ? () => hotStretchCard(day, pick, { site: SITE_HOST, window: 'month', windowLabel: win?.label }) : null)
       })
     }
     if (etHoursSinceNoon() >= HOT_WEEK_HOUR) {
       await safeStat('hot_week', async () => {
         const exclude = await hotStretchSeenIds(db, day)
-        const { pick } = await hotStretchPicks(boardRows(), day, { window: 'week', exclude })
+        const { pick, window: win } = await hotStretchPicks(boardRows(), day, { window: 'week', exclude })
         await claimAndPostStat(db, day, 'hot_week', HOT_WEEK_HOUR,
           hotStretchText(pick, { day, ...TAIL, window: 'week' }),
-          hotCard(pick, 'THE HOT STRETCH — LAST 7 DAYS'),
-          pick ? { picks: [{ player_id: pick.player_id, name: pick.name }] } : {})
+          null,
+          pick ? { picks: [{ player_id: pick.player_id, name: pick.name }] } : {},
+          pick ? () => hotStretchCard(day, pick, { site: SITE_HOST, window: 'week', windowLabel: win?.label }) : null)
       })
     }
 
