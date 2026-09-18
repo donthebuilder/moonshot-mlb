@@ -5,6 +5,7 @@ import { fetchNfl, nflFantasyStatsPaths, nflFantasyStatsLooksReal } from '../../
 import DenseTable from '../../DenseTable'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { Empty } from '../../ui'
+import PageHeader from '../../PageHeader'
 
 // 📋 BOX SCORES — TUDDY'S SIDE OF PATH TO VICTORY B10m.
 //
@@ -241,16 +242,14 @@ export default function BoxScores({ data, onPlayerClick }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 10 }}>
-        <h1 style={{ margin: 0, fontSize: TYPE.title }}>Box Scores</h1>
-        <p style={{ margin: '4px 0 0', color: C.text3, fontSize: TYPE.body, lineHeight: 1.5, maxWidth: 640 }}>
-          Week {stats?.week ?? '—'} — every game, passing / rushing / receiving / kicking, off the bot&apos;s own
-          live scoring feed. It refreshes every 15 minutes in game windows and only ever covers the current week —
-          a past week&apos;s box isn&apos;t available here, the same limit the Tuddy Ledger discloses for its own
-          NOT ON BOARD count. Attempts, completions, carries and targets aren&apos;t published in this feed yet —
-          only the stats the bot already scores fantasy points on.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="TUDDY · BOX SCORES"
+        title="Box Scores"
+        sub={`Week ${stats?.week ?? '—'}`}
+        note={<>Every game, passing / rushing / receiving / kicking, off the bot&apos;s own live scoring feed. It refreshes every 15 minutes in game windows and only ever covers the current week — a past week&apos;s box isn&apos;t available here, the same limit the Tuddy Ledger discloses for its own NOT ON BOARD count. Attempts, completions, carries and targets aren&apos;t published in this feed yet — only the stats the bot already scores fantasy points on.</>}
+        theme={C}
+        numFont={NUM_FONT}
+      />
       {stats === undefined && <Empty text="Loading this week's games…" />}
       {stats === null && <Empty text="LIVE DATA DELAYED — couldn't reach this week's box scores." />}
       {stats && !games.length && <Empty text="No games published for this week yet." />}

@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
+import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 
@@ -169,25 +170,14 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
 
   return (
     <div>
-      <div style={{
-        position: 'relative', padding: '20px 22px', marginBottom: 14,
-        border: `1px solid ${lens === 'player' ? 'rgba(0,245,173,.28)' : 'rgba(53,205,255,.28)'}`,
-        borderRadius: 16, background: C.bg2,
-      }}>
-        <small style={{ display: 'block', color: lens === 'player' ? C.green : C.cyan, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginBottom: 8 }}>
-          TUDDY · EXPLOSIVE
-        </small>
-        <h1 style={{ margin: '0 0 6px', fontSize: 'clamp(22px,3.8vw,34px)', letterSpacing: '-.03em' }}>
-          {lens === 'player' ? 'Who turns a target into a chunk play' : 'Who gives up the chunk play'}
-        </h1>
-        <p style={{ maxWidth: 620, margin: 0, color: C.text3, fontSize: TYPE.body, lineHeight: 1.55 }}>
-          Every 10/20/30/40-yard reception, real, off {matchup?.season || 'the'} play-by-play
-          {' — '}
-          {lens === 'player'
-            ? 'a receiver’s own ceiling, not his average game.'
-            : 'which defense turns a normal target into a big one.'}
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="TUDDY · EXPLOSIVE"
+        title={lens === 'player' ? 'Who turns a target into a chunk play' : 'Who gives up the chunk play'}
+        note={<>Every 10/20/30/40-yard reception, real, off {matchup?.season || 'the'} play-by-play{' — '}{lens === 'player' ? 'a receiver’s own ceiling, not his average game.' : 'which defense turns a normal target into a big one.'}</>}
+        theme={C}
+        numFont={NUM_FONT}
+        accent={lens === 'player' ? C.green : C.cyan}
+      />
 
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,

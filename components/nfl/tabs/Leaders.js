@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import ChartFrame from '../ChartFrame'
+import PageHeader from '../../PageHeader'
 
 // 🏆 LEADERS — who is actually first, per category.
 //
@@ -168,23 +169,13 @@ export default function Leaders({ data, onPlayerClick }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <header style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
-        padding: '13px 14px',
-      }}>
-        <div style={{
-          fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em',
-          color: C.text3,
-        }}>TUDDY · LEADERS</div>
-        <h1 style={{ margin: '4px 0 5px', fontSize: TYPE.title, fontWeight: 900, color: C.text }}>
-          Who is first, and by how much
-        </h1>
-        <p style={{ margin: 0, fontSize: TYPE.body, color: C.text2, lineHeight: 1.55, maxWidth: 620 }}>
-          Measured per-game rates from the slate — no model score anywhere on this page.
-          Every board on the site already ranks by the model; this one ranks by what
-          actually happened. Tap a name to open his card.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="TUDDY · LEADERS"
+        title="Who is first, and by how much"
+        note="Measured per-game rates from the slate — no model score anywhere on this page. Every board on the site already ranks by the model; this one ranks by what actually happened. Tap a name to open his card."
+        theme={C}
+        numFont={NUM_FONT}
+      />
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
         {POSITIONS.map((k) => (

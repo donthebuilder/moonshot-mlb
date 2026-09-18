@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { AXIS_META, alignedWith, slateAlignments, dateDigitRoot, shiftDateKey } from '../../../lib/nfl/alignments'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
+import PageHeader from '../../PageHeader'
 
 // 🔮 NUMEROLOGY — B10(d), 2026-09-15. TUDDY's clone of MLB's Alignments view
 // (components/Alignments.js + lib/alignments.js). Donovan approved shipping
@@ -73,12 +74,12 @@ export default function Numerology({ data }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-        <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🔮 Numerology</span>
-        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-          {rows.length} players this week · five axes, one reduction
-        </span>
-      </div>
+      <PageHeader
+        title="🔮 Numerology"
+        sub={`${rows.length} players this week · five axes, one reduction`}
+        theme={C}
+        numFont={NUM_FONT}
+      />
       <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 12 }}>
         Every number a player carries -- the <b style={{ color: C.text }}>touchdowns he&apos;s sitting on</b>, his{' '}
         <b style={{ color: C.text }}>next touchdown</b>, his <b style={{ color: C.text }}>jersey</b>, his{' '}
