@@ -183,6 +183,15 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   }
   items.push({ k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
   for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
+  // THE PREGAME PILLS WERE BUILT AND NEVER RENDERED (2026-09-18). useLiveScores
+  // has produced a `pregame` item per not-yet-started game since 2026-09-16
+  // (lib/headlines.js's own 'pre' branch, added so a between-slates ticker
+  // wasn't empty) -- and this loop's `!x.pregame` filter plus the live loop's
+  // `x.live` meant neither of them ever reached the strip. Found while putting
+  // TUDDY's ticker into this exact order: TUDDY renders them, MOONSHOT didn't,
+  // so the two strips could not agree. Both show them now, last, after the
+  // finals.
+  for (const i of live.items.filter((x) => x.pregame)) items.push({ k: i.k, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, nav: i.sport === 'nfl' ? 'nfl' : 'scoreboard', title: i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet' })
 
   const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.nav === 'nfl') setSport('nfl'); else if (it.nav) go?.(it.nav) }
   // ONE SHAPE FOR EVERY PILL: same height, same padding, label over value in

@@ -506,6 +506,13 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
               data caveat that must not scroll away, and it is the one thing
               the mobile header diet keeps. */}
           <TickerStrip>
+            {/* MOONSHOT'S OWN ORDER (2026-09-18). Donovan: "do what its doing
+                on moonshot now." components/Header.js's Scorebug builds its
+                pills in one fixed sequence -- slate summary, then the live
+                scores, then the story-bites, then the state tile, then BUILT,
+                then the remaining context, then the finals and the games not
+                started. This strip is that sequence, with football's numbers
+                in it. The tiles themselves are the shared TickerPill. */}
             <Tile label="Games" value={games} color={C.blue} title="Games on this slate" />
             <Tile
               label="Proj TD"
@@ -516,6 +523,39 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             />
             <Tile label="A-grade" value={aGrade} color={C.cyan}
                   title="Players clearing A- (62) in at least one market" />
+
+            {/* LIVE FIRST, FROM ESPN + MLB, NOT FROM THE SLATE PAYLOAD
+                (2026-09-06; both sports 2026-09-17). One tile per game, a
+                leader tile right after each. Every tile is tappable -- see
+                `openTile` above. */}
+            {liveItems.filter((i) => i.live).map((i) => (
+              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'live'}`} value={i.text}
+                color={i.col} live onClick={() => openTile(i)}
+                title={i.sport === 'mlb'
+                  ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Live on MOONSHOT — tap to switch to MOONSHOT')
+                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Live now — open TUDDY’s Live tab')} />
+            ))}
+
+            {/* THE STORY-BITES (2026-09-16), in MOONSHOT's own slot: after the
+                live scores, before the state tile. A `.p` bite opens that
+                player, a `.nav` bite (GAME TO CIRCLE) jumps to Games. */}
+            {heads.map((h) => (
+              <Tile key={`h-${h.k}`} label={`${h.icon} ${h.tag}`} value={h.name} color={h.col} title={h.why}
+                onClick={(h.p || h.nav) ? () => openTile(h) : undefined} />
+            ))}
+
+            {/* MOONSHOT's `lineups` slot -- the one tile that says what state
+                the slate is in. */}
+            <Tile label={live > 0 ? 'Live' : 'Kickoff'} value={live > 0 ? live : kickLabel}
+              color={live > 0 ? C.yellow : C.text2}
+              title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
+            {freshLabel && (
+              <Tile label="Built" value={freshLabel} color={freshCol} live
+                title={`When the NFL pipeline last published: ${meta?.built_at_human || data?.built_at_human || builtAt}. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run.`} />
+            )}
+
+            {/* MOONSHOT's `weak` slot: the leftover context that is worth
+                carrying but is nobody's headline. */}
             <Tile label="Pool" value={rows.length} color={C.text2}
               title="Players this slate scored — the pool every board on TUDDY is drawn from" />
             <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '—'} color={C.green}
@@ -526,46 +566,22 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
               title={topRush?.name ? `${topRush.name} — ${Number(topRush.stats?.RUYD || 0).toFixed(1)} rush yds/game season average` : 'No scored players yet'} />
             <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '—'} color={C.purple}
               title={topRec?.name ? `${topRec.name} — ${Number(topRec.stats?.RECYD || 0).toFixed(1)} rec yds/game season average` : 'No scored players yet'} />
-            <Tile label={live > 0 ? 'Live' : 'Kickoff'} value={live > 0 ? live : kickLabel}
-              color={live > 0 ? C.yellow : C.text2}
-              title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
-            {/* BUILT, IN THE TICKER (2026-09-18). MOONSHOT has carried this as
-                a ticker pill since its own strip shipped; TUDDY had it as a
-                stamp in the header corner instead, where the This week / Next
-                week switch now lives. Same number, same place on both. */}
-            {freshLabel && (
-              <Tile label="Built" value={freshLabel} color={freshCol} live
-                title={`When the NFL pipeline last published: ${meta?.built_at_human || data?.built_at_human || builtAt}. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run.`} />
-            )}
-            {/* LIVE, FROM ESPN + MLB, NOT FROM THE SLATE PAYLOAD (2026-09-06;
-                both sports 2026-09-17). One tile per live/final game, a
-                leader tile right after each -- same order MOONSHOT's ticker
-                uses (score, then up to two stat-line leaders), same
-                useLiveScores() output shape. Every tile here is tappable --
-                see `openTile` above. */}
-            {liveItems.map((i) => (
-              <Tile
-                key={i.k}
-                label={`${i.icon ? `${i.icon} ` : ''}${i.sub || (i.live ? 'live' : i.pregame ? 'kickoff' : 'final')}`}
-                value={i.text}
-                color={i.col}
-                live={!!i.live}
-                onClick={() => openTile(i)}
-                title={
-                  i.sport === 'mlb'
-                    ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : `${i.live ? 'Live on MOONSHOT' : i.pregame ? 'Not underway yet' : 'Final'} — tap to switch to MOONSHOT`)
-                    : (i.kind === 'leader' ? `Leading this game's stat line` : (i.live ? 'Live now — open TUDDY’s Live tab' : i.pregame ? 'Not underway yet — open TUDDY’s Live tab' : 'Final — open TUDDY’s Live tab'))
-                }
-              />
+
+            {/* Finals, then the games not under way yet -- MOONSHOT's last two
+                slots, in its order. */}
+            {liveItems.filter((i) => !i.live && !i.pregame).map((i) => (
+              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'final'}`} value={i.text}
+                color={i.col} onClick={() => openTile(i)}
+                title={i.sport === 'mlb'
+                  ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Final — tap to switch to MOONSHOT')
+                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Final — open TUDDY’s Live tab')} />
             ))}
-            {/* REAL STORY-BITES (2026-09-16) -- MOONSHOT's ticker equivalent.
-                Icon folded into the label like Header.js's Pill does; `why`
-                carries the reasoning as the tooltip, same as MOONSHOT.
-                Tappable now too: a `.p` bite opens that player, a `.nav`
-                bite (GAME TO CIRCLE) jumps to Games. */}
-            {heads.map((h) => (
-              <Tile key={`h-${h.k}`} label={`${h.icon} ${h.tag}`} value={h.name} color={h.col} title={h.why}
-                onClick={(h.p || h.nav) ? () => openTile(h) : undefined} />
+            {liveItems.filter((i) => i.pregame).map((i) => (
+              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'kickoff'}`} value={i.text}
+                color={i.col} onClick={() => openTile(i)}
+                title={i.sport === 'mlb'
+                  ? 'Not underway yet — tap to switch to MOONSHOT'
+                  : 'Not underway yet — open TUDDY’s Live tab'} />
             ))}
           </TickerStrip>
           {isPre && (
