@@ -33,6 +33,7 @@ const hexToRgba = (hex, a) => {
 // call to fetch, for no reason. Removed. Both sports now ride the same
 // strip, same as MOONSHOT's header always has -- see `liveItems` below.
 import { useLiveScores, useAutoScroll } from '../../lib/headlines'
+import TickerPill from '../TickerPill'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
@@ -129,52 +130,19 @@ const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 // left, status strip centre, controls right, tab rail underneath — so the
 // switch feels like changing channel, not changing site. Only the accents move.
 
-// Shared box for every ticker chip, tappable or not -- pulled out so the
-// tappable branch below doesn't duplicate it with slightly different values
-// and drift out of sync the way the two headers themselves used to.
-const tileBox = (color) => ({
-  display: 'flex', alignItems: 'center', gap: 8,
-  padding: '5px 13px', borderRadius: 9,
-  background: `linear-gradient(135deg, ${color}1e, ${color}08)`,
-  border: `1px solid ${color}4d`,
-})
-
-// TAPPABLE NOW (2026-09-17). MOONSHOT's own ticker pill has always been a
-// <button> with an onClick -- see components/Header.js's `Pill`. This one was
-// a plain <div>, so nothing in TUDDY's strip ever responded to a tap. `onClick`
-// is optional: the static slate-projection tiles (Games, Proj TD, Pool, etc.)
-// have nowhere to navigate to and stay inert divs, same as before. Only the
-// live-score and headline tiles below pass one in.
+// TUDDY's tile IS MOONSHOT's pill now (2026-09-18). Donovan: "why dont the
+// score rail on headers dont match." The scroll already matched (both call
+// useAutoScroll at 55px/s); the box did not -- TUDDY's had a gradient fill, a
+// bigger radius, no reserved dot column, and no width cap on the value, so the
+// two strips read differently at the same speed. components/TickerPill.js
+// carries MOONSHOT's shape for both; this wrapper only supplies TUDDY's theme
+// and keeps the inert variant for the static slate tiles.
 function Tile({ label, value, color, title, live = false, onClick }) {
-  const interactive = typeof onClick === 'function'
-  const inner = (
-    <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
-      <span style={{
-        fontSize: 7.5, color: C.text3, textTransform: 'uppercase',
-        letterSpacing: '.09em', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4,
-      }}>
-        {/* Reuses the same @keyframes pulse this file already defines for
-            the account menu -- one animation, two consumers, not a second
-            copy. */}
-        {live && <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: '50%', background: color, animation: 'pulse 2s infinite' }} />}
-        {label}
-      </span>
-      <span style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color }}>{value}</span>
-    </div>
-  )
-  if (interactive) {
-    return (
-      <button type="button" onClick={onClick} title={title} style={{
-        ...tileBox(color), cursor: 'pointer', color: 'inherit', font: 'inherit',
-      }}>
-        {inner}
-      </button>
-    )
-  }
   return (
-    <div title={title} style={tileBox(color)}>
-      {inner}
-    </div>
+    <TickerPill
+      label={label} value={value} color={color} title={title}
+      live={live} onClick={onClick} theme={C} numFont={NUM_FONT}
+    />
   )
 }
 

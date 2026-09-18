@@ -10,6 +10,7 @@ import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
 import { easternToday } from '../lib/data'
 import { buildHeadlines, useLiveScores, useAutoScroll } from '../lib/headlines'
+import TickerPill from './TickerPill'
 import SignUpPill from './SignUpPill'
 
 // The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
@@ -185,20 +186,15 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.nav === 'nfl') setSport('nfl'); else if (it.nav) go?.(it.nav) }
   // ONE SHAPE FOR EVERY PILL: same height, same padding, label over value in
   // a fixed two-line stack, a dot on the left slot whether live or not (so
-  // the pills line up), value truncated at 150px. The strip reads as one
-  // instrument instead of a row of differently-sized chips.
+  // the pills line up), value truncated at 150px. That shape now lives in
+  // components/TickerPill.js and TUDDY's header renders the same one
+  // (2026-09-18). Behaviour here is unchanged: every pill in MOONSHOT's strip
+  // is tappable, so every one passes an onClick.
   const Pill = ({ it, echo }) => (
-    <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} onClick={() => open(it)} title={it.title}
-      style={{ display:'inline-grid', gridTemplateColumns:'8px auto', alignItems:'center', columnGap:6, height:26, whiteSpace:'nowrap',
-        padding:'0 10px 0 8px', marginRight:6, borderRadius:6, flexShrink:0,
-        background:`${it.color || C.text3}10`, border:`1px solid ${it.color || C.border}33`, cursor:'pointer', color:'inherit', font:'inherit',
-        transition:'background .12s' }}>
-      <span aria-hidden="true" style={{ width:5, height:5, borderRadius:'50%', background: it.live ? (it.color || C.green) : 'transparent', border: it.live ? 'none' : `1px solid ${it.color || C.text3}66`, animation: it.live ? 'pulse 2s infinite' : 'none' }} />
-      <span style={{ display:'grid', lineHeight:1.05 }}>
-        <span style={{ fontSize:7.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:C.text3 }}>{it.icon ? `${it.icon} ` : ''}{it.label}</span>
-        <span style={{ fontFamily:NUM_FONT, fontSize:11, fontWeight:900, color: it.color || C.text, letterSpacing:'-.01em', maxWidth:150, overflow:'hidden', textOverflow:'ellipsis' }}>{it.value}</span>
-      </span>
-    </button>
+    <TickerPill
+      label={it.label} value={it.value} icon={it.icon} color={it.color}
+      live={it.live} title={it.title} echo={echo} onClick={() => open(it)}
+    />
   )
   // ── #97: -webkit-overflow-scrolling:touch FREEZES A JS-DRIVEN SCROLLLEFT
   // ON iOS SAFARI (2026-09-06) ─────────────────────────────────────────────
